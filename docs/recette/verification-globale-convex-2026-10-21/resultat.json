@@ -1,0 +1,53 @@
+{
+  "command": "bun run verify",
+  "startedAt": "2026-10-21T07:51:03.506148+00:00",
+  "inputFiles": {
+    "convex/vitest.config.ts": "247cdc6cd2b834c99f774598da5db55309e1f97206c0652d787de7f338c66fac",
+    "scripts/convex-test-progress-reporter.mjs": "6678b73b187088dcf5f9cefed3bb4c0dbce4088ffd4e262621b60d89b852be54",
+    "deploy/catalog.json": "1567ed6ca3955a825b636f81a632d92b9464b855671b3b5490a2d31c419ccf8c",
+    "scripts/deploy-app.mjs": "d87cd196eab7457b4249d359cf69ab01ba4f310dbb7a6fc24ff508f223b8d759",
+    "scripts/deploy-app.test.mjs": "bf24da8a60b48f31c691702d1dcebc37de4135565ae9b0e3603af650c91c28f9"
+  },
+  "exitCode": 0,
+  "finishedAt": "2026-10-21T08:03:13.512371+00:00",
+  "durationSeconds": 730.02,
+  "outputFiles": {
+    "convex/vitest.config.ts": "247cdc6cd2b834c99f774598da5db55309e1f97206c0652d787de7f338c66fac",
+    "scripts/convex-test-progress-reporter.mjs": "6678b73b187088dcf5f9cefed3bb4c0dbce4088ffd4e262621b60d89b852be54",
+    "deploy/catalog.json": "1567ed6ca3955a825b636f81a632d92b9464b855671b3b5490a2d31c419ccf8c",
+    "scripts/deploy-app.mjs": "d87cd196eab7457b4249d359cf69ab01ba4f310dbb7a6fc24ff508f223b8d759",
+    "scripts/deploy-app.test.mjs": "bf24da8a60b48f31c691702d1dcebc37de4135565ae9b0e3603af650c91c28f9"
+  },
+  "inputsUnchanged": true,
+  "testsPassed": 15191,
+  "testsFailed": 0,
+  "testsSkipped": 0,
+  "convex": {
+    "files": 185,
+    "tests": 2853,
+    "durationSeconds": 370.35,
+    "longFileSeconds": 212.075
+  },
+  "ratchets": {
+    "files": 25,
+    "tests": 144
+  },
+  "scripts": {
+    "tests": 69
+  },
+  "workspaces": {
+    "typecheck": 12,
+    "test": 12,
+    "lint": 11
+  },
+  "lintWarnings": 291,
+  "lintErrors": 0,
+  "preservation": {
+    "head": true,
+    "branch": true,
+    "index": true
+  },
+  "head": "c4d36f345707f87f20dbd970b2850c683c8581be",
+  "branch": "codex/pa4-identite-session",
+  "logSha256": "db6ecae568e4e0d085d76f2f8f794535ae6bc1762de63e9c33922f7ef0997194"
+}

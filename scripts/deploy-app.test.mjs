@@ -22,7 +22,7 @@ describe("catalogue réel du moteur", () => {
     const substitutions = plan.build[plan.build.indexOf("--substitutions") + 1]
     expect(substitutions).toContain("_NEXT_PUBLIC_CONVEX_URL=u")
     expect(substitutions).toContain("_NEXT_PUBLIC_DIASPORALE_DATA_SOURCE=,")
-    expect(substitutions.split(",").filter((entry) => entry.startsWith("_NEXT_PUBLIC_")).length).toBe(9)
+    expect(substitutions.split(",").filter((entry) => entry.startsWith("_NEXT_PUBLIC_")).length).toBe(11)
   })
 
   test("la mesure facultative absente reste vide, sans imposer sa configuration ni inscrire un marqueur", () => {
@@ -40,6 +40,35 @@ describe("catalogue réel du moteur", () => {
     const catalog = readCatalog()
     catalog.applications.antsia_ga.optional_build_args.push("NEXT_PUBLIC_CONVEX_URL")
     expect(checkCatalog(catalog)).toContain("antsia_ga : variable facultative non admise NEXT_PUBLIC_CONVEX_URL")
+  })
+
+  test("les options démo et chemin de base absentes restent vides dans les deux plans de build", () => {
+    const plan = buildPlan(readCatalog(), "antsia_ga", {})
+    const substitutions = plan.build[plan.build.indexOf("--substitutions") + 1].split(",")
+    for (const name of ["NEXT_PUBLIC_DEMO_ENTRY_ENABLED", "NEXT_PUBLIC_APP_BASE_PATH"]) {
+      expect(plan.dockerLocal).toContain(`${name}=`)
+      expect(substitutions).toContain(`_${name}=`)
+      expect(requiredBuildArgs(plan.app)).not.toContain(name)
+    }
+  })
+
+  test("les options démo et chemin de base fournies sont conservées dans les deux plans de build", () => {
+    const env = { NEXT_PUBLIC_DEMO_ENTRY_ENABLED: "true", NEXT_PUBLIC_APP_BASE_PATH: "/demo" }
+    const plan = buildPlan(readCatalog(), "antsia_ga", env)
+    const substitutions = plan.build[plan.build.indexOf("--substitutions") + 1].split(",")
+    for (const [name, value] of Object.entries(env)) {
+      expect(plan.dockerLocal).toContain(`${name}=${value}`)
+      expect(substitutions).toContain(`_${name}=${value}`)
+    }
+  })
+
+  test("une option inconnue reste obligatoire même déclarée facultative dans le catalogue", () => {
+    const name = "NEXT_PUBLIC_UNKNOWN_OPTION"
+    expect(requiredBuildArgs({ build_args: [name], optional_build_args: [name] })).toEqual([name])
+    const catalog = readCatalog()
+    catalog.applications.antsia_ga.build_args.push(name)
+    catalog.applications.antsia_ga.optional_build_args.push(name)
+    expect(checkCatalog(catalog)).toContain(`antsia_ga : variable facultative non admise ${name}`)
   })
 
   test("une application externe (DIASPORALE) a son plan, avec ses propres variables", () => {

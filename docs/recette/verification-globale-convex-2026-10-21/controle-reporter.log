@@ -1,0 +1,14 @@
+
+ RUN  v4.1.10 <ANTSIA>/convex
+
+[convex] Début : tests/harness.test.ts
+ ✓ |convex| tests/harness.test.ts (6 tests) 366ms
+     ✓ provisionne une vraie session une fois et ne la recrée pas après révocation  351ms
+[convex] Fin : tests/harness.test.ts (passed, 1 s)
+
+ Test Files  1 passed (1)
+      Tests  6 passed (6)
+   Start at  09:45:45
+   Duration  1.95s (transform 1.21s, setup 0ms, import 1.40s, tests 366ms, environment 45ms)
+
+[convex] Bilan : 1 fichier(s), 0 erreur(s) non interceptée(s), état : passed.

@@ -1,0 +1,72 @@
+$ bun run codegen && bun run typecheck:convex && bun run typecheck:tests && bun run test && node scripts/workspace-run.mjs typecheck --concurrency=1 && node scripts/workspace-run.mjs test --concurrency=1 && node scripts/workspace-run.mjs lint --concurrency=1
+$ node scripts/convex-dev.mjs codegen
+[convex-dev] Node v22.22.3 en tête du PATH de `convex codegen` pour le backend local (actions « use node »).
+waiting for local backend to start...
+Finding component definitions...
+Generating server code...
+Bundling component definitions...
+Bundling component schemas and implementations...
+Downloading current deployment state...
+Uploading functions to Convex...
+Generating TypeScript bindings...
+Running TypeScript...
+[convex-dev] Typage strict Convex : tsgo, même configuration que verify.
+$ tsgo --noEmit -p convex/tsconfig.json
+$ tsgo --noEmit -p tsconfig.json
+$ bun run test:convex && bun run test:ratchets && bun run test:scripts
+$ vitest run --config convex/vitest.config.ts
+
+ RUN  v4.1.10 <ANTSIA>/convex
+
+(node:19319) TimeoutOverflowWarning: 7776000000 does not fit into a 32-bit signed integer.
+Timeout duration was set to 1.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:19319) TimeoutOverflowWarning: 7776000000 does not fit into a 32-bit signed integer.
+Timeout duration was set to 1.
+
+ Test Files  185 passed (185)
+      Tests  2853 passed (2853)
+   Start at  09:38:29
+   Duration  277.15s (transform 3.78s, setup 0ms, import 19.42s, tests 232.57s, environment 6.04s)
+
+$ vitest run --config tests/vitest.config.ts
+
+ RUN  v4.1.10 <ANTSIA>/tests
+
+ ❯ |ratchets| ratchets/deploy-catalog.test.ts (7 tests | 1 failed) 418ms
+     × le natif déclare chaque variable publique du binaire et chaque variable de configuration Expo 38ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |ratchets| ratchets/deploy-catalog.test.ts > deploy-catalog — chaque application servie est au catalogue (câblages invisibles) > le natif déclare chaque variable publique du binaire et chaque variable de configuration Expo
+AssertionError: expected [ …(3) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "apps/antsia_mobile : NATIVE_EXPO_OWNER",
++   "apps/antsia_mobile : NATIVE_EXPO_PROJECT_ID",
++   "apps/antsia_mobile : NATIVE_RELEASE_BUILD",
++ ]
+
+ ❯ ratchets/deploy-catalog.test.ts:97:36
+     95|       }
+     96|     }
+     97|     expect([...new Set(problems)]).toEqual([])
+       |                                    ^
+     98|   })
+     99|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 24 passed (25)
+      Tests  1 failed | 143 passed (144)
+   Start at  09:43:06
+   Duration  17.59s (transform 132ms, setup 0ms, import 4.46s, tests 10.68s, environment 1ms)
+
+error: script "test:ratchets" exited with code 1
+error: script "test" exited with code 1
+error: script "verify" exited with code 1

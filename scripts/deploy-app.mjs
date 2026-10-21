@@ -23,7 +23,13 @@ import { fileURLToPath, pathToFileURL } from "node:url"
 
 export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..")
 export const ECOSYSTEMS = resolve(ROOT, "..")
-const OPTIONAL_PUBLIC_ARGS = new Set(["NEXT_PUBLIC_POSTHOG_KEY", "NEXT_PUBLIC_POSTHOG_HOST", "NEXT_PUBLIC_POSTHOG_EU_RELAY_ORIGIN"])
+const OPTIONAL_PUBLIC_ARGS = new Set([
+  "NEXT_PUBLIC_POSTHOG_KEY",
+  "NEXT_PUBLIC_POSTHOG_HOST",
+  "NEXT_PUBLIC_POSTHOG_EU_RELAY_ORIGIN",
+  "NEXT_PUBLIC_DEMO_ENTRY_ENABLED",
+  "NEXT_PUBLIC_APP_BASE_PATH",
+])
 
 /** Seules les options explicitement admises peuvent rester absentes au build. */
 export function requiredBuildArgs(app) {

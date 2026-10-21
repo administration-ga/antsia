@@ -1,0 +1,74 @@
+bun test v1.4.2 (744846f84)
+
+scripts/deploy-app.test.mjs:
+ 5 | 
+ 6 | import { buildPlan, checkCatalog, externalRootWorkspaces, readCatalog, requiredBuildArgs } from "./deploy-app.mjs"
+ 7 | 
+ 8 | describe("catalogue réel du moteur", () => {
+ 9 |   test("est sain : paquets, ports, Dockerfiles, ARG NEXT_PUBLIC_* et listes blanches", () => {
+10 |     expect(checkCatalog(readCatalog())).toEqual([])
+                                             ^
+error: expect(received).toEqual(expected)
+
+- []
++ [
++   "antsia_ga : variable facultative non admise NEXT_PUBLIC_DEMO_ENTRY_ENABLED",
++   "antsia_ga : variable facultative non admise NEXT_PUBLIC_APP_BASE_PATH",
++ ]
+
+- Expected  - 1
++ Received  + 4
+
+      at <anonymous> (<ANTSIA>/scripts/deploy-app.test.mjs:10:41)
+(fail) catalogue réel du moteur > est sain : paquets, ports, Dockerfiles, ARG NEXT_PUBLIC_* et listes blanches [28.30ms]
+(pass) catalogue réel du moteur > le plan n'invente aucune valeur : les absentes restent des marqueurs [0.69ms]
+20 |   test("le plan passe toutes les clés de Cloud Build : celles d'une autre application, vides", () => {
+21 |     const plan = buildPlan(readCatalog(), "antsia_ga", { NEXT_PUBLIC_CONVEX_URL: "u" })
+22 |     const substitutions = plan.build[plan.build.indexOf("--substitutions") + 1]
+23 |     expect(substitutions).toContain("_NEXT_PUBLIC_CONVEX_URL=u")
+24 |     expect(substitutions).toContain("_NEXT_PUBLIC_DIASPORALE_DATA_SOURCE=,")
+25 |     expect(substitutions.split(",").filter((entry) => entry.startsWith("_NEXT_PUBLIC_")).length).toBe(9)
+                                                                                                      ^
+error: expect(received).toBe(expected)
+
+Expected: 9
+Received: 11
+
+      at <anonymous> (<ANTSIA>/scripts/deploy-app.test.mjs:25:98)
+(fail) catalogue réel du moteur > le plan passe toutes les clés de Cloud Build : celles d'une autre application, vides [0.53ms]
+30 |     const plan = buildPlan(catalog, "antsia_ga", {})
+31 |     expect(plan.dockerLocal).toContain("NEXT_PUBLIC_POSTHOG_KEY=")
+32 |     expect(plan.dockerLocal).toContain("NEXT_PUBLIC_POSTHOG_HOST=")
+33 |     expect(plan.dockerLocal).toContain("NEXT_PUBLIC_POSTHOG_EU_RELAY_ORIGIN=")
+34 |     expect(plan.build.join(" ")).toContain("_NEXT_PUBLIC_POSTHOG_KEY=,_NEXT_PUBLIC_POSTHOG_HOST=")
+35 |     expect(requiredBuildArgs(plan.app)).toEqual(["NEXT_PUBLIC_CONVEX_URL", "NEXT_PUBLIC_SITE_URL", "NEXT_PUBLIC_BUILD_SHA"])
+                                             ^
+error: expect(received).toEqual(expected)
+
+  [
+    "NEXT_PUBLIC_CONVEX_URL",
+    "NEXT_PUBLIC_SITE_URL",
+    "NEXT_PUBLIC_BUILD_SHA",
++   "NEXT_PUBLIC_DEMO_ENTRY_ENABLED",
++   "NEXT_PUBLIC_APP_BASE_PATH",
+  ]
+
+- Expected  - 0
++ Received  + 2
+
+      at <anonymous> (<ANTSIA>/scripts/deploy-app.test.mjs:35:41)
+(fail) catalogue réel du moteur > la mesure facultative absente reste vide, sans imposer sa configuration ni inscrire un marqueur [0.32ms]
+(pass) catalogue réel du moteur > un champ facultatif ne peut pas rendre optionnelle la connexion Convex [1.43ms]
+(pass) catalogue réel du moteur > une application externe (DIASPORALE) a son plan, avec ses propres variables [2.58ms]
+(pass) catalogue réel du moteur > les espaces de travail externes dont dépend la racine sont connus [0.16ms]
+(pass) catalogue réel du moteur > refuse une application inconnue [0.49ms]
+(pass) catalogue réel du moteur > le natif possède un contrat Expo réel et refuse tout plan Cloud Run [0.05ms]
+(pass) catalogue réel du moteur > une plateforme inconnue ne contourne ni le contrôle ni le plan web [0.24ms]
+(pass) contrôle d'un catalogue > détecte un contrat natif incomplet ou déguisé en service web [0.43ms]
+(pass) contrôle d'un catalogue > détecte un ARG manquant, un port faux et une liste blanche absente [2.03ms]
+(pass) contrôle d'un catalogue > détecte une variable que Cloud Build ne passe pas, et un espace externe que l'image ne copie pas [1.16ms]
+
+ 10 pass
+ 3 fail
+ 45 expect() calls
+Ran 13 tests across 1 file. [100.00ms]
