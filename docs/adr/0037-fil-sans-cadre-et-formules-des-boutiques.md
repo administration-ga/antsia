@@ -35,7 +35,11 @@ Nous allons, sous la présentation « charte » d'antsia.ga (ADR-0028) :
    retour, d'après le champ `followsYou` du catalogue) et Ajouter ; la carte de suggestion unique de
    tête (ADR-0028) laisse place au carrousel « Personnes à découvrir », placé comme dans la référence
    (après la troisième publication, ou au-dessus de l'état vide) (lot 2) ;
-6. déduire la formule d'une publication de boutique de son offre et de son média (lot 3).
+6. déduire la formule d'une publication de boutique de son offre et de son média (lot 3) :
+   bandeau d'action collé au média (Acheter, Réserver, Obtenir un devis, Commander, Voir l'offre),
+   trois vues, fiche produit (panneau prix dès 480 px), vidéo et modèles ; l'offre se place sous le
+   média et le rendu d'offre reçoit `postMedia` ; aucune image de l'offre ne double celles de la
+   publication.
 
 ## Conséquences
 

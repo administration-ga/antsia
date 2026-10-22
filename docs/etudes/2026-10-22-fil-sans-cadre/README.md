@@ -120,3 +120,26 @@ carte, recadré au centre dans son ratio borné, sans bandes.
 |---|---|
 | 1 440 px | colonne de 784 px ; carte de 784 px à l'angle de 16 px ; média 784 px de large, `cover` ; colonne de droite avec Suivre en retour, Suivre et Ajouter |
 | 1 440 px, photo en hauteur | cadre 4:5 plafonné à 675 px (trois quarts de la hauteur visible), recadré au centre, aucune bande |
+
+### Lot 3 — formules des boutiques (22/10/2026)
+
+Code : `apps/antsia_ga/src/components/shops/offer-post-formula.tsx` (formule déduite de l'offre et du
+média de la publication). Le moteur place l'offre juste sous le média (`.rp-charte-offer` : bord à
+bord, collée au média) et transmet `postMedia` au rendu d'offre (`EnginePostOfferRenderer`).
+
+| Formule | Déclencheur | Preuve |
+|---|---|---|
+| Acheter | produit à prix affiché, publication illustrée | réelle : poisson fumé de l'Épicerie, bandeau collé à la photo (`lot3-acheter-390.jpg`) |
+| Obtenir un devis | service sur devis | réelle : reportage de mariage du Studio (`lot3-devis-390.jpg`), lien vers `/boutique/<boutique>/devis/<offre>` |
+| Fiche produit | publication sans photo, offre à une ou deux photos | réelle : riz parfumé (`lot3-fiche-produit-390.jpg`) — photo au format 4:5, sans bandes |
+| Panneau prix | même chose, carte de 480 px et plus | réelle : riz parfumé à 1 440 px, photo de 353 × 441 px à gauche, texte à droite (`lot3-panneau-prix-1440.jpg`) |
+| Trois vues | publication sans photo, offre à trois photos ou plus | banc (`lot3-banc-trois-vues-390.jpg`) : une grande vue, deux petites |
+| Réserver | service sur rendez-vous (« Obtenir un devis » en second si le devis est ouvert) | banc (`lot3-banc-reservation-390.jpg`) |
+| Vidéo et modèles | publication vidéo, offre à variantes | banc (`lot3-banc-video-modeles-390.jpg`) : modèles défilants, prix exact de chacun |
+
+- Banc : le vrai composant, des offres fictives, une page locale jamais commitée. Aucune offre de
+  démonstration n'a trois photos, de rendez-vous ni de variantes : ces données viennent de PRO.GA.
+- Pour la recette, deux associations offre-publication ont été posées sur le backend local
+  (Épicerie, Studio), plus une publication sans photo de la page de l'Épicerie.
+- Couleurs : `--role-commerce-*` du thème ; le bandeau d'une mise en scène qui montre déjà titre et
+  prix ne porte que le geste (nom accessible « Acheter : <offre> »).

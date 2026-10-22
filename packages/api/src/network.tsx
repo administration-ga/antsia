@@ -163,8 +163,12 @@ export type EngineFeedPresentation = "list" | "immersive"
  */
 export type EngineStoriesPresentation = "cards" | "rings"
 
-/** P09 : rendu injecté par l'application, aucune dépendance du moteur vers son front. */
-export type EnginePostOfferRenderer = ComponentType<{ networkId: Id<"networks">; postId: Id<"posts"> }>
+/** Ce que la publication montre déjà (ADR-0037) : la formule d'offre ne double jamais ses images. */
+export type EnginePostMediaSummary = { count: number; hasVideo: boolean }
+
+/** P09 : rendu injecté par l'application, aucune dépendance du moteur vers son front.
+ *  ADR-0037 : `postMedia` (facultatif) dit ce que la publication montre déjà. */
+export type EnginePostOfferRenderer = ComponentType<{ networkId: Id<"networks">; postId: Id<"posts">; postMedia?: EnginePostMediaSummary }>
 
 /** MP13 : aperçu éditorial relu par l'application ; absent, aucune surface ajoutée. */
 export type EnginePostArticleRenderer = ComponentType<{ networkId: Id<"networks">; postId: Id<"posts"> }>

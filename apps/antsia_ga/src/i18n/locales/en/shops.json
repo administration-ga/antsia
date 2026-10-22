@@ -733,5 +733,16 @@
     "leadTime_one": "Indicative lead time: {{count}} day",
     "leadTime_other": "Indicative lead time: {{count}} days",
     "updated": "Terms published on {{date}}"
+  },
+  "postFormula": {
+    "actions": {
+      "book": "Book",
+      "quote": "Get a quote",
+      "order": "Order",
+      "buy": "Buy",
+      "view": "View offer"
+    },
+    "models": "Models of {{title}}",
+    "actionLabel": "{{action}}: {{title}}"
   }
 }

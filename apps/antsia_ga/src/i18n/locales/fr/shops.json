@@ -733,5 +733,16 @@
     "leadTime_one": "Délai indicatif : {{count}} jour",
     "leadTime_other": "Délai indicatif : {{count}} jours",
     "updated": "Conditions publiées le {{date}}"
+  },
+  "postFormula": {
+    "actions": {
+      "book": "Réserver",
+      "quote": "Obtenir un devis",
+      "order": "Commander",
+      "buy": "Acheter",
+      "view": "Voir l’offre"
+    },
+    "models": "Modèles de {{title}}",
+    "actionLabel": "{{action}} : {{title}}"
   }
 }
