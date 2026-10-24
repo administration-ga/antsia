@@ -1,0 +1,78 @@
+Window: "ANTSIA iPhone 18 Pro", App: Device Hub.
+0 standard window ANTSIA iPhone 18 Pro – iOS 27.0, ID: com.apple.dt.DeviceKit.DeviceManagementWindow-AppWindow-1, Secondary Actions: Raise
+	1 split group
+		2 split group com.apple.dt.DeviceKit.DeviceManagementWindow-AppWindow-1, SidebarNavigationSplitView
+			3 scroll area
+				4 list Sidebar
+					5 row (selectable) Description: Available, Value: Expanded
+					6 row (selected) Description: iphone.gen3, Value: ANTSIA iPhone 18 Pro
+27.0
+Simulator
+			7 search text field (settable) Search
+				8 button Search
+			9 splitter (disabled, settable, float) 248
+			10 container
+				11 container
+					12 text Description: Démonstration ANTSIA, Secondary Actions: Cancel
+					13 button Description: Revenir à mon compte, Secondary Actions: Cancel
+					14 heading Description: Choisir un compte démo, Secondary Actions: Cancel
+					15 text Secondary Actions: Cancel, Description: Ces profils sont fictifs et partagés avec les visiteurs de la démo Web. Vos essais restent dans la démonstration.
+					16 text Description: Awa MBA, Secondary Actions: Cancel
+					17 text Description: Membre déclaré du réseau., Secondary Actions: Cancel
+					18 button Description: Membre, Secondary Actions: Cancel
+					19 text Description: Jean-Rémy NDONG, Secondary Actions: Cancel
+					20 text Description: Identité IDN fictive : badge Vérifié., Secondary Actions: Cancel
+					21 button Description: Membre vérifié, Secondary Actions: Cancel
+					22 text Description: Compte neuf : l’accueil reste à remplir., Secondary Actions: Cancel
+					23 text Description: Ce profil reste à compléter depuis la démo Web. Aucun profil ne sera créé automatiquement ici., Secondary Actions: Cancel
+					24 element Description: Nouvel arrivant, Secondary Actions: Cancel
+					25 text Description: Sylvie OYANE, Secondary Actions: Cancel
+					26 text Description: Journaliste, administratrice d’un média vérifié., Secondary Actions: Cancel
+					27 button Description: Presse, Secondary Actions: Cancel
+					28 text Description: Patrick MOUSSAVOU, Secondary Actions: Cancel
+					29 text Description: Une boutique publiée et sa page d’entreprise., Secondary Actions: Cancel
+					30 button Description: Commerçant, Secondary Actions: Cancel
+					31 text Description: Clarisse ELLA, Secondary Actions: Cancel
+					32 text Description: Présidente d’une association., Secondary Actions: Cancel
+					33 button Description: Association, Secondary Actions: Cancel
+					34 text Description: Paul-Henri NZE, Secondary Actions: Cancel
+					35 text Description: Agent signataire de la page officielle d’une mairie., Secondary Actions: Cancel
+					36 element Description: Administration, Secondary Actions: Cancel
+					37 text Description: Nadège KOUMBA, Secondary Actions: Cancel
+					38 text Description: Modératrice du réseau., Secondary Actions: Cancel
+					39 button Description: Modération, Secondary Actions: Cancel
+				40 button Description: Home, ID: app.grid.3x3
+				41 button Description: Screenshot, ID: camera.viewfinder
+				42 button Description: Record, ID: record.circle
+				43 button Rotate Left
+	44 toolbar
+		45 menu button Add, Help: Add Device, ID: plus
+		46 toggle button Description: Filter, Help: Sort and Filter, Value: on
+		47 button Description: Hide Sidebar, Secondary Actions: Increment, Decrement, Delete, Cancel
+		48 toggle button Description: Capture Keyboard, Value: off
+		49 toggle button Description: Resize mode, Help: Enter resize mode, Value: off
+		50 Zoom
+			51 radio button Description: Zoom Out, Value: 0, ID: minus.magnifyingglass
+			52 radio button Description: arrowtriangles.up.right.down.left.magnifyingglass, Help: Zoom to Fit, Value: 1
+			53 radio button Description: Zoom To Actual Size, Help: Physical Size, Value: 0, ID: 1.magnifyingglass
+			54 radio button Description: Zoom In, Value: 0, ID: plus.magnifyingglass
+		55 button Description: Switch to compact window, Secondary Actions: Increment, Decrement, Delete, Cancel, Move previous, Move next, Remove from toolbar
+		56 menu button More, Help: More Actions, ID: ellipsis
+		57 radio button Description: Edit, Help: Settings, Value: 0, ID: slider.horizontal.3
+		58 radio button Description: text.document, Help: Reports, Value: 0
+		59 radio button Description: Info, Value: 0, ID: info
+	60 close button
+	61 full screen button Help: this button also has an action to zoom the window, Secondary Actions: zoom the window
+	62 minimize button
+	63 text ANTSIA iPhone 18 Pro iOS 27.0
+64 menu bar
+	65 Device Hub
+	66 File
+	67 Edit
+	68 View
+	69 Device
+	70 Controls
+	71 Window
+	72 Help
+
+The focused UI element is 0 standard window ANTSIA iPhone 18 Pro – iOS 27.0, ID: com.apple.dt.DeviceKit.DeviceManagementWindow-AppWindow-1, Secondary Actions: Raise

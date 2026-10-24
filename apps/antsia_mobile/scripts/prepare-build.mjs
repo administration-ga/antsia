@@ -20,12 +20,21 @@ mkdirSync(cache, { recursive: true })
 const destination = mkdtempSync(join(cache, "telephone-"))
 const root = join(destination, "ECOSYSTEMES")
 const overlay = [
-  ...["app.config.ts", "native-build.json", "eas.json", ".gitignore", "README.md", "package.json", "scripts/prepare-build.mjs", "scripts/prepare-ios-signing.mjs", "scripts/prepare-ios-signing.test.mjs", "native-plugin.test.ts",
-    "modules/antsia-call-system/android/build.gradle", "plugins/with-native-calls.cjs",
+  ...["app.config.ts", "build-config.test.ts", "native-build.json", "eas.json", ".gitignore", "README.md", "package.json", "scripts/prepare-build.mjs", "scripts/prepare-ios-signing.mjs", "scripts/prepare-ios-signing.test.mjs", "native-plugin.test.ts",
+    "modules/antsia-call-system/android/build.gradle", "plugins/with-native-calls.cjs", "plugins/with-scene-lifecycle.cjs", "scene-plugin.test.ts",
+    "src/runtime.tsx", "src/screens/explore-screen.tsx", "src/screens/feed-screen.tsx", "src/screens/post-screen.tsx",
+    "src/screens/association-directory-section.tsx", "src/screens/page-screen.tsx", "src/lib/native-pages.ts", "src/lib/native-pages.test.ts",
+    "src/screens/shop-directory-section.tsx", "src/screens/shop-screen.tsx", "src/screens/offer-screen.tsx", "src/components/business-media.tsx",
+    "src/lib/native-business.ts", "src/lib/native-business.test.ts", "src/lib/member-admission.ts", "src/lib/member-admission.test.ts",
     "src/app.tsx", "src/components/entry.tsx", "src/lib/auth-client.ts", "src/lib/auth-client.test.ts",
     "src/lib/session-controller.ts", "src/lib/native-idn.ts", "src/lib/native-idn.test.ts", "src/i18n/fr.json", "src/i18n/en.json",
+    "src/components/demo-entry.tsx", "src/lib/native-demo.ts", "src/lib/native-demo.test.ts",
+    "src/lib/destinations.ts", "src/lib/destinations.test.ts", "src/lib/routes.ts", "src/lib/routes.test.ts",
+    "src/lib/environment-pause.ts", "src/lib/environment-pause.test.ts", "src/lib/owned-convex-client.ts", "src/lib/owned-convex-client.test.ts",
   ].map((file) => `apps/antsia_mobile/${file}`),
   "packages/social-native/src/idn.ts", "packages/social-native/src/idn.test.ts",
+  "packages/social-native/src/environment.ts", "packages/social-native/src/environment.test.ts",
+  "packages/social-native/src/sign-out.ts", "packages/social-native/src/sign-out.test.ts",
 ]
 const manifest = { commits: {}, overlay: {}, createdAt: new Date().toISOString() }
 for (const [index, [name, source]] of [["ANTSIA", repository], ["DIASPORALE", sibling]].entries()) {
@@ -61,6 +70,7 @@ manifest.buildLockSha256 = createHash("sha256").update(readFileSync(join(root, "
 const buildVariables = [
   "NATIVE_EXPO_OWNER", "NATIVE_EXPO_PROJECT_ID", "NATIVE_IOS_BUNDLE_ID", "NATIVE_ANDROID_PACKAGE",
   "EXPO_PUBLIC_NATIVE_SCHEME", "EXPO_PUBLIC_CONVEX_URL", "EXPO_PUBLIC_CONVEX_SITE_URL", "EXPO_PUBLIC_SITE_URL",
+  "EXPO_PUBLIC_DEMO_CONVEX_URL", "EXPO_PUBLIC_DEMO_CONVEX_SITE_URL", "EXPO_PUBLIC_DEMO_SITE_URL",
 ]
 const buildEnvironment = Object.fromEntries(buildVariables.filter((name) => process.env[name]).map((name) => [name, process.env[name]]))
 const easPath = join(root, "ANTSIA/apps/antsia_mobile/eas.json")

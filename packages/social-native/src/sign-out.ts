@@ -35,9 +35,11 @@ export function createNativeSignOutGate() {
     clearCredentials: () => Promise<void>
     reset: () => void
     timeoutMs?: number
+    scope?: "all" | "current"
   }): Promise<NativeExitResult> => {
     if (pending) return pending
     const timeout = Math.min(10_000, Math.max(100, options.timeoutMs ?? 4_000))
+    const currentOnly = options.scope === "current"
     pending = (async () => {
       const issues: NativeExitResult["issues"][number][] = []
       let serverRevoked = false
@@ -45,12 +47,16 @@ export function createNativeSignOutGate() {
       // Fermer les gestes et invalider les retours AVANT le premier await.
       options.block()
       try { await bounded(() => options.stopResources(), timeout) } catch { issues.push("resources"); localCleared = false }
+      if (!currentOnly) {
+        try {
+          serverRevoked = !rejected(await bounded((signal) => options.client.revokeSessions({ fetchOptions: { signal, throw: false } }), timeout), "status")
+          if (!serverRevoked) issues.push("revocation")
+        } catch { issues.push("revocation") }
+      }
       try {
-        serverRevoked = !rejected(await bounded((signal) => options.client.revokeSessions({ fetchOptions: { signal, throw: false } }), timeout), "status")
-        if (!serverRevoked) issues.push("revocation")
-      } catch { issues.push("revocation") }
-      try {
-        if (rejected(await bounded((signal) => options.client.signOut({ fetchOptions: { signal, throw: false } }), timeout), "success")) issues.push("signOut")
+        const signedOut = !rejected(await bounded((signal) => options.client.signOut({ fetchOptions: { signal, throw: false } }), timeout), "success")
+        if (currentOnly) serverRevoked = signedOut
+        if (!signedOut) issues.push("signOut")
       } catch { issues.push("signOut") }
       try { await bounded(() => options.clearCredentials(), timeout) } catch { issues.push("credentials"); localCleared = false }
       try { options.reset() } catch { issues.push("reset"); localCleared = false }

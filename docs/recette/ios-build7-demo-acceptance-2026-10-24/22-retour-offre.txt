@@ -1,0 +1,61 @@
+Window: "ANTSIA iPhone 18 Pro", App: Device Hub.
+0 standard window ANTSIA iPhone 18 Pro – iOS 27.0, ID: com.apple.dt.DeviceKit.DeviceManagementWindow-AppWindow-1, Secondary Actions: Raise
+	1 split group
+		2 split group com.apple.dt.DeviceKit.DeviceManagementWindow-AppWindow-1, SidebarNavigationSplitView
+			3 scroll area
+				4 list Sidebar
+					5 row (selectable) Description: Available, Value: Expanded
+					6 row (selected) Description: iphone.gen3, Value: ANTSIA iPhone 18 Pro
+27.0
+Simulator
+			7 search text field (settable) Search
+				8 button Search
+			9 splitter (disabled, settable, float) 248
+			10 container
+				11 container
+					12 text Description: Démonstration ANTSIA, Secondary Actions: Cancel
+					13 button Description: Revenir à mon compte, Secondary Actions: Cancel
+					14 element Description: Changer de profil démo, Secondary Actions: Cancel
+					15 element Description: Retour, Secondary Actions: Cancel
+					16 heading Offre
+					17 button Description: Actualiser, Secondary Actions: Cancel
+					18 text Chargement…
+					19 button Description: Accueil, Secondary Actions: Cancel
+					20 button (selected) Description: Découvrir, Secondary Actions: Cancel
+					21 button Description: Messages, Secondary Actions: Cancel
+					22 button Description: Réglages, Secondary Actions: Cancel
+				23 button Description: Home, ID: app.grid.3x3
+				24 button Description: Screenshot, ID: camera.viewfinder
+				25 button Description: Record, ID: record.circle
+				26 button Rotate Left
+	27 toolbar
+		28 menu button Add, Help: Add Device, ID: plus
+		29 toggle button Description: Filter, Help: Sort and Filter, Value: on
+		30 button Description: Hide Sidebar, Secondary Actions: Increment, Decrement, Delete, Cancel
+		31 toggle button Description: Capture Keyboard, Value: off
+		32 toggle button Description: Resize mode, Help: Enter resize mode, Value: off
+		33 Zoom
+			34 radio button Description: Zoom Out, Value: 0, ID: minus.magnifyingglass
+			35 radio button Description: arrowtriangles.up.right.down.left.magnifyingglass, Help: Zoom to Fit, Value: 1
+			36 radio button Description: Zoom To Actual Size, Help: Physical Size, Value: 0, ID: 1.magnifyingglass
+			37 radio button Description: Zoom In, Value: 0, ID: plus.magnifyingglass
+		38 button Description: Switch to compact window, Secondary Actions: Increment, Decrement, Delete, Cancel, Move previous, Move next, Remove from toolbar
+		39 menu button More, Help: More Actions, ID: ellipsis
+		40 radio button Description: Edit, Help: Settings, Value: 0, ID: slider.horizontal.3
+		41 radio button Description: text.document, Help: Reports, Value: 0
+		42 radio button Description: Info, Value: 0, ID: info
+	43 close button
+	44 full screen button Help: this button also has an action to zoom the window, Secondary Actions: zoom the window
+	45 minimize button
+	46 text ANTSIA iPhone 18 Pro iOS 27.0
+47 menu bar
+	48 Device Hub
+	49 File
+	50 Edit
+	51 View
+	52 Device
+	53 Controls
+	54 Window
+	55 Help
+
+The focused UI element is 0 standard window ANTSIA iPhone 18 Pro – iOS 27.0, ID: com.apple.dt.DeviceKit.DeviceManagementWindow-AppWindow-1, Secondary Actions: Raise

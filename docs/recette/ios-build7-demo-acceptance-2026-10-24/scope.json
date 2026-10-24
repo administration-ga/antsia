@@ -1,0 +1,20 @@
+{
+  "device": "ANTSIA iPhone 18 Pro",
+  "build": "0.1.0(7)",
+  "signedJavaScriptSHA256": "b522b2ed670eb99130c816f8249259f6747aff51c731612b1e7ab2f797753919",
+  "initialRole": "Administration",
+  "initialPage": "Mairie Démo / Publications",
+  "expectedRoles": {
+    "Membre": "Atelier Tech Démo",
+    "Membre vérifié": "Studio Objectif Démo",
+    "Commerçant": "Épicerie Moussavou Démo",
+    "Association": "Jeunes de Lambaréné Démo",
+    "Presse": "Gabon Actu Démo",
+    "Administration": "Mairie Démo",
+    "Modération": "rôle vivant, aucune activité étrangère",
+    "Nouvel arrivant": "inscription à terminer sans erreur de session"
+  },
+  "businessWritesAllowed": false,
+  "normalDemoSessionTransitionsAllowed": true,
+  "uiOwnershipConfirmedByOtherChat": true
+}

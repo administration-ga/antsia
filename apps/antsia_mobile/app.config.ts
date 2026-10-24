@@ -32,6 +32,19 @@ if (process.env.NATIVE_RELEASE_BUILD === "true") {
   if (process.env.EXPO_PUBLIC_ALLOW_LOCAL_HTTP === "true") throw new Error("Phone builds cannot allow local HTTP")
 }
 const callsSetting = process.env.NATIVE_CALLS_ENABLED
+const demoOriginNames = ["EXPO_PUBLIC_DEMO_CONVEX_URL", "EXPO_PUBLIC_DEMO_CONVEX_SITE_URL", "EXPO_PUBLIC_DEMO_SITE_URL"]
+if (demoOriginNames.some(name => process.env[name] !== undefined)) {
+  for (const name of demoOriginNames) {
+    const raw = process.env[name]
+    const url = raw ? new URL(raw) : undefined
+    if (!url || url.protocol !== "https:" || url.username || url.password || url.pathname !== "/" || url.search || url.hash) {
+      throw new Error(`Demo builds require an explicit HTTPS origin: ${name}`)
+    }
+  }
+  const primary = new Set([process.env.EXPO_PUBLIC_CONVEX_URL, process.env.EXPO_PUBLIC_CONVEX_SITE_URL, process.env.EXPO_PUBLIC_SITE_URL])
+  if (primary.has(process.env.EXPO_PUBLIC_DEMO_CONVEX_URL) || primary.has(process.env.EXPO_PUBLIC_DEMO_CONVEX_SITE_URL)
+    || process.env.EXPO_PUBLIC_DEMO_SITE_URL !== process.env.EXPO_PUBLIC_SITE_URL) throw new Error("Demo and production build origins must be isolated")
+}
 if (callsSetting !== undefined && callsSetting !== "true" && callsSetting !== "false") throw new Error("Invalid native configuration: NATIVE_CALLS_ENABLED")
 const nativeCallsEnabled = callsSetting === "true"
 if (nativeCallsEnabled && (!scheme || !bundleIdentifier || !androidPackage)) throw new Error("Native calls require explicit native identities")
@@ -47,9 +60,9 @@ const config: ExpoConfig = {
   userInterfaceStyle: "automatic",
   // Expo SDK 57 impose déjà la New Architecture ; aucune option legacy ici.
   ...(scheme ? { scheme } : {}),
-  ios: { buildNumber: "4", config: { usesNonExemptEncryption: false }, ...(bundleIdentifier ? { bundleIdentifier } : {}) },
+  ios: { buildNumber: "7", config: { usesNonExemptEncryption: false }, ...(bundleIdentifier ? { bundleIdentifier } : {}) },
   android: {
-    versionCode: 2,
+    versionCode: 3,
     ...(androidPackage ? { package: androidPackage } : {}),
     permissions: [],
     blockedPermissions: ["android.permission.CAMERA", "android.permission.RECORD_AUDIO", "android.permission.POST_NOTIFICATIONS"],

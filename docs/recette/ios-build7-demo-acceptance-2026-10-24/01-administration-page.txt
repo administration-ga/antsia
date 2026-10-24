@@ -1,0 +1,77 @@
+Window: "ANTSIA iPhone 18 Pro", App: Device Hub.
+0 standard window ANTSIA iPhone 18 Pro – iOS 27.0, ID: com.apple.dt.DeviceKit.DeviceManagementWindow-AppWindow-1, Secondary Actions: Raise
+	1 split group
+		2 split group com.apple.dt.DeviceKit.DeviceManagementWindow-AppWindow-1, SidebarNavigationSplitView
+			3 scroll area
+				4 list Sidebar
+					5 row (selectable) Expanded
+					6 row (selected) ANTSIA iPhone 18 Pro
+27.0
+Simulator
+			7 search text field (settable) Search
+				8 button Search
+			9 splitter (settable, float) 248
+			10 container
+				11 container
+					12 text Description: Démonstration ANTSIA, Secondary Actions: Cancel
+					13 button Description: Revenir à mon compte, Secondary Actions: Cancel
+					14 button Description: Changer de profil démo, Secondary Actions: Cancel
+					15 button Description: Retour, Secondary Actions: Cancel
+					16 heading Description: Page, Secondary Actions: Cancel
+					17 element Description: Actualiser, Secondary Actions: Cancel
+					18 element Description: Couverture · Mairie Démo, Secondary Actions: Cancel
+					19 heading Description: Mairie Démo, Secondary Actions: Cancel
+					20 text Description: Institution · Officiel, Secondary Actions: Cancel
+					21 text Description: Abonnés · 17, Secondary Actions: Cancel
+					22 text Description: Publications · 1, Secondary Actions: Cancel
+					23 text Description: Vous suivez cette page., Secondary Actions: Cancel
+					24 text Description: Vous administrez cette page., Secondary Actions: Cancel
+					25 button Description: Ne plus suivre, Secondary Actions: Cancel
+					26 button Description: Gérer la page, Secondary Actions: Cancel
+					27 element (selected) Description: Publications, Secondary Actions: Cancel
+					28 element Description: À propos, Secondary Actions: Cancel
+					29 heading Description: Mairie Démo, Secondary Actions: Cancel
+					30 text Description: Publication d’une page, Secondary Actions: Cancel
+					31 button Description: Voir la page · Mairie Démo, Secondary Actions: Cancel
+					32 text Secondary Actions: Cancel, Description: Mairie Démo — Exemple de communiqué fictif : prenons soin des espaces communs en prévoyant des points de collecte et des moments de sensibilisation. Cette page de démonstration ne diffuse aucune décision administrative réelle. #Estuaire #CadreDeVie #Commune
+					33 text Description: Réactions 2 · Commentaires 0, Secondary Actions: Cancel
+					34 button Description: Ouvrir la publication · Mairie Démo, Secondary Actions: Cancel
+					35 button Description: Accueil, Secondary Actions: Cancel
+					36 button (selected) Description: Découvrir, Secondary Actions: Cancel
+					37 button Description: Messages, Secondary Actions: Cancel
+					38 element Description: Réglages, Secondary Actions: Cancel
+				39 button app.grid.3x3
+				40 button camera.viewfinder
+				41 button record.circle
+				42 button
+	43 toolbar
+		44 menu button Add, Help: Add Device, ID: plus
+		45 toggle button Help: Sort and Filter, Value: on
+		46 button Description: Hide Sidebar, Secondary Actions: Increment, Decrement, Delete, Cancel
+		47 toggle button Description: Capture Keyboard, Value: off
+		48 toggle button Description: Resize mode, Help: Enter resize mode, Value: off
+		49 Zoom
+			50 radio button Description: Zoom Out, Value: 0, ID: minus.magnifyingglass
+			51 radio button Description: arrowtriangles.up.right.down.left.magnifyingglass, Help: Zoom to Fit, Value: 1
+			52 radio button Description: Zoom To Actual Size, Help: Physical Size, Value: 0, ID: 1.magnifyingglass
+			53 radio button Description: Zoom In, Value: 0, ID: plus.magnifyingglass
+		54 button Description: Switch to compact window, Secondary Actions: Increment, Decrement, Delete, Cancel, Move previous, Move next, Remove from toolbar
+		55 menu button More, Help: More Actions, ID: ellipsis
+		56 radio button Description: Edit, Help: Settings, Value: 0, ID: slider.horizontal.3
+		57 radio button Description: text.document, Help: Reports, Value: 0
+		58 radio button Description: Info, Value: 0, ID: info
+	59 close button
+	60 full screen button Help: this button also has an action to zoom the window, Secondary Actions: zoom the window
+	61 minimize button
+	62 text ANTSIA iPhone 18 Pro iOS 27.0
+63 menu bar
+	64 Device Hub
+	65 File
+	66 Edit
+	67 View
+	68 Device
+	69 Controls
+	70 Window
+	71 Help
+
+The focused UI element is 0 standard window ANTSIA iPhone 18 Pro – iOS 27.0, ID: com.apple.dt.DeviceKit.DeviceManagementWindow-AppWindow-1, Secondary Actions: Raise

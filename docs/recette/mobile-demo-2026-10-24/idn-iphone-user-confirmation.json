@@ -1,0 +1,10 @@
+{
+  "at": "2026-10-24T16:37:08.788785+00:00",
+  "testType": "manual test reported by user on iPhone",
+  "reportedBuild": "0.1.0 (6)",
+  "reportedInitialScreen": "Identite.ga button visible",
+  "reportedOutcome": "Automatic return to ANTSIA; profile and feed loaded",
+  "independentlyObservedPhysicalScreen": false,
+  "connectedPhysicalDeviceCorrelationVerified": false,
+  "note": "The paired iPhone inventory returned no matching app; this does not identify the phone used by the tester. No device data was exported and no session was revoked for this test."
+}

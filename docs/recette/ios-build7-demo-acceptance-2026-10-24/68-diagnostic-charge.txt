@@ -1,0 +1,73 @@
+Window: "ANTSIA iPhone 18 Pro", App: Device Hub.
+0 standard window ANTSIA iPhone 18 Pro – iOS 27.0, ID: com.apple.dt.DeviceKit.DeviceManagementWindow-AppWindow-1, Secondary Actions: Raise
+	1 split group
+		2 split group com.apple.dt.DeviceKit.DeviceManagementWindow-AppWindow-1, SidebarNavigationSplitView
+			3 scroll area
+				4 list Sidebar
+					5 row (selectable) Description: Available, Value: Expanded
+					6 row (selected) Description: iphone.gen3, Value: ANTSIA iPhone 18 Pro
+27.0
+Simulator
+			7 search text field (settable) Search
+				8 button Search
+			9 splitter (disabled, settable, float) 248
+			10 container
+				11 container
+					12 text Description: Démonstration ANTSIA, Secondary Actions: Cancel
+					13 button Description: Revenir à mon compte, Secondary Actions: Cancel
+					14 button Description: Changer de profil démo, Secondary Actions: Cancel
+					15 button Description: Retour, Secondary Actions: Cancel
+					16 heading Description: Offre, Secondary Actions: Cancel
+					17 button Description: Actualiser, Secondary Actions: Cancel
+					18 text Description: Offres de démonstration, Secondary Actions: Cancel
+					19 text Description: Ces offres sont fictives. Aucun achat, paiement, devis ou rendez-vous ne peut être engagé ici., Secondary Actions: Cancel
+					20 heading Description: Diagnostic informatique — Démo, Secondary Actions: Cancel
+					21 element Description: Photo d'illustration pour la démonstration : Diagnostic informatique — Démo, Secondary Actions: Cancel
+					22 text Description: 5 000 XAF, Secondary Actions: Cancel
+					23 text Description: Diagnostic fictif pour explorer une offre de service. Aucune intervention réelle., Secondary Actions: Cancel
+					24 text Description: Disponibilité à confirmer, Secondary Actions: Cancel
+					25 text Description: Collections, Secondary Actions: Cancel
+					26 text Description: Informatique de démonstration, Secondary Actions: Cancel
+					27 text Description: démo · informatique · diagnostic, Secondary Actions: Cancel
+					28 text Description: Ces offres sont fictives. Aucun achat, paiement, devis ou rendez-vous ne peut être engagé ici., Secondary Actions: Cancel
+					29 button Description: Voir la boutique, Secondary Actions: Cancel
+					30 link Description: Voir la page, Secondary Actions: Cancel
+					31 button Description: Accueil, Secondary Actions: Cancel
+					32 button (selected) Description: Découvrir, Secondary Actions: Cancel
+					33 button Description: Messages, Secondary Actions: Cancel
+					34 button Description: Réglages, Secondary Actions: Cancel
+				35 button Description: Home, ID: app.grid.3x3
+				36 button Description: Screenshot, ID: camera.viewfinder
+				37 button Description: Record, ID: record.circle
+				38 button Rotate Left
+	39 toolbar
+		40 menu button Add, Help: Add Device, ID: plus
+		41 toggle button Description: Filter, Help: Sort and Filter, Value: on
+		42 button Description: Hide Sidebar, Secondary Actions: Increment, Decrement, Delete, Cancel
+		43 toggle button Description: Capture Keyboard, Value: off
+		44 toggle button Description: Resize mode, Help: Enter resize mode, Value: off
+		45 Zoom
+			46 radio button Description: Zoom Out, Value: 0, ID: minus.magnifyingglass
+			47 radio button Description: arrowtriangles.up.right.down.left.magnifyingglass, Help: Zoom to Fit, Value: 1
+			48 radio button Description: Zoom To Actual Size, Help: Physical Size, Value: 0, ID: 1.magnifyingglass
+			49 radio button Description: Zoom In, Value: 0, ID: plus.magnifyingglass
+		50 button Description: Switch to compact window, Secondary Actions: Increment, Decrement, Delete, Cancel, Move previous, Move next, Remove from toolbar
+		51 menu button More, Help: More Actions, ID: ellipsis
+		52 radio button Description: Edit, Help: Settings, Value: 0, ID: slider.horizontal.3
+		53 radio button Description: text.document, Help: Reports, Value: 0
+		54 radio button Description: Info, Value: 0, ID: info
+	55 close button
+	56 full screen button Help: this button also has an action to zoom the window, Secondary Actions: zoom the window
+	57 minimize button
+	58 text ANTSIA iPhone 18 Pro iOS 27.0
+59 menu bar
+	60 Device Hub
+	61 File
+	62 Edit
+	63 View
+	64 Device
+	65 Controls
+	66 Window
+	67 Help
+
+The focused UI element is 0 standard window ANTSIA iPhone 18 Pro – iOS 27.0, ID: com.apple.dt.DeviceKit.DeviceManagementWindow-AppWindow-1, Secondary Actions: Raise

@@ -1,0 +1,46 @@
+{
+  "15-prix-croissant-charge": {
+    "prices": [
+      1000,
+      1000,
+      1200,
+      1500,
+      1500,
+      2000,
+      2000,
+      2500,
+      3500,
+      4000,
+      6500,
+      7500
+    ],
+    "orderValid": true
+  },
+  "19-prix-decroissant-charge": {
+    "prices": [
+      8500,
+      7500,
+      6500,
+      4000,
+      3500,
+      2500,
+      2000,
+      2000,
+      1500,
+      1500,
+      1200,
+      1000
+    ],
+    "orderValid": true
+  },
+  "secondPage": {
+    "raphia8500": true,
+    "previousVisible": true,
+    "nextAbsent": true
+  },
+  "searchRiz": {
+    "fieldValue": true,
+    "riceVisible": true,
+    "unrelatedProductAbsent": true
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "at": "2026-10-24T15:57:09.284883+00:00",
+  "sha256": "fb312aaae063a83dfe45bf30ee19c5b0fa576c17813360394e13079b5d5cd9e9",
+  "bytes": 17621276,
+  "bundleIdentifier": "ga.antsia.mobile",
+  "version": "0.1.0",
+  "build": "6",
+  "sceneLifecycle": true,
+  "signatureValid": true,
+  "sdk": "iphoneos27.1",
+  "minimumIOS": "16.4",
+  "teamMatched": true,
+  "javascriptSha256": "7d997c733f2aec871fb3522d994ab9dc606c76d3812c34ee8d8c7919d0401d23"
+}

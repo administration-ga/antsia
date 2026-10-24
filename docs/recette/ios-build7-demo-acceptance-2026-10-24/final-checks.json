@@ -1,0 +1,11 @@
+{
+  "eight_roles": true,
+  "eight_transitions": true,
+  "admin_page": true,
+  "publications_selected": true,
+  "newcomer_neutral": true,
+  "newcomer_no_member_tabs": true,
+  "moderator_no_page": true,
+  "diagnostic_5000": true,
+  "diagnostic_closed": true
+}

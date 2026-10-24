@@ -1,0 +1,77 @@
+Window: "ANTSIA iPhone 18 Pro", App: Device Hub.
+0 standard window ANTSIA iPhone 18 Pro – iOS 27.0, ID: com.apple.dt.DeviceKit.DeviceManagementWindow-AppWindow-1, Secondary Actions: Raise
+	1 split group
+		2 split group com.apple.dt.DeviceKit.DeviceManagementWindow-AppWindow-1, SidebarNavigationSplitView
+			3 scroll area
+				4 list Sidebar
+					5 row (selectable) Description: Available, Value: Expanded
+					6 row (selected) Description: iphone.gen3, Value: ANTSIA iPhone 18 Pro
+27.0
+Simulator
+			7 search text field (settable) Search
+				8 button Search
+			9 splitter (disabled, settable, float) 248
+			10 container
+				11 container
+					12 text Description: Démonstration ANTSIA, Secondary Actions: Cancel
+					13 button Description: Revenir à mon compte, Secondary Actions: Cancel
+					14 button Description: Changer de profil démo, Secondary Actions: Cancel
+					15 text Description: Mes réglages, Secondary Actions: Cancel
+					16 button Description: Voir mon profil sur le site, Secondary Actions: Cancel
+					17 text Description: Apparence pour cette ouverture de l’application. Votre préférence de compte reste inchangée., Secondary Actions: Cancel
+					18 text Description: Mode d’affichage, Secondary Actions: Cancel
+					19 button Description: Selon le téléphone, Value: radio button, checked, Secondary Actions: Cancel
+					20 element Description: Clair, Value: radio button, unchecked, Secondary Actions: Cancel
+					21 element Description: Sombre, Value: radio button, unchecked, Secondary Actions: Cancel
+					22 text Description: Charte graphique, Secondary Actions: Cancel
+					23 button Description: Gaboma, Value: radio button, checked, Secondary Actions: Cancel
+					24 button Description: Soleil, Value: radio button, unchecked, Secondary Actions: Cancel
+					25 element Description: Forêt, Value: radio button, unchecked, Secondary Actions: Cancel
+					26 button Description: Corail, Value: radio button, unchecked, Secondary Actions: Cancel
+					27 button Description: Lagon, Value: radio button, unchecked, Secondary Actions: Cancel
+					28 element Description: Électrique, Value: radio button, unchecked, Secondary Actions: Cancel
+					29 element Description: Sable — cartes beige, Value: radio button, unchecked, Secondary Actions: Cancel
+					30 element Description: English, Secondary Actions: Cancel
+					31 text Secondary Actions: Cancel, Description: Les appels système dépendent des autorisations de ce téléphone et de leur disponibilité sur le réseau.
+					32 button (disabled) Description: Activer les appels et leurs notifications, Secondary Actions: Cancel
+					33 text Secondary Actions: Cancel, Description: Les nouvelles opérations de paiement, service et candidature restent soumises aux validations du réseau.
+					34 element Description: Se déconnecter de ce compte démo, Secondary Actions: Cancel
+					35 button Description: Accueil, Secondary Actions: Cancel
+					36 button Description: Découvrir, Secondary Actions: Cancel
+					37 link Description: Messages, Secondary Actions: Cancel
+					38 button (selected) Description: Réglages, Secondary Actions: Cancel
+				39 button Description: Home, ID: app.grid.3x3
+				40 button Description: Screenshot, ID: camera.viewfinder
+				41 button Description: Record, ID: record.circle
+				42 button Rotate Left
+	43 toolbar
+		44 menu button Add, Help: Add Device, ID: plus
+		45 toggle button Description: Filter, Help: Sort and Filter, Value: on
+		46 button Description: Hide Sidebar, Secondary Actions: Increment, Decrement, Delete, Cancel
+		47 toggle button Description: Capture Keyboard, Value: off
+		48 toggle button Description: Resize mode, Help: Enter resize mode, Value: off
+		49 Zoom
+			50 radio button Description: Zoom Out, Value: 0, ID: minus.magnifyingglass
+			51 radio button Description: arrowtriangles.up.right.down.left.magnifyingglass, Help: Zoom to Fit, Value: 1
+			52 radio button Description: Zoom To Actual Size, Help: Physical Size, Value: 0, ID: 1.magnifyingglass
+			53 radio button Description: Zoom In, Value: 0, ID: plus.magnifyingglass
+		54 button Description: Switch to compact window, Secondary Actions: Increment, Decrement, Delete, Cancel, Move previous, Move next, Remove from toolbar
+		55 menu button More, Help: More Actions, ID: ellipsis
+		56 radio button Description: Edit, Help: Settings, Value: 0, ID: slider.horizontal.3
+		57 radio button Description: text.document, Help: Reports, Value: 0
+		58 radio button Description: Info, Value: 0, ID: info
+	59 close button
+	60 full screen button Help: this button also has an action to zoom the window, Secondary Actions: zoom the window
+	61 minimize button
+	62 text ANTSIA iPhone 18 Pro iOS 27.0
+63 menu bar
+	64 Device Hub
+	65 File
+	66 Edit
+	67 View
+	68 Device
+	69 Controls
+	70 Window
+	71 Help
+
+The focused UI element is 0 standard window ANTSIA iPhone 18 Pro – iOS 27.0, ID: com.apple.dt.DeviceKit.DeviceManagementWindow-AppWindow-1, Secondary Actions: Raise

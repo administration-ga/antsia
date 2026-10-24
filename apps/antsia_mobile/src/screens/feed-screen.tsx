@@ -15,14 +15,28 @@ type Cursor = NonNullable<Feed["nextCursor"]>
 export type NativeFeedPost = Feed["items"][number]
 const PAGE_SIZE = 20, MAX_PAGES = 10
 
-export function NativePostCard({ post, active, compact = false, onOpenPost }: { post: NativeFeedPost; active: boolean; compact?: boolean; onOpenPost?: (postId: Id<"posts">) => void }) {
+type PostNavigation = { onOpenPage?: (handle: string) => void; onOpenOffer?: (handle: string, offerRef: string) => void }
+
+function PostOfferAction({ postId, onOpenOffer }: { postId: Id<"posts">; onOpenOffer: (handle: string, offerRef: string) => void }) {
+  const guard = useNativeGuard(), { t } = useNativeAppearance()
+  const offer = useQuery(api.modules.shops.catalog.postOffer, guard.canRead ? { networkId: guard.runtime.networkId, postId } : "skip")
+  if (!guard.canRead) return null
+  if (offer === undefined) return <Status label={t("mobile.common.loading")} busy />
+  if (!offer) return <Label muted>{t("mobile.common.unavailable")}</Label>
+  return <Action label={t("mobile.post.openOffer")} accessibilityLabel={`${t("mobile.post.openOffer")} · ${offer.title}`} disabled={!guard.canAct} onPress={() => { if (guard.current()) onOpenOffer(offer.shopHandle, offer.offerRef) }} />
+}
+
+export function NativePostCard({ post, active, compact = false, onOpenPost, onOpenPage, onOpenOffer }: { post: NativeFeedPost; active: boolean; compact?: boolean; onOpenPost?: (postId: Id<"posts">) => void } & PostNavigation) {
   const { tokens, t } = useNativeAppearance(), guard = useNativeGuard()
   const media = compact ? post.media.slice(0, 1) : post.media
   const author = post.page?.name ?? post.author.displayName ?? t("mobile.post.unknownAuthor")
+  const pageHandle = post.page?.handle
+  const offerScope = nativeScope(guard.runtime) + ":post-offer:" + post._id
   return <Card>
     <Label strong accessibilityRole="header">{author}</Label>
     {post.origin ? <Label muted>{t("mobile.post.origin") + " " + post.origin.name}</Label> : null}
     {post.page ? <Label muted>{t("mobile.post.page")}</Label> : null}
+    {pageHandle && onOpenPage ? <Action label={t("mobile.post.openPage")} accessibilityLabel={`${t("mobile.post.openPage")} · ${author}`} disabled={!guard.canAct} onPress={() => { if (guard.current()) onOpenPage(pageHandle) }} /> : null}
     <GuardedMedia items={media} active={active} />
     <Text selectable numberOfLines={compact ? 4 : undefined} style={{ color: tokens.foreground, fontSize: 15, lineHeight: 23 }}>{post.body}</Text>
     {compact && post.media.length > 1 ? <Label muted>{t("mobile.media.moreOnPost")}</Label> : null}
@@ -33,6 +47,7 @@ export function NativePostCard({ post, active, compact = false, onOpenPost }: { 
     </View> : <Label muted>{t("mobile.post.shareUnavailable")}</Label> : null}
     <Label muted>{t("mobile.post.reactions") + " " + post.reactions.total + " · " + t("mobile.post.comments") + " " + post.commentCount}</Label>
     {post.hasCommerceOffer ? <Label muted>{t("mobile.post.commerceReadOnly")}</Label> : null}
+    {post.hasCommerceOffer && onOpenOffer ? <QueryBoundary key={offerScope} resetKey={offerScope} fallback={<Label muted>{t("mobile.common.unavailable")}</Label>}><PostOfferAction postId={post._id} onOpenOffer={onOpenOffer} /></QueryBoundary> : null}
     {onOpenPost ? <Action label={t("mobile.post.open")} accessibilityLabel={`${t("mobile.post.open")} · ${author}`} disabled={!guard.canAct} onPress={() => { if (guard.current()) onOpenPost(post._id) }} /> : null}
   </Card>
 }
@@ -43,7 +58,7 @@ function FeedPage({ cursor, onPage }: { cursor: Cursor | null; onPage: (key: str
   useEffect(() => { if (guard.canRead) onPage(key, page) }, [guard.canRead, key, onPage, page])
   return null
 }
-function FeedBody({ onOpenPost, focused, refresh }: { onOpenPost: (postId: Id<"posts">) => void; focused: boolean; refresh: () => void }) {
+function FeedBody({ onOpenPost, onOpenPage, onOpenOffer, focused, refresh }: { onOpenPost: (postId: Id<"posts">) => void; focused: boolean; refresh: () => void } & PostNavigation) {
   const guard = useNativeGuard(), { t } = useNativeAppearance()
   const reducedMotion = useReducedMotion(), { fontScale } = useWindowDimensions()
   const [cursors, setCursors] = useState<(Cursor | null)[]>([null])
@@ -89,7 +104,7 @@ function FeedBody({ onOpenPost, focused, refresh }: { onOpenPost: (postId: Id<"p
     <Status label={preparationError ? t("mobile.common.unavailable") : ""} error />
     <Status label={first === undefined ? t("mobile.common.loading") : items.length === 0 ? t("mobile.feed.empty") : ""} busy={first === undefined} />
         </View>}
-        renderItem={({ item }) => <View style={paging ? { minHeight: height, paddingBottom: 8 } : undefined}><NativePostCard post={item} compact={immersive} active={focused && String(item._id) === activeId} onOpenPost={onOpenPost} /></View>}
+        renderItem={({ item }) => <View style={paging ? { minHeight: height, paddingBottom: 8 } : undefined}><NativePostCard post={item} compact={immersive} active={focused && String(item._id) === activeId} onOpenPost={onOpenPost} onOpenPage={onOpenPage} onOpenOffer={onOpenOffer} /></View>}
         ListFooterComponent={<View style={{ gap: 8 }}>
           <Status label={loadingMore ? t("mobile.common.loading") : ""} busy={loadingMore} />
           {canMore || loadingMore ? <Action label={t("mobile.common.loadMore")} pending={loadingMore} disabled={!guard.canAct} onPress={() => { if (guard.current() && canAppendNativeCursor(cursors, next, MAX_PAGES)) setCursors(previous => [...previous, next]) }} /> : null}
@@ -98,8 +113,8 @@ function FeedBody({ onOpenPost, focused, refresh }: { onOpenPost: (postId: Id<"p
     </View>
   </View>
 }
-export function FeedScreen({ onOpenPost, focused = true }: { onOpenPost: (postId: Id<"posts">) => void; focused?: boolean }) {
+export function FeedScreen({ onOpenPost, onOpenPage, onOpenOffer, focused = true }: { onOpenPost: (postId: Id<"posts">) => void; focused?: boolean } & PostNavigation) {
   const runtime = useNativeRuntime(), { t } = useNativeAppearance()
   const [version, setVersion] = useState(0), key = nativeScope(runtime) + ":" + version
-  return <Screen title={t("mobile.feed.title")}>{!runtime.ready ? <RuntimeNotice /> : <QueryBoundary key={key} resetKey={key} fallback={<Card><Status label={t("mobile.common.unavailable")} error /><Action label={t("mobile.common.refresh")} disabled={!runtime.foreground || !runtime.online} onPress={() => { if (runtime.isCurrent() && runtime.foreground && runtime.online) setVersion(value => value + 1) }} /></Card>}><FeedBody onOpenPost={onOpenPost} focused={focused} refresh={() => setVersion(value => value + 1)} /></QueryBoundary>}</Screen>
+  return <Screen title={t("mobile.feed.title")}>{!runtime.ready ? <RuntimeNotice /> : <QueryBoundary key={key} resetKey={key} fallback={<Card><Status label={t("mobile.common.unavailable")} error /><Action label={t("mobile.common.refresh")} disabled={!runtime.foreground || !runtime.online} onPress={() => { if (runtime.isCurrent() && runtime.foreground && runtime.online) setVersion(value => value + 1) }} /></Card>}><FeedBody onOpenPost={onOpenPost} onOpenPage={onOpenPage} onOpenOffer={onOpenOffer} focused={focused} refresh={() => setVersion(value => value + 1)} /></QueryBoundary>}</Screen>
 }

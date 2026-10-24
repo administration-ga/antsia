@@ -1,0 +1,86 @@
+Window: "ANTSIA iPhone 18 Pro", App: Device Hub.
+0 standard window ANTSIA iPhone 18 Pro – iOS 27.0, ID: com.apple.dt.DeviceKit.DeviceManagementWindow-AppWindow-1, Secondary Actions: Raise
+	1 split group
+		2 split group com.apple.dt.DeviceKit.DeviceManagementWindow-AppWindow-1, SidebarNavigationSplitView
+			3 scroll area
+				4 list Sidebar
+					5 row (selectable) Description: Available, Value: Expanded
+					6 row (selected) Description: iphone.gen3, Value: ANTSIA iPhone 18 Pro
+27.0
+Simulator
+			7 search text field (settable) Search
+				8 button Search
+			9 splitter (disabled, settable, float) 248
+			10 container
+				11 container
+					12 text Description: Démonstration ANTSIA, Secondary Actions: Cancel
+					13 button Description: Revenir à mon compte, Secondary Actions: Cancel
+					14 button Description: Changer de profil démo, Secondary Actions: Cancel
+					15 heading Description: Accueil, Secondary Actions: Cancel
+					16 button Description: Actualiser, Secondary Actions: Cancel
+					17 button Description: Mode liste, Value: radio button, checked, Secondary Actions: Cancel
+					18 element Description: Défilement vertical, Value: radio button, unchecked, Secondary Actions: Cancel
+					19 heading Description: Prisca BIYOGHE, Secondary Actions: Cancel
+					20 text Secondary Actions: Cancel, Description: Démo — Conseil du jour : hydrater ses cheveux régulièrement, surtout pendant la saison sèche. #Estuaire #Beaute
+					21 text Description: Réactions 3 · Commentaires 1, Secondary Actions: Cancel
+					22 element Description: Ouvrir la publication · Prisca BIYOGHE, Secondary Actions: Cancel
+					23 heading Description: Prisca BIYOGHE, Secondary Actions: Cancel
+					24 text Secondary Actions: Cancel, Description: Démo — Nouvelles tresses, nouveaux styles : le salon vous accueille du mardi au samedi à Libreville, de préférence sur rendez-vous. #Estuaire #Coiffure
+					25 text Description: Réactions 3 · Commentaires 1, Secondary Actions: Cancel
+					26 button Description: Ouvrir la publication · Prisca BIYOGHE, Secondary Actions: Cancel
+					27 heading Description: Kévin MOUNGUENGUI, Secondary Actions: Cancel
+					28 text Secondary Actions: Cancel, Description: Démo — Qui serait partant pour un groupe d'entraide entre développeurs de Libreville ? Partage de code, conseils et petits défis chaque mois. #Estuaire #Developpement
+					29 text Description: Réactions 2 · Commentaires 1, Secondary Actions: Cancel
+					30 button Description: Ouvrir la publication · Kévin MOUNGUENGUI, Secondary Actions: Cancel
+					31 heading Description: Kévin MOUNGUENGUI, Secondary Actions: Cancel
+					32 text Secondary Actions: Cancel, Description: Démo — Premier site mis en ligne pour une petite boutique de quartier : un catalogue simple, des photos nettes et un bouton pour écrire au vendeur. Fier du résultat ! #Estuaire #Web
+					33 text Description: Réactions 2 · Commentaires 1, Secondary Actions: Cancel
+					34 button Description: Ouvrir la publication · Kévin MOUNGUENGUI, Secondary Actions: Cancel
+					35 heading Description: Atelier Tech Démo, Secondary Actions: Cancel
+					36 text Description: Publication d’une page, Secondary Actions: Cancel
+					37 button Description: Voir la page · Atelier Tech Démo, Secondary Actions: Cancel
+					38 text Secondary Actions: Cancel, Description: Atelier Tech Démo — Formation fictive aux outils bureautiques pour une petite entreprise : traitement de texte, tableur et partage de documents. Une session de démonstration, sans inscription réelle. #Estuaire #Formation #Informatique
+					39 text Description: Réactions 2 · Commentaires 1, Secondary Actions: Cancel
+					40 text Description: Cette publication présente une offre. Les opérations commerciales restent sur le site., Secondary Actions: Cancel
+					41 button Description: Voir l’offre · Formation bureautique — Démo, Secondary Actions: Cancel
+					42 button Description: Ouvrir la publication · Atelier Tech Démo, Secondary Actions: Cancel
+					43 element Description: Charger la suite, Secondary Actions: Cancel
+					44 button (selected) Description: Accueil, Secondary Actions: Cancel
+					45 element Description: Découvrir, Secondary Actions: Cancel
+					46 button Description: Messages, Secondary Actions: Cancel
+					47 element Description: Réglages, Secondary Actions: Cancel
+				48 button Description: Home, ID: app.grid.3x3
+				49 button Description: Screenshot, ID: camera.viewfinder
+				50 button Description: Record, ID: record.circle
+				51 button Rotate Left
+	52 toolbar
+		53 menu button Add, Help: Add Device, ID: plus
+		54 toggle button Description: Filter, Help: Sort and Filter, Value: on
+		55 button Description: Hide Sidebar, Secondary Actions: Increment, Decrement, Delete, Cancel
+		56 toggle button Description: Capture Keyboard, Value: off
+		57 toggle button Description: Resize mode, Help: Enter resize mode, Value: off
+		58 Zoom
+			59 radio button Description: Zoom Out, Value: 0, ID: minus.magnifyingglass
+			60 radio button Description: arrowtriangles.up.right.down.left.magnifyingglass, Help: Zoom to Fit, Value: 1
+			61 radio button Description: Zoom To Actual Size, Help: Physical Size, Value: 0, ID: 1.magnifyingglass
+			62 radio button Description: Zoom In, Value: 0, ID: plus.magnifyingglass
+		63 button Description: Switch to compact window, Secondary Actions: Increment, Decrement, Delete, Cancel, Move previous, Move next, Remove from toolbar
+		64 menu button More, Help: More Actions, ID: ellipsis
+		65 radio button Description: Edit, Help: Settings, Value: 0, ID: slider.horizontal.3
+		66 radio button Description: text.document, Help: Reports, Value: 0
+		67 radio button Description: Info, Value: 0, ID: info
+	68 close button
+	69 full screen button Help: this button also has an action to zoom the window, Secondary Actions: zoom the window
+	70 minimize button
+	71 text ANTSIA iPhone 18 Pro iOS 27.0
+72 menu bar
+	73 Device Hub
+	74 File
+	75 Edit
+	76 View
+	77 Device
+	78 Controls
+	79 Window
+	80 Help
+
+The focused UI element is 0 standard window ANTSIA iPhone 18 Pro – iOS 27.0, ID: com.apple.dt.DeviceKit.DeviceManagementWindow-AppWindow-1, Secondary Actions: Raise

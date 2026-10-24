@@ -1,0 +1,22 @@
+{
+  "nativeTests": 147,
+  "nativeContractTests": 94,
+  "signOutRatchetTests": 10,
+  "realControllerDiagnosticTests": 4,
+  "typecheckNative": true,
+  "typecheckContracts": true,
+  "lintErrors": 0,
+  "lintNativeWarnings": 37,
+  "globalVerifyRun": false,
+  "codegen": "correct local backend 3260; dry-run exit 0",
+  "simulatorBuild6": {
+    "platform": "iOS27 Simulator",
+    "exactShippedJavaScript": true,
+    "associationToCurrentSignOutToCommercantReady": true,
+    "demoSignOutLabelCorrect": true,
+    "personalAccountRestoredWithoutNewLogin": true,
+    "businessDataWritten": false
+  },
+  "gitIndexUnchanged": true,
+  "localEnterHttpStatus": 200
+}

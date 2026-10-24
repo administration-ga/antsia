@@ -1,0 +1,24 @@
+{
+  "at": "2026-10-24T19:48:13.596146+00:00",
+  "codegen": {
+    "exit": 0,
+    "dryRun": true,
+    "target": "local3260",
+    "productionCommand": false
+  },
+  "mobile": {
+    "typecheck": 0,
+    "tests": 172,
+    "testFiles": 23,
+    "lintErrors": 0,
+    "preexistingWarnings": 37
+  },
+  "socialNative": {
+    "typecheck": 0,
+    "tests": 94
+  },
+  "pinnedBuildTypecheck": 0,
+  "businessTests": 7,
+  "pagesTests": 8,
+  "globalVerifyRunByThisSlice": false
+}
