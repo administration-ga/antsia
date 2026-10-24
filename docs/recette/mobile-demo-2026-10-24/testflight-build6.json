@@ -1,0 +1,23 @@
+{
+  "at": "2026-10-24T16:02:22.630Z",
+  "appId": "6825216214",
+  "buildId": "6498b8bb-b363-421c-8c09-d90d4c621346",
+  "number": "6",
+  "groupBuildsBefore": [
+    "4"
+  ],
+  "actions": [
+    "whatToTest fr-FR",
+    "whatToTest en-US",
+    "build6 added to existing external group",
+    "build6 submitted for external beta review"
+  ],
+  "groupBuildsAfter": [
+    "6",
+    "4"
+  ],
+  "external": "IN_BETA_TESTING",
+  "autoNotify": true,
+  "betaReview": "APPROVED",
+  "publicLink": "https://testflight.apple.com/join/mqWat3mu"
+}

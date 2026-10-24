@@ -1,0 +1,66 @@
+{
+  "runtime": "iOS27.0 simulator D1C99CD5, compatible native shell4, exact final IPA7 JS installed after initial checks",
+  "businessWritesDuringQA": false,
+  "seedRun": false,
+  "nativeDependencyChange": false,
+  "observedBeforeFinalCosmeticAdjustments": [
+    "Nouvel arrivant normal OTP -> registration/membership setup, no generic session error, no member tabs",
+    "Scoped demo sign-out -> eight-role selector",
+    "Commercant normal OTP -> feed and page/offer links",
+    "Feed linked rice offer -> native detail, image, 6500 XAF, closed fictional operations",
+    "Offer -> native storefront identity, managed status, description/hours, catalog filters; catalog response still loading at last read"
+  ],
+  "remaining": [
+    "Physical iPhone TestFlight7",
+    "Known UX observations tracked in the dedicated acceptance report: keyboard visibility, Explore section reset, empty association search message"
+  ],
+  "blocker": null,
+  "finalIPA7Observed": [
+    "Four navigation labels fit on the displayed iPhone",
+    "Owned and network shop directory loaded, demo product cards/images/prices present",
+    "Epicerie storefront catalog rendered 12 products in first window, next-page action present",
+    "Services directory rendered illustrative offers with fixed and quote prices",
+    "Atelier Tech storefront rendered all 10 services and two page posts",
+    "Native diagnostic service detail showed illustration and 5000 XAF, demo operations closed",
+    "Association directory showed Jeunes de Lambarene; native About metadata and one page post loaded, existing follower state displayed without pressing follow",
+    "Association role switched from Commercant: My activities changed to Jeunes de Lambarene and page correctly showed admin and management capability"
+  ],
+  "roleChecks": {
+    "nouveau": "Final signed IPA7 JS: neutral registration/membership notice, no generic session error or member screens; scoped demo signout. Acceptance proofs79–81.",
+    "commercant": "Feed, own published Epicerie, product details/media and shared catalogs observed with exact final IPA7 JS",
+    "association": "Feed, My activities owns Jeunes page, admin status and Gérer la page shown; about and post observed, no follow/write gesture",
+    "membre": "Normal demo login and feed; My activities owns Atelier Tech page and shop, after Association session was scoped-signed-out",
+    "verifie": "Normal demo login/feed; My activities owns Studio Objectif page and shop",
+    "presse": "Normal demo login/feed; My activities owns Gabon Actu; native Media/Verified page, admin capability and its existing post loaded",
+    "administration": "Restored after the final checks; native Mairie Demo page, Institution/Official badge, admin capability, Publications selected and existing post loaded. Final proof102.",
+    "moderateur": "Signed IPA7 JS: normal demo login/feed, no managed pages or shop inherited from previous profile; scoped demo signout. Acceptance proofs71–77."
+  },
+  "handoff": {
+    "at": "2026-10-24T20:13:00.042997+00:00",
+    "simulatorReleased": true,
+    "state": "Administration demo session open, native Mairie Demo page, Publications tab",
+    "noFurtherUIActionByThisSlice": true,
+    "otherSessionsPreserved": true,
+    "finalStateReconfirmedAt": "2026-10-24T20:42:00.689Z"
+  },
+  "finalRequestedQA": {
+    "completed": true,
+    "coordinatedSingleUIController": true,
+    "buildVerified": "0.1.0(7), exact signed IPA7 JavaScript",
+    "stateVerifiedAt": "2026-10-24T20:42:00.689Z",
+    "finalProfile": "Administration",
+    "finalPage": "Mairie Démo",
+    "finalTab": "Publications",
+    "currentDemoSessionLeftOpenAsRequested": true,
+    "businessWritesDuringQA": false,
+    "applicationSourceChanged": false,
+    "proofDirectory": "../ios-build7-demo-acceptance-2026-10-24/",
+    "proofs": [
+      "72-moderation-accueil.txt",
+      "74-moderation-activites.txt",
+      "80-nouvel-arrivant-final.png",
+      "102-etat-final-administration.txt",
+      "102-etat-final-administration.png"
+    ]
+  }
+}

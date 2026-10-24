@@ -10,6 +10,8 @@ export type NativeRuntime = {
   online: boolean
   ready: boolean
   canWrite: boolean
+  webUrl?: string
+  webBasePath?: "/demo"
   isCurrent: () => boolean
   registerCleanup: (cleanup: () => void | Promise<void>) => () => void
 }

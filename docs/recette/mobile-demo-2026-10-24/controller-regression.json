@@ -1,0 +1,38 @@
+{
+  "proposedAssignments": 3,
+  "sourceModifiedByDiagnostic": false,
+  "sourceBeforeSha256": "12ecb9f6a2a3d62ff890ebba6a2189c7f4bfb7b6e97438d3d3a8fce95fac3507",
+  "verifiedAtUtc": "2026-10-24T15:42:08.788350+00:00",
+  "sourceAfterSha256": "7d076a560ded7f6727c727b7538985aaf5f4c23398ae157e07a7ffee028c5328",
+  "sourceFixAppliedByCoordinator": true,
+  "privateSourceTransformUsed": false,
+  "dependencyAdded": false,
+  "testsPassed": 4,
+  "testsFailed": 0,
+  "baselineObserved": {
+    "testsPassed": 3,
+    "testsFailed": 1,
+    "unexpectedPaths": [
+      "/api/auth/",
+      "/api/auth/fetch-options/method/to-upper-case"
+    ]
+  },
+  "cases": [
+    {
+      "name": "private integration of the real native session controller demo login, current-session exit, then another actor login in the same hook",
+      "status": "passed"
+    },
+    {
+      "name": "private integration of the real native session controller pause stops screen and session resources, preserves the token and remount revalidates it",
+      "status": "passed"
+    },
+    {
+      "name": "private integration of the real native session controller AppState background masks screens and foreground revalidates the retained session",
+      "status": "passed"
+    },
+    {
+      "name": "private integration of the real native session controller production retains global revoke-sessions before sign-out",
+      "status": "passed"
+    }
+  ]
+}

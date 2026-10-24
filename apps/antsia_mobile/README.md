@@ -36,8 +36,8 @@ Pour préserver les autres travaux, la préparation utilise deux commits explici
 superpose uniquement les fichiers mobiles/contrats IDN explicitement nommés de cette reprise. Depuis la racine ANTSIA :
 
 ```sh
-ANTSIA_BUILD_REF=1b6a45e2498935d5bffd055e8f27a2b1f7a56938 \
-DIASPORALE_BUILD_REF=0ea572a2042534a338481e45771a272b6a30bf77 \
+ANTSIA_BUILD_REF=1193b087fe4206da81dcdb7d6ff0aca8214f25ee \
+DIASPORALE_BUILD_REF=367c2bd3ca9dfb59baaae0d32bce44dafc911d36 \
 node apps/antsia_mobile/scripts/prepare-build.mjs
 ```
 
@@ -62,10 +62,31 @@ Aucun `--auto-submit`. Le profil iOS interne exige un compte Apple Developer et 
 préenregistré ; choisir `testflight` uniquement pour un test via App Store Connect, avec une
 soumission distincte. Le réglage local de signature App Store est réservé à `testflight`
 par `NATIVE_IOS_APP_STORE_BUILD=true` ; le profil interne conserve la sélection EAS.
-La version est `0.1.0`, build iOS `4`, Android `2`. Ils embarquent le correctif du plantage
+Cette préparation utilise `0.1.0`, build iOS `7`, Android `3` préparé. Le build iOS7 est approuvé et disponible pour les tests externes le24/10/2026 ; les builds6 et4 approuvés restent dans le groupe public. Aucun nouvel APK Android n’est distribué par ce lot.
+Ils embarquent le correctif du plantage
 qui suivait la confirmation de connexion (PR33), présent dans les builds iOS `2` et Android `1`.
 Le build iOS `4` adopte aussi le cycle de vie UIScene, sans lequel le build `3` ne démarre pas sous iOS 27.
 Incrémenter ces numéros explicitement avant toute nouvelle distribution qui l'exige.
+
+Le [rapport de livraison mobile](../../docs/recette/mobile-demo-2026-10-24/RAPPORT.md) détaille le correctif du changement de compte et la recette du build6. Bêta publique : https://testflight.apple.com/join/mqWat3mu.
+
+## Comptes de démonstration
+
+L’entrée et la bannière proposent une démonstration explicitement séparée du compte
+personnel. Les trois origines `EXPO_PUBLIC_DEMO_CONVEX_URL`,
+`EXPO_PUBLIC_DEMO_CONVEX_SITE_URL` et `EXPO_PUBLIC_DEMO_SITE_URL` sont déclarées dans
+le profil EAS ; l’authentification et les lecteurs de données basculent ensemble.
+Le catalogue n’apparaît que si le backend déclare `demoAccounts` et `emailOtp`.
+La connexion emploie le vrai parcours OTP et les comptes fictifs existants du Web,
+sans bootstrap, consentement automatique, équipement, publication ou graine métier.
+Comme sur le Web, un utilisateur d’authentification peut être créé si l’adresse démo
+choisie ne s’est jamais connectée ; aucun profil ni contenu n’est créé par le natif.
+
+Les coffres restent isolés par origine. Une bascule attend la fermeture des lecteurs
+et appels, conserve le jeton du compte personnel et relit la session au retour.
+La sortie d’un compte démo révoque uniquement la session du téléphone, pour préserver
+les visiteurs Web. Le nouvel arrivant sans profil ou sans adhésion reste soumis à la préparation de
+son compte dans la démo Web ; les liens externes gardent le préfixe `/demo`.
 
 Depuis iOS 27, UIKit refuse de lancer une app compilée avec le SDK iOS 27 sans cycle de vie UIScene
 (« UIScene life cycle is required for apps built with this SDK », arrêt SIGTRAP au démarrage).
@@ -201,3 +222,29 @@ réduits et présentation des listes/appels. Aucun score AA ou gain de performan
 Le [dossier P19](../../docs/etudes/2026-10-18-social-commerce/rapports/P19_REPRISE_2026-10-20.md)
 est actualisé sans lancement de pilote ou publication. La configuration propriétaire, les
 compilations et les essais physiques restent nécessaires et non effectués.
+
+## Écrans métier natifs — préparation iOS7
+
+L’onglet Découvrir donne accès aux boutiques, services, associations et activités gérées.
+Les pages et boutiques s’ouvrent depuis le fil ; une publication commerciale renvoie à
+sa référence d’offre relue par le serveur. Les vitrines présentent leurs informations,
+collections, catalogue paginé et publications. Les fiches distinguent produits et
+services, prix fixes/unitaires/fourchettes/devis, disponibilité indicative et variantes.
+Les pages d’association affichent présentation, publications et suivi au geste explicite.
+Les offres fictives gardent leurs actions commerciales fermées ; aucun achat ou devis
+n’est simulé. Les médias publics de démo sont résolus uniquement depuis les URL admises
+par le DTO, sous l’origine Web configurée.
+
+Un nouvel arrivant déjà authentifié dont la personne existe sans adhésion affiche
+l’inscription à terminer, sans accès membre ni création automatique de données.
+Les contrôles de reconnexion utilisent la même admission que l’entrée initiale.
+La recette et le statut de distribution du build7 sont consignés dans
+`docs/recette/mobile-business-ios7-2026-10-24/` à la racine du dépôt.
+
+Livraison confirmée le24/10/2026 à22:06Paris : **0.1.0(7) APPROVED et IN_BETA_TESTING**,
+groupe public7+6+4 conservé, notification automatique active. La recette complémentaire
+des huit profils est terminée dans le simulateur, avec réserves ergonomiques consignées ;
+Administration est restauré sur Mairie Démo/Publications. Voir le rapport et ses limites. Cette note
+de livraison est postérieure au manifeste de compilation et ne change pas le binaire.
+
+La [publication Git et sa vérification globale répartie](../../docs/recette/mobile-business-ios7-2026-10-24/PUBLICATION_GIT.md) documentent le lot iOS7 et les reprises ciblées des contrôles.

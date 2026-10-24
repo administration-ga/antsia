@@ -1,0 +1,10 @@
+{
+  "rootPackageUnchanged": true,
+  "rootLockUnchanged": true,
+  "branch": "codex/pa4-identite-session",
+  "head": "c4d36f345707f87f20dbd970b2850c683c8581be",
+  "nativeManifest": "7",
+  "backendProductionCommand": false,
+  "businessSeed": false,
+  "sharedEnvironmentFileEdit": false
+}

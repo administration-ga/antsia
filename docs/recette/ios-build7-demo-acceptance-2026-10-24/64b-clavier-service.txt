@@ -1,0 +1,150 @@
+Window: "ANTSIA iPhone 18 Pro", App: Device Hub.
+0 standard window ANTSIA iPhone 18 Pro – iOS 27.0, ID: com.apple.dt.DeviceKit.DeviceManagementWindow-AppWindow-1, Secondary Actions: Raise
+	1 split group
+		2 split group com.apple.dt.DeviceKit.DeviceManagementWindow-AppWindow-1, SidebarNavigationSplitView
+			3 scroll area
+				4 list Sidebar
+					5 row (selectable) Description: Available, Value: Expanded
+					6 row (selected) Description: iphone.gen3, Value: ANTSIA iPhone 18 Pro
+27.0
+Simulator
+			7 search text field (settable) Search
+				8 button Search
+			9 splitter (disabled, settable, float) 248
+			10 container
+				11 container (showing 0-100 of 106 items)
+					12 text Description: Démonstration ANTSIA, Secondary Actions: Cancel
+					13 button Description: Revenir à mon compte, Secondary Actions: Cancel
+					14 button Description: Changer de profil démo, Secondary Actions: Cancel
+					15 button Description: Retour, Secondary Actions: Cancel
+					16 heading Description: Voir la boutique, Secondary Actions: Cancel
+					17 element Description: Actualiser, Secondary Actions: Cancel
+					18 element Description: Atelier Tech Démo, Secondary Actions: Cancel
+					19 heading Description: Atelier Tech Démo, Secondary Actions: Cancel
+					20 text Description: Communauté, Secondary Actions: Cancel
+					21 text Description: Présentation, Secondary Actions: Cancel
+					22 text Description: Atelier informatique fictif de démonstration : diagnostic, entretien et accompagnement à Libreville., Secondary Actions: Cancel
+					23 button Description: Voir la page, Secondary Actions: Cancel
+					24 heading Description: Catalogue, Secondary Actions: Cancel
+					25 text Description: Rechercher des produits ou services, Secondary Actions: Cancel
+					26 text field (settable) Description: Rechercher des produits ou services, Value: diagnostic, Secondary Actions: Cancel
+					27 button Description: Rechercher, Secondary Actions: Cancel
+					28 element Description: Tout, Value: radio button, unchecked, Secondary Actions: Cancel
+					29 element Description: Produits, Value: radio button, unchecked, Secondary Actions: Cancel
+					30 button (selected) Description: Services, Value: radio button, checked, Secondary Actions: Cancel
+					31 element Description: Plus récentes, Value: radio button, checked, Secondary Actions: Cancel
+					32 button Description: Prix croissant, Value: radio button, unchecked, Secondary Actions: Cancel
+					33 element Description: Prix décroissant, Value: radio button, unchecked, Secondary Actions: Cancel
+					34 element Description: Effacer les filtres, Secondary Actions: Cancel
+					35 text Description: Collections, Secondary Actions: Cancel
+					36 button Description: Informatique de démonstration, Secondary Actions: Cancel
+					37 element Description: Photo d'illustration pour la démonstration : Diagnostic informatique — Démo, Secondary Actions: Cancel
+					38 heading Description: Diagnostic informatique — Démo, Secondary Actions: Cancel
+					39 text Description: 5 000 XAF, Secondary Actions: Cancel
+					40 text Description: Diagnostic fictif pour explorer une offre de service. Aucune intervention réelle., Secondary Actions: Cancel
+					41 text Description: Offres de démonstration, Secondary Actions: Cancel
+					42 element Description: Voir l’offre · Diagnostic informatique — Démo, Secondary Actions: Cancel
+					43 element Description: Photo d'illustration pour la démonstration : Maintenance informatique — Démo, Secondary Actions: Cancel
+					44 heading Description: Maintenance informatique — Démo, Secondary Actions: Cancel
+					45 text Description: 10 000 XAF, Secondary Actions: Cancel
+					46 text Description: Prestation fictive de maintenance destinée à la démonstration. Aucun rendez-vous ni paiement réel., Secondary Actions: Cancel
+					47 text Description: Offres de démonstration, Secondary Actions: Cancel
+					48 element Description: Voir l’offre · Maintenance informatique — Démo, Secondary Actions: Cancel
+					49 element Description: Photo d'illustration pour la démonstration : Remplacement d'écran de smartphone — Démo, Secondary Actions: Cancel
+					50 heading Description: Remplacement d'écran de smartphone — Démo, Secondary Actions: Cancel
+					51 text Description: Sur devis, Secondary Actions: Cancel
+					52 text Description: Remplacement fictif d'un écran, chiffré sur devis selon le modèle. Aucune intervention réelle., Secondary Actions: Cancel
+					53 text Description: Offres de démonstration, Secondary Actions: Cancel
+					54 element Description: Voir l’offre · Remplacement d'écran de smartphone — Démo, Secondary Actions: Cancel
+					55 element Description: Photo d'illustration pour la démonstration : Installation réseau — Démo, Secondary Actions: Cancel
+					56 heading Description: Installation réseau — Démo, Secondary Actions: Cancel
+					57 text Description: Sur devis, Secondary Actions: Cancel
+					58 text Description: Câblage et configuration fictifs d'un réseau de bureau, sur devis. Aucune intervention réelle., Secondary Actions: Cancel
+					59 text Description: Offres de démonstration, Secondary Actions: Cancel
+					60 button Description: Voir l’offre · Installation réseau — Démo, Secondary Actions: Cancel
+					61 element Description: Photo d'illustration pour la démonstration : Installation de logiciels — Démo, Secondary Actions: Cancel
+					62 heading Description: Installation de logiciels — Démo, Secondary Actions: Cancel
+					63 text Description: 7 500 XAF, Secondary Actions: Cancel
+					64 text Description: Installation fictive des logiciels essentiels et des mises à jour. Aucun rendez-vous réel., Secondary Actions: Cancel
+					65 text Description: Offres de démonstration, Secondary Actions: Cancel
+					66 button Description: Voir l’offre · Installation de logiciels — Démo, Secondary Actions: Cancel
+					67 element Description: Photo d'illustration pour la démonstration : Récupération de données — Démo, Secondary Actions: Cancel
+					68 heading Description: Récupération de données — Démo, Secondary Actions: Cancel
+					69 text Description: Sur devis, Secondary Actions: Cancel
+					70 text Description: Tentative fictive de récupération sur un disque endommagé, sur devis. Aucune intervention réelle., Secondary Actions: Cancel
+					71 text Description: Offres de démonstration, Secondary Actions: Cancel
+					72 button Description: Voir l’offre · Récupération de données — Démo, Secondary Actions: Cancel
+					73 element Description: Photo d'illustration pour la démonstration : Dépannage d'imprimante — Démo, Secondary Actions: Cancel
+					74 heading Description: Dépannage d'imprimante — Démo, Secondary Actions: Cancel
+					75 text Description: 6 000 XAF, Secondary Actions: Cancel
+					76 text Description: Dépannage fictif d'une imprimante de bureau. Aucune intervention ni paiement réel., Secondary Actions: Cancel
+					77 text Description: Offres de démonstration, Secondary Actions: Cancel
+					78 button Description: Voir l’offre · Dépannage d'imprimante — Démo, Secondary Actions: Cancel
+					79 element Description: Photo d'illustration pour la démonstration : Formation bureautique — Démo, Secondary Actions: Cancel
+					80 heading Description: Formation bureautique — Démo, Secondary Actions: Cancel
+					81 text Description: 20 000 XAF, Secondary Actions: Cancel
+					82 text Description: Session fictive de formation au traitement de texte et au tableur. Aucune inscription réelle., Secondary Actions: Cancel
+					83 text Description: Offres de démonstration, Secondary Actions: Cancel
+					84 button Description: Voir l’offre · Formation bureautique — Démo, Secondary Actions: Cancel
+					85 element Description: Photo d'illustration pour la démonstration : Maintenance de serveurs — Démo, Secondary Actions: Cancel
+					86 heading Description: Maintenance de serveurs — Démo, Secondary Actions: Cancel
+					87 text Description: Sur devis, Secondary Actions: Cancel
+					88 text Description: Contrat fictif de suivi pour une petite entreprise, sur devis. Aucune intervention réelle., Secondary Actions: Cancel
+					89 text Description: Offres de démonstration, Secondary Actions: Cancel
+					90 button Description: Voir l’offre · Maintenance de serveurs — Démo, Secondary Actions: Cancel
+					91 element Description: Photo d'illustration pour la démonstration : Bilan de sécurité informatique — Démo, Secondary Actions: Cancel
+					92 heading Description: Bilan de sécurité informatique — Démo, Secondary Actions: Cancel
+					93 text Description: Sur devis, Secondary Actions: Cancel
+					94 text Description: Bilan fictif des mots de passe, sauvegardes et accès, sur devis. Aucune intervention réelle., Secondary Actions: Cancel
+					95 text Description: Offres de démonstration, Secondary Actions: Cancel
+					96 button Description: Voir l’offre · Bilan de sécurité informatique — Démo, Secondary Actions: Cancel
+					97 heading Description: Publications, Secondary Actions: Cancel
+					98 heading Description: Atelier Tech Démo, Secondary Actions: Cancel
+					99 text Description: Publication d’une page, Secondary Actions: Cancel
+					100 button Description: Voir la page · Atelier Tech Démo, Secondary Actions: Cancel
+					101 text Secondary Actions: Cancel, Description: Atelier Tech Démo — Formation fictive aux outils bureautiques pour une petite entreprise : traitement de texte, tableur et partage de documents. Une session de démonstration, sans inscription réelle. #Estuaire #Formation #Informatique
+					102 text Description: Réactions 2 · Commentaires 1, Secondary Actions: Cancel
+					103 text Description: Cette publication présente une offre. Les opérations commerciales restent sur le site., Secondary Actions: Cancel
+					104 button Description: Voir l’offre · Formation bureautique — Démo, Secondary Actions: Cancel
+					105 link Description: Ouvrir la publication · Atelier Tech Démo, Secondary Actions: Cancel
+					106 heading Description: Atelier Tech Démo, Secondary Actions: Cancel
+					107 text Description: Publication d’une page, Secondary Actions: Cancel
+					108 button Description: Voir la page · Atelier Tech Démo, Secondary Actions: Cancel
+					109 text Secondary Actions: Cancel, Description: Atelier Tech Démo — Diagnostic, entretien et accompagnement informatique : une activité fictive pour découvrir les prestations du réseau. Nous présentons un scénario de devis de démonstration, sans intervention ni paiement réel. #Estuaire #Informatique #Services
+					110 text Description: Réactions 2 · Commentaires 0, Secondary Actions: Cancel
+					111 text Description: Cette publication présente une offre. Les opérations commerciales restent sur le site., Secondary Actions: Cancel
+				112 button Description: Home, ID: app.grid.3x3
+				113 button Description: Screenshot, ID: camera.viewfinder
+				114 button Description: Record, ID: record.circle
+				115 button Rotate Left
+	116 toolbar
+		117 menu button Add, Help: Add Device, ID: plus
+		118 toggle button Description: Filter, Help: Sort and Filter, Value: on
+		119 button Description: Hide Sidebar, Secondary Actions: Increment, Decrement, Delete, Cancel
+		120 toggle button Description: Capture Keyboard, Value: off
+		121 toggle button Description: Resize mode, Help: Enter resize mode, Value: off
+		122 Zoom
+			123 radio button Description: Zoom Out, Value: 0, ID: minus.magnifyingglass
+			124 radio button Description: arrowtriangles.up.right.down.left.magnifyingglass, Help: Zoom to Fit, Value: 1
+			125 radio button Description: Zoom To Actual Size, Help: Physical Size, Value: 0, ID: 1.magnifyingglass
+			126 radio button Description: Zoom In, Value: 0, ID: plus.magnifyingglass
+		127 button Description: Switch to compact window, Secondary Actions: Increment, Decrement, Delete, Cancel, Move previous, Move next, Remove from toolbar
+		128 menu button More, Help: More Actions, ID: ellipsis
+		129 radio button Description: Edit, Help: Settings, Value: 0, ID: slider.horizontal.3
+		130 radio button Description: text.document, Help: Reports, Value: 0
+		131 radio button Description: Info, Value: 0, ID: info
+	132 close button
+	133 full screen button Help: this button also has an action to zoom the window, Secondary Actions: zoom the window
+	134 minimize button
+	135 text ANTSIA iPhone 18 Pro iOS 27.0
+136 menu bar
+	137 Device Hub
+	138 File
+	139 Edit
+	140 View
+	141 Device
+	142 Controls
+	143 Window
+	144 Help
+
+The focused UI element is 0 standard window ANTSIA iPhone 18 Pro – iOS 27.0, ID: com.apple.dt.DeviceKit.DeviceManagementWindow-AppWindow-1, Secondary Actions: Raise

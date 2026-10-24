@@ -3,6 +3,8 @@ import { AppState } from "react-native"
 import * as Crypto from "expo-crypto"
 import * as WebBrowser from "expo-web-browser"
 import { runNativeIdn } from "./native-idn"
+import { runNativeDemo, type NativeDemoQueries } from "./native-demo"
+import { createNativeEnvironmentPauseGate } from "./environment-pause"
 import { createNativeLifecycle } from "@antsia/social-native/lifecycle"
 import { createNativeSignOutGate, type NativeExitResult } from "@antsia/social-native/sign-out"
 import { nativeRequest } from "@antsia/social-native/request"
@@ -13,13 +15,17 @@ export type NativeSession = { id: string; userId: string; expiresAt: number }
 type Phase = "loading" | "anonymous" | "ready" | "background" | "failure" | "exiting" | "purgeFailed"
 
 /** Session serveur fraîche, JWT uniquement en mémoire. Aucun état sticky ne vaut autorisation. */
-export function useNativeSessionController(authUrl: string) {
+export function useNativeSessionController(authUrl: string, sharedDemo = false) {
   const [vault] = useState(() => createNativeCredentialVault(authUrl))
+  // Better Auth renvoie un proxy appelable : toujours l'envelopper, y compris
+  // dans setAuth, pour que React ne l'exécute pas comme une mise à jour d'état.
   const [auth, setAuth] = useState(() => buildNativeAuthClient(authUrl, vault))
   const credential = useSyncExternalStore(vault.subscribe, vault.snapshot, vault.snapshot)
   const [lifecycle] = useState(createNativeLifecycle)
   const [sessionLifecycle] = useState(createNativeLifecycle)
   const [exitGate] = useState(createNativeSignOutGate)
+  const [pauseGate, setPauseGate] = useState(createNativeEnvironmentPauseGate)
+  const leaving = useRef(false)
   const [phase, setPhase] = useState<Phase>("loading")
   const [session, setSession] = useState<NativeSession | null>(null)
   // L'autorité d'un appel admis survit au masquage des écrans ; jamais à une sortie,
@@ -38,6 +44,13 @@ export function useNativeSessionController(authUrl: string) {
   const idnPending = useRef<object | null>(null)
   const [idnBusy, setIdnBusy] = useState(false)
   const [idnError, setIdnError] = useState(false)
+  const demoPending = useRef<object | null>(null)
+  const [demoBusy, setDemoBusy] = useState(false)
+  const [demoError, setDemoError] = useState(false)
+  const cancelDemo = useCallback(() => {
+    demoPending.current = null
+    if (mounted.current) setDemoBusy(false)
+  }, [])
   const cancelIdn = useCallback(() => {
     idnPending.current = null
     setIdnBusy(false)
@@ -62,7 +75,7 @@ export function useNativeSessionController(authUrl: string) {
 
   const resume = useCallback(async () => {
     // Le navigateur peut masquer l'app ; seul le retour corrélé arme la capture.
-    if (idnPending.current) return
+    if (leaving.current || idnPending.current || demoPending.current) return
     if (!foreground.current || currentPhase.current === "exiting" || currentPhase.current === "purgeFailed") return
     const at = ++operation.current
     lifecycle.invalidate()
@@ -87,7 +100,7 @@ export function useNativeSessionController(authUrl: string) {
         vault.fence()
         await vault.clear()
         if (!mounted.current || operation.current !== at || !foreground.current) return
-        setAuth(buildNativeAuthClient(authUrl, vault))
+        setAuth(() => buildNativeAuthClient(authUrl, vault))
         currentPhase.current = "anonymous"
         setPhase("anonymous")
         return
@@ -124,20 +137,22 @@ export function useNativeSessionController(authUrl: string) {
   const blocked = useCallback(() => {
     if (currentPhase.current === "exiting" || !mounted.current) return
     cancelIdn()
+    cancelDemo()
     closePrivateState()
     currentPhase.current = "failure"
     setPhase("failure")
-  }, [cancelIdn, closePrivateState])
+  }, [cancelDemo, cancelIdn, closePrivateState])
   const revoked = useCallback(() => {
     if (currentPhase.current === "exiting" || !mounted.current) return
     cancelIdn()
+    cancelDemo()
     closePrivateState()
     currentPhase.current = "loading"
     setPhase("loading")
     const at = operation.current
     void vault.clear().then(() => {
       if (!mounted.current || operation.current !== at) return
-      setAuth(buildNativeAuthClient(authUrl, vault))
+      setAuth(() => buildNativeAuthClient(authUrl, vault))
       currentPhase.current = "anonymous"
       setPhase("anonymous")
     }).catch(() => {
@@ -145,30 +160,51 @@ export function useNativeSessionController(authUrl: string) {
       currentPhase.current = "purgeFailed"
       setPhase("purgeFailed")
     })
-  }, [authUrl, cancelIdn, closePrivateState, vault])
+  }, [authUrl, cancelDemo, cancelIdn, closePrivateState, vault])
 
   const exit = useCallback(async () => {
     cancelIdn()
+    cancelDemo()
     const result = await exitGate({
       client: auth,
+      scope: sharedDemo ? "current" : "all",
       block: () => { currentPhase.current = "exiting"; closePrivateState(false); setPhase("exiting") },
       stopResources: async () => {
         const results = [...await lifecycle.stopResources(), ...await sessionLifecycle.stopResources()]
         if (results.some((value) => value.status === "rejected")) throw new Error("nativeCleanupFailed")
       },
       clearCredentials: () => vault.clear(),
-      reset: () => { if (mounted.current) { setAuth(buildNativeAuthClient(authUrl, vault)); setSession(null); setTransportKey((value) => value + 1) } },
+      reset: () => { if (mounted.current) { setAuth(() => buildNativeAuthClient(authUrl, vault)); setSession(null); setTransportKey((value) => value + 1) } },
     })
     if (mounted.current) {
+      if (result.localCleared) {
+        leaving.current = false
+        setPauseGate(() => createNativeEnvironmentPauseGate())
+      }
       setExitResult(result)
       currentPhase.current = result.localCleared ? "anonymous" : "purgeFailed"
       setPhase(currentPhase.current)
     }
     return result
-  }, [auth, authUrl, cancelIdn, closePrivateState, exitGate, lifecycle, sessionLifecycle, vault])
+  }, [auth, authUrl, cancelDemo, cancelIdn, closePrivateState, exitGate, lifecycle, sessionLifecycle, sharedDemo, vault])
+
+  const pause = useCallback(() => pauseGate({
+    block: () => {
+      leaving.current = true
+      cancelIdn()
+      cancelDemo()
+      closePrivateState(false)
+      currentPhase.current = "background"
+      setPhase("background")
+    },
+    stopResources: async () => {
+      const results = [...await lifecycle.stopResources(), ...await sessionLifecycle.stopResources()]
+      if (results.some(result => result.status === "rejected")) throw new Error("nativeCleanupFailed")
+    },
+  }), [cancelDemo, cancelIdn, closePrivateState, lifecycle, pauseGate, sessionLifecycle])
 
   const signInIdn = useCallback(async ({ scheme, webUrl }: { scheme: string; webUrl: string }) => {
-    if (idnPending.current || currentPhase.current !== "anonymous" || vault.hasCredential) return
+    if (sharedDemo || leaving.current || demoPending.current || idnPending.current || currentPhase.current !== "anonymous" || vault.hasCredential) return
     vault.fence()
     const pending = {}
     idnPending.current = pending
@@ -207,7 +243,34 @@ export function useNativeSessionController(authUrl: string) {
         if (foreground.current && !vault.hasCredential) { currentPhase.current = "anonymous"; setPhase("anonymous") }
       }
     }
-  }, [auth, resume, vault])
+  }, [auth, resume, sharedDemo, vault])
+
+  const signInDemo = useCallback(async (actor: string, queries: NativeDemoQueries) => {
+    if (!sharedDemo || leaving.current || idnPending.current || demoPending.current
+      || currentPhase.current !== "anonymous" || vault.hasCredential) return
+    vault.fence()
+    const pending = {}
+    demoPending.current = pending
+    setDemoBusy(true)
+    setDemoError(false)
+    const current = () => mounted.current && !leaving.current && demoPending.current === pending
+      && currentPhase.current === "anonymous"
+    try {
+      const admitted = await runNativeDemo({ enabled: sharedDemo, actor, auth, vault, queries,
+        isCurrent: current, isForeground: () => foreground.current })
+      if (!current() || !admitted) return
+      demoPending.current = null
+      setDemoBusy(false)
+      await resume()
+    } catch {
+      if (current()) setDemoError(true)
+    } finally {
+      if (demoPending.current === pending) {
+        demoPending.current = null
+        if (mounted.current) setDemoBusy(false)
+      }
+    }
+  }, [auth, resume, sharedDemo, vault])
 
   useEffect(() => {
     mounted.current = true
@@ -216,6 +279,7 @@ export function useNativeSessionController(authUrl: string) {
       if (foreground.current === active) return
       foreground.current = active
       if (!active) {
+        cancelDemo()
         closePrivateState(true, false)
         if (currentPhase.current !== "exiting" && currentPhase.current !== "purgeFailed") {
           currentPhase.current = "background"
@@ -225,13 +289,14 @@ export function useNativeSessionController(authUrl: string) {
     })
     return () => {
       mounted.current = false
+      demoPending.current = null
       if (idnPending.current) {
         idnPending.current = null
         try { WebBrowser.dismissAuthSession() } catch { /* Aucun retour ne peut réadopter cette session. */ }
       }
       listener.remove(); operation.current += 1; lifecycle.invalidate(); vault.fence(); void lifecycle.stopResources()
     }
-  }, [closePrivateState, lifecycle, resume, vault])
+  }, [cancelDemo, closePrivateState, lifecycle, resume, vault])
   useEffect(() => () => { callSessionRef.current = null; sessionLifecycle.invalidate(); void sessionLifecycle.stopResources() }, [sessionLifecycle])
   const firstHydration = useRef(false)
   useEffect(() => {
@@ -258,6 +323,6 @@ export function useNativeSessionController(authUrl: string) {
     mounted.current && sessionLifecycle.active && !vault.failed && currentPhase.current !== "exiting" && currentPhase.current !== "purgeFailed" && callSessionRef.current?.id === id && callSessionRef.current.expiresAt > Date.now(),
   [sessionLifecycle, vault])
   const registerSessionCleanup = useCallback((cleanup: () => void | Promise<void>) => sessionLifecycle.register(cleanup), [sessionLifecycle])
-  return { auth, vault, lifecycle, phase, session, callSession, foreground: foreground.current, transportKey, exitResult, resume, exit, revoked, blocked, signInIdn, idnBusy, idnError, sessionIsCurrent, callSessionIsCurrent, registerSessionCleanup }
+  return { auth, vault, sharedDemo, lifecycle, phase, session, callSession, foreground: foreground.current, transportKey, exitResult, resume, exit, pause, revoked, blocked, signInIdn, idnBusy, idnError, signInDemo, demoBusy, demoError, sessionIsCurrent, callSessionIsCurrent, registerSessionCleanup }
 }
 export type NativeSessionController = ReturnType<typeof useNativeSessionController>

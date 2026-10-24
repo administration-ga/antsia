@@ -15,7 +15,10 @@
         "EXPO_PUBLIC_CONVEX_SITE_URL": "https://diligent-avocet-585.convex.site",
         "EXPO_PUBLIC_SITE_URL": "https://antsia.vercel.app",
         "EXPO_PUBLIC_NATIVE_SCHEME": "antsia",
-        "EXPO_NO_DOTENV": "1"
+        "EXPO_NO_DOTENV": "1",
+        "EXPO_PUBLIC_DEMO_CONVEX_URL": "https://vivid-hedgehog-655.convex.cloud",
+        "EXPO_PUBLIC_DEMO_CONVEX_SITE_URL": "https://vivid-hedgehog-655.convex.site",
+        "EXPO_PUBLIC_DEMO_SITE_URL": "https://antsia.vercel.app"
       },
       "android": {
         "buildType": "apk"

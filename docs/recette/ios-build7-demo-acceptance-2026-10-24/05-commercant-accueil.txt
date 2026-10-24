@@ -1,0 +1,82 @@
+Window: "ANTSIA iPhone 18 Pro", App: Device Hub.
+0 standard window ANTSIA iPhone 18 Pro – iOS 27.0, ID: com.apple.dt.DeviceKit.DeviceManagementWindow-AppWindow-1, Secondary Actions: Raise
+	1 split group
+		2 split group com.apple.dt.DeviceKit.DeviceManagementWindow-AppWindow-1, SidebarNavigationSplitView
+			3 scroll area
+				4 list Sidebar
+					5 row (selectable) Description: Available, Value: Expanded
+					6 row (selected) Description: iphone.gen3, Value: ANTSIA iPhone 18 Pro
+27.0
+Simulator
+			7 search text field (settable) Search
+				8 button Search
+			9 splitter (disabled, settable, float) 248
+			10 container
+				11 container
+					12 text Description: Démonstration ANTSIA, Secondary Actions: Cancel
+					13 button Description: Revenir à mon compte, Secondary Actions: Cancel
+					14 element Description: Changer de profil démo, Secondary Actions: Cancel
+					15 heading Description: Accueil, Secondary Actions: Cancel
+					16 element Description: Actualiser, Secondary Actions: Cancel
+					17 button Description: Mode liste, Value: radio button, checked, Secondary Actions: Cancel
+					18 element Description: Défilement vertical, Value: radio button, unchecked, Secondary Actions: Cancel
+					19 heading Description: Épicerie Moussavou Démo, Secondary Actions: Cancel
+					20 text Description: Publication d’une page, Secondary Actions: Cancel
+					21 button Description: Voir la page · Épicerie Moussavou Démo, Secondary Actions: Cancel
+					22 text Secondary Actions: Cancel, Description: Démo — Le riz parfumé est de retour en rayon, en sacs de 5 kg pour les repas de famille. Vitrine de démonstration : aucune vente réelle. #epicerie
+					23 text Description: Réactions 0 · Commentaires 0, Secondary Actions: Cancel
+					24 text Description: Cette publication présente une offre. Les opérations commerciales restent sur le site., Secondary Actions: Cancel
+					25 button Description: Voir l’offre · Riz parfumé, sac de 5 kg — Démo, Secondary Actions: Cancel
+					26 button Description: Ouvrir la publication · Épicerie Moussavou Démo, Secondary Actions: Cancel
+					27 heading Description: Steeve BOUSSOUGOU, Secondary Actions: Cancel
+					28 text Secondary Actions: Cancel, Description: Démo — Un passager a oublié son téléphone dans mon taxi ce matin. Je l'ai déposé à l'accueil de la Mairie Démo. #Estuaire #Entraide
+					29 text Description: Réactions 3 · Commentaires 1, Secondary Actions: Cancel
+					30 button Description: Ouvrir la publication · Steeve BOUSSOUGOU, Secondary Actions: Cancel
+					31 heading Description: Steeve BOUSSOUGOU, Secondary Actions: Cancel
+					32 text Secondary Actions: Cancel, Description: Démo — Owendo – Libreville aux heures de pointe : patience et bonne humeur restent les meilleurs passagers. #Estuaire #Taxi
+					33 text Description: Réactions 3 · Commentaires 1, Secondary Actions: Cancel
+					34 button Description: Ouvrir la publication · Steeve BOUSSOUGOU, Secondary Actions: Cancel
+					35 heading Description: Ulrich ONDO, Secondary Actions: Cancel
+					36 text Secondary Actions: Cancel, Description: Démo — Quelqu'un connaît un bon ouvrage d'introduction au droit administratif ? Toutes les suggestions sont bienvenues. #HautOgooue #Droit
+					37 text Description: Réactions 2 · Commentaires 1, Secondary Actions: Cancel
+					38 element Description: Ouvrir la publication · Ulrich ONDO, Secondary Actions: Cancel
+					39 button Description: Charger la suite, Secondary Actions: Cancel
+					40 button (selected) Description: Accueil, Secondary Actions: Cancel
+					41 button Description: Découvrir, Secondary Actions: Cancel
+					42 button Description: Messages, Secondary Actions: Cancel
+					43 button Description: Réglages, Secondary Actions: Cancel
+				44 button Description: Home, ID: app.grid.3x3
+				45 button Description: Screenshot, ID: camera.viewfinder
+				46 button Description: Record, ID: record.circle
+				47 button Rotate Left
+	48 toolbar
+		49 menu button Add, Help: Add Device, ID: plus
+		50 toggle button Description: Filter, Help: Sort and Filter, Value: on
+		51 button Description: Hide Sidebar, Secondary Actions: Increment, Decrement, Delete, Cancel
+		52 toggle button Description: Capture Keyboard, Value: off
+		53 toggle button Description: Resize mode, Help: Enter resize mode, Value: off
+		54 Zoom
+			55 radio button Description: Zoom Out, Value: 0, ID: minus.magnifyingglass
+			56 radio button Description: arrowtriangles.up.right.down.left.magnifyingglass, Help: Zoom to Fit, Value: 1
+			57 radio button Description: Zoom To Actual Size, Help: Physical Size, Value: 0, ID: 1.magnifyingglass
+			58 radio button Description: Zoom In, Value: 0, ID: plus.magnifyingglass
+		59 button Description: Switch to compact window, Secondary Actions: Increment, Decrement, Delete, Cancel, Move previous, Move next, Remove from toolbar
+		60 menu button More, Help: More Actions, ID: ellipsis
+		61 radio button Description: Edit, Help: Settings, Value: 0, ID: slider.horizontal.3
+		62 radio button Description: text.document, Help: Reports, Value: 0
+		63 radio button Description: Info, Value: 0, ID: info
+	64 close button
+	65 full screen button Help: this button also has an action to zoom the window, Secondary Actions: zoom the window
+	66 minimize button
+	67 text ANTSIA iPhone 18 Pro iOS 27.0
+68 menu bar
+	69 Device Hub
+	70 File
+	71 Edit
+	72 View
+	73 Device
+	74 Controls
+	75 Window
+	76 Help
+
+The focused UI element is 0 standard window ANTSIA iPhone 18 Pro – iOS 27.0, ID: com.apple.dt.DeviceKit.DeviceManagementWindow-AppWindow-1, Secondary Actions: Raise

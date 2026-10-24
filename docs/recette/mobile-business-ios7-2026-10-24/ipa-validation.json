@@ -1,0 +1,12 @@
+{
+  "bundle": "ga.antsia.mobile",
+  "version": "0.1.0",
+  "build": "7",
+  "minimumIOS": "16.4",
+  "sdk": "iphoneos27.1",
+  "team": "5Y39TTNCM7",
+  "signatureVerified": true,
+  "sceneLifecycle": true,
+  "ipaSha256": "af58922dcac2b6293c800f1fb3aca210964c83d8dabf84d3cc02bb6a12e110b1",
+  "javascriptSha256": "b522b2ed670eb99130c816f8249259f6747aff51c731612b1e7ab2f797753919"
+}

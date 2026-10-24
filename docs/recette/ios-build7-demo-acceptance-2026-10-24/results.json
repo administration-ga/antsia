@@ -1,0 +1,18 @@
+{
+  "status": "completed_with_ergonomic_observations",
+  "version": "0.1.0(7)",
+  "device": "ANTSIA iPhone 18 Pro / iOS27.0 simulator",
+  "businessWrites": false,
+  "applicationSourceChanged": false,
+  "observedRoles": ["Administration", "Commerçant", "Association", "Presse", "Modération", "Nouvel arrivant", "Membre", "Membre vérifié"],
+  "observedRoleTransitions": ["Administration -> Commerçant", "Commerçant -> Association", "Association -> Presse", "Presse -> Modération", "Modération -> Nouvel arrivant", "Nouvel arrivant -> Membre", "Membre -> Membre vérifié", "Membre vérifié -> Administration"],
+  "ownedActivitiesIsolationObserved": ["Commerçant", "Association", "Presse", "Modération", "Membre", "Membre vérifié", "Administration"],
+  "checksPassed": ["rice_offer_detail_6500", "shop_search_riz", "price_asc", "price_desc", "pagination_12_plus_1_and_back", "shop_services_empty_filter", "clear_filters", "association_about_and_post", "association_search_found_and_absent", "press_owned_page_and_admin", "service_directory_fixed_and_quote_prices", "atelier_10_services_loaded", "service_filter_and_diagnostic_search", "diagnostic_detail_image_5000", "moderator_feed_and_no_owned_foreign_activity", "newcomer_neutral_setup_no_member_tabs", "member_own_atelier_and_clean_filters", "verified_own_studio", "administration_restored_and_refreshed"],
+  "observations": ["shop_search_keyboard_occlusion", "explore_tab_resets_after_page_back", "association_directory_missing_empty_message"],
+  "blockingIssue": null,
+  "lastConfirmedRole": "Administration",
+  "lastConfirmedScreen": "Mairie Démo / Publications selected / refreshed",
+  "finalPage": {"badge": "Institution · Officiel", "followers": 17, "posts": 1, "administrator": true, "existingFollowPreserved": true},
+  "physicalIPhoneTested": false,
+  "report": "RAPPORT.md"
+}

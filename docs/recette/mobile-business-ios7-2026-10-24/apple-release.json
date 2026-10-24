@@ -1,0 +1,27 @@
+{
+  "at": "2026-10-24T20:04:49.210Z",
+  "appId": "6825216214",
+  "buildId": "3b39c62d-523c-4d6c-bf2b-a4bb577cf70c",
+  "number": "7",
+  "processing": "VALID",
+  "groupId": "2680e959-b0c8-471d-ba7f-2b7a6ee87784",
+  "groupBuildsBefore": [
+    "6",
+    "4"
+  ],
+  "actions": [
+    "whatToTest fr-FR",
+    "whatToTest en-US",
+    "build7 added to existing external group",
+    "build7 submitted for external beta review"
+  ],
+  "groupBuildsAfter": [
+    "7",
+    "6",
+    "4"
+  ],
+  "external": "IN_BETA_TESTING",
+  "autoNotify": true,
+  "betaReview": "APPROVED",
+  "publicLink": "https://testflight.apple.com/join/mqWat3mu"
+}

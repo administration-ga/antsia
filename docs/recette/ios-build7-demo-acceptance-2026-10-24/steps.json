@@ -1,0 +1,398 @@
+[
+  {
+    "label": "01-administration-page",
+    "at": "2026-10-24T20:15:47.975Z"
+  },
+  {
+    "label": "02-selecteur-apres-administration",
+    "at": "2026-10-24T20:15:48.926Z"
+  },
+  {
+    "label": "03-selecteur-disponible",
+    "at": "2026-10-24T20:16:03.481Z"
+  },
+  {
+    "label": "04-connexion-commercant",
+    "at": "2026-10-24T20:16:08.575Z"
+  },
+  {
+    "label": "05-commercant-accueil",
+    "at": "2026-10-24T20:16:29.374Z"
+  },
+  {
+    "label": "06-offre-riz",
+    "at": "2026-10-24T20:16:37.577Z"
+  },
+  {
+    "label": "07-offre-riz-confirmee",
+    "at": "2026-10-24T20:16:46.177Z"
+  },
+  {
+    "label": "08-vitrine-epicerie",
+    "at": "2026-10-24T20:16:48.870Z"
+  },
+  {
+    "label": "09b-catalogue-charge",
+    "at": "2026-10-24T20:17:27.466Z"
+  },
+  {
+    "label": "10-recherche-riz-saisie",
+    "at": "2026-10-24T20:17:40.758Z"
+  },
+  {
+    "label": "11b-clavier-ferme-par-retour",
+    "at": "2026-10-24T20:19:04.375Z"
+  },
+  {
+    "label": "12-recherche-riz-resultat",
+    "at": "2026-10-24T20:19:17.832Z"
+  },
+  {
+    "label": "13-filtres-effaces",
+    "at": "2026-10-24T20:19:44.070Z"
+  },
+  {
+    "label": "14-prix-croissant",
+    "at": "2026-10-24T20:21:02.619Z"
+  },
+  {
+    "label": "15-prix-croissant-charge",
+    "at": "2026-10-24T20:21:31.385Z"
+  },
+  {
+    "label": "16-catalogue-page-suivante",
+    "at": "2026-10-24T20:21:55.989Z"
+  },
+  {
+    "label": "17-catalogue-retour-page1",
+    "at": "2026-10-24T20:22:28.127Z"
+  },
+  {
+    "label": "18-prix-decroissant",
+    "at": "2026-10-24T20:22:38.613Z"
+  },
+  {
+    "label": "19-prix-decroissant-charge",
+    "at": "2026-10-24T20:23:40.342Z"
+  },
+  {
+    "label": "20-epicerie-services-vide",
+    "at": "2026-10-24T20:23:49.714Z"
+  },
+  {
+    "label": "21-catalogue-restaure",
+    "at": "2026-10-24T20:24:05.885Z"
+  },
+  {
+    "label": "22-retour-offre",
+    "at": "2026-10-24T20:24:13.485Z"
+  },
+  {
+    "label": "23-retour-fil",
+    "at": "2026-10-24T20:24:16.060Z"
+  },
+  {
+    "label": "24-decouvrir-commercant",
+    "at": "2026-10-24T20:24:18.226Z"
+  },
+  {
+    "label": "25-commercant-activites",
+    "at": "2026-10-24T20:24:32.343Z"
+  },
+  {
+    "label": "26-sortie-commercant",
+    "at": "2026-10-24T20:25:04.288Z"
+  },
+  {
+    "label": "27-selecteur-apres-commercant",
+    "at": "2026-10-24T20:25:08.493Z"
+  },
+  {
+    "label": "28-connexion-association",
+    "at": "2026-10-24T20:25:14.922Z"
+  },
+  {
+    "label": "29-association-decouvrir",
+    "at": "2026-10-24T20:25:58.757Z"
+  },
+  {
+    "label": "30-association-activites",
+    "at": "2026-10-24T20:26:02.822Z"
+  },
+  {
+    "label": "31-association-page",
+    "at": "2026-10-24T20:26:13.838Z"
+  },
+  {
+    "label": "32-association-presentation",
+    "at": "2026-10-24T20:26:16.710Z"
+  },
+  {
+    "label": "33-association-publications",
+    "at": "2026-10-24T20:26:30.918Z"
+  },
+  {
+    "label": "34-retour-activites-association",
+    "at": "2026-10-24T20:26:33.585Z"
+  },
+  {
+    "label": "35-annuaire-associations",
+    "at": "2026-10-24T20:26:37.807Z"
+  },
+  {
+    "label": "36-recherche-association-saisie",
+    "at": "2026-10-24T20:27:14.276Z"
+  },
+  {
+    "label": "37-clavier-association-ferme",
+    "at": "2026-10-24T20:27:17.514Z"
+  },
+  {
+    "label": "38-recherche-association",
+    "at": "2026-10-24T20:27:20.291Z"
+  },
+  {
+    "label": "39-association-recherche-chargee",
+    "at": "2026-10-24T20:27:29.952Z"
+  },
+  {
+    "label": "40-association-recherche-absente-saisie",
+    "at": "2026-10-24T20:27:33.704Z"
+  },
+  {
+    "label": "41-clavier-association-absente-ferme",
+    "at": "2026-10-24T20:27:35.787Z"
+  },
+  {
+    "label": "42-association-recherche-absente",
+    "at": "2026-10-24T20:27:38.647Z"
+  },
+  {
+    "label": "43-association-recherche-vide-confirmee",
+    "at": "2026-10-24T20:29:40.141Z"
+  },
+  {
+    "label": "44-sortie-association",
+    "at": "2026-10-24T20:29:47.162Z"
+  },
+  {
+    "label": "45-choix-profil",
+    "at": "2026-10-24T20:29:47.384Z"
+  },
+  {
+    "label": "46-selecteur-membre",
+    "at": "2026-10-24T20:29:56.253Z"
+  },
+  {
+    "label": "47-connexion-membre",
+    "at": "2026-10-24T20:30:02.101Z"
+  },
+  {
+    "label": "48-membre-charge",
+    "at": "2026-10-24T20:30:07.296Z"
+  },
+  {
+    "label": "52-connexion-presse",
+    "at": "2026-10-24T20:31:25.136Z"
+  },
+  {
+    "label": "53-presse-accueil",
+    "at": "2026-10-24T20:31:29.204Z"
+  },
+  {
+    "label": "54-presse-decouvrir",
+    "at": "2026-10-24T20:31:35.307Z"
+  },
+  {
+    "label": "55-presse-activites",
+    "at": "2026-10-24T20:31:40.211Z"
+  },
+  {
+    "label": "56-presse-page",
+    "at": "2026-10-24T20:31:48.797Z"
+  },
+  {
+    "label": "57-presse-a-propos",
+    "at": "2026-10-24T20:32:00.551Z"
+  },
+  {
+    "label": "58-retour-presse",
+    "at": "2026-10-24T20:32:03.358Z"
+  },
+  {
+    "label": "59-annuaire-services",
+    "at": "2026-10-24T20:32:07.871Z"
+  },
+  {
+    "label": "60-services-charges",
+    "at": "2026-10-24T20:32:25.963Z"
+  },
+  {
+    "label": "61-atelier-vitrine",
+    "at": "2026-10-24T20:32:40.145Z"
+  },
+  {
+    "label": "62-atelier-catalogue",
+    "at": "2026-10-24T20:32:55.543Z"
+  },
+  {
+    "label": "63-atelier-filtre-services",
+    "at": "2026-10-24T20:37:17.124Z"
+  },
+  {
+    "label": "64-atelier-recherche-saisie",
+    "at": "2026-10-24T20:37:27.589Z"
+  },
+  {
+    "label": "64b-clavier-service",
+    "at": "2026-10-24T20:37:37.072Z"
+  },
+  {
+    "label": "66-atelier-recherche-diagnostic",
+    "at": "2026-10-24T20:37:43.856Z"
+  },
+  {
+    "label": "67-diagnostic-detail",
+    "at": "2026-10-24T20:37:59.442Z"
+  },
+  {
+    "label": "68-diagnostic-charge",
+    "at": "2026-10-24T20:38:05.878Z"
+  },
+  {
+    "label": "69-sortie-presse",
+    "at": "2026-10-24T20:38:08.258Z"
+  },
+  {
+    "label": "70-selecteur-apres-presse",
+    "at": "2026-10-24T20:38:16.867Z"
+  },
+  {
+    "label": "71-connexion-moderation",
+    "at": "2026-10-24T20:38:20.307Z"
+  },
+  {
+    "label": "72-moderation-accueil",
+    "at": "2026-10-24T20:38:31.987Z"
+  },
+  {
+    "label": "73-moderation-decouvrir",
+    "at": "2026-10-24T20:38:39.004Z"
+  },
+  {
+    "label": "74-moderation-activites",
+    "at": "2026-10-24T20:38:44.980Z"
+  },
+  {
+    "label": "75-moderation-reglages",
+    "at": "2026-10-24T20:38:52.942Z"
+  },
+  {
+    "label": "76-sortie-moderation",
+    "at": "2026-10-24T20:38:55.249Z"
+  },
+  {
+    "label": "77-selecteur-apres-moderation",
+    "at": "2026-10-24T20:39:00.583Z"
+  },
+  {
+    "label": "78-connexion-nouvel-arrivant",
+    "at": "2026-10-24T20:39:08.575Z"
+  },
+  {
+    "label": "79-nouvel-arrivant-notice",
+    "at": "2026-10-24T20:39:13.623Z"
+  },
+  {
+    "label": "80-nouvel-arrivant-final",
+    "at": "2026-10-24T20:39:23.393Z"
+  },
+  {
+    "label": "81-sortie-nouvel-arrivant",
+    "at": "2026-10-24T20:39:31.511Z"
+  },
+  {
+    "label": "82-selecteur-apres-nouveau",
+    "at": "2026-10-24T20:39:42.499Z"
+  },
+  {
+    "label": "83-connexion-membre-reprise",
+    "at": "2026-10-24T20:39:45.435Z"
+  },
+  {
+    "label": "84-membre-accueil",
+    "at": "2026-10-24T20:39:52.428Z"
+  },
+  {
+    "label": "85-membre-decouvrir",
+    "at": "2026-10-24T20:39:59.312Z"
+  },
+  {
+    "label": "86-membre-activites",
+    "at": "2026-10-24T20:40:05.518Z"
+  },
+  {
+    "label": "87-membre-vitrine",
+    "at": "2026-10-24T20:40:14.454Z"
+  },
+  {
+    "label": "88-sortie-membre",
+    "at": "2026-10-24T20:40:29.232Z"
+  },
+  {
+    "label": "89-selecteur-apres-membre",
+    "at": "2026-10-24T20:40:37.378Z"
+  },
+  {
+    "label": "90-connexion-verifie",
+    "at": "2026-10-24T20:40:40.930Z"
+  },
+  {
+    "label": "91-verifie-accueil",
+    "at": "2026-10-24T20:40:50.410Z"
+  },
+  {
+    "label": "92-verifie-decouvrir",
+    "at": "2026-10-24T20:40:54.189Z"
+  },
+  {
+    "label": "93-verifie-activites",
+    "at": "2026-10-24T20:41:03.132Z"
+  },
+  {
+    "label": "94-sortie-verifie",
+    "at": "2026-10-24T20:41:09.779Z"
+  },
+  {
+    "label": "95-selecteur-final",
+    "at": "2026-10-24T20:41:20.324Z"
+  },
+  {
+    "label": "96-connexion-administration",
+    "at": "2026-10-24T20:41:23.416Z"
+  },
+  {
+    "label": "97-administration-accueil",
+    "at": "2026-10-24T20:41:34.886Z"
+  },
+  {
+    "label": "98-administration-decouvrir",
+    "at": "2026-10-24T20:41:38.160Z"
+  },
+  {
+    "label": "99-administration-activites",
+    "at": "2026-10-24T20:41:43.824Z"
+  },
+  {
+    "label": "100-administration-mairie",
+    "at": "2026-10-24T20:41:50.792Z"
+  },
+  {
+    "label": "101-mairie-actualisee",
+    "at": "2026-10-24T20:41:58.237Z"
+  },
+  {
+    "label": "102-etat-final-administration",
+    "at": "2026-10-24T20:42:00.689Z"
+  }
+]

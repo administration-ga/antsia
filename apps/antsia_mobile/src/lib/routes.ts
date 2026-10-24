@@ -3,6 +3,10 @@ export type NativeRoute =
   | { name: "feed" }
   | { name: "messages" }
   | { name: "settings" }
+  | { name: "explore" }
+  | { name: "shop"; handle: string }
+  | { name: "offer"; handle: string; offerRef: string }
+  | { name: "page"; handle: string }
   | { name: "post"; id: string }
   | { name: "conversation"; id: string }
 
@@ -25,7 +29,28 @@ export function nativeRouteFromUrl(raw: string, scheme: string | null): NativeRo
   } catch { return null }
 }
 
+function webRoute(origin: string, path: string, basePath: "" | "/demo" = ""): string {
+  if (basePath !== "" && basePath !== "/demo") throw new Error("nativeWebBasePathInvalid")
+  return new URL(`${basePath}${path}`, origin).href
+}
+
 export const nativeWebRoutes = {
-  enter: (origin: string) => new URL("/entrer", origin).href,
-  profile: (origin: string, handle: string) => new URL(`/@${encodeURIComponent(handle)}`, origin).href,
+  enter: (origin: string, basePath?: "" | "/demo") => webRoute(origin, "/entrer", basePath),
+  profile: (origin: string, handle: string, basePath?: "" | "/demo") => webRoute(origin, `/@${encodeURIComponent(handle)}`, basePath),
+  page: (origin: string, handle: string, basePath?: "" | "/demo") => webRoute(origin, `/page/${encodeURIComponent(handle)}`, basePath),
+  offer: (origin: string, handle: string, offerRef: string, basePath?: "" | "/demo") => webRoute(origin, `/boutique/${encodeURIComponent(handle)}/offres/${encodeURIComponent(offerRef)}`, basePath),
+}
+
+/** Pile bornée, locale à UNE session ; les liens externes réinitialisent leur historique. */
+export function pushNativeRoute(history: NativeRoute[], next: NativeRoute): NativeRoute[] {
+  const previous = history[history.length - 1]
+  if (previous && JSON.stringify(previous) === JSON.stringify(next)) return history
+  return [...history.slice(-19), next]
+}
+
+export function nativeTab(route: NativeRoute): "feed" | "explore" | "messages" | "settings" {
+  if (route.name === "shop" || route.name === "offer" || route.name === "page") return "explore"
+  if (route.name === "post") return "feed"
+  if (route.name === "conversation") return "messages"
+  return route.name
 }

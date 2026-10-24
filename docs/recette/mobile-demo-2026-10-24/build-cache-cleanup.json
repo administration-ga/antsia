@@ -1,0 +1,12 @@
+{
+  "at": "2026-10-24T15:58:39.385518+00:00",
+  "removedOwnCompletedBuildCache": "/Users/okatech/Library/Caches/antsia-native-builds/ios-demo-build6-20261024",
+  "openFilesBefore": 0,
+  "preservedSignedIPA": "/Users/okatech/Library/Caches/antsia-native-builds/antsia-0.1.0-ios-build6.ipa",
+  "preservedDebugSymbols": [
+    "antsia-ios-build6-ANTSIA.app.dSYM.zip"
+  ],
+  "freeBytesBefore": 1948209152,
+  "freeBytesAfter": 4551094272,
+  "deletedProjectsOrData": false
+}

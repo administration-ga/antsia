@@ -1,0 +1,74 @@
+Window: "ANTSIA iPhone 18 Pro", App: Device Hub.
+0 standard window ANTSIA iPhone 18 Pro – iOS 27.0, ID: com.apple.dt.DeviceKit.DeviceManagementWindow-AppWindow-1, Secondary Actions: Raise
+	1 split group
+		2 split group com.apple.dt.DeviceKit.DeviceManagementWindow-AppWindow-1, SidebarNavigationSplitView
+			3 scroll area
+				4 list Sidebar
+					5 row (selectable) Description: Available, Value: Expanded
+					6 row (selected) Description: iphone.gen3, Value: ANTSIA iPhone 18 Pro
+27.0
+Simulator
+			7 search text field (settable) Search
+				8 button Search
+			9 splitter (disabled, settable, float) 248
+			10 container
+				11 container
+					12 text Description: Démonstration ANTSIA, Secondary Actions: Cancel
+					13 button Description: Revenir à mon compte, Secondary Actions: Cancel
+					14 button Description: Changer de profil démo, Secondary Actions: Cancel
+					15 heading Description: Découvrir, Secondary Actions: Cancel
+					16 button Description: Boutiques, Secondary Actions: Cancel
+					17 button Description: Services, Secondary Actions: Cancel
+					18 button (selected) Description: Associations, Secondary Actions: Cancel
+					19 button Description: Mes activités, Secondary Actions: Cancel
+					20 heading Description: Associations, Secondary Actions: Cancel
+					21 text Description: Rechercher une association, Secondary Actions: Cancel
+					22 text field (settable) Description: Rechercher une association, Help: Saisissez au moins deux caractères pour rechercher par nom., Value: zzrecetteintrouvable, Secondary Actions: Cancel
+					23 text Description: Saisissez au moins deux caractères pour rechercher par nom., Secondary Actions: Cancel
+					24 button Description: Rechercher, Secondary Actions: Cancel
+					25 button Description: Actualiser, Secondary Actions: Cancel
+					26 heading Description: Mes associations, Secondary Actions: Cancel
+					27 heading Description: Jeunes de Lambaréné Démo, Secondary Actions: Cancel
+					28 text Description: Communauté, Secondary Actions: Cancel
+					29 text Description: Pays · GA, Secondary Actions: Cancel
+					30 button Description: Voir la page · Jeunes de Lambaréné Démo, Secondary Actions: Cancel
+					31 heading Description: Annuaire des associations, Secondary Actions: Cancel
+					32 button Description: Accueil, Secondary Actions: Cancel
+					33 element (selected) Description: Découvrir, Secondary Actions: Cancel
+					34 element Description: Messages, Secondary Actions: Cancel
+					35 button Description: Réglages, Secondary Actions: Cancel
+				36 button Description: Home, ID: app.grid.3x3
+				37 button Description: Screenshot, ID: camera.viewfinder
+				38 button Description: Record, ID: record.circle
+				39 button Rotate Left
+	40 toolbar
+		41 menu button Add, Help: Add Device, ID: plus
+		42 toggle button Description: Filter, Help: Sort and Filter, Value: on
+		43 button Description: Hide Sidebar, Secondary Actions: Increment, Decrement, Delete, Cancel
+		44 toggle button Description: Capture Keyboard, Value: off
+		45 toggle button Description: Resize mode, Help: Enter resize mode, Value: off
+		46 Zoom
+			47 radio button Description: Zoom Out, Value: 0, ID: minus.magnifyingglass
+			48 radio button Description: arrowtriangles.up.right.down.left.magnifyingglass, Help: Zoom to Fit, Value: 1
+			49 radio button Description: Zoom To Actual Size, Help: Physical Size, Value: 0, ID: 1.magnifyingglass
+			50 radio button Description: Zoom In, Value: 0, ID: plus.magnifyingglass
+		51 button Description: Switch to compact window, Secondary Actions: Increment, Decrement, Delete, Cancel, Move previous, Move next, Remove from toolbar
+		52 menu button More, Help: More Actions, ID: ellipsis
+		53 radio button Description: Edit, Help: Settings, Value: 0, ID: slider.horizontal.3
+		54 radio button Description: text.document, Help: Reports, Value: 0
+		55 radio button Description: Info, Value: 0, ID: info
+	56 close button
+	57 full screen button Help: this button also has an action to zoom the window, Secondary Actions: zoom the window
+	58 minimize button
+	59 text ANTSIA iPhone 18 Pro iOS 27.0
+60 menu bar
+	61 Device Hub
+	62 File
+	63 Edit
+	64 View
+	65 Device
+	66 Controls
+	67 Window
+	68 Help
+
+The focused UI element is 0 standard window ANTSIA iPhone 18 Pro – iOS 27.0, ID: com.apple.dt.DeviceKit.DeviceManagementWindow-AppWindow-1, Secondary Actions: Raise

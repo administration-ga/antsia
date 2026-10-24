@@ -4,6 +4,7 @@ export type NativeEnvironment = {
   authUrl: string
   webUrl: string
   scheme: string | null
+  webBasePath?: "/demo"
 }
 
 function endpoint(raw: string | undefined, allowLocalHttp: boolean): string | null {
@@ -19,8 +20,9 @@ function endpoint(raw: string | undefined, allowLocalHttp: boolean): string | nu
 
 export function nativeEnvironment(input: {
   convexUrl?: string; authUrl?: string; webUrl?: string; scheme?: string
-  development: boolean; allowLocalHttp?: string
+  development: boolean; allowLocalHttp?: string; webBasePath?: string
 }): NativeEnvironment | null {
+  if (input.webBasePath !== undefined && input.webBasePath !== "" && input.webBasePath !== "/demo") return null
   const allowHttp = input.development && input.allowLocalHttp === "true"
   const convexUrl = endpoint(input.convexUrl, allowHttp)
   const authUrl = endpoint(input.authUrl, allowHttp)
@@ -29,5 +31,5 @@ export function nativeEnvironment(input: {
   const scheme = input.scheme?.trim() || null
   // Aucun schéma générique, joker ou protocole réseau n'est adopté comme lien applicatif.
   if (scheme && (!/^[a-z][a-z0-9+.-]{2,63}$/.test(scheme) || /^(?:https?|exp|exps|file|javascript|data)$/.test(scheme))) return null
-  return { convexUrl, authUrl, webUrl, scheme }
+  return { convexUrl, authUrl, webUrl, scheme, ...(input.webBasePath === "/demo" ? { webBasePath: "/demo" } : {}) }
 }

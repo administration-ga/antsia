@@ -1,0 +1,38 @@
+{
+  "at": "2026-10-24T16:35:38.617Z",
+  "appId": "6825216214",
+  "builds": [
+    {
+      "id": "8102c9a0-7544-4919-baaf-ab4ecd89f632",
+      "number": "4",
+      "processing": "VALID",
+      "expired": false,
+      "external": "IN_BETA_TESTING",
+      "betaReviewState": "APPROVED",
+      "autoNotify": true
+    },
+    {
+      "id": "8f4b12d1-aa0e-4f64-8a3b-666b74149748",
+      "number": "5",
+      "processing": "VALID",
+      "expired": false,
+      "external": "READY_FOR_BETA_SUBMISSION",
+      "betaReviewState": null,
+      "autoNotify": true
+    },
+    {
+      "id": "6498b8bb-b363-421c-8c09-d90d4c621346",
+      "number": "6",
+      "processing": "VALID",
+      "expired": false,
+      "external": "IN_BETA_TESTING",
+      "betaReviewState": "APPROVED",
+      "autoNotify": true
+    }
+  ],
+  "groupBuilds": [
+    "6",
+    "4"
+  ],
+  "publicLink": "https://testflight.apple.com/join/mqWat3mu"
+}
