@@ -2,8 +2,8 @@
 
 Recette du 25 octobre 2026, vers 02:00–02:05 Europe/Paris. **Les huit contrôles
 de cette recette sont réussis dans le simulateur.** La vérification globale
-répartie est terminée avec code 0. La publication TestFlight est encore en cours
-à ce stade ; son résultat sera consigné séparément.
+répartie est terminée avec code 0. Le build 0.1.0 (9) est
+approuvé pour les tests externes et disponible dans TestFlight.
 
 ## Changement réel et version contrôlée
 
@@ -75,3 +75,15 @@ et scannés. Aucun secret, jeton ou identifiant de session, en-tête d’authent
 e-mail/téléphone réel ou donnée personnelle non fictive n’a été repéré. Les contenus
 sont ceux de la démonstration et leurs illustrations. Aucune expurgation ou exclusion
 n’est nécessaire dans ce dossier. Aucun log privé n’a été copié pour ce rapport.
+
+## Publication TestFlight
+
+Le 25 octobre 2026, Apple confirme `VALID`, `APPROVED` et `IN_BETA_TESTING`
+pour le build 9. Le groupe public conserve 9/8/7/6/4, le build 5 reste hors
+diffusion. Notification automatique active pour le build 9 ; aucune invitation
+renvoyée ni aucun testeur modifié.
+
+[TestFlight ANTSIA](https://testflight.apple.com/join/mqWat3mu) ;
+[PR #85 en brouillon](https://github.com/administration-ga/antsia/pull/85).
+Preuve : [publication.json](publication.json). Aucun déploiement Web/backend ni
+aucune migration, graine ou modification des données métier.

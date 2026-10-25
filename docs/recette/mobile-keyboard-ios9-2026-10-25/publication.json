@@ -1,0 +1,29 @@
+{
+  "finishedAt": "2026-10-25T03:08:00.171Z",
+  "appId": "6825216214",
+  "number": "9",
+  "buildId": "ab70ee0e-877f-45c2-be0f-01602ee4c437",
+  "processing": "VALID",
+  "external": "IN_BETA_TESTING",
+  "betaReview": "APPROVED",
+  "autoNotify": true,
+  "publicLink": "https://testflight.apple.com/join/mqWat3mu",
+  "publicLinkEnabled": true,
+  "groupBuildsBefore": [
+    "8",
+    "7",
+    "6",
+    "4"
+  ],
+  "groupBuildsAfter": [
+    "9",
+    "8",
+    "7",
+    "6",
+    "4"
+  ],
+  "externalAvailabilityConfirmed": true,
+  "submittedToApple": true,
+  "ipaSha256": "e4fd744e6939f5207d652d590e3dc0200372dd2e7498d2650721b19cac9abeb3",
+  "pullRequest": "https://github.com/administration-ga/antsia/pull/85"
+}
