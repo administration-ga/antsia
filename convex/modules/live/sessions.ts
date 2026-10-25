@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/modules/direct/sessions.ts @ ad2e7fdc2 — adaptations : PERSONNES ET RÉSEAUX — constructeurs bornés `networkMutation`/`networkQuery` (adhésion par le constructeur) au lieu d'`authMutation`/`authQuery`, `networkId` posé sur la session et sur ses lignes d'hôte et d'invités, toute session lue DANS le réseau de la fonction (inconnue ou d'un autre réseau : `notFound` indistinct ; garde `assertVisibleDirectSession(ctx, directCaller(ctx), …)`), personnes (`Id<"persons">`, `hostPersonId`, `targetPersonId`, `spotlight.personId`, `speakers[].personId`), noms du profil PUBLIÉ (`miniProfileCache` du moteur : nom neutre `null` au lieu d'un nom de repli) ; V36/V37 — l'audience `organisation` devient `followers` : page du moteur EXIGÉE (`LIVE_FOLLOWERS_REQUIRES_PAGE`), parler au nom d'une page exige d'en être SIGNATAIRE VIVANT (`pages/access.requireManagedPage`, refus `notFound` ou `pageRoleRequired`) au lieu de `getMembership` + `assertCanDoTask("communication.publish")`, un invité ne franchit jamais ce cercle (`followersPage`), la découverte précharge les PAGES SUIVIES d'ici (`followedPageIds`) au lieu de `validatedOrgIds` ; DÉCOUVERTE préfixée par le réseau (fenêtres et curseurs relus dans le réseau de la fonction), liens du lecteur préchargés par une aide commune (`discoveryFacts`) et chacun OMIS quand l'ensemble borné est tronqué (la décision relit alors la source par candidat, au lieu d'un ensemble tronqué en silence) ; fil source = fil de GROUPE du moteur (`groups/access.requireLiveMembership` dans le réseau ; la portée « personnel »/« poste » n'existe plus) ; D14 — débit `live.create` sur `create`, APRÈS le rejeu idempotent ; D28 — aucun compteur sur la session : `get` et les vignettes lisent `liveSessionCounters` (`access.sessionCountersOf`), la fin recompose par l'écrivain unique (`reap.recomputeAggregates`) ; CLOCHE — `notifyPersonal` en boucle bornée (200 par source) remplacé par la diffusion par lots chaînés (`notifications/fanout`, source `liveSessionAudience`) : démarrage `live_started`, publication de l'enregistrement `live_replay_published`, l'audience rejugée par destinataire au moment de sonner (abonnés et signataires vivants de la page pour `followers`, relations puis abonnés de l'hôte, invités vivants à la publication), les invités vivants sautés au démarrage (ils ont `live_invite`) ; ANNONCE — identité de page transmise à writePost pour public/followers (F3c) ; `writePersonalPost` → `posts/postWrite.writePost` (session portée par `liveSessionId`, visibilité `network` : la session ne se lit que dans son réseau), corps jugé par `assertPersonalPostBody` du domaine ; ERREURS — phrases → règles `LIVE_*` (`failRule`, `checked`) et `directNotFound()`, `rethrowDirectDomain` retiré ; DÉLIVRANCE — URLs de rediffusion et de sous-titres par la garde des fichiers (`servableUrl`, D05) ; références du moteur (`internal.modules.live.livekitActions.*`, `internal.modules.live.invitationSettle.*`, `api.modules.live.sessions.listMineStatusPage`) et index du moteur (`by_network_host_status`, `by_network_host_idempotencyKey`, `by_network_status_startedAt`, `by_network_status_replayStatus_endedAt`) ; décision sur l'enregistrement par `directReplayDecisionValidator` (mêmes littéraux) ; commentaires rapportés au moteur.
+// Dupliqué de socle/convex/modules/direct/sessions.ts @ ad2e7fdc2 — adaptations : PERSONNES ET RÉSEAUX — constructeurs bornés `networkMutation`/`networkQuery` (adhésion par le constructeur) au lieu d'`authMutation`/`authQuery`, `networkId` posé sur la session et sur ses lignes d'hôte et d'invités, toute session lue DANS le réseau de la fonction (inconnue ou d'un autre réseau : `notFound` indistinct ; garde `assertVisibleDirectSession(ctx, directCaller(ctx), …)`), personnes (`Id<"persons">`, `hostPersonId`, `targetPersonId`, `spotlight.personId`, `speakers[].personId`), noms du profil PUBLIÉ (`miniProfileCache` du moteur : nom neutre `null` au lieu d'un nom de repli) ; V36/V37 — l'audience `organisation` devient `followers` : page du moteur EXIGÉE (`LIVE_FOLLOWERS_REQUIRES_PAGE`), parler au nom d'une page exige d'en être SIGNATAIRE VIVANT (`pages/access.requireManagedPage`, refus `notFound` ou `pageRoleRequired`) au lieu de `getMembership` + `assertCanDoTask("communication.publish")`, un invité ne franchit jamais ce cercle (`followersPage`), la découverte précharge les PAGES SUIVIES d'ici (`followedPageIds`) au lieu de `validatedOrgIds` ; DÉCOUVERTE préfixée par le réseau (fenêtres et curseurs relus dans le réseau de la fonction), liens du lecteur préchargés par une aide commune (`discoveryFacts`) et chacun OMIS quand l'ensemble borné est tronqué (la décision relit alors la source par candidat, au lieu d'un ensemble tronqué en silence) ; fil source = fil de GROUPE du moteur (`groups/access.requireLiveMembership` dans le réseau ; la portée « personnel »/« poste » n'existe plus) ; D14 — débit `live.create` sur `create`, APRÈS le rejeu idempotent ; D28 — aucun compteur sur la session : `get` et les vignettes lisent `liveSessionCounters` (`access.sessionCountersOf`), la fin recompose par l'écrivain unique (`reap.recomputeAggregates`) ; CLOCHE — `notifyPersonal` en boucle bornée (200 par source) remplacé par la diffusion par lots chaînés (`notifications/fanout`, source `liveSessionAudience`) : démarrage `live_started`, publication de l'enregistrement `live_replay_published`, l'audience rejugée par destinataire au moment de sonner (abonnés et signataires vivants de la page pour `followers`, relations puis abonnés de l'hôte, invités vivants à la publication), les invités vivants sautés au démarrage (ils ont `live_invite`) ; ANNONCE — identité de page transmise à writePost pour public/followers (F3c) ; `writePersonalPost` → `posts/postWrite.writePost` (session portée par `liveSessionId`, visibilité `network` : la session ne se lit que dans son réseau), corps jugé par `assertPersonalPostBody` du domaine ; ERREURS — phrases → règles `LIVE_*` (`failRule`, `checked`) et `directNotFound()`, `rethrowDirectDomain` retiré ; DÉLIVRANCE — URLs de rediffusion et de sous-titres par la garde des fichiers (`servableUrl`, D05) ; références du moteur (`internal.modules.live.livekitActions.*`, `internal.modules.live.invitationSettle.*`) et index du moteur (`by_network_host_status`, `by_network_host_idempotencyKey`, `by_network_status_startedAt`, `by_network_status_replayStatus_endedAt`) ; décision sur l'enregistrement par `directReplayDecisionValidator` (mêmes littéraux) ; commentaires rapportés au moteur ; « Mes conférences » (`listMinePage`) lit ses trois statuts par le flux de convex-helpers dans UNE exécution (`mineStatusPage`, `mineActivityPage`), jamais par sous-requête : correctif du socle du 25/10/2026 (PR 778) repris.
 /**
  * Le CYCLE DE VIE d'un direct — créer, démarrer, terminer, lire.
  * API publique : `api.modules.live.sessions.*`
@@ -21,15 +21,17 @@
  *    la récolte (`reap.reapStaleDirects`) ferme ce que l'hôte n'a pas fermé.
  */
 import { assertPersonalPostBody } from "@antsia/social-domain/content"
+import { stream } from "convex-helpers/server/stream"
 import { v } from "convex/values"
 
-import { api, internal } from "../../_generated/api"
+import { internal } from "../../_generated/api"
 import { contentState, moderateContentWrite } from "../moderation/policy"
 import type { Doc, Id } from "../../_generated/dataModel"
 import type { MutationCtx, QueryCtx } from "../../_generated/server"
 import { checked, fail, failRule } from "../../lib/errors"
 import { networkMutation, networkQuery } from "../../lib/functions"
 import { enforceRateLimit } from "../../lib/rateLimit"
+import schema from "../../schema"
 import { servableUrl } from "../files/storageGuard"
 import { acceptedCounterpartIds, blockedCounterpartIds } from "../graph/graph"
 import { requireLiveMembership } from "../groups/access"
@@ -1073,14 +1075,58 @@ function mineReplayState(session: Doc<"liveSessions">): DirectMineCardDto["repla
 }
 
 /**
- * UN statut de l'hôte, par curseur NATIF — la SEULE pagination de la chaîne.
+ * UN statut de l'hôte dans ce réseau, en flux ordonné du plus récent au plus ancien.
  *
- * Une exécution Convex ne porte qu'une `.paginate()` : `listMinePage` enchaîne
- * donc les statuts en COMPOSANT cette sous-requête par `ctx.runQuery` plutôt
- * qu'en repaginant dans la même exécution. La garde d'audience se juge ici,
- * ligne par ligne : une page peut revenir VIDE sans être la dernière
- * (`isDone: false`), et c'est au client de continuer, jamais de conclure.
+ * ⚠️ PAS de `.paginate()` natif ici. Le moteur n'en admet qu'UN par exécution,
+ * et une sous-requête `ctx.runQuery` PARTAGE l'exécution de la requête qui
+ * l'appelle : composer les statuts par sous-requêtes natives lève en production
+ * — « This query function ran multiple paginated queries » — dès qu'un statut
+ * est vide, cas NOMINAL (aucun direct `live`). convex-test, qui ouvre un
+ * contexte par sous-requête, l'acceptait. Le flux de convex-helpers pagine sans
+ * ce verrou : les trois statuts vivent dans la MÊME exécution.
+ *
+ * Ses curseurs sont la clé d'index en clair ; `paginate` les recoupe avec la
+ * plage de la requête (`narrow`) : un curseur forgé ne sort pas de MES lignes,
+ * ni de ce réseau.
  */
+function mineStatusStream(ctx: Pick<QueryCtx, "db">, networkId: Id<"networks">, hostPersonId: Id<"persons">, status: DirectMineStatus) {
+  return stream(ctx.db, schema)
+    .query("liveSessions")
+    .withIndex("by_network_host_status", (q) => q.eq("networkId", networkId).eq("hostPersonId", hostPersonId).eq("status", status))
+    .order("desc")
+}
+
+/**
+ * Le curseur d'un statut ÉPUISÉ. Le flux rend `"[]"` quand il n'a plus rien —
+ * mais, rejoué, ce curseur vide ne borne RIEN (`splitRange` lit une clé vide
+ * comme « sans limite ») et le statut repartirait du début.
+ */
+const EXHAUSTED_MINE_STATUS_CURSOR = "[]"
+
+/**
+ * Une page d'UN statut de l'hôte. La garde d'audience se juge ici, ligne par
+ * ligne : une page peut revenir VIDE sans être la dernière (`isDone: false`),
+ * et c'est au client de continuer, jamais de conclure.
+ */
+export async function mineStatusPage(
+  ctx: Pick<QueryCtx, "db">,
+  networkId: Id<"networks">,
+  hostPersonId: Id<"persons">,
+  status: DirectMineStatus,
+  cursor: string | null,
+  limit: number,
+): Promise<DirectMineStatusPage> {
+  if (cursor === EXHAUSTED_MINE_STATUS_CURSOR) return { items: [], isDone: true, continueCursor: EXHAUSTED_MINE_STATUS_CURSOR }
+  const page = await mineStatusStream(ctx, networkId, hostPersonId, status).paginate({ cursor, numItems: limit })
+  const items: DirectMineCardDto[] = []
+  for (const session of page.page) {
+    if ((await directSessionAccessDecision(ctx, hostPersonId, session, { readerIsMember: true })) !== "allowed") continue
+    items.push(toDirectMineCard(session))
+  }
+  return { items, isDone: page.isDone, continueCursor: page.isDone ? EXHAUSTED_MINE_STATUS_CURSOR : page.continueCursor }
+}
+
+/** UN statut de l'hôte, seul — sur la même aide que `listMinePage`. */
 export const listMineStatusPage = networkQuery({
   args: {
     status: mineStatusValidator,
@@ -1092,33 +1138,49 @@ export const listMineStatusPage = networkQuery({
     isDone: v.boolean(),
     continueCursor: v.string(),
   }),
-  handler: async (ctx, args): Promise<DirectMineStatusPage> => {
-    const me = ctx.person._id
-    const page = await ctx.db
-      .query("liveSessions")
-      .withIndex("by_network_host_status", (q) => q.eq("networkId", ctx.networkId).eq("hostPersonId", me).eq("status", args.status))
-      .order("desc")
-      .paginate({ cursor: args.cursor, numItems: clampDiscoveryLimit(args.limit) })
-    const items: DirectMineCardDto[] = []
-    for (const session of page.page) {
-      if ((await directSessionAccessDecision(ctx, me, session, { readerIsMember: true })) !== "allowed") continue
-      items.push(toDirectMineCard(session))
-    }
-    return { items, isDone: page.isDone, continueCursor: page.continueCursor }
-  },
+  handler: async (ctx, args): Promise<DirectMineStatusPage> =>
+    await mineStatusPage(ctx, ctx.networkId, ctx.person._id, args.status, args.cursor, clampDiscoveryLimit(args.limit)),
 })
 
 /**
  * Activité exhaustive de l'hôte dans ce réseau. On épuise successivement live,
- * programmé, terminé — l'ordre utile historique de `listMine` — via les
- * curseurs natifs de l'index `by_network_host_status`. Une page ne lit qu'un
- * statut et 50 lignes au plus ; un statut entièrement filtré reste traversable
- * par son curseur.
+ * programmé, terminé — l'ordre utile historique de `listMine` — sur l'index
+ * `by_network_host_status`. Une page ne lit qu'un statut et 50 lignes au plus ;
+ * un statut entièrement filtré reste traversable par son curseur.
  *
- * ⚠️ Chaque statut est lu par une SOUS-EXÉCUTION (`listMineStatusPage`) : un
- * statut vide — le cas NOMINAL — fait passer au suivant sans jamais porter deux
- * `.paginate()` dans la même exécution.
+ * ⚠️ Les statuts sont lus par `mineStatusPage`, DANS cette exécution — jamais
+ * par sous-requête (voir `mineStatusStream`). Un statut vide fait passer au
+ * suivant ; au pire trois lectures, chacune bornée à `limit` lignes.
  */
+export async function mineActivityPage(
+  ctx: Pick<QueryCtx, "db">,
+  networkId: Id<"networks">,
+  hostPersonId: Id<"persons">,
+  from: DirectMineCursor | undefined,
+  limit: number,
+): Promise<{ items: DirectMineCardDto[]; nextCursor: DirectMineCursor | null }> {
+  let statusIndex = from ? DIRECT_MINE_STATUS_ORDER.indexOf(from.status) : 0
+  let cursor: string | null = from?.cursor ?? null
+
+  while (statusIndex < DIRECT_MINE_STATUS_ORDER.length) {
+    const status = DIRECT_MINE_STATUS_ORDER[statusIndex]
+    if (status === undefined) break
+    const page = await mineStatusPage(ctx, networkId, hostPersonId, status, cursor, limit)
+
+    if (!page.isDone) {
+      return { items: page.items, nextCursor: { status, cursor: page.continueCursor } }
+    }
+    statusIndex += 1
+    cursor = null
+    const nextStatus = DIRECT_MINE_STATUS_ORDER[statusIndex]
+    if (page.items.length > 0 || nextStatus === undefined) {
+      return { items: page.items, nextCursor: nextStatus === undefined ? null : { status: nextStatus, cursor: null } }
+    }
+    // Ce statut était vide : passe au suivant, dans la même exécution.
+  }
+  return { items: [], nextCursor: null }
+}
+
 export const listMinePage = networkQuery({
   args: {
     cursor: v.optional(mineCursorValidator),
@@ -1128,32 +1190,7 @@ export const listMinePage = networkQuery({
     items: v.array(directMineCardValidator),
     nextCursor: v.union(mineCursorValidator, v.null()),
   }),
-  handler: async (ctx, args): Promise<{ items: DirectMineCardDto[]; nextCursor: DirectMineCursor | null }> => {
-    let statusIndex = args.cursor ? DIRECT_MINE_STATUS_ORDER.indexOf(args.cursor.status) : 0
-    let cursor: string | null = args.cursor?.cursor ?? null
-    const limit = clampDiscoveryLimit(args.limit)
-
-    while (statusIndex < DIRECT_MINE_STATUS_ORDER.length) {
-      const status = DIRECT_MINE_STATUS_ORDER[statusIndex]
-      if (status === undefined) break
-      // Annotation explicite : appel d'une fonction du MÊME fichier
-      // (circularité TypeScript, cf. guidelines Convex).
-      const page: DirectMineStatusPage = await ctx.runQuery(api.modules.live.sessions.listMineStatusPage, { networkId: ctx.networkId, status, cursor, limit })
-
-      if (!page.isDone) {
-        return { items: page.items, nextCursor: { status, cursor: page.continueCursor } }
-      }
-      statusIndex += 1
-      cursor = null
-      const nextStatus = DIRECT_MINE_STATUS_ORDER[statusIndex]
-      if (page.items.length > 0 || nextStatus === undefined) {
-        return { items: page.items, nextCursor: nextStatus === undefined ? null : { status: nextStatus, cursor: null } }
-      }
-      // Ce statut était vide : passe au suivant — dans une NOUVELLE
-      // sous-exécution, jamais par une seconde pagination ici.
-    }
-    return { items: [], nextCursor: null }
-  },
+  handler: async (ctx, args) => await mineActivityPage(ctx, ctx.networkId, ctx.person._id, args.cursor, clampDiscoveryLimit(args.limit)),
 })
 
 /* ═══════════════════════════════════════════════════════════════════════════
