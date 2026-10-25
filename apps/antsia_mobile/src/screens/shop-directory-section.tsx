@@ -1,7 +1,7 @@
 import { api } from "@antsia/api/engine"
 import { useQuery } from "convex/react"
 import { useState } from "react"
-import { ScrollView, View } from "react-native"
+import { Keyboard, ScrollView, View } from "react-native"
 import { useNativeAppearance } from "../appearance"
 import { BusinessImage, BusinessPager } from "../components/business-media"
 import { Action, Card, Field, Label, QueryBoundary, RuntimeNotice, Status, useNativeGuard } from "../components/ui"
@@ -89,15 +89,21 @@ function DirectoryBody({ mode, onOpenShop, onOpenPage }: DirectoryProps) {
   const [draft, setDraft] = useState(""), [query, setQuery] = useState(""), [invalid, setInvalid] = useState(false)
   const filters: NativeBusinessFilters = { kind: mode === "shops" ? "product" : "service", ...(query ? { query } : {}), sort: query ? "relevance" : "newest" }
   const key = JSON.stringify([guard.owner, mode, filters])
+  const submit = () => {
+    if (!guard.current()) return
+    const value = nativeBusinessQuery(draft)
+    setInvalid(value === null)
+    if (value !== null) { setQuery(value); Keyboard.dismiss() }
+  }
   if (!guard.canRead) return <RuntimeNotice />
-  return <ScrollView style={{ flex: 1 }} contentContainerStyle={{ gap: 12, paddingBottom: 24 }} scrollEnabled={guard.canAct}>
+  return <ScrollView automaticallyAdjustKeyboardInsets keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" style={{ flex: 1 }} contentContainerStyle={{ gap: 12, paddingBottom: 24 }} scrollEnabled={guard.canAct}>
     <RuntimeNotice />
     <Label strong accessibilityRole="header">{t(mode === "shops" ? "mobile.business.shopsTitle" : "mobile.business.servicesTitle")}</Label>
     <MyShops onOpenShop={onOpenShop} onOpenPage={onOpenPage} />
     {mode === "shops" ? <StorefrontDirectory onOpenShop={onOpenShop} onOpenPage={onOpenPage} /> : null}
     <Label strong accessibilityRole="header">{t("mobile.business.catalog")}</Label>
-    <Field label={t("mobile.business.search")} value={draft} maxLength={120} disabled={!guard.canAct} error={invalid ? t("mobile.business.invalidSearch") : undefined} onChangeText={value => { if (guard.current()) { setDraft(value); setInvalid(false) } }} />
-    <Action label={t("mobile.business.searchSubmit")} disabled={!guard.canAct} onPress={() => { if (!guard.current()) return; const value = nativeBusinessQuery(draft); setInvalid(value === null); if (value !== null) setQuery(value) }} />
+    <Field label={t("mobile.business.search")} value={draft} maxLength={120} disabled={!guard.canAct} error={invalid ? t("mobile.business.invalidSearch") : undefined} onChangeText={value => { if (guard.current()) { setDraft(value); setInvalid(false) } }} returnKeyType="search" onSubmit={submit} />
+    <Action label={t("mobile.business.searchSubmit")} disabled={!guard.canAct} onPress={submit} />
     {query ? <Action label={t("mobile.business.clearFilters")} disabled={!guard.canAct} onPress={() => { if (guard.current()) { setDraft(""); setQuery(""); setInvalid(false) } }} /> : null}
     <SearchWindow key={`search:${key}`} filters={filters} onOpenShop={onOpenShop} />
     <DemoSelection key={`demo:${key}`} filters={filters} onOpenShop={onOpenShop} />

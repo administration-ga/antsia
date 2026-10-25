@@ -198,7 +198,7 @@
   "mobile.pages.search": "Search associations",
   "mobile.pages.searchHint": "Enter at least two characters to search by name.",
   "mobile.pages.searchAction": "Search",
-  "mobile.pages.emptyAssociations": "No associations found.",
+  "mobile.pages.emptyAssociations": "No associations found in this directory.",
   "mobile.pages.emptyWindow": "No results in this window. You can continue loading.",
   "mobile.pages.openPage": "View page",
   "mobile.pages.pageTitle": "Page",

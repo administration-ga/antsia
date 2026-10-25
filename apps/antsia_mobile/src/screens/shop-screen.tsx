@@ -2,7 +2,7 @@ import { api } from "@antsia/api/engine"
 import { useQuery } from "convex/react"
 import type { FunctionReturnType } from "convex/server"
 import { useState } from "react"
-import { ScrollView, View } from "react-native"
+import { Keyboard, ScrollView, View } from "react-native"
 import { useNativeAppearance } from "../appearance"
 import { BusinessImage, BusinessPager } from "../components/business-media"
 import { Action, Card, Field, Label, QueryBoundary, RuntimeNotice, Screen, Status, useNativeGuard } from "../components/ui"
@@ -37,10 +37,16 @@ function Catalog({ handle, onOpenOffer }: Pick<ShopScreenProps, "handle" | "onOp
   const [kind, setKind] = useState<"all" | "product" | "service">("all"), [draft, setDraft] = useState(""), [query, setQuery] = useState(""), [invalid, setInvalid] = useState(false), [collectionRef, setCollection] = useState<string | undefined>(), [sort, setSort] = useState<Sort>("newest")
   const filters: NativeBusinessFilters = { ...(kind === "all" ? {} : { kind }), ...(query ? { query } : {}), ...(collectionRef ? { collectionRef } : {}), sort: query ? "relevance" : sort }
   const key = JSON.stringify([guard.owner, handle, filters])
+  const submit = () => {
+    if (!guard.current()) return
+    const value = nativeBusinessQuery(draft)
+    setInvalid(value === null)
+    if (value !== null) { setQuery(value); setCollection(undefined); Keyboard.dismiss() }
+  }
   return <View style={{ gap: 12 }}>
     <Label strong accessibilityRole="header">{t("mobile.business.catalog")}</Label>
-    <Field label={t("mobile.business.search")} value={draft} maxLength={120} disabled={!guard.canAct} error={invalid ? t("mobile.business.invalidSearch") : undefined} onChangeText={value => { if (guard.current()) { setDraft(value); setInvalid(false) } }} />
-    <Action label={t("mobile.business.searchSubmit")} disabled={!guard.canAct} onPress={() => { if (!guard.current()) return; const value = nativeBusinessQuery(draft); setInvalid(value === null); if (value !== null) { setQuery(value); setCollection(undefined) } }} />
+    <Field label={t("mobile.business.search")} value={draft} maxLength={120} disabled={!guard.canAct} error={invalid ? t("mobile.business.invalidSearch") : undefined} onChangeText={value => { if (guard.current()) { setDraft(value); setInvalid(false) } }} returnKeyType="search" onSubmit={submit} />
+    <Action label={t("mobile.business.searchSubmit")} disabled={!guard.canAct} onPress={submit} />
     <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>{(["all", "product", "service"] as const).map(value => <Action key={value} label={t(`mobile.business.${value === "product" ? "products" : value === "service" ? "servicesTitle" : "all"}`)} selected={kind === value} accessibilityRole="radio" checked={kind === value} disabled={!guard.canAct} onPress={() => { if (guard.current()) { setKind(value); setCollection(undefined) } }} />)}</View>
     {!query ? <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>{sorts.map(item => <Action key={item.value} label={t(`mobile.business.${item.label}`)} accessibilityRole="radio" checked={sort === item.value} disabled={!guard.canAct} onPress={() => { if (guard.current()) setSort(item.value) }} />)}</View> : null}
     {query || collectionRef || kind !== "all" || sort !== "newest" ? <Action label={t("mobile.business.clearFilters")} disabled={!guard.canAct} onPress={() => { if (guard.current()) { setDraft(""); setQuery(""); setInvalid(false); setKind("all"); setCollection(undefined); setSort("newest") } }} /> : null}
@@ -80,7 +86,7 @@ function ShopBody({ handle, onOpenOffer, onOpenPage, onOpenPost }: ShopScreenPro
   if (shop === undefined) return <Status label={t("mobile.business.loading")} busy />
   if (shop === null || shop.handle !== handle) return <Label>{t("mobile.business.unavailable")}</Label>
   const badgeKey = shop.badge === "official" ? "badgeOfficial" : shop.badge === "verified" ? "badgeVerified" : shop.badge === "public_agent" ? "badgePublicAgent" : "badgeCommunity"
-  return <ScrollView contentContainerStyle={{ gap: 12, paddingBottom: 24 }} scrollEnabled={guard.canAct}>
+  return <ScrollView automaticallyAdjustKeyboardInsets keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" contentContainerStyle={{ gap: 12, paddingBottom: 24 }} scrollEnabled={guard.canAct}>
     <RuntimeNotice />
     <Card>
       <BusinessImage url={shop.bannerUrl} altText={shop.name} width={2} height={1} />

@@ -198,7 +198,7 @@
   "mobile.pages.search": "Rechercher une association",
   "mobile.pages.searchHint": "Saisissez au moins deux caractères pour rechercher par nom.",
   "mobile.pages.searchAction": "Rechercher",
-  "mobile.pages.emptyAssociations": "Aucune association trouvée.",
+  "mobile.pages.emptyAssociations": "Aucune association trouvée dans cet annuaire.",
   "mobile.pages.emptyWindow": "Aucun résultat dans cette fenêtre. Vous pouvez poursuivre le chargement.",
   "mobile.pages.openPage": "Voir la page",
   "mobile.pages.pageTitle": "Page",

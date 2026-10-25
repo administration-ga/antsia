@@ -1,0 +1,61 @@
+Window: "ANTSIA iPhone 18 Pro", App: Device Hub.
+0 standard window ANTSIA iPhone 18 Pro – iOS 27.0, ID: com.apple.dt.DeviceKit.DeviceManagementWindow-AppWindow-1, Secondary Actions: Raise
+	1 split group
+		2 split group com.apple.dt.DeviceKit.DeviceManagementWindow-AppWindow-1, SidebarNavigationSplitView
+			3 scroll area
+				4 list Sidebar
+					5 row (selectable) Description: Available, Value: Expanded
+					6 row (selected) Description: iphone.gen3, Value: ANTSIA iPhone 18 Pro
+27.0
+Simulator
+			7 search text field (settable) Search
+				8 button Search
+			9 splitter (disabled, settable, float) 248
+			10 container
+				11 container
+					12 button Description: Essayer les comptes démo, Secondary Actions: Cancel
+					13 heading Description: ANTSIA, Secondary Actions: Cancel
+					14 text Description: Retrouvez votre réseau, vos publications et vos conversations., Secondary Actions: Cancel
+					15 text Description: Identifiez-vous avec Identité.ga pour revenir dans ANTSIA sur ce téléphone., Secondary Actions: Cancel
+					16 button Description: Se connecter avec Identité.ga, Secondary Actions: Cancel
+					17 text Secondary Actions: Cancel, Description: La connexion revient dans cette application. Vous gardez le contrôle de votre inscription et de votre adhésion.
+					18 link Description: Terminer mon inscription sur le site, Secondary Actions: Cancel
+					19 element Description: E-mail, Value: radio button, checked, Secondary Actions: Cancel
+					20 element Description: Téléphone au format international, Value: radio button, unchecked, Secondary Actions: Cancel
+					21 text Description: E-mail, Secondary Actions: Cancel
+					22 text field (settable) Description: E-mail, Secondary Actions: Cancel
+					23 button (disabled) Description: Recevoir un code, Secondary Actions: Cancel
+					24 text Description: L’envoi de codes par ce moyen est actuellement indisponible., Secondary Actions: Cancel
+				25 button Description: Home, ID: app.grid.3x3
+				26 button Description: Screenshot, ID: camera.viewfinder
+				27 button Description: Record, ID: record.circle
+				28 button Rotate Left
+	29 toolbar
+		30 menu button Add, Help: Add Device, ID: plus
+		31 toggle button Description: Filter, Help: Sort and Filter, Value: on
+		32 button Description: Hide Sidebar, Secondary Actions: Increment, Decrement, Delete, Cancel
+		33 toggle button Description: Capture Keyboard, Value: off
+		34 toggle button Description: Resize mode, Help: Enter resize mode, Value: off
+		35 Zoom
+			36 radio button Description: Zoom Out, Value: 0, ID: minus.magnifyingglass
+			37 radio button Description: arrowtriangles.up.right.down.left.magnifyingglass, Help: Zoom to Fit, Value: 1
+			38 radio button Description: Zoom To Actual Size, Help: Physical Size, Value: 0, ID: 1.magnifyingglass
+			39 radio button Description: Zoom In, Value: 0, ID: plus.magnifyingglass
+		40 button Description: Switch to compact window, Secondary Actions: Increment, Decrement, Delete, Cancel, Move previous, Move next, Remove from toolbar
+		41 menu button More, Help: More Actions, ID: ellipsis
+		42 radio button Description: Edit, Help: Settings, Value: 0, ID: slider.horizontal.3
+		43 radio button Description: text.document, Help: Reports, Value: 0
+		44 radio button Description: Info, Value: 0, ID: info
+	45 close button
+	46 full screen button Help: this button also has an action to zoom the window, Secondary Actions: zoom the window
+	47 minimize button
+	48 text ANTSIA iPhone 18 Pro iOS 27.0
+49 menu bar
+	50 Device Hub
+	51 File
+	52 Edit
+	53 View
+	54 Device
+	55 Controls
+	56 Window
+	57 Help

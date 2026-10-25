@@ -2,7 +2,7 @@ import { api } from "@antsia/api/engine"
 import { useQuery } from "convex/react"
 import type { FunctionReturnType } from "convex/server"
 import { useCallback, useEffect, useState } from "react"
-import { FlatList, Image, View } from "react-native"
+import { FlatList, Image, Keyboard, View } from "react-native"
 import { useNativeAppearance } from "../appearance"
 import { Action, Card, Field, Label, QueryBoundary, RuntimeNotice, Status, nativeScope, useNativeGuard } from "../components/ui"
 import { canAppendNativeCursor, mergeNativePages, nativeCursorKey } from "../lib/native-pagination"
@@ -68,7 +68,7 @@ function AssociationDirectoryBody({ query, onOpenPage }: { query: string; onOpen
         <RuntimeNotice />
         {owned.length ? <View style={{ gap: 8 }}><Label strong accessibilityRole="header">{t("mobile.pages.ownedAssociations")}</Label>{owned.map(page => <AssociationCard key={String(page.pageId)} page={page} onOpenPage={onOpenPage} />)}</View> : null}
         <Label strong accessibilityRole="header">{t("mobile.pages.directory")}</Label>
-        <Status label={first === undefined || mine === undefined ? t("mobile.common.loading") : items.length === 0 && owned.length === 0 ? t(first.isDone ? "mobile.pages.emptyAssociations" : "mobile.pages.emptyWindow") : ""} busy={first === undefined || mine === undefined} />
+        <Status label={first === undefined || mine === undefined ? t("mobile.common.loading") : items.length === 0 && !loadingMore ? t(tail?.isDone ? "mobile.pages.emptyAssociations" : "mobile.pages.emptyWindow") : ""} busy={first === undefined || mine === undefined} />
       </View>}
       renderItem={({ item }) => <AssociationCard page={item} onOpenPage={onOpenPage} />}
       ListFooterComponent={<View style={{ gap: 8 }}>
@@ -86,11 +86,12 @@ function AssociationDirectoryControls({ onOpenPage }: { onOpenPage: (handle: str
   const [draft, setDraft] = useState(""), [query, setQuery] = useState(""), [version, setVersion] = useState(0)
   const key = JSON.stringify([nativeScope(guard.runtime), "associations", query, version])
   const refresh = () => { if (guard.current()) setVersion(value => value + 1) }
+  const submit = () => { if (guard.current()) { setQuery(nativePageSearch(draft)); setVersion(value => value + 1); Keyboard.dismiss() } }
   return <View style={{ flex: 1, gap: 12 }}>
     <Label strong accessibilityRole="header">{t("mobile.pages.associationsTitle")}</Label>
-    <Field label={t("mobile.pages.search")} hint={t("mobile.pages.searchHint")} value={draft} maxLength={NATIVE_PAGE_SEARCH_MAX} disabled={!guard.canAct} onChangeText={setDraft} />
+    <Field label={t("mobile.pages.search")} hint={t("mobile.pages.searchHint")} value={draft} maxLength={NATIVE_PAGE_SEARCH_MAX} disabled={!guard.canAct} onChangeText={setDraft} returnKeyType="search" onSubmit={submit} />
     <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-      <Action label={t("mobile.pages.searchAction")} disabled={!guard.canAct} onPress={() => { if (guard.current()) { setQuery(nativePageSearch(draft)); setVersion(value => value + 1) } }} />
+      <Action label={t("mobile.pages.searchAction")} disabled={!guard.canAct} onPress={submit} />
       <Action label={t("mobile.common.refresh")} disabled={!guard.canAct} onPress={refresh} />
     </View>
     {!guard.runtime.ready ? <RuntimeNotice /> : <QueryBoundary key={key} resetKey={key} fallback={<Card><Status label={t("mobile.common.unavailable")} error /><Action label={t("mobile.common.refresh")} disabled={!guard.canAct} onPress={refresh} /></Card>}>
