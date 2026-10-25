@@ -1,9 +1,9 @@
 # ANTSIA iOS9 — recherche avec clavier logiciel
 
 Recette du 25 octobre 2026, vers 02:00–02:05 Europe/Paris. **Les huit contrôles
-de cette recette sont réussis dans le simulateur.** La vérification globale et
-la publication TestFlight sont en cours à la rédaction ; ce rapport ne confirme
-ni leur achèvement ni une approbation Apple du build9.
+de cette recette sont réussis dans le simulateur.** La vérification globale
+répartie est terminée avec code 0. La publication TestFlight est encore en cours
+à ce stade ; son résultat sera consigné séparément.
 
 ## Changement réel et version contrôlée
 
@@ -50,6 +50,23 @@ Cette recette est limitée au simulateur ; elle ne valide pas un iPhone physique
 Android, toutes les tailles d’écran ou le texte agrandi. Le cas particulier où
 **Mes associations est déjà rempli n’a pas été recréé** : seul l’annuaire vide du
 profil courant est vérifié ici. Les vérifications antérieures restent distinctes.
+
+## Vérification et signature
+
+La chaîne `bun run verify` a terminé avec code 0, sur 2 123 entrées source
+épinglées et recontrôlées après exécution. Le codegen local en mode dry-run et le
+test original des 5 000 abonnés ont réussi sur le Mac, avec son délai initial de
+360 secondes ; ce seul test était déporté du contrôle distant. Typages, autres
+tests, cliquets et onze lints ont terminé sans erreur. Aucune assertion ni aucun
+délai affaibli. Le journal distant a été récupéré partiellement : les sorties
+finales et la concordance des sources sont conservées, sans reprendre de décompte
+historique de tests. Voir [verification.json](verification.json).
+
+L’archive iPhone 0.1.0 (9) est signée et sa signature vérifiée. Son JavaScript est
+identique à la recette simulateur ; exécutable natif et symboles conservés,
+dépendances natives inchangées. L’identité et le profil Apple existants ont été
+réutilisés ; le trousseau temporaire est nettoyé. Voir
+[ipa-validation.json](ipa-validation.json).
 
 ## Audit des preuves avant publication
 
