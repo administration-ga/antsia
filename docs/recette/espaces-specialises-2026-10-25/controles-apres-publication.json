@@ -1,0 +1,291 @@
+{
+  "checks": [
+    {
+      "space": "prestations",
+      "width": 390,
+      "height": 844,
+      "brokenImages": [],
+      "h1": [
+        "Prestations"
+      ],
+      "main": 1,
+      "scrollWidth": 390
+    },
+    {
+      "space": "prestations",
+      "width": 834,
+      "height": 1112,
+      "brokenImages": [],
+      "h1": [
+        "Prestations"
+      ],
+      "main": 1,
+      "scrollWidth": 834
+    },
+    {
+      "space": "prestations",
+      "width": 1440,
+      "height": 1000,
+      "brokenImages": [],
+      "h1": [
+        "Prestations"
+      ],
+      "main": 1,
+      "scrollWidth": 1440
+    },
+    {
+      "space": "boutique",
+      "width": 390,
+      "height": 844,
+      "brokenImages": [],
+      "h1": [
+        "Épicerie Moussavou Démo"
+      ],
+      "main": 1,
+      "scrollWidth": 390
+    },
+    {
+      "space": "boutique",
+      "width": 834,
+      "height": 1112,
+      "brokenImages": [],
+      "h1": [
+        "Épicerie Moussavou Démo"
+      ],
+      "main": 1,
+      "scrollWidth": 834
+    },
+    {
+      "space": "boutique",
+      "width": 1440,
+      "height": 1000,
+      "brokenImages": [],
+      "h1": [
+        "Épicerie Moussavou Démo"
+      ],
+      "main": 1,
+      "scrollWidth": 1440
+    },
+    {
+      "space": "pro-reset-unsubmitted",
+      "width": 390,
+      "height": 844,
+      "h1": [
+        "Les pros"
+      ],
+      "main": 1,
+      "scrollWidth": 390,
+      "url": "https://antsia.vercel.app/demo/professionnels",
+      "value": ""
+    },
+    {
+      "space": "pro-reset-unsubmitted",
+      "width": 834,
+      "height": 1112,
+      "h1": [
+        "Les pros"
+      ],
+      "main": 1,
+      "scrollWidth": 834,
+      "url": "https://antsia.vercel.app/demo/professionnels",
+      "value": ""
+    },
+    {
+      "space": "pro-reset-unsubmitted",
+      "width": 1440,
+      "height": 1000,
+      "h1": [
+        "Les pros"
+      ],
+      "main": 1,
+      "scrollWidth": 1440,
+      "url": "https://antsia.vercel.app/demo/professionnels",
+      "value": ""
+    },
+    {
+      "space": "presse",
+      "width": 1440,
+      "height": 1000,
+      "h1": [
+        "Presse"
+      ],
+      "main": 1,
+      "scrollWidth": 1440
+    },
+    {
+      "space": "presse",
+      "width": 834,
+      "height": 1112,
+      "h1": [
+        "Presse"
+      ],
+      "main": 1,
+      "scrollWidth": 834
+    },
+    {
+      "space": "presse",
+      "width": 390,
+      "height": 844,
+      "h1": [
+        "Presse"
+      ],
+      "main": 1,
+      "scrollWidth": 390
+    },
+    {
+      "space": "redaction",
+      "width": 390,
+      "height": 844,
+      "h1": [
+        "Ma rédaction"
+      ],
+      "main": 1,
+      "scrollWidth": 390
+    },
+    {
+      "space": "redaction",
+      "width": 834,
+      "height": 1112,
+      "h1": [
+        "Ma rédaction"
+      ],
+      "main": 1,
+      "scrollWidth": 834
+    },
+    {
+      "space": "redaction",
+      "width": 1440,
+      "height": 1000,
+      "h1": [
+        "Ma rédaction"
+      ],
+      "main": 1,
+      "scrollWidth": 1440
+    },
+    {
+      "space": "profil-pro",
+      "width": 390,
+      "height": 844,
+      "h1": [
+        "Mon profil pro"
+      ],
+      "main": 1,
+      "scrollWidth": 390
+    },
+    {
+      "space": "profil-pro",
+      "width": 834,
+      "height": 1112,
+      "h1": [
+        "Mon profil pro"
+      ],
+      "main": 1,
+      "scrollWidth": 834
+    },
+    {
+      "space": "profil-pro",
+      "width": 1440,
+      "height": 1000,
+      "h1": [
+        "Mon profil pro"
+      ],
+      "main": 1,
+      "scrollWidth": 1440
+    },
+    {
+      "space": "retour-fil",
+      "width": 1440,
+      "height": 1000,
+      "main": 1,
+      "scrollWidth": 1440,
+      "url": "https://antsia.vercel.app/demo/fil",
+      "greeting": "Quoi de neuf, Awa ?",
+      "notifications": "12 notifications non lues",
+      "pendingInvitations": "3 invitations en attente"
+    },
+    {
+      "space": "marketplace",
+      "width": 390,
+      "height": 844,
+      "buildingMessageVisible": false,
+      "h1": [
+        "Bonjour Awa MBA"
+      ],
+      "main": 1,
+      "scrollWidth": 390
+    },
+    {
+      "space": "marketplace",
+      "width": 834,
+      "height": 1112,
+      "buildingMessageVisible": false,
+      "h1": [
+        "Bonjour Awa MBA"
+      ],
+      "main": 1,
+      "scrollWidth": 834
+    },
+    {
+      "space": "marketplace",
+      "width": 1440,
+      "height": 1000,
+      "buildingMessageVisible": false,
+      "h1": [
+        "Bonjour Awa MBA"
+      ],
+      "main": 1,
+      "scrollWidth": 1440
+    },
+    {
+      "space": "acces-prestataire-depuis-marketplace",
+      "h1": [
+        "Atelier Tech Démo"
+      ],
+      "main": 1,
+      "url": "https://antsia.vercel.app/demo/boutique/atelier-tech-demo",
+      "serviceOfferHref": "/demo/prestataire/atelier-tech-demo/offres/demo%3Aoffer%3Adiagnostic-informatique"
+    },
+    {
+      "space": "fiche-service",
+      "width": 390,
+      "height": 844,
+      "h1": [
+        "Diagnostic informatique — Démo"
+      ],
+      "main": 1,
+      "scrollWidth": 390
+    },
+    {
+      "space": "fiche-service",
+      "width": 834,
+      "height": 1112,
+      "h1": [
+        "Diagnostic informatique — Démo"
+      ],
+      "main": 1,
+      "scrollWidth": 834
+    },
+    {
+      "space": "fiche-service",
+      "width": 1440,
+      "height": 1000,
+      "h1": [
+        "Diagnostic informatique — Démo"
+      ],
+      "main": 1,
+      "scrollWidth": 1440
+    },
+    {
+      "space": "retour-marketplace",
+      "width": 390,
+      "height": 844,
+      "h1": [
+        "Bonjour Awa MBA"
+      ],
+      "main": 1,
+      "scrollWidth": 390,
+      "url": "https://antsia.vercel.app/demo/marketplace"
+    }
+  ],
+  "consoleErrors": []
+}
