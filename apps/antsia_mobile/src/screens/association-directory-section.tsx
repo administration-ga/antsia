@@ -89,9 +89,8 @@ function AssociationDirectoryControls({ onOpenPage }: { onOpenPage: (handle: str
   const submit = () => { if (guard.current()) { setQuery(nativePageSearch(draft)); setVersion(value => value + 1); Keyboard.dismiss() } }
   return <View style={{ flex: 1, gap: 12 }}>
     <Label strong accessibilityRole="header">{t("mobile.pages.associationsTitle")}</Label>
-    <Field label={t("mobile.pages.search")} hint={t("mobile.pages.searchHint")} value={draft} maxLength={NATIVE_PAGE_SEARCH_MAX} disabled={!guard.canAct} onChangeText={setDraft} returnKeyType="search" onSubmit={submit} />
+    <Field label={t("mobile.pages.search")} hint={t("mobile.pages.searchHint")} value={draft} maxLength={NATIVE_PAGE_SEARCH_MAX} disabled={!guard.canAct} onChangeText={setDraft} returnKeyType="search" onSubmit={submit} submitLabel={t("mobile.pages.searchAction")} />
     <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-      <Action label={t("mobile.pages.searchAction")} disabled={!guard.canAct} onPress={submit} />
       <Action label={t("mobile.common.refresh")} disabled={!guard.canAct} onPress={refresh} />
     </View>
     {!guard.runtime.ready ? <RuntimeNotice /> : <QueryBoundary key={key} resetKey={key} fallback={<Card><Status label={t("mobile.common.unavailable")} error /><Action label={t("mobile.common.refresh")} disabled={!guard.canAct} onPress={refresh} /></Card>}>

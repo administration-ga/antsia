@@ -1,0 +1,147 @@
+Window: "ANTSIA iPhone 18 Pro", App: Device Hub.
+0 standard window ANTSIA iPhone 18 Pro – iOS 27.0, ID: com.apple.dt.DeviceKit.DeviceManagementWindow-AppWindow-1, Secondary Actions: Raise
+	1 split group
+		2 split group com.apple.dt.DeviceKit.DeviceManagementWindow-AppWindow-1, SidebarNavigationSplitView
+			3 scroll area
+				4 list Sidebar
+					5 row (selectable) Description: Available, Value: Expanded
+					6 row (selected) Description: iphone.gen3, Value: ANTSIA iPhone 18 Pro
+27.0
+Simulator
+			7 search text field (settable) Search
+				8 button Search
+			9 splitter (disabled, settable, float) 248
+			10 container
+				11 container (showing 25-125 of 125 items)
+					12 button Description: Voir la boutique · atelier-tech-demo, Secondary Actions: Cancel
+					13 element Description: Photo d'illustration pour la démonstration : Diagnostic informatique — Démo, Secondary Actions: Cancel
+					14 heading Description: Diagnostic informatique — Démo, Secondary Actions: Cancel
+					15 text Description: 5 000 XAF, Secondary Actions: Cancel
+					16 text Description: Diagnostic fictif pour explorer une offre de service. Aucune intervention réelle., Secondary Actions: Cancel
+					17 text Description: Offres de démonstration, Secondary Actions: Cancel
+					18 button Description: Voir la boutique · atelier-tech-demo, Secondary Actions: Cancel
+					19 element Description: Photo d'illustration pour la démonstration : Remplacement d'écran de smartphone — Démo, Secondary Actions: Cancel
+					20 heading Description: Remplacement d'écran de smartphone — Démo, Secondary Actions: Cancel
+					21 text Description: Sur devis, Secondary Actions: Cancel
+					22 text Description: Remplacement fictif d'un écran, chiffré sur devis selon le modèle. Aucune intervention réelle., Secondary Actions: Cancel
+					23 text Description: Offres de démonstration, Secondary Actions: Cancel
+					24 button Description: Voir la boutique · atelier-tech-demo, Secondary Actions: Cancel
+					25 element Description: Photo d'illustration pour la démonstration : Formation bureautique — Démo, Secondary Actions: Cancel
+					26 heading Description: Formation bureautique — Démo, Secondary Actions: Cancel
+					27 text Description: 20 000 XAF, Secondary Actions: Cancel
+					28 text Description: Session fictive de formation au traitement de texte et au tableur. Aucune inscription réelle., Secondary Actions: Cancel
+					29 text Description: Offres de démonstration, Secondary Actions: Cancel
+					30 button Description: Voir la boutique · atelier-tech-demo, Secondary Actions: Cancel
+					31 element Description: Photo d'illustration pour la démonstration : Installation de logiciels — Démo, Secondary Actions: Cancel
+					32 heading Description: Installation de logiciels — Démo, Secondary Actions: Cancel
+					33 text Description: 7 500 XAF, Secondary Actions: Cancel
+					34 text Description: Installation fictive des logiciels essentiels et des mises à jour. Aucun rendez-vous réel., Secondary Actions: Cancel
+					35 text Description: Offres de démonstration, Secondary Actions: Cancel
+					36 element Description: Voir la boutique · atelier-tech-demo, Secondary Actions: Cancel
+					37 element Description: Photo d'illustration pour la démonstration : Installation réseau — Démo, Secondary Actions: Cancel
+					38 heading Description: Installation réseau — Démo, Secondary Actions: Cancel
+					39 text Description: Sur devis, Secondary Actions: Cancel
+					40 text Description: Câblage et configuration fictifs d'un réseau de bureau, sur devis. Aucune intervention réelle., Secondary Actions: Cancel
+					41 text Description: Offres de démonstration, Secondary Actions: Cancel
+					42 button Description: Voir la boutique · atelier-tech-demo, Secondary Actions: Cancel
+					43 element Description: Photo d'illustration pour la démonstration : Location du studio, l'heure — Démo, Secondary Actions: Cancel
+					44 heading Description: Location du studio, l'heure — Démo, Secondary Actions: Cancel
+					45 text Description: 10 000 XAF, Secondary Actions: Cancel
+					46 text Description: Location fictive du studio équipé, éclairage compris. Aucune réservation réelle., Secondary Actions: Cancel
+					47 text Description: Offres de démonstration, Secondary Actions: Cancel
+					48 element Description: Voir la boutique · studio-objectif-demo, Secondary Actions: Cancel
+					49 element Description: Photo d'illustration pour la démonstration : Maintenance informatique — Démo, Secondary Actions: Cancel
+					50 heading Description: Maintenance informatique — Démo, Secondary Actions: Cancel
+					51 text Description: 10 000 XAF, Secondary Actions: Cancel
+					52 text Description: Prestation fictive de maintenance destinée à la démonstration. Aucun rendez-vous ni paiement réel., Secondary Actions: Cancel
+					53 text Description: Offres de démonstration, Secondary Actions: Cancel
+					54 button Description: Voir la boutique · atelier-tech-demo, Secondary Actions: Cancel
+					55 element Description: Photo d'illustration pour la démonstration : Maintenance de serveurs — Démo, Secondary Actions: Cancel
+					56 heading Description: Maintenance de serveurs — Démo, Secondary Actions: Cancel
+					57 text Description: Sur devis, Secondary Actions: Cancel
+					58 text Description: Contrat fictif de suivi pour une petite entreprise, sur devis. Aucune intervention réelle., Secondary Actions: Cancel
+					59 text Description: Offres de démonstration, Secondary Actions: Cancel
+					60 button Description: Voir la boutique · atelier-tech-demo, Secondary Actions: Cancel
+					61 element Description: Photo d'illustration pour la démonstration : Photo d'identité — Démo, Secondary Actions: Cancel
+					62 heading Description: Photo d'identité — Démo, Secondary Actions: Cancel
+					63 text Description: 3 000 XAF, Secondary Actions: Cancel
+					64 text Secondary Actions: Cancel, Description: Prise de vue fictive au format officiel, pour découvrir une prestation rapide. Aucune réservation réelle.
+					65 text Description: Offres de démonstration, Secondary Actions: Cancel
+					66 button Description: Voir la boutique · studio-objectif-demo, Secondary Actions: Cancel
+					67 element Description: Photo d'illustration pour la démonstration : Portrait photo — Démo, Secondary Actions: Cancel
+					68 heading Description: Portrait photo — Démo, Secondary Actions: Cancel
+					69 text Description: 15 000 XAF, Secondary Actions: Cancel
+					70 text Description: Séance photo fictive pour découvrir une prestation à tarif fixe. Aucune réservation réelle., Secondary Actions: Cancel
+					71 text Description: Offres de démonstration, Secondary Actions: Cancel
+					72 button Description: Voir la boutique · studio-objectif-demo, Secondary Actions: Cancel
+					73 button Description: Page suivante, Secondary Actions: Cancel
+					74 button Description: «imprimante», Secondary Actions: Cancel
+					75 button Description: imprime, Secondary Actions: Cancel
+					76 button Description: imprimer, Secondary Actions: Cancel
+					77 button a
+					78 button z
+					79 button e
+					80 button r
+					81 button t
+					82 button y
+					83 button u
+					84 button i
+					85 button o
+					86 button p
+					87 button q
+					88 button s
+					89 button d
+					90 button f
+					91 button g
+					92 button h
+					93 button j
+					94 button k
+					95 button l
+					96 button m
+					97 button Description: majuscule, Help: Touchez quatre fois pour verrouiller les majuscules., ID: shift, Secondary Actions: Verrouillage des majuscules
+					98 button w
+					99 button x
+					100 button c
+					101 button v
+					102 button b
+					103 button n
+					104 button ´
+					105 button Description: supprimer, ID: delete
+					106 button Description: nombres, ID: more
+					107 button Description: espace, ID: space
+					108 button Description: rechercher, ID: Search
+					109 element Secondary Actions: Cancel
+					110 button Description: Emoji, Secondary Actions: Cancel, Help: Touchez deux fois et maintenez appuyé, puis faites glisser vers le haut pour sélectionner un autre clavier.
+					111 button Description: Dicter, Help: Touchez deux fois pour commencer la dictée et deux fois avec deux doigts pour terminer., ID: dictation, Secondary Actions: Cancel
+				112 button Description: Home, ID: app.grid.3x3
+				113 button Description: Screenshot, ID: camera.viewfinder
+				114 button Description: Record, ID: record.circle
+				115 button Rotate Left
+	116 text ANTSIA iPhone 18 Pro iOS 27.0
+	117 container
+		118 toolbar
+			119 menu button Add, Help: Add Device, ID: plus
+			120 toggle button Description: Filter, Help: Sort and Filter, Value: on
+			121 button Description: Hide Sidebar, Secondary Actions: Increment, Decrement, Delete, Cancel
+			122 toggle button Description: Capture Keyboard, Value: off
+			123 toggle button Description: Resize mode, Help: Enter resize mode, Value: off
+			124 radio button Description: Zoom Out, Value: 0, ID: minus.magnifyingglass
+			125 radio button Description: arrowtriangles.up.right.down.left.magnifyingglass, Help: Zoom to Fit, Value: 0
+			126 radio button Description: Zoom To Actual Size, Help: Physical Size, Value: 1, ID: 1.magnifyingglass
+			127 radio button Description: Zoom In, Value: 0, ID: plus.magnifyingglass
+			128 button Description: Switch to compact window, Secondary Actions: Increment, Decrement, Delete, Cancel, Move previous, Move next, Remove from toolbar
+			129 menu button More, Help: More Actions, ID: ellipsis
+			130 radio button Description: Edit, Help: Settings, Value: 0, ID: slider.horizontal.3
+			131 radio button Description: text.document, Help: Reports, Value: 0
+			132 radio button Description: Info, Value: 0, ID: info
+133 menu bar
+	134 Device Hub
+	135 File
+	136 Edit
+	137 View
+	138 Device
+	139 Controls
+	140 Window
+	141 Help
+
+The focused UI element is 0 standard window ANTSIA iPhone 18 Pro – iOS 27.0, ID: com.apple.dt.DeviceKit.DeviceManagementWindow-AppWindow-1, Secondary Actions: Raise
