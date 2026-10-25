@@ -1,0 +1,242 @@
+{
+  "status": "published",
+  "recordedAt": "2026-10-25T13:22:12.549517+00:00",
+  "verification": {
+    "status": "complete",
+    "startedAt": 1792932724.311649,
+    "sourceBefore": "723900872ee27153cd82b10899d0620dc8a9e529093426017980ece54cca7813",
+    "files": 3325,
+    "verificationMode": "full",
+    "exitCode": 0,
+    "sourceAfter": "723900872ee27153cd82b10899d0620dc8a9e529093426017980ece54cca7813",
+    "finishedAt": 1792933828.9925172,
+    "sourcesUnchanged": true,
+    "codegenChanged": [],
+    "logSha256": "e3a1e6681af9cd841ea873bd2027319073e7bfa63635b924ba48cf0d94115700",
+    "logBytes": 861519,
+    "candidateManifestSha256": "21cd9b09dfdcebd3c14d0dad75cd9ef9a590ef2a41c5b09779f8eb488daddcfe",
+    "candidateContentFingerprint": "6095514b6a00b9ec3db4291c9218cbbc7885f75cfd15b5b47622565de2cac192",
+    "vitestTotals": [
+      [
+        3298,
+        0
+      ],
+      [
+        150,
+        0
+      ],
+      [
+        1013,
+        4
+      ],
+      [
+        86,
+        0
+      ],
+      [
+        291,
+        0
+      ],
+      [
+        94,
+        0
+      ],
+      [
+        2286,
+        0
+      ],
+      [
+        4242,
+        0
+      ],
+      [
+        963,
+        0
+      ],
+      [
+        109,
+        0
+      ],
+      [
+        1949,
+        0
+      ],
+      [
+        147,
+        0
+      ],
+      [
+        1402,
+        0
+      ]
+    ],
+    "bunTotals": [
+      92,
+      697
+    ],
+    "passedTotal": 16819,
+    "skippedTotal": 4
+  },
+  "publicHealth": {
+    "checkedAt": "2026-10-25T13:16:13.139296+00:00",
+    "origin": "https://antsia.vercel.app",
+    "mode": "public",
+    "results": [
+      {
+        "path": "/api/sante-fonctionnelle",
+        "status": 200,
+        "body": {
+          "status": "ok",
+          "application": "antsia-ga",
+          "version": "specialized-6095514b6a00-production",
+          "backend": "configured"
+        },
+        "expectedBackendInCsp": true,
+        "foreignBackendAbsentFromCsp": true
+      },
+      {
+        "path": "/demo/api/sante-fonctionnelle",
+        "status": 200,
+        "body": {
+          "status": "ok",
+          "application": "antsia-ga",
+          "version": "specialized-6095514b6a00-demo",
+          "backend": "configured"
+        },
+        "expectedBackendInCsp": true,
+        "foreignBackendAbsentFromCsp": true
+      },
+      {
+        "origin": "https://antsia-demo.vercel.app",
+        "status": 404
+      }
+    ]
+  },
+  "publication": {
+    "deployments": {
+      "demo": {
+        "status": "staged_cli_wait_completed",
+        "startedAt": "2026-10-25T13:11:20.803407+00:00",
+        "projectId": "prj_EVmqRAr7i4vKF25o6mpNKVbajgLC",
+        "version": "specialized-6095514b6a00-demo",
+        "candidateContentFingerprint": "6095514b6a00b9ec3db4291c9218cbbc7885f75cfd15b5b47622565de2cac192",
+        "verification": {
+          "reportSha256": "54c65e41463ac6ed422f6ded629e265cb6be1f32855ccc6d456b48a5ec78e64c",
+          "verificationMode": "full",
+          "exitCode": 0,
+          "sourcesUnchanged": true,
+          "sourceBefore": "723900872ee27153cd82b10899d0620dc8a9e529093426017980ece54cca7813",
+          "sourceAfter": "723900872ee27153cd82b10899d0620dc8a9e529093426017980ece54cca7813",
+          "codegenChanged": [],
+          "newBackendVerificationPerformed": true,
+          "fullVerificationLogSha256": "e3a1e6681af9cd841ea873bd2027319073e7bfa63635b924ba48cf0d94115700",
+          "historicalBackendComparison": {
+            "backendUnchanged": true,
+            "backendComparedFiles": 1005,
+            "backendSourceFingerprint": "0b1a3474f8796f75dd38cd62187bd29c1c40fa8cf0840d623b3930f106224341",
+            "backendReferenceLogSha256": "505053e35d44fb9569818b3b5e74b84da8a5f9029253ad364f7b66523951516b",
+            "backendReferenceSummarySha256": "fd6571844ae9891b0d8c14b3fdc0eec3d197a01043e67a622a3ac0aa7da5d32a",
+            "historicalReferenceOnly": true
+          }
+        },
+        "childRuntimeOrigin": null,
+        "cliExitCode": 0,
+        "finishedAt": "2026-10-25T13:13:12.526494+00:00",
+        "deploymentId": "dpl_ZD7mGDThdEPRTEvgpPyASzZvvhwD",
+        "url": "https://antsia-demo-ocq4sqigr-okatechs-projects-f0102678.vercel.app",
+        "sourcesUnchanged": true,
+        "readyStateReadBackRequired": true,
+        "uiAcceptanceRequired": true
+      },
+      "production": {
+        "status": "staged_cli_wait_completed",
+        "startedAt": "2026-10-25T13:13:29.042448+00:00",
+        "projectId": "prj_PjiCPA1GobnnCipPpVkaAYxFVIkB",
+        "version": "specialized-6095514b6a00-production",
+        "candidateContentFingerprint": "6095514b6a00b9ec3db4291c9218cbbc7885f75cfd15b5b47622565de2cac192",
+        "verification": {
+          "reportSha256": "54c65e41463ac6ed422f6ded629e265cb6be1f32855ccc6d456b48a5ec78e64c",
+          "verificationMode": "full",
+          "exitCode": 0,
+          "sourcesUnchanged": true,
+          "sourceBefore": "723900872ee27153cd82b10899d0620dc8a9e529093426017980ece54cca7813",
+          "sourceAfter": "723900872ee27153cd82b10899d0620dc8a9e529093426017980ece54cca7813",
+          "codegenChanged": [],
+          "newBackendVerificationPerformed": true,
+          "fullVerificationLogSha256": "e3a1e6681af9cd841ea873bd2027319073e7bfa63635b924ba48cf0d94115700",
+          "historicalBackendComparison": {
+            "backendUnchanged": true,
+            "backendComparedFiles": 1005,
+            "backendSourceFingerprint": "0b1a3474f8796f75dd38cd62187bd29c1c40fa8cf0840d623b3930f106224341",
+            "backendReferenceLogSha256": "505053e35d44fb9569818b3b5e74b84da8a5f9029253ad364f7b66523951516b",
+            "backendReferenceSummarySha256": "fd6571844ae9891b0d8c14b3fdc0eec3d197a01043e67a622a3ac0aa7da5d32a",
+            "historicalReferenceOnly": true
+          }
+        },
+        "childRuntimeOrigin": "https://antsia-demo-ocq4sqigr-okatechs-projects-f0102678.vercel.app",
+        "cliExitCode": 0,
+        "finishedAt": "2026-10-25T13:15:23.442385+00:00",
+        "deploymentId": "dpl_D93mYLT4Vp9hztfZ4TJwgYCqbwXT",
+        "url": "https://antsia-3zpg8mpz8-okatechs-projects-f0102678.vercel.app",
+        "sourcesUnchanged": true,
+        "readyStateReadBackRequired": true,
+        "uiAcceptanceRequired": true
+      }
+    },
+    "promotion": {
+      "deploymentId": "dpl_D93mYLT4Vp9hztfZ4TJwgYCqbwXT",
+      "previousDeploymentId": "dpl_5Txod4ozxqim4s7FLjBKfj1eyMHb",
+      "publicAlias": "antsia.vercel.app",
+      "confirmedAt": "2026-10-25T13:16:34.204225+00:00",
+      "publicHealthVerified": true,
+      "publicEnvValueUpdatedAndReadBack": true,
+      "removedDemoAliasStatus": 404
+    },
+    "sourceContentFingerprint": "6095514b6a00b9ec3db4291c9218cbbc7885f75cfd15b5b47622565de2cac192"
+  },
+  "catalogIndexReadback": [
+    {
+      "deployment": "vivid-hedgehog-655",
+      "networkId": "zn72grsbj3syj5gdhj0ew8c4ds8gny66",
+      "status": "ready",
+      "version": 2,
+      "generation": 1
+    },
+    {
+      "deployment": "diligent-avocet-585",
+      "networkId": "zn74k1sfsvd8gahy5k0w8k8a9x8gn56w",
+      "status": "ready",
+      "version": 2,
+      "generation": 1
+    }
+  ],
+  "browser": {
+    "initialMeasurements": 42,
+    "postPublicationMeasurements": 27,
+    "widths": [
+      390,
+      834,
+      1440
+    ],
+    "consoleErrors": 0,
+    "demoGreeting": "Bonjour Awa MBA",
+    "realAccountSignedOutByThisTask": false,
+    "businessPublicationsOrdersMessagesCreated": false,
+    "limitations": [
+      "Données spécialisées pro et presse absentes dans la démo : écrans, formulaires et états vides contrôlés, sans création de profil/article/collaboration.",
+      "Viewports navigateur, sans revendication de test sur appareils physiques."
+    ]
+  },
+  "preservation": {
+    "head": "c4d36f345707f87f20dbd970b2850c683c8581be",
+    "branch": "codex/pa4-identite-session",
+    "indexEntriesSha256": "5cfb22571c6ccd685ca3a7954efc12cd1c18b816d07c1e7d8a82b3b06f916758",
+    "sharedHeadAndIndexUnchanged": true,
+    "publishedNavigationC9Preserved": true
+  },
+  "git": {
+    "sourceFixCommit": "e351ca440611a9701d071079cab0651457804616",
+    "pullRequest": "https://github.com/administration-ga/antsia/pull/86",
+    "publishedNavigationGitIntegration": "Réservée à son propriétaire ; deux patches de compatibilité joints. Le contexte publié diffère de main+PR86."
+  }
+}

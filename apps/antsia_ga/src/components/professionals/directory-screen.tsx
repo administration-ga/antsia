@@ -54,12 +54,18 @@ function ProfessionalDirectoryFilters({ filters }: { filters: ProfessionalSearch
   const advanced = useRef<HTMLDetailsElement>(null)
   const activeCount = skills.split(",").filter(value => value.trim()).length + languages.length + types.length + Number(!!zone.trim()) + Number(!!availability)
   const [otherLanguage, setOtherLanguage] = useState("")
+  const clear = () => {
+    form.reset(professionalSearchValues({}))
+    setOtherLanguage("")
+    if (advanced.current) advanced.current.open = false
+    router.push(routes.professionals())
+  }
   return <Card><form className="grid min-w-0 gap-3" onSubmit={event => { void form.handleSubmit(value => { const next = professionalSearchInput(value); if (next) router.push(routes.professionals(next)) }, errors => {
     const first = (["skills", "languageCodes", "zone", "availability", "collaborationTypes"] as const).find(key => errors[key])
     if (first && advanced.current) { advanced.current.open = true; advanced.current.querySelector<HTMLElement>(`[name="${first}"]`)?.focus() }
   })(event) }} noValidate><h2 className="mp-subtitle">{t("directory.filters")}</h2><div className="grid min-w-0 gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
     <Field id={`${id}-query`} label={t("directory.query")} hint={t("directory.queryHint")} error={form.formState.errors.query?.message}><TextInput id={`${id}-query`} maxLength={120} aria-describedby={`${id}-query-hint`} aria-invalid={!!form.formState.errors.query} {...form.register("query")} /></Field>
-    <div className="flex flex-wrap gap-2 sm:pt-6"><Button type="submit">{t("actions.search")}</Button><Button type="button" variant="outline" onClick={() => router.push(routes.professionals())}>{t("actions.clear")}</Button></div>
+    <div className="flex flex-wrap gap-2 sm:pt-6"><Button type="submit">{t("actions.search")}</Button><Button type="button" variant="outline" onClick={clear}>{t("actions.clear")}</Button></div>
   </div><details ref={advanced} className="min-w-0 border-t border-border"><summary className="min-h-11 cursor-pointer rounded-lg py-3 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{t("directory.advancedFilters", { count: activeCount })}</summary><div className="grid min-w-0 gap-4 pt-2"><div className="grid min-w-0 gap-4 sm:grid-cols-2 lg:grid-cols-3">
     <Field id={`${id}-skills`} label={t("directory.skills")} hint={t("directory.skillsHint")} error={form.formState.errors.skills?.message}><TextInput id={`${id}-skills`} maxLength={365} aria-describedby={`${id}-skills-hint`} aria-invalid={!!form.formState.errors.skills} {...form.register("skills")} /></Field>
     <Field id={`${id}-zone`} label={t("directory.zone")} error={form.formState.errors.zone?.message}><TextInput id={`${id}-zone`} maxLength={120} aria-invalid={!!form.formState.errors.zone} {...form.register("zone")} /></Field>
