@@ -1,0 +1,144 @@
+Window: "ANTSIA iPhone 18 Pro", App: Device Hub.
+0 standard window ANTSIA iPhone 18 Pro – iOS 27.0, ID: com.apple.dt.DeviceKit.DeviceManagementWindow-AppWindow-1, Secondary Actions: Raise
+	1 split group
+		2 split group com.apple.dt.DeviceKit.DeviceManagementWindow-AppWindow-1, SidebarNavigationSplitView
+			3 scroll area
+				4 list Sidebar
+					5 row (selectable) Description: Available, Value: Expanded
+					6 row (selected) Description: iphone.gen3, Value: ANTSIA iPhone 18 Pro
+27.0
+Simulator
+			7 search text field (settable) Search
+				8 button Search
+			9 splitter (disabled, settable, float) 248
+			10 container
+				11 container
+					12 text Description: Démonstration ANTSIA, Secondary Actions: Cancel
+					13 button Description: Revenir à mon compte, Secondary Actions: Cancel
+					14 button Description: Changer de profil démo, Secondary Actions: Cancel
+					15 button Description: Retour, Secondary Actions: Cancel
+					16 heading Description: Voir la boutique, Secondary Actions: Cancel
+					17 element Description: Actualiser, Secondary Actions: Cancel
+					18 element Description: Épicerie Moussavou Démo, Secondary Actions: Cancel
+					19 heading Description: Épicerie Moussavou Démo, Secondary Actions: Cancel
+					20 text Description: Communauté, Secondary Actions: Cancel
+					21 text Description: Présentation, Secondary Actions: Cancel
+					22 text Description: Boutique fictive de démonstration : produits du quotidien., Secondary Actions: Cancel
+					23 text Description: Horaires · Du lundi au samedi, de 7 h à 20 h, Secondary Actions: Cancel
+					24 element Description: Voir la page, Secondary Actions: Cancel
+					25 heading Description: Catalogue, Secondary Actions: Cancel
+					26 text Description: Rechercher des produits ou services, Secondary Actions: Cancel
+					27 text field (settable) Description: Rechercher des produits ou services, Value: poisson, Secondary Actions: Cancel
+					28 button Description: Rechercher, Secondary Actions: Cancel
+					29 element (selected) Description: Tout, Value: radio button, checked, Secondary Actions: Cancel
+					30 element Description: Produits, Value: radio button, unchecked, Secondary Actions: Cancel
+					31 element Description: Services, Value: radio button, unchecked, Secondary Actions: Cancel
+					32 element Description: Photo d'illustration pour la démonstration : Riz parfumé, sac de 5 kg — Démo, Secondary Actions: Cancel
+					33 heading Description: Riz parfumé, sac de 5 kg — Démo, Secondary Actions: Cancel
+					34 text Description: 6 500 XAF, Secondary Actions: Cancel
+					35 text Description: Riz fictif présenté pour la démonstration du catalogue. Aucune vente réelle., Secondary Actions: Cancel
+					36 text Description: Offres de démonstration, Secondary Actions: Cancel
+					37 element Description: Voir l’offre · Riz parfumé, sac de 5 kg — Démo, Secondary Actions: Cancel
+					38 heading Description: Publications, Secondary Actions: Cancel
+					39 heading Description: Épicerie Moussavou Démo, Secondary Actions: Cancel
+					40 text Description: Publication d’une page, Secondary Actions: Cancel
+					41 button Description: Voir la page · Épicerie Moussavou Démo, Secondary Actions: Cancel
+					42 text Secondary Actions: Cancel, Description: Démo — Le riz parfumé est de retour en rayon, en sacs de 5 kg pour les repas de famille. Vitrine de démonstration : aucune vente réelle. #epicerie
+					43 text Description: Réactions 0 · Commentaires 0, Secondary Actions: Cancel
+					44 text Description: Cette publication présente une offre. Les opérations commerciales restent sur le site., Secondary Actions: Cancel
+					45 button Description: Voir l’offre · Riz parfumé, sac de 5 kg — Démo, Secondary Actions: Cancel
+					46 button Description: Ouvrir la publication · Épicerie Moussavou Démo, Secondary Actions: Cancel
+					47 heading Description: Épicerie Moussavou Démo, Secondary Actions: Cancel
+					48 text Description: Publication d’une page, Secondary Actions: Cancel
+					49 button Description: Voir la page · Épicerie Moussavou Démo, Secondary Actions: Cancel
+					50 text Secondary Actions: Cancel, Description: Épicerie Moussavou Démo — Le poisson fumé de la semaine est arrivé, préparé au feu de bois selon la tradition. Vitrine de démonstration : aucune vente réelle. #Estuaire #ProduitsLocaux
+					51 text Description: Réactions 2 · Commentaires 1, Secondary Actions: Cancel
+					52 text Description: Cette publication présente une offre. Les opérations commerciales restent sur le site., Secondary Actions: Cancel
+					53 button Description: Voir l’offre · Poisson fumé au feu de bois — Démo, Secondary Actions: Cancel
+					54 button Description: Ouvrir la publication · Épicerie Moussavou Démo, Secondary Actions: Cancel
+					55 heading Description: Épicerie Moussavou Démo, Secondary Actions: Cancel
+					56 text Description: Publication d’une page, Secondary Actions: Cancel
+					57 button Description: Voir la page · Épicerie Moussavou Démo, Secondary Actions: Cancel
+					58 text Secondary Actions: Cancel, Description: Épicerie Moussavou Démo — Un panier en raphia accompagne notre sélection fictive de produits du quotidien. Cette vitrine de démonstration met en valeur les matières et les savoir-faire ; aucun achat réel n'est proposé. #Estuaire #Raphia #Artisanat
+					59 text Description: Réactions 2 · Commentaires 0, Secondary Actions: Cancel
+					60 text Description: Cette publication présente une offre. Les opérations commerciales restent sur le site., Secondary Actions: Cancel
+					61 button Description: Voir l’offre · Panier en raphia — Démo, Secondary Actions: Cancel
+					62 button Description: Ouvrir la publication · Épicerie Moussavou Démo, Secondary Actions: Cancel
+					63 heading Description: Épicerie Moussavou Démo, Secondary Actions: Cancel
+					64 text Description: Publication d’une page, Secondary Actions: Cancel
+					65 button Description: Voir la page · Épicerie Moussavou Démo, Secondary Actions: Cancel
+					66 text Secondary Actions: Cancel, Description: Épicerie Moussavou Démo — Présentation fictive de nos boissons au bissap et au gingembre, accompagnées d'une confiture d'ananas. Des images pour découvrir une vitrine de démonstration, sans vente réelle. #Estuaire #ProduitsLocaux #Epicerie
+					67 text Description: Réactions 2 · Commentaires 0, Secondary Actions: Cancel
+					68 text Description: Cette publication présente une offre. Les opérations commerciales restent sur le site., Secondary Actions: Cancel
+					69 button Description: Voir l’offre · Panier du marché — Démo, Secondary Actions: Cancel
+					70 button Description: Ouvrir la publication · Épicerie Moussavou Démo, Secondary Actions: Cancel
+					71 button Description: «poisson», Secondary Actions: Cancel
+					72 button Description: poissons, Secondary Actions: Cancel
+					73 button Description: poissonnerie, Secondary Actions: Cancel
+					74 button a
+					75 button z
+					76 button e
+					77 button r
+					78 button t
+					79 button y
+					80 button u
+					81 button i
+					82 button o
+					83 button p
+					84 button q
+					85 button s
+					86 button d
+					87 button f
+					88 button g
+					89 button h
+					90 button j
+					91 button k
+					92 button l
+					93 button m
+					94 button Description: majuscule, Help: Touchez quatre fois pour verrouiller les majuscules., ID: shift, Secondary Actions: Verrouillage des majuscules
+					95 button w
+					96 button x
+					97 button c
+					98 button v
+					99 button b
+					100 button n
+					101 button ’
+					102 button Description: supprimer, ID: delete
+					103 button Description: nombres, ID: more
+					104 button Description: espace, ID: space
+					105 button Description: rechercher, ID: Search
+					106 element Secondary Actions: Cancel
+					107 button Description: Emoji, Secondary Actions: Cancel, Help: Touchez deux fois et maintenez appuyé, puis faites glisser vers le haut pour sélectionner un autre clavier.
+					108 button Description: Dicter, Help: Touchez deux fois pour commencer la dictée et deux fois avec deux doigts pour terminer., ID: dictation, Secondary Actions: Cancel
+				109 button Description: Home, ID: app.grid.3x3
+				110 button Description: Screenshot, ID: camera.viewfinder
+				111 button Description: Record, ID: record.circle
+				112 button Rotate Left
+	113 text ANTSIA iPhone 18 Pro iOS 27.0
+	114 container
+		115 toolbar
+			116 menu button Add, Help: Add Device, ID: plus
+			117 toggle button Description: Filter, Help: Sort and Filter, Value: on
+			118 button Description: Hide Sidebar, Secondary Actions: Increment, Decrement, Delete, Cancel
+			119 toggle button Description: Capture Keyboard, Value: off
+			120 toggle button Description: Resize mode, Help: Enter resize mode, Value: off
+			121 radio button Description: Zoom Out, Value: 0, ID: minus.magnifyingglass
+			122 radio button Description: arrowtriangles.up.right.down.left.magnifyingglass, Help: Zoom to Fit, Value: 0
+			123 radio button Description: Zoom To Actual Size, Help: Physical Size, Value: 1, ID: 1.magnifyingglass
+			124 radio button Description: Zoom In, Value: 0, ID: plus.magnifyingglass
+			125 button Description: Switch to compact window, Secondary Actions: Increment, Decrement, Delete, Cancel, Move previous, Move next, Remove from toolbar
+			126 menu button More, Help: More Actions, ID: ellipsis
+			127 radio button Description: Edit, Help: Settings, Value: 0, ID: slider.horizontal.3
+			128 radio button Description: text.document, Help: Reports, Value: 0
+			129 radio button Description: Info, Value: 0, ID: info
+130 menu bar
+	131 Device Hub
+	132 File
+	133 Edit
+	134 View
+	135 Device
+	136 Controls
+	137 Window
+	138 Help
+
+The focused UI element is 0 standard window ANTSIA iPhone 18 Pro – iOS 27.0, ID: com.apple.dt.DeviceKit.DeviceManagementWindow-AppWindow-1, Secondary Actions: Raise
