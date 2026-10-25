@@ -19,7 +19,7 @@ import { nativeDestinations } from "./lib/destinations"
 import { nativeMemberAdmission } from "./lib/member-admission"
 import { FeedScreen } from "./screens/feed-screen"
 import { PostScreen } from "./screens/post-screen"
-import { ExploreScreen } from "./screens/explore-screen"
+import { ExploreScreen, type ExploreSection } from "./screens/explore-screen"
 import { ShopScreen } from "./screens/shop-screen"
 import { OfferScreen } from "./screens/offer-screen"
 import { PageScreen } from "./screens/page-screen"
@@ -159,6 +159,8 @@ function ReadyMember({ networkId, personId, handle, canWrite, controller, online
 }) {
   const { t, tokens } = useNativeAppearance()
   const [history, setHistory] = useState<NativeRoute[]>([{ name: "feed" }])
+  // Keep the choice through child routes, within this person/session only.
+  const [exploreSection, setExploreSection] = useState<ExploreSection>("shops")
   const route = history[history.length - 1]!
   const id = controller.session!.id, generation = controller.vault.generation, epoch = controller.lifecycle.epoch
   const active = useRef(true)
@@ -198,7 +200,7 @@ function ReadyMember({ networkId, personId, handle, canWrite, controller, online
     <View style={{ flex: 1 }}>
       {route.name === "feed" ? <FeedScreen onOpenPost={onOpenPost} onOpenPage={onOpenPage} onOpenOffer={onOpenOffer} /> : null}
       {route.name === "post" ? <PostScreen key={route.id} postId={route.id as Id<"posts">} onOpenPage={onOpenPage} onOpenOffer={onOpenOffer} /> : null}
-      {route.name === "explore" ? <ExploreScreen onOpenShop={onOpenShop} onOpenPage={onOpenPage} /> : null}
+      {route.name === "explore" ? <ExploreScreen section={exploreSection} onSectionChange={setExploreSection} onOpenShop={onOpenShop} onOpenPage={onOpenPage} /> : null}
       {route.name === "shop" ? <ShopScreen key={route.handle} handle={route.handle} onOpenOffer={onOpenOffer} onOpenPage={onOpenPage} onOpenPost={onOpenPost} /> : null}
       {route.name === "offer" ? <OfferScreen key={`${route.handle}:${route.offerRef}`} handle={route.handle} offerRef={route.offerRef} onOpenShop={onOpenShop} onOpenPage={onOpenPage} onOpenWebOffer={(shopHandle, offerRef) => { if (current()) void Linking.openURL(nativeWebRoutes.offer(env.webUrl, shopHandle, offerRef, env.webBasePath)).catch(controller.blocked) }} /> : null}
       {route.name === "page" ? <PageScreen key={route.handle} handle={route.handle} onOpenShop={onOpenShop} onOpenPage={onOpenPage} onOpenPost={onOpenPost} onOpenOffer={onOpenOffer} onManagePage={pageHandle => { if (current()) void Linking.openURL(nativeWebRoutes.page(env.webUrl, pageHandle, env.webBasePath)).catch(controller.blocked) }} /> : null}

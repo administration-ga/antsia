@@ -26,7 +26,7 @@ const overlay = [
     "src/screens/association-directory-section.tsx", "src/screens/page-screen.tsx", "src/lib/native-pages.ts", "src/lib/native-pages.test.ts",
     "src/screens/shop-directory-section.tsx", "src/screens/shop-screen.tsx", "src/screens/offer-screen.tsx", "src/components/business-media.tsx",
     "src/lib/native-business.ts", "src/lib/native-business.test.ts", "src/lib/member-admission.ts", "src/lib/member-admission.test.ts",
-    "src/app.tsx", "src/components/entry.tsx", "src/lib/auth-client.ts", "src/lib/auth-client.test.ts",
+    "src/app.tsx", "src/components/ui.tsx", "src/components/entry.tsx", "src/lib/auth-client.ts", "src/lib/auth-client.test.ts",
     "src/lib/session-controller.ts", "src/lib/native-idn.ts", "src/lib/native-idn.test.ts", "src/i18n/fr.json", "src/i18n/en.json",
     "src/components/demo-entry.tsx", "src/lib/native-demo.ts", "src/lib/native-demo.test.ts",
     "src/lib/destinations.ts", "src/lib/destinations.test.ts", "src/lib/routes.ts", "src/lib/routes.test.ts",

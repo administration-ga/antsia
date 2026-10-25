@@ -7,7 +7,7 @@ import { Action, Card, Label, QueryBoundary, RuntimeNotice, Screen, Status, nati
 import { AssociationDirectorySection } from "./association-directory-section"
 import { ShopDirectorySection } from "./shop-directory-section"
 
-type ExploreSection = "shops" | "services" | "associations" | "myActivities"
+export type ExploreSection = "shops" | "services" | "associations" | "myActivities"
 type Props = { onOpenShop: (handle: string) => void; onOpenPage: (handle: string) => void }
 
 function MyActivities({ onOpenShop, onOpenPage }: Props) {
@@ -26,14 +26,14 @@ function MyActivities({ onOpenShop, onOpenPage }: Props) {
   </ScrollView>
 }
 
-export function ExploreScreen(props: Props) {
+export function ExploreScreen({ section, onSectionChange, ...props }: Props & { section: ExploreSection; onSectionChange: (section: ExploreSection) => void }) {
   const guard = useNativeGuard(), { t } = useNativeAppearance()
-  const [section, setSection] = useState<ExploreSection>("shops"), [version, setVersion] = useState(0)
+  const [version, setVersion] = useState(0)
   const scope = nativeScope(guard.runtime) + ":" + section + ":" + version
   return <Screen title={t("mobile.explore.title")}>
     <RuntimeNotice />
     <View accessibilityRole="tablist" style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-      {(["shops", "services", "associations", "myActivities"] as const).map(item => <Action key={item} accessibilityRole="tab" selected={section === item} label={t(`mobile.explore.${item}`)} tone={section === item ? "primary" : "neutral"} disabled={!guard.canAct} onPress={() => { if (guard.current()) setSection(item) }} />)}
+      {(["shops", "services", "associations", "myActivities"] as const).map(item => <Action key={item} accessibilityRole="tab" selected={section === item} label={t(`mobile.explore.${item}`)} tone={section === item ? "primary" : "neutral"} disabled={!guard.canAct} onPress={() => { if (guard.current()) onSectionChange(item) }} />)}
     </View>
     {!guard.runtime.ready ? null : <QueryBoundary key={scope} resetKey={scope} fallback={<Card><Status label={t("mobile.common.unavailable")} error /><Action label={t("mobile.common.refresh")} disabled={!guard.canAct} onPress={() => { if (guard.current()) setVersion(value => value + 1) }} /></Card>}>
       {section === "myActivities" ? <MyActivities {...props} /> : section === "associations" ? <AssociationDirectorySection onOpenPage={props.onOpenPage} /> : <ShopDirectorySection mode={section} {...props} />}

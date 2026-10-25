@@ -1,0 +1,21 @@
+{
+  "sharedHeadPreserved": true,
+  "sharedBranchPreserved": true,
+  "sharedIndexBytesPreserved": true,
+  "originalIPA7Preserved": true,
+  "modifiedPaths": [
+    "apps/antsia_mobile/src/app.tsx",
+    "apps/antsia_mobile/src/components/ui.tsx",
+    "apps/antsia_mobile/src/screens/explore-screen.tsx",
+    "apps/antsia_mobile/src/screens/shop-screen.tsx",
+    "apps/antsia_mobile/src/screens/shop-directory-section.tsx",
+    "apps/antsia_mobile/src/screens/association-directory-section.tsx",
+    "apps/antsia_mobile/src/i18n/fr.json",
+    "apps/antsia_mobile/src/i18n/en.json",
+    "apps/antsia_mobile/app.config.ts",
+    "apps/antsia_mobile/README.md",
+    "apps/antsia_mobile/scripts/prepare-build.mjs"
+  ],
+  "runtimeSourcesMatchCompiledContext": true,
+  "temporarySigningSearchEntryRemoved": true
+}

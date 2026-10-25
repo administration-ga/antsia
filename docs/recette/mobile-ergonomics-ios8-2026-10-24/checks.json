@@ -1,0 +1,10 @@
+{
+  "keyboard": false,
+  "returnTab": true,
+  "emptyDirectory": true,
+  "keyboardStatus": "awaiting_software_keyboard_display_after_CUA_control_failure",
+  "javascriptSha256": "f780ec83419fa8436036eaf953c1ed6347a25d1fa5c0bcc0f14d8957d22a4349",
+  "mobileTestsPassed": 172,
+  "typecheckPassed": true,
+  "lintErrors": 0
+}

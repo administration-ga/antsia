@@ -1,0 +1,262 @@
+--- a/apps/antsia_mobile/src/app.tsx
++++ b/apps/antsia_mobile/src/app.tsx
+@@ -19,7 +19,7 @@
+ import { nativeMemberAdmission } from "./lib/member-admission"
+ import { FeedScreen } from "./screens/feed-screen"
+ import { PostScreen } from "./screens/post-screen"
+-import { ExploreScreen } from "./screens/explore-screen"
++import { ExploreScreen, type ExploreSection } from "./screens/explore-screen"
+ import { ShopScreen } from "./screens/shop-screen"
+ import { OfferScreen } from "./screens/offer-screen"
+ import { PageScreen } from "./screens/page-screen"
+@@ -159,6 +159,8 @@
+ }) {
+   const { t, tokens } = useNativeAppearance()
+   const [history, setHistory] = useState<NativeRoute[]>([{ name: "feed" }])
++  // Keep the choice through child routes, within this person/session only.
++  const [exploreSection, setExploreSection] = useState<ExploreSection>("shops")
+   const route = history[history.length - 1]!
+   const id = controller.session!.id, generation = controller.vault.generation, epoch = controller.lifecycle.epoch
+   const active = useRef(true)
+@@ -198,7 +200,7 @@
+     <View style={{ flex: 1 }}>
+       {route.name === "feed" ? <FeedScreen onOpenPost={onOpenPost} onOpenPage={onOpenPage} onOpenOffer={onOpenOffer} /> : null}
+       {route.name === "post" ? <PostScreen key={route.id} postId={route.id as Id<"posts">} onOpenPage={onOpenPage} onOpenOffer={onOpenOffer} /> : null}
+-      {route.name === "explore" ? <ExploreScreen onOpenShop={onOpenShop} onOpenPage={onOpenPage} /> : null}
++      {route.name === "explore" ? <ExploreScreen section={exploreSection} onSectionChange={setExploreSection} onOpenShop={onOpenShop} onOpenPage={onOpenPage} /> : null}
+       {route.name === "shop" ? <ShopScreen key={route.handle} handle={route.handle} onOpenOffer={onOpenOffer} onOpenPage={onOpenPage} onOpenPost={onOpenPost} /> : null}
+       {route.name === "offer" ? <OfferScreen key={`${route.handle}:${route.offerRef}`} handle={route.handle} offerRef={route.offerRef} onOpenShop={onOpenShop} onOpenPage={onOpenPage} onOpenWebOffer={(shopHandle, offerRef) => { if (current()) void Linking.openURL(nativeWebRoutes.offer(env.webUrl, shopHandle, offerRef, env.webBasePath)).catch(controller.blocked) }} /> : null}
+       {route.name === "page" ? <PageScreen key={route.handle} handle={route.handle} onOpenShop={onOpenShop} onOpenPage={onOpenPage} onOpenPost={onOpenPost} onOpenOffer={onOpenOffer} onManagePage={pageHandle => { if (current()) void Linking.openURL(nativeWebRoutes.page(env.webUrl, pageHandle, env.webBasePath)).catch(controller.blocked) }} /> : null}
+--- a/apps/antsia_mobile/src/components/ui.tsx
++++ b/apps/antsia_mobile/src/components/ui.tsx
+@@ -1,5 +1,5 @@
+ import { Component, useCallback, useEffect, useId, useRef, useState, type ReactNode } from "react"
+-import { AccessibilityInfo, ActivityIndicator, Platform, Pressable, Text, TextInput, View, type AccessibilityRole } from "react-native"
++import { AccessibilityInfo, ActivityIndicator, Platform, Pressable, Text, TextInput, View, type AccessibilityRole, type TextInputProps } from "react-native"
+ import { useNativeAppearance } from "../appearance"
+ import { useNativeRuntime } from "../runtime"
+ import { nativeControlState, nativeFieldLabel } from "../lib/accessibility"
+@@ -85,10 +85,10 @@
+     onFocus={() => { setFocused(true); lastFocusTarget = () => target.current }} onBlur={() => setFocused(false)} onPress={() => { lastFocusTarget = () => target.current; onPress() }}
+     style={({ pressed }) => ({ minHeight: 48, minWidth: 48, maxWidth: "100%", flexShrink: 1, paddingHorizontal: 16, paddingVertical: 10, borderWidth: 2, borderColor: focused ? tokens.primary : fill, borderRadius: 999, backgroundColor: fill, opacity: disabled || pending ? 0.5 : pressed ? 0.7 : 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 })}>{pending ? <ActivityIndicator accessible={false} accessibilityElementsHidden importantForAccessibility="no" color={ink} /> : null}<Text style={{ color: ink, fontSize: 15, fontWeight: "600", flexShrink: 1, textAlign: "center" }}>{label}</Text></Pressable>
+ }
+-export function Field({ label, value, onChangeText, disabled = false, maxLength, multiline = false, error, hint, nativeID }: { label: string; value: string; onChangeText: (text: string) => void; disabled?: boolean; maxLength?: number; multiline?: boolean; error?: string; hint?: string; nativeID?: string }) {
++export function Field({ label, value, onChangeText, onSubmit, returnKeyType, disabled = false, maxLength, multiline = false, error, hint, nativeID }: { label: string; value: string; onChangeText: (text: string) => void; onSubmit?: () => void; returnKeyType?: TextInputProps["returnKeyType"]; disabled?: boolean; maxLength?: number; multiline?: boolean; error?: string; hint?: string; nativeID?: string }) {
+   const { tokens } = useNativeAppearance()
+   const generated = useId(), id = nativeID ?? generated, target = useRef<TextInput>(null)
+-  return <View style={{ gap: 6, minWidth: 0 }}><Label nativeID={`${id}-label`}>{label}</Label><TextInput ref={target} nativeID={id} accessibilityLabel={nativeFieldLabel(label, error)} accessibilityLabelledBy={error ? [`${id}-label`, `${id}-error`] : `${id}-label`} accessibilityHint={hint} accessibilityState={{ disabled }} editable={!disabled} value={value} onChangeText={onChangeText} onFocus={() => { lastFocusTarget = () => target.current }} maxLength={maxLength} multiline={multiline} style={{ minHeight: multiline ? 88 : 48, minWidth: 48, color: tokens.foreground, backgroundColor: tokens.muted, borderColor: error ? tokens.danger : tokens.input, borderWidth: 1, borderRadius: tokens.radiusField, padding: 12, fontSize: 16, textAlignVertical: multiline ? "top" : "center" }} />{hint ? <Label muted>{hint}</Label> : null}{error ? <Label nativeID={`${id}-error`} accessibilityRole="alert">{error}</Label> : null}</View>
++  return <View style={{ gap: 6, minWidth: 0 }}><Label nativeID={`${id}-label`}>{label}</Label><TextInput ref={target} nativeID={id} accessibilityLabel={nativeFieldLabel(label, error)} accessibilityLabelledBy={error ? [`${id}-label`, `${id}-error`] : `${id}-label`} accessibilityHint={hint} accessibilityState={{ disabled }} editable={!disabled} value={value} onChangeText={onChangeText} onFocus={() => { lastFocusTarget = () => target.current }} onSubmitEditing={onSubmit ? () => { if (!disabled) onSubmit() } : undefined} returnKeyType={returnKeyType} submitBehavior={onSubmit && !multiline ? "blurAndSubmit" : undefined} maxLength={maxLength} multiline={multiline} style={{ minHeight: multiline ? 88 : 48, minWidth: 48, color: tokens.foreground, backgroundColor: tokens.muted, borderColor: error ? tokens.danger : tokens.input, borderWidth: 1, borderRadius: tokens.radiusField, padding: 12, fontSize: 16, textAlignVertical: multiline ? "top" : "center" }} />{hint ? <Label muted>{hint}</Label> : null}{error ? <Label nativeID={`${id}-error`} accessibilityRole="alert">{error}</Label> : null}</View>
+ }
+ export function RuntimeNotice() {
+   const runtime = useNativeRuntime(), { t } = useNativeAppearance()
+--- a/apps/antsia_mobile/src/screens/explore-screen.tsx
++++ b/apps/antsia_mobile/src/screens/explore-screen.tsx
+@@ -7,7 +7,7 @@
+ import { AssociationDirectorySection } from "./association-directory-section"
+ import { ShopDirectorySection } from "./shop-directory-section"
+ 
+-type ExploreSection = "shops" | "services" | "associations" | "myActivities"
++export type ExploreSection = "shops" | "services" | "associations" | "myActivities"
+ type Props = { onOpenShop: (handle: string) => void; onOpenPage: (handle: string) => void }
+ 
+ function MyActivities({ onOpenShop, onOpenPage }: Props) {
+@@ -26,14 +26,14 @@
+   </ScrollView>
+ }
+ 
+-export function ExploreScreen(props: Props) {
++export function ExploreScreen({ section, onSectionChange, ...props }: Props & { section: ExploreSection; onSectionChange: (section: ExploreSection) => void }) {
+   const guard = useNativeGuard(), { t } = useNativeAppearance()
+-  const [section, setSection] = useState<ExploreSection>("shops"), [version, setVersion] = useState(0)
++  const [version, setVersion] = useState(0)
+   const scope = nativeScope(guard.runtime) + ":" + section + ":" + version
+   return <Screen title={t("mobile.explore.title")}>
+     <RuntimeNotice />
+     <View accessibilityRole="tablist" style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+-      {(["shops", "services", "associations", "myActivities"] as const).map(item => <Action key={item} accessibilityRole="tab" selected={section === item} label={t(`mobile.explore.${item}`)} tone={section === item ? "primary" : "neutral"} disabled={!guard.canAct} onPress={() => { if (guard.current()) setSection(item) }} />)}
++      {(["shops", "services", "associations", "myActivities"] as const).map(item => <Action key={item} accessibilityRole="tab" selected={section === item} label={t(`mobile.explore.${item}`)} tone={section === item ? "primary" : "neutral"} disabled={!guard.canAct} onPress={() => { if (guard.current()) onSectionChange(item) }} />)}
+     </View>
+     {!guard.runtime.ready ? null : <QueryBoundary key={scope} resetKey={scope} fallback={<Card><Status label={t("mobile.common.unavailable")} error /><Action label={t("mobile.common.refresh")} disabled={!guard.canAct} onPress={() => { if (guard.current()) setVersion(value => value + 1) }} /></Card>}>
+       {section === "myActivities" ? <MyActivities {...props} /> : section === "associations" ? <AssociationDirectorySection onOpenPage={props.onOpenPage} /> : <ShopDirectorySection mode={section} {...props} />}
+--- a/apps/antsia_mobile/src/screens/shop-screen.tsx
++++ b/apps/antsia_mobile/src/screens/shop-screen.tsx
+@@ -2,7 +2,7 @@
+ import { useQuery } from "convex/react"
+ import type { FunctionReturnType } from "convex/server"
+ import { useState } from "react"
+-import { ScrollView, View } from "react-native"
++import { Keyboard, ScrollView, View } from "react-native"
+ import { useNativeAppearance } from "../appearance"
+ import { BusinessImage, BusinessPager } from "../components/business-media"
+ import { Action, Card, Field, Label, QueryBoundary, RuntimeNotice, Screen, Status, useNativeGuard } from "../components/ui"
+@@ -37,10 +37,16 @@
+   const [kind, setKind] = useState<"all" | "product" | "service">("all"), [draft, setDraft] = useState(""), [query, setQuery] = useState(""), [invalid, setInvalid] = useState(false), [collectionRef, setCollection] = useState<string | undefined>(), [sort, setSort] = useState<Sort>("newest")
+   const filters: NativeBusinessFilters = { ...(kind === "all" ? {} : { kind }), ...(query ? { query } : {}), ...(collectionRef ? { collectionRef } : {}), sort: query ? "relevance" : sort }
+   const key = JSON.stringify([guard.owner, handle, filters])
++  const submit = () => {
++    if (!guard.current()) return
++    const value = nativeBusinessQuery(draft)
++    setInvalid(value === null)
++    if (value !== null) { setQuery(value); setCollection(undefined); Keyboard.dismiss() }
++  }
+   return <View style={{ gap: 12 }}>
+     <Label strong accessibilityRole="header">{t("mobile.business.catalog")}</Label>
+-    <Field label={t("mobile.business.search")} value={draft} maxLength={120} disabled={!guard.canAct} error={invalid ? t("mobile.business.invalidSearch") : undefined} onChangeText={value => { if (guard.current()) { setDraft(value); setInvalid(false) } }} />
+-    <Action label={t("mobile.business.searchSubmit")} disabled={!guard.canAct} onPress={() => { if (!guard.current()) return; const value = nativeBusinessQuery(draft); setInvalid(value === null); if (value !== null) { setQuery(value); setCollection(undefined) } }} />
++    <Field label={t("mobile.business.search")} value={draft} maxLength={120} disabled={!guard.canAct} error={invalid ? t("mobile.business.invalidSearch") : undefined} onChangeText={value => { if (guard.current()) { setDraft(value); setInvalid(false) } }} returnKeyType="search" onSubmit={submit} />
++    <Action label={t("mobile.business.searchSubmit")} disabled={!guard.canAct} onPress={submit} />
+     <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>{(["all", "product", "service"] as const).map(value => <Action key={value} label={t(`mobile.business.${value === "product" ? "products" : value === "service" ? "servicesTitle" : "all"}`)} selected={kind === value} accessibilityRole="radio" checked={kind === value} disabled={!guard.canAct} onPress={() => { if (guard.current()) { setKind(value); setCollection(undefined) } }} />)}</View>
+     {!query ? <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>{sorts.map(item => <Action key={item.value} label={t(`mobile.business.${item.label}`)} accessibilityRole="radio" checked={sort === item.value} disabled={!guard.canAct} onPress={() => { if (guard.current()) setSort(item.value) }} />)}</View> : null}
+     {query || collectionRef || kind !== "all" || sort !== "newest" ? <Action label={t("mobile.business.clearFilters")} disabled={!guard.canAct} onPress={() => { if (guard.current()) { setDraft(""); setQuery(""); setInvalid(false); setKind("all"); setCollection(undefined); setSort("newest") } }} /> : null}
+@@ -80,7 +86,7 @@
+   if (shop === undefined) return <Status label={t("mobile.business.loading")} busy />
+   if (shop === null || shop.handle !== handle) return <Label>{t("mobile.business.unavailable")}</Label>
+   const badgeKey = shop.badge === "official" ? "badgeOfficial" : shop.badge === "verified" ? "badgeVerified" : shop.badge === "public_agent" ? "badgePublicAgent" : "badgeCommunity"
+-  return <ScrollView contentContainerStyle={{ gap: 12, paddingBottom: 24 }} scrollEnabled={guard.canAct}>
++  return <ScrollView automaticallyAdjustKeyboardInsets keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" contentContainerStyle={{ gap: 12, paddingBottom: 24 }} scrollEnabled={guard.canAct}>
+     <RuntimeNotice />
+     <Card>
+       <BusinessImage url={shop.bannerUrl} altText={shop.name} width={2} height={1} />
+--- a/apps/antsia_mobile/src/screens/shop-directory-section.tsx
++++ b/apps/antsia_mobile/src/screens/shop-directory-section.tsx
+@@ -1,7 +1,7 @@
+ import { api } from "@antsia/api/engine"
+ import { useQuery } from "convex/react"
+ import { useState } from "react"
+-import { ScrollView, View } from "react-native"
++import { Keyboard, ScrollView, View } from "react-native"
+ import { useNativeAppearance } from "../appearance"
+ import { BusinessImage, BusinessPager } from "../components/business-media"
+ import { Action, Card, Field, Label, QueryBoundary, RuntimeNotice, Status, useNativeGuard } from "../components/ui"
+@@ -89,15 +89,21 @@
+   const [draft, setDraft] = useState(""), [query, setQuery] = useState(""), [invalid, setInvalid] = useState(false)
+   const filters: NativeBusinessFilters = { kind: mode === "shops" ? "product" : "service", ...(query ? { query } : {}), sort: query ? "relevance" : "newest" }
+   const key = JSON.stringify([guard.owner, mode, filters])
++  const submit = () => {
++    if (!guard.current()) return
++    const value = nativeBusinessQuery(draft)
++    setInvalid(value === null)
++    if (value !== null) { setQuery(value); Keyboard.dismiss() }
++  }
+   if (!guard.canRead) return <RuntimeNotice />
+-  return <ScrollView style={{ flex: 1 }} contentContainerStyle={{ gap: 12, paddingBottom: 24 }} scrollEnabled={guard.canAct}>
++  return <ScrollView automaticallyAdjustKeyboardInsets keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" style={{ flex: 1 }} contentContainerStyle={{ gap: 12, paddingBottom: 24 }} scrollEnabled={guard.canAct}>
+     <RuntimeNotice />
+     <Label strong accessibilityRole="header">{t(mode === "shops" ? "mobile.business.shopsTitle" : "mobile.business.servicesTitle")}</Label>
+     <MyShops onOpenShop={onOpenShop} onOpenPage={onOpenPage} />
+     {mode === "shops" ? <StorefrontDirectory onOpenShop={onOpenShop} onOpenPage={onOpenPage} /> : null}
+     <Label strong accessibilityRole="header">{t("mobile.business.catalog")}</Label>
+-    <Field label={t("mobile.business.search")} value={draft} maxLength={120} disabled={!guard.canAct} error={invalid ? t("mobile.business.invalidSearch") : undefined} onChangeText={value => { if (guard.current()) { setDraft(value); setInvalid(false) } }} />
+-    <Action label={t("mobile.business.searchSubmit")} disabled={!guard.canAct} onPress={() => { if (!guard.current()) return; const value = nativeBusinessQuery(draft); setInvalid(value === null); if (value !== null) setQuery(value) }} />
++    <Field label={t("mobile.business.search")} value={draft} maxLength={120} disabled={!guard.canAct} error={invalid ? t("mobile.business.invalidSearch") : undefined} onChangeText={value => { if (guard.current()) { setDraft(value); setInvalid(false) } }} returnKeyType="search" onSubmit={submit} />
++    <Action label={t("mobile.business.searchSubmit")} disabled={!guard.canAct} onPress={submit} />
+     {query ? <Action label={t("mobile.business.clearFilters")} disabled={!guard.canAct} onPress={() => { if (guard.current()) { setDraft(""); setQuery(""); setInvalid(false) } }} /> : null}
+     <SearchWindow key={`search:${key}`} filters={filters} onOpenShop={onOpenShop} />
+     <DemoSelection key={`demo:${key}`} filters={filters} onOpenShop={onOpenShop} />
+--- a/apps/antsia_mobile/src/screens/association-directory-section.tsx
++++ b/apps/antsia_mobile/src/screens/association-directory-section.tsx
+@@ -2,7 +2,7 @@
+ import { useQuery } from "convex/react"
+ import type { FunctionReturnType } from "convex/server"
+ import { useCallback, useEffect, useState } from "react"
+-import { FlatList, Image, View } from "react-native"
++import { FlatList, Image, Keyboard, View } from "react-native"
+ import { useNativeAppearance } from "../appearance"
+ import { Action, Card, Field, Label, QueryBoundary, RuntimeNotice, Status, nativeScope, useNativeGuard } from "../components/ui"
+ import { canAppendNativeCursor, mergeNativePages, nativeCursorKey } from "../lib/native-pagination"
+@@ -68,7 +68,7 @@
+         <RuntimeNotice />
+         {owned.length ? <View style={{ gap: 8 }}><Label strong accessibilityRole="header">{t("mobile.pages.ownedAssociations")}</Label>{owned.map(page => <AssociationCard key={String(page.pageId)} page={page} onOpenPage={onOpenPage} />)}</View> : null}
+         <Label strong accessibilityRole="header">{t("mobile.pages.directory")}</Label>
+-        <Status label={first === undefined || mine === undefined ? t("mobile.common.loading") : items.length === 0 && owned.length === 0 ? t(first.isDone ? "mobile.pages.emptyAssociations" : "mobile.pages.emptyWindow") : ""} busy={first === undefined || mine === undefined} />
++        <Status label={first === undefined || mine === undefined ? t("mobile.common.loading") : items.length === 0 && !loadingMore ? t(tail?.isDone ? "mobile.pages.emptyAssociations" : "mobile.pages.emptyWindow") : ""} busy={first === undefined || mine === undefined} />
+       </View>}
+       renderItem={({ item }) => <AssociationCard page={item} onOpenPage={onOpenPage} />}
+       ListFooterComponent={<View style={{ gap: 8 }}>
+@@ -86,11 +86,12 @@
+   const [draft, setDraft] = useState(""), [query, setQuery] = useState(""), [version, setVersion] = useState(0)
+   const key = JSON.stringify([nativeScope(guard.runtime), "associations", query, version])
+   const refresh = () => { if (guard.current()) setVersion(value => value + 1) }
++  const submit = () => { if (guard.current()) { setQuery(nativePageSearch(draft)); setVersion(value => value + 1); Keyboard.dismiss() } }
+   return <View style={{ flex: 1, gap: 12 }}>
+     <Label strong accessibilityRole="header">{t("mobile.pages.associationsTitle")}</Label>
+-    <Field label={t("mobile.pages.search")} hint={t("mobile.pages.searchHint")} value={draft} maxLength={NATIVE_PAGE_SEARCH_MAX} disabled={!guard.canAct} onChangeText={setDraft} />
++    <Field label={t("mobile.pages.search")} hint={t("mobile.pages.searchHint")} value={draft} maxLength={NATIVE_PAGE_SEARCH_MAX} disabled={!guard.canAct} onChangeText={setDraft} returnKeyType="search" onSubmit={submit} />
+     <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+-      <Action label={t("mobile.pages.searchAction")} disabled={!guard.canAct} onPress={() => { if (guard.current()) { setQuery(nativePageSearch(draft)); setVersion(value => value + 1) } }} />
++      <Action label={t("mobile.pages.searchAction")} disabled={!guard.canAct} onPress={submit} />
+       <Action label={t("mobile.common.refresh")} disabled={!guard.canAct} onPress={refresh} />
+     </View>
+     {!guard.runtime.ready ? <RuntimeNotice /> : <QueryBoundary key={key} resetKey={key} fallback={<Card><Status label={t("mobile.common.unavailable")} error /><Action label={t("mobile.common.refresh")} disabled={!guard.canAct} onPress={refresh} /></Card>}>
+--- a/apps/antsia_mobile/src/i18n/fr.json
++++ b/apps/antsia_mobile/src/i18n/fr.json
+@@ -198,7 +198,7 @@
+   "mobile.pages.search": "Rechercher une association",
+   "mobile.pages.searchHint": "Saisissez au moins deux caractères pour rechercher par nom.",
+   "mobile.pages.searchAction": "Rechercher",
+-  "mobile.pages.emptyAssociations": "Aucune association trouvée.",
++  "mobile.pages.emptyAssociations": "Aucune association trouvée dans cet annuaire.",
+   "mobile.pages.emptyWindow": "Aucun résultat dans cette fenêtre. Vous pouvez poursuivre le chargement.",
+   "mobile.pages.openPage": "Voir la page",
+   "mobile.pages.pageTitle": "Page",
+--- a/apps/antsia_mobile/src/i18n/en.json
++++ b/apps/antsia_mobile/src/i18n/en.json
+@@ -198,7 +198,7 @@
+   "mobile.pages.search": "Search associations",
+   "mobile.pages.searchHint": "Enter at least two characters to search by name.",
+   "mobile.pages.searchAction": "Search",
+-  "mobile.pages.emptyAssociations": "No associations found.",
++  "mobile.pages.emptyAssociations": "No associations found in this directory.",
+   "mobile.pages.emptyWindow": "No results in this window. You can continue loading.",
+   "mobile.pages.openPage": "View page",
+   "mobile.pages.pageTitle": "Page",
+--- a/apps/antsia_mobile/app.config.ts
++++ b/apps/antsia_mobile/app.config.ts
+@@ -60,7 +60,7 @@
+   userInterfaceStyle: "automatic",
+   // Expo SDK 57 impose déjà la New Architecture ; aucune option legacy ici.
+   ...(scheme ? { scheme } : {}),
+-  ios: { buildNumber: "7", config: { usesNonExemptEncryption: false }, ...(bundleIdentifier ? { bundleIdentifier } : {}) },
++  ios: { buildNumber: "8", config: { usesNonExemptEncryption: false }, ...(bundleIdentifier ? { bundleIdentifier } : {}) },
+   android: {
+     versionCode: 3,
+     ...(androidPackage ? { package: androidPackage } : {}),
+--- a/apps/antsia_mobile/README.md
++++ b/apps/antsia_mobile/README.md
+@@ -62,7 +62,7 @@
+ préenregistré ; choisir `testflight` uniquement pour un test via App Store Connect, avec une
+ soumission distincte. Le réglage local de signature App Store est réservé à `testflight`
+ par `NATIVE_IOS_APP_STORE_BUILD=true` ; le profil interne conserve la sélection EAS.
+-Cette préparation utilise `0.1.0`, build iOS `7`, Android `3` préparé. Le build iOS7 est approuvé et disponible pour les tests externes le24/10/2026 ; les builds6 et4 approuvés restent dans le groupe public. Aucun nouvel APK Android n’est distribué par ce lot.
++Cette configuration prépare `0.1.0`, build iOS `8`, Android `3` inchangé. Le build iOS7 a été approuvé et rendu disponible aux tests externes le24/10/2026 ; les builds6 et4 ont été conservés dans le groupe public. Le candidat iOS8 est signé localement ; son dernier essai avec le clavier logiciel reste en attente du déverrouillage du Mac. Aucun nouvel APK Android n’est distribué par ce lot.
+ Ils embarquent le correctif du plantage
+ qui suivait la confirmation de connexion (PR33), présent dans les builds iOS `2` et Android `1`.
+ Le build iOS `4` adopte aussi le cycle de vie UIScene, sans lequel le build `3` ne démarre pas sous iOS 27.
+@@ -248,3 +248,16 @@
+ de livraison est postérieure au manifeste de compilation et ne change pas le binaire.
+ 
+ La [publication Git et sa vérification globale répartie](../../docs/recette/mobile-business-ios7-2026-10-24/PUBLICATION_GIT.md) documentent le lot iOS7 et les reprises ciblées des contrôles.
++
++## Corrections ergonomiques — candidat iOS8
++
++Les vitrines et annuaires marchands ajustent leur défilement au clavier iOS ; la touche
++de recherche du clavier et le bouton lancent la même recherche puis ferment le clavier.
++Le choix Boutiques/Services/Associations/Mes activités appartient désormais à la session
++membre et reste sélectionné au retour d’une page. L’annuaire d’associations affiche
++son état vide même si le membre possède une association, avec des messages FR/EN.
++
++Le [rapport iOS8](../../docs/recette/mobile-ergonomics-ios8-2026-10-24/RAPPORT.md) distingue
++les contrôles réussis, les observations natives et le dernier essai clavier encore
++bloqué. L’IPA0.1.0(8) porte le même bytecode que le simulateur ; il n’a pas été soumis
++à Apple. Les binaires/symboles7 sont conservés, les dépendances natives inchangées.
+--- a/apps/antsia_mobile/scripts/prepare-build.mjs
++++ b/apps/antsia_mobile/scripts/prepare-build.mjs
+@@ -26,7 +26,7 @@
+     "src/screens/association-directory-section.tsx", "src/screens/page-screen.tsx", "src/lib/native-pages.ts", "src/lib/native-pages.test.ts",
+     "src/screens/shop-directory-section.tsx", "src/screens/shop-screen.tsx", "src/screens/offer-screen.tsx", "src/components/business-media.tsx",
+     "src/lib/native-business.ts", "src/lib/native-business.test.ts", "src/lib/member-admission.ts", "src/lib/member-admission.test.ts",
+-    "src/app.tsx", "src/components/entry.tsx", "src/lib/auth-client.ts", "src/lib/auth-client.test.ts",
++    "src/app.tsx", "src/components/ui.tsx", "src/components/entry.tsx", "src/lib/auth-client.ts", "src/lib/auth-client.test.ts",
+     "src/lib/session-controller.ts", "src/lib/native-idn.ts", "src/lib/native-idn.test.ts", "src/i18n/fr.json", "src/i18n/en.json",
+     "src/components/demo-entry.tsx", "src/lib/native-demo.ts", "src/lib/native-demo.test.ts",
+     "src/lib/destinations.ts", "src/lib/destinations.test.ts", "src/lib/routes.ts", "src/lib/routes.test.ts",

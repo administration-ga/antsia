@@ -60,7 +60,7 @@ const config: ExpoConfig = {
   userInterfaceStyle: "automatic",
   // Expo SDK 57 impose déjà la New Architecture ; aucune option legacy ici.
   ...(scheme ? { scheme } : {}),
-  ios: { buildNumber: "7", config: { usesNonExemptEncryption: false }, ...(bundleIdentifier ? { bundleIdentifier } : {}) },
+  ios: { buildNumber: "8", config: { usesNonExemptEncryption: false }, ...(bundleIdentifier ? { bundleIdentifier } : {}) },
   android: {
     versionCode: 3,
     ...(androidPackage ? { package: androidPackage } : {}),
