@@ -1,0 +1,30 @@
+{
+  "checkedAt": "2026-10-25T02:37:17.888249+02:00",
+  "sourceCommit": "8fb78358e1af33bee98cd3132e5a2e0ac7310e91",
+  "submissionId": "9508a87f-ff6a-4f93-80a9-fe531ffe3cf4",
+  "appId": "6825216214",
+  "version": "0.1.0",
+  "build": "8",
+  "appleBuildId": "fea893b3-4f08-4cfa-90cb-90d56bb2a4cb",
+  "processing": "VALID",
+  "betaReviewState": "APPROVED",
+  "externalBuildState": "IN_BETA_TESTING",
+  "autoNotify": true,
+  "groupBuilds": [
+    "8",
+    "7",
+    "6",
+    "4"
+  ],
+  "testflightURL": "https://testflight.apple.com/join/mqWat3mu",
+  "softwareKeyboardAcceptanceComplete": false,
+  "uniqueTestsPassed": 16402,
+  "originalIgnoredTests": 4,
+  "workspaceTypechecks": 12,
+  "workspaceTests": 12,
+  "workspaceLints": 11,
+  "verificationDistributed": true,
+  "sourceInputsCompared": 2123,
+  "noBusinessDataMutations": true,
+  "noInvitationResend": true
+}

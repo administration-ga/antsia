@@ -261,3 +261,5 @@ Le [rapport iOS8](../../docs/recette/mobile-ergonomics-ios8-2026-10-24/RAPPORT.m
 les contrôles réussis, les observations natives et le dernier essai clavier encore
 bloqué. L’IPA0.1.0(8) porte le même bytecode que le simulateur ; il n’a pas été soumis
 à Apple. Les binaires/symboles7 sont conservés, les dépendances natives inchangées.
+
+Le build iOS0.1.0(8) est approuvé et disponible pour les tests externes le25/10/2026. Le [rapport de publication et de recette](../../docs/recette/mobile-ergonomics-ios8-2026-10-24/RAPPORT.md) distingue les deux scénarios constatés de l’essai du clavier logiciel restant à terminer.

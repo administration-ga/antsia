@@ -2,7 +2,7 @@
 
 Travail commencé le24octobre et poursuivi le25octobre2026, heure de Paris.
 
-**État : trois corrections dans les sources, deux vérifiées dans le simulateur ; dernier essai du clavier logiciel bloqué par le pilotage puis le verrouillage du Mac. IPA0.1.0(8) signé et contrôlé localement, conservé comme candidat, sans soumission Apple.**
+**État de livraison : iOS0.1.0(8) envoyé à Apple, approuvé et disponible pour les tests externes le 25/10/2026 à 02:37 Europe/Paris. Trois corrections sont dans les sources ; deux sont vérifiées dans le simulateur. Le dernier essai visuel du clavier logiciel reste non validé, après les difficultés de pilotage et le verrouillage du Mac.**
 
 ## Changements dans les sources réelles
 
@@ -36,7 +36,7 @@ Les PNG sont des captures du viewport. Les TXT contiennent aussi les éléments 
 - SHA-256 IPA : `d98f8dff484fc55d2728325435d2138543ad52b7c50b7e5469d1cba480f2f305`.
 - SHA-256 JavaScript/Hermes, identique à celui installé dans le simulateur : `f780ec83419fa8436036eaf953c1ed6347a25d1fa5c0bcc0f14d8957d22a4349`.
 - Exécutable et dépendances natives repris du7, UUID Mach-O inchangé après re-signature ; symboles7 conservés et toujours correspondants. UIScene, SDK et minimum iOS relus dans le paquet.
-- **Non soumis à Apple ; recette clavier non terminée.** Le statut du7 et sa distribution ne sont pas modifiés par cette préparation.
+- À la fin de la préparation initiale : candidat non soumis à Apple et recette clavier non terminée. La publication du25/10 est décrite ci-dessous ; elle conserve cette réserve de recette.
 
 ## Préservation et reprise
 
@@ -47,3 +47,33 @@ Dernier état confirmé : **Commerçant / Épicerie Moussavou / champ de recherc
 À reprendre : constater le clavier logiciel et le champ visible, soumettre par sa touche Rechercher, vérifier les résultats/fermeture, puis restaurer Administration/Mairie/Publications. Si ce scénario échoue, corriger les sources et rebundler/re-signer le candidat avant de le présenter comme accepté. Les demandes d’aide manuelle restent en attente ; le simulateur n’est pas utilisé par un autre chat pendant cette recette.
 
 Contexte figé, sources avant/après et scripts privés de préparation : `.git/codex-snapshots/2026-10-24-ios8-ergonomics/` et cache `ios-ux-build8-20261024/`. Les artefacts7 sont intacts. Le journal des gestes est dans `steps.json`, les contrôles et empreintes dans `checks.json` et `ipa-validation.json`.
+
+## Publication du25/10/2026
+
+Les sources fonctionnelles et les preuves de préparation ont été commises et poussées
+sur `codex/ios8-ergonomics`, commit `8fb78358e1af33bee98cd3132e5a2e0ac7310e91`,
+depuis main `90e945406434160ece50922ff42db20312fb7643`. Les changements Web/backend
+et les travaux SU06 parallèles sont exclus. Aucun fichier d’environnement, donnée,
+relation, achat ou session n’a été modifié par cette publication.
+
+Vérification globale répartie : **16 402 tests réussis, quatre ignorés d’origine**,
+12typages/12suites de paquets et11lints sans erreur. Le codegen en dry-run reste
+local3260. Le seul test à5000abonnés s’exécute sur Mac avec ses assertions et sa
+limite360000ms inchangées (196357ms), les autres tests s’exécutent à distance.
+2123entrées source identiques lient les phases ; `bun run verify` réparti termine0.
+Les avertissements de lint hérités sont conservés. La machine distante est arrêtée.
+
+Submission EAS `9508a87f-ff6a-4f93-80a9-fe531ffe3cf4`, sortie0 : Apple a reçu
+l’IPA8 exact déjà contrôlé, sans nouvelle compilation ni identité de signature.
+Build Apple `fea893b3-4f08-4cfa-90cb-90d56bb2a4cb` : `VALID`, `APPROVED`,
+`IN_BETA_TESTING`, notification automatique active. Le groupe public contient8,7,6,4 ;
+5reste hors diffusion. Aucune invitation renvoyée, aucun testeur ni information
+globale de revue modifié. Les notes de test FR/EN mentionnent la réserve du clavier.
+
+[Tester ANTSIA sur TestFlight](https://testflight.apple.com/join/mqWat3mu).
+
+Seuls le README et les comptes rendus sont actualisés après compilation ; les sources
+exécutables correspondent à l’IPA8. Le scénario du clavier logiciel reste à terminer
+sur appareil/simulateur : **cette publication ne vaut pas validation de ce scénario**.
+Le simulateur n’a pas été manipulé par la publication ; son dernier état connu reste
+Commerçant/Épicerie/champ riz, sans restauration d’Administration revendiquée.

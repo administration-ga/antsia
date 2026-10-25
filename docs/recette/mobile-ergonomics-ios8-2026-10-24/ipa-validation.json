@@ -12,7 +12,7 @@
   "originalIPA7Preserved": true,
   "simulatorJavaScriptMatches": true,
   "ergonomicAcceptanceComplete": false,
-  "submittedToApple": false,
+  "submittedToApple": true,
   "minimumIOS": "16.4",
   "sdk": "iphoneos27.1",
   "sceneLifecycle": true,
@@ -21,5 +21,12 @@
   "profileExpiresAt": "2027-07-09T23:29:01Z",
   "embeddedConstantsBuild": "8",
   "temporarySigningKeychainsRemoved": true,
-  "credentialsFilesRemoved": true
+  "credentialsFilesRemoved": true,
+  "submittedToAppleAtPreparation": false,
+  "submissionId": "9508a87f-ff6a-4f93-80a9-fe531ffe3cf4",
+  "appleBuildId": "fea893b3-4f08-4cfa-90cb-90d56bb2a4cb",
+  "betaReviewState": "APPROVED",
+  "externalBuildState": "IN_BETA_TESTING",
+  "externalAvailabilityConfirmed": true,
+  "publicationCheckedAt": "2026-10-25T02:37:17.888249+02:00"
 }
