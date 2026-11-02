@@ -16,6 +16,16 @@
       "participateFailed": "Your answer could not be saved."
     }
   },
+  "feedSuggestion": {
+    "label": "Person to discover: {{name}}",
+    "profileOf": "Profile of {{name}}",
+    "follow": "Follow",
+    "followLabel": "Follow {{name}}",
+    "write": "Write",
+    "writeLabel": "Write to {{name}}",
+    "followed": "You follow {{name}}.",
+    "followFailed": "The follow could not be saved."
+  },
   "feedPages": {
     "errorTitle": "Feed unavailable",
     "errorMessage": "Posts could not be loaded.",

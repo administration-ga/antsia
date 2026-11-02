@@ -156,6 +156,7 @@ function DestinationsTabBar({ routes, onCreate, handle = null, current }: Reseau
             const inner: ReactNode = (
               <>
                 <span
+                  data-destination-icon=""
                   className={cn(
                     "relative flex items-center justify-center",
                     isCreate
@@ -167,12 +168,12 @@ function DestinationsTabBar({ routes, onCreate, handle = null, current }: Reseau
                 >
                   <DestinationIcon aria-hidden="true" className={isCreate ? "size-5" : "size-[22px]"} strokeWidth={isCreate ? 2.4 : undefined} />
                   {badge !== null ? (
-                    <span className="absolute -top-1.5 -right-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--role-react-fill,var(--primary))] px-1 font-mono text-[9px] font-bold tabular-nums text-[color:var(--role-react-on,var(--primary-foreground))]">
+                    <span data-destination-badge="" className="absolute -top-1.5 -right-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--role-react-fill,var(--primary))] px-1 font-mono text-[9px] font-bold tabular-nums text-[color:var(--role-react-on,var(--primary-foreground))]">
                       <span aria-hidden="true">{badge}</span>
                     </span>
                   ) : null}
                 </span>
-                <span className="sr-only">{destination.label ?? t(destination.labelKey)}</span>
+                <span data-destination-label="" className="sr-only">{destination.label ?? t(destination.labelKey)}</span>
                 {/* Un espace ENTRE le libellé et la phrase : le nom accessible se
                     lit « Messages 3 conversations non lues », jamais « Messages3… ». */}
                 {badge !== null ? (
@@ -188,6 +189,7 @@ function DestinationsTabBar({ routes, onCreate, handle = null, current }: Reseau
                 {destination.href === null ? (
                   <button
                     ref={triggerRef}
+                    data-destination-item={destination.id}
                     type="button"
                     onClick={() => setOpen(true)}
                     aria-haspopup="dialog"
@@ -199,6 +201,7 @@ function DestinationsTabBar({ routes, onCreate, handle = null, current }: Reseau
                 ) : (
                   <Link
                     href={destination.href}
+                    data-destination-item={destination.id}
                     aria-current={ariaCurrent}
                     className={cn(DESTINATION_ITEM_CLASS, ariaCurrent !== undefined && "text-primary hover:text-primary")}
                   >

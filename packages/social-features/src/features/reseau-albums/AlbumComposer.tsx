@@ -27,6 +27,7 @@
  * vérifiable sans navigateur.
  */
 
+import { themedActionStyle } from "../themed-action-style"
 import { useAuthenticatedConvexQuery } from "@antsia/api/hooks"
 import { useNetwork } from "@antsia/api/network"
 import { ALBUM_DESCRIPTION_MAX, ALBUM_ITEMS_MAX, ALBUM_TITLE_MAX } from "@antsia/social-domain/albums"
@@ -185,20 +186,20 @@ function UploadProgressBar({
 const ALBUM_COMPOSER_CSS = `
   .ac-steps { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; margin: 0; padding: 0; }
   .ac-step {
-    font-size: 12px; padding: 4px 10px; border-radius: 999px;
-    border: 1px solid var(--ink-200); color: var(--ink-600);
+    font-size: 12px; padding: 4px 10px; border-radius: var(--esp-primitive-chip-radius, 999px);
+    border: 1px solid var(--esp-primitive-chip-border, var(--ink-200)); background: var(--esp-primitive-chip-bg, transparent); color: var(--ink-600);
   }
-  .ac-step[aria-current="step"] { border-color: var(--primary-500); color: var(--primary-600); font-weight: 600; }
+  .ac-step[aria-current="step"] { border-color: var(--esp-primitive-chip-border, var(--primary-500)); background: var(--esp-primitive-tab-bg, transparent); color: var(--esp-primitive-tab-fg, var(--primary-600)); font-weight: 600; }
   .ac-grid {
     display: grid; gap: 12px;
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   }
   .ac-tile {
-    border: 1px solid var(--ink-200); border-radius: 12px; overflow: hidden;
+    border: 1px solid var(--esp-primitive-surface-border, var(--ink-200)); border-radius: var(--esp-primitive-card-radius, 12px); overflow: hidden;
     display: flex; flex-direction: column; background: var(--ink-0);
   }
-  .ac-tile img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; display: block; }
-  .ac-tile-body { padding: 8px; display: flex; flex-direction: column; gap: 6px; }
+  .ac-tile img { width: calc(100% - 2 * var(--esp-card-padding, 0px)); margin: var(--esp-card-padding, 0px) var(--esp-card-padding, 0px) 0; border-radius: var(--esp-primitive-media-radius, 0px); aspect-ratio: 4 / 3; object-fit: cover; display: block; }
+  .ac-tile-body { padding: var(--esp-card-padding, 8px); display: flex; flex-direction: column; gap: 6px; }
   .ac-tile-actions { display: flex; gap: 6px; flex-wrap: wrap; }
   /* 44 px de cible tactile, y compris pour les commandes d'ordre. */
   .ac-tile-actions button { min-height: 44px; min-width: 44px; }
@@ -206,7 +207,7 @@ const ALBUM_COMPOSER_CSS = `
   .ac-audience { display: flex; flex-direction: column; gap: 8px; }
   .ac-audience label {
     display: flex; gap: 10px; align-items: flex-start; padding: 10px;
-    border: 1px solid var(--ink-200); border-radius: 10px; cursor: pointer;
+    border: 1px solid var(--ink-200); border-radius: var(--esp-input-radius, 10px); cursor: pointer;
     min-height: 44px;
   }
 `
@@ -765,8 +766,8 @@ function AlbumComposerBody({
                     {t(`albumComposer.uploadState.${item.upload.status}`)}
                   </Badge>
                   <div className="ac-tile-actions">
-                    <Button
-                      variant="ghost"
+                    <Button style={themedActionStyle("danger", "ghost")}
+                      variant="danger"
                       size="sm"
                       icon="trash"
                       disabled={locked}
@@ -921,14 +922,14 @@ function AlbumComposerBody({
             {t("albumComposer.back")}
           </Button>
         ) : onCancel ? (
-          <Button variant="ghost" disabled={locked} onClick={() => {
+          <Button style={themedActionStyle("cancel", "ghost")} variant="outline" disabled={locked} onClick={() => {
             if (!busyRef.current && !permission.current.disabled) onCancel()
           }}>
             {t("albumComposer.cancel")}
           </Button>
         ) : null}
 
-        <Button variant="secondary" disabled={locked || !metadataValid} onClick={() => void onSave()}>
+        <Button style={themedActionStyle("success", "secondary")} variant="success" disabled={locked || !metadataValid} onClick={() => void onSave()}>
           {busy ? t("albumComposer.saving") : t(isPublished ? "albumComposer.saveChanges" : "albumComposer.saveDraft")}
         </Button>
 

@@ -23,6 +23,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { renderWithEngine } from "../../tests/engine-wrapper"
 
+const viewport = vi.hoisted(() => ({ mobile: true }))
+
 vi.mock("@antsia/ui", () => ({
   Button: ({
     children,
@@ -45,7 +47,7 @@ vi.mock("@antsia/ui/overlay", () => ({
     open: boolean
     children: ReactNode
   }) => (open ? <div data-testid="overlay">{children}</div> : null),
-  useIsReseauMobile: () => true,
+  useIsReseauMobile: () => viewport.mobile,
 }))
 
 /**
@@ -61,11 +63,14 @@ vi.mock("../../features/reseau-personnel/PostComposer", async () => {
       // Nom de la sonde (donnée de test), lu par `getByLabelText`.
       const sondeLabel = "Composeur"
       return (
+        <>
         <textarea
           aria-label={sondeLabel}
           value={draft.body}
           onChange={(event) => postDraftStore.setBody("feed", event.target.value)}
         />
+        <input type="file" aria-label="Média du composeur" />
+        </>
       )
     },
   }
@@ -77,6 +82,7 @@ import { PostComposerSheet } from "./PostComposerSheet"
 const render = renderWithEngine
 
 beforeEach(() => {
+  viewport.mobile = true
   postDraftStore.resetForTests()
   window.sessionStorage.clear()
 })
@@ -84,6 +90,32 @@ beforeEach(() => {
 afterEach(() => {
   cleanup()
   postDraftStore.resetForTests()
+})
+
+describe("sélection de média pendant un changement de taille", () => {
+  it.each([true, false])("conserve le champ de fichier et le focus depuis mobile=%s", (mobile) => {
+    viewport.mobile = mobile
+    const vue = render(<PostComposerSheet open onClose={() => undefined} />)
+    const picker = screen.getByLabelText("Média du composeur") as HTMLInputElement
+    const editor = screen.getByLabelText("Composeur")
+    editor.focus()
+
+    viewport.mobile = !mobile
+    vue.rerender(<PostComposerSheet open onClose={() => undefined} />)
+
+    // Le sélecteur natif conserve une référence vers CE nœud pendant son ouverture.
+    expect(picker.isConnected).toBe(true)
+    expect(screen.getByLabelText("Média du composeur")).toBe(picker)
+    expect(document.activeElement).toBe(editor)
+    const file = new File(["photo"], "photo.png", { type: "image/png" })
+    fireEvent.change(picker, { target: { files: [file] } })
+    expect(screen.getByLabelText("Média du composeur")).toHaveProperty("files", [file])
+
+    viewport.mobile = mobile
+    vue.rerender(<PostComposerSheet open onClose={() => undefined} />)
+    expect(screen.getByLabelText("Média du composeur")).toBe(picker)
+    expect(picker.files?.[0]).toBe(file)
+  })
 })
 
 describe("fermer conserve le brouillon", () => {

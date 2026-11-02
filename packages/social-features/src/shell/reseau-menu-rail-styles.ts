@@ -32,6 +32,11 @@ export const RESEAU_MENU_RAIL_ADAPTIVE_CSS = `
 [data-reseau-menu-layout="adaptive"] .rmr-appearance-link {
   display: none !important;
 }
+[data-reseau-menu-layout="adaptive"] .rmr-workspace-section {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--esp-surface-border, var(--border));
+}
 @media (min-width: 768px) and (max-width: 1199px) {
   [data-reseau-menu-layout="adaptive"] .rmr-appearance-controls {
     display: none;

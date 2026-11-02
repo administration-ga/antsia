@@ -16,6 +16,16 @@
       "participateFailed": "Votre réponse n'a pas pu être enregistrée."
     }
   },
+  "feedSuggestion": {
+    "label": "Personne à découvrir : {{name}}",
+    "profileOf": "Profil de {{name}}",
+    "follow": "Suivre",
+    "followLabel": "Suivre {{name}}",
+    "write": "Écrire",
+    "writeLabel": "Écrire à {{name}}",
+    "followed": "Vous suivez {{name}}.",
+    "followFailed": "Le suivi n'a pas pu être enregistré."
+  },
   "feedPages": {
     "errorTitle": "Fil indisponible",
     "errorMessage": "Les publications n’ont pas pu être chargées.",

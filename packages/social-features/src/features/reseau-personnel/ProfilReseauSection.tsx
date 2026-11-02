@@ -84,7 +84,7 @@ export function ProfilReseauSection() {
             style={{
               minHeight: 44,
               padding: "10px 16px",
-              borderRadius: 8,
+              borderRadius: "var(--esp-primitive-button-radius, 8px)",
               border: "1px solid var(--ink-200)",
               background: "var(--ink-0)",
               color: "var(--ink-900)",

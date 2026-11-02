@@ -12,7 +12,13 @@
     "showLess": "Show less",
     "myProfile": "My profile",
     "settings": "Settings",
-    "shortcuts": "Your shortcuts"
+    "shortcuts": "Your shortcuts",
+    "socialSection": "Social network",
+    "activitySection": "Activity",
+    "pageSection": "Page",
+    "createActivity": "Create an activity",
+    "myPages": "My pages",
+    "createPage": "Create a page"
   },
   "reseauDesktopIcomLink": {
     "label": "iCom",

@@ -10,7 +10,8 @@
  * creuserait de part et d'autre un écart plus large que la gouttière. Les médias
  * du fil restent bornés en hauteur (PostMediaPresentation).
  * La largeur du viewport choisit la pose ; le conteneur décide si le contexte
- * de 312 px tient réellement. Les pages ordinaires défilent dans le document.
+ * de 312 px tient réellement. Les trois colonnes défilent dans leur propre
+ * compartiment ; le centre entraîne le contexte jusqu'à sa dernière carte.
  * Le lecteur immersif garde son défileur dédié et sa mesure existante.
  */
 export const RESEAU_ADAPTIVE_CSS = `
@@ -18,27 +19,30 @@ export const RESEAU_ADAPTIVE_CSS = `
     --rp-adaptive-nav-width: 96px;
     --rp-stack-gap: 16px;
     --rp-adaptive-gutter: var(--spacing-gutter, 16px);
-    height: auto;
+    flex: 1;
+    height: 100%;
     min-height: 0;
-    overflow: visible;
+    overflow: hidden;
     padding: 24px var(--rp-adaptive-gutter) 0;
   }
   .rp-scope[data-navigation-layout="adaptive"] .rp-grid {
     grid-template-columns: var(--rp-adaptive-nav-width) minmax(0, 1fr);
-    grid-template-rows: auto;
+    grid-template-rows: minmax(0, 1fr);
     /* L'écart entre les colonnes EST la gouttière des bords. */
     gap: var(--rp-adaptive-gutter);
-    align-items: start;
-    flex: 0 0 auto;
-    height: auto;
+    align-items: stretch;
+    flex: 1;
+    height: 100%;
     min-height: 0;
     width: 100%;
     max-width: none;
     margin-inline: 0;
-    overflow: visible;
-    padding-bottom: 48px;
+    overflow: hidden;
+    padding-bottom: 0;
   }
   .rp-scope[data-navigation-layout="adaptive"] .rp-main-col {
+    --rp-composer-height: 112px;
+    --rp-tools-height: 76px;
     min-width: 0;
     min-height: 0;
     width: 100%;
@@ -46,30 +50,56 @@ export const RESEAU_ADAPTIVE_CSS = `
        centrée, laisserait un écart plus large que la gouttière autour du fil. */
     max-width: none;
     margin-inline: 0;
-    overflow: visible;
-    padding-bottom: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior-y: contain;
+    scrollbar-gutter: stable;
+    scroll-padding-top: calc(var(--rp-composer-height, 112px) + var(--rp-tools-height, 76px) + var(--rp-stack-gap));
+    padding-bottom: 24px;
   }
   .rp-scope[data-navigation-layout="adaptive"] .rp-identity-region {
-    position: static;
+    position: sticky;
+    top: 0;
+    z-index: 4;
+    isolation: isolate;
+  }
+  .rp-scope[data-navigation-layout="adaptive"] .rp-volet-head {
+    position: sticky;
+    top: calc(var(--rp-composer-height, 112px) + var(--rp-stack-gap));
+    z-index: 3;
+    background: var(--esp-surface-card, var(--card));
+    box-shadow: 0 calc(-1 * var(--rp-stack-gap)) 0 var(--background);
+  }
+  .rp-scope[data-navigation-layout="adaptive"] :is(.rp-main-col, .rp-rail-start, .rp-rail-end):focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: -2px;
   }
   .rp-scope[data-navigation-layout="adaptive"] .rp-rail-start,
   .rp-scope[data-navigation-layout="adaptive"] .rp-rail-end {
     min-width: 0;
     min-height: 0;
-    max-height: none;
-    overflow: visible;
-    padding-bottom: 0;
+    max-height: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    padding-bottom: 24px;
   }
   .rp-scope[data-navigation-layout="adaptive"] .rp-rail-start {
     display: flex;
-    position: sticky;
-    top: var(--esp-sticky-header-inset, 64px);
-    max-height: calc(100dvh - var(--esp-sticky-header-inset, 64px));
-    overflow-y: auto;
-    padding-bottom: 24px;
+    position: relative;
+    top: auto;
   }
   .rp-scope[data-navigation-layout="adaptive"] .rp-rail-end {
     display: none;
+  }
+  .rp-scope[data-navigation-layout="adaptive"] .rp-rail-end > * {
+    flex-shrink: 0;
+  }
+  /* Le contexte se lit comme une pile : iCom ne recouvre pas les cartes
+     suivantes quand son compartiment défile. Son lecteur interne reste libre. */
+  .rp-scope[data-navigation-layout="adaptive"] .rp-rail-end > .msg-dock {
+    position: relative;
+    top: auto;
   }
   .rp-scope[data-navigation-layout="adaptive"] .rp-main .rp-tabs {
     display: none;

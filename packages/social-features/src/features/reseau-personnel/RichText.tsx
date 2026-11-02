@@ -73,8 +73,8 @@ export function RichText({ body, segments: given, onTag, onMention, trailing }: 
         whiteSpace: "pre-wrap",
         overflowWrap: "anywhere",
         color: "var(--ink-700)",
-        fontSize: 16,
-        lineHeight: 1.6,
+        fontSize: "var(--esp-content-font-size, 16px)",
+        lineHeight: "var(--esp-content-line-height, 1.6)",
         textWrap: "pretty",
       }}
     >

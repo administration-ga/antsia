@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs"
 import { describe, expect, it } from "vitest"
 
 import { type ChartedNode, type StyleSheetSource, TokenCascade } from "../tests/css-token-cascade"
+import { ANTSIA_THEME_IDS, antsiaCharteFor } from "./antsia-themes"
 
 /**
  * Non-régression des autres consommateurs de la charte (lot P01).
@@ -30,6 +31,15 @@ const BASE = [
 const ADMIN = sheet("admin-antsia.css", "./admin-antsia.css")
 const DIASPORALE = sheet("diasporale.css", "./diasporale.css")
 const ANTSIA = sheet("antsia.css", "./antsia.css")
+const ANTSIA_THEMES = ANTSIA_THEME_IDS.map((id) => {
+  const charte = antsiaCharteFor(id)
+  return sheet(`${charte}.css`, `./${charte}.css`)
+})
+const NEIGHBORS = [
+  ["admin-antsia", ADMIN],
+  ["diasporale", DIASPORALE],
+  ["diasporale-gaboma", sheet("diasporale-gaboma.css", "./diasporale-gaboma.css")],
+] as const
 
 interface FrozenBase {
   source: string
@@ -55,13 +65,10 @@ describe("non-régression des chartes voisines", () => {
     expect(Object.keys(FROZEN.clair).length).toBeGreaterThan(200)
   })
 
-  it.each([
-    ["admin-antsia", ADMIN],
-    ["diasporale", DIASPORALE],
-  ] as const)("%s ne voit rien du thème ANTSIA, chargé avant ou après le sien", (charte, own) => {
+  it.each(NEIGHBORS)("%s ne voit rien des sept thèmes ANTSIA, chargés avant ou après le sien", (charte, own) => {
     const alone = new TokenCascade([...BASE, own])
-    const antsiaFirst = new TokenCascade([...BASE, ANTSIA, own])
-    const antsiaLast = new TokenCascade([...BASE, own, ANTSIA])
+    const antsiaFirst = new TokenCascade([...BASE, ...ANTSIA_THEMES, own])
+    const antsiaLast = new TokenCascade([...BASE, own, ...ANTSIA_THEMES])
     for (const node of NODES(charte)) {
       const reference = alone.resolveAll(node)
       expect(antsiaFirst.resolveAll(node), label(node)).toEqual(reference)
@@ -108,15 +115,16 @@ describe("non-régression des chartes voisines", () => {
 
 /**
  * Lot P03 (demandes D1, D3, D5 de la charte) : trois jetons entrent au contrat
- * sans rien changer chez la console ni chez DIASPORALE.
+ * sans effet des chartes ANTSIA sur les autres réseaux. DIASPORALE peut
+ * adopter ces jetons dans sa propre charte, tenue par sa session.
  *
  * - D3 : les six surfaces ÉLEVÉES des publications lisent
  *   `var(--esp-surface-raised, <leur valeur d'avant>)`. La base pose le jeton à
  *   `initial` (valeur garantie invalide) : chaque surface retombe sur SA valeur
- *   historique — prouvé ici par la résolution de l'expression exacte que
- *   chaque fichier écrit, comparée à celle de l'ancienne valeur.
+ *   historique sans thème opt-in — prouvé ici sur la base seule. Les autres
+ *   réseaux gardent ensuite leur choix, avec ou sans les sept chartes ANTSIA.
  * - D1 : `--rp-surface-radius` (18 px) n'est plus figé par la page réseau.
- * - D5 : `--esp-inline-link-decoration` vaut `none` hors ANTSIA.
+ * - D5 : `--esp-inline-link-decoration` vaut `none` sans thème opt-in.
  */
 const RAISED_SURFACES: readonly { file: string; before: string }[] = [
   { file: "../espace-kit/espace-kit-styles.tsx", before: "var(--esp-surface-card, var(--secondary))" },
@@ -135,34 +143,49 @@ describe("lot P03 — jetons des publications ajoutés au contrat, rendu inchang
     expect(occurrences(source, raisedExpression(before))).toBe(1)
   })
 
-  it.each([
-    ["admin-antsia", ADMIN],
-    ["diasporale", DIASPORALE],
-  ] as const)("%s : chaque surface élevée résout exactement sa valeur d'avant, avec ou sans le thème ANTSIA", (charte, own) => {
-    const cascades = [new TokenCascade([...BASE, own]), new TokenCascade([...BASE, ANTSIA, own]), new TokenCascade([...BASE, own, ANTSIA])]
+  it("la base sans thème opt-in garde les six replis historiques, le rayon 18 px et les liens sans trait", () => {
+    const cascade = new TokenCascade(BASE)
+    for (const node of NODES("admin-antsia")) {
+      expect(cascade.resolve(node, "--esp-surface-raised"), label(node)).toBeUndefined()
+      for (const { file, before } of RAISED_SURFACES) {
+        const previous = cascade.resolveValue(node, before)
+        expect(previous, `${label(node)} ${file}`).toBeDefined()
+        expect(cascade.resolveValue(node, raisedExpression(before)), `${label(node)} ${file}`).toBe(previous)
+      }
+      const mode = node.dark ? "sombre" : "clair"
+      expect(cascade.resolve(node, "--rp-surface-radius"), label(node)).toBe(FROZEN[mode]["--rp-surface-radius"])
+      expect(cascade.resolve(node, "--esp-inline-link-decoration"), label(node)).toBe("none")
+    }
+    expect(FROZEN.clair["--rp-surface-radius"]).toBe("18px")
+    expect(FROZEN.sombre["--rp-surface-radius"]).toBe("18px")
+  })
+
+  it.each(NEIGHBORS)("%s : chaque surface élevée garde le choix de sa propre charte, avec ou sans les sept thèmes ANTSIA", (charte, own) => {
+    const reference = new TokenCascade([...BASE, own])
+    const cascades = [new TokenCascade([...BASE, ...ANTSIA_THEMES, own]), new TokenCascade([...BASE, own, ...ANTSIA_THEMES])]
     for (const cascade of cascades) {
       for (const node of NODES(charte)) {
-        expect(cascade.resolve(node, "--esp-surface-raised"), label(node)).toBeUndefined()
+        const raised = reference.resolve(node, "--esp-surface-raised")
+        expect(cascade.resolve(node, "--esp-surface-raised"), label(node)).toBe(raised)
         for (const { file, before } of RAISED_SURFACES) {
-          const previous = cascade.resolveValue(node, before)
-          expect(previous, `${label(node)} ${file}`).toBeDefined()
-          expect(cascade.resolveValue(node, raisedExpression(before)), `${label(node)} ${file}`).toBe(previous)
+          const expected = raised ?? reference.resolveValue(node, before)
+          expect(expected, `${label(node)} ${file}`).toBeDefined()
+          expect(cascade.resolveValue(node, raisedExpression(before)), `${label(node)} ${file}`).toBe(expected)
         }
       }
     }
   })
 
-  it.each([
-    ["admin-antsia", ADMIN],
-    ["diasporale", DIASPORALE],
-  ] as const)("%s : rayon des surfaces 18 px et liens du texte courant sans trait, comme avant", (charte, own) => {
-    const cascade = new TokenCascade([...BASE, own])
-    for (const node of NODES(charte)) {
-      expect(cascade.resolve(node, "--rp-surface-radius"), label(node)).toBe("18px")
-      expect(cascade.resolve(node, "--esp-inline-link-decoration"), label(node)).toBe("none")
+  it.each(NEIGHBORS)("%s : rayon et liens restent ceux de sa propre charte, indépendamment des sept thèmes ANTSIA", (charte, own) => {
+    const reference = new TokenCascade([...BASE, own])
+    const cascades = [new TokenCascade([...BASE, ...ANTSIA_THEMES, own]), new TokenCascade([...BASE, own, ...ANTSIA_THEMES])]
+    for (const cascade of cascades) {
+      for (const node of NODES(charte)) {
+        for (const token of ["--rp-surface-radius", "--esp-inline-link-decoration"]) {
+          expect(cascade.resolve(node, token), `${label(node)} ${token}`).toBe(reference.resolve(node, token))
+        }
+      }
     }
-    expect(FROZEN.clair["--rp-surface-radius"]).toBe("18px")
-    expect(FROZEN.sombre["--rp-surface-radius"]).toBe("18px")
   })
 
   it("la page réseau du bureau ne fige plus le rayon : elle lit le jeton de la charte", () => {

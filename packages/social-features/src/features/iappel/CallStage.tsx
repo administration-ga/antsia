@@ -695,7 +695,7 @@ function CallStageView({
 						</span>
 						<h1
 							className="text-[20px] leading-tight font-semibold text-pretty"
-							style={{ color: "var(--esp-immersive-on-ink)" }}
+							style={{ color: "var(--esp-immersive-on-ink)", fontFamily: "var(--esp-heading-font-family, inherit)", fontSize: "var(--esp-page-title-size, 20px)", fontWeight: "var(--esp-heading-font-weight, 600)", lineHeight: "var(--esp-page-title-leading, 1.25)", letterSpacing: "var(--esp-page-title-tracking, normal)" }}
 						>
 							{group.title}
 						</h1>
@@ -744,7 +744,7 @@ function CallStageView({
 					<div className="flex flex-col items-center gap-1 text-center">
 						<h1
 							className="text-[17px] leading-tight font-medium text-pretty"
-							style={{ color: "var(--esp-immersive-on-ink)", opacity: 0.85 }}
+							style={{ color: "var(--esp-immersive-on-ink)", opacity: 0.85, fontFamily: "var(--esp-heading-font-family, inherit)", fontSize: "var(--esp-page-title-size, 17px)", fontWeight: "var(--esp-heading-font-weight, 500)", lineHeight: "var(--esp-page-title-leading, 1.25)", letterSpacing: "var(--esp-page-title-tracking, normal)" }}
 						>
 							{name}
 						</h1>

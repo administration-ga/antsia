@@ -246,16 +246,18 @@ describe("la grille implémente les paliers du module", () => {
     expect(leftRail).toContain("padding-bottom: 48px")
   })
 
-  it("réserve le défilement du document à l'opt-in et borne seulement son rail", () => {
+  it("borne les trois compartiments et épingle les deux parties de l'en-tête adaptatif", () => {
     const adaptive = cssRules(cssOf(RESEAU_ADAPTIVE_CSS))
     const scope = '.rp-scope[data-navigation-layout="adaptive"]'
-    expect(ruleBody(adaptive, scope)).toContain("height: auto")
-    expect(ruleBody(adaptive, scope)).toContain("overflow: visible")
-    expect(ruleBody(adaptive, `${scope} .rp-main-col`)).toContain("overflow: visible")
-    const rail = adaptive.find(rule => selectorParts(rule).includes(`${scope} .rp-rail-start`) && rule.body.includes("position: sticky"))?.body ?? ""
-    expect(rail).toContain("position: sticky")
-    expect(rail).toContain("overflow-y: auto")
-    expect(rail).toContain("max-height: calc(100dvh")
+    expect(ruleBody(adaptive, scope)).toContain("height: 100%")
+    expect(ruleBody(adaptive, scope)).toContain("overflow: hidden")
+    expect(ruleBody(adaptive, `${scope} .rp-main-col`)).toContain("overflow-y: auto")
+    expect(ruleBody(adaptive, `${scope} .rp-main-col`)).toContain("scroll-padding-top:")
+    const rails = adaptive.find(rule => selectorParts(rule).includes(`${scope} .rp-rail-start`) && rule.body.includes("max-height: 100%"))?.body ?? ""
+    expect(rails).toContain("overflow-y: auto")
+    expect(rails).toContain("overscroll-behavior-y: contain")
+    expect(ruleBody(adaptive, `${scope} .rp-identity-region`)).toContain("position: sticky")
+    expect(ruleBody(adaptive, `${scope} .rp-volet-head`)).toContain("top: calc(var(--rp-composer-height")
   })
 
   it("UNE gouttière à l'opt-in : marge extérieure = écart entre colonnes, sans largeur maximale (22/10/2026)", () => {

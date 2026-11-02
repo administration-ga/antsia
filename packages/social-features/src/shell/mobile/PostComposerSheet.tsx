@@ -172,7 +172,8 @@ export function PostComposerSheet({ open, onClose }: PostComposerSheetProps) {
       label={t("postComposerSheet.title")}
       scrim={pose === "card"}
     >
-      {pose === "card" ? (
+      {/* Garder les mêmes parents au changement de taille : le sélecteur natif
+          garde une référence au champ de fichier pendant son ouverture. */}
         <div
           style={{
             display: "flex",
@@ -180,7 +181,7 @@ export function PostComposerSheet({ open, onClose }: PostComposerSheetProps) {
             justifyContent: "center",
             width: "100%",
             height: "100%",
-            padding: 16,
+            padding: pose === "card" ? 16 : 0,
           }}
         >
           <div
@@ -193,20 +194,19 @@ export function PostComposerSheet({ open, onClose }: PostComposerSheetProps) {
               // le 2026-08-20, où « Qui peut voir » tenait sur trois lignes.
               display: "flex",
               flexDirection: "column",
-              width: "min(560px, 100%)",
-              maxHeight: "min(760px, 92dvh)",
-              borderRadius: 18,
-              border: "1px solid var(--border)",
-              background: "var(--esp-surface-raised, var(--background))",
+              width: pose === "card" ? "min(560px, 100%)" : "100%",
+              height: pose === "card" ? undefined : "100%",
+              minHeight: 0,
+              maxHeight: pose === "card" ? "min(760px, 92dvh)" : "100%",
+              borderRadius: pose === "card" ? "var(--esp-primitive-card-radius, 18px)" : 0,
+              border: pose === "card" ? "1px solid var(--esp-raised-border, var(--border))" : undefined,
+              background: pose === "card" ? "var(--esp-surface-raised, var(--background))" : undefined,
               overflow: "hidden",
             }}
           >
             {corps}
           </div>
         </div>
-      ) : (
-        corps
-      )}
     </ImmersiveOverlay>
   )
 }

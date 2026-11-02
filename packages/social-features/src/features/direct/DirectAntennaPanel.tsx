@@ -1,6 +1,7 @@
 // Dupliqué de socle/packages/agent-features/src/features/direct/DirectAntennaPanel.tsx @ ad2e7fdc2 — adaptations : API typée et réseau courant, droits du DTO, invitations consenties sans ouverture automatique du matériel, horloge effective et i18n ; recherche privée réservée à l’hôte ; couleurs par fonction (ADR-0027) : Accepter en variante `social`, « Demander la parole » en participation (variante `commerce`, aplat d’identité en repli).
 "use client"
 
+import { themedActionStyle } from "../themed-action-style"
 import { api } from "@antsia/api/engine"
 import { useAuthenticatedConvexQuery } from "@antsia/api/hooks"
 import { useNetwork } from "@antsia/api/network"
@@ -38,9 +39,9 @@ export function DirectMyAntenna({ session, admitted }: { session: DirectSession;
       <p role="status">{t(held.sessionId === session.sessionId && held.credentials?.role === "speaker" && held.phase === "connected" ? "antenna.speakerConnected" : "antenna.speakerReady")}</p>
       <Button variant="ghost" disabled={command.pending} onClick={() => void command.run(() => leave({ networkId, sessionId: session.sessionId }))}>{t("antenna.leave")}</Button>
     </> : <>
-      {state.invitation?.status === "pending" ? <div className="flex flex-wrap items-center gap-3"><p>{t("antenna.invited")}</p><Button variant="social" disabled={command.pending} onClick={() => void command.run(() => respond({ networkId, invitationId: state.invitation!.invitationId, response: "accepted" }))}>{t("antenna.accept")}</Button><Button variant="ghost" disabled={command.pending} onClick={() => void command.run(() => respond({ networkId, invitationId: state.invitation!.invitationId, response: "declined" }))}>{t("antenna.decline")}</Button></div> : null}
+      {state.invitation?.status === "pending" ? <div className="flex flex-wrap items-center gap-3"><p>{t("antenna.invited")}</p><Button style={themedActionStyle("success", "social")} variant="success" disabled={command.pending} onClick={() => void command.run(() => respond({ networkId, invitationId: state.invitation!.invitationId, response: "accepted" }))}>{t("antenna.accept")}</Button><Button style={themedActionStyle("danger", "ghost")} variant="danger" disabled={command.pending} onClick={() => void command.run(() => respond({ networkId, invitationId: state.invitation!.invitationId, response: "declined" }))}>{t("antenna.decline")}</Button></div> : null}
       {state.invitation && state.invitation.status !== "pending" ? <p role="status">{t(`antenna.invitationStatus.${state.invitation.status}`)}</p> : null}
-      {state.request?.status === "pending" ? <><p role="status">{t("antenna.handPending")}</p><Button variant="ghost" disabled={command.pending} onClick={() => void command.run(() => cancel({ networkId, sessionId: session.sessionId }))}>{t("antenna.cancelHand")}</Button></> : <>
+      {state.request?.status === "pending" ? <><p role="status">{t("antenna.handPending")}</p><Button style={themedActionStyle("cancel", "ghost")} variant="outline" disabled={command.pending} onClick={() => void command.run(() => cancel({ networkId, sessionId: session.sessionId }))}>{t("antenna.cancelHand")}</Button></> : <>
         {state.request ? <p role="status">{t(`antenna.requestStatus.${state.request.status}`)}</p> : null}
         <Button variant="commerce" disabled={!admitted || command.pending} onClick={() => void command.run(() => raise({ networkId, sessionId: session.sessionId }))}>{t("antenna.raiseHand")}</Button>
         {!admitted ? <p className="text-sm text-muted-foreground">{t("antenna.joinFirst")}</p> : null}
@@ -69,7 +70,7 @@ export function DirectAntennaPanel({ session }: { session: DirectSession }) {
   const full = state.speakers.length >= DIRECT_MAX_SPEAKERS
   return <div className="flex flex-col gap-5">
     <p>{t("antenna.capacity", { count: state.speakers.length, max: DIRECT_MAX_SPEAKERS })}</p>
-    <h3 className="font-semibold">{t("antenna.onStage")}</h3>
+    <h3 className="font-semibold" style={{ fontSize: "var(--esp-subsection-title-size, inherit)", lineHeight: "var(--esp-subsection-title-leading, inherit)", fontWeight: "var(--esp-heading-font-weight, 600)" }}>{t("antenna.onStage")}</h3>
     <ul className="flex flex-col gap-3">{state.speakers.map((speaker) => <li key={speaker.personId} className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
       <span>{speaker.profile.displayName ?? t("person")}{speaker.isHost ? <span className="ml-2 text-sm text-muted-foreground">{t("antenna.host")}</span> : null}</span>
       <div className="flex flex-wrap gap-2">
@@ -80,13 +81,13 @@ export function DirectAntennaPanel({ session }: { session: DirectSession }) {
         </> : null}
       </div>
     </li>)}</ul>
-    <h3 className="font-semibold">{t("antenna.requests")}</h3>
-    {state.requests.length === 0 ? <p className="text-sm text-muted-foreground">{t("antenna.noRequests")}</p> : <ul className="flex flex-col gap-2">{state.requests.map((request) => <li key={request.requestId} className="flex flex-wrap items-center justify-between gap-2"><span>{request.profile.displayName ?? t("person")}</span><div className="flex gap-2"><Button size="sm" variant="social" disabled={command.pending || full} onClick={() => void command.run(() => respond({ networkId, requestId: request.requestId, response: "accepted" }))}>{t("antenna.accept")}</Button><Button size="sm" variant="ghost" disabled={command.pending} onClick={() => void command.run(() => respond({ networkId, requestId: request.requestId, response: "declined" }))}>{t("antenna.decline")}</Button></div></li>)}</ul>}
+    <h3 className="font-semibold" style={{ fontSize: "var(--esp-subsection-title-size, inherit)", lineHeight: "var(--esp-subsection-title-leading, inherit)", fontWeight: "var(--esp-heading-font-weight, 600)" }}>{t("antenna.requests")}</h3>
+    {state.requests.length === 0 ? <p className="text-sm text-muted-foreground">{t("antenna.noRequests")}</p> : <ul className="flex flex-col gap-2">{state.requests.map((request) => <li key={request.requestId} className="flex flex-wrap items-center justify-between gap-2"><span>{request.profile.displayName ?? t("person")}</span><div className="flex gap-2"><Button style={themedActionStyle("success", "social")} size="sm" variant="success" disabled={command.pending || full} onClick={() => void command.run(() => respond({ networkId, requestId: request.requestId, response: "accepted" }))}>{t("antenna.accept")}</Button><Button style={themedActionStyle("danger", "ghost")} size="sm" variant="danger" disabled={command.pending} onClick={() => void command.run(() => respond({ networkId, requestId: request.requestId, response: "declined" }))}>{t("antenna.decline")}</Button></div></li>)}</ul>}
     {full ? <p role="status">{t("antenna.full")}</p> : null}
-    <h3 className="font-semibold">{t("antenna.invitations")}</h3>
+    <h3 className="font-semibold" style={{ fontSize: "var(--esp-subsection-title-size, inherit)", lineHeight: "var(--esp-subsection-title-leading, inherit)", fontWeight: "var(--esp-heading-font-weight, 600)" }}>{t("antenna.invitations")}</h3>
     {state.invitations.length === 0 ? <p className="text-sm text-muted-foreground">{t("antenna.noInvitations")}</p> : <ul className="flex flex-col gap-2">{state.invitations.map((invitation) => <li key={invitation.invitationId} className="flex flex-wrap items-center justify-between gap-2"><span>{invitation.profile.displayName ?? t("person")}<span className="ml-2 text-sm text-muted-foreground">{t(`antenna.invitationStatus.${invitation.status}`)}</span></span>{invitation.status === "pending" ? <Button size="sm" variant="ghost" disabled={command.pending} onClick={() => void command.run(() => revoke({ networkId, invitationId: invitation.invitationId }))}>{t("antenna.revokeInvitation")}</Button> : null}</li>)}</ul>}
     {session.viewerRole === "host" ? <AntennaInvitePicker session={session} full={full} /> : <form onSubmit={handleSubmit(async ({ handle }) => { if (await command.run(() => inviteHandle({ networkId, sessionId: session.sessionId, handle }))) reset() })} className="flex flex-col gap-2">
-      <label className="flex flex-col gap-2">{t("antenna.handle")}<input {...register("handle")} maxLength={80} aria-invalid={!!errors.handle} className="min-h-11 rounded-lg border border-input bg-background px-3" /></label>{errors.handle ? <p role="alert">{t("antenna.invalidHandle")}</p> : null}<Button type="submit" disabled={full || command.pending}>{t("antenna.invite")}</Button>
+      <label className="flex flex-col gap-2">{t("antenna.handle")}<input {...register("handle")} maxLength={80} aria-invalid={!!errors.handle} style={{ fontSize: "var(--esp-field-font-size, inherit)", lineHeight: "var(--esp-field-line-height, inherit)" }} className="min-h-11 rounded-[var(--esp-input-radius,0.5rem)] border border-input bg-background px-3" /></label>{errors.handle ? <p role="alert">{t("antenna.invalidHandle")}</p> : null}<Button type="submit" disabled={full || command.pending}>{t("antenna.invite")}</Button>
     </form>}
     {command.error ? <p role="alert">{command.error}</p> : null}
   </div>
@@ -97,7 +98,7 @@ function AntennaInvitePicker({ session, full }: { session: DirectSession; full: 
   const [search, setSearch] = useState("")
   const [debounced, setDebounced] = useState("")
   useEffect(() => { const timer = setTimeout(() => setDebounced(search.trim()), 250); return () => clearTimeout(timer) }, [search])
-  return <div className="flex flex-col gap-3"><label className="flex flex-col gap-2">{t("antenna.search")}<input value={search} maxLength={80} onChange={(event) => setSearch(event.target.value)} className="min-h-11 rounded-lg border border-input bg-background px-3" /></label><CandidatePage key={`${session.sessionId}:${debounced}`} session={session} search={debounced} full={full} /></div>
+  return <div className="flex flex-col gap-3"><label className="flex flex-col gap-2">{t("antenna.search")}<input value={search} maxLength={80} onChange={(event) => setSearch(event.target.value)} style={{ fontSize: "var(--esp-field-font-size, inherit)", lineHeight: "var(--esp-field-line-height, inherit)" }} className="min-h-11 rounded-[var(--esp-input-radius,0.5rem)] border border-input bg-background px-3" /></label><CandidatePage key={`${session.sessionId}:${debounced}`} session={session} search={debounced} full={full} /></div>
 }
 
 function CandidatePage({ session, search, full }: { session: DirectSession; search: string; full: boolean }) {

@@ -61,7 +61,7 @@ function DirectList({ mode }: { mode: Mode }) {
       {query.isPending ? <p role="status">{t("loading")}</p> : null}
       {!query.isPending && !query.isError && items.length === 0 ? <p className="text-sm text-muted-foreground">{t(`directory.empty.${mode}`)}</p> : null}
       <ul className="flex flex-col gap-3">
-        {items.map((card) => <li key={card.sessionId} className="rounded-xl border border-border bg-card p-4">
+        {items.map((card) => <li key={card.sessionId} className="rounded-[var(--esp-primitive-card-radius,0.75rem)] border border-[var(--esp-primitive-surface-border,var(--border))] bg-card p-4">
           <Link href={routes.conference(card.sessionId)} className="flex min-h-11 items-center justify-between gap-3 font-medium">
             <span>{card.title}</span><span className="text-sm text-muted-foreground">{t(`status.${card.status ?? (mode === "live" ? "live" : "ended")}`)}</span>
           </Link>
