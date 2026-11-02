@@ -23,6 +23,9 @@ import type { PublicStorefront, Storefront } from "./validators"
 import type { CommerceStorefrontTerms } from "@antsia/social-domain/commerce/storefrontTerms"
 import { marketplaceIndexFields } from "./marketplaceIndexFields"
 import type { CatalogList, CatalogOffer } from "./catalogValidators"
+import { STORY_ACTIVE_PER_AUTHOR_MAX } from "@antsia/social-domain/stories"
+import { referencesIn, shapeFor, exportableRecord } from "../people/dataInventory"
+import { ERASURE_GRACE_MS } from "../people/erasure"
 
 const NOW = Date.UTC(2026, 9, 18, 12)
 const SHOP = "pro.ga:structure:01JA00000000000000000000S1", OFFER = "pro.ga:offer:01JA00000000000000000000P1"
@@ -764,4 +767,265 @@ describe("MP06 — modération du profil complet de prestation", () => {
     expect((await offerModerationState(f))?.status).toBe(approve ? "published" : "removed")
     expect((await f.t.query(getPublicOffer, f.offerArgs)) !== null).toBe(approve)
   })
+})
+
+/** Les références Stories passent par le VRAI catalogue signé et ses fichiers admis. */
+describe("SU06 — plat du jour dans les Stories du réseau", () => {
+  const stories = api.modules.stories.stories
+  const DAY = "2026-10-18"
+  const MIDNIGHT = Date.UTC(2026, 9, 18, 23)
+  const shareArgs = (f: Fixture) => ({ networkId: f.root, shopId: f.shopId, expectedOfferRef: OFFER, expectedDay: DAY })
+  const active = (f: Fixture) => f.as.query(stories.myActive, { networkId: f.root, now: Date.now() })
+  async function ready() {
+    const f = await fixture()
+    const asset = await attachImage(f)
+    // Un média fédéré ne devient servable qu'après une preuve AV complète.
+    await f.t.run(async ctx => ctx.db.patch(asset.scan._id, { status: "clean", av: { provider: "fixture", verdict: "clean" } }))
+    await f.t.run(async ctx => ctx.db.patch(f.shopId, { activityConfiguration: { version: 1, template: "food", capabilities: ["products", "services"], blocks: ["catalog", "services", "about"] } }))
+    await f.as.mutation(api.modules.shops.shops.setDailySpecial, { networkId: f.root, shopId: f.shopId, offerRef: OFFER })
+    expect((await f.as.query(getOffer, f.offerArgs))?.media[0]).toMatchObject({ url: expect.stringContaining(`/catalogue/media/${asset.token}`), withheld: null })
+    return { ...f, asset }
+  }
+  async function member(f: Fixture, handle: string) {
+    const as = f.t.withIdentity({ subject: `daily-story-${handle}` })
+    const personId = await as.mutation(api.modules.people.persons.ensureMyPerson, {})
+    await as.mutation(api.modules.people.consents.recordConsent, { purpose: "social_profile", origin: "onboarding" })
+    await as.mutation(api.modules.people.profile.publishMyProfile, { handle, displayName: "Membre TEST" })
+    await as.mutation(api.modules.people.memberships.joinNetwork, { networkId: f.root })
+    return { as, personId }
+  }
+  async function manager(f: Fixture) {
+    const other = await member(f, "daily-co-manager")
+    await f.t.run(async ctx => ctx.db.insert("pageSignatories", { networkId: f.root, pageId: f.pageId, personId: other.personId, role: "admin", acceptedAt: NOW, createdAt: NOW, updatedAt: NOW }))
+    return other
+  }
+  async function allReadersOmit(f: Awaited<ReturnType<typeof ready>>, storyId: Id<"stories">) {
+    expect(await active(f)).toEqual([])
+    expect(await f.as.query(stories.listByAuthor, { networkId: f.root, handle: "catalogue-owner", now: Date.now() })).toEqual([])
+    expect((await f.as.query(stories.tray, { networkId: f.root, now: Date.now() })).groups).toEqual([])
+    expect(await code(f.as.mutation(stories.markSeen, { networkId: f.root, storyId }))).toBe("notFound")
+    expect(await code(f.as.query(stories.viewers, { networkId: f.root, storyId, now: Date.now(), paginationOpts: { cursor: null, numItems: 10 } }))).toBe("notFound")
+  }
+
+  it("publie une référence sans copie, plafonne à minuit Libreville et rejoue sans prolonger", async () => {
+    const f = await ready()
+    const first = await f.as.mutation(stories.publishDailySpecial, shareArgs(f))
+    expect(first).toMatchObject({ created: true, expiresAt: MIDNIGHT })
+    const row = (await f.t.run(ctx => ctx.db.get(first.storyId)))!
+    expect(row).toMatchObject({ authorPersonId: f.personId, audience: "public", networkId: f.root, media: { kind: "daily_special", shopId: f.shopId, offerRef: OFFER, day: DAY, revision: 1 } })
+    expect(Object.keys(row.media).sort()).toEqual(["day", "kind", "offerRef", "revision", "shopId"])
+    expect(referencesIn(row, shapeFor("stories")).some(ref => ref.table === "_storage")).toBe(false)
+    const dto = (await active(f))[0]!
+    expect(dto).toMatchObject({ storyId: first.storyId, media: { kind: "image", mimeType: "image/*", withheld: null }, dailySpecial: { shopHandle: "catalogue-test", shopName: "Boutique de recette", offerRef: OFFER, title: "Article de recette", price: { amount: 12_000, mode: "fixed", currency: "XAF" }, day: DAY }, isOwn: true, seen: true, viewCount: 0 })
+    expect(dto.media.url).toContain(`/catalogue/media/${f.asset.token}`)
+    expect(JSON.stringify(dto)).not.toContain(f.asset.storageId)
+    expect(JSON.stringify(exportableRecord("stories", row, f.personId))).not.toContain("Article de recette")
+    vi.setSystemTime(NOW + 60_000)
+    expect(await f.as.mutation(stories.publishDailySpecial, shareArgs(f))).toEqual({ ...first, created: false })
+    expect((await f.t.run(ctx => ctx.db.get(f.shopId)))?.dailySpecialRevision).toBe(1)
+    await f.as.mutation(api.modules.shops.shops.setDailySpecial, { networkId: f.root, shopId: f.shopId, offerRef: OFFER })
+    expect((await f.t.run(ctx => ctx.db.get(f.shopId)))?.dailySpecialRevision).toBe(1)
+  })
+
+  it("deux gérants partagent la même entrée atomique, même en concurrence", async () => {
+    const f = await ready(), other = await manager(f)
+    const results = await Promise.all([f.as.mutation(stories.publishDailySpecial, shareArgs(f)), other.as.mutation(stories.publishDailySpecial, shareArgs(f))])
+    expect(results[0]!.storyId).toBe(results[1]!.storyId)
+    expect(results.filter(item => item.created)).toHaveLength(1)
+    expect(await f.t.run(ctx => ctx.db.query("stories").withIndex("by_network_daily_special_expiresAt", q => q.eq("networkId", f.root).eq("media.shopId", f.shopId).eq("media.revision", 1).gt("expiresAt", NOW)).take(2))).toHaveLength(1)
+  })
+
+  it("un gérant vivant peut remplacer le partage d'un gérant révoqué", async () => {
+    const f = await ready(), other = await manager(f)
+    const original = await other.as.mutation(stories.publishDailySpecial, shareArgs(f))
+    await f.t.run(async ctx => {
+      const signatory = (await ctx.db.query("pageSignatories").withIndex("by_page_person", q => q.eq("pageId", f.pageId).eq("personId", other.personId)).unique())!
+      await ctx.db.patch(signatory._id, { acceptedAt: undefined })
+    })
+    expect(await other.as.query(stories.myActive, { networkId: f.root, now: NOW })).toEqual([])
+    const next = await f.as.mutation(stories.publishDailySpecial, shareArgs(f))
+    expect(next.created).toBe(true)
+    expect(next.storyId).not.toBe(original.storyId)
+    expect(await f.t.run(ctx => ctx.db.get(original.storyId))).toMatchObject({ removedAt: NOW, expiresAt: NOW })
+    expect(await active(f)).toMatchObject([{ storyId: next.storyId }])
+    expect(await f.as.mutation(stories.publishDailySpecial, shareArgs(f))).toEqual({ ...next, created: false })
+  })
+
+  it.each(["pending_review", "removed", "report", "block"] as const)("le relais d'un gérant révoqué conserve le refus %s", async gate => {
+    const f = await ready(), other = await manager(f)
+    const original = await other.as.mutation(stories.publishDailySpecial, shareArgs(f))
+    if (gate === "report") await f.as.mutation(api.modules.moderation.cases.report, { networkId: f.root, target: { kind: "story", id: original.storyId }, reason: "harassment" })
+    if (gate === "block") await f.as.mutation(api.modules.graph.connections.blockPerson, { networkId: f.root, targetPersonId: other.personId })
+    await f.t.run(async ctx => {
+      const signatory = (await ctx.db.query("pageSignatories").withIndex("by_page_person", q => q.eq("pageId", f.pageId).eq("personId", other.personId)).unique())!
+      await ctx.db.patch(signatory._id, { acceptedAt: undefined })
+      if (gate === "pending_review" || gate === "removed") {
+        const state = (await ctx.db.query("moderationContentStates").withIndex("by_target", q => q.eq("targetKind", "story").eq("targetId", original.storyId)).unique())!
+        await ctx.db.patch(state._id, { status: gate })
+      }
+    })
+    expect(await code(f.as.mutation(stories.publishDailySpecial, shareArgs(f)))).toBe("notFound")
+    expect(await f.t.run(ctx => ctx.db.query("stories").withIndex("by_network_daily_special_expiresAt", q => q.eq("networkId", f.root).eq("media.shopId", f.shopId).eq("media.revision", 1).gt("expiresAt", NOW)).take(2))).toMatchObject([{ _id: original.storyId }])
+    expect(await f.t.run(ctx => ctx.db.get(original.storyId))).not.toHaveProperty("removedAt")
+  })
+
+  it("refuse un bouton périmé, un non-gérant et un réseau étranger sans créer de Story", async () => {
+    const f = await ready(), stranger = await member(f, "daily-stranger")
+    for (const override of [{ expectedOfferRef: "autre-offre" }, { expectedDay: "2026-10-17" }]) expect(await code(f.as.mutation(stories.publishDailySpecial, { ...shareArgs(f), ...override }))).toBe("notFound")
+    expect(await code(stranger.as.mutation(stories.publishDailySpecial, shareArgs(f)))).toBe("notFound")
+    const { testClosed } = await f.t.mutation(internal.seeds.foundations.run, { confirmNonProduction: SEED_CONFIRMATION })
+    expect(await code(f.as.mutation(stories.publishDailySpecial, { ...shareArgs(f), networkId: testClosed }))).toBe("notFound")
+    expect(await active(f)).toEqual([])
+  })
+
+  it("retirer puis redésigner le même produit ne ressuscite pas l'ancienne Story", async () => {
+    const f = await ready(), original = await f.as.mutation(stories.publishDailySpecial, shareArgs(f))
+    await f.as.mutation(api.modules.shops.shops.setDailySpecial, { networkId: f.root, shopId: f.shopId, offerRef: null })
+    expect(await active(f)).toEqual([])
+    expect(await f.t.run(ctx => ctx.db.get(original.storyId))).toMatchObject({ removedAt: NOW, expiresAt: NOW })
+    await f.as.mutation(api.modules.shops.shops.setDailySpecial, { networkId: f.root, shopId: f.shopId, offerRef: OFFER })
+    expect((await f.t.run(ctx => ctx.db.get(f.shopId)))?.dailySpecialRevision).toBe(3)
+    expect(await active(f)).toEqual([])
+    const next = await f.as.mutation(stories.publishDailySpecial, shareArgs(f))
+    expect(next.created).toBe(true)
+    expect(next.storyId).not.toBe(original.storyId)
+    expect(await active(f)).toHaveLength(1)
+  })
+
+  it("un retrait explicite reste retiré ; un nouveau geste crée une autre Story", async () => {
+    const f = await ready(), original = await f.as.mutation(stories.publishDailySpecial, shareArgs(f))
+    await f.as.mutation(stories.remove, { networkId: f.root, storyId: original.storyId })
+    expect(await active(f)).toEqual([])
+    const next = await f.as.mutation(stories.publishDailySpecial, shareArgs(f))
+    expect(next.created).toBe(true)
+    expect(next.storyId).not.toBe(original.storyId)
+    expect(await f.t.run(ctx => ctx.db.get(original.storyId))).toMatchObject({ removedAt: NOW })
+  })
+
+  it("une désignation de veille et minuit ferment lectures et gestes selon l'horloge serveur", async () => {
+    const f = await ready()
+    vi.setSystemTime(MIDNIGHT - 1)
+    const result = await f.as.mutation(stories.publishDailySpecial, shareArgs(f))
+    expect(result.expiresAt).toBe(MIDNIGHT)
+    vi.setSystemTime(MIDNIGHT)
+    await allReadersOmit(f, result.storyId)
+    expect(await code(f.as.mutation(stories.publishDailySpecial, shareArgs(f)))).toBe("notFound")
+  })
+
+  it.each(["template", "catalog_hidden", "withdrawn", "page", "page_moderation", "offer", "offer_moderation", "service", "media", "catalog_policy", "publisher", "network"] as const)("referme chaque lecture et geste si la garde %s change, même pour l'auteur", async gate => {
+    const f = await ready(), result = await f.as.mutation(stories.publishDailySpecial, shareArgs(f))
+    const { testClosed } = await f.t.mutation(internal.seeds.foundations.run, { confirmNonProduction: SEED_CONFIRMATION })
+    await f.t.run(async ctx => {
+      if (gate === "template") await ctx.db.patch(f.shopId, { activityConfiguration: { version: 1, template: "general", capabilities: ["products"], blocks: ["catalog"] } })
+      if (gate === "catalog_hidden") await ctx.db.patch(f.shopId, { activityConfiguration: { version: 1, template: "food", capabilities: ["products"], blocks: ["about"] } })
+      if (gate === "withdrawn") await ctx.db.patch(f.shopId, { storefront: "withdrawn" })
+      if (gate === "page") await ctx.db.patch(f.pageId, { status: "inactive" })
+      if (gate === "page_moderation") await ctx.db.insert("moderationContentStates", { networkId: f.root, targetKind: "page", targetId: f.pageId, ownerPersonId: f.personId, status: "pending_review", createdAt: NOW, updatedAt: NOW })
+      if (gate === "publisher") await ctx.db.patch(f.signatoryId, { acceptedAt: undefined })
+      if (gate === "network") await ctx.db.patch(f.shopId, { networkId: testClosed })
+      if (gate === "media") await ctx.db.patch(f.asset.scan._id, { status: "infected" })
+      if (gate === "catalog_policy") { const policy = await ctx.db.query("shopCatalogPolicies").withIndex("by_network", q => q.eq("networkId", f.root)).unique(); await ctx.db.patch(policy!._id, { enabled: false }) }
+      const current = await ctx.db.query("commerceCatalogHeads").withIndex("by_emitter_object_sequence", q => q.eq("emitterId", f.emitterId).eq("objectRef", OFFER).eq("sequence", "catalog")).unique()
+      if (gate === "offer") await ctx.db.patch(current!._id, { state: "withdrawn" })
+      if (gate === "offer_moderation") { const state = await ctx.db.query("moderationContentStates").withIndex("by_target", q => q.eq("targetKind", "commerceOffer").eq("targetId", current!._id)).unique(); await ctx.db.patch(state!._id, { status: "pending_review" }) }
+      if (gate === "service") { const body = JSON.parse(current!.body); body.payload.kind = "service"; await ctx.db.patch(current!._id, { body: commerceCanonicalJson(body)! }) }
+    })
+    await allReadersOmit(f, result.storyId)
+    expect(await code(f.as.mutation(stories.publishDailySpecial, shareArgs(f)))).toBe("notFound")
+  })
+
+  it("une nouvelle révision ferme l'ancienne référence et exige un nouveau geste", async () => {
+    const f = await ready(), original = await f.as.mutation(stories.publishDailySpecial, shareArgs(f))
+    await f.t.run(async ctx => ctx.db.patch(f.shopId, { dailySpecialRevision: 7 }))
+    await allReadersOmit(f, original.storyId)
+    const next = await f.as.mutation(stories.publishDailySpecial, shareArgs(f))
+    expect(next.created).toBe(true)
+    expect(next.storyId).not.toBe(original.storyId)
+    expect(await active(f)).toMatchObject([{ storyId: next.storyId }])
+    expect(await f.t.run(ctx => ctx.db.get(original.storyId))).toMatchObject({ media: { revision: 1 } })
+  })
+
+  it.each(["absent", "pending"] as const)("refuse de partager un plat dont le média est %s", async state => {
+    const f = await ready()
+    await f.t.run(async ctx => {
+      if (state === "pending") await ctx.db.patch(f.asset.scan._id, { status: "pending", av: undefined })
+      else {
+        const current = (await ctx.db.query("commerceCatalogHeads").withIndex("by_emitter_object_sequence", q => q.eq("emitterId", f.emitterId).eq("objectRef", OFFER).eq("sequence", "catalog")).unique())!
+        const body = JSON.parse(current.body)
+        body.payload.media = []
+        await ctx.db.patch(current._id, { body: commerceCanonicalJson(body)! })
+      }
+    })
+    expect(await code(f.as.mutation(stories.publishDailySpecial, shareArgs(f)))).toBe("notFound")
+    expect(await active(f)).toEqual([])
+  })
+
+  it("conserve blocages et vues uniques des Stories personnelles", async () => {
+    const f = await ready(), reader = await member(f, "daily-reader"), result = await f.as.mutation(stories.publishDailySpecial, shareArgs(f))
+    await reader.as.mutation(api.modules.graph.follows.follow, { networkId: f.root, handle: "catalogue-owner" })
+    const readArgs = { networkId: f.root, handle: "catalogue-owner", now: NOW }
+    expect(await reader.as.query(stories.listByAuthor, readArgs)).toHaveLength(1)
+    expect((await reader.as.query(stories.tray, { networkId: f.root, now: NOW })).groups[0]).toMatchObject({ storyCount: 1, unseenCount: 1 })
+    expect(await reader.as.mutation(stories.markSeen, { networkId: f.root, storyId: result.storyId })).toEqual({ seen: true, first: true })
+    expect(await reader.as.mutation(stories.markSeen, { networkId: f.root, storyId: result.storyId })).toEqual({ seen: true, first: false })
+    expect((await active(f))[0]?.viewCount).toBe(1)
+    await reader.as.mutation(api.modules.graph.connections.blockPerson, { networkId: f.root, targetPersonId: f.personId })
+    expect(await code(reader.as.query(stories.listByAuthor, readArgs))).toBe("notFound")
+    expect((await reader.as.query(stories.tray, { networkId: f.root, now: NOW })).groups).toEqual([])
+    expect(await code(reader.as.mutation(stories.markSeen, { networkId: f.root, storyId: result.storyId }))).toBe("notFound")
+  })
+
+  it("le plafond actif reste celui d'une Story personnelle", async () => {
+    const f = await ready()
+    await f.t.run(async ctx => { for (let n = 0; n < STORY_ACTIVE_PER_AUTHOR_MAX; n++) await ctx.db.insert("stories", { networkId: f.root, authorPersonId: f.personId, media: { storageId: f.asset.storageId, kind: "image", mimeType: "image/png", sizeBytes: 68 }, audience: "public", publishedAt: NOW, expiresAt: MIDNIGHT }) })
+    await expect(f.as.mutation(stories.publishDailySpecial, shareArgs(f))).rejects.toThrow("STORY_ACTIVE_LIMIT")
+  })
+
+  it("le rejeu idempotent reste soumis au budget de publication personnel", async () => {
+    const f = await ready()
+    const first = await f.as.mutation(stories.publishDailySpecial, shareArgs(f))
+    let refusal: string | null = null
+    for (let attempt = 0; attempt < 10 && refusal === null; attempt++) {
+      try { expect(await f.as.mutation(stories.publishDailySpecial, shareArgs(f))).toEqual({ ...first, created: false }) }
+      catch (error) { refusal = engineErrorCode(error) }
+    }
+    expect(refusal).toBe("rateLimited")
+    expect(await active(f)).toMatchObject([{ storyId: first.storyId }])
+  })
+
+  it("la purge de la Story laisse intacts le produit, son blob et sa ligne d'analyse", async () => {
+    const f = await ready(), result = await f.as.mutation(stories.publishDailySpecial, shareArgs(f)), before = await head(f)
+    await f.as.mutation(stories.remove, { networkId: f.root, storyId: result.storyId })
+    vi.setSystemTime(NOW + 1)
+    await f.t.mutation(internal.modules.stories.stories.purgeExpired, {})
+    expect(await f.t.run(ctx => ctx.db.get(result.storyId))).toBeNull()
+    expect(await head(f)).toEqual(before)
+    expect(await f.t.run(ctx => ctx.db.system.get("_storage", f.asset.storageId))).not.toBeNull()
+    expect(await f.t.run(ctx => ctx.db.get(f.asset.scan._id))).not.toBeNull()
+  })
+
+  it("l'aperçu de modération ne montre jamais le contenu d'une référence devenue illisible", async () => {
+    const f = await ready(), reader = await member(f, "daily-reporter"), result = await f.as.mutation(stories.publishDailySpecial, shareArgs(f))
+    await f.t.run(async ctx => { const membership = await ctx.db.query("networkMemberships").withIndex("by_network_and_person", q => q.eq("networkId", f.root).eq("personId", f.personId)).unique(); await ctx.db.patch(membership!._id, { role: "network_admin" }) })
+    const { reportId } = await reader.as.mutation(api.modules.moderation.cases.report, { networkId: f.root, target: { kind: "story", id: result.storyId }, reason: "harassment" })
+    expect(await f.as.query(api.modules.moderation.reviewProjection.preview, { networkId: f.root, reportId })).toMatchObject({ available: true, title: "Article de recette" })
+    await f.t.run(async ctx => ctx.db.patch(f.asset.scan._id, { status: "infected" }))
+    expect(await f.as.query(api.modules.moderation.reviewProjection.preview, { networkId: f.root, reportId })).toEqual({ kind: "story", available: false, title: null, body: null, media: [] })
+  })
+
+  it("effacer un gérant qui a partagé ne possède pas les fichiers du catalogue de la page", async () => {
+    const f = await ready(), other = await manager(f)
+    const result = await other.as.mutation(stories.publishDailySpecial, shareArgs(f))
+    await other.as.mutation(api.modules.people.erasure.requestErasure, { confirmation: "DELETE_MY_ANTSIA_ACCOUNT" })
+    const job = (await f.t.run(ctx => ctx.db.query("dataErasureJobs").first()))!
+    vi.setSystemTime(NOW + ERASURE_GRACE_MS + 1)
+    await f.t.mutation(internal.modules.people.erasure.continueErasure, { jobId: job._id })
+    for (let step = 0; step < 1500 && await f.t.run(ctx => ctx.db.get(job._id)); step++) { vi.runAllTimers(); await f.t.finishInProgressScheduledFunctions() }
+    expect(await f.t.run(ctx => ctx.db.get(other.personId))).toBeNull()
+    expect(await f.t.run(ctx => ctx.db.get(result.storyId))).toBeNull()
+    expect(await f.t.run(ctx => ctx.db.get(f.shopId))).not.toBeNull()
+    expect(await head(f)).not.toBeNull()
+    expect(await f.t.run(ctx => ctx.db.system.get("_storage", f.asset.storageId))).not.toBeNull()
+    expect(await f.t.run(ctx => ctx.db.get(f.asset.scan._id))).not.toBeNull()
+  }, 20_000)
 })

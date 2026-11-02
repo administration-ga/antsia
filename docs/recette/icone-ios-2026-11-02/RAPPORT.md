@@ -26,9 +26,9 @@ Assemblé comme les builds 10 à 12 : l'IPA 12 publié, avec le catalogue compil
 
 ## Vérification du code
 
-Sur cette branche : moteur 3243 tests, cliquets 150, scripts 92 ; `antsia-mobile` : typage, 173 tests, lint sans erreur (37 avertissements). `bun run verify` s'arrête au typage de `diasporale-com` : `fileScanUnavailable` manque au type de DIASPORALE `fab55ef`, dépôt que ce correctif ne touche pas. Les tests et le lint des autres espaces n'ont donc pas tourné.
+Sur cette branche : moteur 3243 tests, cliquets 150, scripts 92 ; `antsia-mobile` : typage, 173 tests, lint sans erreur (37 avertissements). `bun run verify` s'est arrêté au typage de `diasporale-com`, et les tests et le lint des autres espaces n'ont donc pas tourné. **Corrigé le même jour :** ce rouge venait de la vérification elle-même, qui avait pris le `HEAD` local de DIASPORALE (`fab55ef`), en retard de 14 commits sur son `origin/main`. Ce n'est pas un défaut de `main`. Voir `docs/recette/integration-ios-2026-11-02/RAPPORT.md`.
 
 ## Non vérifié et restes
 
 - Aucun essai sur iPhone physique : l'icône est contrôlée dans le paquet et chez Apple, pas sur un écran d'accueil.
-- `main` reste au numéro source 8 : les sources des builds 9 à 12 ne sont pas fusionnées. Le prochain build doit porter 14.
+- Les sources des builds 9 à 13 ont rejoint `main` ensuite : `docs/recette/integration-ios-2026-11-02/RAPPORT.md`. Le prochain build doit porter 14.

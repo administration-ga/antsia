@@ -48,6 +48,8 @@ export const shopsTables = {
     hours: v.optional(v.string()),
     /** Le plat du jour d'une adresse « Alimentation et restauration » : une offre de son menu, pour un jour civil de Libreville. */
     dailySpecial: v.optional(v.object({ offerRef: v.string(), day: v.string() })),
+    /** Incarnation de la désignation : retirer puis remettre ne ressuscite aucune Story. */
+    dailySpecialRevision: v.optional(v.number()),
     storefront: storefrontStateValidator,
     /** Motif de la dernière décision de l'équipe de la plateforme (refus, suspension) — rendu aux seuls gérants. */
     decisionReason: v.optional(v.string()),

@@ -1,5 +1,6 @@
+import { NativeText as Text } from "../components/native-text"
 import { lazy, Suspense, useEffect, useRef } from "react"
-import { Modal, Platform, Pressable, ScrollView, Text, View } from "react-native"
+import { Modal, Platform, Pressable, ScrollView, View } from "react-native"
 import { useNativeAppearance } from "../appearance"
 import type { NativeCalls } from "./native-call-provider"
 import type { NativeCallRoom } from "./native-room"
