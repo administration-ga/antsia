@@ -7,9 +7,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 // Une entrée de zone doit remplacer le document ; un Link Next serait une régression.
 vi.mock("next/link", () => ({ default: () => { throw new Error("La démo exige une navigation document.") } }))
+vi.mock("@/lib/sign-out", () => ({ signOutAndRedirect: vi.fn() }))
 
 import { appResources } from "@/i18n/resources"
 import { DEMO_BANNER_HEIGHT_PROPERTY } from "@/lib/demo-embed"
+import { signOutAndRedirect } from "@/lib/sign-out"
 import { routes } from "@/lib/routes"
 import { DemoEmbedScreen, DemoEntryLink, DemoModeBanner } from "./demo-embed"
 
@@ -21,26 +23,6 @@ function enableDemoBuild() {
   vi.stubEnv("NEXT_PUBLIC_CONVEX_URL", "https://vivid-hedgehog-655.convex.cloud")
 }
 
-function bannerLayout(initialHeight = 121) {
-  let height = initialHeight
-  let resize: ResizeObserverCallback | undefined
-  const observe = vi.fn(), disconnect = vi.fn()
-  class Observer {
-    observe = observe
-    disconnect = disconnect
-    unobserve = vi.fn()
-    constructor(callback: ResizeObserverCallback) { resize = callback }
-  }
-  vi.stubGlobal("ResizeObserver", Observer)
-  const rect = vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(() => ({
-    x: 0, y: 0, width: 390, height, top: 0, right: 390, bottom: height, left: 0, toJSON: () => ({}),
-  }))
-  return {
-    observe, disconnect, rect,
-    resizeTo(nextHeight: number) { height = nextHeight; resize?.([], {} as ResizeObserver) },
-  }
-}
-
 async function mount(content: ReactNode, locale: "fr" | "en" = "fr") {
   const i18n = createAppI18n({ locale, appResources, defaultNS: "antsia" })
   container = document.createElement("div")
@@ -50,6 +32,7 @@ async function mount(content: ReactNode, locale: "fr" | "en" = "fr") {
 }
 
 beforeEach(() => {
+  vi.mocked(signOutAndRedirect).mockReset().mockResolvedValue(undefined)
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true)
   vi.stubEnv("NEXT_PUBLIC_DEMO_ENTRY_ENABLED", "true")
   vi.stubEnv("NEXT_PUBLIC_APP_BASE_PATH", "")
@@ -94,24 +77,31 @@ describe("entrée de démonstration par document", () => {
   })
 })
 
-describe("bandeau du build démo", () => {
-  it("reste absent du site principal", async () => {
+describe("notice flottante du build démo", () => {
+  it("reste absente du site principal", async () => {
     await mount(<DemoModeBanner />)
     expect(container.querySelector("aside")).toBeNull()
+    expect(signOutAndRedirect).not.toHaveBeenCalled()
   })
 
-  it("annonce les données fictives partagées et revient au document principal", async () => {
-    vi.stubEnv("NEXT_PUBLIC_APP_BASE_PATH", "/demo")
-    vi.stubEnv("NEXT_PUBLIC_CONVEX_URL", "https://vivid-hedgehog-655.convex.cloud")
+  it("annonce les données fictives sans lien vers un autre compte ni hauteur réservée", async () => {
+    enableDemoBuild()
+    const observe = vi.fn()
+    vi.stubGlobal("ResizeObserver", class { observe = observe })
+    document.documentElement.style.setProperty(DEMO_BANNER_HEIGHT_PROPERTY, "27px", "important")
     await mount(<DemoModeBanner />)
-    expect(container.querySelector("aside")?.getAttribute("aria-label")).toBe("Mode démo")
-    // Ses bords tombent sur la gouttière des pages (jeton du thème, 16 puis 24 px).
-    expect(container.querySelector("aside")?.classList.contains("px-gutter")).toBe(true)
+    const notice = container.querySelector("aside")!
+    expect(notice.getAttribute("aria-label")).toBe("Mode démo")
+    expect(notice.classList.contains("fixed")).toBe(true)
+    expect(notice.hasAttribute("aria-modal")).toBe(false)
     expect(container.textContent).toContain("Comptes et contenus fictifs, partagés")
     expect(container.textContent).toContain("Votre compte ANTSIA reste séparé")
-    expect(container.querySelector("a")?.getAttribute("href")).toBe("/")
-    expect(container.querySelector("a")?.textContent).toBe("Retour à ANTSIA")
+    expect(container.querySelector("a")).toBeNull()
     expect(container.querySelector("iframe")).toBeNull()
+    expect(document.documentElement.style.getPropertyValue(DEMO_BANNER_HEIGHT_PROPERTY)).toBe("27px")
+    expect(document.documentElement.style.getPropertyPriority(DEMO_BANNER_HEIGHT_PROPERTY)).toBe("important")
+    expect(observe).not.toHaveBeenCalled()
+    expect(signOutAndRedirect).not.toHaveBeenCalled()
   })
 
   it.each([
@@ -126,83 +116,55 @@ describe("bandeau du build démo", () => {
     expect(container.querySelector("aside")).toBeNull()
   })
 
-  it("traduit le bandeau et le retour en anglais", async () => {
-    vi.stubEnv("NEXT_PUBLIC_APP_BASE_PATH", "/demo")
-    vi.stubEnv("NEXT_PUBLIC_CONVEX_URL", "https://vivid-hedgehog-655.convex.cloud")
+  it("traduit la notice, la fermeture et la déconnexion en anglais", async () => {
+    enableDemoBuild()
     await mount(<DemoModeBanner />, "en")
     expect(container.querySelector("aside")?.getAttribute("aria-label")).toBe("Demo mode")
     expect(container.textContent).toContain("Fictional accounts and content")
-    expect(container.querySelector("a")?.textContent).toBe("Back to ANTSIA")
+    expect(container.querySelector('button[aria-label="Dismiss demo notice"]')).not.toBeNull()
+    expect(container.querySelector('button[aria-busy="false"]')?.textContent).toBe("Sign out")
   })
 
-  it("mesure sa hauteur et suit ses changements sans remonter le bandeau ni l'enfant", async () => {
+  it("se ferme sans déconnecter ni remonter le contenu de la page", async () => {
     enableDemoBuild()
-    const layout = bannerLayout()
     await mount(<><DemoModeBanner /><textarea aria-label="Brouillon de recette" defaultValue="Brouillon conservé" /></>)
-    const banner = container.querySelector("aside")!, draft = container.querySelector("textarea")!
-    expect(document.documentElement.style.getPropertyValue(DEMO_BANNER_HEIGHT_PROPERTY)).toBe("121px")
-    expect(layout.observe).toHaveBeenCalledExactlyOnceWith(banner)
-    draft.focus()
-    draft.setSelectionRange(5, 12)
-    await act(async () => { layout.resizeTo(74.5) })
-    expect(document.documentElement.style.getPropertyValue(DEMO_BANNER_HEIGHT_PROPERTY)).toBe("74.5px")
-    expect(container.querySelector("aside")).toBe(banner)
+    const draft = container.querySelector("textarea")!
+    const dismiss = container.querySelector<HTMLButtonElement>('button[aria-label="Fermer l’information de démo"]')!
+    await act(async () => dismiss.click())
+    expect(container.querySelector("aside")).toBeNull()
     expect(container.querySelector("textarea")).toBe(draft)
     expect(draft.value).toBe("Brouillon conservé")
-    expect(document.activeElement).toBe(draft)
-    expect([draft.selectionStart, draft.selectionEnd]).toEqual([5, 12])
-    expect(layout.observe).toHaveBeenCalledTimes(1)
-    expect(layout.disconnect).not.toHaveBeenCalled()
+    expect(signOutAndRedirect).not.toHaveBeenCalled()
   })
 
-  it("déconnecte l'observateur et ne supprime que sa variable si elle n'existait pas", async () => {
+  it("passe par la vraie déconnexion et bloque les doubles appuis pendant la sortie", async () => {
     enableDemoBuild()
-    const layout = bannerLayout()
-    document.documentElement.style.setProperty("--fixture-unrelated-layout", "19px", "important")
+    let finish!: () => void
+    vi.mocked(signOutAndRedirect).mockImplementation(() => new Promise<void>((resolve) => { finish = resolve }))
     await mount(<DemoModeBanner />)
-    await act(async () => root!.unmount())
-    root = undefined
-    expect(layout.disconnect).toHaveBeenCalledOnce()
-    expect(document.documentElement.style.getPropertyValue(DEMO_BANNER_HEIGHT_PROPERTY)).toBe("")
-    expect(document.documentElement.style.getPropertyValue("--fixture-unrelated-layout")).toBe("19px")
-    expect(document.documentElement.style.getPropertyPriority("--fixture-unrelated-layout")).toBe("important")
+    const button = container.querySelector<HTMLButtonElement>('button[aria-busy="false"]')!
+    await act(async () => button.click())
+    expect(signOutAndRedirect).toHaveBeenCalledOnce()
+    expect(button.disabled).toBe(true)
+    expect(button.getAttribute("aria-busy")).toBe("true")
+    expect(button.textContent).toBe("Déconnexion…")
+    await act(async () => button.click())
+    expect(signOutAndRedirect).toHaveBeenCalledOnce()
+    await act(async () => finish())
   })
 
-  it("restaure la valeur et la priorité CSS présentes avant son montage", async () => {
+  it("signale un échec et permet de réessayer sans prétendre être déconnecté", async () => {
     enableDemoBuild()
-    const layout = bannerLayout(119)
-    document.documentElement.style.setProperty(DEMO_BANNER_HEIGHT_PROPERTY, "33px", "important")
+    vi.mocked(signOutAndRedirect).mockRejectedValueOnce(new Error("unavailable"))
     await mount(<DemoModeBanner />)
-    expect(document.documentElement.style.getPropertyValue(DEMO_BANNER_HEIGHT_PROPERTY)).toBe("119px")
-    await act(async () => root!.unmount())
-    root = undefined
-    expect(layout.disconnect).toHaveBeenCalledOnce()
-    expect(document.documentElement.style.getPropertyValue(DEMO_BANNER_HEIGHT_PROPERTY)).toBe("33px")
-    expect(document.documentElement.style.getPropertyPriority(DEMO_BANNER_HEIGHT_PROPERTY)).toBe("important")
-  })
-
-  it("ne mesure, n'observe et ne modifie aucun style du site principal", async () => {
-    const layout = bannerLayout()
-    document.documentElement.style.setProperty(DEMO_BANNER_HEIGHT_PROPERTY, "27px", "important")
-    await mount(<DemoModeBanner />)
-    expect(container.querySelector("aside")).toBeNull()
-    expect(layout.rect).not.toHaveBeenCalled()
-    expect(layout.observe).not.toHaveBeenCalled()
-    expect(document.documentElement.style.getPropertyValue(DEMO_BANNER_HEIGHT_PROPERTY)).toBe("27px")
-    expect(document.documentElement.style.getPropertyPriority(DEMO_BANNER_HEIGHT_PROPERTY)).toBe("important")
-    await act(async () => root!.unmount())
-    root = undefined
-    expect(layout.disconnect).not.toHaveBeenCalled()
-    expect(document.documentElement.style.getPropertyValue(DEMO_BANNER_HEIGHT_PROPERTY)).toBe("27px")
-  })
-
-  it("mesure une première fois même sans ResizeObserver", async () => {
-    enableDemoBuild()
-    const layout = bannerLayout(87)
-    vi.stubGlobal("ResizeObserver", undefined)
-    await mount(<DemoModeBanner />)
-    expect(document.documentElement.style.getPropertyValue(DEMO_BANNER_HEIGHT_PROPERTY)).toBe("87px")
-    expect(layout.observe).not.toHaveBeenCalled()
+    const button = container.querySelector<HTMLButtonElement>('button[aria-busy="false"]')!
+    await act(async () => button.click())
+    expect(container.querySelector('[role="alert"]')?.textContent).toBe("La déconnexion n’a pas abouti. Réessayez.")
+    expect(button.disabled).toBe(false)
+    expect(button.getAttribute("aria-busy")).toBe("false")
+    await act(async () => button.click())
+    expect(signOutAndRedirect).toHaveBeenCalledTimes(2)
+    expect(container.querySelector('[role="alert"]')).toBeNull()
   })
 })
 
@@ -212,7 +174,7 @@ describe("repli fermé de la page démo", () => {
     expect(container.querySelector("h1")?.textContent).toBe("Mode démo")
     expect(container.querySelector('[role="status"]')?.textContent).toContain("momentanément indisponible")
     expect(container.querySelector("iframe")).toBeNull()
-    expect([...container.querySelectorAll("a")].map((link) => link.getAttribute("href"))).toEqual(["/"])
+    expect([...container.querySelectorAll("a")].map((link) => link.getAttribute("href"))).toEqual([routes.signIn()])
   })
 
   it("traduit aussi le repli en anglais", async () => {

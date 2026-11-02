@@ -17,6 +17,7 @@ const ALLOWED: Readonly<Record<string, string>> = {
   [`${APP}/components/access-home-screen.tsx`]: "accueil public, visiteurs sans compte",
   [`${APP}/components/public/public-shell.tsx`]: "coque publique, visiteurs sans compte",
   [`${APP}/components/public/public-routes.tsx`]: "pages publiques",
+  [`${APP}/components/public/public-home-preview.tsx`]: "aperçu d'accueil public conservé localement, hors du cadre de membre",
   [`${APP}/components/public/public-legal.tsx`]: "page publique légale",
   [`${APP}/components/shops/catalog-public-route.tsx`]: "catalogue public",
   [`${APP}/components/shops/public-storefront-card.tsx`]: "vitrine publique",

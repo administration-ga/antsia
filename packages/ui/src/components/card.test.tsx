@@ -22,6 +22,7 @@ describe("Card", () => {
     // Système épuré (ADR-0027) : rayon et contour des cartes lus dans leurs jetons, valeurs d'origine en repli.
     expect(style).toContain("border-radius: var(--ui2-card-radius, var(--radius-lg))")
     expect(style).toContain("border: 1px solid var(--esp-surface-border, var(--ink-200))")
-    expect(style).toContain("box-shadow: var(--shadow-xs)")
+    expect(style).toContain("box-shadow: var(--esp-surface-shadow, var(--shadow-xs))")
+    expect(style).toContain("padding: var(--esp-card-padding, var(--ui2-card-pad, 24px))")
   })
 })

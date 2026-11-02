@@ -1,4 +1,13 @@
 {
+  "dailySpecial": {
+    "label": "Dish of the day",
+    "cardLabel": "Dish of the day: {{title}}, from {{shop}}",
+    "order": "Order",
+    "untilMidnight": "Until midnight in Libreville",
+    "onQuote": "On request",
+    "priceRange": "From {{min}} to {{max}}",
+    "priceUnit": "{{amount}} / {{unit}}"
+  },
   "storiesTray": {
     "unknownAuthor": "Network member",
     "age": {

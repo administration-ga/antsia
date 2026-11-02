@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/ui-v2/src/components/alert.tsx @ ad2e7fdc2 — adaptations : libellé « Fermer » en dur → prop `closeLabel` traduite par l'appelant.
+// Dupliqué de socle/packages/ui-v2/src/components/alert.tsx @ ad2e7fdc2 — adaptations : libellé « Fermer » en dur → prop `closeLabel` traduite par l'appelant. carte tonale opt-in ANTSIA (24/16 px sans liseré), facture historique en repli.
 "use client"
 
 import type { CSSProperties, ReactNode } from "react"
@@ -59,11 +59,11 @@ export const Alert = ({ tone = "info", title, children, icon, onClose, closeLabe
       style={{
         display: "flex",
         gap: 12,
-        padding: "12px 16px",
+        padding: "var(--esp-card-padding, 12px 16px)",
         background: t.bg,
-        border: `1px solid ${t.border}`,
-        borderLeft: `4px solid ${t.border}`,
-        borderRadius: 6,
+        border: `1px solid var(--esp-alert-border, ${t.border})`,
+        borderLeft: `var(--esp-alert-accent-width, 4px) solid var(--esp-alert-border, ${t.border})`,
+        borderRadius: "var(--esp-primitive-card-radius, 6px)",
         color: t.fg,
         ...style,
       }}

@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/ui/src/components/sheet.tsx @ ad2e7fdc2 — adaptations : `cn`, bouton et portée de charte du paquet ; voile noir à 10 % de la palette Tailwind → jeton `--sheet-scrim` (aucune couleur hors des jetons) ; libellé de la croix « Fermer » en dur → prop `closeLabel` traduite par l'appelant.
+// Dupliqué de socle/packages/ui/src/components/sheet.tsx @ ad2e7fdc2 — adaptations : `cn`, bouton et portée de charte du paquet ; voile noir à 10 % de la palette Tailwind → jeton `--sheet-scrim` (aucune couleur hors des jetons) ; libellé de la croix « Fermer » en dur → prop `closeLabel` traduite par l'appelant. feuille ancrée aux coins24px et sans contour sous ANTSIA, géométrie historique ailleurs.
 "use client"
 
 /**
@@ -91,6 +91,11 @@ function SheetContent({
           side === "left" || side === "right"
             ? "h-full w-3/4 sm:max-w-sm"
             : "h-auto max-h-[calc(100dvh-2rem)]",
+          side === "left" ? "rounded-r-[var(--esp-primitive-card-radius,0px)]"
+            : side === "right" ? "rounded-l-[var(--esp-primitive-card-radius,0px)]"
+              : side === "top" ? "rounded-b-[var(--esp-primitive-card-radius,0px)]"
+                : "rounded-t-[var(--esp-primitive-card-radius,0px)]",
+          "border-[color:var(--esp-raised-border,var(--border))]",
           className
         )}
         {...props}

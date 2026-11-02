@@ -31,9 +31,10 @@ import {
 	SheetTitle,
 } from "@antsia/ui/sheet"
 import { useTranslation } from "react-i18next"
+import { useState } from "react"
 import { Avatar } from "../reseau-personnel/Avatar"
 import { formatRelativeDate } from "../reseau-personnel/shared"
-import { storyAuthorName } from "./stories-tray"
+import { storyAuthorName, storyQueryInstant } from "./stories-tray"
 
 /** Spectateurs lus par page — le serveur en sert cinquante au plus. */
 const VIEWERS_PAGE_SIZE = 25
@@ -43,6 +44,8 @@ export interface StoryViewersSheetProps {
 	onOpenChange: (open: boolean) => void
 	storyId: Id<"stories">
 	now: number
+	/** Instant de lecture de la série ; absent, figé à l'ouverture de la liste. */
+	queryNow?: number
 }
 
 export function StoryViewersSheet({
@@ -50,6 +53,7 @@ export function StoryViewersSheet({
 	onOpenChange,
 	storyId,
 	now,
+	queryNow,
 }: StoryViewersSheetProps) {
 	const { t } = useTranslation("stories")
 
@@ -64,19 +68,20 @@ export function StoryViewersSheet({
 					<SheetTitle>{t("storyViewersSheet.title")}</SheetTitle>
 				</SheetHeader>
 				{/* Aucun abonnement tant que la feuille est fermée. */}
-				{open ? <ViewersList storyId={storyId} now={now} /> : null}
+				{open ? <ViewersList storyId={storyId} now={now} queryNow={queryNow} /> : null}
 			</SheetContent>
 		</Sheet>
 	)
 }
 
-function ViewersList({ storyId, now }: { storyId: Id<"stories">; now: number }) {
+function ViewersList({ storyId, now, queryNow }: { storyId: Id<"stories">; now: number; queryNow?: number }) {
 	const { t } = useTranslation("stories")
 	const timeZone = useViewerTimeZone()
 	const { networkId } = useNetwork()
+	const [readNow] = useState(() => queryNow ?? storyQueryInstant(now))
 	const viewers = useAuthenticatedPaginatedQuery(
 		api.modules.stories.stories.viewers,
-		{ networkId, storyId },
+		{ networkId, storyId, now: readNow },
 		{ initialNumItems: VIEWERS_PAGE_SIZE },
 	)
 

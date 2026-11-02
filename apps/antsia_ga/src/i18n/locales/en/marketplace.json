@@ -122,7 +122,20 @@
     "openActivity": "Open my business",
     "shops": "Places",
     "offers": "To order",
-    "demoOffers": "To order — demo selection",
-    "specials": "Today’s specials"
+    "demoOffers": "Shop examples — demo",
+    "specials": "Today’s specials",
+    "categories": {
+      "label": "Food categories",
+      "all": "All products",
+      "lead": "Browse the categories published by businesses in PRO.GA."
+    },
+    "catalog": {
+      "empty": "No published product is available in this category.",
+      "failed": "Food products cannot be loaded right now.",
+      "building": "The food product index is being prepared.",
+      "pagination": "Food product pages",
+      "invalid": "This food category link is not valid.",
+      "restart": "View all food products"
+    }
   }
 }

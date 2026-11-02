@@ -56,7 +56,7 @@ export function OfferCard({ offer, audience, locale, t, compact = false, eager =
   const price = catalogPrice(offer.price, locale, t)
   // La boutique s'identifie à part du titre : un lien vers SA vitrine (ou son espace prestataire).
   const shop = seller ? <Link href={offerStorefrontHref(offer, audience)} prefetch={false} className="inline-flex min-h-11 min-w-0 max-w-full items-center gap-1.5 justify-self-start rounded text-xs font-medium text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><Store aria-hidden className="size-3.5 shrink-0 text-[color:var(--role-commerce-ink,var(--primary))]" /><span className="truncate">{t("catalog.soldBy", { handle: offer.shopHandle })}</span></Link> : null
-  if (compact) return <article data-offer-card data-offer-compact className="grid min-w-0 grid-cols-[6rem_minmax(0,1fr)] items-center gap-3 rounded-[var(--ui2-card-radius)] bg-card p-2 text-card-foreground [overflow-wrap:anywhere]">
+  if (compact) return <article data-offer-card data-offer-compact className="grid min-w-0 grid-cols-[6rem_minmax(0,1fr)] items-center gap-3 overflow-hidden rounded-[var(--ui2-card-radius)] bg-card pr-2 text-card-foreground [overflow-wrap:anywhere]">
     <Link href={href} prefetch={false} aria-label={t("catalog.openOfferNamed", { title: offer.title })} className="block rounded-[var(--esp-media-radius)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><OfferMedia media={offer.media[0]} title={offer.title} t={t} eager={eager} className="aspect-square bg-background" /></Link>
     <div className="grid min-w-0 gap-0.5 pr-2">
       {brand ? <p className="truncate text-xs font-bold">{brand}</p> : null}
@@ -67,8 +67,8 @@ export function OfferCard({ offer, audience, locale, t, compact = false, eager =
     </div>
     {action ? <div className="col-span-full grid min-w-0 px-1 pb-1 empty:hidden" data-offer-card-action>{action}</div> : null}
   </article>
-  return <article data-offer-card className="flex h-full min-w-0 flex-col gap-3 rounded-[var(--ui2-card-radius)] bg-card p-2 pb-3 text-card-foreground [overflow-wrap:anywhere]">
-    <OfferMediaCarousel media={offer.media} title={offer.title} href={href} t={t} eager={eager} />
+  return <article data-offer-card className="flex h-full min-w-0 flex-col gap-3 overflow-hidden rounded-[var(--ui2-card-radius)] bg-card pb-3 text-card-foreground [overflow-wrap:anywhere]">
+    <OfferMediaCarousel media={offer.media} title={offer.title} href={href} labels={{ photos: t("catalog.offerPhotos"), openOffer: t("catalog.openOfferNamed", { title: offer.title }), openPhotos: offer.media.map((_, index) => t("catalog.openOfferPhoto", { title: offer.title, index: index + 1 })), noPhoto: t("catalog.noPhoto"), mediaWithheld: t("catalog.mediaWithheld") }} eager={eager} />
     <div className="grid min-w-0 flex-1 content-start gap-1 px-2">
       {brand ? <p className="truncate text-sm font-bold">{brand}</p> : null}
       <h3 className="line-clamp-2 text-sm leading-snug"><Link href={href} prefetch={false} className="rounded text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{offer.title}</Link></h3>
@@ -95,7 +95,7 @@ export function OfferDetails({ offer, audience, locale, t, providerT, actionSlot
   const { brand, color } = offerAttributes(offer)
   const detail = color ?? (offer.variants.length ? t("catalog.hasVariants", { count: offer.variants.length }) : null)
   return <div data-offer-detail-frame><style>{OFFER_DETAIL_CSS}</style><article className="offer-detail-layout min-w-0 gap-6 rounded-[var(--ui2-card-radius)] bg-card p-4 text-card-foreground min-[768px]:p-6 [overflow-wrap:anywhere]">
-    <div className="offer-detail-media min-w-0"><OfferGallery media={offer.media} title={offer.title} t={t} /></div>
+    <div className="offer-detail-media min-w-0"><OfferGallery media={offer.media} title={offer.title} labels={{ photos: t("catalog.offerPhotos"), choosePhoto: t("catalog.choosePhoto"), showPhotos: offer.media.map((_, index) => t("catalog.showPhoto", { index: index + 1 })), noPhoto: t("catalog.noPhoto"), mediaWithheld: t("catalog.mediaWithheld") }} /></div>
     <header className="offer-detail-heading grid min-w-0 gap-3">
       {brand ? <p className="text-sm font-bold uppercase tracking-wide">{brand}</p> : null}
       <Heading className="mp-title break-words">{offer.title}</Heading>

@@ -67,6 +67,8 @@ export interface EngineRoutes {
   me?: () => string
   /** Annuaire des boutiques servi par l'application ; absent : aucun raccourci de rail inventé. */
   shops?: () => string
+  /** Fiche membre d'une offre commerciale ; facultative, notamment pour les Stories de plat du jour. */
+  shopOffer?: (shopHandle: string, offerRef: string) => string
   /**
    * La gestion des activités de la personne (« Ma boutique » : créer, préparer, gérer). Présente, « Créer » offre
    * « Mon activité » ; le rail montre « Ma boutique » quand l'application en fournit le libellé (`navigationLabels.myShop`),

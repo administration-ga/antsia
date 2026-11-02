@@ -112,6 +112,7 @@ import { isServedReseauTab, servedReseauTab } from "./reseau-menu"
 import { ReseauDesktopIcomLink } from "./ReseauDesktopIcomLink"
 import { ReseauMenuRail } from "./ReseauMenuRail"
 import { RESEAU_ADAPTIVE_CSS } from "./reseau-adaptive-styles"
+import { useLinkedColumnScroll } from "./use-linked-column-scroll"
 
 /** Le paramètre du lecteur plein écran qui positionne l'entrée sur un auteur. */
 const STORIES_AUTHOR_PARAM = "auteur"
@@ -503,6 +504,7 @@ function ReseauAgentPageSwitch() {
 }
 
 function ReseauAgentPageInner({ adaptive }: { adaptive: boolean }) {
+  const { centerRef, contextRef, composerRef, toolsRef } = useLinkedColumnScroll(adaptive)
   const { liveAvailable } = useNetwork()
   const { t } = useTranslation("reseau")
   const routes = useRoutes()
@@ -712,7 +714,7 @@ function ReseauAgentPageInner({ adaptive }: { adaptive: boolean }) {
             reste monté pour préserver son état et ses données, mais le CSS ne
             l'affiche que lorsque la colonne de lecture garde sa largeur à côté
             de lui. */}
-        <aside className="rp-rail-start" aria-label={t("reseauAgentPage.railStartLabel")}>
+        <aside className="rp-rail-start citizen-scrollbar" tabIndex={adaptive ? 0 : undefined} aria-label={t("reseauAgentPage.railStartLabel")}>
           {/* `onCreate` ne sert que la navigation par destinations (P02) : la
               carte « Créer » du rail ouvre les MÊMES surfaces que ce lieu. */}
           <ReseauMenuRail activeTab={shownTab} counts={{ invitations: pendingCount }} onSelectTab={goToTab} onCreate={creation.openCreation} />
@@ -720,8 +722,8 @@ function ReseauAgentPageInner({ adaptive }: { adaptive: boolean }) {
 
         {/* ─── Colonne centrale : l'identité PUIS le volet ouvert, dans un
              seul scroller. ─── */}
-        <div className="rp-main-col citizen-scrollbar" data-volet={shownTab}>
-          <div className="rp-identity-region">
+        <div ref={centerRef} className="rp-main-col citizen-scrollbar" data-volet={shownTab} tabIndex={adaptive ? 0 : undefined} role={adaptive ? "region" : undefined} aria-label={adaptive ? t(currentTab.labelKey) : undefined}>
+          <div ref={composerRef} className="rp-identity-region">
             <div className="rp-identity-main">
               {/* La carte ne porte que l'identité, dans ses trois états —
                   chargement compris : elle ne doit jamais sauter quand la
@@ -778,7 +780,7 @@ function ReseauAgentPageInner({ adaptive }: { adaptive: boolean }) {
             <div id={PANEL_ID} role="tabpanel" aria-labelledby={`${TAB_ID_PREFIX}${shownTab}`} className="flex min-w-0 flex-col gap-[var(--rp-stack-gap)]">
             {/* La carte de tête du volet ouvert : son titre, sa description, et
                 — sur le fil UNIQUEMENT — la recherche et la portée. */}
-            <section className="rp-volet-head esk-card" aria-label={t(currentTab.labelKey)} data-tools={shownTab === "fil" ? "true" : undefined}>
+            <section ref={toolsRef} className="rp-volet-head esk-card" aria-label={t(currentTab.labelKey)} data-tools={shownTab === "fil" ? "true" : undefined}>
               <h2 className="rp-volet-title">{t(currentTab.labelKey)}</h2>
               {/* La phrase du volet ne sert QUE les volets sans outils. */}
               {shownTab === "fil" ? null : <p className="rp-volet-desc">{t(currentTab.descriptionKey)}</p>}
@@ -1029,7 +1031,7 @@ function ReseauAgentPageInner({ adaptive }: { adaptive: boolean }) {
         {/* Le premier emplacement est réservé à iCom. Le contenu privé reste
             une surface autonome ; les modules publics suivent dans le même
             scroller et remontent aussitôt que la carte est détachée. */}
-        <aside className="rp-rail-end rp-identity-aside citizen-scrollbar" aria-label={t("reseauAgentPage.railEndLabel")}>
+        <aside ref={contextRef} className="rp-rail-end rp-identity-aside citizen-scrollbar" tabIndex={adaptive ? 0 : undefined} aria-label={t("reseauAgentPage.railEndLabel")}>
           {/* iCom reste en tête de la colonne droite, y compris sous la navigation adaptative
               (décision du propriétaire du 22/10, qui revient sur ce retrait d'U09). */}
           <MessagerieDock />

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import {
   isSocialReturnPath,
+  engineRoutes,
   offerSelectionFromSearch,
   memberDestinationFor,
   routes,
@@ -16,6 +17,10 @@ const offerRef = "pro.ga:offer:01ARZ3NDEKTSV4RRFFQ69G5FAV"
 const offer = { kind: "offer" as const, handle, offerRef }
 
 describe("MP01 — routes des espaces spécialisés", () => {
+  it("injecte la vraie fiche d'offre dans le lecteur partagé des Stories", () => {
+    expect(engineRoutes.shopOffer?.("atelier/partagé", offerRef)).toBe(routes.shopOffer("atelier/partagé", offerRef))
+    expect(engineRoutes.shopOffer?.(handle, offerRef)).toContain("pro.ga%3Aoffer%3A")
+  })
   it("garde les adresses historiques et reconnaît leurs usages métier", () => {
     expect(routes.storefront(handle)).toBe("/boutique/atelier.ndong")
     expect(routes.publicStorefront(handle)).toBe("/boutiques/atelier.ndong")

@@ -4,22 +4,26 @@ import { createRoot, type Root } from "react-dom/client"
 import { renderToStaticMarkup } from "react-dom/server"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
-const state = vi.hoisted(() => ({ pathname: "/boutique/atelier", signingOut: false, mounted: vi.fn(), unmounted: vi.fn() }))
+const state = vi.hoisted(() => ({ pathname: "/boutique/atelier", food: false, signingOut: false, cartLines: 0, mounted: vi.fn(), unmounted: vi.fn() }))
 
+vi.mock("@antsia/api/engine", () => ({ api: { modules: { shops: { shops: { storefront: "storefront" } } } } }))
+vi.mock("@antsia/api/network", () => ({ useNetwork: () => ({ networkId: "network-a", personId: "person-a" }) }))
+vi.mock("@antsia/api/hooks", () => ({ useAuthenticatedConvexQuery: () => ({ isError: false, data: state.food ? { model: "products", activityConfiguration: { version: 1, capabilities: ["products"], template: "food", blocks: ["catalog", "about"] } } : null }) }))
 vi.mock("next/navigation", () => ({ usePathname: () => state.pathname }))
 vi.mock("next/link", () => ({
-  default: ({ href, children, className, onClick, "aria-label": label, "aria-current": current }: AnchorHTMLAttributes<HTMLAnchorElement> & { href: string; children?: ReactNode }) => <a href={href} className={className} onClick={onClick} aria-label={label} aria-current={current}>{children}</a>,
+  default: ({ href, children, className, onClick, "aria-label": label, "aria-current": current, "data-destination-item": destination }: AnchorHTMLAttributes<HTMLAnchorElement> & { href: string; children?: ReactNode; "data-destination-item"?: string }) => <a data-destination-item={destination} href={href} className={className} onClick={onClick} aria-label={label} aria-current={current}>{children}</a>,
 }))
 vi.mock("@antsia/api/sign-out-everywhere", () => ({ isSigningOutEverywhere: () => state.signingOut }))
 vi.mock("@antsia/social-features/shell/appearance", () => ({ AppearanceToggle: () => <button type="button" aria-label="Apparence">Apparence</button> }))
 // La marque de l'activité et le nombre de lignes du panier ont leurs propres tests : ici, le libellé de l'espace et aucun panier.
-vi.mock("./specialized-space-identity", () => ({ SpaceIdentity: ({ fallback }: { fallback: string }) => <span>{fallback}</span>, SpaceCartCount: () => null, useCartLines: () => 0 }))
-vi.mock("react-i18next", () => ({ useTranslation: () => ({ t: (key: string) => {
+vi.mock("./specialized-space-identity", () => ({ SpaceIdentity: ({ fallback }: { fallback: string }) => <span>{fallback}</span>, SpaceCartCount: ({ count }: { count: number }) => <span aria-hidden="true" data-space-cart-count>{count}</span>, useCartLines: () => state.cartLines }))
+vi.mock("react-i18next", () => ({ useTranslation: () => ({ t: (key: string, options?: Record<string, unknown>) => {
   const labels: Record<string, string> = {
     returnToAntsia: "Retour à ANTSIA", shopSpace: "Espace boutique", serviceSpace: "Espace services",
-    navigation: "Navigation de l’activité", messages: "iCom Pro", "nav.home": "Accueil", "nav.catalog": "Catalogue", "nav.cart": "Panier", "nav.social": "Page sociale", "nav.providerHome": "Présentation", "nav.services": "Prestations", "nav.requests": "Mes demandes",
+    "mobile.social": "Page", "mobile.home": "Accueil", "mobile.requests": "Demandes", "mobile.profile": "Profil pro", "mobile.collaborations": "Collaborer", "mobile.activities": "Activités", "mobile.media": "Médias",
+    navigation: "Navigation de l’activité", messages: "iCom Pro", "nav.home": "Accueil", "nav.catalog": "Catalogue", "food.menu": "Menu", "nav.cart": "Panier", "nav.social": "Page sociale", "nav.providerHome": "Présentation", "nav.services": "Prestations", "nav.requests": "Mes demandes",
   }
-  return labels[key] ?? key
+  return key === "nav.cartCount" ? `Panier : ${options?.count} lignes` : labels[key] ?? key
 } }) }))
 
 import { routes, specializedShopRoute, type SpecializedShopRoute } from "@/lib/routes"
@@ -52,6 +56,8 @@ beforeEach(() => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true)
   state.pathname = routes.storefront("atelier")
   state.signingOut = false
+  state.food = false
+  state.cartLines = 0
   window.history.replaceState(null, "", state.pathname)
   window.sessionStorage.clear()
 })
@@ -138,6 +144,23 @@ describe("MP01 — coque spécialisée de boutique", () => {
     expect(container.querySelector("[data-specialized-space]")?.getAttribute("data-specialized-space")).toBe("shop")
   })
 
+  it("range une fiche de produit sous le Menu et garde les noms complets avec les libellés courts", async () => {
+    state.food = true
+    state.cartLines = 3
+    state.pathname = routes.shopOffer("atelier", "pro.ga:offer:riz")
+    const container = await render(<SpecializedPage space={{ handle: "atelier", section: "offer" }}><p>Riz</p></SpecializedPage>)
+    expect(container.querySelectorAll('nav [aria-current="page"]')).toHaveLength(1)
+    expect(container.querySelector('nav [aria-current="page"]')?.getAttribute("aria-label")).toBe("Menu")
+    const cart = container.querySelector(`nav a[href="${routes.cart()}"]`)!
+    expect(cart.getAttribute("aria-label")).toBe("Panier : 3 lignes")
+    expect(cart.querySelector("[data-space-cart-count]")?.getAttribute("aria-hidden")).toBe("true")
+    const social = container.querySelector(`nav a[href="${routes.page("atelier")}"]`)!
+    expect(social.getAttribute("aria-label")).toBe("Page sociale")
+    expect(social.querySelector("[data-destination-label]")?.textContent).toBe("Page")
+    expect(social.querySelector("[data-destination-desktop-label]")?.textContent).toBe("Page sociale")
+    expect(container.querySelectorAll("nav")).toHaveLength(1)
+  })
+
   it("MP06 : une présentation de prestataire garde sa navigation et ses destinations de service", async () => {
     state.pathname = routes.providerCatalog("atelier").split("?")[0]!
     const container = await render(<SpecializedPage space={{ handle: "atelier", section: "catalog", provider: true }}><p>Prestations</p></SpecializedPage>)
@@ -164,7 +187,8 @@ describe("MP01 — coque spécialisée de boutique", () => {
     state.pathname = routes.serviceQuote("atelier", "pro.ga:offer:abc")
     await render(<SpecializedPage space={{ handle: "atelier", section: "service" }}><p>Demande</p></SpecializedPage>)
     expect(container.textContent).toContain("Espace services")
-    expect(container.querySelectorAll('[aria-current="page"]')).toHaveLength(0)
+    expect(container.querySelectorAll('[aria-current="page"]')).toHaveLength(1)
+    expect(container.querySelector('[aria-current="page"]')?.getAttribute("aria-label")).toBe("Prestations")
   })
 
   it("préserve le même contenu et sa sélection à travers les formats et les sections", async () => {
@@ -320,7 +344,7 @@ describe("gouttière unique des espaces spécialisés", () => {
     ["prestataire", <SpecializedPage key="provider" space={{ handle: "atelier", section: "catalog", provider: true }}><p>Prestations</p></SpecializedPage>],
     ["professionnels", <SpecializedProfessionalPage key="professional"><p>Annuaire</p></SpecializedProfessionalPage>],
     ["média", <SpecializedEditorialPage key="media"><p>Presse</p></SpecializedEditorialPage>],
-  ] as const)("%s : bords, écart et barre sur le jeton dès 768 px, sans cadre centré ; téléphone inchangé", (_, page) => {
+  ] as const)("%s : bords, écart et barre sur le jeton dès 768 px, sans cadre centré ; contenu du téléphone conservé", (_, page) => {
     const host = document.createElement("div")
     host.innerHTML = renderToStaticMarkup(page)
     const frame = host.querySelector("[data-specialized-space]")
@@ -335,11 +359,26 @@ describe("gouttière unique des espaces spécialisés", () => {
     // Le rail et le contenu se partagent le cadre ; le jeton fait les bords et l'écart.
     expect(inlinePaddings(grid)).toEqual({ "min-[768px]": ["px-gutter"] })
     expect(classNames(grid).filter(name => splitClass(name).utility.startsWith("gap-"))).toEqual(["min-[768px]:gap-gutter"])
-    // Les destinations du rail commencent à la gouttière ; au téléphone, la barre basse garde ses 8 px.
-    expect(inlinePaddings(rail)).toEqual({ "": ["px-2"], "min-[768px]": ["px-0"] })
+    // Le rail commence à la gouttière ; le dock téléphone porte son assise dans la feuille app dédiée.
+    expect(inlinePaddings(rail)).toEqual({ "min-[768px]": ["px-0"] })
+    expect(rail?.querySelector("[data-navigation-dock]")).not.toBeNull()
     // Téléphone : 12 px, puis 24 px dès `sm`. Ce `sm:` reste borné sous 768 px : Tailwind 4
     // l'émet après `min-[768px]:` (rem après px), il l'emporterait sinon à toutes les largeurs.
     expect(inlinePaddings(bar)).toEqual({ "": ["px-3"], "sm:max-[768px]": ["px-6"], "min-[768px]": ["px-gutter"] })
     expect(inlinePaddings(main)).toEqual({ "": ["px-3"], "sm:max-[768px]": ["px-6"], "min-[768px]": ["px-0"] })
+  })
+})
+
+
+describe("SU06 — navigation de l'adresse food", () => {
+  it("nomme l'entrée du catalogue Menu seulement pour le gabarit food", () => {
+    const space = specializedShopRoute(routes.storefront("atelier"))
+    if (!space) throw new Error("missing shop route")
+    const ordinary = renderToStaticMarkup(<SpecializedNavigationBoundary owner={owner}><SpecializedPage space={space}><p>Vitrine</p></SpecializedPage></SpecializedNavigationBoundary>)
+    expect(ordinary).toContain('aria-label="Catalogue"')
+    state.food = true
+    const food = renderToStaticMarkup(<SpecializedNavigationBoundary owner={owner}><SpecializedPage space={space}><p>Vitrine</p></SpecializedPage></SpecializedNavigationBoundary>)
+    expect(food).toContain('aria-label="Menu"')
+    expect(food).not.toContain('aria-label="Catalogue"')
   })
 })

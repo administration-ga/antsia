@@ -4,7 +4,7 @@ import { engineErrorCode } from "@antsia/social-contracts/errors"
 import { COMMERCE_INQUIRY_CONSENT_VERSION } from "@antsia/social-domain/commerce-inquiry"
 import { COMMERCE_SERVICE_CONSENTS } from "@antsia/social-domain/commerce-services"
 import { COMMERCE_LINK_CONSENT_VERSION } from "@antsia/social-domain/commerce-link"
-import { COMMERCE_PUBLIC_CONTRACT, COMMERCE_PUBLIC_CONTRACT_V2, commerceCanonicalJson } from "@antsia/social-domain/commerce/primitives"
+import { COMMERCE_PUBLIC_CONTRACT, COMMERCE_PUBLIC_CONTRACT_V2, commerceCanonicalJson, type CommercePublicContract } from "@antsia/social-domain/commerce/primitives"
 import type { CommerceServiceProfile } from "@antsia/social-domain/commerce/serviceProfile"
 import type { CommerceOfferEvent, CommerceShopEvent } from "@antsia/social-domain/commerce/projection"
 import { makeFunctionReference } from "convex/server"
@@ -28,8 +28,8 @@ const searchServices = makeFunctionReference<"query", MarketplaceSearchArgs & { 
 const start = makeFunctionReference<"mutation", { networkId: Id<"networks"> }, { generation: number }>("modules/shops/marketplaceIndex:start")
 const build = makeFunctionReference<"mutation", { networkId: Id<"networks">; generation: number; cursor: string | null }, null>("modules/shops/marketplaceIndex:build")
 const ref = (index: number) => `pro.ga:offer:${String(index).padStart(26, "0")}`
-function body(payload: CommerceOfferEvent | CommerceShopEvent) {
-  return commerceCanonicalJson({ contract: COMMERCE_PUBLIC_CONTRACT_V2, version: 1, eventId: `marketplace-${payload.type}-${payload.revision}`, objectRef: "offerRef" in payload ? payload.offerRef : payload.shopRef, payload })!
+function body(payload: CommerceOfferEvent | CommerceShopEvent, contract: CommercePublicContract = COMMERCE_PUBLIC_CONTRACT_V2) {
+  return commerceCanonicalJson({ contract, version: 1, eventId: `marketplace-${payload.type}-${payload.revision}`, objectRef: "offerRef" in payload ? payload.offerRef : payload.shopRef, payload })!
 }
 
 beforeEach(() => {
@@ -74,13 +74,13 @@ async function fixture(ready = true) {
   return { t, as, root, testClosed, personId, ...owned }
 }
 type Fixture = Awaited<ReturnType<typeof fixture>>
-async function addOffer(f: Fixture, index: number, extra: Partial<CommerceOfferEvent> = {}, indexed = true) {
+async function addOffer(f: Fixture, index: number, extra: Partial<CommerceOfferEvent> = {}, indexed = true, contract: CommercePublicContract = COMMERCE_PUBLIC_CONTRACT_V2) {
   const payload: CommerceOfferEvent = {
     type: "offer.published", shopRef: SHOP, offerRef: ref(index), revision: 1, changedAt: NOW - index * 1000,
     kind: "product", title: `Veste élégante ${index}`, description: "Une création publique en lin.", collectionRefs: [], tags: ["mode"],
     price: { mode: "fixed", currency: "XAF", amount: index * 100 }, showsAvailability: false, variants: [], variantAxes: [], media: [], ...extra,
   }
-  const raw = body(payload)
+  const raw = body(payload, contract)
   return await f.t.run(async ctx => {
     const headId = await ctx.db.insert("commerceCatalogHeads", { networkId: f.root, shopId: f.shopId, mappingId: f.mappingId, mappingGeneration: 1, emitterId: f.emitterId, environment: "sandbox", objectRef: payload.offerRef, shopRef: SHOP, sequence: "catalog", objectKind: "offer", kind: payload.kind, state: "active", revision: 1, digest: "b".repeat(64), body: raw, changedAt: payload.changedAt, receivedAt: NOW, activationRevision: 1, parentActivationRevision: 1, gap: false, ...(indexed ? marketplaceIndexFields(raw, "active", "offer", "catalog", NOW) : {}) })
     const moderationId = await ctx.db.insert("moderationContentStates", { networkId: f.root, targetKind: "commerceOffer", targetId: headId, ownerPageId: f.pageId, status: "published", createdAt: NOW, updatedAt: NOW })
@@ -89,6 +89,62 @@ async function addOffer(f: Fixture, index: number, extra: Partial<CommerceOfferE
 }
 function read(f: Fixture, args: Partial<MarketplaceSearchArgs> = {}) { return f.as.query(search, { networkId: f.root, paginationOpts: { cursor: null, numItems: 24 }, ...args }) }
 async function code(work: Promise<unknown>) { try { await work; return null } catch (error) { return engineErrorCode(error) } }
+
+const FOOD_CATEGORIES = ["food.groceries", "food.beverages", "food.prepared"] as const
+const foodFacets = (category: typeof FOOD_CATEGORIES[number] | "food") => ({ taxonomyVersion: 1 as const, categoryPath: category === "food" ? ["food"] as const : ["food", category] as const, attributes: [] })
+
+/** Ces fixtures indexées éprouvent la recherche ; la réception signée est prouvée dans federation/commerceCatalog.test.ts. */
+describe("SU06 — catégories alimentaires du catalogue reflété", () => {
+  it("réunit les trois rayons sous food et garde chaque sélection enfant exclusive", async () => {
+    const f = await fixture()
+    for (const [index, category] of FOOD_CATEGORIES.entries()) await addOffer(f, index + 1, { title: "Produit classé par son émetteur", facets: foodFacets(category) })
+    await addOffer(f, 4, { facets: foodFacets("food") })
+    await addOffer(f, 5, { title: "Restaurant, épicerie et plats du jour", tags: ["food"], facets: { taxonomyVersion: 1, categoryPath: ["fashion"], attributes: [] } })
+    await addOffer(f, 6, { title: "Poisson et boissons sans classement V2", tags: ["food", "épicerie"] })
+    await addOffer(f, 7, { title: "Épicerie V1 sans classement", tags: ["food"] }, true, COMMERCE_PUBLIC_CONTRACT)
+    expect((await read(f, { kind: "product" })).page.map(item => item.offerRef)).toEqual([1, 2, 3, 4, 5, 6, 7].map(ref))
+    expect((await read(f, { kind: "product", category: ["food"] })).page.map(item => item.offerRef)).toEqual([1, 2, 3, 4].map(ref))
+    for (const [index, category] of FOOD_CATEGORIES.entries()) {
+      // Une sélection enfant ne s'accompagne pas de food : la facette compose ses valeurs par OU.
+      expect((await read(f, { kind: "product", category: [category] })).page.map(item => item.offerRef)).toEqual([ref(index + 1)])
+    }
+    expect((await read(f, { kind: "product", category: ["food.groceries", "food.beverages"] })).page.map(item => item.offerRef)).toEqual([ref(1), ref(2)])
+  })
+
+  it("filtre food avant pagination et conserve la continuation d'une fenêtre vidée par la modération", async () => {
+    const f = await fixture()
+    for (let index = 1; index <= 30; index++) await addOffer(f, index, { facets: { taxonomyVersion: 1, categoryPath: ["fashion"], attributes: [] } })
+    for (let index = 31; index <= 60; index++) {
+      const offer = await addOffer(f, index, { facets: foodFacets("food.prepared") })
+      if (index <= 54) await f.t.run(async ctx => ctx.db.patch(offer.moderationId, { status: "removed" }))
+    }
+    const first = await read(f, { kind: "product", category: ["food.prepared"] })
+    expect(first).toMatchObject({ indexStatus: "ready", page: [], filteredWindow: true, isDone: false })
+    expect(first.continueCursor).not.toBe("")
+    const next = await read(f, { kind: "product", category: ["food.prepared"], paginationOpts: { cursor: first.continueCursor, numItems: 24 } })
+    expect(next.page.map(item => item.offerRef)).toEqual([55, 56, 57, 58, 59, 60].map(ref))
+    expect(next.isDone).toBe(true)
+    expect(await code(read(f, { kind: "product", category: ["food.beverages"], paginationOpts: { cursor: first.continueCursor, numItems: 24 } }))).toBe("invalidArgument")
+  })
+
+  it.each(["parent", "link", "contract"] as const)("referme la racine et le rayon alimentaire après révocation %s sans effacer la tête", async gate => {
+    const f = await fixture(), offer = await addOffer(f, 1, { facets: foodFacets("food.beverages") })
+    expect((await read(f, { kind: "product", category: ["food.beverages"] })).page.map(item => item.offerRef)).toEqual([ref(1)])
+    await f.t.run(async ctx => {
+      if (gate === "parent") await ctx.db.patch(f.parentId, { state: "withdrawn" })
+      if (gate === "link") await ctx.db.patch(f.linkId, { state: "revoked" })
+      if (gate === "contract") {
+        const parent = await ctx.db.get(f.parentId)
+        const previous = JSON.parse(parent!.body) as Record<string, unknown>
+        // Un parent V1 encore permis isole bien la révocation du contrat V2 de l'offre.
+        await ctx.db.patch(f.parentId, { body: commerceCanonicalJson({ ...previous, contract: COMMERCE_PUBLIC_CONTRACT })! })
+        await ctx.db.patch(f.emitterId, { allowedContracts: [COMMERCE_PUBLIC_CONTRACT] })
+      }
+    })
+    for (const category of ["food", "food.beverages"] as const) expect((await read(f, { kind: "product", category: [category] })).page).toEqual([])
+    expect(await f.t.run(ctx => ctx.db.get(offer.headId))).toMatchObject({ state: "active", category1: "food", category2: "food.beverages" })
+  })
+})
 
 describe("MP03 — recherche globale et gardes actuelles", () => {
   it("trouve une offre classée au-delà de la première fenêtre brute avec filtres métier avant pagination", async () => {

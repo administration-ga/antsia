@@ -17,12 +17,10 @@ import { routes } from "@/lib/routes"
  * elle-même entre la coquille téléphone et le rail. U02 : sous 768 px sur
  * opt-in ANTSIA ; le moteur historique conserve son seuil de 960 px.
  *
- * Hors de l'opt-in U02, les colonnes bureau défilent chacune : elle vit dans un
- * conteneur de hauteur DÉFINIE, sous la barre du haut. Au téléphone, la
- * coquille du moteur porte son en-tête et sa barre basse, et c'est le document
- * qui défile : ni hauteur figée, ni barre du haut. En U02, les pages ordinaires
- * gardent aussi ce défilement sur tablette/bureau ; le rail reste accessible
- * et le lecteur immersif conserve son propre défileur.
+ * Au bureau, le fil garde une hauteur définie sous la barre du haut. Les
+ * colonnes défilent séparément ; le centre entraîne le contexte jusqu'à sa
+ * dernière carte. Au téléphone, la coquille conserve le défilement du document
+ * et ses propres barres. Le lecteur immersif garde son défileur dédié.
  */
 export function FeedScreen({ filter = { kind: "personal" } }: { filter?: MemberFeedFilter }) {
   const { t } = useTranslation("memberNetwork")
@@ -39,7 +37,7 @@ export function FeedScreen({ filter = { kind: "personal" } }: { filter?: MemberF
     return <div className="min-h-dvh bg-background"><MemberTopBar /><main id="contenu" className="mx-auto flex max-w-3xl flex-col gap-4 p-6">{invalid}</main></div>
   }
   return (
-    <div className={adaptive ? "flex [--antsia-workspace-height:100dvh] min-h-[var(--antsia-workspace-height,100dvh)] flex-col bg-background" : "flex [--antsia-workspace-height:100dvh] min-h-[var(--antsia-workspace-height,100dvh)] flex-col bg-background min-[960px]:h-[var(--antsia-workspace-height,100dvh)]"} style={{ "--antsia-workspace-height": demoWorkspaceHeight() } as CSSProperties}>
+    <div className={adaptive ? "flex [--antsia-workspace-height:100dvh] min-h-[var(--antsia-workspace-height,100dvh)] flex-col bg-background min-[768px]:h-[var(--antsia-workspace-height,100dvh)] min-[768px]:overflow-hidden" : "flex [--antsia-workspace-height:100dvh] min-h-[var(--antsia-workspace-height,100dvh)] flex-col bg-background min-[960px]:h-[var(--antsia-workspace-height,100dvh)]"} style={{ "--antsia-workspace-height": demoWorkspaceHeight() } as CSSProperties}>
       <MemberTopBar onMobile="hidden" />
       {destinations ? null : <nav aria-label={t("nav.discover")} className="flex flex-wrap items-center gap-1 border-b border-border px-3 min-[960px]:hidden">
         <Link href={routes.feedPreferences()} className="inline-flex min-h-11 items-center rounded-[var(--ui2-button-radius)] px-3 text-sm underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{tApp("feedPreferences.title")}</Link>

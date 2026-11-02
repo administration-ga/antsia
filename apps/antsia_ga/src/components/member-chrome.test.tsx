@@ -20,6 +20,8 @@ vi.mock("@antsia/api/network", () => ({
   useNetwork: () => ({ navigation: state.navigation }),
   useNetworkNavigationLayout: () => ({ adaptive: state.adaptive && state.navigation === "destinations", mobile: state.mobile }),
 }))
+// Le libellé Menu lit seulement le gabarit ; aucune session Convex n'est requise par ce test de coque.
+vi.mock("@antsia/api/hooks", () => ({ useAuthenticatedConvexQuery: () => ({ data: null, isError: false, isPending: false }) }))
 vi.mock("@/components/network-shell", () => ({ useMemberSession: () => ({ person: { published: true, handle: "awa.ndong", displayName: "Awa Ndong", badges: [] } }) }))
 vi.mock("@antsia/social-features/notifications", () => ({ NotificationBell: () => <span data-bell="" /> }))
 vi.mock("@/components/identity-tools", () => ({ IdentityTools: ({ account }: { account?: boolean }) => <span data-identity={account ? "account" : ""} /> }))
@@ -249,14 +251,14 @@ describe("MemberPage — transition adaptive sans remontage du contenu", () => {
     expect(tablet.match(/data-post-sheet="false"/g)).toHaveLength(1)
   })
 
-  it("l'espace borné retranche le bandeau de la démo, et lui seul", () => {
+  it("l'espace borné conserve toute la hauteur avec la notice flottante", () => {
     state.adaptive = true
     state.pathname = routes.messages()
     state.mobile = false
     try {
       vi.stubEnv("NEXT_PUBLIC_APP_BASE_PATH", "/demo")
       vi.stubEnv("NEXT_PUBLIC_CONVEX_URL", "https://vivid-hedgehog-655.convex.cloud")
-      expect(renderToStaticMarkup(<MemberPage workspace><section data-messages-content="" /></MemberPage>)).toContain('style="height:calc(100dvh - var(--antsia-demo-banner-height, 0px))"')
+      expect(renderToStaticMarkup(<MemberPage workspace><section data-messages-content="" /></MemberPage>)).toContain('style="height:100dvh"')
       expect(renderToStaticMarkup(<MemberPage><section data-page-content="" /></MemberPage>)).not.toContain("--antsia-demo-banner-height")
       vi.stubEnv("NEXT_PUBLIC_APP_BASE_PATH", "")
       vi.stubEnv("NEXT_PUBLIC_CONVEX_URL", "https://diligent-avocet-585.convex.cloud")

@@ -295,6 +295,7 @@ const STORIES_CSS = `
         display: flex;
         width: 22px;
         height: 22px;
+        box-sizing: border-box;
         align-items: center;
         justify-content: center;
         border: 2.5px solid var(--background);
@@ -302,17 +303,25 @@ const STORIES_CSS = `
         background: var(--primary-fill);
         color: var(--primary-fill-on, var(--on-fill));
       }
-      /* Le « + » est un bouton à part entière quand ma série est en ligne :
-         sa zone de toucher déborde son rond de 22 px. */
+      /* Le « + » garde sa pastille de 22 px mais possède sa propre cible de
+         44 px, distincte du bouton d'ouverture de la série. Le centre de la
+         pastille reste à la même place (bord visuel à -2 px du portrait). */
       .st-ring-plus-button {
+        position: absolute;
+        right: -13px;
+        bottom: -13px;
+        width: 44px;
+        height: 44px;
+        box-sizing: border-box;
         padding: 0;
+        border: none;
+        background: transparent;
         cursor: pointer;
       }
-      .st-ring-plus-button::before {
-        content: "";
-        position: absolute;
-        inset: -9px;
-        border-radius: 999px;
+      .st-ring-plus-button .st-ring-plus {
+        right: 11px;
+        bottom: 11px;
+        pointer-events: none;
       }
       .st-ring-name {
         max-width: 64px;
@@ -368,6 +377,91 @@ const STORIES_CSS = `
         width: 100%;
         height: 100%;
         object-fit: contain;
+      }
+      /* Le plat est une référence commerciale : sa photo remplit la scène,
+         tandis que les médias personnels gardent le cadrage de leur auteur. */
+      .st-media.st-daily-special-media { object-fit: cover; }
+      .st-daily-special-card {
+        display: grid;
+        min-width: 0;
+        gap: 8px;
+        padding: 14px 16px;
+        border-radius: var(--ui2-card-radius, 16px);
+        background: var(--card);
+        color: var(--card-foreground);
+        box-shadow: var(--shadow-lg, none);
+        overflow-wrap: anywhere;
+      }
+      .st-daily-special-heading {
+        display: flex;
+        min-width: 0;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 4px 10px;
+      }
+      .st-daily-special-label {
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--role-commerce-ink, var(--primary));
+      }
+      .st-daily-special-shop {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--muted-foreground);
+      }
+      .st-daily-special-title {
+        display: -webkit-box;
+        margin: 0;
+        overflow: hidden;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+        font-size: 20px;
+        font-weight: 700;
+        line-height: 1.2;
+      }
+      .st-daily-special-footer {
+        display: flex;
+        min-width: 0;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px 12px;
+      }
+      .st-daily-special-price {
+        margin: 0;
+        font-size: 20px;
+        font-weight: 700;
+        line-height: 1.2;
+        color: var(--role-commerce-ink, var(--foreground));
+      }
+      .st-daily-special-order {
+        display: inline-flex;
+        min-width: 44px;
+        min-height: 44px;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 8px 14px;
+        border-radius: var(--ui2-button-radius, 12px);
+        background: var(--role-commerce-fill, var(--primary-fill));
+        color: var(--role-commerce-on, var(--primary-fill-on, var(--on-fill)));
+        font-size: 13px;
+        font-weight: 700;
+        line-height: 1.2;
+        text-decoration: none;
+      }
+      .st-daily-special-order:focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; }
+      .st-daily-special-expiry {
+        margin: 0;
+        font-size: 11px;
+        line-height: 1.3;
+        color: var(--muted-foreground);
       }
       /* Le voile de lisibilite. Il ne capte AUCUN geste : les taps doivent
          atteindre la scene, qui les traduit en precedent/suivant. */

@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/ui-v2/src/components/skeleton.tsx @ ad2e7fdc2 — adaptations : aucune (copie textuelle) ; en-tête de provenance.
+// Dupliqué de socle/packages/ui-v2/src/components/skeleton.tsx @ ad2e7fdc2 — adaptations : aucune (copie textuelle) ; en-tête de provenance. carte statistique raccordée aux jetons opt-in ANTSIA de carte, contour et rembourrage, valeurs historiques en repli.
 "use client"
 
 import type { CSSProperties, ReactNode } from "react"
@@ -101,9 +101,9 @@ export const SkeletonStatCard = ({ style }: { style?: CSSProperties }) => (
     aria-hidden="true"
     style={{
       background: "var(--ink-0)",
-      border: "1px solid var(--ink-200)",
-      borderRadius: 8,
-      padding: 20,
+      border: "1px solid var(--esp-primitive-surface-border, var(--ink-200))",
+      borderRadius: "var(--esp-primitive-card-radius, 8px)",
+      padding: "var(--esp-card-padding, 20px)",
       display: "flex",
       flexDirection: "column",
       gap: 10,

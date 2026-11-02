@@ -17,13 +17,14 @@ const mocks = vi.hoisted(() => ({
   published: true,
   unread: 0,
   pages: [{ pageId: "page-test", handle: "atelier", name: "Atelier local", logoUrl: null }],
+  ownPages: [] as { pageId: string; handle: string; name: string; logoUrl: null }[],
   groups: [{ groupId: "group-test", name: "Entraide locale" }],
 }))
 
 vi.mock("@antsia/api/engine", () => ({
   api: { modules: {
     people: { persons: { getMyPerson: "getMyPerson" } },
-    pages: { pages: { paginateMyPageFollows: "paginateMyPageFollows" } },
+    pages: { pages: { paginateMyPageFollows: "paginateMyPageFollows", myPages: "myPages" } },
     thematicGroups: { thematicGroups: { myGroups: "myGroups" } },
   } },
 }))
@@ -31,6 +32,7 @@ vi.mock("@antsia/api/engine", () => ({
 vi.mock("@antsia/api/hooks", () => ({
   useAuthenticatedConvexQuery: (reference: string) => reference === "getMyPerson"
     ? { data: { published: mocks.published, handle: "awa.ndong", displayName: "Awa NDONG", avatar: null }, isLoading: false, isError: false }
+    : reference === "myPages" ? { data: mocks.ownPages, isLoading: false, isError: false }
     : { data: { items: mocks.groups, truncated: false }, isLoading: false, isError: false },
   useAuthenticatedPaginatedQuery: () => ({ results: mocks.pages, status: "Exhausted", loadMore: vi.fn(), isLoading: false }),
 }))
@@ -68,6 +70,7 @@ beforeEach(() => {
   viewportWidth = 768
   mocks.published = true
   mocks.unread = 0
+  mocks.ownPages = []
 })
 
 function rail(ui: ReactElement, options: {
@@ -77,10 +80,12 @@ function rail(ui: ReactElement, options: {
   shopsLabel?: string | null
   myShopLabel?: string
   clipsLabel?: string
+  pathname?: string
+  search?: string
 } = {}): ReactElement {
   const i18n = createAppI18n({ locale: "fr", appResources: { fr: {}, en: {} }, defaultNS: "social" })
   return <I18nextProvider i18n={i18n}>
-    <RouterProvider implementation={RAIL_ROUTER}>
+    <RouterProvider implementation={options.pathname === undefined ? RAIL_ROUTER : memoryRouter({ pathname: options.pathname, search: options.search }).implementation}>
       <AppearanceProvider storagePrefix="test:adaptive-rail">
         <NetworkProvider networkId={TEST_NETWORK_ID} personId={TEST_PERSON_ID} slug="test" charte="antsia"
           routes={options.routes ?? ROUTES} navigation={options.navigation ?? "destinations"} navigationLayout={options.layout ?? "adaptive"}
@@ -123,7 +128,7 @@ describe("ReseauMenuRail — capacité adaptative U02", () => {
     expect(container.querySelector('[data-reseau-menu-layout="adaptive"]')).toBeTruthy()
     const primary = screen.getByRole("navigation", { name: "Navigation principale" })
     expect(within(primary).getAllByRole("listitem").map(item => item.textContent)).toEqual(["Fil", "Découvrir", "Créer", "Messages", "ANProfil"])
-    // Boutiques suit les destinations, dans la même navigation, avant Créer.
+    // Boutiques appartient à l'espace Activité, après les destinations sociales.
     const shops = within(primary).getByRole("link", { name: "Boutiques" })
     expect(shops).toHaveAttribute("href", ROUTES.shops!())
     expect(shops.style.minHeight).toBe("44px")
@@ -140,6 +145,46 @@ describe("ReseauMenuRail — capacité adaptative U02", () => {
     expect(container.querySelector(".rmr-identity")).toBeNull()
     expect(container.querySelector(".rmr-appearance-controls")).toBeNull()
     expect(screen.queryByRole("combobox", { name: "Apparence" })).toBeNull()
+  })
+
+  it("sépare Réseau social, Activité et Page puis les réglages, avec les portes de création sans activité ni page", () => {
+    const activity = () => "/mes-activites-test"
+    const { container } = render(rail(<ReseauMenuRail activeTab="fil" onCreate={vi.fn()} />, { routes: { ...ROUTES, myActivity: activity } }))
+    expect(screen.getAllByRole("heading", { level: 2 }).map(heading => heading.textContent)).toEqual(["Réseau social", "Activité", "Page"])
+    const activitySection = screen.getByRole("region", { name: "Activité" })
+    expect(within(activitySection).getByRole("link", { name: "Créer une activité" })).toHaveAttribute("href", activity())
+    expect(within(activitySection).getByRole("link", { name: "Boutiques" })).toBeTruthy()
+    const pageSection = screen.getByRole("region", { name: "Page" })
+    expect(within(pageSection).getByRole("link", { name: "Créer une page" })).toHaveAttribute("href", `${TEST_ROUTES.home()}?tab=pages`)
+    expect(within(pageSection).queryByRole("link", { name: "Atelier local" })).toBeNull()
+    const links = Array.from(container.querySelectorAll("a"))
+    expect(links.at(-1)?.textContent).toBe("Paramètres")
+  })
+
+  it("présente uniquement les pages dont le membre possède un mandat, sans confondre ses abonnements", () => {
+    mocks.ownPages = [{ pageId: "mine", handle: "ma-page", name: "Ma page locale", logoUrl: null }]
+    render(rail(<ReseauMenuRail activeTab="fil" />, { routes: { ...ROUTES, myActivity: () => "/mes-activites-test" }, myShopLabel: "Ma boutique" }))
+    const pageSection = screen.getByRole("region", { name: "Page" })
+    expect(within(pageSection).getByRole("link", { name: "Mes pages" })).toHaveAttribute("href", `${TEST_ROUTES.home()}?tab=pages`)
+    expect(within(pageSection).getByRole("link", { name: "Ma page locale" })).toHaveAttribute("href", TEST_ROUTES.page("ma-page"))
+    expect(within(pageSection).queryByRole("link", { name: "Atelier local" })).toBeNull()
+    expect(screen.queryByRole("link", { name: "Créer une activité" })).toBeNull()
+    expect(screen.queryByRole("link", { name: "Créer une page" })).toBeNull()
+  })
+
+  it.each([
+    { pathname: TEST_ROUTES.home(), search: "?tab=pages", id: "decouvrir" as const, label: "Créer une page" },
+    { pathname: "/marketplace-test", id: "decouvrir" as const, label: "Boutiques" },
+    { pathname: "/mes-activites-test", id: "profil" as const, label: "Créer une activité" },
+    { pathname: ROUTES.settings!(), id: "profil" as const, label: "Paramètres" },
+  ])("n'allume que $label, sans conserver son ancien rattachement social", ({ pathname, search, id, label }) => {
+    const { container } = render(rail(<ReseauMenuRail activeTab={null} current={{ id, current: "section" }} />, {
+      pathname, search,
+      routes: { ...ROUTES, shops: () => "/marketplace-test", myActivity: () => "/mes-activites-test" },
+    }))
+    const selected = screen.getByRole("link", { name: label })
+    expect(selected).toHaveAttribute("aria-current", "page")
+    expect(Array.from(container.querySelectorAll("[aria-current]"))).toEqual([selected])
   })
 
   it("garde les mêmes éléments interactifs entre 768 et 1200 sans second arbre ni perte du choix Créer", () => {

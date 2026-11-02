@@ -93,7 +93,7 @@ export function StorefrontHero({ shop }: { shop: StorefrontData }) {
   const banner = shop.bannerUrl && failedBanner !== shop.bannerUrl ? shop.bannerUrl : null
   const hasCatalog = shop.blocks.includes("catalog") || shop.blocks.includes("services")
   const identity = <div className="flex min-w-0 items-end gap-3">
-    <span className="shrink-0 rounded-xl bg-card p-1"><ShopLogo url={shop.logoUrl} name={shop.name} /></span>
+    <span className="shrink-0 rounded-xl"><ShopLogo url={shop.logoUrl} name={shop.name} /></span>
     <div className="grid min-w-0 gap-1">
       <h1 className={`break-words font-display text-2xl font-bold leading-tight min-[768px]:text-3xl ${banner ? "text-[color:var(--esp-on-banner)]" : ""}`}>{shop.name}</h1>
       <p className={`break-all text-sm ${banner ? "text-[color:var(--esp-on-banner-muted)]" : "text-muted-foreground"}`}>@{shop.handle}</p>

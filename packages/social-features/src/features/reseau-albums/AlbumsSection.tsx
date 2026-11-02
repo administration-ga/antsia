@@ -50,18 +50,18 @@ const ALBUMS_SECTION_CSS = `
   }
   .as-grid--long > li { content-visibility: auto; contain-intrinsic-size: auto 240px; }
   .as-card {
-    border: 1px solid var(--ink-200); border-radius: 12px; overflow: hidden;
+    border: 1px solid var(--esp-primitive-surface-border, var(--ink-200)); border-radius: var(--esp-primitive-card-radius, 12px); overflow: hidden;
     background: var(--ink-0); display: flex; flex-direction: column;
     text-align: left; width: 100%; padding: 0; cursor: pointer; text-decoration: none;
     min-height: 44px; min-width: 0;
   }
-  .as-cover { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; display: block; background: var(--ink-150); }
+  .as-cover { width: calc(100% - 2 * var(--esp-card-padding, 0px)); margin: var(--esp-card-padding, 0px) var(--esp-card-padding, 0px) 0; border-radius: var(--esp-primitive-media-radius, 0px); aspect-ratio: 4 / 3; object-fit: cover; display: block; background: var(--ink-150); }
   .as-cover--vide {
-    width: 100%; aspect-ratio: 4 / 3; display: flex;
+    width: calc(100% - 2 * var(--esp-card-padding, 0px)); margin: var(--esp-card-padding, 0px) var(--esp-card-padding, 0px) 0; border-radius: var(--esp-primitive-media-radius, 0px); aspect-ratio: 4 / 3; display: flex;
     align-items: center; justify-content: center; background: var(--ink-150);
     color: var(--ink-500);
   }
-  .as-body { padding: 10px; display: flex; flex-direction: column; gap: 4px; min-width: 0; overflow-wrap: anywhere; }
+  .as-body { padding: var(--esp-card-padding, 10px); display: flex; flex-direction: column; gap: 4px; min-width: 0; overflow-wrap: anywhere; }
 `
 
 export interface AlbumsSectionProps {
@@ -189,7 +189,7 @@ function AlbumsPages({ handle, isSelf, variant, onCreate }: AlbumsSectionProps &
                     </span>
                   )}
                   <span className="as-body">
-                    <span style={{ fontSize: 14, color: "var(--ink-900)", fontWeight: 600 }}>
+                    <span style={{ fontSize: "var(--esp-content-font-size, 14px)", lineHeight: "var(--esp-content-line-height, inherit)", color: "var(--ink-900)", fontWeight: 600 }}>
                       {album.title}
                     </span>
                     <span style={{ fontSize: 12, color: "var(--ink-600)" }}>

@@ -33,7 +33,7 @@ export function ShopLogo({ url, name }: { url: string | null; name: string }) {
   const [failedUrl, setFailedUrl] = useState<string | null>(null)
   if (!url || failedUrl === url) return <span aria-hidden="true" className="flex size-16 shrink-0 items-center justify-center rounded-xl bg-muted text-xl font-semibold">{Array.from(name).at(0) ?? ""}</span>
   // eslint-disable-next-line @next/next/no-img-element -- URL fournie par la garde du moteur, pas d'identifiant de stockage client.
-  return <img key={url} src={url} alt="" className="size-16 shrink-0 rounded-xl object-contain" onError={() => setFailedUrl(url)} />
+  return <img key={url} src={url} alt="" className="size-16 shrink-0 rounded-xl object-cover object-center" onError={() => setFailedUrl(url)} />
 }
 
 /** Chaque surface est remontée par réseau/personne/objet. Aucun effet tardif après sortie. */

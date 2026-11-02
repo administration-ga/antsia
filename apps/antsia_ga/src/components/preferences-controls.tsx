@@ -143,14 +143,14 @@ export function PreferencesControls({ variant = "complete" }: { variant?: "compl
           <h2 id={titleId} className="text-xl font-semibold">{t(variant === "complete" ? "preferences.title" : "preferences.languageTitle")}</h2>
           <p className="text-sm text-muted-foreground">{t("preferences.lead")}</p>
         </div>
-        {isDirty ? <p role="status" className="rounded-lg border border-border bg-muted p-3 text-sm">{t("preferences.unsaved")}</p> : null}
+        {isDirty ? <p role="status" className="rounded-[var(--ui2-card-radius)] border border-transparent bg-muted p-[var(--esp-card-padding,16px)] text-sm">{t("preferences.unsaved")}</p> : null}
         {!person ? <p role="status" className="text-sm text-muted-foreground">{t("preferences.loading")}</p> : null}
         <form aria-labelledby={titleId} aria-busy={isSubmitting || undefined} aria-describedby={errors.root?.server ? errorId : undefined} onSubmit={(event) => { void form.handleSubmit(savePreferences)(event) }} noValidate className="flex min-w-0 flex-col gap-4">
           <fieldset disabled={isSubmitting || !person} className="flex min-w-0 flex-col gap-4">
             <Field id={localeId} label={t("preferences.localeLabel")} hint={t("preferences.localeHint")} error={errors.locale?.message}>
               <select
                 id={localeId}
-                className="min-h-11 min-w-0 w-full rounded-lg border border-input bg-background px-3 text-base text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring aria-[invalid=true]:border-destructive"
+                className="min-h-11 min-w-0 w-full rounded-[var(--esp-field-radius)] border border-input bg-muted px-3 text-base text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring aria-[invalid=true]:border-destructive"
                 aria-invalid={errors.locale ? true : undefined}
                 aria-describedby={`${localeId}-hint${errors.locale ? ` ${localeId}-error` : ""}`}
                 {...localeField}
@@ -175,7 +175,7 @@ export function PreferencesControls({ variant = "complete" }: { variant?: "compl
               />
             </Field>
           </fieldset>
-          {errors.root?.server ? <p ref={failureRef} id={errorId} role="alert" tabIndex={-1} className="rounded-lg border border-destructive p-3 text-sm text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{errors.root.server.message}</p> : null}
+          {errors.root?.server ? <p ref={failureRef} id={errorId} role="alert" tabIndex={-1} className="rounded-[var(--ui2-card-radius)] border border-destructive p-[var(--esp-card-padding,16px)] text-sm text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{errors.root.server.message}</p> : null}
           <Button type="submit" pending={isSubmitting} disabled={!person} className="w-full whitespace-normal sm:w-auto sm:self-start">{t(isSubmitting ? "preferences.saving" : "preferences.save")}</Button>
         </form>
         {variant === "complete" ? <DisplayPreferences /> : null}

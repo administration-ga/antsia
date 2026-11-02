@@ -2,9 +2,9 @@
 // Scénarios ciblés U03 ; la recette navigateur reste coordonnée séparément.
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { EngineTestWrapper } from "../../tests/engine-wrapper"
+import { EngineTestWrapper, TEST_ROUTES } from "../../tests/engine-wrapper"
 
-const mocks = vi.hoisted(() => ({ items: [] as unknown[], mutation: vi.fn<(args: unknown) => Promise<void>>().mockResolvedValue(undefined) }))
+const mocks = vi.hoisted(() => ({ items: [] as unknown[], mutation: vi.fn<(args: unknown) => Promise<void>>().mockResolvedValue(undefined), viewers: vi.fn() }))
 vi.mock("@antsia/api/engine", () => ({ api: { modules: { stories: { stories: {
   myActive: "mine", listByAuthor: "author", markSeen: "seen", remove: "remove",
 } } } } }))
@@ -12,10 +12,11 @@ vi.mock("@antsia/api/hooks", () => ({ useAuthenticatedConvexQuery: (_ref: string
   data: args === "skip" ? undefined : mocks.items, isError: false, refetch: vi.fn(),
 }) }))
 vi.mock("convex/react", () => ({ useMutation: () => mocks.mutation }))
-vi.mock("./StoryViewersSheet", () => ({ StoryViewersSheet: () => null }))
+vi.mock("./StoryViewersSheet", () => ({ StoryViewersSheet: (props: unknown) => { mocks.viewers(props); return null } }))
 vi.mock("./StoryProgressBar", () => ({ StoryProgressBar: ({ progress }: { progress: number }) => <output data-testid="story-progress" data-progress={progress} /> }))
 
 import { StoryViewer } from "./StoryViewer"
+import { StoriesStyles } from "./stories-styles"
 
 const NOW = Date.UTC(2026, 9, 21, 10)
 function story(id: string, expiresAt: number, seen = false) {
@@ -27,6 +28,10 @@ function story(id: string, expiresAt: number, seen = false) {
 function videoStory(id: string) {
   return { ...story(id, NOW + 60_000), media: { kind: "video", url: `/${id}`, withheld: null, mimeType: "video/mp4", durationMs: 30_000 } }
 }
+function dailyStory(id: string, expiresAt = NOW + 60_000) {
+  return { ...story(id, expiresAt), caption: null, dailySpecial: { shopHandle: "epicerie", shopName: "Épicerie Démo", offerRef: "pro.ga:poisson", title: "Poisson fumé", day: "2026-10-21", price: { mode: "fixed", amount: 3500, currency: "XAF" } } }
+}
+const SHOP_ROUTES = { ...TEST_ROUTES, shopOffer: (handle: string, ref: string) => `/boutique/${encodeURIComponent(handle)}/offres/${encodeURIComponent(ref)}` }
 function deferredPlayback() {
   let resolve!: () => void
   const promise = new Promise<void>(done => { resolve = done })
@@ -45,6 +50,7 @@ const progress = () => Number(screen.getByTestId("story-progress").getAttribute(
 beforeEach(() => {
   mocks.items = []
   mocks.mutation.mockClear()
+  mocks.viewers.mockClear()
   frames.clear()
   frameId = 0
   vi.stubGlobal("requestAnimationFrame", vi.fn((callback: FrameRequestCallback) => { const id = ++frameId; frames.set(id, callback); return id }))
@@ -54,6 +60,70 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals() })
 
 describe("StoryViewer — expiration reçue et contexte de lecture", () => {
+  it("le plat remplit sa scène, identifie la boutique et garde l'auteur ; les médias personnels restent entiers", () => {
+    mocks.items = [dailyStory("dish"), story("personal", NOW + 60_000)]
+    const view = render(<EngineTestWrapper routes={SHOP_ROUTES}><StoriesStyles /><StoryViewer {...props} now={NOW} onExhausted={vi.fn()} /></EngineTestWrapper>)
+    const dish = screen.getByRole("img", { name: "Poisson fumé" })
+    expect(getComputedStyle(dish).objectFit).toBe("cover")
+    expect(screen.getByRole("heading", { name: "Poisson fumé" })).toBeInTheDocument()
+    expect(screen.getByText("Épicerie Démo")).toBeInTheDocument()
+    expect(screen.getByRole("link", { name: /Awa NDONG/ })).toHaveAttribute("href", "/profil/awa")
+    const command = screen.getByRole("link", { name: "Commander" })
+    command.addEventListener("click", event => event.preventDefault())
+    fireEvent.pointerDown(command, { clientX: 150, clientY: 600 })
+    fireEvent.pointerUp(command, { clientX: 150, clientY: 600 })
+    fireEvent.click(command)
+    fireEvent.keyDown(command, { key: "ArrowRight" })
+    expect(screen.getByRole("img", { name: "Poisson fumé" })).toBeInTheDocument()
+    expect(command).toHaveAttribute("href", "/boutique/epicerie/offres/pro.ga%3Apoisson")
+    fireEvent.click(screen.getByRole("button", { name: "Suivante" }))
+    expect(getComputedStyle(screen.getByRole("img", { name: "personal" })).objectFit).toBe("contain")
+    expect(view.container.querySelector("[data-daily-special-story-card]")).toBeNull()
+  })
+
+  it("le focus du bouton de commande suspend l'horloge et son blur respecte la pause explicite", () => {
+    mocks.items = [dailyStory("dish")]
+    render(<EngineTestWrapper routes={SHOP_ROUTES}><StoryViewer {...props} now={NOW} onExhausted={vi.fn()} /></EngineTestWrapper>)
+    const command = screen.getByRole("link", { name: "Commander" })
+    advanceFrame(0); advanceFrame(1_000)
+    const before = progress()
+    fireEvent.focus(command)
+    advanceFrame(2_000); advanceFrame(6_000)
+    expect(progress()).toBe(before)
+    fireEvent.blur(command, { relatedTarget: document.body })
+    advanceFrame(7_000)
+    expect(progress()).toBe(before)
+    advanceFrame(8_000)
+    expect(progress()).toBeGreaterThan(before)
+    fireEvent.click(screen.getByRole("button", { name: "Pause" }))
+    const explicitlyPaused = progress()
+    fireEvent.focus(command); fireEvent.blur(command, { relatedTarget: document.body })
+    advanceFrame(9_000); advanceFrame(12_000)
+    expect(progress()).toBe(explicitlyPaused)
+    expect(screen.getByRole("button", { name: "Reprendre" })).toBeInTheDocument()
+  })
+
+  it("minuit ferme aussi la carte commerciale même lorsque son bouton conserve le focus", () => {
+    mocks.items = [dailyStory("dish", NOW + 1_000)]
+    const exhausted = vi.fn()
+    const content = (now: number) => <EngineTestWrapper routes={SHOP_ROUTES}><StoryViewer {...props} now={now} onExhausted={exhausted} /></EngineTestWrapper>
+    const view = render(content(NOW))
+    fireEvent.focus(screen.getByRole("link", { name: "Commander" }))
+    view.rerender(content(NOW + 1_000))
+    expect(screen.queryByRole("heading", { name: "Poisson fumé" })).toBeNull()
+    expect(screen.queryByRole("link", { name: "Commander" })).toBeNull()
+    expect(exhausted).toHaveBeenCalledExactlyOnceWith(1)
+  })
+
+  it("transmet à Vu par l'instant figé de la série plutôt que les ticks d'affichage", () => {
+    mocks.items = [{ ...dailyStory("mine"), isOwn: true, viewCount: 1 }]
+    const content = (now: number) => <EngineTestWrapper><StoryViewer {...props} handle="me" now={now} onExhausted={vi.fn()} /></EngineTestWrapper>
+    const view = render(content(NOW))
+    const readNow = (mocks.viewers.mock.lastCall?.[0] as { queryNow: number }).queryNow
+    view.rerender(content(NOW + 30_000))
+    expect(mocks.viewers.mock.lastCall?.[0]).toMatchObject({ now: NOW + 30_000, queryNow: readNow })
+  })
+
   it("ignore le segment expiré dès l'arrivée sans le marquer vu", () => {
     mocks.items = [story("expired", NOW), story("current", NOW + 60_000)]
     render(<EngineTestWrapper><StoryViewer {...props} now={NOW} onExhausted={vi.fn()} /></EngineTestWrapper>)

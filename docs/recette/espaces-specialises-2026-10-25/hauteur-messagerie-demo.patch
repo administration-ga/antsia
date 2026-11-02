@@ -1,0 +1,20 @@
+--- a/apps/antsia_ga/src/components/messages/messages-screen-demo.test.tsx
++++ b/apps/antsia_ga/src/components/messages/messages-screen-demo.test.tsx
+@@ -32,13 +32,14 @@
+   })
+ })
+ 
+-describe("hauteur de la messagerie sous le bandeau démo", () => {
+-  it("borne la messagerie à la hauteur disponible dans la zone démo", () => {
++describe("hauteur de la messagerie avec la notice démo flottante", () => {
++  it("conserve toute la hauteur sans retrancher la notice flottante dans la zone démo", () => {
+     vi.stubEnv("NEXT_PUBLIC_APP_BASE_PATH", "/demo")
+     vi.stubEnv("NEXT_PUBLIC_CONVEX_URL", "https://vivid-hedgehog-655.convex.cloud")
+     const html = renderToStaticMarkup(<MessagesScreen route={{}} />)
+     expect(html).toContain('class="esp-page-motif flex h-dvh flex-col overflow-hidden bg-background"')
+-    expect(html).toContain('style="height:calc(100dvh - var(--antsia-demo-banner-height, 0px))"')
++    expect(html).toContain('style="height:100dvh"')
++    expect(html).not.toContain("--antsia-demo-banner-height")
+     expect(html).toContain('data-mobile="visible"')
+     expect(html).toContain('data-messages-content=""')
+   })

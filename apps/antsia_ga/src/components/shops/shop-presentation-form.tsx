@@ -11,8 +11,11 @@ import { useForm, useWatch } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 import { Button, Field, TextArea, TextInput } from "@/components/shared/controls"
 import { SCREEN_SECTIONS } from "@/components/shared/screen-layout"
+import { prepareSquareImage, type SquareImageSelection } from "@/lib/square-image"
 import { presentationSchema, presentationValues, SHOP_FORM_LIMITS, type PresentationValues, type ShopEditorData } from "./shop-model"
+import { ShopImageGuide } from "./shop-image-guide"
 import { ShopLogo, useShopAction } from "./shop-ui"
+import { SquareImageEditor } from "./square-image-editor"
 
 export function ShopPresentationForm({ shop, onDirty }: { shop: ShopEditorData; onDirty: (dirty: boolean) => void }) {
   const { t } = useTranslation("shops")
@@ -65,24 +68,38 @@ function ShopLogoForm({ shop, onDirty }: { shop: ShopEditorData; onDirty: (dirty
   const generate = useMutation(api.modules.shops.shops.generateShopLogoUploadUrl)
   const attach = useMutation(api.modules.shops.shops.setShopLogo)
   const [file, setFile] = useState<File | null>(null)
+  const [selection, setSelection] = useState<SquareImageSelection | null>(null)
+  const [fileRevision, setFileRevision] = useState(0)
+  const [preparationError, setPreparationError] = useState<string | null>(null)
   const [resultNote, setResultNote] = useState<string | null>(null)
   const input = useRef<HTMLInputElement>(null)
   const id = useId()
   useEffect(() => { onDirty(file !== null) }, [file, onDirty])
   const upload = async () => {
-    if (!file) return
+    if (!file || !selection) return
+    setPreparationError(null)
     await action.run(async () => {
+      let prepared: File
+      try {
+        prepared = await prepareSquareImage(file, selection)
+        if (!isMimeAllowedForUsage("page_logo", prepared.type) || prepared.size <= 0 || prepared.size > UPLOAD_USAGES.page_logo.maxBytes) throw new Error("invalid_image")
+      } catch (error) {
+        if (action.current()) setPreparationError(t("images.invalid"))
+        throw error
+      }
+      if (!action.current()) return
       const url = await generate({ networkId })
       if (!action.current()) return
-      const response = await fetch(url, { method: "POST", headers: { "Content-Type": file.type }, body: file })
+      const response = await fetch(url, { method: "POST", headers: { "Content-Type": prepared.type }, body: prepared })
       if (!response.ok) throw new Error("upload")
       const data: unknown = await response.json()
       if (!action.current()) return
       if (!data || typeof data !== "object" || !("storageId" in data) || typeof data.storageId !== "string") throw new Error("upload")
-      return await attach({ networkId, shopId: shop.shopId, storageId: data.storageId as import("@antsia/api/engine").Id<"_storage">, mimeType: file.type })
+      return await attach({ networkId, shopId: shop.shopId, storageId: data.storageId as import("@antsia/api/engine").Id<"_storage">, mimeType: prepared.type })
     }, (result) => {
       if (!result) return
       setFile(null)
+      setSelection(null)
       if (input.current) input.current.value = ""
       setResultNote(result.withheld ? t(`errors:${result.withheld}`) : t("presentation.logoSaved"))
     })
@@ -91,17 +108,22 @@ function ShopLogoForm({ shop, onDirty }: { shop: ShopEditorData; onDirty: (dirty
     <h3 id={`${id}-title`} className="font-display text-base font-bold leading-snug">{t("presentation.logo")}</h3>
     <ShopLogo url={shop.logo.url} name={shop.name ?? ""} />
     {shop.logo.withheld ? <p role="status" className="text-sm">{t(`errors:${shop.logo.withheld}`)}</p> : shop.logo.present && !shop.logo.url ? <p className="text-sm">{t("presentation.logoUnavailable")}</p> : null}
+    <ShopImageGuide />
     <Field id={id} label={t("presentation.pickLogo")} hint={t("presentation.logoHint")}>
       <input id={id} ref={input} type="file" accept={UPLOAD_USAGES.page_logo.mimeTypes.join(",")} disabled={action.pending} className="min-h-11 w-full rounded-[var(--esp-field-radius)] border border-input bg-muted px-3 py-2 text-base" aria-describedby={`${id}-hint`} onChange={(event) => {
         const chosen = event.currentTarget.files?.[0] ?? null
         setResultNote(null)
+        setPreparationError(null)
+        setSelection(null)
+        setFileRevision(version => version + 1)
         if (chosen && (!isMimeAllowedForUsage("page_logo", chosen.type) || chosen.size <= 0 || chosen.size > UPLOAD_USAGES.page_logo.maxBytes)) { action.setError(t("presentation.logoInvalid")); setFile(null); return }
         action.setError(null)
         setFile(chosen)
       }} />
     </Field>
-    {action.error ? <p role="alert" className="text-sm text-destructive">{action.error}</p> : null}
+    {file ? <fieldset disabled={action.pending} className="grid min-w-0 gap-3"><SquareImageEditor key={fileRevision} file={file} onChange={setSelection} /><Button type="button" variant="outline" className="justify-self-start" onClick={() => { setFile(null); setSelection(null); setPreparationError(null); action.setError(null); if (input.current) input.current.value = "" }}>{t("images.cancel")}</Button></fieldset> : null}
+    {preparationError || action.error ? <p role="alert" className="text-sm text-destructive">{preparationError ?? action.error}</p> : null}
     {resultNote ? <p role="status" className="text-sm">{resultNote}</p> : null}
-    <Button type="button" variant="outline" pending={action.pending} disabled={!file} onClick={() => void upload()} className="w-full sm:w-auto sm:justify-self-start">{t("presentation.uploadLogo")}</Button>
+    <Button type="button" variant="outline" pending={action.pending} disabled={!file || !selection} onClick={() => void upload()} className="w-full sm:w-auto sm:justify-self-start">{t("presentation.uploadLogo")}</Button>
   </section>
 }

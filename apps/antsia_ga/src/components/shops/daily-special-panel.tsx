@@ -12,6 +12,7 @@ import { useTranslation } from "react-i18next"
 import { z } from "zod"
 import { Button } from "@/components/shared/controls"
 import { useTodaysSpecialRef } from "./daily-special"
+import { DailySpecialStoryShare } from "./daily-special-story-share"
 import { SHOP_SELECT_CLASS, useShopAction } from "./shop-ui"
 
 /** Les produits du menu, lus par fenêtres de dix comme la liaison des publications. */
@@ -37,7 +38,7 @@ function DailySpecialWindows({ shopId, handle, special, dirty }: { shopId: Id<"s
   return <section className="grid gap-4 rounded-xl border border-border bg-background p-4" data-daily-special-panel>
     <h3 className="font-semibold">{t("dailySpecial.title")}</h3>
     <p className="text-sm text-muted-foreground">{t("dailySpecial.lead")}</p>
-    {current ? <DailySpecialCurrent handle={handle} offerRef={current} /> : <p className="text-sm">{t("dailySpecial.none")}</p>}
+    {current && special ? <DailySpecialCurrent key={JSON.stringify([current, special.day])} shopId={shopId} handle={handle} offerRef={current} day={special.day} dirty={dirty} /> : <p className="text-sm">{t("dailySpecial.none")}</p>}
     {offers.isError ? <p role="alert" className="text-sm text-muted-foreground">{t("catalog.unavailable")}</p>
       : offers.isPending || !offers.data ? <p role="status" className="text-sm text-muted-foreground">{t("catalog.loading")}</p>
       : page.length === 0 && cursors.length === 1 ? <p className="text-sm text-muted-foreground">{t("dailySpecial.emptyMenu")}</p>
@@ -53,13 +54,14 @@ function DailySpecialWindows({ shopId, handle, special, dirty }: { shopId: Id<"s
 }
 
 /** Le plat annoncé aujourd'hui, par son nom tel que le menu le donne. */
-function DailySpecialCurrent({ handle, offerRef }: { handle: string; offerRef: string }) {
+function DailySpecialCurrent({ shopId, handle, offerRef, day, dirty }: { shopId: Id<"shops">; handle: string; offerRef: string; day: string; dirty: boolean }) {
   const { networkId } = useNetwork()
   const { t } = useTranslation("shops")
   const query = useAuthenticatedConvexQuery(api.modules.shops.catalog.offer, { networkId, handle, offerRef })
   if (query.isPending) return <p role="status" className="text-sm text-muted-foreground">{t("catalog.loading")}</p>
   const title = query.isError ? null : query.data?.title ?? null
-  return <p className="text-sm font-medium">{title ? t("dailySpecial.current", { title }) : t("dailySpecial.currentUnavailable")}</p>
+  const available = !query.isError && query.data?.kind === "product" && query.data.media.some(media => media.url !== null && media.withheld === null)
+  return <div className="grid gap-3"><p className="text-sm font-medium">{title ? t("dailySpecial.current", { title }) : t("dailySpecial.currentUnavailable")}</p><DailySpecialStoryShare key={available ? "ready" : "unavailable"} shopId={shopId} offerRef={offerRef} day={day} title={title} available={available} dirty={dirty} /></div>
 }
 
 function DailySpecialForm({ shopId, dirty, offers, current }: { shopId: Id<"shops">; dirty: boolean; offers: { offerRef: string; title: string }[]; current: string | null }) {

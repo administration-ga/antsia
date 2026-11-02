@@ -8,12 +8,16 @@
     "title": "Demo mode",
     "lead": "Fictional accounts and content are shared between visitors. Your ANTSIA account stays separate.",
     "entry": "Demo accounts",
-    "back": "Back to ANTSIA",
+    "back": "Back to sign in",
+    "dismiss": "Dismiss demo notice",
+    "signOut": "Sign out",
+    "signingOut": "Signing out…",
+    "signOutFailed": "Sign out could not be completed. Try again.",
     "frameTitle": "ANTSIA — isolated demo accounts and network",
     "loading": "Loading the demo…",
     "delayed": "The demo is taking longer to respond. You can wait or try again.",
     "retry": "Try again",
-    "unavailable": "The demo is temporarily unavailable. You can return to ANTSIA."
+    "unavailable": "The demo is temporarily unavailable. You can return to sign in."
   },
   "home": {
     "eyebrow": "Under construction",

@@ -8,9 +8,9 @@ import { query } from "../../_generated/server"
 import { servableUrl } from "../files/storageGuard"
 import { findPageByHandle } from "../pages/access"
 import { publicStorefrontPage, shopOfPage } from "../shops/access"
-import { type PublicStorefront, publicStorefrontValidator } from "../shops/validators"
+import { type PublicDailySpecial, type PublicStorefront, publicDailySpecialValidator, publicStorefrontValidator } from "../shops/validators"
 import { originDto, publicContext } from "./access"
-import { catalogStorefrontBlocks } from "../shops/catalogRead"
+import { catalogStorefrontBlocks, resolveCatalogOffer } from "../shops/catalogRead"
 
 /** @publicProjection Vitrine consentie, origine/portée/modération/gérants/médias relus, sans identifiant interne ni contact. */
 export const getStorefront = query({
@@ -48,5 +48,26 @@ export const getStorefront = query({
       publishedAt: shop.publishedAt ?? shop.updatedAt,
       origin: originDto(exposed.origin),
     }
+  },
+})
+
+/**
+ * @publicProjection SU06 : désignation datée et produit public relu avec ses médias gardés.
+ * Le jour n'est pas une autorisation : l'écran n'annonce le plat que pendant ce jour à Libreville,
+ * y compris quand aucune écriture ne relance la requête au passage de minuit.
+ */
+export const getDailySpecial = query({
+  args: { networkId: v.id("networks"), handle: v.string() },
+  returns: v.union(publicDailySpecialValidator, v.null()),
+  handler: async (ctx, args): Promise<PublicDailySpecial | null> => {
+    const context = await publicContext(ctx, args.networkId)
+    const page = await findPageByHandle(ctx, args.handle)
+    const shop = page ? await shopOfPage(ctx, page._id) : null
+    if (!shop?.dailySpecial) return null
+    const configuration = effectiveActivityConfiguration(shop.activityConfiguration, shop.model)
+    if (configuration.template !== "food" || !visibleActivityBlocks(configuration, ["catalog"]).includes("catalog")) return null
+    if (!await publicStorefrontPage(ctx, context.root, shop, context.reader?.personId)) return null
+    const offer = await resolveCatalogOffer(ctx, { root: context.root, readerPersonId: context.reader?.personId }, shop._id, shop.dailySpecial.offerRef)
+    return offer?.kind === "product" ? { version: 1, day: shop.dailySpecial.day, offer } : null
   },
 })

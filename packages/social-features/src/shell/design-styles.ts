@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/design-styles.ts @ ad2e7fdc2 — adaptations : déplacé dans la coque (`shell/`) ; styles inchangés, jetons de la charte de base du moteur (`--esp-surface-card`, jetons shadcn) et rayon des surfaces du réseau (`--rp-surface-radius`, couche de communication) ; commentaires rapportés au réseau (plus de maquette iProfil ni de charte de l'espace personnel). ; contour des surfaces posées sur la page lu dans --esp-surface-border, filet d'origine en repli (aucun contour quand le thème distingue déjà la carte du fond) ; système épuré (ADR-0027) : rayons et neutres lus dans des jetons à `initial` (`--ui2-button-radius`, `--ui2-button-outline-*`, `--ui2-card-radius`, `--esp-field-radius`, `--esp-media-radius`), valeurs d'origine en repli ; `RESEAU_ACTION_SHAPE_STYLE`, la géométrie seule, pour les boutons colorés par leur fonction ; publication détachée par un anneau intérieur quand la carte a la couleur du fond (`POST_SURFACE_STYLE`, transparent sinon).
+// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/design-styles.ts @ ad2e7fdc2 — adaptations : déplacé dans la coque (`shell/`) ; styles inchangés, jetons de la charte de base du moteur (`--esp-surface-card`, jetons shadcn) et rayon des surfaces du réseau (`--rp-surface-radius`, couche de communication) ; commentaires rapportés au réseau (plus de maquette iProfil ni de charte de l'espace personnel). ; contour des surfaces posées sur la page lu dans --esp-surface-border, filet d'origine en repli (aucun contour quand le thème distingue déjà la carte du fond) ; système épuré (ADR-0027) : rayons et neutres lus dans des jetons à `initial` (`--ui2-button-radius`, `--ui2-button-outline-*`, `--ui2-card-radius`, `--esp-field-radius`, `--esp-media-radius`), valeurs d'origine en repli ; `RESEAU_ACTION_SHAPE_STYLE`, la géométrie seule, pour les boutons colorés par leur fonction ; publication détachée par un anneau intérieur quand la carte a la couleur du fond (`POST_SURFACE_STYLE`, transparent sinon). cartes et héros : rembourrage opt-in ANTSIA (`--esp-card-padding`), valeurs historiques en repli.
 import type { CSSProperties } from "react"
 
 /**
@@ -14,12 +14,12 @@ export const RESEAU_SURFACE_STYLE = {
   /* La page réseau du bureau pose son rayon de surface sur .rp-scope. Le repli
      conserve le contrat historique pour les composants rendus hors page. */
   borderRadius: "var(--rp-surface-radius, 18px)",
-  boxShadow: "none",
+  boxShadow: "var(--esp-surface-shadow, none)",
 } satisfies CSSProperties
 
 export const RESEAU_CARD_STYLE = {
   ...RESEAU_SURFACE_STYLE,
-  padding: "18px 20px",
+  padding: "var(--esp-card-padding, 18px 20px)",
 } satisfies CSSProperties
 
 /**
@@ -40,13 +40,13 @@ export const POST_SURFACE_STYLE = {
      fond (Électrique), un anneau intérieur la détache — transparent partout
      ailleurs, sans effet sur la mise en page, et recouvert par un média qui
      traverse la carte bord à bord. */
-  boxShadow: "inset 0 0 0 1px var(--esp-surface-border, transparent)",
+  boxShadow: "var(--esp-post-shadow, inset 0 0 0 1px var(--esp-surface-border, transparent))",
 } satisfies CSSProperties
 
 export const RESEAU_HERO_STYLE = {
   ...RESEAU_SURFACE_STYLE,
   borderRadius: "var(--ui2-card-radius, 20px)",
-  padding: 24,
+  padding: "var(--esp-card-padding, 24px)",
 } satisfies CSSProperties
 
 export const RESEAU_INNER_CARD_STYLE = {
@@ -54,7 +54,7 @@ export const RESEAU_INNER_CARD_STYLE = {
   /* Carte posée sur une carte de même couleur : le filet reste (contour à couleur égale). */
   border: "1px solid var(--border)",
   borderRadius: "var(--esp-media-radius, 16px)",
-  boxShadow: "none",
+  boxShadow: "var(--esp-surface-shadow, none)",
 } satisfies CSSProperties
 
 export const RESEAU_PRIMARY_ACTION_STYLE = {

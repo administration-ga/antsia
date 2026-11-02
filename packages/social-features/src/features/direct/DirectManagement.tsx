@@ -39,7 +39,7 @@ function ManagementPanels({ session, admitted }: { session: DirectSession; admit
   // La permission retirée ne doit pas laisser vivre la query de l'ancien volet.
   const active = selected && panels.includes(selected) ? selected : null
   if (panels.length === 0) return null
-  return <aside className="flex min-w-0 flex-col gap-4 rounded-xl border border-border bg-card p-4" aria-label={t("management.title")}>
+  return <aside className="flex min-w-0 flex-col gap-4 rounded-[var(--esp-primitive-card-radius,0.75rem)] border border-[var(--esp-primitive-surface-border,var(--border))] bg-card p-4" aria-label={t("management.title")}>
     <nav aria-label={t("management.panels")} className="flex flex-wrap gap-2">{panels.map((panel) => <Button key={panel} variant="ghost" aria-expanded={active === panel} onClick={() => setSelected(active === panel ? null : panel)}>{t(`management.${panel}`)}</Button>)}</nav>
     {active ? <section aria-label={t(`management.${active}`)} className="flex min-w-0 flex-col gap-4">
       <h2 className="text-lg font-semibold">{t(`management.${active}`)}</h2>

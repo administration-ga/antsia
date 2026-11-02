@@ -122,7 +122,20 @@
     "openActivity": "Ouvrir mon activité",
     "shops": "Les adresses",
     "offers": "À commander",
-    "demoOffers": "À commander — sélection de démonstration",
-    "specials": "Plats du jour"
+    "demoOffers": "Exemples de boutiques — démonstration",
+    "specials": "Plats du jour",
+    "categories": {
+      "label": "Catégories alimentaires",
+      "all": "Tous les produits",
+      "lead": "Parcourez les catégories publiées par les activités dans PRO.GA."
+    },
+    "catalog": {
+      "empty": "Aucun produit diffusé n’est disponible dans cette catégorie.",
+      "failed": "Les produits alimentaires ne peuvent pas être chargés pour le moment.",
+      "building": "L’index des produits alimentaires est en cours de préparation.",
+      "pagination": "Pages des produits alimentaires",
+      "invalid": "Ce lien vers les catégories alimentaires n’est pas valide.",
+      "restart": "Voir tous les produits alimentaires"
+    }
   }
 }

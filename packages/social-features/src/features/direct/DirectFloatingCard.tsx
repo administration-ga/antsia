@@ -20,7 +20,7 @@ import { directCardPose, type DirectCardPose } from "./direct-floating"
 import { directParticipantPersonId, directRosterTracks } from "./direct-studio-model"
 
 const FLOATING_CSS = `
- .antsia-direct-float { --ui2-button-min-h:44px; --ui2-button-sm-min-h:44px; position:fixed; left:16px; bottom:24px; z-index:45; box-sizing:border-box; width:min(360px,calc(100vw - 32px)); max-height:calc(100dvh - 32px); display:flex; flex-direction:column; gap:10px; padding:12px; border:1px solid var(--border); border-radius:16px; background:var(--background); color:var(--foreground); box-shadow:var(--shadow-lg); overflow:auto; }
+ .antsia-direct-float { --ui2-button-min-h:44px; --ui2-button-sm-min-h:44px; position:fixed; left:16px; bottom:24px; z-index:45; box-sizing:border-box; width:min(360px,calc(100vw - 32px)); max-height:calc(100dvh - 32px); display:flex; flex-direction:column; gap:10px; padding: var(--esp-card-padding, 12px); border: 1px solid var(--esp-raised-border, var(--border)); border-radius: var(--esp-primitive-card-radius, 16px); background:var(--background); color:var(--foreground); box-shadow: var(--esp-surface-shadow, var(--shadow-lg)); overflow:auto; }
  .antsia-direct-float[data-pose=pill] { width:min(320px,calc(100vw - 32px)); }
  .antsia-direct-float[data-pose=mobile] { left:12px; right:12px; bottom:calc(76px + env(safe-area-inset-bottom)); width:auto; max-height:40dvh; }
  .antsia-direct-float .lk-participant-metadata { display:none; }
@@ -80,7 +80,7 @@ function MiniScene({ session }: { session: DirectSession }) {
   const active = speaking.map(directParticipantPersonId).find((personId) => roster.some((person) => person.key === personId))
   const focus = roster.find((person) => person.key === session.spotlight?.personId && person.track) ?? roster.find((person) => person.key === active && person.track) ?? roster.find((person) => person.role === "host") ?? roster[0]
   const track = screen ?? focus?.track
-  return <div aria-label={t("floating.preview")} data-lk-theme="antsia" className="relative aspect-[16/10] overflow-hidden rounded-lg border border-border bg-muted" style={{ "--lk-bg": "var(--background)", "--lk-fg": "var(--foreground)" } as React.CSSProperties}>
+  return <div aria-label={t("floating.preview")} data-lk-theme="antsia" className="relative aspect-[16/10] overflow-hidden rounded-[var(--esp-primitive-media-radius,0.5rem)] border border-border bg-muted" style={{ "--lk-bg": "var(--background)", "--lk-fg": "var(--foreground)" } as React.CSSProperties}>
     {track ? <ParticipantTile trackRef={track} className="h-full w-full" /> : <p className="p-4 text-sm">{t("studio.notConnected")}</p>}
     <span className="absolute bottom-1 left-1 rounded bg-background px-2 py-1 text-xs">{screen ? t("studio.presentation") : focus?.displayName ?? t("person")}</span>
   </div>

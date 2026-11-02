@@ -41,18 +41,18 @@ describe("entrée publique de démonstration", () => {
   })
 })
 
-describe("hauteur du workspace sous le bandeau démo", () => {
+describe("hauteur du workspace avec la notice démo", () => {
   it("ne modifie pas la hauteur du site principal", () => {
     vi.stubEnv("NEXT_PUBLIC_APP_BASE_PATH", "")
     vi.stubEnv("NEXT_PUBLIC_CONVEX_URL", "https://diligent-avocet-585.convex.cloud")
     expect(demoWorkspaceHeight()).toBeUndefined()
   })
 
-  it("retranche la hauteur mesurée uniquement dans le build démo exact", () => {
+  it("conserve toute la hauteur dans le build démo exact", () => {
     vi.stubEnv("NEXT_PUBLIC_APP_BASE_PATH", "/demo")
     vi.stubEnv("NEXT_PUBLIC_CONVEX_URL", "https://vivid-hedgehog-655.convex.cloud")
     expect(DEMO_BANNER_HEIGHT_PROPERTY).toBe("--antsia-demo-banner-height")
-    expect(demoWorkspaceHeight()).toBe("calc(100dvh - var(--antsia-demo-banner-height, 0px))")
+    expect(demoWorkspaceHeight()).toBe("100dvh")
   })
 
   it.each([

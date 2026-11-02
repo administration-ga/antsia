@@ -50,6 +50,7 @@ import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 import { SWIPE_HYSTERESIS_PX } from "../../shell/mobile/gestures"
 import { StoryOverlay } from "./StoryOverlay"
+import { DailySpecialStoryCard } from "./DailySpecialStoryCard"
 import { StoryProgressBar } from "./StoryProgressBar"
 import { StoryViewersSheet } from "./StoryViewersSheet"
 import {
@@ -147,6 +148,8 @@ function StoryViewerContent({
 	const [paused, setPaused] = useState(false)
 	// L'intention explicite ne se relâche ni au pointerup, ni au pointerleave.
 	const [userPaused, setUserPaused] = useState(false)
+	// Le clavier ne doit pas perdre le bouton de commande au changement automatique de Story.
+	const [offerFocused, setOfferFocused] = useState(false)
 	const [stalled, setStalled] = useState(false)
 	const [muted, setMuted] = useState(true)
 	const [viewersOpen, setViewersOpen] = useState(false)
@@ -199,7 +202,7 @@ function StoryViewerContent({
 	// défiler une story que personne ne regarde (vécu avec l'autoplay refusé).
 	const halted = isPlaybackHalted({
 		active,
-		paused: paused || userPaused,
+		paused: paused || userPaused || offerFocused,
 		stalled,
 		viewersOpen,
 		needsTap,
@@ -211,7 +214,7 @@ function StoryViewerContent({
 	// C'est le gel « écran noir » de toutes les vidéos d'actu (2026-08-20).
 	const mediaHalted = isMediaHalted({
 		active,
-		paused: paused || userPaused,
+		paused: paused || userPaused || offerFocused,
 		stalled,
 		viewersOpen,
 		needsTap,
@@ -234,12 +237,13 @@ function StoryViewerContent({
 	// élément vidéo pour une autre story. Elle ne décide plus de cette lecture.
 	useLayoutEffect(() => {
 		playbackAttempt.current += 1
-	}, [active, currentId, failed, paused, userPaused, viewersOpen])
+	}, [active, currentId, failed, paused, userPaused, offerFocused, viewersOpen])
 	useEffect(() => {
 		setTimer(STORY_TIMER_ZERO)
 		setRemoveArmed(false)
 		setNeedsTap(false)
 		setFailed(false)
+		setOfferFocused(false)
 		exhausted.current = false
 	}, [currentId])
 
@@ -361,7 +365,7 @@ function StoryViewerContent({
 		// Les raisons sont aussi suivies séparément : pendant un play() manuel,
 		// needsTap tient encore mediaHalted à true ; une nouvelle pause doit
 		// néanmoins interrompre cette tentative avant sa résolution.
-	}, [mediaHalted, muted, currentId, startPlayback, active, paused, userPaused, viewersOpen, failed])
+	}, [mediaHalted, muted, currentId, startPlayback, active, paused, userPaused, offerFocused, viewersOpen, failed])
 
 	/**
 	 * Rejoue quand la DÉCISION dit « joue » et que l'élément s'est pourtant
@@ -572,9 +576,9 @@ function StoryViewerContent({
 			) : (
 				// eslint-disable-next-line @next/next/no-img-element -- lecteur du moteur indépendant de Next : URL servie par la garde et scène déjà dimensionnée.
 				<img
-					className="st-media"
+					className={current.dailySpecial ? "st-media st-daily-special-media" : "st-media"}
 					src={current.media.url}
-					alt={current.caption ?? t("storyViewer.imageAlt", { name: authorName })}
+					alt={current.dailySpecial?.title ?? current.caption ?? t("storyViewer.imageAlt", { name: authorName })}
 					// Même règle qu'une vidéo cassée : sauter si la série continue,
 					// tenir l'écran (et le dire) si elle n'a que ce média.
 					onError={() => {
@@ -629,7 +633,14 @@ function StoryViewerContent({
 				handle={handle}
 				avatarUrl={avatarUrl}
 				ageLabel={storyAgeLabel(current.publishedAt, now, t)}
-				caption={current.caption}
+				caption={current.dailySpecial ? null : current.caption}
+				content={current.dailySpecial && current.media.url !== null && !failed ? (
+					<DailySpecialStoryCard
+						key={currentId}
+						offer={current.dailySpecial}
+						onFocusWithinChange={setOfferFocused}
+					/>
+				) : undefined}
 				onClose={onClose}
 				actions={
 					<>
@@ -715,6 +726,7 @@ function StoryViewerContent({
 					onOpenChange={setViewersOpen}
 					storyId={current.storyId}
 					now={now}
+					queryNow={queryNow}
 				/>
 			) : null}
 		</div>

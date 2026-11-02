@@ -52,6 +52,6 @@ function ShowcaseLogo({ url, name, large }: { url: string | null; name: string; 
   const [failed, setFailed] = useState<string | null>(null)
   const size = large ? "size-16" : "size-12"
   // eslint-disable-next-line @next/next/no-img-element -- URL fournie par la garde du moteur, pas d'identifiant de stockage client.
-  if (url && failed !== url) return <img src={url} alt="" className={`${size} shrink-0 rounded-[var(--esp-avatar-page-radius)] bg-card object-contain p-1`} onError={() => setFailed(url)} />
+  if (url && failed !== url) return <img src={url} alt="" className={`${size} shrink-0 rounded-[var(--esp-avatar-page-radius)] object-cover object-center`} onError={() => setFailed(url)} />
   return large ? <span aria-hidden="true" className="flex size-16 shrink-0 items-center justify-center rounded-[var(--esp-avatar-page-radius)] bg-card font-display text-2xl font-bold text-foreground">{Array.from(name).at(0) ?? ""}</span> : null
 }

@@ -220,7 +220,7 @@ body,
 /* Déjà regardée : un filet discret, pas un anneau. C'est ce qui fait qu'une
    barre SE VIDE à l'œil en la parcourant. */
 .esp-story-ring-seen {
-  background: color-mix(in srgb, var(--muted-foreground) 38%, transparent);
+  background: var(--esp-story-ring-seen-fill, color-mix(in srgb, var(--muted-foreground) 38%, transparent));
 }
 
 /* La mienne — ni « à voir » ni « vue » : le point de départ. */
@@ -1321,11 +1321,11 @@ body,
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    min-height: 32px;
+    min-height: var(--esp-control-min-size, 32px);
     padding: 0 10px;
-    border-radius: 8px;
-    border: 1px solid var(--border);
-    background: var(--background);
+    border-radius: var(--esp-primitive-button-radius, 8px);
+    border: 1px solid var(--esp-primitive-neutral-border, var(--border));
+    background: var(--esp-primitive-neutral-bg, var(--background));
     color: var(--foreground);
     font-size: 12.5px;
     font-weight: 600;
@@ -1342,8 +1342,8 @@ body,
     flex-direction: column;
     width: min(320px, calc(100vw - 32px));
     max-height: min(420px, 70vh);
-    border-radius: 12px;
-    border: 1px solid var(--border);
+    border-radius: var(--esp-primitive-card-radius, 12px);
+    border: 1px solid var(--esp-raised-border, var(--border));
     background: var(--popover, var(--background));
     color: var(--popover-foreground, var(--foreground));
     box-shadow: var(--shadow-lg);
@@ -1371,7 +1371,7 @@ body,
     width: auto;
     max-width: none;
     max-height: calc(var(--vv-height, 100dvh) - 4.5rem);
-    border-radius: 18px 18px 0 0;
+    border-radius: var(--esp-primitive-card-radius, 18px) var(--esp-primitive-card-radius, 18px) 0 0;
     border-inline: 0;
     border-block-end: 0;
     padding-bottom: env(safe-area-inset-bottom, 0px);
@@ -1431,7 +1431,7 @@ body,
     place-items: center;
     width: 44px;
     height: 44px;
-    border-radius: 8px;
+    border-radius: var(--esp-primitive-button-radius, 8px);
     color: var(--muted-foreground);
   }
   .iappel-launcher-close:hover { background: var(--muted); }
@@ -1443,8 +1443,8 @@ body,
     margin: 8px 12px;
     min-height: 44px;
     padding: 0 12px;
-    border-radius: 8px;
-    border: 1px solid var(--border);
+    border-radius: var(--esp-input-radius, 8px);
+    border: 1px solid var(--esp-field-border, var(--border));
     background: var(--background);
     font-size: 16px;
   }
@@ -1465,8 +1465,9 @@ body,
     margin-top: 8px;
     min-height: 44px;
     padding: 0 14px;
-    border-radius: 8px;
-    border: 1px solid var(--border);
+    border-radius: var(--esp-primitive-button-radius, 8px);
+    border: 1px solid var(--esp-primitive-neutral-border, var(--border));
+    background: var(--esp-primitive-neutral-bg, transparent);
     color: var(--foreground);
     font-weight: 500;
   }
@@ -1478,7 +1479,7 @@ body,
     width: 100%;
     min-height: 44px;
     padding: 6px 8px;
-    border-radius: 8px;
+    border-radius: var(--esp-primitive-chip-radius, 8px);
     text-align: start;
     touch-action: manipulation;
   }
@@ -1566,9 +1567,9 @@ body,
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    min-height: 32px;
+    min-height: var(--esp-control-min-size, 32px);
     padding: 0 10px;
-    border-radius: 8px;
+    border-radius: var(--esp-primitive-button-radius, 8px);
     background: var(--esp-identity-fill, var(--primary));
     color: var(--primary-fill-on, var(--primary-foreground));
     font-size: 12.5px;
@@ -1629,7 +1630,7 @@ body,
     --iappel-hint-soft: var(--ink-600);
     --iappel-hint-soft-opacity: 1;
     --iappel-hint-strong: var(--primary-fill);
-    --iappel-hint-on-strong: var(--on-fill);
+    --iappel-hint-on-strong: var(--esp-primitive-fill-on, var(--on-fill));
     --iappel-hint-link: var(--primary-700, var(--primary-fill));
     --iappel-hint-hover: var(--ink-100);
     --iappel-hint-focus: var(--ring);
@@ -1641,8 +1642,8 @@ body,
     --iappel-hint-ink: var(--popover-foreground, var(--foreground));
     --iappel-hint-soft: var(--muted-foreground);
     --iappel-hint-soft-opacity: 1;
-    --iappel-hint-strong: var(--primary);
-    --iappel-hint-on-strong: var(--primary-foreground);
+    --iappel-hint-strong: var(--esp-primitive-identity-fill, var(--primary));
+    --iappel-hint-on-strong: var(--esp-primitive-fill-on, var(--primary-foreground));
     --iappel-hint-link: var(--primary);
     --iappel-hint-hover: var(--muted);
     --iappel-hint-focus: var(--ring);
@@ -1657,7 +1658,7 @@ body,
     max-width: 360px;
     box-sizing: border-box;
     padding: 16px;
-    border-radius: 14px;
+    border-radius: var(--esp-primitive-card-radius, 14px);
     border: 1px solid var(--iappel-hint-edge);
     border-inline-start: 4px solid var(--warning);
     background: var(--iappel-hint-surface);
@@ -1693,7 +1694,7 @@ body,
     place-items: center;
     width: 44px;
     height: 44px;
-    border-radius: 10px;
+    border-radius: var(--esp-primitive-button-radius, 10px);
     color: var(--iappel-hint-soft);
     touch-action: manipulation;
   }
@@ -1733,7 +1734,7 @@ body,
     justify-content: center;
     min-height: 44px;
     padding: 0 16px;
-    border-radius: 10px;
+    border-radius: var(--esp-primitive-button-radius, 10px);
     background: var(--iappel-hint-strong);
     color: var(--iappel-hint-on-strong);
     font-size: 14px;
@@ -1746,7 +1747,7 @@ body,
     justify-content: center;
     min-height: 44px;
     padding: 0 12px;
-    border-radius: 10px;
+    border-radius: var(--esp-primitive-button-radius, 10px);
     background: transparent;
     color: var(--iappel-hint-link);
     font-size: 13.5px;
@@ -1844,7 +1845,7 @@ body,
     flex: 0 0 auto;
     min-height: 44px;
     padding: 0 8px;
-    border-radius: 8px;
+    border-radius: var(--esp-primitive-button-radius, 8px);
     color: var(--esp-immersive-on-ink);
     font-size: 12.5px;
     font-weight: 600;

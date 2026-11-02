@@ -2,12 +2,14 @@
 import { assertDecisionReason } from "@antsia/social-domain/audit"
 import { isCommercePublicContract } from "@antsia/social-domain/commerce/primitives"
 import { federationEnvironment } from "@antsia/social-domain/federationProtocol"
+import { paginationOptsValidator } from "convex/server"
 import { v } from "convex/values"
 
 import { checked, fail, notFound } from "../../lib/errors"
 import { networkQuery, operatorMutation, operatorQuery } from "../../lib/functions"
 import { enforceRateLimit } from "../../lib/rateLimit"
 import { requireFederationAdmin } from "../federation/access"
+import { federationEnvironmentValidator } from "../federation/tables"
 import { appendAudit, operatorCapacity } from "../platform/audit"
 import { liveShopCommerceLink } from "./commerceLinkLifecycle"
 import { requireManagedShop } from "./access"
@@ -22,6 +24,42 @@ export const getPolicy = operatorQuery({
     if ((await ctx.db.get(args.networkId))?.status !== "active") return notFound()
     const row = await ctx.db.query("shopCatalogPolicies").withIndex("by_network", (q) => q.eq("networkId", args.networkId)).unique()
     return { networkId: args.networkId, enabled: row?.enabled === true, configured: row !== null, updatedAt: row?.updatedAt ?? null }
+  },
+})
+
+/** Une fenêtre opérateur : identité de la page, liaison vivante et décision courante, sans secret ni catalogue. */
+export const paginateMappings = operatorQuery({
+  args: { networkId: v.id("networks"), paginationOpts: paginationOptsValidator },
+  returns: v.object({
+    page: v.array(v.object({
+      shopId: v.id("shops"), name: v.union(v.string(), v.null()), handle: v.union(v.string(), v.null()),
+      link: v.union(v.null(), v.object({ environment: federationEnvironmentValidator, publishCatalog: v.boolean() })),
+      mapping: v.union(v.null(), v.object({ emitterId: v.id("federationEmitters"), emitterSlug: v.union(v.string(), v.null()), enabled: v.boolean(), generation: v.number() })),
+    })),
+    isDone: v.boolean(), continueCursor: v.string(),
+  }),
+  handler: async (ctx, args) => {
+    await requireFederationAdmin(ctx, ctx)
+    if ((await ctx.db.get(args.networkId))?.status !== "active") return notFound()
+    const requested = args.paginationOpts.numItems
+    const numItems = Number.isFinite(requested) ? Math.min(20, Math.max(1, Math.floor(requested))) : 20
+    const window = await ctx.db.query("shops").withIndex("by_network_storefront_publishedAt", (q) => q.eq("networkId", args.networkId)).paginate({ ...args.paginationOpts, numItems })
+    const page = []
+    for (const shop of window.page) {
+      const identity = shop.pageId ? await ctx.db.get(shop.pageId) : null
+      const visiblePage = identity?.networkId === args.networkId && identity.status === "active" ? identity : null
+      const link = await liveShopCommerceLink(ctx, args.networkId, shop._id)
+      const mapping = await ctx.db.query("commerceCatalogMappings").withIndex("by_network_shop", (q) => q.eq("networkId", args.networkId).eq("shopId", shop._id)).unique()
+      const emitter = mapping ? await ctx.db.get(mapping.emitterId) : null
+      page.push({
+        shopId: shop._id,
+        name: visiblePage?.name ?? (shop.pageId ? null : shop.draftName ?? null),
+        handle: visiblePage?.handle ?? null,
+        link: link ? { environment: link.environment, publishCatalog: link.permissions.includes("publish_catalog") } : null,
+        mapping: mapping ? { emitterId: mapping.emitterId, emitterSlug: emitter?.networkId === args.networkId ? emitter.slug : null, enabled: mapping.enabled, generation: mapping.generation } : null,
+      })
+    }
+    return { page, isDone: window.isDone, continueCursor: window.continueCursor }
   },
 })
 

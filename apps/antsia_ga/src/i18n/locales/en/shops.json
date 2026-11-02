@@ -582,6 +582,23 @@
     "serviceArea": "Service area",
     "hours": "Opening hours"
   },
+  "images": {
+    "guideTitle": "Prepare square images",
+    "guideLead": "Photos fill their frame with cropping, without stretching or added bands. Check that the subject stays visible in the centre.",
+    "guideSquare": "Prepare a sharp, well-lit square image, ideally 1,200 × 1,200 pixels or larger.",
+    "guideSubject": "Keep the product or logo in the centre, with enough space around it to avoid cutting off details.",
+    "guideEdges": "Avoid black bars, frames and text near the file edges. Use the original photo rather than a screenshot.",
+    "productSource": "For products, prepare these photos in PRO.GA before publishing or synchronising the catalogue. Display cropping does not change your catalogue files.",
+    "cropTitle": "Crop my logo",
+    "cropHint": "The square shows the result that will be saved. Move the image or zoom to keep what matters; cropping happens on your device.",
+    "horizontal": "Horizontal position",
+    "vertical": "Vertical position",
+    "zoom": "Zoom",
+    "reset": "Centre image",
+    "invalid": "This image could not be prepared. Choose a readable JPEG, PNG or WebP photo of up to 40 megapixels.",
+    "previewAlt": "Square preview of the selected logo",
+    "cancel": "Cancel selection"
+  },
   "presentation": {
     "lead": "Describe your activity at your own pace. Your business name keeps its own spelling.",
     "pageIdentity": "The name, description and logo also belong to your social page.",
@@ -758,6 +775,8 @@
     "myShop": "My shop"
   },
   "food": {
+    "namedMenu": "The menu at {{name}}",
+    "backToMenu": "Back to the menu",
     "menu": "Menu",
     "seeMenu": "See the menu",
     "hours": "Opening hours",
@@ -765,6 +784,16 @@
   },
   "dailySpecial": {
     "title": "Today’s special",
+    "story": {
+      "title": "Share it in Stories",
+      "lead": "Publish this dish in your Stories in this network, with a link to its offer. It disappears at midnight in Libreville, or when you remove the daily special.",
+      "share": "Share in Stories",
+      "shareNamed": "Share the dish “{{title}}” in Stories",
+      "open": "Open Stories",
+      "created": "Story published until midnight in Libreville.",
+      "existing": "This dish is already in your Stories for this daily special.",
+      "unavailable": "The dish and a photo must be visible in the menu before you can share it."
+    },
     "lead": "Choose a product from your menu: it is featured today on your storefront and in the “Food and restaurants” universe, until midnight.",
     "label": "Menu product",
     "choose": "Choose a menu product",

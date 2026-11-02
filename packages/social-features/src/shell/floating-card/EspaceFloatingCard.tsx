@@ -71,8 +71,8 @@ const ESPACE_FLOATING_CARD_CSS = `
            il ne mord jamais (760px arrive avant). */
         max-height: min(760px, 92dvh, 100%);
         overflow: hidden;
-        border-radius: 18px;
-        border: 1px solid var(--border);
+        border-radius: var(--esp-primitive-card-radius, 18px);
+        border: 1px solid var(--esp-raised-border, var(--border));
         background: var(--esp-surface-raised, var(--background));
       }
       /* Plein ecran (telephone) : les memes tranches, directement dans la

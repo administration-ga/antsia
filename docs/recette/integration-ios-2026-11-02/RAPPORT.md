@@ -20,7 +20,7 @@ Les fichiers sont copiés sans retouche depuis l'arbre partagé, sauf `convex/mo
 ## Ce qui n'en fait volontairement pas partie
 
 - Le bac à sable local du 25 octobre : `convex/lib/localCommerceSandbox`, `convex/modules/platform/localOperatorBootstrap`, `convex/modules/federation/access.ts` et `emitters.ts`, `convex/modules/shops/catalogControl.ts`, l'audit `operator.bootstrap`.
-- Le plat du jour public et le travail web : `getDailySpecial`, `packages/social-features`, `packages/ui` hors thème natif, `packages/api/src/network.tsx`. L'application n'en dépend pas.
+- Le plat du jour public et le travail web : `getDailySpecial`, `packages/social-features`, `packages/ui` hors thème natif, `packages/api/src/network.tsx`. L'application n'en dépend pas ; ils ont rejoint `main` ensuite (`docs/recette/parite-production-2026-11-02/RAPPORT.md`).
 - Les captures des recettes iOS 9 à 12 (18 Mo), qui restent dans l'arbre partagé. La recette du build 9 est aussi dans la branche de la PR 85, un brouillon dont le code est désormais couvert ici.
 
 ## Preuves
@@ -42,5 +42,5 @@ Le rapport de l'icône (`docs/recette/icone-ios-2026-11-02/RAPPORT.md`) attribua
 ## Restes
 
 - Aucun binaire natif n'a été compilé depuis cette branche : seul le JavaScript est prouvé. Le premier `eas build` tiré de `main` reste à éprouver, sous le numéro 14.
-- `main` reste en retard sur la production pour le travail web et le plat du jour public : publier depuis `main` retirerait ces éléments. Ne pas publier depuis `main` sans les y amener.
+- `main` restait alors en retard sur la production pour le travail web et le plat du jour public. C'est résolu le même jour : `docs/recette/parite-production-2026-11-02/RAPPORT.md`.
 - Aucun essai sur iPhone physique.

@@ -91,7 +91,7 @@ describe("catalogue SSR — projection strictement allowlistée", () => {
 })
 
 describe("catalogue SSR — projection illustrative de démonstration", () => {
-  it.each(["http://localhost:3210", "http://127.0.0.1:3210", "https://vivid-hedgehog-655.convex.cloud"])("admet les huit déclarations uniquement sur %s", (backendUrl) => {
+  it.each(["http://localhost:3210", "http://127.0.0.1:3210", "http://localhost:3260", "http://127.0.0.1:3260", "https://vivid-hedgehog-655.convex.cloud"])("admet le registre fermé des déclarations uniquement sur %s", (backendUrl) => {
     vi.stubEnv("NEXT_PUBLIC_CONVEX_URL", backendUrl)
     for (const declaration of DEMO_CATALOG_DECLARATIONS) {
       const base = demoOfferFixture()

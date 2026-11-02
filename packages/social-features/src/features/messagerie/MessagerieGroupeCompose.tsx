@@ -82,7 +82,7 @@ const MSG_GROUPE_COMPOSE_CSS = `
 		  min-height: 44px;
           padding: 8px;
           border: none;
-          border-radius: 10px;
+          border-radius: var(--esp-primitive-chip-radius, 10px);
           background: transparent;
           color: inherit;
           font: inherit;
@@ -139,7 +139,7 @@ const MSG_GROUPE_COMPOSE_CSS = `
 		  min-height: 72px;
 		  padding: 3px;
 		  border: none;
-		  border-radius: 10px;
+		  border-radius: var(--esp-primitive-chip-radius, 10px);
 		  background: transparent;
 		  color: var(--ink-900);
 		  font: inherit;
@@ -198,7 +198,7 @@ const MSG_GROUPE_COMPOSE_CSS = `
 		  min-height: 44px;
 		  padding: 9px 15px;
 		  border: none;
-          border-radius: 11px;
+          border-radius: var(--esp-primitive-button-radius, 11px);
           background: var(--primary-fill);
           color: var(--primary-fill-on, var(--on-fill));
           font: inherit;
@@ -272,7 +272,7 @@ const MSG_GROUPE_COMPOSE_CSS = `
 		  min-height: 44px;
 		  padding: 5px 9px;
 		  border: none;
-		  border-radius: 8px;
+		  border-radius: var(--esp-primitive-button-radius, 8px);
 		  background: transparent;
 		  color: var(--ink-600);
 		  font: inherit;
@@ -302,7 +302,7 @@ const MSG_GROUPE_COMPOSE_CSS = `
 		  min-height: 44px;
 		  padding: 9px 11px;
 		  border: 1px solid var(--ink-300);
-		  border-radius: 11px;
+		  border-radius: var(--esp-input-radius, 11px);
 		  background: var(--ink-0);
 		  color: var(--ink-900);
 		  font: inherit;
@@ -331,7 +331,7 @@ const MSG_GROUPE_COMPOSE_CSS = `
 		.msg-grp-identity .msg-grp-selected {
 		  margin: 0 -6px;
 		  border: 1px solid var(--ink-200);
-		  border-radius: 12px;
+		  border-radius: var(--esp-primitive-card-radius, 12px);
 		}
 		.msg-panel[data-variant="page"] .msg-grp-pick { min-height: 64px; }
 		.msg-panel[data-variant="page"] .msg-grp-selected-name { font-size: 12px; }

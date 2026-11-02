@@ -97,14 +97,14 @@ export function CallEndScreen({
 			<div className="flex flex-col gap-2">
 				<h1
 					className="text-[22px] font-semibold text-pretty tracking-[-0.01em]"
-					style={{ color: "var(--esp-immersive-on-ink)" }}
+					style={{ color: "var(--esp-immersive-on-ink)", fontFamily: "var(--esp-heading-font-family, inherit)", fontSize: "var(--esp-page-title-size, 22px)", fontWeight: "var(--esp-heading-font-weight, 600)", lineHeight: "var(--esp-page-title-leading, inherit)", letterSpacing: "var(--esp-page-title-tracking, -0.01em)" }}
 				>
 					{copy.title}
 				</h1>
 				{copy.body.length > 0 && (
 					<p
 						className="max-w-sm text-[14.5px] leading-relaxed"
-						style={{ color: "var(--esp-immersive-on-ink)", opacity: 0.72 }}
+						style={{ color: "var(--esp-immersive-on-ink)", opacity: 0.72, fontSize: "var(--esp-content-font-size, 14.5px)", lineHeight: "var(--esp-content-line-height, 1.625)" }}
 					>
 						{copy.body}
 					</p>

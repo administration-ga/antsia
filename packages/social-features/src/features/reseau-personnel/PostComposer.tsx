@@ -410,7 +410,9 @@ export function PostComposer({
               // Repliée tant qu'on n'écrit pas, elle s'ouvre dès la première
               // frappe ou au focus. La transition porte sur `min-height`
               // seule, et se tait sous `prefers-reduced-motion`.
-              minHeight: expanded ? 84 : 44,
+              minHeight: expanded ? "var(--esp-textarea-min-height, 84px)" : 44,
+              fontSize: "var(--esp-field-font-size, inherit)",
+              lineHeight: "var(--esp-field-line-height, inherit)",
               padding: expanded ? "12px 13px" : "10px 13px",
               transition: "min-height 150ms ease-out",
             }}
@@ -460,7 +462,7 @@ export function PostComposer({
                 key={item.localId}
                 style={{
                   border: "1px solid var(--ink-200)",
-                  borderRadius: 8,
+                  borderRadius: "var(--esp-primitive-card-radius, 8px)",
                   padding: 8,
                   display: "flex",
                   flexDirection: "column",
@@ -476,7 +478,7 @@ export function PostComposer({
                       style={{
                         width: "100%",
                         aspectRatio: "4 / 3",
-                        borderRadius: 6,
+                        borderRadius: "var(--esp-primitive-media-radius, 6px)",
                         display: "grid",
                         placeItems: "center",
                         padding: 8,
@@ -498,7 +500,7 @@ export function PostComposer({
                         width: "100%",
                         aspectRatio: "4 / 3",
                         objectFit: "cover",
-                        borderRadius: 6,
+                        borderRadius: "var(--esp-primitive-media-radius, 6px)",
                         display: "block",
                         background: "var(--ink-100)",
                       }}
@@ -509,7 +511,7 @@ export function PostComposer({
                       style={{
                         width: "100%",
                         aspectRatio: "4 / 3",
-                        borderRadius: 6,
+                        borderRadius: "var(--esp-primitive-media-radius, 6px)",
                         display: "block",
                         background: "var(--ink-900)",
                       }}
@@ -523,12 +525,12 @@ export function PostComposer({
                       position: "absolute",
                       top: 6,
                       right: 6,
-                      width: 28,
-                      height: 28,
-                      borderRadius: 14,
+                      width: "var(--esp-control-min-size, 28px)",
+                      height: "var(--esp-control-min-size, 28px)",
+                      borderRadius: "var(--esp-primitive-button-radius, 14px)",
                       border: "none",
-                      background: "var(--ink-900)",
-                      color: "var(--ink-0)",
+                      background: "var(--esp-action-danger-fill, var(--ink-900))",
+                      color: "var(--esp-action-danger-on, var(--ink-0))",
                       cursor: "pointer",
                       display: "grid",
                       placeItems: "center",
@@ -554,15 +556,15 @@ export function PostComposer({
           </ul>
         ) : null}
 
-        {!group ? <fieldset disabled={submitting} className="flex min-w-0 flex-col gap-3 rounded-xl border border-border p-3">
+        {!group ? <fieldset disabled={submitting} className="flex min-w-0 flex-col gap-[var(--esp-card-gap,0.75rem)] rounded-[var(--esp-primitive-card-radius,0.75rem)] border border-border p-[var(--esp-card-padding,0.75rem)]">
           <legend className="px-1 text-sm font-medium">{t("postComposer.publication.legend")}</legend>
-          {canOpenPublic ? <label htmlFor={`${publicationId}-public`} className="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg px-2 text-sm focus-within:ring-2 focus-within:ring-ring">
+          {canOpenPublic ? <label htmlFor={`${publicationId}-public`} className="flex min-h-11 cursor-pointer items-center gap-3 rounded-[var(--esp-primitive-chip-radius,0.5rem)] px-2 text-sm focus-within:ring-2 focus-within:ring-ring">
             <input id={`${publicationId}-public`} type="checkbox" aria-describedby={`${publicationId}-hint`} {...publicationForm.register("alsoOnRoot", { onChange: (event) => postDraftStore.setPublication(draftKey, { alsoOnRoot: event.target.checked === true, province: draft.province }) })} />
             <span>{t(isRoot ? "postComposer.publication.withoutAccount" : "postComposer.publication.alsoOnRoot", { brand: BRAND_NAME })}</span>
           </label> : null}
           <p id={`${publicationId}-hint`} role="status" className="text-xs text-muted-foreground">{t(asPage && !isRoot ? "postComposer.publication.pagePolicyHint" : canOpenPublic && draft.alsoOnRoot ? "postComposer.publication.publicHint" : "postComposer.publication.memberHint", { brand: BRAND_NAME })}</p>
           {isRoot ? <label htmlFor={`${publicationId}-province`} className="flex flex-col gap-1.5 text-sm"><span>{t("postComposer.publication.provinceLabel")}</span>
-            <select id={`${publicationId}-province`} aria-describedby={`${publicationId}-province-hint`} className="min-h-11 w-full rounded-lg border border-input bg-background px-3 text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" {...publicationForm.register("province", { onChange: (event) => postDraftStore.setPublication(draftKey, { alsoOnRoot: canOpenPublic && draft.alsoOnRoot === true, ...(isProvinceSlug(event.target.value) ? { province: event.target.value } : {}) }) })}>
+            <select id={`${publicationId}-province`} aria-describedby={`${publicationId}-province-hint`} className="min-h-11 w-full rounded-[var(--esp-input-radius,0.5rem)] border border-input bg-background px-3 text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" {...publicationForm.register("province", { onChange: (event) => postDraftStore.setPublication(draftKey, { alsoOnRoot: canOpenPublic && draft.alsoOnRoot === true, ...(isProvinceSlug(event.target.value) ? { province: event.target.value } : {}) }) })}>
               <option value="">{t("postComposer.publication.noProvince")}</option>{GABON_PROVINCES.map((province) => <option key={province.slug} value={province.slug}>{province.name}</option>)}
             </select><span id={`${publicationId}-province-hint`} className="text-xs text-muted-foreground">{t("postComposer.publication.provinceHint")}</span>
           </label> : null}
@@ -606,7 +608,7 @@ export function PostComposer({
                   value={asPage ? pageAudience : audience}
                   aria-describedby="reseau-audience-hint"
                   style={{
-                    borderRadius: 10,
+                    borderRadius: "var(--esp-input-radius, 10px)",
                     border: "1px solid var(--ink-300)",
                     minHeight: 44,
                     paddingBlock: 8,

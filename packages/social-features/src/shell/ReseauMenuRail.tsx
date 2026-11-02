@@ -24,7 +24,7 @@ import { useAuthenticatedConvexQuery, useAuthenticatedPaginatedQuery } from "@an
 import { useNetwork, useNetworkNavigationLayout, useRoutes } from "@antsia/api/network"
 import { Link, usePathname, useSearchParams } from "@antsia/api/routing"
 import { Badge, Button, Card, Icon } from "@antsia/ui"
-import { BriefcaseBusiness, Store } from "lucide-react"
+import { BriefcaseBusiness, FilePlus2, PanelsTopLeft, Store } from "lucide-react"
 import { type CSSProperties, type ReactNode, useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
 
@@ -34,7 +34,7 @@ import { formatUnreadBadge } from "../features/reseau-personnel/shared"
 import { AppearanceControl } from "./appearance"
 import { RESEAU_SURFACE_STYLE } from "./design-styles"
 import { CreationChoiceCard, useChoiceTrigger } from "./mobile/ReseauMobileCreateButton"
-import type { ReseauAgentTabId } from "./reseau-agent-nav"
+import { reseauAgentHref, type ReseauAgentTabId } from "./reseau-agent-nav"
 import { menuBadgeLabel, menuItemsFor, SHORTCUTS_MAX, shortcutsFor, type ReseauMenuCounts } from "./reseau-menu"
 import { RESEAU_MENU_RAIL_ADAPTIVE_CSS } from "./reseau-menu-rail-styles"
 import {
@@ -122,6 +122,13 @@ const SECTION_TITLE_STYLE: CSSProperties = {
 	textTransform: "uppercase",
 	color: "var(--muted-foreground)",
 	paddingInline: 10,
+}
+
+/** Compare les chemins injectés, sans confondre une piste et un préfixe de nom. */
+function railPathMatches(pathname: string | null, href: string | null | undefined): boolean {
+	if (pathname === null || !href) return false
+	const path = href.split(/[?#]/u)[0]?.replace(/\/+$/u, "") || "/"
+	return pathname === path || (path !== "/" && pathname.startsWith(`${path}/`))
 }
 
 export function ReseauMenuRail({
@@ -244,6 +251,7 @@ export function ReseauMenuRail({
 					profileAvatar={epure ? { displayName, avatarUrl: person?.avatar?.url ?? null } : null}
 					shops={epure && shopsHref !== null ? { href: shopsHref, label: shopsLabel } : null}
 					myShop={epure && myShopHref !== null ? { href: myShopHref, label: myShopLabel } : null}
+					grouped={epure}
 					handle={handle}
 					onSelectTab={onSelectTab}
 					onCreate={onCreate}
@@ -463,6 +471,7 @@ function RailDestinations({
 	profileAvatar = null,
 	shops = null,
 	myShop = null,
+	grouped = false,
 	handle,
 	onSelectTab,
 	onCreate,
@@ -476,6 +485,8 @@ function RailDestinations({
 	shops?: { href: string; label: string } | null
 	/** « Ma boutique » suit Boutiques, pour qui gère déjà une boutique. */
 	myShop?: { href: string; label: string } | null
+	/** Trois espaces distincts, uniquement pour la navigation adaptative déclarée. */
+	grouped?: boolean
 	handle: string | null
 	onSelectTab?: (tab: ReseauAgentTabId) => void
 	onCreate?: (kind: CreationKind) => void
@@ -483,6 +494,7 @@ function RailDestinations({
 }) {
 	const { t } = useTranslation("reseau")
 	const { liveAvailable } = useNetwork()
+	const engineRoutes = useRoutes()
 	const { adaptive } = useNetworkNavigationLayout()
 	const pathname = usePathname()
 	const searchParams = useSearchParams()
@@ -497,12 +509,21 @@ function RailDestinations({
 		setOpen(false)
 	}, [pathname, setOpen])
 
-	const match = current !== undefined ? current : activeReseauDestination({ pathname, search: searchParams }, routes, handle)
+	// Ces destinations possèdent désormais leur propre entrée dans le rail :
+	// leur ancien rattachement à Explorer/Profil ne doit plus allumer deux lieux.
+	const workspaceCurrent = grouped && (
+		(pathname === routes.home() && searchParams.get("tab") === "pages") ||
+		railPathMatches(pathname, shops?.href) ||
+		railPathMatches(pathname, engineRoutes.myActivity?.()) ||
+		railPathMatches(pathname, engineRoutes.settings?.())
+	)
+	const match = workspaceCurrent ? null : current !== undefined ? current : activeReseauDestination({ pathname, search: searchParams }, routes, handle)
 	const choices = reseauCreationChoices({ handle, liveAvailable }, routes).filter((choice) => onCreate !== undefined || choice.href !== null)
 
 	return (
 		<nav aria-label={t("reseauDestinations.navLabel")} style={{ padding: "12px 12px 0" }}>
 			{identity}
+			{grouped ? <h2 className="rmr-section-title" style={SECTION_TITLE_STYLE}>{t("reseauMenuRail.socialSection")}</h2> : null}
 			<ul style={{ listStyle: "none", margin: "8px 0 0", padding: 0, display: "grid", gap: 2 }}>
 				{reseauDestinations(routes).map((destination) => {
 					const DestinationIcon = RESEAU_DESTINATION_ICONS[destination.id]
@@ -569,13 +590,13 @@ function RailDestinations({
 					)
 				})}
 			</ul>
-			{shops !== null ? (
+			{!grouped && shops !== null ? (
 				<Link href={shops.href} style={{ ...LINK_ITEM_STYLE, marginTop: 2 }} className="rmr-item focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" title={adaptive ? shops.label : undefined}>
 					<Store size={18} aria-hidden="true" />
 					<span className="rmr-label" style={{ flex: 1, fontSize: 13.5, fontWeight: 600 }}>{shops.label}</span>
 				</Link>
 			) : null}
-			{myShop !== null ? (
+			{!grouped && myShop !== null ? (
 				<Link href={myShop.href} aria-current={pathname === myShop.href || pathname.startsWith(`${myShop.href}/`) ? "page" : undefined} style={{ ...(pathname === myShop.href || pathname.startsWith(`${myShop.href}/`) ? SELECTED_LINK_ITEM_STYLE : LINK_ITEM_STYLE), marginTop: 2 }} className="rmr-item focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" title={adaptive ? myShop.label : undefined}>
 					<BriefcaseBusiness size={18} aria-hidden="true" />
 					<span className="rmr-label" style={{ flex: 1, fontSize: 13.5, fontWeight: 600 }}>{myShop.label}</span>
@@ -585,7 +606,48 @@ function RailDestinations({
 				<CreateIcon aria-hidden="true" size={18} />
 				<span className="rmr-label" style={{ flex: 1, fontSize: 13.5, fontWeight: 600 }}>{t("reseauDestinations.creer")}</span>
 			</Button> : null}
+			{grouped ? <RailWorkspaceSections shops={shops} myShop={myShop} /> : null}
 			<CreationChoiceCard open={open} onClose={() => setOpen(false)} choices={choices} onPick={(kind) => onCreate?.(kind)} />
 		</nav>
 	)
+}
+
+/** Les droits viennent des listes du membre ; les destinations gardent leurs gardes métier. */
+function RailWorkspaceSections({ shops, myShop }: {
+	shops: { href: string; label: string } | null
+	myShop: { href: string; label: string } | null
+}) {
+	const { t } = useTranslation("reseau")
+	const { networkId } = useNetwork()
+	const routes = useRoutes()
+	const pathname = usePathname()
+	const search = useSearchParams()
+	const mine = useAuthenticatedConvexQuery(api.modules.pages.pages.myPages, { networkId })
+	const pages = mine.data ?? []
+	const activityHref = routes.myActivity?.() ?? null
+	const pagesHref = reseauAgentHref("pages", routes.home())
+	const pageSelected = pathname === routes.home() && search.get("tab") === "pages"
+	const shopsSelected = railPathMatches(pathname, shops?.href)
+	const activityLabel = myShop?.label ?? t("reseauMenuRail.createActivity")
+	const pagesLabel = pages.length > 0 ? t("reseauMenuRail.myPages") : t("reseauMenuRail.createPage")
+	return <>
+		<section className="rmr-workspace-section" aria-label={t("reseauMenuRail.activitySection")}>
+			<h2 className="rmr-section-title" style={SECTION_TITLE_STYLE}>{t("reseauMenuRail.activitySection")}</h2>
+			{shops ? <Link href={shops.href} aria-current={shopsSelected ? "page" : undefined} style={shopsSelected ? SELECTED_LINK_ITEM_STYLE : LINK_ITEM_STYLE} className="rmr-item focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" title={shops.label}>
+				<Store size={18} aria-hidden="true" /><span className="rmr-label" style={{ flex: 1 }}>{shops.label}</span>
+			</Link> : null}
+			{activityHref ? <Link href={activityHref} aria-current={pathname === activityHref || pathname.startsWith(`${activityHref}/`) ? "page" : undefined} style={pathname === activityHref || pathname.startsWith(`${activityHref}/`) ? SELECTED_LINK_ITEM_STYLE : LINK_ITEM_STYLE} className="rmr-item focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" title={activityLabel}>
+				<BriefcaseBusiness size={18} aria-hidden="true" /><span className="rmr-label" style={{ flex: 1 }}>{activityLabel}</span>
+			</Link> : null}
+		</section>
+		<section className="rmr-workspace-section" aria-label={t("reseauMenuRail.pageSection")}>
+			<h2 className="rmr-section-title" style={SECTION_TITLE_STYLE}>{t("reseauMenuRail.pageSection")}</h2>
+			<Link href={pagesHref} aria-current={pageSelected ? "page" : undefined} style={pageSelected ? SELECTED_LINK_ITEM_STYLE : LINK_ITEM_STYLE} className="rmr-item focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" title={pagesLabel}>
+				{pages.length > 0 ? <PanelsTopLeft size={18} aria-hidden="true" /> : <FilePlus2 size={18} aria-hidden="true" />}<span className="rmr-label" style={{ flex: 1 }}>{pagesLabel}</span>
+			</Link>
+			{pages.map(page => <Link key={page.pageId} href={routes.page(page.handle)} aria-current={pathname === routes.page(page.handle) ? "page" : undefined} style={pathname === routes.page(page.handle) ? SELECTED_LINK_ITEM_STYLE : LINK_ITEM_STYLE} className="rmr-item focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" title={page.name}>
+				<span aria-hidden="true"><Avatar displayName={page.name} avatarUrl={page.logoUrl} size={22} shape="square" /></span><span className="rmr-label" style={{ flex: 1 }}>{page.name}</span>
+			</Link>)}
+		</section>
+	</>
 }

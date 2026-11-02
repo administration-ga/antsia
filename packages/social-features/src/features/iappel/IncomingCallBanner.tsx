@@ -177,7 +177,7 @@ export function IncomingCallBanner({
 							key={reply}
 							type="button"
 							onClick={() => onDecline(reply)}
-							className="rounded-lg px-3 py-2 text-left text-[13px]"
+							className="rounded-[var(--esp-primitive-chip-radius,0.5rem)] px-3 py-2 text-left text-[13px]"
 							style={{
 								background: "color-mix(in srgb, var(--primary) 8%, transparent)",
 								color: "var(--card-foreground)",

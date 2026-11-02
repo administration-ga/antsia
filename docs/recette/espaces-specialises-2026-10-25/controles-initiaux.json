@@ -1,0 +1,437 @@
+[
+  {
+    "space": "boutique",
+    "width": 390,
+    "height": 844,
+    "brokenImages": [],
+    "h1": [
+      "Épicerie Moussavou Démo"
+    ],
+    "main": 1,
+    "scrollWidth": 390
+  },
+  {
+    "space": "boutique",
+    "width": 834,
+    "height": 1112,
+    "brokenImages": [],
+    "h1": [
+      "Épicerie Moussavou Démo"
+    ],
+    "main": 1,
+    "scrollWidth": 834
+  },
+  {
+    "space": "boutique",
+    "width": 1440,
+    "height": 1000,
+    "brokenImages": [],
+    "h1": [
+      "Épicerie Moussavou Démo"
+    ],
+    "main": 1,
+    "scrollWidth": 1440
+  },
+  {
+    "space": "catalogue",
+    "width": 390,
+    "height": 844,
+    "h1": [
+      "Menu"
+    ],
+    "main": 1,
+    "scrollWidth": 390
+  },
+  {
+    "space": "catalogue",
+    "width": 834,
+    "height": 1112,
+    "h1": [
+      "Menu"
+    ],
+    "main": 1,
+    "scrollWidth": 834
+  },
+  {
+    "space": "catalogue",
+    "width": 1440,
+    "height": 1000,
+    "h1": [
+      "Menu"
+    ],
+    "main": 1,
+    "scrollWidth": 1440
+  },
+  {
+    "space": "catalogue-tri-prix",
+    "width": 390,
+    "height": 844,
+    "min": "2500",
+    "prices": [
+      "2 500 XAF",
+      "3 500 XAF",
+      "4 000 XAF",
+      "6 500 XAF",
+      "7 500 XAF",
+      "8 500 XAF"
+    ],
+    "scrollWidth": 390
+  },
+  {
+    "space": "catalogue-tri-prix",
+    "width": 834,
+    "height": 1112,
+    "min": "3500",
+    "prices": [
+      "3 500 XAF",
+      "4 000 XAF",
+      "6 500 XAF",
+      "7 500 XAF",
+      "8 500 XAF"
+    ],
+    "scrollWidth": 834
+  },
+  {
+    "space": "catalogue-tri-prix",
+    "width": 1440,
+    "height": 1000,
+    "min": "4000",
+    "prices": [
+      "4 000 XAF",
+      "6 500 XAF",
+      "7 500 XAF",
+      "8 500 XAF"
+    ],
+    "scrollWidth": 1440
+  },
+  {
+    "space": "fiche-produit",
+    "width": 390,
+    "height": 844,
+    "h1": [
+      "Riz parfumé, sac de 5 kg — Démo"
+    ],
+    "main": 1,
+    "scrollWidth": 390
+  },
+  {
+    "space": "fiche-produit",
+    "width": 834,
+    "height": 1112,
+    "h1": [
+      "Riz parfumé, sac de 5 kg — Démo"
+    ],
+    "main": 1,
+    "scrollWidth": 834
+  },
+  {
+    "space": "fiche-produit",
+    "width": 1440,
+    "height": 1000,
+    "h1": [
+      "Riz parfumé, sac de 5 kg — Démo"
+    ],
+    "main": 1,
+    "scrollWidth": 1440
+  },
+  {
+    "space": "annuaire-services",
+    "width": 390,
+    "height": 844,
+    "headings": [
+      "Bonjour Awa MBA",
+      "Sélection de démonstration"
+    ],
+    "main": 1,
+    "scrollWidth": 390
+  },
+  {
+    "space": "annuaire-services",
+    "width": 834,
+    "height": 1112,
+    "headings": [
+      "Bonjour Awa MBA",
+      "Sélection de démonstration"
+    ],
+    "main": 1,
+    "scrollWidth": 834
+  },
+  {
+    "space": "annuaire-services",
+    "width": 1440,
+    "height": 1000,
+    "headings": [
+      "Bonjour Awa MBA",
+      "Sélection de démonstration"
+    ],
+    "main": 1,
+    "scrollWidth": 1440
+  },
+  {
+    "space": "prestataire",
+    "width": 390,
+    "height": 844,
+    "brokenImages": [],
+    "h1": [
+      "Espace prestataire"
+    ],
+    "main": 1,
+    "scrollWidth": 390
+  },
+  {
+    "space": "prestataire",
+    "width": 834,
+    "height": 1112,
+    "brokenImages": [],
+    "h1": [
+      "Espace prestataire"
+    ],
+    "main": 1,
+    "scrollWidth": 834
+  },
+  {
+    "space": "prestataire",
+    "width": 1440,
+    "height": 1000,
+    "brokenImages": [],
+    "h1": [
+      "Espace prestataire"
+    ],
+    "main": 1,
+    "scrollWidth": 1440
+  },
+  {
+    "space": "fiche-service",
+    "width": 390,
+    "height": 844,
+    "h1": [
+      "Diagnostic informatique — Démo"
+    ],
+    "main": 1,
+    "scrollWidth": 390
+  },
+  {
+    "space": "fiche-service",
+    "width": 834,
+    "height": 1112,
+    "h1": [
+      "Diagnostic informatique — Démo"
+    ],
+    "main": 1,
+    "scrollWidth": 834
+  },
+  {
+    "space": "fiche-service",
+    "width": 1440,
+    "height": 1000,
+    "h1": [
+      "Diagnostic informatique — Démo"
+    ],
+    "main": 1,
+    "scrollWidth": 1440
+  },
+  {
+    "space": "annuaire-pro",
+    "width": 390,
+    "height": 844,
+    "h1": [
+      "Les pros"
+    ],
+    "main": 1,
+    "scrollWidth": 390
+  },
+  {
+    "space": "annuaire-pro",
+    "width": 834,
+    "height": 1112,
+    "h1": [
+      "Les pros"
+    ],
+    "main": 1,
+    "scrollWidth": 834
+  },
+  {
+    "space": "annuaire-pro",
+    "width": 1440,
+    "height": 1000,
+    "h1": [
+      "Les pros"
+    ],
+    "main": 1,
+    "scrollWidth": 1440
+  },
+  {
+    "space": "profil-pro-editeur",
+    "width": 390,
+    "height": 844,
+    "h1": [
+      "Mon profil pro"
+    ],
+    "main": 1,
+    "scrollWidth": 390
+  },
+  {
+    "space": "profil-pro-editeur",
+    "width": 834,
+    "height": 1112,
+    "h1": [
+      "Mon profil pro"
+    ],
+    "main": 1,
+    "scrollWidth": 834
+  },
+  {
+    "space": "profil-pro-editeur",
+    "width": 1440,
+    "height": 1000,
+    "h1": [
+      "Mon profil pro"
+    ],
+    "main": 1,
+    "scrollWidth": 1440
+  },
+  {
+    "space": "collaborations",
+    "width": 390,
+    "height": 844,
+    "h1": [
+      "Mes collaborations"
+    ],
+    "main": 1,
+    "scrollWidth": 390
+  },
+  {
+    "space": "collaborations",
+    "width": 834,
+    "height": 1112,
+    "h1": [
+      "Mes collaborations"
+    ],
+    "main": 1,
+    "scrollWidth": 834
+  },
+  {
+    "space": "collaborations",
+    "width": 1440,
+    "height": 1000,
+    "h1": [
+      "Mes collaborations"
+    ],
+    "main": 1,
+    "scrollWidth": 1440
+  },
+  {
+    "space": "presse",
+    "width": 390,
+    "height": 844,
+    "h1": [
+      "Presse"
+    ],
+    "main": 1,
+    "scrollWidth": 390
+  },
+  {
+    "space": "presse",
+    "width": 834,
+    "height": 1112,
+    "h1": [
+      "Presse"
+    ],
+    "main": 1,
+    "scrollWidth": 834
+  },
+  {
+    "space": "presse",
+    "width": 1440,
+    "height": 1000,
+    "h1": [
+      "Presse"
+    ],
+    "main": 1,
+    "scrollWidth": 1440
+  },
+  {
+    "space": "redaction",
+    "width": 390,
+    "height": 844,
+    "h1": [
+      "Ma rédaction"
+    ],
+    "main": 1,
+    "scrollWidth": 390
+  },
+  {
+    "space": "redaction",
+    "width": 834,
+    "height": 1112,
+    "h1": [
+      "Ma rédaction"
+    ],
+    "main": 1,
+    "scrollWidth": 834
+  },
+  {
+    "space": "redaction",
+    "width": 1440,
+    "height": 1000,
+    "h1": [
+      "Ma rédaction"
+    ],
+    "main": 1,
+    "scrollWidth": 1440
+  },
+  {
+    "space": "catalogue-prestations",
+    "width": 390,
+    "height": 844,
+    "h1": [
+      "Prestations"
+    ],
+    "main": 1,
+    "scrollWidth": 390
+  },
+  {
+    "space": "catalogue-prestations",
+    "width": 834,
+    "height": 1112,
+    "h1": [
+      "Prestations"
+    ],
+    "main": 1,
+    "scrollWidth": 834
+  },
+  {
+    "space": "catalogue-prestations",
+    "width": 1440,
+    "height": 1000,
+    "h1": [
+      "Prestations"
+    ],
+    "main": 1,
+    "scrollWidth": 1440
+  },
+  {
+    "space": "prestations-liste",
+    "width": 390,
+    "height": 844,
+    "layout": "list",
+    "main": 1,
+    "scrollWidth": 390
+  },
+  {
+    "space": "prestations-liste",
+    "width": 834,
+    "height": 1112,
+    "layout": "list",
+    "main": 1,
+    "scrollWidth": 834
+  },
+  {
+    "space": "prestations-liste",
+    "width": 1440,
+    "height": 1000,
+    "layout": "list",
+    "main": 1,
+    "scrollWidth": 1440
+  }
+]

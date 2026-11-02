@@ -7,7 +7,8 @@
  * autour de chaque carte quand l'application a déclaré le fil immersif.
  *
  *  · suivi : au défilement (une mesure par image), la première carte encore
- *    visible et la position de son bord haut sous le haut du défileur ;
+ *    visible et la position de son bord haut sous la zone lisible du défileur
+ *    (après les outils épinglés quand le fil adaptatif les mesure) ;
  *  · retour : la profondeur retenue est rechargée page par page (« Charger la
  *    suite » rejoué, borné) jusqu'à retrouver la carte, puis le défileur est
  *    recalé pour qu'elle revienne exactement où elle était.
@@ -69,7 +70,10 @@ export function FeedListReturn({
   const appended = useRef(0)
   const done = useRef(restore === null)
   const onAnchorRef = useRef(onAnchor)
-  onAnchorRef.current = onAnchor
+
+  useEffect(() => {
+    onAnchorRef.current = onAnchor
+  }, [onAnchor])
 
   useEffect(() => {
     appended.current = 0

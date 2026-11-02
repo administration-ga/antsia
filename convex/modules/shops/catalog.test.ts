@@ -19,7 +19,7 @@ import { applyCommerceCatalog } from "../federation/commerceCatalog"
 import { readCommerceLinkConfig } from "./commerceLinkConfig"
 import { SHOP_PUBLIC_LISTING_TEXT_VERSION } from "./rules"
 import type { CatalogListArgs } from "./catalogRead"
-import type { PublicStorefront, Storefront } from "./validators"
+import type { PublicDailySpecial, PublicStorefront, Storefront } from "./validators"
 import type { CommerceStorefrontTerms } from "@antsia/social-domain/commerce/storefrontTerms"
 import { marketplaceIndexFields } from "./marketplaceIndexFields"
 import type { CatalogList, CatalogOffer } from "./catalogValidators"
@@ -42,6 +42,7 @@ const list = makeFunctionReference<"query", CatalogListArgs & { networkId: Id<"n
 const publicList = makeFunctionReference<"query", CatalogListArgs & { networkId: Id<"networks"> }, CatalogList>("modules/public/catalog:list")
 const memberStorefront = makeFunctionReference<"query", { networkId: Id<"networks">; handle: string }, Storefront | null>("modules/shops/shops:storefront")
 const publicStorefront = makeFunctionReference<"query", { networkId: Id<"networks">; handle: string }, PublicStorefront | null>("modules/public/shops:getStorefront")
+const publicDailySpecial = makeFunctionReference<"query", { networkId: Id<"networks">; handle: string }, PublicDailySpecial | null>("modules/public/shops:getDailySpecial")
 const slot = makeFunctionReference<"query", { networkId: Id<"networks">; postId: Id<"posts"> }, CatalogOffer | null>("modules/shops/catalog:postOffer")
 const setSlot = makeFunctionReference<"mutation", ShopArgs & { postId: Id<"posts">; offerRef: string | null }, { changed: true }>("modules/shops/catalogPosts:setPostOffer")
 const claim = makeFunctionReference<"mutation", CatalogMediaLeaseArgs, boolean>("modules/federation/commerceCatalogMedia:claim")
@@ -243,6 +244,131 @@ async function attachImage(f: Fixture) {
   const scan = await f.t.run(async (ctx) => ctx.db.query("fileScans").withIndex("by_storageId", (q) => q.eq("storageId", storageId)).unique())
   return { storageId, token, scan: scan! }
 }
+
+describe("SU06 — plat du jour public, désignation distincte de la vitrine historique", () => {
+  const args = (f: Fixture) => ({ networkId: f.root, handle: f.offerArgs.handle })
+  async function designate(f: Fixture) {
+    await f.t.run(async (ctx) => ctx.db.patch(f.shopId, {
+      activityConfiguration: { version: 1, template: "food", capabilities: ["products", "services"], blocks: ["catalog", "services", "about"] },
+      dailySpecial: { offerRef: OFFER, day: "2026-10-18" },
+    }))
+  }
+
+  it("relit le prix publié sans élargir le DTO public historique ni avancer le jour désigné", async () => {
+    const f = await fixture()
+    await published(f)
+    await designate(f)
+    const historical = await f.t.query(publicStorefront, args(f))
+    const current = await f.t.query(getPublicOffer, f.offerArgs)
+    expect(await f.t.query(publicDailySpecial, args(f))).toEqual({ version: 1, day: "2026-10-18", offer: current })
+    expect(await f.as.query(publicDailySpecial, args(f))).toEqual({ version: 1, day: "2026-10-18", offer: current })
+    expect(historical).not.toHaveProperty("dailySpecial")
+    await applied(f, offer(2, { price: { mode: "fixed", currency: "XAF", amount: 15_000 } }))
+    expect(await f.t.query(publicDailySpecial, args(f))).toMatchObject({ version: 1, day: "2026-10-18", offer: { revision: 2, price: { amount: 15_000 } } })
+    expect(await f.t.query(publicStorefront, args(f))).toEqual(historical)
+    // Le temps seul ne relance pas une query : l'écran doit expirer cette désignation, jamais la redater.
+    vi.setSystemTime(Date.UTC(2026, 9, 18, 23))
+    expect((await f.t.query(publicDailySpecial, args(f)))?.day).toBe("2026-10-18")
+  })
+
+  it("ne transforme ni un service ni un catalogue masqué en plat du jour", async () => {
+    const f = await fixture()
+    await published(f)
+    expect(await f.t.query(publicDailySpecial, args(f))).toBeNull()
+    await designate(f)
+    expect(await f.t.query(publicDailySpecial, args(f))).not.toBeNull()
+    await f.t.run(async (ctx) => ctx.db.patch(f.shopId, { activityConfiguration: { version: 1, template: "general", capabilities: ["products"], blocks: ["catalog", "about"] } }))
+    expect(await f.t.query(publicDailySpecial, args(f))).toBeNull()
+    await f.t.run(async (ctx) => ctx.db.patch(f.shopId, { activityConfiguration: { version: 1, template: "food", capabilities: ["products"], blocks: ["about"] } }))
+    expect(await f.t.query(publicDailySpecial, args(f))).toBeNull()
+    await f.t.run(async (ctx) => ctx.db.patch(f.shopId, { activityConfiguration: { version: 1, template: "food", capabilities: ["services"], blocks: ["services", "about"] } }))
+    expect(await f.t.query(publicDailySpecial, args(f))).toBeNull()
+    await designate(f)
+    await applied(f, offer(2, { kind: "service" }))
+    expect(await f.t.query(getPublicOffer, f.offerArgs)).toMatchObject({ kind: "service" })
+    expect(await f.t.query(publicDailySpecial, args(f))).toBeNull()
+    await f.t.run(async (ctx) => ctx.db.patch(f.shopId, { dailySpecial: { offerRef: "pro.ga:offer:01JA00000000000000000000P2", day: "2026-10-18" } }))
+    expect(await f.t.query(publicDailySpecial, args(f))).toBeNull()
+  })
+
+  it.each(["consent", "storefront", "page", "admin", "policy", "moderation"] as const)("relit la garde %s au lieu de servir une ancienne sélection", async (gate) => {
+    const f = await fixture()
+    await published(f)
+    await designate(f)
+    expect(await f.t.query(publicDailySpecial, args(f))).not.toBeNull()
+    const current = (await head(f))!
+    await f.t.run(async (ctx) => {
+      if (gate === "consent") await ctx.db.patch(f.shopId, { publicConsentRevokedAt: NOW })
+      if (gate === "storefront") await ctx.db.patch(f.shopId, { storefront: "withdrawn" })
+      if (gate === "page") await ctx.db.patch(f.pageId, { status: "inactive" })
+      if (gate === "admin") await ctx.db.delete(f.signatoryId)
+      if (gate === "policy") {
+        const row = await ctx.db.query("shopCatalogPolicies").withIndex("by_network", (q) => q.eq("networkId", f.root)).unique()
+        await ctx.db.patch(row!._id, { enabled: false })
+      }
+      if (gate === "moderation") {
+        const row = await ctx.db.query("moderationContentStates").withIndex("by_target", (q) => q.eq("targetKind", "commerceOffer").eq("targetId", current._id)).unique()
+        await ctx.db.patch(row!._id, { status: "removed" })
+      }
+    })
+    expect(await f.t.query(publicDailySpecial, args(f))).toBeNull()
+  })
+
+  it("ne résout pas la référence publique d'une autre boutique dans le menu demandé", async () => {
+    const f = await fixture()
+    await published(f)
+    await designate(f)
+    await f.t.run(async (ctx) => {
+      const pageId = await ctx.db.insert("pages", { networkId: f.root, handle: "autre-restaurant", name: "Autre restaurant", ownerKind: "company", trust: "community", trustRank: 1, visibility: "network", onRoot: true, status: "active", createdByPersonId: f.personId, searchText: "autre restaurant", createdAt: NOW, updatedAt: NOW })
+      await ctx.db.insert("pageSignatories", { networkId: f.root, pageId, personId: f.personId, role: "admin", acceptedAt: NOW, createdAt: NOW, updatedAt: NOW })
+      await ctx.db.insert("shops", { networkId: f.root, pageId, preparedByPersonId: f.personId, model: "products", storefront: "published", visibility: "network", publicConsentAt: NOW, publicConsentTextVersion: SHOP_PUBLIC_LISTING_TEXT_VERSION, publicConsentByPersonId: f.personId, activityConfiguration: { version: 1, template: "food", capabilities: ["products"], blocks: ["catalog", "about"] }, dailySpecial: { offerRef: OFFER, day: "2026-10-18" }, publishedAt: NOW, createdAt: NOW, updatedAt: NOW })
+    })
+    expect(await f.t.query(publicDailySpecial, { networkId: f.root, handle: "autre-restaurant" })).toBeNull()
+    expect(await f.t.query(publicDailySpecial, args(f))).not.toBeNull()
+  })
+
+  it("ferme le plat retiré et n'adopte aucune ancienne incarnation après republication du parent", async () => {
+    const f = await fixture()
+    await published(f)
+    await designate(f)
+    await applied(f, { type: "offer.withdrawn", shopRef: SHOP, offerRef: OFFER, revision: 2, changedAt: NOW, reason: "consent_withdrawn" })
+    expect(await f.t.query(publicDailySpecial, args(f))).toBeNull()
+    await applied(f, offer(3))
+    expect(await f.t.query(publicDailySpecial, args(f))).not.toBeNull()
+    await applied(f, { type: "shop.withdrawn", shopRef: SHOP, linkRef: LINK, revision: 2, changedAt: NOW, reason: "consent_withdrawn" })
+    expect(await f.t.query(publicDailySpecial, args(f))).toBeNull()
+    await applied(f, shop(3))
+    expect(await f.t.query(publicDailySpecial, args(f))).toBeNull()
+    await applied(f, offer(4))
+    expect((await f.t.query(publicDailySpecial, args(f)))?.offer.revision).toBe(4)
+    await f.as.mutation(mapping, { networkId: f.root, shopId: f.shopId, emitterId: f.emitterId, enabled: false, reason: "Retrait du catalogue pendant sa présentation en plat du jour" })
+    expect(await f.t.query(publicDailySpecial, args(f))).toBeNull()
+  })
+
+  it("garde les médias locaux révocables et ne transmet aucun privilège commercial", async () => {
+    const f = await fixture(), attached = await attachImage(f)
+    await designate(f)
+    expect((await f.t.query(publicDailySpecial, args(f)))?.offer.media[0]).toMatchObject({ url: null, withheld: "fileScanPending" })
+    await f.t.run(async (ctx) => ctx.db.patch(attached.scan._id, { status: "clean", av: { provider: "fixture", verdict: "clean" } }))
+    const projection = await f.t.query(publicDailySpecial, args(f))
+    expect(projection?.offer.media[0]?.url).toBe(`http://localhost:3211/catalogue/media/${attached.token}`)
+    expect(projection?.offer.actions).toEqual({ contact: false, quote: false, purchase: false })
+    const serialized = JSON.stringify(projection)
+    for (const field of ["storageId", "linkRef", "subjectRef", "emitterId", "stock", "http://localhost:4010"]) expect(serialized).not.toContain(field)
+    await f.t.run(async (ctx) => ctx.db.patch(attached.scan._id, { status: "infected", av: { provider: "fixture", verdict: "infected" } }))
+    expect((await f.t.query(publicDailySpecial, args(f)))?.offer.media[0]?.url).toBeNull()
+    expect((await f.t.fetch(`/catalogue/media/${attached.token}`)).status).toBe(404)
+  })
+
+  it("ne requalifie pas une session refusée en visiteur et exige une racine active", async () => {
+    const f = await fixture()
+    await published(f)
+    await designate(f)
+    expect(await code(f.t.withIdentity({ subject: "fake-jwt", sessionId: "invalide" }).query(publicDailySpecial, args(f)))).toBe("unauthenticated")
+    await f.t.run(async (ctx) => ctx.db.patch(f.root, { status: "archived" }))
+    expect(await code(f.t.query(publicDailySpecial, args(f)))).toBe("notFound")
+  })
+})
 
 describe("P09 — publication, révisions et projection", () => {
   it("projette la même allowlist membre/anonyme et conserve le format prix/devis", async () => {
@@ -1028,4 +1154,73 @@ describe("SU06 — plat du jour dans les Stories du réseau", () => {
     expect(await f.t.run(ctx => ctx.db.system.get("_storage", f.asset.storageId))).not.toBeNull()
     expect(await f.t.run(ctx => ctx.db.get(f.asset.scan._id))).not.toBeNull()
   }, 20_000)
+})
+
+
+describe("SU06 — fenêtre opérateur des rattachements", () => {
+  it("projette seulement l’identité de page, la liaison vivante et le rattachement courant", async () => {
+    const f = await fixture([COMMERCE_PUBLIC_CONTRACT_V2])
+    const result = await f.as.query(api.modules.shops.catalogControl.paginateMappings, { networkId: f.root, paginationOpts: { cursor: null, numItems: 20 } })
+    expect(result.page).toEqual([{ shopId: f.shopId, name: "Boutique de recette", handle: "catalogue-test", link: { environment: "sandbox", publishCatalog: true }, mapping: { emitterId: f.emitterId, emitterSlug: "pro-catalog-test", enabled: true, generation: 1 } }])
+    expect(result.isDone).toBe(true)
+    expect(JSON.stringify(result)).not.toContain(KEY)
+    expect(JSON.stringify(result)).not.toContain("configFingerprint")
+    expect(JSON.stringify(result)).not.toContain(SHOP)
+  })
+
+  it("une configuration tournée ferme la liaison sans masquer le rattachement révocable", async () => {
+    const f = await fixture([COMMERCE_PUBLIC_CONTRACT_V2])
+    vi.stubEnv("ANTSIA_COMMERCE_SIGNING_KEY", KEY + "-rotation")
+    const result = await f.as.query(api.modules.shops.catalogControl.paginateMappings, { networkId: f.root, paginationOpts: { cursor: null, numItems: 20 } })
+    expect(result.page[0]).toMatchObject({ link: null, mapping: { emitterId: f.emitterId, enabled: true, generation: 1 } })
+    await f.as.mutation(mapping, { networkId: f.root, shopId: f.shopId, emitterId: f.emitterId, enabled: false, reason: "Fermeture explicite du rattachement après rotation" })
+    expect((await f.as.query(api.modules.shops.catalogControl.paginateMappings, { networkId: f.root, paginationOpts: { cursor: null, numItems: 20 } })).page[0]).toMatchObject({ link: null, mapping: { enabled: false, generation: 2 } })
+  })
+
+  it("une liaison sans droit catalogue et une page désactivée ne deviennent pas des candidats actifs", async () => {
+    const f = await fixture()
+    await f.t.run(ctx => ctx.db.patch(f.linkId, { permissions: [] }))
+    expect((await f.as.query(api.modules.shops.catalogControl.paginateMappings, { networkId: f.root, paginationOpts: { cursor: null, numItems: 20 } })).page[0]?.link).toEqual({ environment: "sandbox", publishCatalog: false })
+    await f.t.run(ctx => ctx.db.patch(f.pageId, { status: "inactive" }))
+    expect((await f.as.query(api.modules.shops.catalogControl.paginateMappings, { networkId: f.root, paginationOpts: { cursor: null, numItems: 20 } })).page[0]).toMatchObject({ name: null, handle: null, link: null, mapping: { enabled: true } })
+  })
+
+  it("borne chaque fenêtre à vingt et poursuit sans perdre la boutique publiée", async () => {
+    const f = await fixture()
+    await f.t.run(async ctx => {
+      for (let index = 0; index < 24; index++) await ctx.db.insert("shops", { networkId: f.root, ownerPersonId: f.personId, draftName: `Brouillon ${index}`, model: "products", storefront: "draft", visibility: "network", createdAt: NOW + index, updatedAt: NOW + index })
+      const source = await ctx.db.get(f.root)
+      if (!source) throw new Error("Réseau de fixture absent")
+      const { _id, _creationTime, ...settings } = source
+      const foreign = await ctx.db.insert("networks", { ...settings, slug: "catalogue-autre-reseau", kind: "closed", parentId: f.root })
+      await ctx.db.insert("shops", { networkId: foreign, ownerPersonId: f.personId, draftName: "Autre réseau", model: "products", storefront: "draft", visibility: "network", createdAt: NOW, updatedAt: NOW })
+    })
+    const first = await f.as.query(api.modules.shops.catalogControl.paginateMappings, { networkId: f.root, paginationOpts: { cursor: null, numItems: 1000 } })
+    expect(first.page).toHaveLength(20)
+    expect(first.isDone).toBe(false)
+    const next = await f.as.query(api.modules.shops.catalogControl.paginateMappings, { networkId: f.root, paginationOpts: { cursor: first.continueCursor, numItems: 1000 } })
+    expect(next.page).toHaveLength(5)
+    expect(next.isDone).toBe(true)
+    const ids = [...first.page, ...next.page].map(row => row.shopId)
+    expect(new Set(ids).size).toBe(25)
+    expect(ids).toContain(f.shopId)
+  })
+
+  it("refuse le visiteur et l’opérateur de niveau1 sans exposer de fenêtre", async () => {
+    const f = await fixture()
+    const args = { networkId: f.root, paginationOpts: { cursor: null, numItems: 20 } }
+    await expect(f.t.query(api.modules.shops.catalogControl.paginateMappings, args)).rejects.toThrow()
+    await f.as.run(async ctx => {
+      const identity = await ctx.auth.getUserIdentity()
+      if (!identity || typeof identity.sessionId !== "string") throw new Error("Session de fixture absente")
+      const link = await ctx.db.query("identityLinks").withIndex("by_person_and_provider", q => q.eq("personId", f.personId).eq("provider", "idn")).unique()
+      const access = await ctx.db.query("operatorSessionProofs").withIndex("by_session", q => q.eq("sessionId", identity.sessionId as string)).unique()
+      const proof = link ? await ctx.db.query("idnProofs").withIndex("by_subject", q => q.eq("subject", link.subject)).unique() : null
+      if (!link || !access || !proof) throw new Error("Preuve de fixture absente")
+      await ctx.db.patch(link._id, { loa: 1 })
+      await ctx.db.patch(proof._id, { loa: 1 })
+      await ctx.db.patch(access._id, { loa: 1 })
+    })
+    expect(await code(f.as.query(api.modules.shops.catalogControl.paginateMappings, args))).toBe("notFound")
+  })
 })

@@ -200,7 +200,7 @@ export function PublicAgentControls() {
               {state.revokedAt !== null ? <div><dt className="font-medium">{t("publicAgent.revokedAtLabel")}</dt><dd>{date(state.revokedAt)}</dd></div> : null}
             </dl>
             {state.status === "active" && state.affiliation ? (
-              <dl className="grid min-w-0 gap-2 rounded-xl border border-border p-4 text-sm">
+              <dl className="grid min-w-0 gap-2 rounded-[var(--ui2-card-radius)] border border-border p-[var(--esp-card-padding,16px)] text-sm">
                 <div><dt className="font-medium">{t("publicAgent.administrationLabel")}</dt><dd><Link href={routes.officialPage(state.affiliation.administrationHandle)} prefetch={false} className="inline-flex min-h-11 items-center font-medium text-primary underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">{state.affiliation.administrationName}</Link></dd></div>
                 <div><dt className="font-medium">{t("publicAgent.roleLabel")}</dt><dd>{state.affiliation.roleLabel}</dd></div>
               </dl>
@@ -223,7 +223,7 @@ export function PublicAgentControls() {
                 <Button type="submit" pending={pending} disabled={!canGrant}>{t("publicAgent.grant")}</Button>
               </form>
             ) : null}
-            {hasCurrentConsent ? <div className="flex flex-col items-start gap-3 rounded-xl border border-border p-4">
+            {hasCurrentConsent ? <div className="flex flex-col items-start gap-3 rounded-[var(--ui2-card-radius)] border border-border p-[var(--esp-card-padding,16px)]">
               <p className="text-sm text-muted-foreground">{t("publicAgent.transferLead")}</p>
               <Button variant="outline" pending={operation === "prepare"} disabled={pending || !canPrepareTransfer} onClick={() => { void prepareContinuation() }}>{t("publicAgent.prepareTransfer")}</Button>
               {visibleTransfer ? <>

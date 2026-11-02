@@ -1,4 +1,13 @@
 {
+  "dailySpecial": {
+    "label": "Plat du jour",
+    "cardLabel": "Plat du jour : {{title}}, chez {{shop}}",
+    "order": "Commander",
+    "untilMidnight": "Jusqu’à minuit à Libreville",
+    "onQuote": "Sur devis",
+    "priceRange": "De {{min}} à {{max}}",
+    "priceUnit": "{{amount}} / {{unit}}"
+  },
   "storiesTray": {
     "unknownAuthor": "Membre du réseau",
     "age": {

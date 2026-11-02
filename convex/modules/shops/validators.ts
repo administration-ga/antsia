@@ -1,4 +1,5 @@
 import { storefrontTermsValidator } from "./storefrontTerms"
+import { catalogOfferValidator } from "./catalogValidators"
 /**
  * Validateurs des BOUTIQUES (P07). Module sans fonction Convex enregistrée.
  * Littéraux DÉRIVÉS des listes pures (`./rules`, une seule source) ; DTO
@@ -198,6 +199,14 @@ export const publicStorefrontValidator = v.object({
   origin: v.object({ slug: v.string(), name: v.string() }),
 })
 export type PublicStorefront = Infer<typeof publicStorefrontValidator>
+
+/** SU06 : projection séparée ; les lecteurs stricts de la vitrine historique gardent leur contrat. */
+export const publicDailySpecialValidator = v.object({
+  version: v.literal(1),
+  day: v.string(),
+  offer: catalogOfferValidator,
+})
+export type PublicDailySpecial = Infer<typeof publicDailySpecialValidator>
 
 /** Une demande en FILE D'ADMISSION, pour l'équipe de la plateforme : la présentation à relire et son préparateur. */
 export const storefrontReviewItemValidator = v.object({

@@ -20,7 +20,7 @@ export function PersonalCommerceControls({ personId }: { personId: Id<"persons">
   return <Card><div className="grid gap-4">
     <h2 className="text-xl font-semibold">{t("personal.commerceTitle")}</h2>
     <p className="text-sm text-muted-foreground">{t("personal.commerceLead")}</p>
-    {page.isError ? <p role="alert">{t("personal.error")}</p> : page.data === undefined ? <p role="status">{t("personal.loading")}</p> : page.data.page.length === 0 ? <p>{t("personal.commerceEmpty")}</p> : <ul className="grid gap-3">{page.data.page.map((row) => <li key={row.transferId} className="grid gap-2 rounded-xl border border-border p-4">
+    {page.isError ? <p role="alert">{t("personal.error")}</p> : page.data === undefined ? <p role="status">{t("personal.loading")}</p> : page.data.page.length === 0 ? <p>{t("personal.commerceEmpty")}</p> : <ul className="grid gap-3">{page.data.page.map((row) => <li key={row.transferId} className="grid gap-2 rounded-[var(--ui2-card-radius)] border border-border p-[var(--esp-card-padding,16px)]">
       <p className="text-sm">{t(`shops:contact.crm.states.${row.state}`)}</p>
       <p className="text-xs text-muted-foreground">{t("personal.commerceVersion", { version: row.textVersion })}</p>
       <div className="flex flex-wrap gap-2">
