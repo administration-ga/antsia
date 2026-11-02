@@ -1,0 +1,105 @@
+Window: "ANTSIA iPhone 18 Pro", App: Device Hub.
+0 standard window ANTSIA iPhone 18 Pro – iOS 27.0, ID: com.apple.dt.DeviceKit.DeviceManagementWindow-AppWindow-1, Secondary Actions: Raise
+	1 split group
+		2 split group com.apple.dt.DeviceKit.DeviceManagementWindow-AppWindow-1, SidebarNavigationSplitView
+			3 scroll area
+				4 list Sidebar
+					5 row (selectable) Description: Available, Value: Expanded
+					6 row (selected) Description: iphone.gen3, Value: ANTSIA iPhone 18 Pro
+27.0
+Simulator
+			7 search text field (settable) Search
+				8 button Search
+			9 splitter (disabled, settable, float) 248
+			10 container
+				11 container
+					12 text Description: Démonstration ANTSIA, Secondary Actions: Cancel
+					13 button Description: Revenir à mon compte, Secondary Actions: Cancel
+					14 button Description: Changer de profil démo, Secondary Actions: Cancel
+					15 heading Description: Découvrir, Secondary Actions: Cancel
+					16 element Description: Boutiques, Secondary Actions: Cancel
+					17 button (selected) Description: Services, Secondary Actions: Cancel
+					18 element Description: Associations, Secondary Actions: Cancel
+					19 button Description: Mes activités, Secondary Actions: Cancel
+					20 button Description: Actualiser, Secondary Actions: Cancel
+					21 heading Description: Services, Secondary Actions: Cancel
+					22 heading Description: Catalogue, Secondary Actions: Cancel
+					23 text Description: Rechercher des produits ou services, Secondary Actions: Cancel
+					24 text field (settable) Description: Rechercher des produits ou services, Value: diagnostic, Secondary Actions: Cancel
+					25 button Description: Rechercher, Secondary Actions: Cancel
+					26 element Description: Photo d'illustration pour la démonstration : Dépannage d'imprimante — Démo, Secondary Actions: Cancel
+					27 heading Description: Dépannage d'imprimante — Démo, Secondary Actions: Cancel
+					28 text Description: 6 000 XAF, Secondary Actions: Cancel
+					29 text Description: Dépannage fictif d'une imprimante de bureau. Aucune intervention ni paiement réel., Secondary Actions: Cancel
+					30 text Description: Offres de démonstration, Secondary Actions: Cancel
+					31 button Description: Voir la boutique · atelier-tech-demo, Secondary Actions: Cancel
+					32 button Description: «diagnostic», Secondary Actions: Cancel
+					33 button Description: diagnostique, Secondary Actions: Cancel
+					34 button Description: diagnostiqué, Secondary Actions: Cancel
+					35 button a
+					36 button z
+					37 button e
+					38 button r
+					39 button t
+					40 button y
+					41 button u
+					42 button i
+					43 button o
+					44 button p
+					45 button q
+					46 button s
+					47 button d
+					48 button f
+					49 button g
+					50 button h
+					51 button j
+					52 button k
+					53 button l
+					54 button m
+					55 button Description: majuscule, Help: Touchez quatre fois pour verrouiller les majuscules., ID: shift, Secondary Actions: Verrouillage des majuscules
+					56 button w
+					57 button x
+					58 button c
+					59 button v
+					60 button b
+					61 button n
+					62 button ´
+					63 button Description: supprimer, ID: delete
+					64 button Description: nombres, ID: more
+					65 button Description: espace, ID: space
+					66 button Description: rechercher, ID: Search
+					67 element Secondary Actions: Cancel
+					68 button Description: Emoji, Secondary Actions: Cancel, Help: Touchez deux fois et maintenez appuyé, puis faites glisser vers le haut pour sélectionner un autre clavier.
+					69 button Description: Dicter, Help: Touchez deux fois pour commencer la dictée et deux fois avec deux doigts pour terminer., ID: dictation, Secondary Actions: Cancel
+				70 button Description: Home, ID: app.grid.3x3
+				71 button Description: Screenshot, ID: camera.viewfinder
+				72 button Description: Record, ID: record.circle
+				73 button Rotate Left
+	74 text ANTSIA iPhone 18 Pro iOS 27.0
+	75 container
+		76 toolbar
+			77 menu button Add, Help: Add Device, ID: plus
+			78 toggle button Description: Filter, Help: Sort and Filter, Value: on
+			79 button Description: Hide Sidebar, Secondary Actions: Increment, Decrement, Delete, Cancel
+			80 toggle button Description: Capture Keyboard, Value: off
+			81 toggle button Description: Resize mode, Help: Enter resize mode, Value: off
+			82 radio button Description: Zoom Out, Value: 0, ID: minus.magnifyingglass
+			83 radio button Description: arrowtriangles.up.right.down.left.magnifyingglass, Help: Zoom to Fit, Value: 0
+			84 radio button Description: Zoom To Actual Size, Help: Physical Size, Value: 1, ID: 1.magnifyingglass
+			85 radio button Description: Zoom In, Value: 0, ID: plus.magnifyingglass
+			86 button Description: Switch to compact window, Secondary Actions: Increment, Decrement, Delete, Cancel, Move previous, Move next, Remove from toolbar
+			87 menu button More, Help: More Actions, ID: ellipsis
+			88 radio button Description: Edit, Help: Settings, Value: 0, ID: slider.horizontal.3
+			89 radio button Description: text.document, Help: Reports, Value: 0
+			90 radio button Description: Info, Value: 0, ID: info
+91 menu bar
+	92 Device Hub
+	93 File
+	94 Edit
+	95 View
+	96 Device
+	97 Controls
+	98 Window
+	99 Help
+
+The focused UI element is 0 standard window ANTSIA iPhone 18 Pro – iOS 27.0, ID: com.apple.dt.DeviceKit.DeviceManagementWindow-AppWindow-1, Secondary Actions: Raise

@@ -1,0 +1,98 @@
+Window: "ANTSIA iPhone 18 Pro", App: Device Hub.
+0 standard window ANTSIA iPhone 18 Pro – iOS 27.0, ID: com.apple.dt.DeviceKit.DeviceManagementWindow-AppWindow-1, Secondary Actions: Raise
+	1 split group
+		2 split group com.apple.dt.DeviceKit.DeviceManagementWindow-AppWindow-1, SidebarNavigationSplitView
+			3 scroll area
+				4 list Sidebar
+					5 row (selectable) Description: Available, Value: Expanded
+					6 row (selected) Description: iphone.gen3, Value: ANTSIA iPhone 18 Pro
+27.0
+Simulator
+			7 search text field (settable) Search
+				8 button Search
+			9 splitter (disabled, settable, float) 248
+			10 container
+				11 container
+					12 text Description: Démonstration ANTSIA, Secondary Actions: Cancel
+					13 button Description: Revenir à mon compte, Secondary Actions: Cancel
+					14 button Description: Changer de profil démo, Secondary Actions: Cancel
+					15 heading Description: Découvrir, Secondary Actions: Cancel
+					16 element Description: Boutiques, Secondary Actions: Cancel
+					17 button Description: Services, Secondary Actions: Cancel
+					18 element (selected) Description: Associations, Secondary Actions: Cancel
+					19 button Description: Mes activités, Secondary Actions: Cancel
+					20 heading Description: Associations, Secondary Actions: Cancel
+					21 text Description: Rechercher une association, Secondary Actions: Cancel
+					22 text field (settable) Description: Rechercher une association, Help: Saisissez au moins deux caractères pour rechercher par nom., Value: introuvable, Secondary Actions: Cancel
+					23 button Description: Rechercher, Secondary Actions: Cancel
+					24 text Description: Saisissez au moins deux caractères pour rechercher par nom., Secondary Actions: Cancel
+					25 button Description: «introuvable», Secondary Actions: Cancel
+					26 button Description: introduction, Secondary Actions: Cancel
+					27 button Description: introduit, Secondary Actions: Cancel
+					28 button a
+					29 button z
+					30 button e
+					31 button r
+					32 button t
+					33 button y
+					34 button u
+					35 button i
+					36 button o
+					37 button p
+					38 button q
+					39 button s
+					40 button d
+					41 button f
+					42 button g
+					43 button h
+					44 button j
+					45 button k
+					46 button l
+					47 button m
+					48 button Description: majuscule, Help: Touchez quatre fois pour verrouiller les majuscules., ID: shift, Secondary Actions: Verrouillage des majuscules
+					49 button w
+					50 button x
+					51 button c
+					52 button v
+					53 button b
+					54 button n
+					55 button ´
+					56 button Description: supprimer, ID: delete
+					57 button Description: nombres, ID: more
+					58 button Description: espace, ID: space
+					59 button Description: rechercher, ID: Search
+					60 element Secondary Actions: Cancel
+					61 button Description: Emoji, Secondary Actions: Cancel, Help: Touchez deux fois et maintenez appuyé, puis faites glisser vers le haut pour sélectionner un autre clavier.
+					62 button Description: Dicter, Help: Touchez deux fois pour commencer la dictée et deux fois avec deux doigts pour terminer., ID: dictation, Secondary Actions: Cancel
+				63 button Description: Home, ID: app.grid.3x3
+				64 button Description: Screenshot, ID: camera.viewfinder
+				65 button Description: Record, ID: record.circle
+				66 button Rotate Left
+	67 text ANTSIA iPhone 18 Pro iOS 27.0
+	68 container
+		69 toolbar
+			70 menu button Add, Help: Add Device, ID: plus
+			71 toggle button Description: Filter, Help: Sort and Filter, Value: on
+			72 button Description: Hide Sidebar, Secondary Actions: Increment, Decrement, Delete, Cancel
+			73 toggle button Description: Capture Keyboard, Value: off
+			74 toggle button Description: Resize mode, Help: Enter resize mode, Value: off
+			75 radio button Description: Zoom Out, Value: 0, ID: minus.magnifyingglass
+			76 radio button Description: arrowtriangles.up.right.down.left.magnifyingglass, Help: Zoom to Fit, Value: 0
+			77 radio button Description: Zoom To Actual Size, Help: Physical Size, Value: 1, ID: 1.magnifyingglass
+			78 radio button Description: Zoom In, Value: 0, ID: plus.magnifyingglass
+			79 button Description: Switch to compact window, Secondary Actions: Increment, Decrement, Delete, Cancel, Move previous, Move next, Remove from toolbar
+			80 menu button More, Help: More Actions, ID: ellipsis
+			81 radio button Description: Edit, Help: Settings, Value: 0, ID: slider.horizontal.3
+			82 radio button Description: text.document, Help: Reports, Value: 0
+			83 radio button Description: Info, Value: 0, ID: info
+84 menu bar
+	85 Device Hub
+	86 File
+	87 Edit
+	88 View
+	89 Device
+	90 Controls
+	91 Window
+	92 Help
+
+The focused UI element is 0 standard window ANTSIA iPhone 18 Pro – iOS 27.0, ID: com.apple.dt.DeviceKit.DeviceManagementWindow-AppWindow-1, Secondary Actions: Raise

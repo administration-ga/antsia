@@ -1,0 +1,147 @@
+Window: "ANTSIA iPhone 18 Pro", App: Device Hub.
+0 standard window ANTSIA iPhone 18 Pro – iOS 27.0, ID: com.apple.dt.DeviceKit.DeviceManagementWindow-AppWindow-1, Secondary Actions: Raise
+	1 split group
+		2 split group com.apple.dt.DeviceKit.DeviceManagementWindow-AppWindow-1, SidebarNavigationSplitView
+			3 scroll area
+				4 list Sidebar
+					5 row (selectable) Description: Available, Value: Expanded
+					6 row (selected) Description: iphone.gen3, Value: ANTSIA iPhone 18 Pro
+27.0
+Simulator
+			7 search text field (settable) Search
+				8 button Search
+			9 splitter (disabled, settable, float) 248
+			10 container
+				11 container (showing 0-100 of 109 items)
+					12 text Description: Démonstration ANTSIA, Secondary Actions: Cancel
+					13 button Description: Revenir à mon compte, Secondary Actions: Cancel
+					14 button Description: Changer de profil démo, Secondary Actions: Cancel
+					15 heading Description: Découvrir, Secondary Actions: Cancel
+					16 element (selected) Description: Boutiques, Secondary Actions: Cancel
+					17 button Description: Services, Secondary Actions: Cancel
+					18 element Description: Associations, Secondary Actions: Cancel
+					19 button Description: Mes activités, Secondary Actions: Cancel
+					20 button Description: Actualiser, Secondary Actions: Cancel
+					21 heading Description: Boutiques, Secondary Actions: Cancel
+					22 heading Description: Vitrines du réseau, Secondary Actions: Cancel
+					23 element Description: Atelier Tech Démo, Secondary Actions: Cancel
+					24 heading Description: Atelier Tech Démo, Secondary Actions: Cancel
+					25 button Description: Voir la boutique · Atelier Tech Démo, Secondary Actions: Cancel
+					26 button Description: Voir la page · Atelier Tech Démo, Secondary Actions: Cancel
+					27 element Description: Studio Objectif Démo, Secondary Actions: Cancel
+					28 heading Description: Studio Objectif Démo, Secondary Actions: Cancel
+					29 button Description: Voir la boutique · Studio Objectif Démo, Secondary Actions: Cancel
+					30 button Description: Voir la page · Studio Objectif Démo, Secondary Actions: Cancel
+					31 element Description: Épicerie Moussavou Démo, Secondary Actions: Cancel
+					32 heading Description: Épicerie Moussavou Démo, Secondary Actions: Cancel
+					33 text Description: Horaires · Du lundi au samedi, de 7 h à 20 h, Secondary Actions: Cancel
+					34 button Description: Voir la boutique · Épicerie Moussavou Démo, Secondary Actions: Cancel
+					35 button Description: Voir la page · Épicerie Moussavou Démo, Secondary Actions: Cancel
+					36 heading Description: Catalogue, Secondary Actions: Cancel
+					37 text Description: Rechercher des produits ou services, Secondary Actions: Cancel
+					38 text field (settable) Description: Rechercher des produits ou services, Secondary Actions: Cancel
+					39 button Description: Rechercher, Secondary Actions: Cancel
+					40 text Description: Le catalogue se prépare., Secondary Actions: Cancel
+					41 text Description: Aucun résultat dans cette fenêtre., Secondary Actions: Cancel
+					42 heading Description: Offres de démonstration, Secondary Actions: Cancel
+					43 text Description: Ces offres sont fictives. Aucun achat, paiement, devis ou rendez-vous ne peut être engagé ici., Secondary Actions: Cancel
+					44 element Description: Photo d'illustration pour la démonstration : Ananas, la pièce — Démo, Secondary Actions: Cancel
+					45 heading Description: Ananas, la pièce — Démo, Secondary Actions: Cancel
+					46 text Description: 1 000 XAF, Secondary Actions: Cancel
+					47 text Description: Ananas fictif, sucré et juteux, présenté pour la démonstration. Aucune commande réelle., Secondary Actions: Cancel
+					48 text Description: Offres de démonstration, Secondary Actions: Cancel
+					49 button Description: Voir la boutique · epicerie-moussavou-demo, Secondary Actions: Cancel
+					50 element Description: Photo d'illustration pour la démonstration : Arachides, sachet de 1 kg — Démo, Secondary Actions: Cancel
+					51 heading Description: Arachides, sachet de 1 kg — Démo, Secondary Actions: Cancel
+					52 text Description: 2 000 XAF, Secondary Actions: Cancel
+					53 text Description: Arachides fictives pour les sauces et les en-cas. Aucune commande réelle., Secondary Actions: Cancel
+					54 text Description: Offres de démonstration, Secondary Actions: Cancel
+					55 button Description: Voir la boutique · epicerie-moussavou-demo, Secondary Actions: Cancel
+					56 element Description: Photo d'illustration pour la démonstration : Régime de bananes plantain — Démo, Secondary Actions: Cancel
+					57 heading Description: Régime de bananes plantain — Démo, Secondary Actions: Cancel
+					58 text Description: 4 000 XAF, Secondary Actions: Cancel
+					59 text Description: Bananes plantain fictives, pour illustrer une fiche de produit frais. Aucune commande réelle., Secondary Actions: Cancel
+					60 text Description: Offres de démonstration, Secondary Actions: Cancel
+					61 element Description: Voir la boutique · epicerie-moussavou-demo, Secondary Actions: Cancel
+					62 element Description: Illustration générée pour la démonstration : Panier du marché — Démo, Secondary Actions: Cancel
+					63 heading Description: Panier du marché — Démo, Secondary Actions: Cancel
+					64 text Description: 1 500 XAF, Secondary Actions: Cancel
+					65 text Description: Assortiment fictif de produits du quotidien pour découvrir le catalogue. Aucune vente réelle., Secondary Actions: Cancel
+					66 text Description: Offres de démonstration, Secondary Actions: Cancel
+					67 element Description: Voir la boutique · epicerie-moussavou-demo, Secondary Actions: Cancel
+					68 element Description: Photo d'illustration pour la démonstration : Farine de blé, 2 kg — Démo, Secondary Actions: Cancel
+					69 heading Description: Farine de blé, 2 kg — Démo, Secondary Actions: Cancel
+					70 text Description: 2 000 XAF, Secondary Actions: Cancel
+					71 text Description: Farine fictive pour les beignets et la pâtisserie maison. Aucune vente réelle., Secondary Actions: Cancel
+					72 text Description: Offres de démonstration, Secondary Actions: Cancel
+					73 element Description: Voir la boutique · epicerie-moussavou-demo, Secondary Actions: Cancel
+					74 element Description: Photo d'illustration pour la démonstration : Huile végétale, bidon de 5 L — Démo, Secondary Actions: Cancel
+					75 heading Description: Huile végétale, bidon de 5 L — Démo, Secondary Actions: Cancel
+					76 text Description: 7 500 XAF, Secondary Actions: Cancel
+					77 text Description: Huile de cuisson fictive pour explorer les produits du quotidien. Aucune transaction réelle., Secondary Actions: Cancel
+					78 text Description: Offres de démonstration, Secondary Actions: Cancel
+					79 element Description: Voir la boutique · epicerie-moussavou-demo, Secondary Actions: Cancel
+					80 element Description: Photo d'illustration pour la démonstration : Manioc frais, le tas — Démo, Secondary Actions: Cancel
+					81 heading Description: Manioc frais, le tas — Démo, Secondary Actions: Cancel
+					82 text Description: 1 500 XAF, Secondary Actions: Cancel
+					83 text Description: Racines de manioc fictives présentées au détail. Cette fiche ne propose aucune vente réelle., Secondary Actions: Cancel
+					84 text Description: Offres de démonstration, Secondary Actions: Cancel
+					85 element Description: Voir la boutique · epicerie-moussavou-demo, Secondary Actions: Cancel
+					86 element Description: Photo d'illustration pour la démonstration : Oignons rouges, 1 kg — Démo, Secondary Actions: Cancel
+					87 heading Description: Oignons rouges, 1 kg — Démo, Secondary Actions: Cancel
+					88 text Description: 1 200 XAF, Secondary Actions: Cancel
+					89 text Description: Oignons fictifs présentés au poids. Cette fiche ne déclenche aucune commande., Secondary Actions: Cancel
+					90 text Description: Offres de démonstration, Secondary Actions: Cancel
+					91 button Description: Voir la boutique · epicerie-moussavou-demo, Secondary Actions: Cancel
+					92 element Description: Illustration générée pour la démonstration : Panier en raphia — Démo, Secondary Actions: Cancel
+					93 heading Description: Panier en raphia — Démo, Secondary Actions: Cancel
+					94 text Description: 8 500 XAF, Secondary Actions: Cancel
+					95 text Description: Panier artisanal fictif présenté pour la démonstration. Aucune commande réelle., Secondary Actions: Cancel
+					96 text Description: Offres de démonstration, Secondary Actions: Cancel
+					97 button Description: Voir la boutique · epicerie-moussavou-demo, Secondary Actions: Cancel
+					98 element Description: Photo d'illustration pour la démonstration : Poisson fumé au feu de bois — Démo, Secondary Actions: Cancel
+					99 heading Description: Poisson fumé au feu de bois — Démo, Secondary Actions: Cancel
+					100 text Description: 3 500 XAF, Secondary Actions: Cancel
+					101 text Description: Lot fictif de poisson fumé selon la tradition, présenté pour la démonstration. Aucune vente réelle., Secondary Actions: Cancel
+					102 text Description: Offres de démonstration, Secondary Actions: Cancel
+					103 button Description: Voir la boutique · epicerie-moussavou-demo, Secondary Actions: Cancel
+					104 element Description: Photo d'illustration pour la démonstration : Riz parfumé, sac de 5 kg — Démo, Secondary Actions: Cancel
+					105 heading Description: Riz parfumé, sac de 5 kg — Démo, Secondary Actions: Cancel
+					106 text Description: 6 500 XAF, Secondary Actions: Cancel
+					107 text Description: Riz fictif présenté pour la démonstration du catalogue. Aucune vente réelle., Secondary Actions: Cancel
+					108 text Description: Offres de démonstration, Secondary Actions: Cancel
+					109 button Description: Voir la boutique · epicerie-moussavou-demo, Secondary Actions: Cancel
+					110 element Description: Illustration générée pour la démonstration : Savon artisanal — Démo, Secondary Actions: Cancel
+					111 heading Description: Savon artisanal — Démo, Secondary Actions: Cancel
+				112 button Description: Home, ID: app.grid.3x3
+				113 button Description: Screenshot, ID: camera.viewfinder
+				114 button Description: Record, ID: record.circle
+				115 button Rotate Left
+	116 text ANTSIA iPhone 18 Pro iOS 27.0
+	117 container
+		118 toolbar
+			119 menu button Add, Help: Add Device, ID: plus
+			120 toggle button Description: Filter, Help: Sort and Filter, Value: on
+			121 button Description: Hide Sidebar, Secondary Actions: Increment, Decrement, Delete, Cancel
+			122 toggle button Description: Capture Keyboard, Value: off
+			123 toggle button Description: Resize mode, Help: Enter resize mode, Value: off
+			124 radio button Description: Zoom Out, Value: 0, ID: minus.magnifyingglass
+			125 radio button Description: arrowtriangles.up.right.down.left.magnifyingglass, Help: Zoom to Fit, Value: 0
+			126 radio button Description: Zoom To Actual Size, Help: Physical Size, Value: 1, ID: 1.magnifyingglass
+			127 radio button Description: Zoom In, Value: 0, ID: plus.magnifyingglass
+			128 button Description: Switch to compact window, Secondary Actions: Increment, Decrement, Delete, Cancel, Move previous, Move next, Remove from toolbar
+			129 menu button More, Help: More Actions, ID: ellipsis
+			130 radio button Description: Edit, Help: Settings, Value: 0, ID: slider.horizontal.3
+			131 radio button Description: text.document, Help: Reports, Value: 0
+			132 radio button Description: Info, Value: 0, ID: info
+133 menu bar
+	134 Device Hub
+	135 File
+	136 Edit
+	137 View
+	138 Device
+	139 Controls
+	140 Window
+	141 Help
+
+The focused UI element is 0 standard window ANTSIA iPhone 18 Pro – iOS 27.0, ID: com.apple.dt.DeviceKit.DeviceManagementWindow-AppWindow-1, Secondary Actions: Raise

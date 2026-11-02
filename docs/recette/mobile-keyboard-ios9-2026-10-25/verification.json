@@ -1,0 +1,53 @@
+{
+  "passed": true,
+  "at": "2026-10-25T02:31:29.464521+00:00",
+  "distributed": true,
+  "candidateTree": "8617a5b172d929a857d6e22962fcbca8ac4d580f",
+  "remoteVerifyExit": 0,
+  "remoteFinalSourceCheckExit": 0,
+  "localCodegenDryRunExit": 0,
+  "localOriginal5000FollowersTestExit": 0,
+  "localOriginalTestDurationMs": 188753,
+  "localOriginalTestTimeoutMs": 360000,
+  "sourceInputsVerified": 2123,
+  "remoteStartedAt": "2026-10-25T01:08:21Z",
+  "remoteFinishedAt": "2026-10-25T01:28:09Z",
+  "globalPhasesPassedByOriginalVerifyExit0": [
+    "local codegen phase bridge validated2123sourcehashes",
+    "typecheck:convex",
+    "typecheck:tests",
+    "test:convex excluding exactly the locally proved original5000followers case",
+    "test:ratchets",
+    "test:scripts",
+    "workspace typecheck --concurrency=1",
+    "workspace test --concurrency=1",
+    "workspace lint --concurrency=1"
+  ],
+  "uniqueTestsPassed": null,
+  "exactTestCountsStatus": "non r\u00e9extraits \u2014 aucun d\u00e9compte historique repris comme r\u00e9sultat9",
+  "workspacePhases": {
+    "typecheck": {
+      "passed": true,
+      "exactCount": null,
+      "countStatus": "non r\u00e9extrait"
+    },
+    "test": {
+      "passed": true,
+      "exactCount": null,
+      "countStatus": "non r\u00e9extrait"
+    },
+    "lint": {
+      "passed": true,
+      "exactCount": 11,
+      "errors": 0,
+      "lastPackageWarnings": 39
+    }
+  },
+  "remoteLog": {
+    "complete": false,
+    "originalBytes": 756260,
+    "recoveredPrefixBytes": 1500,
+    "path": "verify.partial.log",
+    "limit": "CLI read403; MCPbase64 truncated at2000characters; full compressed journal not recovered before automatic45minute shutdown."
+  }
+}

@@ -1,0 +1,103 @@
+{
+  "at": "2026-10-25T01:05:53.467019+00:00",
+  "build": "9",
+  "passed": true,
+  "javascriptSha256": "33d6c7d9b0086d20a0c45bbbd83171546200ef4349052e1b25b5ae25ebc2cd14",
+  "sourceManifestSha256": "580bab8c10f4992208de09d53a527bfa04a9a100d24385e0caa6d075fdb23466",
+  "checks": {
+    "keyboardOpen": true,
+    "fieldVisibleWithKeyboard": true,
+    "onscreenSearchButtonVisibleWithKeyboard": true,
+    "onscreenSearchButtonSingleTapWithKeyboard": true,
+    "onscreenSearchResultsAndDismissal": true,
+    "nativeSearchKeyResultsAndDismissal": true,
+    "exploreReturnTab": true,
+    "associationEmptyDirectory": true
+  },
+  "evidence": [
+    {
+      "path": "docs/recette/mobile-keyboard-ios9-2026-10-25/08-poisson-bouton-avec-clavier.png",
+      "sha256": "a7e5369a6e243aebfcf24e19b8528a0e9ef43b2ff229c7c14ca536e83063ba87"
+    },
+    {
+      "path": "docs/recette/mobile-keyboard-ios9-2026-10-25/08-poisson-bouton-avec-clavier.txt",
+      "sha256": "9f524bd06aba05bec8c7e689eeff97f060aee428ed36a275bba2166271f378ef"
+    },
+    {
+      "path": "docs/recette/mobile-keyboard-ios9-2026-10-25/09-bouton-ecran-un-tap-poisson.png",
+      "sha256": "045c5129797936a7f0e71e549e7e62bd927b419aaa68852540f7594976dc0f2b"
+    },
+    {
+      "path": "docs/recette/mobile-keyboard-ios9-2026-10-25/09-bouton-ecran-un-tap-poisson.txt",
+      "sha256": "38a01526f093ea19f0dfca36b4e72ef1ccacd68fd48d511a6925c02bcca72493"
+    },
+    {
+      "path": "docs/recette/mobile-keyboard-ios9-2026-10-25/07-touche-native-riz-resultat.png",
+      "sha256": "bf61804b45129284051be5a26ab1f5fd195520a488030d20179dbf602dbb9a2c"
+    },
+    {
+      "path": "docs/recette/mobile-keyboard-ios9-2026-10-25/07-touche-native-riz-resultat.txt",
+      "sha256": "43b14dacfa000f5ced0258816bf36a971d1cb64f161b2ecb46a7ca068be0e752"
+    },
+    {
+      "path": "docs/recette/mobile-keyboard-ios9-2026-10-25/13-services-diagnostic-clavier.png",
+      "sha256": "e8f16fd01abec0fb059b25062563078c7de840ae8756a5f3898a24499cc71d1a"
+    },
+    {
+      "path": "docs/recette/mobile-keyboard-ios9-2026-10-25/13-services-diagnostic-clavier.txt",
+      "sha256": "c31fa0c45def7e8434cb69e0991cb354f266c89261024ee8679a5f1c872eaa5d"
+    },
+    {
+      "path": "docs/recette/mobile-keyboard-ios9-2026-10-25/14-services-un-tap-diagnostic-resultat.png",
+      "sha256": "e1c7b150e9cb264d37b848f9ba565db674148f0b2280f8f0827954def0f87548"
+    },
+    {
+      "path": "docs/recette/mobile-keyboard-ios9-2026-10-25/14-services-un-tap-diagnostic-resultat.txt",
+      "sha256": "959e73fb07fa768cf24e19187729e8401f159700d9ff0e790130665b694163c7"
+    },
+    {
+      "path": "docs/recette/mobile-keyboard-ios9-2026-10-25/15-associations-bouton-clavier.png",
+      "sha256": "b5d7adcb9aaf80459d9049e5b664e41e96f685bf57f9db0e56f4e32f2279e384"
+    },
+    {
+      "path": "docs/recette/mobile-keyboard-ios9-2026-10-25/15-associations-bouton-clavier.txt",
+      "sha256": "ab302bdc469f15749f0793a825638144427ec66733d39882924915370fb55b85"
+    },
+    {
+      "path": "docs/recette/mobile-keyboard-ios9-2026-10-25/16-associations-un-tap-vide.png",
+      "sha256": "26eed5b898c99865a4447e0ae5bbd904d3516d47d2e8bcd9a7331e2707f1935b"
+    },
+    {
+      "path": "docs/recette/mobile-keyboard-ios9-2026-10-25/16-associations-un-tap-vide.txt",
+      "sha256": "28a0b0e7757f045f554e4e21926f5d06f58db5323e388428c6a8a7c8d730320a"
+    },
+    {
+      "path": "docs/recette/mobile-keyboard-ios9-2026-10-25/19-retour-onglet-associations.png",
+      "sha256": "d207c97921534b723a71b379258f37c90101dab119ae15d2b655305310e65b88"
+    },
+    {
+      "path": "docs/recette/mobile-keyboard-ios9-2026-10-25/19-retour-onglet-associations.txt",
+      "sha256": "9076da56dbbde7eef46a2e69d316f8e9b7d99bcb713685964f4af5a73cb3af98"
+    },
+    {
+      "path": "docs/recette/mobile-keyboard-ios9-2026-10-25/22-administration-apres-actualisation.png",
+      "sha256": "5fea31000cf972e027c95aea20d26690a5b8b1eb65e671ebcadcd38fe70a1e1f"
+    },
+    {
+      "path": "docs/recette/mobile-keyboard-ios9-2026-10-25/22-administration-apres-actualisation.txt",
+      "sha256": "bf8295d2dd5fad35c96dc4e0d0df8b7cab84cd3d1f877424db913bf3b7945183"
+    }
+  ],
+  "observations": [
+    "Clavier logiciel AZERTY, Capture Keyboard désactivé.",
+    "Boutique : touche native Riz ->6 500 XAF ; champ remplacé par poisson, un seul appui sur le bouton écran ->Poisson fumé3 500XAF et clavier fermé.",
+    "Services : imprimante6 000XAF via touche native ; diagnostic5 000XAF via un seul appui écran avec clavier ouvert.",
+    "Association introuvable : un seul appui écran ->Aucune association trouvée, clavier fermé.",
+    "Page Jeunes17abonnés/1publication puis Retour rétablit Associations.",
+    "Administration conservée : Mairie Démo17abonnés/1publication et droits administrateur après actualisation. Aucun compte changé, aucune publication/achat/adhésion effectué."
+  ],
+  "limits": [
+    "Recette sur simulateur iPhone18Pro iOS27, pas sur téléphone physique.",
+    "Le cas particulier Mes associations déjà rempli n’a pas été recréé ; l’annuaire vide du profil courant a été vérifié."
+  ]
+}

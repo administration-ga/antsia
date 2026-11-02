@@ -1,0 +1,15 @@
+{
+  "build": "9",
+  "version": "0.1.0",
+  "ipaSha256": "e4fd744e6939f5207d652d590e3dc0200372dd2e7498d2650721b19cac9abeb3",
+  "javascriptSha256": "33d6c7d9b0086d20a0c45bbbd83171546200ef4349052e1b25b5ae25ebc2cd14",
+  "sourceManifestSha256": "580bab8c10f4992208de09d53a527bfa04a9a100d24385e0caa6d075fdb23466",
+  "signatureVerified": true,
+  "nativeExecutableUUIDPreserved": true,
+  "originalIPA8Preserved": true,
+  "originalIPA7Preserved": true,
+  "nativeSymbols7Unchanged": true,
+  "ergonomicAcceptanceComplete": true,
+  "temporarySigningArtifactsCleaned": true,
+  "finishedAt": "2026-10-25T02:30:27.173Z"
+}
