@@ -296,8 +296,9 @@ describe("les sept thèmes d'antsia.ga (ADR-0027)", () => {
           }
           const card = paint("var(--card)")
           const messageFill = cascade.resolve(node, "--role-message-fill")
-          // antsia.ga déclare l'aplat des messages ; DIASPORALE et la console le laissent à `initial`.
-          expect(messageFill === undefined, label).toBe(!antsia.includes(charte))
+          // DIASPORALE définit désormais aussi ses rôles ; seule la console reste au repli.
+          // Une définition ne dispense jamais des contrôles de contraste ci-dessous.
+          expect(messageFill === undefined, label).toBe(charte === "admin-antsia")
           if (messageFill !== undefined) expect(cascade.resolveValue(node, declaration(MESSAGE, "background")), label).toBe(messageFill)
           for (const selector of [NEUTRAL, MESSAGE]) {
             const icon = paint(declaration(selector, "color"))
