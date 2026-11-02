@@ -1,0 +1,24 @@
+{
+  "startedAt": "2026-11-02T16:00:40.531Z",
+  "build": "13",
+  "complete": true,
+  "uploaded": false,
+  "profileExpires": "2027-07-09T23:29:01",
+  "changedFiles": [
+    "ANTSIA",
+    "AppIcon60x60@2x.png",
+    "AppIcon76x76@2x~ipad.png",
+    "Assets.car",
+    "EXConstants.bundle/app.config",
+    "Info.plist",
+    "_CodeSignature/CodeResources"
+  ],
+  "totalFiles": 111,
+  "ipa": "/Users/okatech/Library/Caches/antsia-native-builds/antsia-0.1.0-ios-build13.ipa",
+  "ipaSha256": "03a5ea8d8d18657eb3df3ba8130a15234c9cdd77777186768b4f1485c0023e52",
+  "javascriptSha256": "469281fe0cc9a95b47b935921a4a12084663daf0e458898b434babe4cf7e1b72",
+  "nativeUuid": "UUID: AEA7D7F2-123D-3BAB-B57E-F9E2AE039978 (arm64) <app>/ANTSIA",
+  "temporarySigningArtifactsCleaned": true,
+  "cleanupIssues": [],
+  "finishedAt": "2026-11-02T16:00:45.136Z"
+}
