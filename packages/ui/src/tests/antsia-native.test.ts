@@ -39,6 +39,12 @@ const COLOR_TOKENS = {
   input: "--input",
   primary: "--primary-fill",
   primaryOn: "--primary-fill-on",
+  primaryInk: "--primary-500",
+  social: "--role-social-fill",
+  socialOn: "--role-social-on",
+  react: "--role-react-ink",
+  tabActive: "--esp-tab-active-bg",
+  tabActiveInk: "--esp-tab-active-fg",
   danger: "--role-danger-ink",
   success: "--role-success-ink",
 } as const satisfies Record<ColorKey, `--${string}`>
