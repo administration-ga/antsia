@@ -216,6 +216,52 @@ describe("MP09 — annuaire compact", () => {
     await click(button("actions.clear"))
     expect(mocks.push).toHaveBeenCalledWith(routes.professionals())
   })
+  it.each([
+    { label: "l'adresse sans filtre", params: "" },
+    { label: "des filtres déjà présents dans l'adresse", params: "recherche=Design&competence=Conseil&langue=fr&langue=en&zone=Libreville&disponibilite=limited&collaboration=project&collaboration=mentoring" },
+  ])("efface toutes les saisies non envoyées et les erreurs depuis $label sans attendre une navigation", async ({ params }) => {
+    mocks.params = params
+    await render(<MemberProfessionalDirectory />)
+    const form = container.querySelector("form")!
+    const details = container.querySelector("details")!
+    await click(details.querySelector("summary"))
+    await input("query", "photographie")
+    await input("skills", "Design, Conseil")
+    await input("zone", "Port-Gentil")
+    await input("availability", "unavailable")
+    const language = [...details.querySelectorAll("label")].find(label => label.textContent === i18n.t("languages.es"))!.querySelector<HTMLInputElement>("input")!
+    const collaborationType = [...details.querySelectorAll("label")].find(label => label.textContent === i18n.t("collaborationTypes.partnership"))!.querySelector<HTMLInputElement>("input")!
+    await click(language)
+    await click(collaborationType)
+    const otherLanguage = details.querySelector<HTMLInputElement>('input[id$="-other-language"]')!
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(otherLanguage, "fr!")
+      otherLanguage.dispatchEvent(new Event("input", { bubbles: true }))
+    })
+    await click(button("fields.languageEntry"))
+    expect(language.checked).toBe(true)
+    expect(collaborationType.checked).toBe(true)
+    expect(details.open).toBe(true)
+    expect(otherLanguage.value).toBe("fr!")
+    expect(details.querySelector('[role="alert"]')?.textContent).toBe(i18n.t("validation.language"))
+    expect(mocks.push).not.toHaveBeenCalled()
+
+    await click(button("actions.clear"))
+
+    // Le routeur simulé ne change pas l'adresse : le reset ne dépend d'aucun remontage.
+    expect(container.querySelector("form")).toBe(form)
+    expect(mocks.params).toBe(params)
+    for (const name of ["query", "skills", "zone", "availability"]) expect(container.querySelector<HTMLInputElement | HTMLSelectElement>(`[name="${name}"]`)!.value).toBe("")
+    expect([...details.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')].every(node => !node.checked)).toBe(true)
+    expect(otherLanguage.value).toBe("")
+    expect(details.open).toBe(false)
+    expect(details.querySelector("summary")!.textContent).toBe(i18n.t("directory.advancedFilters", { count: 0 }))
+    expect(container.querySelector('[role="alert"]')).toBeNull()
+    expect(mocks.push).toHaveBeenCalledExactlyOnceWith(routes.professionals())
+    expect(mocks.save).not.toHaveBeenCalled()
+    expect(mocks.state).not.toHaveBeenCalled()
+    expect(mocks.propose).not.toHaveBeenCalled()
+  })
   it("ouvrir puis refermer ne perd ni saisie ni valeurs ni continuation de l'URL", async () => {
     const cursor = JSON.stringify({ version: 1, scope: "a".repeat(64), cursor: "window-two" })
     mocks.params = new URLSearchParams({ recherche: "Design", competence: "Conseil", langue: "fr", curseur: cursor }).toString()
