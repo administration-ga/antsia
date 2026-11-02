@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
 import { renderToStaticMarkup } from "react-dom/server"
-import { describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { getAppT } from "@/i18n/server"
 import type { PublicStorefront } from "@/lib/public-shops-data"
 import { routes } from "@/lib/routes"
 import { PublicStorefrontCard } from "./public-storefront-card"
+import { catalogOfferFixture } from "./__tests__/catalog-fixtures"
 
 const storefront: PublicStorefront = { handle: "atelier", name: "Atelier partagé", description: "Une présentation publique\nsur plusieurs lignes.", logoUrl: null, bannerUrl: null, model: "products", specialty: "Artisanat", serviceArea: "Libreville", hours: "Du lundi au vendredi", badge: "community", blocks: ["about"], publishedAt: 1_700_000_000_000, origin: { slug: "antsia", name: "ANTSIA" } }
 
@@ -78,5 +79,37 @@ describe("vitrine publique rendue sans fournisseur membre", () => {
     // Les seuls SVG admis sont les icônes de l'interface (Lucide) ; aucun balisage venu des textes usagers.
     expect(container.querySelector("script, img, svg:not(.lucide), [onerror], [onload]")).toBeNull()
     expect(html).toContain("&lt;script&gt;")
+  })
+})
+
+
+afterEach(() => { vi.useRealTimers() })
+
+describe("SU06 — plat du jour rendu sans fournisseur membre", () => {
+  it.each(["fr", "en"] as const)("rend le produit public et son lien public dans le HTML initial (%s)", locale => {
+    vi.useFakeTimers()
+    vi.setSystemTime(Date.UTC(2026, 9, 24, 10))
+    const value: PublicStorefront = { ...storefront, blocks: ["catalog", "about"], activityConfiguration: { version: 1, capabilities: ["products"], template: "food", blocks: ["catalog", "about"] } }
+    const special = { version: 1 as const, day: "2026-10-24", offer: catalogOfferFixture({ title: "Menu du marché", description: "Le plat admis aujourd'hui." }) }
+    const html = renderToStaticMarkup(<PublicStorefrontCard storefront={value} locale={locale} dailySpecial={special} />)
+    const container = document.createElement("div")
+    container.innerHTML = html
+    expect(container.querySelector("[data-daily-special]")?.textContent).toContain("Menu du marché")
+    expect(container.querySelector("[data-daily-special] a")?.getAttribute("href")).toBe(routes.publicShopOffer(value.handle, special.offer.offerRef))
+    expect(container.textContent).toContain(getAppT(locale).t("shops:food.seeMenu"))
+    expect(container.querySelector("[data-daily-special] form, [data-daily-special] button")).toBeNull()
+    expect(container.querySelector("h1")?.textContent).toBe(storefront.name)
+  })
+
+  it("un plat d'hier, d'une autre boutique ou d'une autre activité n'est pas annoncé", () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(Date.UTC(2026, 9, 24, 10))
+    const food: PublicStorefront = { ...storefront, activityConfiguration: { version: 1, capabilities: ["products"], template: "food", blocks: ["catalog", "about"] } }
+    const special = { version: 1 as const, day: "2026-10-24", offer: catalogOfferFixture() }
+    for (const html of [
+      renderToStaticMarkup(<PublicStorefrontCard storefront={food} locale="fr" dailySpecial={{ ...special, day: "2026-10-23" }} />),
+      renderToStaticMarkup(<PublicStorefrontCard storefront={food} locale="fr" dailySpecial={{ ...special, offer: { ...special.offer, shopHandle: "autre" } }} />),
+      renderToStaticMarkup(<PublicStorefrontCard storefront={storefront} locale="fr" dailySpecial={special} />),
+    ]) expect(html).not.toContain("data-daily-special")
   })
 })

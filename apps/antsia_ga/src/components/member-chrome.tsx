@@ -176,7 +176,7 @@ function DestinationsMemberPage({ children, workspace, immersiveOnPhone }: { chi
   const withNavigation = !isLiveSessionPath(pathname)
 
   return (
-    // Dans la démo, le bandeau reste en flux : l'espace borné retranche sa hauteur (comme Messages hors opt-in).
+    // La notice démo flotte au-dessus du workspace, qui conserve toute sa hauteur.
     <div className={boundedWorkspace ? "antsia-member-workspace esp-page-motif flex h-dvh flex-col overflow-hidden bg-background" : "esp-page-motif min-h-dvh bg-background"} style={boundedWorkspace ? { height: demoWorkspaceHeight() } : undefined}>
       <MemberTopBar onMobile={boundedWorkspace && immersiveOnPhone ? "hidden" : "visible"} />
       <div

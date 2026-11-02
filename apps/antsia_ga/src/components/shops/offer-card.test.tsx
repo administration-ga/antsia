@@ -1,10 +1,13 @@
 // @vitest-environment jsdom
+import { Children, isValidElement, type ReactNode } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { getAppT } from "@/i18n/server"
 import { routes } from "@/lib/routes"
 import { catalogAvailability, catalogVariantPrice, type CatalogOffer } from "./catalog-model"
 import { OfferCard, OfferDetails } from "./offer-card"
+import { OfferMediaCarousel } from "./offer-media-carousel"
+import { OfferGallery } from "./offer-gallery"
 import { CATALOG_NOW, catalogOfferFixture, catalogVariantFixture } from "./__tests__/catalog-fixtures"
 
 beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(CATALOG_NOW) })
@@ -136,5 +139,38 @@ describe("cartes et fiches d'offre communes au membre et au SSR", () => {
     const memberHtml = renderToStaticMarkup(<OfferDetails offer={offer} audience="member" locale="fr" t={translate("fr")} actionSlot={<a href={routes.checkoutPrepare(offer.shopHandle, offer.offerRef)}>Préparation autorisée</a>} />)
     expect(memberHtml).toContain("Préparation autorisée")
     expect(memberHtml).not.toContain(">Payer<")
+  })
+})
+
+
+/** Inspecte la frontière client sans exécuter le composant : le SSR classique masque cette erreur RSC. */
+function descendantProps(node: ReactNode, component: unknown): Record<string, unknown> | null {
+  for (const child of Children.toArray(node)) {
+    if (!isValidElement<{ children?: ReactNode }>(child)) continue
+    if (child.type === component) return child.props as Record<string, unknown>
+    const found = descendantProps(child.props.children, component)
+    if (found) return found
+  }
+  return null
+}
+
+describe("galeries publiques — frontière serveur/client sérialisable", () => {
+  it.each(["fr", "en"] as const)("les cartes et fiches passent les phrases traduites, jamais la fonction de traduction (%s)", locale => {
+    const offer = catalogOfferFixture({ media: [
+      { url: "https://media.example/face.jpg", altText: "Face", width: 800, height: 600, withheld: null },
+      { url: "https://must-never-appear.example/held.jpg", altText: null, width: null, height: null, withheld: "fileQuarantined" },
+    ] })
+    const t = translate(locale)
+    const card = OfferCard({ offer, audience: "public", locale, t })
+    const detail = OfferDetails({ offer, audience: "public", locale, t })
+    for (const [tree, component] of [[card, OfferMediaCarousel], [detail, OfferGallery]] as const) {
+      const props = descendantProps(tree, component)
+      if (!props) throw new Error("Missing client gallery boundary")
+      expect(props).not.toHaveProperty("t")
+      expect(JSON.parse(JSON.stringify(props))).toEqual(props)
+      expect(props).toMatchObject({ labels: { photos: t("catalog.offerPhotos"), noPhoto: t("catalog.noPhoto"), mediaWithheld: t("catalog.mediaWithheld") } })
+    }
+    expect(descendantProps(card, OfferMediaCarousel)).toMatchObject({ labels: { openOffer: t("catalog.openOfferNamed", { title: offer.title }), openPhotos: [t("catalog.openOfferPhoto", { title: offer.title, index: 1 }), t("catalog.openOfferPhoto", { title: offer.title, index: 2 })] } })
+    expect(descendantProps(detail, OfferGallery)).toMatchObject({ labels: { choosePhoto: t("catalog.choosePhoto"), showPhotos: [t("catalog.showPhoto", { index: 1 }), t("catalog.showPhoto", { index: 2 })] } })
   })
 })

@@ -2,8 +2,8 @@ import type { ReactNode } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
-const mocks = vi.hoisted(() => ({ load: vi.fn(), catalog: vi.fn() }))
-vi.mock("@/lib/public-shops-data", () => ({ loadPublicStorefront: mocks.load }))
+const mocks = vi.hoisted(() => ({ load: vi.fn(), catalog: vi.fn(), special: vi.fn() }))
+vi.mock("@/lib/public-shops-data", () => ({ loadPublicStorefront: mocks.load, loadPublicDailySpecial: mocks.special }))
 vi.mock("@/lib/public-catalog-data", () => ({ loadPublicCatalog: mocks.catalog, loadPublicOffer: vi.fn(), loadPublicPostOffer: vi.fn() }))
 vi.mock("@/lib/server-session", () => ({ getPublicLocale: async () => "fr", configuredMetadataOrigin: () => "https://antsia.ga", getServerViewer: vi.fn(), withinBridgeDeadline: (work: () => Promise<unknown>) => work() }))
 vi.mock("next/navigation", () => ({ notFound: () => { throw new Error("TEST_NOT_FOUND") } }))
@@ -12,7 +12,7 @@ vi.mock("@/components/public/public-status", () => ({ PublicStatus: ({ status }:
 
 import { routes } from "@/lib/routes"
 import { PublicStorefrontMetadata, PublicStorefrontScreen } from "./public-storefront-route"
-import { catalogPageFixture } from "./__tests__/catalog-fixtures"
+import { catalogOfferFixture, catalogPageFixture } from "./__tests__/catalog-fixtures"
 
 const storefront = { handle: "atelier", name: "Atelier partagé", description: "Notre présentation publique.", logoUrl: null, bannerUrl: null, model: "products", specialty: null, serviceArea: "Libreville", hours: null, badge: "community", blocks: ["about"], publishedAt: 1_700_000_000_000, origin: { slug: "antsia", name: "ANTSIA" } }
 const props = () => ({ params: Promise.resolve({ handle: "atelier" }), searchParams: Promise.resolve({}) })
@@ -20,6 +20,8 @@ const props = () => ({ params: Promise.resolve({ handle: "atelier" }), searchPar
 beforeEach(() => {
   mocks.load.mockReset()
   mocks.catalog.mockReset()
+  mocks.special.mockReset()
+  mocks.special.mockResolvedValue({ status: "ready", data: null, viewer: "anonymous" })
   mocks.catalog.mockResolvedValue({ status: "ready", data: catalogPageFixture(), viewer: "anonymous" })
   mocks.load.mockResolvedValue({ status: "ready", data: storefront, viewer: "anonymous" })
 })
@@ -89,5 +91,45 @@ describe("route de vitrine publique SSR", () => {
     expect(html).toContain('data-status="refused"')
     expect(html).not.toContain(storefront.name)
     expect(html).not.toContain("Sac artisanal")
+  })
+})
+
+
+describe("SU06 — vitrine food et projection facultative", () => {
+  const foodStorefront = () => ({ ...storefront, blocks: ["catalog", "about"], activityConfiguration: { version: 1, capabilities: ["products"], template: "food", blocks: ["catalog", "about"] } })
+
+  it("branche le plat public admis et appelle le catalogue Menu", async () => {
+    mocks.load.mockResolvedValue({ status: "ready", data: foodStorefront(), viewer: "anonymous" })
+    const day = new Date(Date.now() + 60 * 60 * 1000).toISOString().slice(0, 10)
+    mocks.special.mockResolvedValue({ status: "ready", viewer: "anonymous", data: { version: 1, day, offer: catalogOfferFixture({ title: "Plat publiquement admis" }) } })
+    const html = renderToStaticMarkup(await PublicStorefrontScreen(props()))
+    expect(mocks.special).toHaveBeenCalledWith("atelier", false)
+    expect(html).toContain("Plat publiquement admis")
+    expect(html).toContain("data-daily-special")
+    expect(html).toContain(">Menu</h2>")
+    expect(html).toContain("Voir le menu")
+  })
+
+  it("laisse la vitrine lisible si l'ancien backend ignore le complément", async () => {
+    mocks.load.mockResolvedValue({ status: "ready", data: foodStorefront(), viewer: "anonymous" })
+    mocks.special.mockResolvedValue({ status: "unavailable" })
+    const html = renderToStaticMarkup(await PublicStorefrontScreen(props()))
+    expect(html).toContain(storefront.name)
+    expect(html).toContain("Sac artisanal")
+    expect(html).not.toContain("data-daily-special")
+  })
+
+  it.each(["refused", "handoff"])("un complément %s ferme le rendu sans conserver le contenu déjà chargé", async status => {
+    mocks.load.mockResolvedValue({ status: "ready", data: foodStorefront(), viewer: "anonymous" })
+    mocks.special.mockResolvedValue({ status })
+    const html = renderToStaticMarkup(await PublicStorefrontScreen(props()))
+    expect(html).toContain(`data-status="${status}"`)
+    expect(html).not.toContain(storefront.name)
+    expect(html).not.toContain("Sac artisanal")
+  })
+
+  it("ne consulte pas le complément pour une activité ordinaire", async () => {
+    await PublicStorefrontScreen(props())
+    expect(mocks.special).not.toHaveBeenCalled()
   })
 })

@@ -138,3 +138,22 @@ describe("MP05d — filtres SSR et sélection publique", () => {
     expect(mocks.shop).toHaveBeenLastCalledWith("atelier", true)
   })
 })
+
+
+describe("SU06 — le menu public d'une adresse food", () => {
+  it("nomme le H1, les métadonnées et le retour de fiche Menu", async () => {
+    mocks.shop.mockResolvedValue({ status: "ready", viewer: "anonymous", data: { name: "Atelier", handle: "atelier", model: "products", activityConfiguration: { version: 1, capabilities: ["products"], template: "food", blocks: ["catalog", "about"] } } })
+    const metadata = await PublicCatalogMetadata(input())
+    expect(metadata.title).toBe("Le menu de Atelier")
+    const html = renderToStaticMarkup(await PublicCatalogScreen(input()))
+    expect(html).toContain(">Le menu de Atelier</h1>")
+    expect(html).not.toContain("Le catalogue de Atelier")
+    const detail = renderToStaticMarkup(await PublicOfferScreen(input()))
+    expect(detail).toContain(">Revenir au menu</a>")
+  })
+
+  it("une activité ordinaire garde son catalogue", async () => {
+    expect((await PublicCatalogMetadata(input())).title).toBe("Le catalogue de Atelier")
+    expect(renderToStaticMarkup(await PublicOfferScreen(input()))).toContain(">Revenir au catalogue</a>")
+  })
+})

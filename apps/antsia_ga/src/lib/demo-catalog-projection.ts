@@ -48,7 +48,8 @@ export function demoCatalogProjectionAllowed(backendUrl: string | undefined = pr
   try {
     const url = new URL(backendUrl)
     if (backendUrl !== url.origin || url.username || url.password || url.search || url.hash) return false
-    return url.protocol === "http:" && url.port === "3210" && ["127.0.0.1", "localhost"].includes(url.hostname)
+    // 3260 est le port local ANTSIA quand 3210 est réservé par une autre application du poste.
+    return url.protocol === "http:" && ["3210", "3260"].includes(url.port) && ["127.0.0.1", "localhost"].includes(url.hostname)
       || url.protocol === "https:" && !url.port && url.hostname === "vivid-hedgehog-655.convex.cloud"
   } catch { return false }
 }

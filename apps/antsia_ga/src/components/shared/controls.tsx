@@ -34,14 +34,14 @@ export function Button({
 
 // Les champs gardent leur filet `--input` (WCAG 1.4.11, P18b) ; leur angle est celui des champs.
 const fieldClass =
-  "w-full rounded-[var(--esp-field-radius,var(--radius-lg))] border border-input bg-background px-3 py-2 text-base text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring aria-[invalid=true]:border-destructive"
+  "w-full rounded-[var(--esp-field-radius,var(--radius-lg))] border border-input bg-muted px-3 py-2 text-base leading-[1.4] text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring aria-[invalid=true]:border-destructive"
 
 export const TextInput = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(function TextInput({ className, ...props }, ref) {
   return <input ref={ref} {...props} className={cn(fieldClass, "min-h-11", className)} />
 })
 
 export const TextArea = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<HTMLTextAreaElement>>(function TextArea({ className, ...props }, ref) {
-  return <textarea ref={ref} {...props} className={cn(fieldClass, "min-h-28 resize-y", className)} />
+  return <textarea ref={ref} {...props} className={cn(fieldClass, "min-h-[var(--esp-textarea-min-height,112px)] resize-y", className)} />
 })
 
 export function Field(props: { id: string; label: string; hint?: string; error?: string; children: ReactNode }) {
@@ -66,7 +66,7 @@ export function Field(props: { id: string; label: string; hint?: string; error?:
 }
 
 export function Card({ className, children }: { className?: string; children: ReactNode }) {
-  return <section className={cn("rounded-[var(--ui2-card-radius,1rem)] border border-[color:var(--esp-surface-border,var(--border))] bg-card p-5 text-card-foreground shadow-sm sm:p-6", className)}>{children}</section>
+  return <section className={cn("rounded-[var(--ui2-card-radius,1rem)] border border-[color:var(--esp-surface-border,var(--border))] bg-card p-[var(--esp-card-padding,16px)] text-card-foreground shadow-[var(--esp-surface-shadow,none)] ", className)}>{children}</section>
 }
 
 export function CenteredStatus({ label }: { label: string }) {

@@ -3,7 +3,8 @@
 import { api } from "@antsia/api/engine"
 import { useAuthenticatedConvexQuery } from "@antsia/api/hooks"
 import { useNetwork } from "@antsia/api/network"
-import { Sheet, SheetBody, SheetContent, SheetHeader, SheetTitle } from "@antsia/ui/sheet"
+import { effectiveActivityConfiguration } from "@antsia/social-domain/activityConfiguration"
+import { Sheet, SheetBody, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@antsia/ui/sheet"
 import { LayoutGrid, List, SlidersHorizontal } from "lucide-react"
 import Link from "next/link"
 import { useTranslation } from "react-i18next"
@@ -33,10 +34,18 @@ const VITRINE_COLLECTIONS_MAX = 4
 const VIEW_STORAGE_KEY = "antsia:catalog-view"
 const TOOL_CLASS = "inline-flex min-h-11 items-center gap-2 whitespace-nowrap rounded-[var(--ui2-button-radius)] bg-[var(--esp-chip-bg,var(--muted))] px-4 text-sm font-semibold text-foreground hover:brightness-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring aria-[current=page]:bg-[var(--role-commerce-fill,var(--primary-fill))] aria-[current=page]:text-[color:var(--role-commerce-on,var(--primary-fill-on))] aria-pressed:bg-[var(--role-commerce-fill,var(--primary-fill))] aria-pressed:text-[color:var(--role-commerce-on,var(--primary-fill-on))]"
 
+/** Le gabarit nomme le catalogue, sans accorder de droit supplémentaire. */
+function useFoodCatalog(handle: string, provider: boolean) {
+  const { networkId } = useNetwork()
+  const query = useAuthenticatedConvexQuery(api.modules.shops.shops.storefront, provider ? "skip" : { networkId, handle })
+  return !provider && !query.isError && query.data ? effectiveActivityConfiguration(query.data.activityConfiguration, query.data.model).template === "food" : false
+}
+
 export function MemberCatalogScreen({ handle, search, provider = false }: { handle: string; search: CatalogSearch | null; provider?: boolean }) {
   const { t } = useTranslation("shops")
   const { t: providerT } = useTranslation("provider")
-  return <ShopFrame title={provider ? providerT("catalog.title") : t("catalog.title")}><ShopLink href={provider ? routes.provider(handle) : routes.storefront(handle)}>{provider ? providerT("catalog.backToProvider") : t("catalog.backToShop")}</ShopLink><Suspense fallback={<p role="status">{t("catalog.loading")}</p>}><MemberCatalogSelection handle={handle} initialSearch={search} provider={provider} /></Suspense></ShopFrame>
+  const food = useFoodCatalog(handle, provider)
+  return <ShopFrame title={provider ? providerT("catalog.title") : t(food ? "food.menu" : "catalog.title")}><ShopLink href={provider ? routes.provider(handle) : routes.storefront(handle)}>{provider ? providerT("catalog.backToProvider") : t("catalog.backToShop")}</ShopLink><Suspense fallback={<p role="status">{t("catalog.loading")}</p>}><MemberCatalogSelection handle={handle} initialSearch={search} provider={provider} /></Suspense></ShopFrame>
 }
 
 /** L'URL courante pilote aussi les transitions SPA, sans attendre un nouveau snapshot serveur. */
@@ -57,6 +66,7 @@ function useCatalogLayout(): ["grid" | "list", (layout: "grid" | "list") => void
 
 function MemberCatalogWindow({ handle, search, preview = false, provider = false }: { handle: string; search: CatalogSearch; preview?: boolean; provider?: boolean }) {
   const { networkId } = useNetwork()
+  const food = useFoodCatalog(handle, provider)
   const { t, i18n } = useTranslation("shops")
   const [layout, setLayout] = useCatalogLayout()
   const filters = catalogFilters(search)
@@ -71,7 +81,7 @@ function MemberCatalogWindow({ handle, search, preview = false, provider = false
     {page.indexStatus === "building" ? <p role="status" className="text-sm text-muted-foreground">{t("catalog.indexBuilding")}</p> : null}
     {page.indexStatus !== "building" || page.page.length ? <CatalogGrid page={page} audience="member" locale={i18n.resolvedLanguage ?? "fr"} t={translate} layout={preview ? "grid" : layout} preview={preview} renderAction={offer => <OfferQuickAdd offer={offer} />} /> : null}
     {page.page.length === 0 && page.indexStatus !== "building" ? <p className="text-sm text-muted-foreground">{t("catalog.publicConsentHint")}</p> : null}
-    {preview ? <ShopLink href={provider ? routes.providerCatalog(handle, filters) : routes.shopCatalog(handle, filters)}>{t("catalog.openCatalog")}</ShopLink> : <CatalogPagination page={page} handle={handle} audience="member" filters={filters} cursor={search.cursor} t={translate} provider={provider} />}
+    {preview ? <ShopLink href={provider ? routes.providerCatalog(handle, filters) : routes.shopCatalog(handle, filters)}>{t(food ? "food.seeMenu" : "catalog.openCatalog")}</ShopLink> : <CatalogPagination page={page} handle={handle} audience="member" filters={filters} cursor={search.cursor} t={translate} provider={provider} />}
   </div>
 }
 
@@ -99,7 +109,7 @@ function CatalogToolbar({ handle, filters, collections, provider, layout, onLayo
   return <div className="grid min-w-0 gap-3" data-catalog-toolbar>
     <div className="flex min-w-0 flex-wrap items-center gap-2">
       <Sheet open={open} onOpenChange={setOpen}>
-        <button type="button" aria-haspopup="dialog" onClick={() => setOpen(true)} className={TOOL_CLASS}><SlidersHorizontal aria-hidden className="size-4" />{count ? marketplaceT("home.filterCount", { count }) : marketplaceT("home.filter")}</button>
+        <SheetTrigger asChild><button type="button" aria-haspopup="dialog" className={TOOL_CLASS}><SlidersHorizontal aria-hidden className="size-4" />{count ? marketplaceT("home.filterCount", { count }) : marketplaceT("home.filter")}</button></SheetTrigger>
         <SheetContent side={wide ? "right" : "bottom"} closeLabel={marketplaceT("home.close")} className="sm:max-w-md">
           <SheetHeader><SheetTitle>{t("catalog.filters.title")}</SheetTitle></SheetHeader>
           <SheetBody className="overflow-y-auto overscroll-contain px-4 pb-0"><CatalogFiltersForm key={JSON.stringify(filters)} handle={handle} filters={filters} collections={collections} audience="member" provider={provider} variant="sheet" onApplied={() => setOpen(false)} /></SheetBody>
@@ -143,6 +153,7 @@ export function MemberOfferScreen({ handle, offerRef, initialSelection, provider
 }
 function MemberOfferQuery({ handle, offerRef, initialSelection, provider }: { handle: string; offerRef: string; initialSelection?: OfferInitialSelection; provider: boolean }) {
   const { networkId } = useNetwork()
+  const food = useFoodCatalog(handle, provider)
   const { t, i18n } = useTranslation("shops")
   const { t: providerT } = useTranslation("provider")
   const catalogHref = provider ? routes.providerCatalog(handle) : routes.shopCatalog(handle)
@@ -151,7 +162,7 @@ function MemberOfferQuery({ handle, offerRef, initialSelection, provider }: { ha
   const offer = provider && candidate?.kind !== "service" ? null : candidate
   const demo = offer?.offerRef.startsWith("demo:offer:") === true
   // Une fiche lue porte le titre de l'écran (le nom de l'offre en `h1`) ; sinon, le titre générique.
-  return <ShopFrame title={provider ? providerT("detail.title") : t("catalog.offerTitle")} header={offer ? null : undefined}><ShopLink href={catalogHref}>{provider ? providerT("actions.catalog") : t("catalog.backToCatalog")}</ShopLink>{query.isError ? <ShopQueryFailure href={catalogHref} retry={() => { void query.refetch() }} /> : query.isPending || query.data === undefined ? <p role="status">{t("catalog.loading")}</p> : !offer ? <ShopQueryFailure href={catalogHref} /> : <>
+  return <ShopFrame title={provider ? providerT("detail.title") : t("catalog.offerTitle")} header={offer ? null : undefined}><ShopLink href={catalogHref}>{provider ? providerT("actions.catalog") : t(food ? "food.backToMenu" : "catalog.backToCatalog")}</ShopLink>{query.isError ? <ShopQueryFailure href={catalogHref} retry={() => { void query.refetch() }} /> : query.isPending || query.data === undefined ? <p role="status">{t("catalog.loading")}</p> : !offer ? <ShopQueryFailure href={catalogHref} /> : <>
     <OfferDetails offer={offer} audience="member" titleAs="h1" locale={i18n.resolvedLanguage ?? "fr"} t={(key, options) => t(key, options)} providerT={(key, options) => providerT(key, options)} actionSlot={<div className="grid w-full gap-4">{demo ? <p className="text-sm text-muted-foreground">{t("publicActions.demoNotice")}</p> : offer.kind === "service" ? <ServiceOfferActions offer={offer} /> : <OfferCartActions offer={offer} initialSelection={initialSelection} layout="page" />}<div className="flex flex-wrap gap-3">{!demo && offer.actions.contact ? <ShopLink variant="message" href={routes.shopContact(offer.shopHandle, offer.offerRef)}>{t("contact.ask")}</ShopLink> : null}{!demo && offer.kind !== "service" ? <CheckoutPrepareLink handle={offer.shopHandle} offerRef={offer.offerRef} /> : null}<OfferShareButton handle={offer.shopHandle} offerRef={offer.offerRef} kind={offer.kind} /></div></div>} />
     <OfferShopTerms handle={offer.shopHandle} />
     <SameShopRail offer={offer} provider={provider} />
@@ -170,9 +181,10 @@ function OfferShopTerms({ handle }: { handle: string }) {
 /** « Dans la même boutique » : d'autres offres du même genre, qui défilent ; rien s'il n'y en a pas d'autre. */
 function SameShopRail({ offer, provider }: { offer: CatalogOffer; provider: boolean }) {
   const { networkId } = useNetwork()
+  const food = useFoodCatalog(offer.shopHandle, provider)
   const { t, i18n } = useTranslation("shops")
   const query = useAuthenticatedConvexQuery(api.modules.shops.catalog.list, { networkId, handle: offer.shopHandle, kind: offer.kind, paginationOpts: { cursor: null, numItems: CATALOG_PAGE_SIZE } })
   const others = !query.isError && query.data ? query.data.page.filter(entry => entry.offerRef !== offer.offerRef) : []
   if (!others.length) return null
-  return <Rail size="product" title={t("catalog.sameShop")} href={provider ? routes.providerCatalog(offer.shopHandle) : routes.shopCatalog(offer.shopHandle)} linkLabel={t("catalog.openCatalog")}>{others.map(entry => <OfferCard key={entry.offerRef} offer={entry} audience="member" locale={i18n.resolvedLanguage ?? "fr"} t={(key, options) => t(key, options)} seller={false} action={<OfferQuickAdd offer={entry} />} />)}</Rail>
+  return <Rail size="product" title={t("catalog.sameShop")} href={provider ? routes.providerCatalog(offer.shopHandle) : routes.shopCatalog(offer.shopHandle)} linkLabel={t(food ? "food.seeMenu" : "catalog.openCatalog")}>{others.map(entry => <OfferCard key={entry.offerRef} offer={entry} audience="member" locale={i18n.resolvedLanguage ?? "fr"} t={(key, options) => t(key, options)} seller={false} action={<OfferQuickAdd offer={entry} />} />)}</Rail>
 }

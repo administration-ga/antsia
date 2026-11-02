@@ -15,6 +15,15 @@
     "cartCount_one": "Panier : {{count}} ligne",
     "cartCount_other": "Panier : {{count}} lignes"
   },
+  "mobile": {
+    "social": "Page",
+    "home": "Accueil",
+    "requests": "Demandes",
+    "profile": "Profil pro",
+    "collaborations": "Collaborer",
+    "activities": "Activités",
+    "media": "Médias"
+  },
   "openMemberSpace": "Ouvrir mon espace",
   "professionalSpace": "Réseau pro",
   "professionalNav": {

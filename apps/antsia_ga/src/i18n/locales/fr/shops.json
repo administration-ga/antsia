@@ -582,6 +582,23 @@
     "serviceArea": "Zone de service",
     "hours": "Horaires"
   },
+  "images": {
+    "guideTitle": "Préparer des images carrées",
+    "guideLead": "Les photos remplissent leur cadre par recadrage, sans déformation ni bandes ajoutées. Vérifiez que le sujet reste visible au centre.",
+    "guideSquare": "Préparez une image carrée, idéalement 1 200 × 1 200 pixels ou plus, nette et bien éclairée.",
+    "guideSubject": "Gardez le produit ou le logo au centre, avec un peu de recul pour ne pas couper ses détails.",
+    "guideEdges": "Évitez les bandes noires, les cadres et les textes au bord du fichier. Préférez la photo originale à une capture d’écran.",
+    "productSource": "Pour vos produits, préparez ces photos dans PRO.GA avant de publier ou de synchroniser le catalogue. Le cadrage d’affichage ne modifie pas les fichiers de votre catalogue.",
+    "cropTitle": "Cadrer mon logo",
+    "cropHint": "Le carré montre le résultat qui sera enregistré. Déplacez l’image ou zoomez pour garder l’essentiel ; le recadrage se fait sur votre appareil.",
+    "horizontal": "Position horizontale",
+    "vertical": "Position verticale",
+    "zoom": "Zoom",
+    "reset": "Recentrer l’image",
+    "invalid": "Cette image ne peut pas être préparée. Choisissez une photo JPEG, PNG ou WebP lisible, de 40 mégapixels maximum.",
+    "previewAlt": "Aperçu carré du logo choisi",
+    "cancel": "Annuler le choix"
+  },
   "presentation": {
     "lead": "Décrivez votre activité à votre rythme. Votre nom commercial garde sa propre écriture.",
     "pageIdentity": "Le nom, la description et le logo sont aussi ceux de votre page sociale.",
@@ -758,6 +775,8 @@
     "myShop": "Ma boutique"
   },
   "food": {
+    "namedMenu": "Le menu de {{name}}",
+    "backToMenu": "Revenir au menu",
     "menu": "Menu",
     "seeMenu": "Voir le menu",
     "hours": "Horaires",
@@ -765,6 +784,16 @@
   },
   "dailySpecial": {
     "title": "Plat du jour",
+    "story": {
+      "title": "Le partager dans les Stories",
+      "lead": "Publiez ce plat dans vos Stories de ce réseau, avec un lien vers sa fiche. Il disparaît à minuit à Libreville, ou si vous retirez le plat du jour.",
+      "share": "Partager dans les Stories",
+      "shareNamed": "Partager le plat « {{title}} » dans les Stories",
+      "open": "Ouvrir les Stories",
+      "created": "Story publiée jusqu’à minuit à Libreville.",
+      "existing": "Ce plat est déjà présent dans vos Stories pour cette désignation.",
+      "unavailable": "Le plat et une photo doivent être visibles dans le menu pour pouvoir le partager."
+    },
     "lead": "Choisissez un produit de votre menu : il est annoncé aujourd’hui sur votre vitrine et dans l’univers « Alimentation et restauration », jusqu’à minuit.",
     "label": "Produit du menu",
     "choose": "Choisir un produit du menu",

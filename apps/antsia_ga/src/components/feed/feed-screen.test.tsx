@@ -15,12 +15,12 @@ const desktopHeight = "min-[960px]:h-[var(--antsia-workspace-height,100dvh)]"
 
 afterEach(() => vi.unstubAllEnvs())
 
-describe("hauteur du fil sous le bandeau démo", () => {
-  it("retranche le bandeau sans fixer la hauteur du fil au téléphone", () => {
+describe("hauteur du fil avec notice démo flottante", () => {
+  it("garde toute la hauteur sans fixer le fil au téléphone", () => {
     vi.stubEnv("NEXT_PUBLIC_APP_BASE_PATH", "/demo")
     vi.stubEnv("NEXT_PUBLIC_CONVEX_URL", "https://vivid-hedgehog-655.convex.cloud")
     const html = renderToStaticMarkup(<FeedScreen />)
-    expect(html).toContain("--antsia-workspace-height:calc(100dvh - var(--antsia-demo-banner-height, 0px))")
+    expect(html).toContain("--antsia-workspace-height:100dvh")
     expect(html).toContain(viewportMinimum)
     expect(html).toContain(desktopHeight)
     expect(html).not.toMatch(/(?:class="| )h-\[/u)

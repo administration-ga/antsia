@@ -10,6 +10,7 @@ import { NOTIFICATION_REFERENCE_PARAM, parseNotificationReference } from "./noti
 import { appendShopContact, parseShopContactContinuation, type ShopContactContinuation } from "./shop-contact-continuation"
 import type { CatalogFilters } from "./catalog-search"
 import { marketplaceSearch, marketplaceSearchParams, type MarketplaceSearch } from "./marketplace-search"
+import { DEFAULT_FOOD_UNIVERSE_SEARCH, foodUniverseSearchParams, type FoodUniverseSearch } from "./food-universe-search"
 import { professionalSearchParams } from "./professional-form"
 import type { ProfessionalSearchFilters } from "@antsia/social-domain/professionals"
 import { parseSpecializedDestination, type SpecializedDestination } from "./specialized-navigation"
@@ -151,7 +152,10 @@ export const routes = {
   /** L'accueil de la marketplace (boutiques en grandes cartes, moments qui défilent) : l'adresse sans paramètre. */
   marketplaceHome: () => "/marketplace",
   /** L'univers « Alimentation et restauration » (étude des sept univers, § 5.4 et § 12) : ses adresses et ce qu'on y commande. */
-  foodUniverse: () => "/restauration",
+  foodUniverse: (search: Partial<FoodUniverseSearch> = {}) => {
+    const query = foodUniverseSearchParams({ category: search.category ?? DEFAULT_FOOD_UNIVERSE_SEARCH.category, cursor: search.cursor ?? null })
+    return query.size ? `/restauration?${query}` : "/restauration"
+  },
   /** Les résultats de la marketplace : une vue (produits par défaut), une recherche, des filtres. */
   marketplace: (search: Partial<MarketplaceSearch> = {}) => {
     const query = marketplaceSearchParams({ ...search, view: search.view ?? "products", cursor: search.cursor ?? null })
@@ -466,6 +470,7 @@ export const engineRoutes: EngineRoutes = {
   discover: routes.memberDiscover,
   me: routes.me,
   shops: routes.marketplaceHome,
+  shopOffer: routes.shopOffer,
   // « Créer → Mon activité » et, pour qui gère déjà une boutique, « Ma boutique » dans le rail (étude des sept univers, § 12).
   myActivity: routes.myShops,
   clips: routes.clips,

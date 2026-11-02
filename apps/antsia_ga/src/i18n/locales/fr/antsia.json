@@ -8,12 +8,16 @@
     "title": "Mode démo",
     "lead": "Comptes et contenus fictifs, partagés entre les visiteurs. Votre compte ANTSIA reste séparé.",
     "entry": "Comptes démo",
-    "back": "Retour à ANTSIA",
+    "back": "Retour à la connexion",
+    "dismiss": "Fermer l’information de démo",
+    "signOut": "Se déconnecter",
+    "signingOut": "Déconnexion…",
+    "signOutFailed": "La déconnexion n’a pas abouti. Réessayez.",
     "frameTitle": "ANTSIA — comptes et réseau de démonstration isolés",
     "loading": "Chargement de la démo…",
     "delayed": "La démo met plus de temps à répondre. Vous pouvez patienter ou réessayer.",
     "retry": "Réessayer",
-    "unavailable": "La démo est momentanément indisponible. Vous pouvez revenir à ANTSIA."
+    "unavailable": "La démo est momentanément indisponible. Vous pouvez revenir à la connexion."
   },
   "home": {
     "eyebrow": "En construction",

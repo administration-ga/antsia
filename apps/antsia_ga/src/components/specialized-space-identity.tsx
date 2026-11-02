@@ -22,7 +22,7 @@ export function SpaceIdentity({ handle, provider, fallback }: { handle: string; 
   const logo = shop.logoUrl && failedLogo !== shop.logoUrl ? shop.logoUrl : null
   return <Link href={provider ? routes.provider(handle) : routes.storefront(handle)} prefetch={false} className="inline-flex min-h-11 min-w-0 max-w-full items-center gap-2 rounded-[var(--ui2-button-radius)] px-2 font-display text-base font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" data-space-identity>
     {/* eslint-disable-next-line @next/next/no-img-element -- URL fournie par la garde du moteur, pas d'identifiant de stockage client. */}
-    {logo ? <img src={logo} alt="" className="size-7 shrink-0 rounded-md object-contain" onError={() => setFailedLogo(logo)} /> : null}
+    {logo ? <img src={logo} alt="" className="size-7 shrink-0 rounded-md object-cover object-center" onError={() => setFailedLogo(logo)} /> : null}
     <span className="min-w-0 truncate">{shop.name}</span>
   </Link>
 }

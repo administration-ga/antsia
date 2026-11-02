@@ -4,11 +4,12 @@ import { I18nextProvider } from "react-i18next"
 import { createAppI18n } from "@antsia/social-features/i18n"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { appResources } from "@/i18n/resources"
+import { routes } from "@/lib/routes"
 import { catalogOfferFixture, catalogPageFixture, OFFER_REF } from "./__tests__/catalog-fixtures"
 import { centeringClasses, frameClasses } from "./__tests__/frame-classes"
 
 const mocks = vi.hoisted(() => ({ query: vi.fn() }))
-vi.mock("@antsia/api/engine", () => ({ api: { modules: { shops: { catalog: { list: "list", offer: "offer", postOffer: "postOffer" }, shops: { storefront: "storefront" } } } } }))
+vi.mock("@antsia/api/engine", () => ({ api: { modules: { shops: { catalog: { list: "list", offer: "offer", postOffer: "postOffer" }, shops: { storefront: "storefront" }, checkout: { context: "checkoutContext" } } } } }))
 vi.mock("@antsia/api/network", () => ({ useNetwork: () => ({ networkId: "root", personId: "reader" }) }))
 vi.mock("@antsia/api/hooks", () => ({ useAuthenticatedConvexQuery: mocks.query }))
 vi.mock("@/components/member-chrome", () => ({ MemberPage: ({ children }: { children: ReactNode }) => <main>{children}</main> }))
@@ -106,5 +107,17 @@ describe("pleine largeur des écrans de boutique (décisions du propriétaire du
   })
   it("en deux colonnes, l'en-tête de la fiche reste groupé en haut au lieu de s'étirer sur la hauteur du média", () => {
     expect(OFFER_DETAIL_CSS).toMatch(/\.offer-detail-heading \{ grid-column: 2; grid-row: 1; align-content: start; \}/)
+  })
+})
+
+
+describe("SU06 — le menu d'une adresse food", () => {
+  it("nomme la page Menu et le retour de la fiche sans changer les liens", () => {
+    mocks.query.mockImplementation((reference: string) => ({ data: reference === "storefront" ? { model: "products", activityConfiguration: { version: 1, capabilities: ["products"], template: "food", blocks: ["catalog", "about"] } } : reference === "offer" ? catalogOfferFixture() : reference === "checkoutContext" ? { available: false, offer: null, pending: null } : catalogPageFixture(), isError: false, isPending: false, isFetching: false }))
+    const value = html(<MemberCatalogScreen handle="atelier" search={{ cursor: null }} />)
+    expect(value).toContain(">Menu</h1>")
+    const detail = html(<MemberOfferScreen handle="atelier" offerRef={OFFER_REF} />)
+    expect(detail).toContain(">Revenir au menu</a>")
+    expect(detail).toContain(routes.shopCatalog("atelier"))
   })
 })

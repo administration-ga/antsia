@@ -7,6 +7,9 @@
  * `--spacing-gutter` (`globals.css` : 16 px, puis 24 px dès 1 200 px), et le cadre n'a plus de
  * largeur maximale. Au téléphone, 12 px comme avant.
  */
+import { MOBILE_NAVIGATION_CSS } from "./mobile-navigation-styles"
+import { MobileNavigationViewport } from "./mobile-navigation-viewport"
+
 export const MEMBER_NAVIGATION_CSS = `
   .antsia-topbar-row {
     box-sizing: border-box;
@@ -25,7 +28,7 @@ export const MEMBER_NAVIGATION_CSS = `
     padding-block: 16px;
   }
   .antsia-member-frame[data-with-navigation] > .antsia-member-content {
-    padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px));
   }
   .antsia-member-frame[data-workspace] {
     flex: 1 1 auto;
@@ -81,9 +84,10 @@ export const MEMBER_NAVIGATION_CSS = `
       gap: var(--spacing-gutter, 24px);
     }
   }
+${MOBILE_NAVIGATION_CSS}
 `
 
 /** Monté une fois dans NetworkShell, sans envelopper ou déplacer l'hôte d'appel. */
 export function MemberNavigationStyles() {
-  return <style href="antsia-member-navigation" precedence="default">{MEMBER_NAVIGATION_CSS}</style>
+  return <><style href="antsia-member-navigation" precedence="default">{MEMBER_NAVIGATION_CSS}</style><MobileNavigationViewport /></>
 }

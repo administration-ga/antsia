@@ -1,8 +1,11 @@
+// @vitest-environment jsdom
+import { act } from "react"
+import { createRoot } from "react-dom/client"
 import { renderToStaticMarkup } from "react-dom/server"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 const state = vi.hoisted(() => ({ offer: null as unknown, list: null as unknown }))
-vi.mock("@antsia/api/engine", () => ({ api: { modules: { shops: { shops: { storefront: "storefront", setDailySpecial: "setDailySpecial" }, catalog: { offer: "offer", list: "list" } }, pages: { pages: { follow: "follow", unfollow: "unfollow" } }, commercialMessaging: { threads: { findMyThread: "existingThread" } } } } }))
+vi.mock("@antsia/api/engine", () => ({ api: { modules: { stories: { stories: { publishDailySpecial: "publishDailySpecial" } }, shops: { shops: { storefront: "storefront", setDailySpecial: "setDailySpecial" }, catalog: { offer: "offer", list: "list" } }, pages: { pages: { follow: "follow", unfollow: "unfollow" } }, commercialMessaging: { threads: { findMyThread: "existingThread" } } } } }))
 vi.mock("@antsia/api/hooks", () => ({ useAuthenticatedConvexQuery: (reference: string) => ({ data: reference === "offer" ? state.offer : reference === "list" ? state.list : null, isError: false, isPending: false, refetch: vi.fn() }) }))
 vi.mock("@antsia/api/network", () => ({ useNetwork: () => ({ networkId: "root", personId: "reader" }) }))
 vi.mock("@antsia/api/sign-out-everywhere", () => ({ isSigningOutEverywhere: () => false }))
@@ -15,6 +18,7 @@ vi.mock("./catalog-member-screen", () => ({ MemberCatalogPreview: ({ title }: { 
 import { routes } from "@/lib/routes"
 import { DailySpecialPanel } from "./daily-special-panel"
 import { MemberStorefront } from "./member-storefront-screen"
+import { PublicDailySpecial } from "./public-daily-special"
 import type { StorefrontData } from "./shop-model"
 import { catalogOfferFixture, catalogPageFixture, OFFER_REF } from "./__tests__/catalog-fixtures"
 import { storefrontFixture } from "./__tests__/fixtures"
@@ -94,5 +98,52 @@ describe("SU06 — le plat du jour dans l'éditeur", () => {
     const dirty = renderToStaticMarkup(<DailySpecialPanel shopId={"shops_fixture" as never} handle="atelier" special={null} dirty />)
     expect(dirty).toContain("link.saveFirst")
     expect(dirty).toMatch(/<fieldset disabled=""/)
+  })
+})
+
+describe("SU06 — expiration d'un écran laissé ouvert", () => {
+  it("retire le plat des vitrines publique et membre et de l'éditeur après minuit à Libreville, sans donnée nouvelle", () => {
+    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true)
+    vi.setSystemTime(Date.UTC(2026, 9, 23, 22, 59, 59, 900))
+    const container = document.createElement("div")
+    document.body.append(container)
+    const root = createRoot(container)
+    try {
+      act(() => root.render(<>
+        <MemberStorefront shop={foodStorefront()} />
+        <PublicDailySpecial special={{ offerRef: OFFER_REF, day: TODAY }}><p data-public-special>Plat public</p></PublicDailySpecial>
+        <DailySpecialPanel shopId={"shops_fixture" as never} handle="atelier" special={{ offerRef: OFFER_REF, day: TODAY }} dirty={false} />
+      </>))
+      expect(container.querySelector("[data-daily-special]")).not.toBeNull()
+      expect(container.querySelector("[data-public-special]")).not.toBeNull()
+      expect(container.querySelector("[data-daily-special-panel]")?.textContent).toContain("dailySpecial.current:Poulet DG")
+      act(() => vi.advanceTimersByTime(121))
+      expect(container.querySelector("[data-daily-special]")).toBeNull()
+      expect(container.querySelector("[data-public-special]")).toBeNull()
+      expect(container.querySelector("[data-daily-special-panel]")?.textContent).toContain("dailySpecial.none")
+      expect(container.querySelector("[data-daily-special-panel]")?.textContent).not.toContain("dailySpecial.clear")
+    } finally {
+      act(() => root.unmount())
+      container.remove()
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it.each(["focus", "visibilitychange"])("réévalue le plat au retour de veille (%s), sans attendre le minuteur suspendu", event => {
+    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true)
+    vi.setSystemTime(Date.UTC(2026, 9, 23, 22, 59))
+    const container = document.createElement("div")
+    const root = createRoot(container)
+    try {
+      act(() => root.render(<MemberStorefront shop={foodStorefront()} />))
+      expect(container.querySelector("[data-daily-special]")).not.toBeNull()
+      vi.setSystemTime(Date.UTC(2026, 9, 24, 5))
+      act(() => (event === "focus" ? window : document).dispatchEvent(new Event(event)))
+      expect(container.querySelector("[data-daily-special]")).toBeNull()
+    } finally {
+      act(() => root.unmount())
+      container.remove()
+      vi.unstubAllGlobals()
+    }
   })
 })

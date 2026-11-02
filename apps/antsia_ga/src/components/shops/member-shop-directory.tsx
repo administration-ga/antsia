@@ -19,7 +19,7 @@ export function DirectoryCard({ storefront }: { storefront: StorefrontCard }) {
   const { t } = useTranslation("shops")
   return <article className="flex h-full min-w-0 flex-col overflow-hidden rounded-[var(--ui2-card-radius)] border border-[color:var(--esp-surface-border)] bg-card text-card-foreground">
     <Link href={routes.storefront(storefront.handle)} className="flex min-h-11 items-start gap-4 p-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring">
-      {storefront.logoUrl ? <Image unoptimized src={storefront.logoUrl} alt="" width={80} height={80} loading="lazy" className="size-20 shrink-0 rounded-[var(--esp-avatar-page-radius)] border border-border bg-background p-1 object-contain" /> : <span aria-hidden="true" className="flex size-20 shrink-0 items-center justify-center rounded-[var(--esp-avatar-page-radius)] bg-muted text-2xl font-semibold">{storefront.name.slice(0, 1)}</span>}
+      {storefront.logoUrl ? <Image unoptimized src={storefront.logoUrl} alt="" width={80} height={80} loading="lazy" className="size-20 shrink-0 rounded-[var(--esp-avatar-page-radius)] object-cover object-center" /> : <span aria-hidden="true" className="flex size-20 shrink-0 items-center justify-center rounded-[var(--esp-avatar-page-radius)] bg-muted text-2xl font-semibold">{storefront.name.slice(0, 1)}</span>}
       <span className="flex min-w-0 flex-col gap-2">
         <span className="break-words font-display text-base font-bold leading-snug">{storefront.name}</span>
         <span className="break-all text-xs text-muted-foreground">@{storefront.handle}</span>

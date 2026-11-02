@@ -17,14 +17,14 @@ export function NetworkAppealRows({ cursor, onFirst, onNext }: { cursor: string 
   const timeZone = useViewerTimeZone()
   const guard = useModerationGuard()
   const query = useAuthenticatedConvexQuery(api.modules.moderation.networkAppeals.paginate, { networkId, paginationOpts: { numItems: 20, cursor, maximumRowsRead: 50, maximumBytesRead: 262_144 } })
-  if (query.error) return <div role="alert" className="rounded-xl border border-destructive p-4"><p>{t("common.failed")}</p><Button variant="outline" onClick={() => void query.refetch()}>{t("common.retry")}</Button></div>
+  if (query.error) return <div role="alert" className="rounded-[var(--ui2-card-radius)] border border-destructive p-[var(--esp-card-padding,16px)]"><p>{t("common.failed")}</p><Button variant="outline" onClick={() => void query.refetch()}>{t("common.retry")}</Button></div>
   const data = query.data
   if (!data) return <p role="status">{t("common.loading")}</p>
   const date = (at: number) => formatViewerDate(at, i18n.language, { dateStyle: "medium", timeStyle: "short" }, timeZone)
   return <>
     <p className="text-sm text-muted-foreground">{t("moderation.appealScope")}</p>
-    {data.page.length === 0 ? <p role="status" className="rounded-xl border border-border bg-card p-5 text-muted-foreground">{t(data.isDone ? "moderation.empty" : "moderation.emptyWindow")}</p> : data.page.map((row) => <article key={row.appealId} className="flex min-w-0 flex-col gap-3 rounded-xl border border-border bg-card p-4 sm:p-5">
-      <h2 className="text-lg font-semibold">{t("moderation.appealTitle")}</h2>
+    {data.page.length === 0 ? <p role="status" className="rounded-[var(--ui2-card-radius)] border border-[color:var(--esp-surface-border)] bg-card p-[var(--esp-card-padding,16px)] text-muted-foreground">{t(data.isDone ? "moderation.empty" : "moderation.emptyWindow")}</p> : data.page.map((row) => <article key={row.appealId} className="flex min-w-0 flex-col gap-3 rounded-[var(--ui2-card-radius)] border border-[color:var(--esp-surface-border)] bg-card p-[var(--esp-card-padding,16px)] ">
+      <h2 className="antsia-subtitle ">{t("moderation.appealTitle")}</h2>
       <time dateTime={new Date(row.createdAt).toISOString()} className="text-sm text-muted-foreground">{date(row.createdAt)}</time>
       <p className="break-words whitespace-pre-wrap">{t("moderation.appealReason", { reason: row.reason })}</p>
       <p className="break-words whitespace-pre-wrap text-sm text-muted-foreground">{row.decisionReason ? t("moderation.initialReason", { reason: row.decisionReason }) : t("moderation.initialReasonMissing")}</p>

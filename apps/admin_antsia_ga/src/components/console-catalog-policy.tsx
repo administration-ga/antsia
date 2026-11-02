@@ -5,6 +5,7 @@ import { useMutation, useQuery } from "convex/react"
 import { useTranslation } from "react-i18next"
 
 import { ConsoleDate, LoadingRows, MotiveAction, panelClass } from "./console-operation-controls"
+import { CatalogMapping } from "./console-catalog-mapping"
 
 /**
  * Finitions (DP-37, K-19) — P09, monté uniquement pour canAdmin : la lecture exige l'autorité
@@ -26,5 +27,6 @@ export function CatalogPolicy({ networkId }: { networkId: Id<"networks"> }) {
       {policy.updatedAt !== null ? <p className="text-xs text-muted-foreground">{t("catalogPolicy.updated")} <ConsoleDate at={policy.updatedAt} /></p> : null}
       <MotiveAction key={`${networkId}:${policy.enabled}`} label={t(policy.enabled ? "catalogPolicy.disable" : "catalogPolicy.enable")} minLength={10} danger={policy.enabled} onDecision={(reason) => setPolicy({ networkId, enabled: !policy.enabled, reason })} />
     </>}
+    <CatalogMapping networkId={networkId} />
   </section>
 }
