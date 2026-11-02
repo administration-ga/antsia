@@ -29,6 +29,8 @@ Les quelque 1160 changements affichés par `git status` sont trompeurs : ils se 
 
 ### A. Accueil `/bienvenue` : un défaut en ligne
 
+**Corrigé et publié le 2/11 sur accord du propriétaire** : `docs/recette/bienvenue-publication-2026-11-02/RAPPORT.md`. Le constat ci-dessous est celui d'avant le correctif.
+
 `apps/antsia_ga/src/app/bienvenue/page.tsx` et son test. Un membre connecté au statut `welcome`, donc sans profil finalisé, est envoyé sur `/bienvenue` par `network-shell.tsx`. Or `main` et la production y montent `AccessHomeScreen`, la porte de connexion, au lieu de `WelcomeScreen`.
 
 - **Constaté le 2/11 en lecture anonyme** : `https://antsia.vercel.app/bienvenue` et `/demo/bienvenue` ont pour titre « Entrer sur ANTSIA », et non « Bienvenue sur ANTSIA ».
