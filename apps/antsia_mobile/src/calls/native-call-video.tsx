@@ -1,5 +1,6 @@
+import { NativeText as Text } from "../components/native-text"
 import { VideoTrack } from "@livekit/react-native"
-import { Text, useWindowDimensions, View } from "react-native"
+import { useWindowDimensions, View } from "react-native"
 import { useNativeAppearance } from "../appearance"
 import type { NativeCallRoom } from "./native-room"
 

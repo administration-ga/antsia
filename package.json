@@ -79,6 +79,7 @@
       "web-push": "3.6.7",
       "@types/web-push": "3.6.4",
       "expo": "57.0.17",
+      "expo-font": "57.0.4",
       "react-native": "0.86.3",
       "expo-secure-store": "~57.0.2",
       "expo-video": "~57.0.3",

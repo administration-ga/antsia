@@ -1,5 +1,6 @@
+import { NativeText as Text } from "./components/native-text"
 import { Component, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
-import { ActivityIndicator, BackHandler, Linking, Pressable, ScrollView, StatusBar, Text, useColorScheme, View } from "react-native"
+import { ActivityIndicator, BackHandler, Linking, Pressable, ScrollView, StatusBar, useColorScheme, View } from "react-native"
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context"
 import { ConvexProvider, ConvexProviderWithAuth, type ConvexReactClient, useConvexAuth, useQuery } from "convex/react"
 import { ConvexHttpClient } from "convex/browser"
@@ -8,9 +9,19 @@ import { MEMBER_THEME_IDS, memberThemeOf } from "@antsia/social-contracts/appear
 import type { NativeEnvironment } from "@antsia/social-native/environment"
 import { nativeRequest } from "@antsia/social-native/request"
 import { NativeAppearanceProvider, useNativeAppearance } from "./appearance"
+import { NativeTypographyProvider } from "./font-loader"
+import { NativeOnboarding } from "./components/native-onboarding"
+import { PublicEntryScreen } from "./screens/public-entry-screen"
+import { MediaFeedScreen } from "./screens/media-feed-screen"
+import { ProfileHubScreen, PublicProfileScreen, BookmarksScreen } from "./screens/profile-screens"
+import { NotificationsScreen } from "./screens/notifications-screen"
 import { NativeEntry } from "./components/entry"
 import { NativeDemoEntry } from "./components/demo-entry"
 import { Action, Card, Label, Status as NativeStatusText } from "./components/ui"
+import { NativeMemberHeader, NativeMemberTabBar } from "./components/member-navigation"
+import { NativeIcon } from "./components/icon"
+import { ComposeScreen } from "./screens/compose-screen"
+import { SearchScreen } from "./screens/search-screen"
 import { NativeRuntimeProvider } from "./runtime"
 import { nativeRouteFromUrl, nativeWebRoutes, nativeTab, pushNativeRoute, type NativeRoute } from "./lib/routes"
 import { useNativeSessionController, type NativeSessionController } from "./lib/session-controller"
@@ -60,12 +71,14 @@ class NativeBoundary extends Component<{ children: ReactNode; onFailure: () => v
   override render() { return this.state.failed ? this.props.fallback : this.props.children }
 }
 
-function AnonymousTransport({ controller, env, sharedDemo }: { controller: NativeSessionController; env: NativeEnvironment; sharedDemo: boolean }) {
+function AnonymousTransport({ controller, env, sharedDemo, onContinuePost }: { controller: NativeSessionController; env: NativeEnvironment; sharedDemo: boolean; onContinuePost: (postId?: string) => void }) {
   const client = useOwnedConvexClient(env.convexUrl)
-  return <ConvexProvider client={client}><ScrollView keyboardShouldPersistTaps="handled">{sharedDemo ? <NativeDemoEntry controller={controller} /> : <NativeEntry controller={controller} webUrl={env.webUrl} scheme={env.scheme} />}</ScrollView></ConvexProvider>
+  const [intent, setIntent] = useState<"sign-in" | "sign-up">("sign-in")
+  const [publicKind, setPublicKind] = useState<"discover" | "about" | "legal" | "privacy" | null>(null)
+  return <ConvexProvider client={client}>{publicKind ? <PublicEntryScreen kind={publicKind} onClose={() => setPublicKind(null)} onSignIn={postId => { onContinuePost(postId); setPublicKind(null) }} webUrl={env.webUrl} /> : <ScrollView keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>{sharedDemo ? <NativeDemoEntry controller={controller} /> : <NativeEntry controller={controller} webUrl={env.webUrl} scheme={env.scheme} intent={intent} onRegistrationIntent={setIntent} onPublicDiscover={() => setPublicKind("discover")} onLegal={setPublicKind} />}</ScrollView>}</ConvexProvider>
 }
 
-function MemberTransport({ controller, env, onMemberConfirmed, onMemberUnavailable }: { controller: NativeSessionController; env: NativeEnvironment; onMemberConfirmed: (member: MemberCallContext) => void; onMemberUnavailable: () => void }) {
+function MemberTransport({ controller, env, onMemberConfirmed, onMemberUnavailable, onDemoOptions, initialRoute }: { controller: NativeSessionController; env: NativeEnvironment; onMemberConfirmed: (member: MemberCallContext) => void; onMemberUnavailable: () => void; onDemoOptions?: () => void; initialRoute?: NativeRoute }) {
   const client = useOwnedConvexClient(env.convexUrl)
   const id = controller.session!.id, generation = controller.vault.generation
   const fetchAccessToken = useCallback(async () => {
@@ -78,10 +91,10 @@ function MemberTransport({ controller, env, onMemberConfirmed, onMemberUnavailab
     } catch { if (controller.sessionIsCurrent(id, generation)) controller.blocked(); return null }
   }, [controller.auth, controller.blocked, controller.sessionIsCurrent, generation, id])
   const useAuth = useCallback(() => ({ isLoading: false, isAuthenticated: true, fetchAccessToken }), [fetchAccessToken])
-  return <ConvexProviderWithAuth client={client} useAuth={useAuth}><MemberGate controller={controller} client={client} env={env} onMemberConfirmed={onMemberConfirmed} onMemberUnavailable={onMemberUnavailable} /></ConvexProviderWithAuth>
+  return <ConvexProviderWithAuth client={client} useAuth={useAuth}><MemberGate controller={controller} client={client} env={env} onMemberConfirmed={onMemberConfirmed} onMemberUnavailable={onMemberUnavailable} onDemoOptions={onDemoOptions} initialRoute={initialRoute} /></ConvexProviderWithAuth>
 }
 
-function MemberGate({ controller, client, env, onMemberConfirmed, onMemberUnavailable }: { controller: NativeSessionController; client: ConvexReactClient; env: NativeEnvironment; onMemberConfirmed: (member: MemberCallContext) => void; onMemberUnavailable: () => void }) {
+function MemberGate({ controller, client, env, onMemberConfirmed, onMemberUnavailable, onDemoOptions, initialRoute }: { controller: NativeSessionController; client: ConvexReactClient; env: NativeEnvironment; onMemberConfirmed: (member: MemberCallContext) => void; onMemberUnavailable: () => void; onDemoOptions?: () => void; initialRoute?: NativeRoute }) {
   const { isLoading, isAuthenticated } = useConvexAuth(), { t, setTheme, setLocale } = useNativeAppearance()
   const live = useQuery(api.modules.platform.authentication.mySession, !isLoading && isAuthenticated ? {} : "skip")
   const network = useQuery(api.modules.networks.networks.getBySlug, live === true ? { slug: "antsia" } : "skip")
@@ -148,18 +161,19 @@ function MemberGate({ controller, client, env, onMemberConfirmed, onMemberUnavai
     if (person.locale === "fr" || person.locale === "en") setLocale(person.locale)
   }, [person?.theme, person?.locale, setTheme, setLocale])
   if (live !== true || admission === "loading") return <Status message={t("mobile.session.preparing")} />
-  // Aucune personne, adhésion ni donnée civile créée depuis le client natif.
-  if (admission !== "member" || !network || !person || !membership) return <View style={{ flex: 1 }}><Status error={admission === "suspended"} message={t(admission === "pending" ? "mobile.session.membershipPending" : admission === "suspended" ? "mobile.session.membershipSuspended" : "mobile.session.membershipSetup")} action={t("mobile.entry.webRegistration")} onPress={() => { void Linking.openURL(nativeWebRoutes.enter(env.webUrl, env.webBasePath)).catch(controller.blocked) }} /><Action label={t(controller.sharedDemo ? "mobile.demo.signOut" : "mobile.session.signOut")} onPress={() => { void controller.exit() }} /></View>
-  return <ReadyMember key={`${person._id}:${controller.session!.id}`} networkId={network._id} personId={person._id} handle={person.handle} canWrite={membership.status !== "en_attente"} controller={controller} online={online} connectionReady={connectionReady} env={env} />
+  if (admission === "setup" && network) return <NativeOnboarding networkId={network._id} controller={controller} onExit={() => { void controller.exit() }} />
+  if (admission !== "member" || !network || !person || !membership) return <View style={{ flex: 1 }}><Status error={admission === "suspended"} message={t(admission === "pending" ? "mobile.session.membershipPending" : admission === "suspended" ? "mobile.session.membershipSuspended" : "mobile.session.membershipSetup")} action={t("mobile.common.retry")} onPress={() => { void controller.resume() }} /><Action label={t(controller.sharedDemo ? "mobile.demo.signOut" : "mobile.session.signOut")} onPress={() => { void controller.exit() }} /></View>
+  return <ReadyMember key={`${person._id}:${controller.session!.id}`} networkId={network._id} personId={person._id} handle={person.published ? person.handle : undefined} displayName={person.displayName ?? person.handle ?? t("mobile.nav.profile")} canWrite={membership.status !== "en_attente"} controller={controller} online={online} connectionReady={connectionReady} env={env} onDemoOptions={onDemoOptions} initialRoute={initialRoute} />
 }
 
-function ReadyMember({ networkId, personId, handle, canWrite, controller, online, connectionReady, env }: {
-  networkId: Id<"networks">; personId: Id<"persons">; handle?: string; canWrite: boolean
-  controller: NativeSessionController; online: boolean; connectionReady: boolean; env: NativeEnvironment
+function ReadyMember({ networkId, personId, handle, displayName, canWrite, controller, online, connectionReady, env, onDemoOptions, initialRoute }: {
+  networkId: Id<"networks">; personId: Id<"persons">; handle?: string; displayName: string; canWrite: boolean
+  controller: NativeSessionController; online: boolean; connectionReady: boolean; env: NativeEnvironment; onDemoOptions?: () => void; initialRoute?: NativeRoute
 }) {
   const { t, tokens } = useNativeAppearance()
-  const [history, setHistory] = useState<NativeRoute[]>([{ name: "feed" }])
+  const [history, setHistory] = useState<NativeRoute[]>([initialRoute ?? { name: "feed" }])
   // Keep the choice through child routes, within this person/session only.
+  const [feedTag, setFeedTag] = useState<string | undefined>()
   const [exploreSection, setExploreSection] = useState<ExploreSection>("shops")
   const route = history[history.length - 1]!
   const id = controller.session!.id, generation = controller.vault.generation, epoch = controller.lifecycle.epoch
@@ -182,45 +196,65 @@ function ReadyMember({ networkId, personId, handle, canWrite, controller, online
   useEffect(() => {
     const listener = BackHandler.addEventListener("hardwareBackPress", () => {
       if (route.name === "feed") return false
-      if (current()) setHistory(previous => previous.length > 1 ? previous.slice(0, -1) : [{ name: route.name === "conversation" ? "messages" : "feed" }])
+      if (current()) {
+        const next: NativeRoute[] = history.length > 1 ? history.slice(0, -1) : [{ name: route.name === "conversation" ? "messages" : "feed" }]
+        const target = next[next.length - 1]!
+        if (target.name === "feed") setFeedTag(target.tag)
+        setHistory(next)
+      }
       return true
     })
     return () => listener.remove()
-  }, [route.name, current])
+  }, [history, route.name, current])
   const runtime = useMemo(() => ({ networkId, personId, sessionId: id, epoch, foreground: true, online, ready: online && connectionReady, canWrite, webUrl: env.webUrl, webBasePath: env.webBasePath, isCurrent: current, registerCleanup }), [networkId, personId, id, epoch, online, connectionReady, canWrite, env.webUrl, env.webBasePath, current, registerCleanup])
-  const activeTab = nativeTab(route)
-  const navigate = (next: NativeRoute) => { if (current()) setHistory(previous => pushNativeRoute(previous, next)) }
+  const unread = useQuery(api.modules.notifications.bell.unreadCount, runtime.ready ? { networkId } : "skip")
+  const activeTab = nativeTab(route, handle)
+  const navigate = (next: NativeRoute) => { if (current()) { if (next.name === "feed") setFeedTag(next.tag); setHistory(previous => pushNativeRoute(previous, next)) } }
   const onOpenPost = (postId: string) => navigate({ name: "post", id: postId })
+  const onOpenProfile = (profileHandle: string) => navigate({ name: "profile", handle: profileHandle })
+  const onSearchTag = (tag: string) => navigate(tag.trim() ? { name: "feed", tag: tag.trim() } : { name: "feed" })
   const onOpenPage = (pageHandle: string) => navigate({ name: "page", handle: pageHandle })
   const onOpenShop = (shopHandle: string) => navigate({ name: "shop", handle: shopHandle })
   const onOpenOffer = (shopHandle: string, offerRef: string) => navigate({ name: "offer", handle: shopHandle, offerRef })
-  const back = () => { if (current()) setHistory(previous => previous.length > 1 ? previous.slice(0, -1) : [{ name: activeTab }]) }
+  const back = () => {
+    if (!current()) return
+    const next: NativeRoute[] = history.length > 1 ? history.slice(0, -1) : [{ name: activeTab }]
+    const target = next[next.length - 1]!
+    if (target.name === "feed") setFeedTag(target.tag)
+    setHistory(next)
+  }
   return <NativeRuntimeProvider value={runtime}><View style={{ flex: 1, backgroundColor: tokens.background }}>
-    {history.length > 1 || route.name === "post" || route.name === "conversation" ? <Action label={t("mobile.common.back")} onPress={back} /> : null}
+    <NativeMemberHeader onHome={() => { if (current()) { setFeedTag(undefined); setHistory([{ name: "feed" }]) } }} onCreate={() => navigate({ name: "compose" })} onSearch={route.name === "feed" ? () => navigate({ name: "search" }) : undefined} onNotifications={() => navigate({ name: "notifications" })} unreadCount={unread?.count} unreadCapped={unread?.capped} onBack={history.length > 1 || route.name === "post" || route.name === "conversation" ? back : undefined} />
     <View style={{ flex: 1 }}>
-      {route.name === "feed" ? <FeedScreen onOpenPost={onOpenPost} onOpenPage={onOpenPage} onOpenOffer={onOpenOffer} /> : null}
-      {route.name === "post" ? <PostScreen key={route.id} postId={route.id as Id<"posts">} onOpenPage={onOpenPage} onOpenOffer={onOpenOffer} /> : null}
-      {route.name === "explore" ? <ExploreScreen section={exploreSection} onSectionChange={setExploreSection} onOpenShop={onOpenShop} onOpenPage={onOpenPage} /> : null}
+      <View accessibilityElementsHidden={route.name !== "feed"} importantForAccessibility={route.name === "feed" ? "auto" : "no-hide-descendants"} style={{ flex: 1, display: route.name === "feed" ? "flex" : "none" }}><FeedScreen key={feedTag ?? "feed"} tag={feedTag} focused={route.name === "feed"} onOpenProfile={onOpenProfile} onSearchTag={onSearchTag} onCreateStory={() => { if (current()) void Linking.openURL(nativeWebRoutes.storyCreate(env.webUrl, env.webBasePath)).catch(controller.blocked) }} displayName={displayName} onCompose={() => navigate({ name: "compose" })} onOpenPost={onOpenPost} onOpenPage={onOpenPage} onOpenOffer={onOpenOffer} /></View>
+      {route.name === "compose" ? <ComposeScreen displayName={displayName} onPublished={onOpenPost} /> : null}
+      {history.some(item => item.name === "search") ? <View accessibilityElementsHidden={route.name !== "search"} importantForAccessibility={route.name === "search" ? "auto" : "no-hide-descendants"} style={{ flex: 1, display: route.name === "search" ? "flex" : "none" }}><SearchScreen onOpenPost={onOpenPost} onOpenProfile={onOpenProfile} onOpenPage={onOpenPage} onOpenOffer={onOpenOffer} onSearchTag={onSearchTag} /></View> : null}
+      {route.name === "post" ? <PostScreen onOpenProfile={onOpenProfile} onSearchTag={onSearchTag} key={route.id} postId={route.id as Id<"posts">} onOpenPage={onOpenPage} onOpenOffer={onOpenOffer} /> : null}
+      {route.name === "clips" || route.name === "explore" ? <MediaFeedScreen key={route.name} kind={route.name === "clips" ? "video" : "media"} onOpenExplore={() => navigate({ name: "explore" })} onOpenClips={() => navigate({ name: "clips" })} onOpenBusiness={() => navigate({ name: "business" })} onOpenPost={onOpenPost} onOpenProfile={onOpenProfile} onOpenPage={onOpenPage} onOpenOffer={onOpenOffer} onSearchTag={onSearchTag} focused /> : null}
+      {route.name === "notifications" ? <NotificationsScreen onNavigate={navigate} /> : null}
+      {route.name === "me" ? <ProfileHubScreen handle={handle} displayName={displayName} onOpenProfile={onOpenProfile} onBookmarks={() => navigate({ name: "bookmarks" })} onSettings={() => navigate({ name: "settings" })} onActivities={() => { if (current()) void Linking.openURL(nativeWebRoutes.accountSection(env.webUrl, "shop", env.webBasePath)).catch(controller.blocked) }} onWebSection={section => { if (current()) void Linking.openURL(nativeWebRoutes.accountSection(env.webUrl, section, env.webBasePath)).catch(controller.blocked) }} onSignOut={() => { void controller.exit() }} onDemoOptions={onDemoOptions} /> : null}
+      {route.name === "profile" ? <PublicProfileScreen key={route.handle} handle={route.handle} onOpenPost={onOpenPost} onOpenProfile={onOpenProfile} onOpenPage={onOpenPage} onOpenOffer={onOpenOffer} onSearchTag={onSearchTag} /> : null}
+      {route.name === "bookmarks" ? <BookmarksScreen onOpenPost={onOpenPost} /> : null}
+      {route.name === "business" ? <ExploreScreen section={exploreSection} onSectionChange={setExploreSection} onOpenShop={onOpenShop} onOpenPage={onOpenPage} /> : null}
       {route.name === "shop" ? <ShopScreen key={route.handle} handle={route.handle} onOpenOffer={onOpenOffer} onOpenPage={onOpenPage} onOpenPost={onOpenPost} /> : null}
       {route.name === "offer" ? <OfferScreen key={`${route.handle}:${route.offerRef}`} handle={route.handle} offerRef={route.offerRef} onOpenShop={onOpenShop} onOpenPage={onOpenPage} onOpenWebOffer={(shopHandle, offerRef) => { if (current()) void Linking.openURL(nativeWebRoutes.offer(env.webUrl, shopHandle, offerRef, env.webBasePath)).catch(controller.blocked) }} /> : null}
       {route.name === "page" ? <PageScreen key={route.handle} handle={route.handle} onOpenShop={onOpenShop} onOpenPage={onOpenPage} onOpenPost={onOpenPost} onOpenOffer={onOpenOffer} onManagePage={pageHandle => { if (current()) void Linking.openURL(nativeWebRoutes.page(env.webUrl, pageHandle, env.webBasePath)).catch(controller.blocked) }} /> : null}
       {route.name === "messages" ? <MessagesScreen onOpenThread={(threadId) => navigate({ name: "conversation", id: threadId })} /> : null}
       {route.name === "conversation" ? <ConversationScreen key={route.id} threadId={route.id as Id<"personalThreads">} /> : null}
-      {route.name === "settings" ? <NativeSettings handle={handle} controller={controller} webUrl={env.webUrl} webBasePath={env.webBasePath} /> : null}
+      {route.name === "settings" ? <NativeSettings displayName={displayName} handle={handle} controller={controller} webUrl={env.webUrl} webBasePath={env.webBasePath} onOpenProfile={handle ? () => onOpenProfile(handle) : undefined} /> : null}
     </View>
     {!online ? <Label muted>{t("mobile.common.offline")}</Label> : null}
-    <View accessibilityRole="tablist" style={{ flexDirection: "row", gap: 8, padding: 8, backgroundColor: tokens.card }}>
-      {(["feed", "explore", "messages", "settings"] as const).map((name) => <Pressable key={name} accessibilityRole="tab" accessibilityLabel={t(`mobile.nav.${name}`)} accessibilityState={{ selected: activeTab === name }} onPress={() => { if (current()) setHistory([{ name }]) }} style={{ flex: 1, minWidth: 0, minHeight: 48, justifyContent: "center", paddingHorizontal: 4, paddingVertical: 10, borderRadius: tokens.radiusField, backgroundColor: activeTab === name ? tokens.primary : tokens.muted }}><Text style={{ fontSize: 14, fontWeight: "600", textAlign: "center", color: activeTab === name ? tokens.primaryOn : tokens.foreground }}>{t(`mobile.nav.${name}`)}</Text></Pressable>)}
-    </View>
+    <NativeMemberTabBar activeTab={activeTab} onNavigate={name => { if (current()) { if (name === "feed") setFeedTag(undefined); setHistory([{ name }]) } }} />
   </View></NativeRuntimeProvider>
 }
 
-function NativeSettings({ handle, controller, webUrl, webBasePath }: { handle?: string; controller: NativeSessionController; webUrl: string; webBasePath?: "/demo" }) {
-  const { t, theme, setTheme, mode, setMode, locale, setLocale } = useNativeAppearance()
+function NativeSettings({ handle, displayName, controller, webUrl, webBasePath, onOpenProfile }: { handle?: string; displayName: string; controller: NativeSessionController; webUrl: string; webBasePath?: "/demo"; onOpenProfile?: () => void }) {
+  const { t, tokens, theme, setTheme, mode, setMode, locale, setLocale } = useNativeAppearance()
   const calls = useNativeCalls()
   return <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }}><Card>
+    <View style={{ alignItems: "center", gap: 8, paddingVertical: 12 }}><View style={{ width: 72, height: 72, borderRadius: 36, alignItems: "center", justifyContent: "center", backgroundColor: tokens.tabActive }}><Text style={{ color: tokens.tabActiveInk, fontSize: 30, fontWeight: "700" }}>{displayName.slice(0, 1)}</Text></View><Text variant="display" accessibilityRole="header" style={{ color: tokens.foreground, fontSize: 24, fontWeight: "700" }}>{displayName}</Text>{handle ? <Label muted>@{handle}</Label> : null}</View>
     <Label strong>{t("mobile.settings.title")}</Label>
-    {handle ? <Action label={t("mobile.settings.profile")} onPress={() => { void Linking.openURL(nativeWebRoutes.profile(webUrl, handle, webBasePath)).catch(controller.blocked) }} /> : null}
+    {handle ? <Action label={t("mobile.settings.profile")} onPress={() => { if (onOpenProfile) onOpenProfile(); else void Linking.openURL(nativeWebRoutes.profile(webUrl, handle, webBasePath)).catch(controller.blocked) }} /> : null}
     <Label>{t("mobile.settings.deviceAppearance")}</Label>
     <Label strong>{t("mobile.settings.mode")}</Label>
     <View style={{ gap: 8 }}>
@@ -242,6 +276,8 @@ function ConfiguredApp({ env, sharedDemo, onSwitch }: { env: NativeEnvironment; 
   const controller = useNativeSessionController(env.authUrl, sharedDemo), { t, tokens } = useNativeAppearance()
   const [switching, setSwitching] = useState(false)
   const [switchFailed, setSwitchFailed] = useState(false)
+  const [demoOptions, setDemoOptions] = useState(false)
+  const [demoDismissed, setDemoDismissed] = useState(false)
   const switchEnvironment = async () => {
     if (switching || switchFailed || !onSwitch) return
     setSwitching(true)
@@ -249,6 +285,7 @@ function ConfiguredApp({ env, sharedDemo, onSwitch }: { env: NativeEnvironment; 
     if (stopped) onSwitch()
     else { setSwitchFailed(true); setSwitching(false) }
   }
+  const [initialRoute, setInitialRoute] = useState<NativeRoute | undefined>()
   const [member, setMember] = useState<MemberCallContext | null>(null)
   const onMemberConfirmed = useCallback((next: MemberCallContext) => {
     if (!controller.callSessionIsCurrent(next.sessionId)) return
@@ -264,28 +301,24 @@ function ConfiguredApp({ env, sharedDemo, onSwitch }: { env: NativeEnvironment; 
   } : null, [member, id, controller.callSession?.expiresAt, controller.foreground, controller.auth, controller.callSessionIsCurrent])
   const retry = () => { void controller.resume() }
   let content: ReactNode
-  if (controller.phase === "ready" && controller.session) content = <NativeBoundary key={controller.transportKey} onFailure={controller.blocked} fallback={<Status message={t("mobile.session.unavailable")} action={t("mobile.common.retry")} onPress={retry} />}><MemberTransport controller={controller} env={env} onMemberConfirmed={onMemberConfirmed} onMemberUnavailable={onMemberUnavailable} /></NativeBoundary>
+  if (controller.phase === "ready" && controller.session) content = <NativeBoundary key={controller.transportKey} onFailure={controller.blocked} fallback={<Status message={t("mobile.session.unavailable")} action={t("mobile.common.retry")} onPress={retry} />}><MemberTransport controller={controller} env={env} onMemberConfirmed={onMemberConfirmed} onMemberUnavailable={onMemberUnavailable} initialRoute={initialRoute} onDemoOptions={onSwitch ? () => { if (sharedDemo) { setDemoDismissed(false); setDemoOptions(true) } else void switchEnvironment() } : undefined} /></NativeBoundary>
   else if (controller.phase === "anonymous") content = <NativeBoundary onFailure={controller.blocked} fallback={<Status message={t("mobile.session.unavailable")} action={t("mobile.common.retry")} onPress={retry} />}><View style={{ flex: 1 }}>
     {controller.exitResult && (!controller.exitResult.serverRevoked || !controller.exitResult.localCleared) ? <Label>{t("mobile.session.exitIncomplete")}</Label> : null}
-    <AnonymousTransport controller={controller} env={env} sharedDemo={sharedDemo} />
+    <AnonymousTransport controller={controller} env={env} sharedDemo={sharedDemo} onContinuePost={postId => setInitialRoute(postId ? { name: "post", id: postId } : undefined)} />
   </View></NativeBoundary>
   else if (controller.phase === "purgeFailed") content = <Status message={t("mobile.session.purgeFailed")} action={t("mobile.session.retryPurge")} onPress={() => { void controller.exit() }} />
   else if (controller.phase === "failure") content = <View style={{ flex: 1 }}><Status message={t("mobile.session.unavailable")} action={t("mobile.common.retry")} onPress={retry} /><Action label={t(controller.sharedDemo ? "mobile.demo.signOut" : "mobile.session.signOut")} onPress={() => { void controller.exit() }} /></View>
   else content = <Status message={t(controller.phase === "exiting" ? "mobile.session.exiting" : controller.phase === "background" ? "mobile.common.background" : "mobile.session.preparing")} />
   // Aucune clé liée à une route, un thème ou à l'époque privée de l'écran.
   return <View style={{ flex: 1 }}>
-    {onSwitch ? <View style={{ padding: 12, gap: 8, backgroundColor: tokens.card }}>
-      {sharedDemo ? <Label strong>{t("mobile.demo.active")}</Label> : null}
-      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-        <Action label={t(sharedDemo ? "mobile.demo.personalAccount" : "mobile.demo.open")}
-          disabled={switchFailed || controller.phase === "exiting" || controller.phase === "purgeFailed"}
-          pending={switching} onPress={() => { void switchEnvironment() }} />
-        {sharedDemo && controller.phase === "ready" ? <Action label={t("mobile.demo.changeAccount")}
-          disabled={switching} onPress={() => { void controller.exit() }} /> : null}
-      </View>
+    <NativeCallProvider authority={authority} registerSessionCleanup={controller.registerSessionCleanup} env={env}>{content}</NativeCallProvider>
+    {onSwitch && sharedDemo && (!demoDismissed || controller.phase === "anonymous") ? <View style={controller.phase === "ready" ? { position: "absolute", left: 16, right: 16, bottom: 76, padding: 12, borderRadius: 16, backgroundColor: tokens.card, borderWidth: 1, borderColor: tokens.border, gap: 6 } : { padding: 12, gap: 8 }}>
+      {controller.phase === "ready" ? <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}><View style={{ flex: 1 }}><Label strong>{t("mobile.navigation.demoTitle")}</Label><Label muted>{t("mobile.navigation.demoNotice")}</Label></View><Pressable accessibilityRole="button" accessibilityLabel={t("mobile.common.close")} onPress={() => setDemoDismissed(true)} style={{ minWidth: 44, minHeight: 44, alignItems: "center", justifyContent: "center" }}><NativeIcon name="close" color={tokens.foreground} /></Pressable></View> : null}
+      {controller.phase === "ready" ? <Pressable accessibilityRole="button" onPress={() => { void controller.exit() }} style={{ minHeight: 44, justifyContent: "center" }}><Text style={{ color: tokens.primaryInk, fontSize: 13, fontWeight: "600" }}>{t("mobile.demo.signOut")}</Text></Pressable> : null}
+      {demoOptions || controller.phase === "anonymous" ? <Action label={t("mobile.demo.personalAccount")} disabled={switchFailed || controller.phase === "exiting" || controller.phase === "purgeFailed"} pending={switching} onPress={() => { void switchEnvironment() }} /> : null}
       {switchFailed ? <Label accessibilityRole="alert">{t("mobile.demo.switchFailed")}</Label> : null}
     </View> : null}
-    <NativeCallProvider authority={authority} registerSessionCleanup={controller.registerSessionCleanup} env={env}>{content}</NativeCallProvider>
+    {onSwitch && !sharedDemo && controller.phase === "anonymous" ? <Pressable accessibilityRole="button" accessibilityState={{ disabled: switching || switchFailed }} disabled={switching || switchFailed} onPress={() => { void switchEnvironment() }} style={{ minHeight: 44, alignItems: "center", justifyContent: "center", padding: 8 }}><Text style={{ color: tokens.primaryInk, fontSize: 14, fontWeight: "600" }}>{t("mobile.demo.open")}</Text></Pressable> : null}
   </View>
 }
 function RootContent({ env, sharedDemo, onSwitch }: { env: NativeEnvironment | null; sharedDemo: boolean; onSwitch?: () => void }) {
@@ -295,7 +328,7 @@ function RootContent({ env, sharedDemo, onSwitch }: { env: NativeEnvironment | n
 }
 export default function App() {
   const [destination, setDestination] = useState<"production" | "demo">("production")
-  return <SafeAreaProvider><NativeAppearanceProvider key={destination}><RootContent env={destinations[destination]}
+  return <SafeAreaProvider><NativeTypographyProvider><NativeAppearanceProvider key={destination}><RootContent env={destinations[destination]}
     sharedDemo={destination === "demo"} onSwitch={destinations.demo ? () => setDestination(destination === "production" ? "demo" : "production") : undefined} />
-  </NativeAppearanceProvider></SafeAreaProvider>
+  </NativeAppearanceProvider></NativeTypographyProvider></SafeAreaProvider>
 }

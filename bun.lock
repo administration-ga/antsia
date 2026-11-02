@@ -89,6 +89,7 @@
       "version": "0.1.0",
       "dependencies": {
         "@antsia/api": "workspace:*",
+        "@antsia/social-contracts": "workspace:*",
         "@antsia/social-domain": "workspace:*",
         "@antsia/social-features": "workspace:*",
         "@antsia/ui": "workspace:*",
@@ -227,6 +228,7 @@
         "expo": "catalog:",
         "expo-crypto": "catalog:",
         "expo-dev-client": "catalog:",
+        "expo-font": "catalog:",
         "expo-modules-core": "catalog:",
         "expo-secure-store": "catalog:",
         "expo-system-ui": "catalog:",
@@ -463,6 +465,7 @@
     "expo": "57.0.17",
     "expo-crypto": "~57.0.2",
     "expo-dev-client": "~57.0.16",
+    "expo-font": "57.0.4",
     "expo-modules-core": "~57.0.14",
     "expo-secure-store": "~57.0.2",
     "expo-system-ui": "~57.0.3",

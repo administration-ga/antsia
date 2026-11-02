@@ -1,0 +1,315 @@
+{
+  "source": "Local @fontsource-variable packages5.3.0 also imported by packages/ui/src/styles.css",
+  "generatorSha256": "9bc021a03e35a500c7e95f453500f84ed4cdcd5fd46361381b7475218f1a0e09",
+  "fontToolsVersion": "4.60.2",
+  "format": "static TrueType; normal style; unique PostScript name per weight",
+  "downloads": false,
+  "fonts": [
+    {
+      "file": "AntsiaInter-Regular.ttf",
+      "sha256": "5dc23704bf9024666d872b72e2427522a186f3a5307be720f58fa78a33ade349",
+      "bytes": 229048,
+      "family": "Antsia Inter",
+      "variant": "Regular",
+      "weight": 400,
+      "postScriptName": "AntsiaInter-Regular",
+      "unicodeCharacters": 1622,
+      "sources": [
+        {
+          "path": "node_modules/.bun/@fontsource-variable+inter@5.3.0/node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2",
+          "sha256": "3100e775e8616cd2611beecfa23a4263d7037586789b43f035236a2e6fbd4c62"
+        },
+        {
+          "path": "node_modules/.bun/@fontsource-variable+inter@5.3.0/node_modules/@fontsource-variable/inter/files/inter-latin-ext-wght-normal.woff2",
+          "sha256": "34b9c504cab7a73e37b746343a449132e56cf7b5481af2cb81dc74dcff25c956"
+        },
+        {
+          "path": "node_modules/.bun/@fontsource-variable+inter@5.3.0/node_modules/@fontsource-variable/inter/files/inter-vietnamese-wght-normal.woff2",
+          "sha256": "5c66f9e07e90c6d4ac4922cc68d60de26c17b1858e677fb5e603fce3952b3ff2"
+        },
+        {
+          "path": "node_modules/.bun/@fontsource-variable+inter@5.3.0/node_modules/@fontsource-variable/inter/files/inter-greek-wght-normal.woff2",
+          "sha256": "1be3448e292fbf05ffe176fe1e43f135013d50b1e7d324ad1a558f623d3bb6f6"
+        },
+        {
+          "path": "node_modules/.bun/@fontsource-variable+inter@5.3.0/node_modules/@fontsource-variable/inter/files/inter-greek-ext-wght-normal.woff2",
+          "sha256": "6e9e020a25f9b56d418f2c085b1d3c09725a4da23fe693a5b463064606732190"
+        },
+        {
+          "path": "node_modules/.bun/@fontsource-variable+inter@5.3.0/node_modules/@fontsource-variable/inter/files/inter-cyrillic-wght-normal.woff2",
+          "sha256": "71d5ee93cc1e9f1d520a3a8b66456de18c7879d8df09d57fcd2eaff75fef0075"
+        },
+        {
+          "path": "node_modules/.bun/@fontsource-variable+inter@5.3.0/node_modules/@fontsource-variable/inter/files/inter-cyrillic-ext-wght-normal.woff2",
+          "sha256": "ca157063339ac4ad418f214f3abfed119b0798ab4d377386ce5c9e5a7a435ebd"
+        }
+      ]
+    },
+    {
+      "file": "AntsiaInter-Medium.ttf",
+      "sha256": "29339cbad057ed8e42786caabd45462a8f72bb8c2cf3579734a12eafaf63bf56",
+      "bytes": 229460,
+      "family": "Antsia Inter",
+      "variant": "Medium",
+      "weight": 500,
+      "postScriptName": "AntsiaInter-Medium",
+      "unicodeCharacters": 1622,
+      "sources": [
+        {
+          "path": "node_modules/.bun/@fontsource-variable+inter@5.3.0/node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2",
+          "sha256": "3100e775e8616cd2611beecfa23a4263d7037586789b43f035236a2e6fbd4c62"
+        },
+        {
+          "path": "node_modules/.bun/@fontsource-variable+inter@5.3.0/node_modules/@fontsource-variable/inter/files/inter-latin-ext-wght-normal.woff2",
+          "sha256": "34b9c504cab7a73e37b746343a449132e56cf7b5481af2cb81dc74dcff25c956"
+        },
+        {
+          "path": "node_modules/.bun/@fontsource-variable+inter@5.3.0/node_modules/@fontsource-variable/inter/files/inter-vietnamese-wght-normal.woff2",
+          "sha256": "5c66f9e07e90c6d4ac4922cc68d60de26c17b1858e677fb5e603fce3952b3ff2"
+        },
+        {
+          "path": "node_modules/.bun/@fontsource-variable+inter@5.3.0/node_modules/@fontsource-variable/inter/files/inter-greek-wght-normal.woff2",
+          "sha256": "1be3448e292fbf05ffe176fe1e43f135013d50b1e7d324ad1a558f623d3bb6f6"
+        },
+        {
+          "path": "node_modules/.bun/@fontsource-variable+inter@5.3.0/node_modules/@fontsource-variable/inter/files/inter-greek-ext-wght-normal.woff2",
+          "sha256": "6e9e020a25f9b56d418f2c085b1d3c09725a4da23fe693a5b463064606732190"
+        },
+        {
+          "path": "node_modules/.bun/@fontsource-variable+inter@5.3.0/node_modules/@fontsource-variable/inter/files/inter-cyrillic-wght-normal.woff2",
+          "sha256": "71d5ee93cc1e9f1d520a3a8b66456de18c7879d8df09d57fcd2eaff75fef0075"
+        },
+        {
+          "path": "node_modules/.bun/@fontsource-variable+inter@5.3.0/node_modules/@fontsource-variable/inter/files/inter-cyrillic-ext-wght-normal.woff2",
+          "sha256": "ca157063339ac4ad418f214f3abfed119b0798ab4d377386ce5c9e5a7a435ebd"
+        }
+      ]
+    },
+    {
+      "file": "AntsiaInter-SemiBold.ttf",
+      "sha256": "9294e4d8af5f9036bf955cd57c510097df93a41a95f95e61e882fbcead2d1056",
+      "bytes": 230200,
+      "family": "Antsia Inter",
+      "variant": "SemiBold",
+      "weight": 600,
+      "postScriptName": "AntsiaInter-SemiBold",
+      "unicodeCharacters": 1622,
+      "sources": [
+        {
+          "path": "node_modules/.bun/@fontsource-variable+inter@5.3.0/node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2",
+          "sha256": "3100e775e8616cd2611beecfa23a4263d7037586789b43f035236a2e6fbd4c62"
+        },
+        {
+          "path": "node_modules/.bun/@fontsource-variable+inter@5.3.0/node_modules/@fontsource-variable/inter/files/inter-latin-ext-wght-normal.woff2",
+          "sha256": "34b9c504cab7a73e37b746343a449132e56cf7b5481af2cb81dc74dcff25c956"
+        },
+        {
+          "path": "node_modules/.bun/@fontsource-variable+inter@5.3.0/node_modules/@fontsource-variable/inter/files/inter-vietnamese-wght-normal.woff2",
+          "sha256": "5c66f9e07e90c6d4ac4922cc68d60de26c17b1858e677fb5e603fce3952b3ff2"
+        },
+        {
+          "path": "node_modules/.bun/@fontsource-variable+inter@5.3.0/node_modules/@fontsource-variable/inter/files/inter-greek-wght-normal.woff2",
+          "sha256": "1be3448e292fbf05ffe176fe1e43f135013d50b1e7d324ad1a558f623d3bb6f6"
+        },
+        {
+          "path": "node_modules/.bun/@fontsource-variable+inter@5.3.0/node_modules/@fontsource-variable/inter/files/inter-greek-ext-wght-normal.woff2",
+          "sha256": "6e9e020a25f9b56d418f2c085b1d3c09725a4da23fe693a5b463064606732190"
+        },
+        {
+          "path": "node_modules/.bun/@fontsource-variable+inter@5.3.0/node_modules/@fontsource-variable/inter/files/inter-cyrillic-wght-normal.woff2",
+          "sha256": "71d5ee93cc1e9f1d520a3a8b66456de18c7879d8df09d57fcd2eaff75fef0075"
+        },
+        {
+          "path": "node_modules/.bun/@fontsource-variable+inter@5.3.0/node_modules/@fontsource-variable/inter/files/inter-cyrillic-ext-wght-normal.woff2",
+          "sha256": "ca157063339ac4ad418f214f3abfed119b0798ab4d377386ce5c9e5a7a435ebd"
+        }
+      ]
+    },
+    {
+      "file": "AntsiaInter-Bold.ttf",
+      "sha256": "b2fdfa91a73a1cdd2e041906905ec0e33ce3b351b9acb8185dfbd0e8afb39723",
+      "bytes": 230504,
+      "family": "Antsia Inter",
+      "variant": "Bold",
+      "weight": 700,
+      "postScriptName": "AntsiaInter-Bold",
+      "unicodeCharacters": 1622,
+      "sources": [
+        {
+          "path": "node_modules/.bun/@fontsource-variable+inter@5.3.0/node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2",
+          "sha256": "3100e775e8616cd2611beecfa23a4263d7037586789b43f035236a2e6fbd4c62"
+        },
+        {
+          "path": "node_modules/.bun/@fontsource-variable+inter@5.3.0/node_modules/@fontsource-variable/inter/files/inter-latin-ext-wght-normal.woff2",
+          "sha256": "34b9c504cab7a73e37b746343a449132e56cf7b5481af2cb81dc74dcff25c956"
+        },
+        {
+          "path": "node_modules/.bun/@fontsource-variable+inter@5.3.0/node_modules/@fontsource-variable/inter/files/inter-vietnamese-wght-normal.woff2",
+          "sha256": "5c66f9e07e90c6d4ac4922cc68d60de26c17b1858e677fb5e603fce3952b3ff2"
+        },
+        {
+          "path": "node_modules/.bun/@fontsource-variable+inter@5.3.0/node_modules/@fontsource-variable/inter/files/inter-greek-wght-normal.woff2",
+          "sha256": "1be3448e292fbf05ffe176fe1e43f135013d50b1e7d324ad1a558f623d3bb6f6"
+        },
+        {
+          "path": "node_modules/.bun/@fontsource-variable+inter@5.3.0/node_modules/@fontsource-variable/inter/files/inter-greek-ext-wght-normal.woff2",
+          "sha256": "6e9e020a25f9b56d418f2c085b1d3c09725a4da23fe693a5b463064606732190"
+        },
+        {
+          "path": "node_modules/.bun/@fontsource-variable+inter@5.3.0/node_modules/@fontsource-variable/inter/files/inter-cyrillic-wght-normal.woff2",
+          "sha256": "71d5ee93cc1e9f1d520a3a8b66456de18c7879d8df09d57fcd2eaff75fef0075"
+        },
+        {
+          "path": "node_modules/.bun/@fontsource-variable+inter@5.3.0/node_modules/@fontsource-variable/inter/files/inter-cyrillic-ext-wght-normal.woff2",
+          "sha256": "ca157063339ac4ad418f214f3abfed119b0798ab4d377386ce5c9e5a7a435ebd"
+        }
+      ]
+    },
+    {
+      "file": "AntsiaInter-ExtraBold.ttf",
+      "sha256": "33c732cec2fa32f4af7cbc31cc76743c4b17579e7bafbb3f7fc2bc8acc60cd4f",
+      "bytes": 231236,
+      "family": "Antsia Inter",
+      "variant": "ExtraBold",
+      "weight": 800,
+      "postScriptName": "AntsiaInter-ExtraBold",
+      "unicodeCharacters": 1622,
+      "sources": [
+        {
+          "path": "node_modules/.bun/@fontsource-variable+inter@5.3.0/node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2",
+          "sha256": "3100e775e8616cd2611beecfa23a4263d7037586789b43f035236a2e6fbd4c62"
+        },
+        {
+          "path": "node_modules/.bun/@fontsource-variable+inter@5.3.0/node_modules/@fontsource-variable/inter/files/inter-latin-ext-wght-normal.woff2",
+          "sha256": "34b9c504cab7a73e37b746343a449132e56cf7b5481af2cb81dc74dcff25c956"
+        },
+        {
+          "path": "node_modules/.bun/@fontsource-variable+inter@5.3.0/node_modules/@fontsource-variable/inter/files/inter-vietnamese-wght-normal.woff2",
+          "sha256": "5c66f9e07e90c6d4ac4922cc68d60de26c17b1858e677fb5e603fce3952b3ff2"
+        },
+        {
+          "path": "node_modules/.bun/@fontsource-variable+inter@5.3.0/node_modules/@fontsource-variable/inter/files/inter-greek-wght-normal.woff2",
+          "sha256": "1be3448e292fbf05ffe176fe1e43f135013d50b1e7d324ad1a558f623d3bb6f6"
+        },
+        {
+          "path": "node_modules/.bun/@fontsource-variable+inter@5.3.0/node_modules/@fontsource-variable/inter/files/inter-greek-ext-wght-normal.woff2",
+          "sha256": "6e9e020a25f9b56d418f2c085b1d3c09725a4da23fe693a5b463064606732190"
+        },
+        {
+          "path": "node_modules/.bun/@fontsource-variable+inter@5.3.0/node_modules/@fontsource-variable/inter/files/inter-cyrillic-wght-normal.woff2",
+          "sha256": "71d5ee93cc1e9f1d520a3a8b66456de18c7879d8df09d57fcd2eaff75fef0075"
+        },
+        {
+          "path": "node_modules/.bun/@fontsource-variable+inter@5.3.0/node_modules/@fontsource-variable/inter/files/inter-cyrillic-ext-wght-normal.woff2",
+          "sha256": "ca157063339ac4ad418f214f3abfed119b0798ab4d377386ce5c9e5a7a435ebd"
+        }
+      ]
+    },
+    {
+      "file": "AntsiaFamiljenGrotesk-Regular.ttf",
+      "sha256": "f8fc1853a5e12efadd23f178adb757cb1789bb8c1f012cd14bad607c49ee822c",
+      "bytes": 60748,
+      "family": "Antsia Familjen Grotesk",
+      "variant": "Regular",
+      "weight": 400,
+      "postScriptName": "AntsiaFamiljenGrotesk-Regular",
+      "unicodeCharacters": 531,
+      "sources": [
+        {
+          "path": "node_modules/.bun/@fontsource-variable+familjen-grotesk@5.3.0/node_modules/@fontsource-variable/familjen-grotesk/files/familjen-grotesk-latin-wght-normal.woff2",
+          "sha256": "414d5dfe5f3d02a327f99ad9121bd77ae931b5b754565578fb0ce4fede2de268"
+        },
+        {
+          "path": "node_modules/.bun/@fontsource-variable+familjen-grotesk@5.3.0/node_modules/@fontsource-variable/familjen-grotesk/files/familjen-grotesk-latin-ext-wght-normal.woff2",
+          "sha256": "c53f18ecf4be5e1cd6966ad62e3d4bdfbc267cf8f8501b62e6d1c8ffb5382923"
+        },
+        {
+          "path": "node_modules/.bun/@fontsource-variable+familjen-grotesk@5.3.0/node_modules/@fontsource-variable/familjen-grotesk/files/familjen-grotesk-vietnamese-wght-normal.woff2",
+          "sha256": "7c82a4025559cf5e5260670e874d24536cfb6c08de200a6adeef2f7286041ccb"
+        }
+      ]
+    },
+    {
+      "file": "AntsiaFamiljenGrotesk-Medium.ttf",
+      "sha256": "e7871be4c1480aee29848cd0f71358256185f1b4b1ec4a0ece9d22e415fe3e48",
+      "bytes": 60972,
+      "family": "Antsia Familjen Grotesk",
+      "variant": "Medium",
+      "weight": 500,
+      "postScriptName": "AntsiaFamiljenGrotesk-Medium",
+      "unicodeCharacters": 531,
+      "sources": [
+        {
+          "path": "node_modules/.bun/@fontsource-variable+familjen-grotesk@5.3.0/node_modules/@fontsource-variable/familjen-grotesk/files/familjen-grotesk-latin-wght-normal.woff2",
+          "sha256": "414d5dfe5f3d02a327f99ad9121bd77ae931b5b754565578fb0ce4fede2de268"
+        },
+        {
+          "path": "node_modules/.bun/@fontsource-variable+familjen-grotesk@5.3.0/node_modules/@fontsource-variable/familjen-grotesk/files/familjen-grotesk-latin-ext-wght-normal.woff2",
+          "sha256": "c53f18ecf4be5e1cd6966ad62e3d4bdfbc267cf8f8501b62e6d1c8ffb5382923"
+        },
+        {
+          "path": "node_modules/.bun/@fontsource-variable+familjen-grotesk@5.3.0/node_modules/@fontsource-variable/familjen-grotesk/files/familjen-grotesk-vietnamese-wght-normal.woff2",
+          "sha256": "7c82a4025559cf5e5260670e874d24536cfb6c08de200a6adeef2f7286041ccb"
+        }
+      ]
+    },
+    {
+      "file": "AntsiaFamiljenGrotesk-SemiBold.ttf",
+      "sha256": "dace443524df0f9e2722f0d9328423d132263d67ea3dc12ed7e12a602e662428",
+      "bytes": 61020,
+      "family": "Antsia Familjen Grotesk",
+      "variant": "SemiBold",
+      "weight": 600,
+      "postScriptName": "AntsiaFamiljenGrotesk-SemiBold",
+      "unicodeCharacters": 531,
+      "sources": [
+        {
+          "path": "node_modules/.bun/@fontsource-variable+familjen-grotesk@5.3.0/node_modules/@fontsource-variable/familjen-grotesk/files/familjen-grotesk-latin-wght-normal.woff2",
+          "sha256": "414d5dfe5f3d02a327f99ad9121bd77ae931b5b754565578fb0ce4fede2de268"
+        },
+        {
+          "path": "node_modules/.bun/@fontsource-variable+familjen-grotesk@5.3.0/node_modules/@fontsource-variable/familjen-grotesk/files/familjen-grotesk-latin-ext-wght-normal.woff2",
+          "sha256": "c53f18ecf4be5e1cd6966ad62e3d4bdfbc267cf8f8501b62e6d1c8ffb5382923"
+        },
+        {
+          "path": "node_modules/.bun/@fontsource-variable+familjen-grotesk@5.3.0/node_modules/@fontsource-variable/familjen-grotesk/files/familjen-grotesk-vietnamese-wght-normal.woff2",
+          "sha256": "7c82a4025559cf5e5260670e874d24536cfb6c08de200a6adeef2f7286041ccb"
+        }
+      ]
+    },
+    {
+      "file": "AntsiaFamiljenGrotesk-Bold.ttf",
+      "sha256": "87540e03bc460a64c61daabe1c6741630f39b3599e22fca7daf530d0e3970caf",
+      "bytes": 60816,
+      "family": "Antsia Familjen Grotesk",
+      "variant": "Bold",
+      "weight": 700,
+      "postScriptName": "AntsiaFamiljenGrotesk-Bold",
+      "unicodeCharacters": 531,
+      "sources": [
+        {
+          "path": "node_modules/.bun/@fontsource-variable+familjen-grotesk@5.3.0/node_modules/@fontsource-variable/familjen-grotesk/files/familjen-grotesk-latin-wght-normal.woff2",
+          "sha256": "414d5dfe5f3d02a327f99ad9121bd77ae931b5b754565578fb0ce4fede2de268"
+        },
+        {
+          "path": "node_modules/.bun/@fontsource-variable+familjen-grotesk@5.3.0/node_modules/@fontsource-variable/familjen-grotesk/files/familjen-grotesk-latin-ext-wght-normal.woff2",
+          "sha256": "c53f18ecf4be5e1cd6966ad62e3d4bdfbc267cf8f8501b62e6d1c8ffb5382923"
+        },
+        {
+          "path": "node_modules/.bun/@fontsource-variable+familjen-grotesk@5.3.0/node_modules/@fontsource-variable/familjen-grotesk/files/familjen-grotesk-vietnamese-wght-normal.woff2",
+          "sha256": "7c82a4025559cf5e5260670e874d24536cfb6c08de200a6adeef2f7286041ccb"
+        }
+      ]
+    }
+  ],
+  "licenses": [
+    {
+      "file": "LICENSE-inter.txt",
+      "sha256": "3b0a5fca3d17942cde889069889dedbbbd075e9b599968c82a95f4d944e9b345"
+    },
+    {
+      "file": "LICENSE-familjen-grotesk.txt",
+      "sha256": "3775f2441de413d148650ae0c5688c1065fe9db6cfc54d99eeeb92d97f832cc4"
+    }
+  ]
+}

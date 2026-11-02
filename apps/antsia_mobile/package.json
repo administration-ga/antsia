@@ -26,6 +26,7 @@
     "better-auth": "catalog:",
     "convex": "catalog:",
     "expo": "catalog:",
+    "expo-font": "catalog:",
     "expo-crypto": "catalog:",
     "expo-web-browser": "catalog:",
     "expo-secure-store": "catalog:",

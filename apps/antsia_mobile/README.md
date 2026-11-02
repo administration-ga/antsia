@@ -66,7 +66,7 @@ Aucun `--auto-submit`. Le profil iOS interne exige un compte Apple Developer et 
 préenregistré ; choisir `testflight` uniquement pour un test via App Store Connect, avec une
 soumission distincte. Le réglage local de signature App Store est réservé à `testflight`
 par `NATIVE_IOS_APP_STORE_BUILD=true` ; le profil interne conserve la sélection EAS.
-Cette configuration prépare `0.1.0`, build iOS `8`, Android `3` inchangé. Le build iOS7 a été approuvé et rendu disponible aux tests externes le24/10/2026 ; les builds6 et4 ont été conservés dans le groupe public. Le candidat iOS8 est signé localement ; son dernier essai avec le clavier logiciel reste en attente du déverrouillage du Mac. Aucun nouvel APK Android n’est distribué par ce lot.
+Cette configuration prépare `0.1.0`, build iOS `8`, Android `3` inchangé. Le build iOS7 a été approuvé et rendu disponible aux tests externes le24/10/2026 ; les builds6 et4 ont été conservés dans le groupe public. Le build iOS8 est approuvé pour les tests externes depuis le25/10/2026 ; sa recette du clavier logiciel est terminée dans le simulateur ANTSIA iPhone18Pro. Aucun nouvel APK Android n’est distribué par ce lot.
 Ils embarquent le correctif du plantage
 qui suivait la confirmation de connexion (PR33), présent dans les builds iOS `2` et Android `1`.
 Le build iOS `4` adopte aussi le cycle de vie UIScene, sans lequel le build `3` ne démarre pas sous iOS 27.
@@ -253,7 +253,7 @@ de livraison est postérieure au manifeste de compilation et ne change pas le bi
 
 La [publication Git et sa vérification globale répartie](../../docs/recette/mobile-business-ios7-2026-10-24/PUBLICATION_GIT.md) documentent le lot iOS7 et les reprises ciblées des contrôles.
 
-## Corrections ergonomiques — candidat iOS8
+## Corrections ergonomiques — iOS8 publié
 
 Les vitrines et annuaires marchands ajustent leur défilement au clavier iOS ; la touche
 de recherche du clavier et le bouton lancent la même recherche puis ferment le clavier.
@@ -262,8 +262,10 @@ membre et reste sélectionné au retour d’une page. L’annuaire d’associati
 son état vide même si le membre possède une association, avec des messages FR/EN.
 
 Le [rapport iOS8](../../docs/recette/mobile-ergonomics-ios8-2026-10-24/RAPPORT.md) distingue
-les contrôles réussis, les observations natives et le dernier essai clavier encore
-bloqué. L’IPA0.1.0(8) porte le même bytecode que le simulateur ; il n’a pas été soumis
-à Apple. Les binaires/symboles7 sont conservés, les dépendances natives inchangées.
+les contrôles réussis et leurs limites. La recette du25/10 confirme le champ visible
+avec clavier logiciel, la touche native Rechercher et sa fermeture sur boutique, services
+et associations. L’IPA0.1.0(8) publié porte le même bytecode que le simulateur ; aucun
+correctif supplémentaire ni nouvelle compilation nécessaire. Les binaires/symboles7
+sont conservés, les dépendances natives inchangées.
 
-Le build iOS0.1.0(8) est approuvé et disponible pour les tests externes le25/10/2026. Le [rapport de publication et de recette](../../docs/recette/mobile-ergonomics-ios8-2026-10-24/RAPPORT.md) distingue les deux scénarios constatés de l’essai du clavier logiciel restant à terminer.
+Le build iOS0.1.0(8) est approuvé et disponible pour les tests externes le25/10/2026. Le [rapport de publication et de recette](../../docs/recette/mobile-ergonomics-ios8-2026-10-24/RAPPORT.md) consigne les trois corrections contrôlées dans le simulateur et le retour Administration/Mairie/Publications. L’essai sur iPhone physique reste distinct.

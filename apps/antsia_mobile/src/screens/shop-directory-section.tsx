@@ -102,8 +102,7 @@ function DirectoryBody({ mode, onOpenShop, onOpenPage }: DirectoryProps) {
     <MyShops onOpenShop={onOpenShop} onOpenPage={onOpenPage} />
     {mode === "shops" ? <StorefrontDirectory onOpenShop={onOpenShop} onOpenPage={onOpenPage} /> : null}
     <Label strong accessibilityRole="header">{t("mobile.business.catalog")}</Label>
-    <Field label={t("mobile.business.search")} value={draft} maxLength={120} disabled={!guard.canAct} error={invalid ? t("mobile.business.invalidSearch") : undefined} onChangeText={value => { if (guard.current()) { setDraft(value); setInvalid(false) } }} returnKeyType="search" onSubmit={submit} />
-    <Action label={t("mobile.business.searchSubmit")} disabled={!guard.canAct} onPress={submit} />
+    <Field label={t("mobile.business.search")} value={draft} maxLength={120} disabled={!guard.canAct} error={invalid ? t("mobile.business.invalidSearch") : undefined} onChangeText={value => { if (guard.current()) { setDraft(value); setInvalid(false) } }} returnKeyType="search" onSubmit={submit} submitLabel={t("mobile.business.searchSubmit")} />
     {query ? <Action label={t("mobile.business.clearFilters")} disabled={!guard.canAct} onPress={() => { if (guard.current()) { setDraft(""); setQuery(""); setInvalid(false) } }} /> : null}
     <SearchWindow key={`search:${key}`} filters={filters} onOpenShop={onOpenShop} />
     <DemoSelection key={`demo:${key}`} filters={filters} onOpenShop={onOpenShop} />

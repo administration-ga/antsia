@@ -1,5 +1,13 @@
-// Expo SDK 57 configure automatiquement les workspaces et le linker isolé.
-// Référence : https://docs.expo.dev/guides/monorepos/ ; aucun résolveur ou dossier frère ajouté.
+// Expo SDK 57 resolves workspaces and the isolated linker automatically.
 const { getDefaultConfig } = require("expo/metro-config")
 
-module.exports = getDefaultConfig(__dirname)
+const config = getDefaultConfig(__dirname)
+const defaults = config.resolver.blockList
+// Generated Web output is never a native source. The SDK watches the Web
+// workspaces too; crawling their live Next caches can stall an iPhone build.
+config.resolver.blockList = [
+  ...(Array.isArray(defaults) ? defaults : defaults ? [defaults] : []),
+  /[/\\]\.next(?:-[^/\\]+)?(?:[/\\]|$)/,
+  /[/\\](?:\.git|\.vercel|\.turbo)(?:[/\\]|$)/,
+]
+module.exports = config
