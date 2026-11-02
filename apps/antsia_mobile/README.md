@@ -16,6 +16,10 @@ et configuré en production. L'IPA iOS16.4 minimum est également signé ; son e
 JavaScript : aucun serveur Metro n'est requis. Les appels système restent désactivés dans
 ces profils ; leurs dépendances natives restent présentes et doivent compiler.
 
+L'icône vient de `assets/app-icon.png`, déclarée par `icon` dans `app.config.ts` et régénérée par
+`scripts/build-app-icon.py` (monogramme du favicon). Sans cette déclaration, Expo garde le PNG blanc
+de son gabarit : c'est l'icône des builds iOS 2 à 12, chez Apple comme sur le téléphone.
+
 Les origines publiques observées sur le site publié le 21 octobre sont :
 
 ```sh

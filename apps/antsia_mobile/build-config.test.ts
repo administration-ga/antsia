@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 const primary = {
@@ -41,5 +42,17 @@ describe("phone build environment isolation", () => {
   })
   it.each(["http://localhost:3260", "https://demo-auth.example.test/api/auth", "https://user:pass@demo-auth.example.test", "https://demo-auth.example.test?token=public"])("refuses a non-origin demo auth address %s", async address => {
     await expect(configure({ ...primary, ...demo, EXPO_PUBLIC_DEMO_CONVEX_SITE_URL: address })).rejects.toThrow("explicit HTTPS origin")
+  })
+})
+
+describe("application icon", () => {
+  it("declares an opaque 1024 px logo instead of the blank Expo template icon", async () => {
+    const icon = (await configure()).icon
+    expect(icon).toBe("./assets/app-icon.png")
+    const png = readFileSync(new URL(`${icon}`, import.meta.url))
+    // En-tête IHDR : largeur, hauteur, puis type de couleur 2 (RGB sans alpha, exigé par Apple).
+    expect([png.readUInt32BE(16), png.readUInt32BE(20), png[25]]).toEqual([1024, 1024, 2])
+    // Une image unie se comprime en quelques Ko : c'est le défaut des builds 2 à 12.
+    expect(png.length).toBeGreaterThan(10_000)
   })
 })

@@ -57,6 +57,8 @@ const config: ExpoConfig = {
   ...(projectId ? { extra: { eas: { projectId } } } : {}),
   version: "0.1.0",
   platforms: ["ios", "android"],
+  // Sans icône déclarée, Expo garde le PNG blanc de son gabarit : assets/app-icon.png, voir scripts/build-app-icon.py.
+  icon: "./assets/app-icon.png",
   userInterfaceStyle: "automatic",
   // Expo SDK 57 impose déjà la New Architecture ; aucune option legacy ici.
   ...(scheme ? { scheme } : {}),

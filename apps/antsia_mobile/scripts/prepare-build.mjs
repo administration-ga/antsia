@@ -20,7 +20,7 @@ mkdirSync(cache, { recursive: true })
 const destination = mkdtempSync(join(cache, "telephone-"))
 const root = join(destination, "ECOSYSTEMES")
 const overlay = [
-  ...["app.config.ts", "build-config.test.ts", "native-build.json", "eas.json", ".gitignore", "README.md", "package.json", "scripts/prepare-build.mjs", "scripts/prepare-ios-signing.mjs", "scripts/prepare-ios-signing.test.mjs", "native-plugin.test.ts",
+  ...["app.config.ts", "assets/app-icon.png", "build-config.test.ts", "native-build.json", "eas.json", ".gitignore", "README.md", "package.json", "scripts/prepare-build.mjs", "scripts/prepare-ios-signing.mjs", "scripts/prepare-ios-signing.test.mjs", "native-plugin.test.ts",
     "modules/antsia-call-system/android/build.gradle", "plugins/with-native-calls.cjs", "plugins/with-scene-lifecycle.cjs", "scene-plugin.test.ts",
     "src/runtime.tsx", "src/screens/explore-screen.tsx", "src/screens/feed-screen.tsx", "src/screens/post-screen.tsx",
     "src/screens/association-directory-section.tsx", "src/screens/page-screen.tsx", "src/lib/native-pages.ts", "src/lib/native-pages.test.ts",
