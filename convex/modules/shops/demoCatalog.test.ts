@@ -19,6 +19,7 @@ import { readCommerceLinkConfig } from "./commerceLinkConfig"
 import type { CatalogOffer } from "./catalogValidators"
 import type { MarketplaceFilters, MarketplacePage, MarketplaceSearchArgs } from "./marketplaceRead"
 import { SHOP_PUBLIC_LISTING_TEXT_VERSION } from "./rules"
+import type { PublicDailySpecial } from "./validators"
 
 type T = ReturnType<typeof testConvex>
 const NOW = Date.UTC(2026, 9, 20, 12)
@@ -26,6 +27,7 @@ const FIRST = { cursor: null, numItems: 8 }
 const PRODUCT_HANDLE = "epicerie-moussavou-demo"
 const demoSelection = makeFunctionReference<"query", MarketplaceFilters & { networkId: Id<"networks"> }, CatalogOffer[]>("modules/shops/marketplace:demoSelection")
 const marketplaceSearch = makeFunctionReference<"query", MarketplaceSearchArgs & { networkId: Id<"networks"> }, MarketplacePage>("modules/shops/marketplace:search")
+const publicDailySpecial = makeFunctionReference<"query", { networkId: Id<"networks">; handle: string }, PublicDailySpecial | null>("modules/public/shops:getDailySpecial")
 
 function idOf(row: unknown): string {
   if (!row || typeof row !== "object" || !("_id" in row) || typeof row._id !== "string") throw new Error("Compte de fixture absent")
@@ -430,5 +432,29 @@ describe("SU06 — plat du jour d'une adresse « Alimentation et restauration »
     expect(await setSpecial(f, null)).toEqual({ changed: true })
     expect(await setSpecial(f, null)).toEqual({ changed: false })
     expect((await storefrontOf(f))?.dailySpecial).toBeNull()
+  })
+
+  it("sert le même produit fictif au visiteur public et ferme immédiatement la désignation retirée", async () => {
+    const f = await fixture()
+    await f.t.run(async (ctx) => ctx.db.patch(f.shopId, { activityConfiguration: { version: 1, capabilities: ["products"], template: "food", blocks: ["catalog", "about"] } }))
+    const args = { networkId: f.root, handle: f.handle }
+    expect(await f.t.query(publicDailySpecial, args)).toBeNull()
+    await setSpecial(f, "demo:offer:epicerie-produits")
+    const product = await f.t.query(api.modules.public.catalog.offer, { ...args, offerRef: "demo:offer:epicerie-produits" })
+    expect(product).not.toBeNull()
+    expect(await f.t.query(publicDailySpecial, args)).toEqual({ version: 1, day: "2026-10-20", offer: product })
+    await setSpecial(f, null)
+    expect(await f.t.query(publicDailySpecial, args)).toBeNull()
+  })
+
+  it("ne transporte pas un plat fictif vers la production même avec sa désignation conservée", async () => {
+    const f = await fixture()
+    await f.t.run(async (ctx) => ctx.db.patch(f.shopId, { activityConfiguration: { version: 1, capabilities: ["products"], template: "food", blocks: ["catalog", "about"] } }))
+    await setSpecial(f, "demo:offer:epicerie-produits")
+    const args = { networkId: f.root, handle: f.handle }
+    expect(await f.t.query(publicDailySpecial, args)).not.toBeNull()
+    vi.stubEnv("CONVEX_CLOUD_URL", "https://production.convex.cloud")
+    vi.stubEnv("ANTSIA_DEMO_DEPLOYMENT", DEMO_CONTENT_DEPLOYMENT)
+    expect(await f.t.query(publicDailySpecial, args)).toBeNull()
   })
 })
