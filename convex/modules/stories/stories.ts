@@ -24,7 +24,7 @@ import { paginationOptsValidator, type PaginationResult } from "convex/server"
 import { v } from "convex/values"
 
 import { internal } from "../../_generated/api"
-import { canReadModeratedContent, moderateContentWrite } from "../moderation/policy"
+import { canReadModeratedContent, contentState, moderateContentWrite } from "../moderation/policy"
 import type { Doc, Id } from "../../_generated/dataModel"
 import { internalMutation, type QueryCtx } from "../../_generated/server"
 import { checked, fail, failRule, notFound } from "../../lib/errors"
@@ -38,6 +38,8 @@ import { declaredMediaValidator, verifyDeclaredMedia } from "../media/media"
 import { counterpartOf } from "../messaging/participation"
 import { findPublishedPersonByHandle, miniProfileCache } from "../people/miniProfile"
 import { engineCounters } from "../posts/counters"
+import { activeDailySpecialStory, resolveDailySpecialSource, type DailySpecialDto } from "./dailySpecialSource"
+import type { CatalogReadContext } from "../shops/catalogRead"
 
 type ReadCtx = Pick<QueryCtx, "db">
 
@@ -82,6 +84,7 @@ export type StoryDto = {
   isOwn: boolean
   /** Spectateurs uniques — `null` pour qui n'est pas l'auteur : une donnée privée de celui qui publie. */
   viewCount: number | null
+  dailySpecial?: DailySpecialDto
 }
 
 /**
@@ -89,14 +92,16 @@ export type StoryDto = {
  * story SANS média servable n'est rien (mieux vaut un plateau plus court qu'une
  * vignette vide) ; son auteur la voit retenue, avec la raison.
  */
-async function storyDto(ctx: QueryCtx, story: Doc<"stories">, view: { isOwn: boolean; seen: boolean }): Promise<StoryDto | null> {
-  const delivery = await resolveFileDelivery(ctx, story.media.storageId)
-  if (delivery.url === null && !view.isOwn) return null
+async function storyDto(ctx: QueryCtx, story: Doc<"stories">, view: { isOwn: boolean; seen: boolean }, context: CatalogReadContext & { network: Doc<"networks">; now: number }): Promise<StoryDto | null> {
+  const source = story.media.kind === "daily_special" ? await resolveDailySpecialSource(ctx, context, { shopId: story.media.shopId, authorPersonId: story.authorPersonId, now: context.now, reference: story.media }) : null
+  if (story.media.kind === "daily_special" && source === null) return null
+  const delivery = story.media.kind !== "daily_special" ? await resolveFileDelivery(ctx, story.media.storageId) : null
+  if (delivery?.url === null && !view.isOwn) return null
   return {
     storyId: story._id,
-    media: {
-      url: delivery.url,
-      withheld: withheldCodeOf(delivery.scan),
+    media: story.media.kind === "daily_special" ? source!.media : {
+      url: delivery!.url,
+      withheld: withheldCodeOf(delivery!.scan),
       kind: story.media.kind,
       mimeType: story.media.mimeType,
       ...(story.media.width !== undefined ? { width: story.media.width } : {}),
@@ -110,6 +115,7 @@ async function storyDto(ctx: QueryCtx, story: Doc<"stories">, view: { isOwn: boo
     seen: view.isOwn ? true : view.seen,
     isOwn: view.isOwn,
     viewCount: view.isOwn ? await countViews(ctx, story._id) : null,
+    ...(source ? { dailySpecial: source.dailySpecial } : {}),
   }
 }
 
@@ -147,13 +153,14 @@ function isVisibleLine(story: Doc<"stories">, facts: { readerPersonId: Id<"perso
 }
 
 /** La story, dans le réseau appelé, VISIBLE de ce lecteur — sinon le refus indistinct. */
-async function requireVisibleStory(ctx: ReadCtx, networkId: Id<"networks">, storyId: Id<"stories">, readerPersonId: Id<"persons">, now: number): Promise<Doc<"stories">> {
+async function requireVisibleStory(ctx: QueryCtx, networkId: Id<"networks">, storyId: Id<"stories">, readerPersonId: Id<"persons">, now: number, context: CatalogReadContext & { network: Doc<"networks"> }): Promise<Doc<"stories">> {
   const story = await ctx.db.get(storyId)
   if (!story || story.networkId !== networkId || !(await canReadModeratedContent(ctx, "story", story._id, readerPersonId))) return notFound()
   const isAuthor = story.authorPersonId === readerPersonId
   const isConnected = isAuthor ? false : await isConnectedTo(ctx, networkId, readerPersonId, story.authorPersonId)
   const isBlockedWithAuthor = isAuthor ? false : await isBlockedBetween(ctx, readerPersonId, story.authorPersonId)
   if (!isVisibleLine(story, { readerPersonId, isConnected, isBlockedWithAuthor, now })) return notFound()
+  if (story.media.kind === "daily_special" && !await resolveDailySpecialSource(ctx, context, { shopId: story.media.shopId, authorPersonId: story.authorPersonId, now, reference: story.media })) return notFound()
   return story
 }
 
@@ -203,6 +210,41 @@ export const publish = networkMutation({
   },
 })
 
+/** Geste explicite du gérant : une référence au plat actuel, publique dans CE réseau seulement. */
+export const publishDailySpecial = networkMutation({
+  minStatus: "declaree",
+  args: { shopId: v.id("shops"), expectedOfferRef: v.string(), expectedDay: v.string() },
+  returns: v.object({ storyId: v.id("stories"), created: v.boolean(), expiresAt: v.number() }),
+  handler: async (ctx, args) => {
+    await enforceRateLimit(ctx, "story.publish", ctx.person._id)
+    const now = Date.now()
+    const context = { root: ctx.rootNetwork, network: ctx.network, readerPersonId: ctx.person._id }
+    const source = await resolveDailySpecialSource(ctx, context, { shopId: args.shopId, authorPersonId: ctx.person._id, now })
+    if (!source || source.reference.offerRef !== args.expectedOfferRef || source.reference.day !== args.expectedDay) return notFound()
+    const replay = await activeDailySpecialStory(ctx, ctx.networkId, args.shopId, source.reference.revision, now)
+    if (replay) {
+      if (replay.media.kind !== "daily_special") return notFound()
+      const replaySource = await resolveDailySpecialSource(ctx, context, { shopId: replay.media.shopId, authorPersonId: replay.authorPersonId, now, reference: replay.media })
+      if (replaySource) {
+        await requireVisibleStory(ctx, ctx.networkId, replay._id, ctx.person._id, now, context)
+        return { storyId: replay._id, created: false, expiresAt: replay.expiresAt }
+      }
+      // Le relais d'un ancien gérant ne contourne jamais une Story masquée ou bloquée.
+      if ((await contentState(ctx, "story", replay._id))?.status !== "published" || !await canReadModeratedContent(ctx, "story", replay._id, ctx.person._id)) return notFound()
+      const isAuthor = replay.authorPersonId === ctx.person._id
+      const isConnected = isAuthor ? false : await isConnectedTo(ctx, ctx.networkId, ctx.person._id, replay.authorPersonId)
+      const isBlockedWithAuthor = isAuthor ? false : await isBlockedBetween(ctx, ctx.person._id, replay.authorPersonId)
+      if (!isVisibleLine(replay, { readerPersonId: ctx.person._id, isConnected, isBlockedWithAuthor, now })) return notFound()
+      await ctx.db.patch(replay._id, { removedAt: now, expiresAt: now })
+    }
+    if ((await liveStoriesOf(ctx, ctx.networkId, ctx.person._id, now)).length >= STORY_ACTIVE_PER_AUTHOR_MAX) return failRule("STORY_ACTIVE_LIMIT", { max: STORY_ACTIVE_PER_AUTHOR_MAX })
+    const expiresAt = Math.min(storyExpiresAt(now), source.expiresAt)
+    const storyId = await ctx.db.insert("stories", { networkId: ctx.networkId, authorPersonId: ctx.person._id, media: source.reference, audience: "public", publishedAt: now, expiresAt })
+    await moderateContentWrite(ctx, { networkId: ctx.networkId, ownerPersonId: ctx.person._id, kind: "story", id: storyId, text: "" })
+    return { storyId, created: true, expiresAt }
+  },
+})
+
 // ═══════════════════════════════════════════════════════════════
 // Le PLATEAU — la barre de vignettes, groupée par auteur
 // ═══════════════════════════════════════════════════════════════
@@ -248,26 +290,34 @@ export const tray = networkQuery({
       const candidates = (await liveStoriesOf(ctx, ctx.networkId, authorPersonId, args.now)).filter(
         (story) => story.removedAt === undefined && isVisibleLine(story, { readerPersonId: me, isConnected: connections.ids.has(authorPersonId), isBlockedWithAuthor, now: args.now }),
       )
-      const visible: Doc<"stories">[] = []
-      for (const story of candidates) if (await canReadModeratedContent(ctx, "story", story._id, me)) visible.push(story)
+      const visible: { story: Doc<"stories">; cover: TrayGroup["cover"] | null }[] = []
+      for (const story of candidates) {
+        if (!await canReadModeratedContent(ctx, "story", story._id, me)) continue
+        if (story.media.kind === "daily_special") {
+          const source = await resolveDailySpecialSource(ctx, { root: ctx.rootNetwork, network: ctx.network, readerPersonId: me }, { shopId: story.media.shopId, authorPersonId: story.authorPersonId, now: args.now, reference: story.media })
+          if (source) visible.push({ story, cover: { url: source.media.url, kind: "image" } })
+        } else {
+          const url = (await resolveFileDelivery(ctx, story.media.storageId)).url
+          visible.push({ story, cover: url !== null ? { url, kind: story.media.kind } : null })
+        }
+      }
       if (visible.length === 0) continue
-      const byRecency = [...visible].sort((left, right) => right.publishedAt - left.publishedAt)
+      const byRecency = [...visible].sort((left, right) => right.story.publishedAt - left.story.publishedAt)
       let cover: TrayGroup["cover"] | null = null
-      for (const story of byRecency) {
-        const url = (await resolveFileDelivery(ctx, story.media.storageId)).url
-        if (url !== null) {
-          cover = { url, kind: story.media.kind }
+      for (const item of byRecency) {
+        if (item.cover !== null) {
+          cover = item.cover
           break
         }
       }
       // Rien de servable : un rail qui promet ce que le lecteur ne peut pas jouer est le pire des deux.
       if (cover === null) continue
-      const unseenCount = isOwn ? 0 : visible.filter((story) => !seenIds.has(story._id)).length
+      const unseenCount = isOwn ? 0 : visible.filter(({ story }) => !seenIds.has(story._id)).length
       groups.push({
         author: { ...(await counterpartOf(ctx, authorPersonId, profileOf)), personId: authorPersonId },
         storyCount: visible.length,
         unseenCount,
-        latestPublishedAt: byRecency[0]!.publishedAt,
+        latestPublishedAt: byRecency[0]!.story.publishedAt,
         cover,
       })
     }
@@ -307,7 +357,7 @@ export const listByAuthor = networkQuery({
     for (const story of [...rows].sort((a, b) => a.publishedAt - b.publishedAt)) {
       if (story.removedAt !== undefined || !(await canReadModeratedContent(ctx, "story", story._id, ctx.person._id))) continue
       if (!isVisibleLine(story, { readerPersonId: me, isConnected, isBlockedWithAuthor: false, now: args.now })) continue
-      const dto = await storyDto(ctx, story, { isOwn, seen: seenIds.has(story._id) })
+      const dto = await storyDto(ctx, story, { isOwn, seen: seenIds.has(story._id) }, { root: ctx.rootNetwork, network: ctx.network, readerPersonId: me, now: args.now })
       if (dto !== null) items.push(dto)
     }
     return items
@@ -322,7 +372,7 @@ export const myActive = networkQuery({
     const items: StoryDto[] = []
     for (const story of [...rows].sort((a, b) => a.publishedAt - b.publishedAt)) {
       if (story.removedAt !== undefined || !(await canReadModeratedContent(ctx, "story", story._id, ctx.person._id))) continue
-      const dto = await storyDto(ctx, story, { isOwn: true, seen: true })
+      const dto = await storyDto(ctx, story, { isOwn: true, seen: true }, { root: ctx.rootNetwork, network: ctx.network, readerPersonId: ctx.person._id, now: args.now })
       if (dto !== null) items.push(dto)
     }
     return items
@@ -345,7 +395,7 @@ export const markSeen = networkMutation({
   handler: async (ctx, args) => {
     await enforceRateLimit(ctx, "story.view", ctx.person._id)
     const now = Date.now()
-    const story = await requireVisibleStory(ctx, ctx.networkId, args.storyId, ctx.person._id, now)
+    const story = await requireVisibleStory(ctx, ctx.networkId, args.storyId, ctx.person._id, now, { root: ctx.rootNetwork, network: ctx.network, readerPersonId: ctx.person._id })
     if (story.authorPersonId === ctx.person._id) return { seen: true as const, first: false }
     const existing = await ctx.db
       .query("storyViews")
@@ -369,10 +419,11 @@ export type StoryViewerDto = { viewer: CounterpartLabel & { personId: Id<"person
  * plus récents d'abord, à curseur NATIF : aucun ex æquo perdu à une frontière.
  */
 export const viewers = networkQuery({
-  args: { storyId: v.id("stories"), paginationOpts: paginationOptsValidator },
+  args: { storyId: v.id("stories"), paginationOpts: paginationOptsValidator, now: v.optional(v.number()) },
   handler: async (ctx, args): Promise<PaginationResult<StoryViewerDto>> => {
     const story = await ctx.db.get(args.storyId)
     if (!story || story.networkId !== ctx.networkId || story.authorPersonId !== ctx.person._id) return notFound()
+    if (story.media.kind === "daily_special" && (args.now === undefined || !await resolveDailySpecialSource(ctx, { root: ctx.rootNetwork, network: ctx.network, readerPersonId: ctx.person._id }, { shopId: story.media.shopId, authorPersonId: story.authorPersonId, now: args.now, reference: story.media }))) return notFound()
     const result = await ctx.db
       .query("storyViews")
       .withIndex("by_story_seenAt", (q) => q.eq("storyId", story._id))
@@ -439,7 +490,7 @@ export const purgeExpired = internalMutation({
         viewsRemaining = true
         continue
       }
-      await purgeStoredFile(ctx, story.media.storageId)
+      if (story.media.kind !== "daily_special") await purgeStoredFile(ctx, story.media.storageId)
       await ctx.db.delete(story._id)
     }
     if (expired.length === PURGE_BATCH || viewsRemaining) await ctx.scheduler.runAfter(0, internal.modules.stories.stories.purgeExpired, {})

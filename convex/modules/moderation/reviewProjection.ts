@@ -9,6 +9,7 @@ import type { Id } from "../../_generated/dataModel"
 import type { QueryCtx } from "../../_generated/server"
 import { notFound } from "../../lib/errors"
 import { networkQuery } from "../../lib/functions"
+import { getRootNetwork } from "../../lib/access"
 import { postMediaDtoValidator, resolvePostMediaDtos } from "../media/media"
 import { isPublishedPerson } from "../people/miniProfile"
 import { liveCatalogMapping } from "../shops/catalogAccess"
@@ -22,6 +23,7 @@ import { editorialMediaReviewSource, editorialReviewSource } from "./editorialRe
 import { moderationSurfaceValidator, moderationTargetValidator } from "./tables"
 import { commerceOfferModerationText } from "./commerceOfferText"
 import type { ModerationTarget } from "./targets"
+import { resolveDailySpecialSource } from "../stories/dailySpecialSource"
 
 /**
  * `context` (CC-2b) : la NATURE d'un message contextuel, dérivée du fil côté serveur (jamais de la
@@ -31,7 +33,7 @@ type Preview = { kind: ModerationTarget["kind"]; available: boolean; title: stri
 const excerpt = (value: string | undefined, maximum = 4_000) => value ? value.slice(0, maximum) : null
 
 /** Aucun stockage brut, auteur, contact, participant ou contenu voisin ne sort. */
-async function targetPreview(ctx: QueryCtx, networkId: Id<"networks">, target: ModerationTarget): Promise<Preview> {
+async function targetPreview(ctx: QueryCtx, networkId: Id<"networks">, target: ModerationTarget, readerPersonId: Id<"persons">): Promise<Preview> {
   const empty: Preview = { kind: target.kind, available: false, title: null, body: null, media: [] }
   switch (target.kind) {
     case "editorialMedia": {
@@ -96,7 +98,14 @@ async function targetPreview(ctx: QueryCtx, networkId: Id<"networks">, target: M
     }
     case "story": {
       const row = await ctx.db.get(target.id)
-      if (!row || row.networkId !== networkId || row.expiresAt <= Date.now() || row.removedAt !== undefined) return empty
+      const now = Date.now()
+      if (!row || row.networkId !== networkId || row.expiresAt <= now || row.removedAt !== undefined) return empty
+      if (row.media.kind === "daily_special") {
+        const network = await ctx.db.get(networkId), root = await getRootNetwork(ctx)
+        if (!network || !root) return empty
+        const source = await resolveDailySpecialSource(ctx, { network, root, readerPersonId }, { shopId: row.media.shopId, authorPersonId: row.authorPersonId, now, reference: row.media })
+        return source ? { ...empty, available: true, title: source.dailySpecial.title, media: [source.media] } : empty
+      }
       return { ...empty, available: true, body: excerpt(row.caption), media: await resolvePostMediaDtos(ctx, [row.media]) }
     }
     case "album": {
@@ -173,7 +182,7 @@ export const preview = networkQuery({
     if (args.reportId !== undefined) {
       const report = await ctx.db.get(args.reportId)
       if (!report || report.networkId !== ctx.networkId || (report.status !== "open" && report.status !== "reviewing") || !await requireReportCapacity(ctx, ctx, report)) return notFound()
-      return await targetPreview(ctx, ctx.networkId, report.target)
+      return await targetPreview(ctx, ctx.networkId, report.target, ctx.person._id)
     }
     const target = args.target
     if (!target) return notFound()
@@ -183,6 +192,6 @@ export const preview = networkQuery({
     if (teams.length > 100) return notFound()
     const team = teams.find((row) => row.scope === target.kind) ?? teams.find((row) => row.scope === undefined)
     if (!await teamCapacity(ctx, ctx, target.kind, team?._id)) return notFound()
-    return await targetPreview(ctx, ctx.networkId, target)
+    return await targetPreview(ctx, ctx.networkId, target, ctx.person._id)
   },
 })

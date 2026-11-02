@@ -53,6 +53,7 @@ import {
 } from "./access"
 import { admitStorefront } from "./decisions"
 import { liveShopCommerceLink, revokeShopCommerceLink } from "./commerceLinkLifecycle"
+import { closeDailySpecialStory } from "../stories/dailySpecialSource"
 import {
   checkShopDescription,
   checkShopName,
@@ -480,15 +481,18 @@ export const setDailySpecial = networkMutation({
     if (!page || effectiveActivityConfiguration(shop.activityConfiguration, shop.model).template !== "food") return notFound()
     if (args.offerRef === null) {
       if (shop.dailySpecial === undefined) return { changed: false }
-      await ctx.db.patch(shop._id, { dailySpecial: undefined })
+      await closeDailySpecialStory(ctx, shop, Date.now())
+      await ctx.db.patch(shop._id, { dailySpecial: undefined, dailySpecialRevision: (shop.dailySpecialRevision ?? 0) + 1 })
       return { changed: true }
     }
     if (args.offerRef.length > 200) return notFound()
     const offer = await resolveCatalogOffer(ctx, { root: ctx.rootNetwork, readerPersonId: ctx.person._id, network: ctx.network }, shop._id, args.offerRef)
     if (!offer || offer.kind !== "product") return notFound()
-    const day = librevilleDay(Date.now())
+    const now = Date.now()
+    const day = librevilleDay(now)
     if (shop.dailySpecial?.offerRef === args.offerRef && shop.dailySpecial.day === day) return { changed: false }
-    await ctx.db.patch(shop._id, { dailySpecial: { offerRef: args.offerRef, day } })
+    await closeDailySpecialStory(ctx, shop, now)
+    await ctx.db.patch(shop._id, { dailySpecial: { offerRef: args.offerRef, day }, dailySpecialRevision: (shop.dailySpecialRevision ?? 0) + 1 })
     return { changed: true }
   },
 })

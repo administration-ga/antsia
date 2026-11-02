@@ -456,6 +456,7 @@ import type * as modules_shops_shops from "../modules/shops/shops.js";
 import type * as modules_shops_storefrontTerms from "../modules/shops/storefrontTerms.js";
 import type * as modules_shops_tables from "../modules/shops/tables.js";
 import type * as modules_shops_validators from "../modules/shops/validators.js";
+import type * as modules_stories_dailySpecialSource from "../modules/stories/dailySpecialSource.js";
 import type * as modules_stories_stories from "../modules/stories/stories.js";
 import type * as modules_stories_tables from "../modules/stories/tables.js";
 import type * as modules_suggestions_suggestions from "../modules/suggestions/suggestions.js";
@@ -928,6 +929,7 @@ declare const fullApi: ApiFromModules<{
   "modules/shops/storefrontTerms": typeof modules_shops_storefrontTerms;
   "modules/shops/tables": typeof modules_shops_tables;
   "modules/shops/validators": typeof modules_shops_validators;
+  "modules/stories/dailySpecialSource": typeof modules_stories_dailySpecialSource;
   "modules/stories/stories": typeof modules_stories_stories;
   "modules/stories/tables": typeof modules_stories_tables;
   "modules/suggestions/suggestions": typeof modules_suggestions_suggestions;
