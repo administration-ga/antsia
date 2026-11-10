@@ -4,7 +4,7 @@
  * aucun propriétaire personnel ; son créateur n'est qu'une trace d'audit.
  * L'invitation et la réponse sont LA MÊME ligne de participation.
  */
-import { PERSONAL_EVENT_PARTICIPATION_STATUSES, PERSONAL_EVENT_STATUSES } from "@antsia/social-domain/events"
+import { PAGE_EVENT_CANCELLATION_REASONS, PERSONAL_EVENT_PARTICIPATION_STATUSES, PERSONAL_EVENT_STATUSES } from "@antsia/social-domain/events"
 import { defineTable } from "convex/server"
 import { v } from "convex/values"
 
@@ -12,6 +12,8 @@ import { literals } from "../../lib/validators"
 
 export const eventStatusValidator = literals(PERSONAL_EVENT_STATUSES)
 export const eventParticipationStatusValidator = literals(PERSONAL_EVENT_PARTICIPATION_STATUSES)
+/** EV-03 : motif d'annulation d'un événement de page, liste fermée (aucun texte libre). */
+export const pageEventCancellationReasonValidator = literals(PAGE_EVENT_CANCELLATION_REASONS)
 
 export const eventsTables = {
   events: defineTable({
@@ -37,6 +39,8 @@ export const eventsTables = {
     timeZone: v.string(),
     status: eventStatusValidator,
     cancelledAt: v.optional(v.number()),
+    /** EV-03 : motif d'annulation d'un événement de PAGE, facultatif ; lu sur la fiche, jamais recopié dans un avis. */
+    pageCancellationReason: v.optional(pageEventCancellationReasonValidator),
     /** La publication qui l'annonce : UNE seule (c'est l'idempotence de l'annonce). */
     announcePostId: v.optional(v.id("posts")),
     idempotencyKey: v.string(),

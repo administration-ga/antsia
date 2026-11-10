@@ -2,9 +2,13 @@ import { describe, expect, it } from "vitest"
 
 import { createAppI18n } from "../../i18n"
 import {
+  AVATAR_UPLOAD_MAX_DIMENSION,
   IMAGE_UPLOAD_MAX_DIMENSION,
   IMAGE_UPLOAD_QUALITY,
+  cropWithinSource,
   fitWithin,
+  heifOutputName,
+  imagePreparationPlan,
   imagePreparationRefusalText,
   imagePreparationSummary,
   imageUploadPlan,
@@ -75,7 +79,7 @@ describe("image-preparation — dimensions de sortie", () => {
 
 describe("image-preparation — ce que l'écran dit", () => {
   it("chaque refus a sa phrase, en français et en anglais, qui nomme le fichier", () => {
-    const refusals: ImagePreparationRefusal[] = ["unsupported-type", "unreadable", "canvas-unavailable", "encoder-failed", "metadata-remaining"]
+    const refusals: ImagePreparationRefusal[] = ["unsupported-type", "unreadable", "canvas-unavailable", "encoder-failed", "metadata-remaining", "not-croppable"]
     for (const refusal of refusals) {
       const fr = imagePreparationRefusalText(refusal, "photo.jpg", t)
       const en = imagePreparationRefusalText(refusal, "photo.jpg", tEn)
@@ -101,5 +105,85 @@ describe("image-preparation — ce que l'écran dit", () => {
     expect(plain(imagePreparationSummary({ count: 1, originalBytes: 2048, preparedBytes: 1024 }, "en", tEn))).toBe(
       "Photo ready to send: 2 kB → 1 kB, without its hidden information (location, device).",
     )
+  })
+})
+
+describe("image-preparation — les options d'un écran (PF-03), qui ne desserrent rien", () => {
+  const crop = { sourceWidth: 4032, sourceHeight: 3024, x: 504, y: 0, width: 3024, height: 3024 }
+
+  it("sans option, le plan est exactement celui du lot SD-02", () => {
+    for (const type of ["image/jpeg", "image/png", "image/webp", "image/gif", "image/heic", "video/mp4"]) {
+      expect(imagePreparationPlan(type)).toEqual(imageUploadPlan(type))
+    }
+  })
+
+  it("une image ronde est bornée à 1 024 px : un PNG RGBA de cette taille tient sous les 5 Mio de l'usage avatar", () => {
+    expect(AVATAR_UPLOAD_MAX_DIMENSION).toBe(1024)
+    expect(AVATAR_UPLOAD_MAX_DIMENSION * AVATAR_UPLOAD_MAX_DIMENSION * 4 + AVATAR_UPLOAD_MAX_DIMENSION).toBeLessThan(5 * 1024 * 1024)
+    expect(imagePreparationPlan("image/png", { maxDimension: AVATAR_UPLOAD_MAX_DIMENSION })).toEqual({
+      action: "reencode",
+      plan: { targetType: "image/png", maxDimension: 1024, quality: IMAGE_UPLOAD_QUALITY },
+    })
+  })
+
+  it("une borne demandée au-delà de 2 048 px, ou invalide, reste à 2 048 px", () => {
+    for (const maxDimension of [4096, Number.POSITIVE_INFINITY, Number.NaN]) {
+      const plan = imagePreparationPlan("image/jpeg", { maxDimension })
+      expect(plan.action === "reencode" && plan.plan.maxDimension).toBe(IMAGE_UPLOAD_MAX_DIMENSION)
+    }
+  })
+
+  it("le recadrage voyage dans le plan d'une photo fixe", () => {
+    expect(imagePreparationPlan("image/jpeg", { crop, maxDimension: 1024 })).toEqual({
+      action: "reencode",
+      plan: { targetType: "image/jpeg", maxDimension: 1024, quality: IMAGE_UPLOAD_QUALITY, crop },
+    })
+  })
+
+  it("un GIF ne se recadre pas : refusé, jamais aplati en silence", () => {
+    expect(imagePreparationPlan("image/gif", { crop })).toEqual({ action: "refuse", refusal: "not-croppable" })
+    expect(imagePreparationPlan("image/gif")).toEqual({ action: "strip-animated" })
+  })
+
+  it("HEIC et HEIF : convertis en JPEG seulement si l'écran le demande, sinon refusés comme avant", () => {
+    for (const type of ["image/heic", "image/heif"]) {
+      expect(imagePreparationPlan(type)).toEqual({ action: "refuse", refusal: "unsupported-type" })
+      expect(imagePreparationPlan(type, { convertHeif: true })).toEqual({
+        action: "reencode",
+        plan: { targetType: "image/jpeg", maxDimension: IMAGE_UPLOAD_MAX_DIMENSION, quality: IMAGE_UPLOAD_QUALITY },
+      })
+    }
+    expect(imagePreparationPlan("image/svg+xml", { convertHeif: true })).toEqual({ action: "refuse", refusal: "unsupported-type" })
+  })
+
+  it("une photo HEIC rendue en JPEG prend l'extension .jpg", () => {
+    expect(heifOutputName("IMG_0042.HEIC")).toBe("IMG_0042.jpg")
+    expect(heifOutputName("souvenir.heif")).toBe("souvenir.jpg")
+    expect(heifOutputName(".heic")).toBe("photo.jpg")
+  })
+})
+
+describe("image-preparation — le recadrage vérifié contre l'image décodée", () => {
+  it("une région calculée sur cette image est gardée telle quelle", () => {
+    const crop = { sourceWidth: 1200, sourceHeight: 800, x: 200, y: 0, width: 800, height: 800 }
+    expect(cropWithinSource(crop, 1200, 800)).toEqual(crop)
+  })
+
+  it("une région qui déborde est ramenée dans l'image", () => {
+    expect(cropWithinSource({ sourceWidth: 1200, sourceHeight: 800, x: -10, y: 700, width: 600, height: 300 }, 1200, 800)).toEqual({
+      sourceWidth: 1200,
+      sourceHeight: 800,
+      x: 0,
+      y: 700,
+      width: 600,
+      height: 100,
+    })
+  })
+
+  it("refuse une région calculée sur une AUTRE image, invalide ou plus petite qu'un pixel", () => {
+    expect(cropWithinSource({ sourceWidth: 800, sourceHeight: 1200, x: 0, y: 0, width: 800, height: 800 }, 1200, 800)).toBeNull()
+    expect(cropWithinSource({ sourceWidth: 1200, sourceHeight: 800, x: Number.NaN, y: 0, width: 800, height: 800 }, 1200, 800)).toBeNull()
+    expect(cropWithinSource({ sourceWidth: 1200, sourceHeight: 800, x: 1200, y: 0, width: 800, height: 800 }, 1200, 800)).toBeNull()
+    expect(cropWithinSource({ sourceWidth: 1200, sourceHeight: 800, x: 0, y: 0, width: 0.5, height: 800 }, 1200, 800)).toBeNull()
   })
 })

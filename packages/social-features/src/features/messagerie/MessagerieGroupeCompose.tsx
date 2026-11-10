@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/messagerie/MessagerieGroupeCompose.tsx @ ad2e7fdc2 — adaptations : relations éligibles par `groups.invites.listMyConnectionsForGroup` (réseau courant, personnes du moteur) ; création par `groups.threads.createGroup` (photo déclarée avec son type, `avatarMimeType`) ; photo déposée par `groups.threads.generateGroupAvatarUploadUrl` au lieu de `reseauPersonnel.media.generateUploadUrl` ; refus d'une photo par `refusPhotoDeGroupe` (plus de remplacement de texte dans le refus de photo de profil) ; refus serveur traduit (`messageErreurLisible(err, t)`) et raison de sélection traduite (`validerSelection(selection, t)`) ; liste des relations mémorisée (avertissement de dépendances) ; textes traduits (i18n `messagerie`, clés `messagerieGroupeCompose.…`) ; « agents » devient « personnes du réseau » ; feuille de style sortie du JSX dans une constante de module (`MSG_GROUPE_COMPOSE_CSS`) — un littéral enfant de `<style>` passerait pour une chaîne d'interface — règles inchangées ; aplats d'identité et leur texte selon les chartes (`--esp-identity-fill`, `--primary-fill-on`, pastille tonale des états actifs ; ADR-0027), facture d'origine en repli.
+// Dupliqué de socle/packages/agent-features/src/features/messagerie/MessagerieGroupeCompose.tsx @ ad2e7fdc2 — adaptations : relations éligibles par `groups.invites.listMyConnectionsForGroup` (réseau courant, personnes du moteur) ; création par `groups.threads.createGroup` (photo déclarée avec son type, `avatarMimeType`) ; photo déposée par `groups.threads.generateGroupAvatarUploadUrl` au lieu de `reseauPersonnel.media.generateUploadUrl` ; refus d'une photo par `refusPhotoDeGroupe` (plus de remplacement de texte dans le refus de photo de profil) ; refus serveur traduit (`messageErreurLisible(err, t)`) et raison de sélection traduite (`validerSelection(selection, t)`) ; liste des relations mémorisée (avertissement de dépendances) ; textes traduits (i18n `messagerie`, clés `messagerieGroupeCompose.…`) ; « agents » devient « personnes du réseau » ; feuille de style sortie du JSX dans une constante de module (`MSG_GROUPE_COMPOSE_CSS`) — un littéral enfant de `<style>` passerait pour une chaîne d'interface — règles inchangées ; aplats d'identité et leur texte selon les chartes (`--esp-identity-fill`, `--primary-fill-on`, pastille tonale des états actifs ; ADR-0027), facture d'origine en repli ; PF-03 : la photo choisie passe par la préparation des photos (`preparerPhotoDeGroupe` : ré-encodée, 1 024 px au plus, sans métadonnées, échec fermé) — seule l'image préparée est montrée, déposée et déclarée ; la création attend la fin de la préparation.
 "use client"
 
 /**
@@ -41,6 +41,7 @@ import {
 } from "lucide-react"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
+import { isPreparedImage } from "../media-upload"
 import { Avatar } from "../reseau-personnel/Avatar"
 import { dockStore } from "./dock-store"
 import {
@@ -50,7 +51,7 @@ import {
 	GROUPE_TITRE_MAX,
 	peutContinuer,
 	peutEnvoyer,
-	refusPhotoDeGroupe,
+	preparerPhotoDeGroupe,
 	toggleSelection,
 	validerSelection,
 } from "./groupe-composeur"
@@ -378,6 +379,7 @@ export function MessagerieGroupeCompose({
 	const [titreTouche, setTitreTouche] = useState(false)
 	const [photoFichier, setPhotoFichier] = useState<File | null>(null)
 	const [photoApercu, setPhotoApercu] = useState<string | null>(null)
+	const [photoEnPreparation, setPhotoEnPreparation] = useState(false)
 	const [avatarStorageId, setAvatarStorageId] =
 		useState<Id<"_storage"> | null>(null)
 	const [recherche, setRecherche] = useState("")
@@ -438,7 +440,7 @@ export function MessagerieGroupeCompose({
 	}, [selection, toutes])
 	const verdict = validerSelection(selection, t)
 	const pretAContinuer = peutContinuer(selection)
-	const pretAEnvoyer = peutEnvoyer(titre, selection) && !creation
+	const pretAEnvoyer = peutEnvoyer(titre, selection) && !creation && !photoEnPreparation
 	const titreInvalide = titreTouche && titre.trim().length === 0
 	// Le geste redescend chez la POSE, seule à savoir où elle est.
 	const repliable = isRepliablePose(variant) && onToggleOpen !== undefined
@@ -454,16 +456,19 @@ export function MessagerieGroupeCompose({
 		setEtape("identite")
 	}
 
-	function choisirPhoto(file: File | null): void {
+	async function choisirPhoto(file: File | null): Promise<void> {
 		setErreur(null)
 		if (file === null) return
-		const refus = refusPhotoDeGroupe(file, t)
-		if (refus !== null) {
-			setErreur(refus)
+		// PF-03 : seule l'image PRÉPARÉE (sans métadonnées) est gardée.
+		setPhotoEnPreparation(true)
+		const preparation = await preparerPhotoDeGroupe(file, t)
+		setPhotoEnPreparation(false)
+		if (!preparation.ok) {
+			setErreur(preparation.refus)
 			if (photoRef.current !== null) photoRef.current.value = ""
 			return
 		}
-		setPhotoFichier(file)
+		setPhotoFichier(preparation.file)
 		setAvatarStorageId(null)
 	}
 
@@ -476,6 +481,7 @@ export function MessagerieGroupeCompose({
 	async function televerserPhoto(): Promise<Id<"_storage"> | undefined> {
 		if (photoFichier === null) return undefined
 		if (avatarStorageId !== null) return avatarStorageId
+		if (!isPreparedImage(photoFichier)) throw new EchecDepotPhoto()
 
 		const uploadUrl = await generateUploadUrl.mutateAsync({ networkId })
 		const response = await fetch(uploadUrl, {
@@ -739,7 +745,7 @@ export function MessagerieGroupeCompose({
 										accept={GROUPE_PHOTO_ACCEPT}
 										hidden
 										onChange={(event) =>
-											choisirPhoto(event.currentTarget.files?.[0] ?? null)
+											void choisirPhoto(event.currentTarget.files?.[0] ?? null)
 										}
 									/>
 									<button

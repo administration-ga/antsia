@@ -234,7 +234,8 @@ describe("les sept thèmes d'antsia.ga (ADR-0027)", () => {
       ["../../../social-features/src/shell/ReseauMenuRail.tsx", 'background: "var(--role-react-fill, var(--primary-50))"', 1],
       ["../../../social-features/src/shell/ReseauDesktopIcomLink.tsx", 'background: "var(--role-react-fill, var(--danger-fill))"', 1],
       ["../../../social-features/src/features/messagerie/messagerie-styles.tsx", "background: var(--role-react-soft, var(--primary-50));", 2],
-      ["../../../social-features/src/features/messagerie/messagerie-styles.tsx", "background: var(--role-react-fill, var(--danger-fill));", 2],
+      // Trois sites : les deux pastilles de décompte, et le point « non écouté » d'un message vocal (IC-02).
+      ["../../../social-features/src/features/messagerie/messagerie-styles.tsx", "background: var(--role-react-fill, var(--danger-fill));", 3],
     ]
     for (const [path, expression, count] of REACT_SITES) expect(read(path).split(expression).length - 1, `${path} : ${expression}`).toBe(count)
   })

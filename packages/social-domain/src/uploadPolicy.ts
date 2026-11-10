@@ -14,7 +14,7 @@
  * à l'usage. Ajouter une surface = ajouter une entrée, pas élargir une entrée.
  * Les écrans lisent ce registre pour refuser AVANT le dépôt (même borne).
  */
-import { AVATAR_MAX_BYTES, AVATAR_MIME_TYPES, POST_IMAGE_MAX_BYTES, POST_IMAGE_MIME_TYPES, POST_VIDEO_MAX_BYTES, POST_VIDEO_MIME_TYPES } from "./content"
+import { AVATAR_MAX_BYTES, AVATAR_MIME_TYPES, POST_IMAGE_MAX_BYTES, POST_IMAGE_MIME_TYPES, POST_VIDEO_MAX_BYTES, POST_VIDEO_UPLOAD_MIME_TYPES } from "./content"
 import { STORY_VIDEO_MAX_BYTES, STORY_VIDEO_MIME_TYPES } from "./stories"
 import { DomainViolation, megabytes } from "./violation"
 
@@ -52,8 +52,8 @@ export type UploadUsageSpec = {
  * appliquée ensuite par le domaine (`assertPostMedia`, `assertStoryMedia`).
  */
 export const UPLOAD_USAGES = {
-  /** Média d'une publication (images, GIF, vidéos). */
-  media_social: { mimeTypes: [...POST_IMAGE_MIME_TYPES, ...POST_VIDEO_MIME_TYPES], maxBytes: Math.max(POST_IMAGE_MAX_BYTES, POST_VIDEO_MAX_BYTES) },
+  /** Média d'une publication (images, GIF, vidéos MP4/WebM — SD-03 : plus de .mov à l'envoi). */
+  media_social: { mimeTypes: [...POST_IMAGE_MIME_TYPES, ...POST_VIDEO_UPLOAD_MIME_TYPES], maxBytes: Math.max(POST_IMAGE_MAX_BYTES, POST_VIDEO_MAX_BYTES) },
   /** Photo de profil, avatar de groupe. */
   avatar: { mimeTypes: AVATAR_MIME_TYPES, maxBytes: AVATAR_MAX_BYTES },
   /** Image de couverture d'un profil, d'un groupe ou d'un évènement. */

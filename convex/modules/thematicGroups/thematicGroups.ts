@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/modules/reseauPersonnel/groupesThematiques.ts @ ad2e7fdc2 — adaptations : groupes PAR RÉSEAU (le groupe appartient au réseau de la fonction appelée), adhésion par le constructeur au lieu d'`assertNotSuspended`, « ressortissants » (`isPublicUser`) sans objet ; libellés → codes (`notFound`, `groupMembershipRequired`, `groupRoleRequired`, règle `GROUP_OWNER_CANNOT_LEAVE`) ; `memberCount` dans l'agrégat `engineCounters` (D02) ; découverte indexée et filtrée par réseau (D17) ; `listMembers` et `myInvites` paginées, `myGroups` bornée par activité récente avec sa lacune, vivier d'invitation borné avec sa lacune et jugé personne par personne (D19) ; mur du groupe à CURSEUR COMPOSITE (le socle repartait d'un instant, ex æquo perdus) ; invitation par la cloche du moteur (sujet groupe thématique) et résolution serveur ; cascade de suppression bornée qui purge blob ET ligne d'analyse (D10), décompte les agrégats, et nettoie réactions, fragments, commentaires, marques et signalements ; débit sur chaque geste (D14) ; pays facultatif du groupe et découverte par pays (ses groupes et ceux de tout le réseau, demande DIASPORALE EXF-DG-24) ; groupe d'adhérents d'une PAGE d'association (`associationPageId`, EXF-DG-26 : posé à la création par un administrateur vivant de la page, dans son réseau ; carte de la page sur la fiche ; découverte des groupes d'une page).
+// Dupliqué de socle/convex/modules/reseauPersonnel/groupesThematiques.ts @ ad2e7fdc2 — adaptations : groupes PAR RÉSEAU (le groupe appartient au réseau de la fonction appelée), adhésion par le constructeur au lieu d'`assertNotSuspended`, « ressortissants » (`isPublicUser`) sans objet ; libellés → codes (`notFound`, `groupMembershipRequired`, `groupRoleRequired`, règle `GROUP_OWNER_CANNOT_LEAVE`) ; `memberCount` dans l'agrégat `engineCounters` (D02) ; découverte indexée et filtrée par réseau (D17) ; `listMembers` et `myInvites` paginées, `myGroups` bornée par activité récente avec sa lacune, vivier d'invitation borné avec sa lacune et jugé personne par personne (D19) ; mur du groupe à CURSEUR COMPOSITE (le socle repartait d'un instant, ex æquo perdus) ; invitation par la cloche du moteur (sujet groupe thématique) et résolution serveur ; cascade de suppression bornée qui purge blob ET ligne d'analyse (D10), décompte les agrégats, et nettoie réactions, fragments, commentaires, marques et signalements ; débit sur chaque geste (D14) ; pays facultatif du groupe et découverte par pays (ses groupes et ceux de tout le réseau, demande DIASPORALE EXF-DG-24) ; groupe d'adhérents d'une PAGE d'association (`associationPageId`, EXF-DG-26 : posé à la création par un administrateur vivant de la page, dans son réseau ; carte de la page sur la fiche ; découverte des groupes d'une page) ; gestion par le propriétaire (PG-02) : règles versionnées (`setGroupRules`) acceptées à l'entrée (`join`, `respondInvite`) ou après un changement (`acceptGroupRules`), transfert de propriété vers un modérateur éligible (`transferGroupOwnership`, `listTransferCandidates`), fiche qui dit les règles en vigueur et ce que le lecteur peut gérer.
 /**
  * GROUPES THÉMATIQUES d'un réseau — des lieux de PUBLICATION, pas une
  * messagerie, pas un canal d'organisation.
@@ -18,10 +18,15 @@ import {
   assertCanLeaveThematicGroup,
   assertThematicGroupDescription,
   assertThematicGroupName,
+  assertThematicGroupRules,
+  assertThematicGroupRulesAccepted,
   canRemoveThematicGroupMember,
   canSetThematicGroupRole,
+  canTransferThematicGroupOwnership,
   isThematicGroupModerator,
+  nextThematicGroupRulesVersion,
   type ThematicGroupRole,
+  thematicGroupRulesVersionInForce,
 } from "@antsia/social-domain/thematicGroups"
 import { assertCountryCode, groupViewingReasonFor } from "@antsia/social-domain/content"
 import type { PersonalFeedCursor } from "@antsia/social-domain/feedScale"
@@ -33,14 +38,15 @@ import { type Infer, v } from "convex/values"
 import { internal } from "../../_generated/api"
 import type { Doc, Id } from "../../_generated/dataModel"
 import { internalMutation, type MutationCtx, type QueryCtx } from "../../_generated/server"
-import { checked, fail, notFound } from "../../lib/errors"
+import { memberHasStatus } from "../../lib/access"
+import { checked, fail, failRule, notFound } from "../../lib/errors"
 import { networkMutation, networkQuery } from "../../lib/functions"
 import { enforceRateLimit } from "../../lib/rateLimit"
 import { createAssociationGroupForPage } from "../diaspora/associationGroups"
 import { purgeStoredFile } from "../files/purge"
 import { acceptedCounterpartIds, blockedCounterpartIds, isBlockedBetween, isConnectedTo } from "../graph/graph"
 import { hiddenPostIds, readerMarks } from "../marks/marks"
-import { contentState } from "../moderation/policy"
+import { assertSocialWriteAllowed, contentState } from "../moderation/policy"
 import { notifyPerson, resolveNotifications } from "../notifications/notify"
 import { findPublishedPersonByHandle, miniProfileCache, type PersonMiniProfile } from "../people/miniProfile"
 import { pageCardOf } from "../pages/access"
@@ -78,6 +84,8 @@ const INVITES_SCAN = 50
 const INVITE_CANDIDATES_MAX = 200
 /** Une passe de suppression reste très sous les limites transactionnelles. */
 const DELETE_BATCH = 50
+/** Modérateurs lus pour le transfert de propriété, au plus ; au-delà, la lacune se dit. */
+const TRANSFER_CANDIDATES_MAX = 50
 
 const readerOf = (ctx: { person: Doc<"persons">; network: Doc<"networks"> }): ReaderContext => ({ personId: ctx.person._id, network: ctx.network })
 
@@ -87,21 +95,34 @@ async function groupInNetwork(ctx: ReadCtx, networkId: Id<"networks">, groupId: 
   return group && group.networkId === networkId && group.deletingAt === undefined ? group : null
 }
 
-/** Une ligne d'appartenance vivante (créée, ou reprise en simple membre), comptée. */
-async function admitMember(ctx: MutationCtx, group: Doc<"thematicGroups">, personId: Id<"persons">, now: number): Promise<void> {
+/**
+ * Une ligne d'appartenance vivante (créée, ou reprise en simple membre), comptée.
+ * `acceptedRulesVersion` : la version des règles acceptée en entrant (PG-02),
+ * déjà vérifiée par l'appelant ; absente, la ligne n'en garde aucune.
+ */
+async function admitMember(ctx: MutationCtx, group: Doc<"thematicGroups">, personId: Id<"persons">, now: number, acceptedRulesVersion?: number): Promise<void> {
   if (group.associationPageId !== undefined && (await associationGroupRoleOrNull(ctx, group, personId)) === null) return notFound()
   const existing = await ctx.db
     .query("thematicGroupMembers")
     .withIndex("by_group_and_person", (q) => q.eq("groupId", group._id).eq("personId", personId))
     .unique()
   if (existing && existing.leftAt === undefined) return
+  const acceptance = acceptedRulesVersion === undefined ? { acceptedRulesVersion: undefined, acceptedRulesAt: undefined } : { acceptedRulesVersion, acceptedRulesAt: now }
   let membershipId: Id<"thematicGroupMembers">
   if (existing) {
-    // Un rôle ne survit pas au départ : la ré-adhésion reprend la ligne en simple membre.
-    await ctx.db.patch(existing._id, { role: "member", joinedAt: now, leftAt: undefined })
+    // Un rôle ne survit pas au départ : la ré-adhésion reprend la ligne en simple membre,
+    // avec l'acceptation de CETTE entrée (jamais celle d'un passage précédent).
+    await ctx.db.patch(existing._id, { role: "member", joinedAt: now, leftAt: undefined, ...acceptance })
     membershipId = existing._id
   } else {
-    membershipId = await ctx.db.insert("thematicGroupMembers", { networkId: group.networkId, groupId: group._id, personId, role: "member", joinedAt: now })
+    membershipId = await ctx.db.insert("thematicGroupMembers", {
+      networkId: group.networkId,
+      groupId: group._id,
+      personId,
+      role: "member",
+      joinedAt: now,
+      ...(acceptedRulesVersion === undefined ? {} : { acceptedRulesVersion, acceptedRulesAt: now }),
+    })
   }
   await recordGroupMember(ctx, { _id: membershipId, groupId: group._id })
   await ctx.db.patch(group._id, { updatedAt: now })
@@ -167,19 +188,36 @@ export const create = networkMutation({
 })
 
 /**
- * Rejoindre — l'adhésion est LIBRE. Idempotent. Adhérer satisfait une
- * invitation en attente : la cloche ne propose plus d'y répondre.
+ * Entrer dans un groupe : sans règles, l'adhésion reste libre ; avec des
+ * règles, la personne doit avoir accepté CELLES EN VIGUEUR (PG-02 — refus
+ * traduit `GROUP_RULES_NOT_ACCEPTED`, jamais une adhésion silencieuse).
+ * Rend la version acceptée à inscrire sur l'appartenance.
+ */
+function rulesAcceptedOnEntry(group: Doc<"thematicGroups">, acceptedRulesVersion: number | undefined): number | undefined {
+  const inForce = thematicGroupRulesVersionInForce(group)
+  checked(() => assertThematicGroupRulesAccepted({ rulesVersion: inForce, acceptedRulesVersion }))
+  return inForce ?? undefined
+}
+
+/**
+ * Rejoindre — l'adhésion est LIBRE, sous réserve des règles du groupe s'il en
+ * a (`acceptedRulesVersion` : la version lue et acceptée à l'écran ; argument
+ * facultatif, les appelants d'avant les règles restent valides). Idempotent :
+ * un membre vivant n'est pas re-jugé. Adhérer satisfait une invitation en
+ * attente : la cloche ne propose plus d'y répondre.
  */
 export const join = networkMutation({
   minStatus: "declaree",
-  args: { groupId: v.id("thematicGroups") },
+  args: { groupId: v.id("thematicGroups"), acceptedRulesVersion: v.optional(v.number()) },
   returns: v.object({ joined: v.literal(true) }),
   handler: async (ctx, args) => {
     await enforceRateLimit(ctx, "group.join", ctx.person._id)
     const group = await groupInNetwork(ctx, ctx.networkId, args.groupId)
     if (!group || !isActiveThematicGroup(group)) return notFound()
     const now = Date.now()
-    await admitMember(ctx, group, ctx.person._id, now)
+    if (!(await liveThematicGroupMembership(ctx, group._id, ctx.person._id))) {
+      await admitMember(ctx, group, ctx.person._id, now, rulesAcceptedOnEntry(group, args.acceptedRulesVersion))
+    }
     await resolveNotifications(ctx, {
       networkId: ctx.networkId,
       recipientPersonId: ctx.person._id,
@@ -192,7 +230,7 @@ export const join = networkMutation({
   },
 })
 
-/** Quitter. Idempotent. L'`owner` ne part pas (il ferme, archive ou supprime). */
+/** Quitter. Idempotent. L'`owner` ne part pas (il transmet son rôle, ferme, archive ou supprime). */
 export const leave = networkMutation({
   writeBucket: "group.leave",
   minStatus: "en_attente",
@@ -379,7 +417,9 @@ export const deleteGroup = networkMutation({
     // DG-010 V1 : fermeture non destructive ; la ligne garde l'unicité par association.
     if (existing.associationPageId !== undefined) return notFound()
     if (existing.deletingAt !== undefined) {
-      return existing.createdByPersonId === ctx.person._id ? { deleted: true as const, pending: true } : notFound()
+      // Le rejeu revient au créateur ou au propriétaire du moment (après un transfert, PG-02).
+      const replayedByOwner = existing.createdByPersonId === ctx.person._id || (await liveThematicGroupMembership(ctx, existing._id, ctx.person._id))?.role === "owner"
+      return replayedByOwner ? { deleted: true as const, pending: true } : notFound()
     }
     const group = await requireOwner(ctx, ctx.networkId, args.groupId, ctx.person._id)
     const now = Date.now()
@@ -387,6 +427,149 @@ export const deleteGroup = networkMutation({
     const closing = { ...group, deletingAt: now }
     const result = await deleteCascadeBatch(ctx, closing, "posts")
     return { deleted: true as const, pending: !result.done }
+  },
+})
+
+// ═══════════════════════════════════════════════════════════════
+// Règles et propriété (owner, PG-02)
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Le propriétaire d'un groupe ACTIF, hors groupe d'adhérents d'une page : les
+ * règles et la propriété d'un groupe d'association se décident dans la page
+ * (comme ses rôles, `setMemberRole`). Groupe fermé ou archivé : refus
+ * indistinct, comme tout acte de rôle sur un groupe gelé.
+ */
+async function requireActiveOwner(ctx: ReadCtx, networkId: Id<"networks">, groupId: Id<"thematicGroups">, personId: Id<"persons">) {
+  const { group, membership } = await requireLiveThematicGroupMembership(ctx, networkId, groupId, personId)
+  if (group.associationPageId !== undefined || membership.role !== "owner") return fail("groupRoleRequired")
+  return { group, membership }
+}
+
+/**
+ * La personne peut-elle DEVENIR propriétaire ? Membre du réseau au statut des
+ * gestes de propriétaire (`declaree`), sans sanction qui l'empêche d'écrire
+ * dans ce réseau, ni effacée ni en instance d'effacement, sans blocage avec le
+ * propriétaire actuel. Une seule réponse pour tous les manquements.
+ */
+async function canBecomeGroupOwner(ctx: ReadCtx, networkId: Id<"networks">, ownerPersonId: Id<"persons">, targetPersonId: Id<"persons">): Promise<boolean> {
+  const person = await ctx.db.get(targetPersonId)
+  if (!person || person.erasedAt !== undefined || person.deletionRequestedAt !== undefined) return false
+  if (!(await memberHasStatus(ctx, networkId, targetPersonId, "declaree"))) return false
+  try {
+    await assertSocialWriteAllowed(ctx, networkId, targetPersonId)
+  } catch {
+    return false
+  }
+  return !(await isBlockedBetween(ctx, ownerPersonId, targetPersonId))
+}
+
+/**
+ * Poser, modifier ou retirer les RÈGLES du groupe — le propriétaire seul.
+ * Texte borné (même garde que la description : la borne du domaine, sous les
+ * gardes d'écriture du réseau). Chaque changement émet une version nouvelle ;
+ * un texte identique n'en émet aucune. L'auteur accepte d'office la version
+ * qu'il pose. Les membres actuels RESTENT membres : la fiche leur montre la
+ * version nouvelle jusqu'à ce qu'ils l'acceptent (`acceptGroupRules`).
+ */
+export const setGroupRules = networkMutation({
+  minStatus: "declaree",
+  args: { groupId: v.id("thematicGroups"), rules: v.optional(v.string()) },
+  returns: v.object({ rulesVersion: v.union(v.number(), v.null()), changed: v.boolean() }),
+  handler: async (ctx, args) => {
+    await enforceRateLimit(ctx, "group.manage", ctx.person._id)
+    const { group, membership } = await requireActiveOwner(ctx, ctx.networkId, args.groupId, ctx.person._id)
+    const rules = checked(() => assertThematicGroupRules(args.rules))
+    if (rules === group.rules) return { rulesVersion: thematicGroupRulesVersionInForce(group), changed: false }
+    const now = Date.now()
+    const version = nextThematicGroupRulesVersion(group.rulesVersion)
+    await ctx.db.patch(group._id, { rules, rulesVersion: version, rulesUpdatedAt: now, updatedAt: now })
+    if (rules !== undefined) await ctx.db.patch(membership._id, { acceptedRulesVersion: version, acceptedRulesAt: now })
+    return { rulesVersion: rules === undefined ? null : version, changed: true }
+  },
+})
+
+/**
+ * Un MEMBRE accepte la version des règles qu'il a lue — celle en vigueur, et
+ * elle seule (une version périmée est refusée, traduite). Idempotent. Sans
+ * règles en vigueur, rien à accepter.
+ */
+export const acceptGroupRules = networkMutation({
+  minStatus: "declaree",
+  args: { groupId: v.id("thematicGroups"), rulesVersion: v.number() },
+  returns: v.object({ accepted: v.boolean() }),
+  handler: async (ctx, args) => {
+    await enforceRateLimit(ctx, "group.join", ctx.person._id)
+    const { group, membership } = await requireLiveThematicGroupMembership(ctx, ctx.networkId, args.groupId, ctx.person._id)
+    const inForce = thematicGroupRulesVersionInForce(group)
+    if (inForce === null) return { accepted: false }
+    checked(() => assertThematicGroupRulesAccepted({ rulesVersion: inForce, acceptedRulesVersion: args.rulesVersion }))
+    if (membership.acceptedRulesVersion !== inForce) await ctx.db.patch(membership._id, { acceptedRulesVersion: inForce, acceptedRulesAt: Date.now() })
+    return { accepted: true }
+  },
+})
+
+/**
+ * TRANSMETTRE la propriété — du propriétaire vers un MODÉRATEUR éligible du
+ * groupe (`canBecomeGroupOwner`). L'ancien propriétaire devient modérateur, et
+ * peut alors quitter le groupe. Tout manquement de la cible rend la même règle
+ * (`GROUP_TRANSFER_TARGET_INELIGIBLE`) : ni le blocage, ni la sanction, ni
+ * l'effacement ne se devinent. Le module ne tient pas de journal propre ;
+ * aucune cloche n'est émise ici.
+ */
+export const transferGroupOwnership = networkMutation({
+  minStatus: "declaree",
+  args: { groupId: v.id("thematicGroups"), newOwnerPersonId: v.id("persons") },
+  returns: v.object({ transferred: v.literal(true) }),
+  handler: async (ctx, args) => {
+    await enforceRateLimit(ctx, "group.manage", ctx.person._id)
+    const { group, membership: mine } = await requireActiveOwner(ctx, ctx.networkId, args.groupId, ctx.person._id)
+    const isSelf = args.newOwnerPersonId === ctx.person._id
+    const target = isSelf ? null : await liveThematicGroupMembership(ctx, group._id, args.newOwnerPersonId)
+    const eligible =
+      target !== null &&
+      canTransferThematicGroupOwnership({ actorRole: mine.role, targetRole: target.role, isSelf }) &&
+      (await canBecomeGroupOwner(ctx, ctx.networkId, ctx.person._id, args.newOwnerPersonId))
+    if (!eligible || target === null) return failRule("GROUP_TRANSFER_TARGET_INELIGIBLE")
+    const now = Date.now()
+    await ctx.db.patch(target._id, { role: "owner" })
+    await ctx.db.patch(mine._id, { role: "moderator" })
+    await ctx.db.patch(group._id, { updatedAt: now })
+    return { transferred: true as const }
+  },
+})
+
+const transferCandidateValidator = v.object({
+  personId: v.id("persons"),
+  handle: v.union(v.string(), v.null()),
+  displayName: v.union(v.string(), v.null()),
+  avatarUrl: v.union(v.string(), v.null()),
+})
+
+/**
+ * Les modérateurs à qui le propriétaire PEUT transmettre son rôle — jugés
+ * personne par personne comme le fera `transferGroupOwnership`. Réservé au
+ * propriétaire. Borné (`TRANSFER_CANDIDATES_MAX`), la lacune se dit ; une
+ * ligne lue ici n'est PAS une autorisation : le transfert re-juge tout.
+ */
+export const listTransferCandidates = networkQuery({
+  args: { groupId: v.id("thematicGroups") },
+  returns: v.object({ items: v.array(transferCandidateValidator), truncated: v.boolean() }),
+  handler: async (ctx, args) => {
+    const { group } = await requireActiveOwner(ctx, ctx.networkId, args.groupId, ctx.person._id)
+    const rows = await ctx.db
+      .query("thematicGroupMembers")
+      .withIndex("by_group_role_leftAt", (q) => q.eq("groupId", group._id).eq("role", "moderator").eq("leftAt", undefined))
+      .take(TRANSFER_CANDIDATES_MAX + 1)
+    const profileOf = miniProfileCache(ctx)
+    const items: Infer<typeof transferCandidateValidator>[] = []
+    for (const row of rows.slice(0, TRANSFER_CANDIDATES_MAX)) {
+      if (row.networkId !== group.networkId || !(await canBecomeGroupOwner(ctx, ctx.networkId, ctx.person._id, row.personId))) continue
+      const profile = await profileOf(row.personId)
+      items.push({ personId: row.personId, handle: profile.handle, displayName: profile.displayName, avatarUrl: profile.avatarUrl })
+    }
+    items.sort((a, b) => (a.displayName ?? a.handle ?? "").localeCompare(b.displayName ?? b.handle ?? "", "fr"))
+    return { items, truncated: rows.length > TRANSFER_CANDIDATES_MAX }
   },
 })
 
@@ -488,13 +671,15 @@ export const listInviteCandidates = networkQuery({
 
 /**
  * Répondre à MON invitation — refus indistinct pour la ligne d'autrui, la
- * référence inventée ou la réponse déjà donnée. Accepter rejoint ; décliner
- * n'émet rien. Dans les deux cas, ma cloche se RÉSOUT (toutes ses lignes,
- * quel que soit l'invitant).
+ * référence inventée ou la réponse déjà donnée. Accepter rejoint, sous réserve
+ * des règles du groupe s'il en a (`acceptedRulesVersion`, comme `join` : rien
+ * n'est consommé tant qu'elles ne sont pas acceptées) ; décliner n'émet rien.
+ * Dans les deux cas, ma cloche se RÉSOUT (toutes ses lignes, quel que soit
+ * l'invitant).
  */
 export const respondInvite = networkMutation({
   minStatus: "declaree",
-  args: { inviteId: v.id("thematicGroupInvites"), accept: v.boolean() },
+  args: { inviteId: v.id("thematicGroupInvites"), accept: v.boolean(), acceptedRulesVersion: v.optional(v.number()) },
   returns: v.object({ joined: v.boolean() }),
   handler: async (ctx, args) => {
     await enforceRateLimit(ctx, "group.join", ctx.person._id)
@@ -510,9 +695,11 @@ export const respondInvite = networkMutation({
     }
     const group = await groupInNetwork(ctx, ctx.networkId, pending.groupId)
     if (!group || !isActiveThematicGroup(group)) return notFound()
+    // Déjà membre entre-temps : aucune règle à re-juger, l'invitation se résout seulement.
+    const accepted = (await liveThematicGroupMembership(ctx, group._id, ctx.person._id)) ? undefined : rulesAcceptedOnEntry(group, args.acceptedRulesVersion)
     await ctx.db.patch(pending._id, { status: "accepted", respondedAt: now })
     await settle("accepted")
-    await admitMember(ctx, group, ctx.person._id, now)
+    await admitMember(ctx, group, ctx.person._id, now, accepted)
     return { joined: true }
   },
 })
@@ -522,6 +709,8 @@ export type MyInviteDto = {
   groupId: Id<"thematicGroups">
   groupName: string
   memberCount: number
+  /** La version des règles en vigueur — `null` : aucune règle, l'invitation s'accepte d'un geste (PG-02). */
+  rulesVersion: number | null
   invitedBy: Pick<PersonMiniProfile, "personId" | "displayName" | "handle" | "avatarUrl">
   createdAt: number
 }
@@ -546,6 +735,7 @@ export const paginateMyInvites = networkQuery({
         groupId: row.groupId,
         groupName: group.name,
         memberCount: await countGroupMembers(ctx, group._id),
+        rulesVersion: thematicGroupRulesVersionInForce(group),
         invitedBy: { personId: inviter.personId, displayName: inviter.displayName, handle: inviter.handle, avatarUrl: inviter.avatarUrl },
         createdAt: row.createdAt,
       })
@@ -641,6 +831,8 @@ const groupCardValidator = v.object({
   associationPage: v.union(pageCardValidator, v.null()),
   memberCount: v.number(),
   state: groupStateValidator,
+  /** La version des règles en vigueur — `null` : aucune règle, l'adhésion est libre (PG-02). */
+  rulesVersion: v.union(v.number(), v.null()),
   /** MON rôle — `null` si je n'en suis pas membre vivant. */
   myRole: v.union(v.literal("owner"), v.literal("moderator"), v.literal("member"), v.null()),
   /** Une invitation m'attend sur ce groupe. */
@@ -691,6 +883,7 @@ async function toCard(ctx: QueryCtx, group: Doc<"thematicGroups">, states: Await
     associationPage: await associationPageOf(ctx, group, states.personId),
     memberCount: await countGroupMembers(ctx, group._id),
     state: stateOf(group),
+    rulesVersion: thematicGroupRulesVersionInForce(group),
     myRole: (await liveThematicGroupMembership(ctx, group._id, states.personId))?.role ?? null,
     invited: states.invitedGroups.has(group._id),
     createdAt: group.createdAt,
@@ -780,6 +973,13 @@ export const getGroup = networkQuery({
     /** Mon invitation en attente, s'il y en a une. */
     pendingInviteId: v.union(v.id("thematicGroupInvites"), v.null()),
     pinned: v.union(feedItemValidator, v.null()),
+    /** Les règles en vigueur, lisibles de tout membre du réseau AVANT d'entrer (PG-02) — `null` sans règles. */
+    rules: v.union(v.string(), v.null()),
+    rulesUpdatedAt: v.union(v.number(), v.null()),
+    /** La version que J'AI acceptée — `null` si aucune (ou pas membre). */
+    myAcceptedRulesVersion: v.union(v.number(), v.null()),
+    /** Les outils du propriétaire (règles, transfert, fermer, archiver, supprimer) me sont ouverts — le serveur re-juge chaque geste. */
+    canManage: v.boolean(),
   }),
   handler: async (ctx, args) => {
     const group = await groupInNetwork(ctx, ctx.networkId, args.groupId)
@@ -799,6 +999,7 @@ export const getGroup = networkQuery({
         pinned = await toFeedItem(ctx, post, reader, groupViewingReasonFor({ isAuthor: post.authorPersonId === ctx.person._id }), enrichment(ctx))
       }
     }
+    const rulesVersion = thematicGroupRulesVersionInForce(group)
     return {
       groupId: group._id,
       name: group.name,
@@ -807,11 +1008,16 @@ export const getGroup = networkQuery({
       associationPage: await associationPageOf(ctx, group, ctx.person._id),
       memberCount: await countGroupMembers(ctx, group._id),
       state: stateOf(group),
+      rulesVersion,
       myRole: membership?.role ?? null,
       invited: invitation?.status === "pending",
       createdAt: group.createdAt,
       pendingInviteId: invitation?.status === "pending" ? invitation._id : null,
       pinned,
+      rules: rulesVersion === null ? null : (group.rules ?? null),
+      rulesUpdatedAt: group.rulesUpdatedAt ?? null,
+      myAcceptedRulesVersion: membership?.acceptedRulesVersion ?? null,
+      canManage: membership?.role === "owner" && group.associationPageId === undefined,
     }
   },
 })

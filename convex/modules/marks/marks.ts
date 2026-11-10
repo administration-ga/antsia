@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/modules/reseauPersonnel/marks.ts @ ad2e7fdc2 — adaptations : marques et sourdines PAR RÉSEAU (celui de la fonction appelée), garde d'adhésion par le constructeur ; `myBookmarks`/`myHiddenPosts` (qui levaient au-delà de 50, D18) non recopiées au profit des versions paginées ; `myMutes` paginée (`paginateMyMutes`, D19) ; ensembles du fil (`hiddenPostIds`, `mutedPersonIds`) bornés AVEC leur lacune ; marques du lecteur (`readerMarks`, en tête de `posts.ts` au socle) rangées ici ; débit sur les gestes ; garde de visibilité du moteur (contexte de lecture, blocage) ; une publication de PAGE marquée porte la carte de sa page (son signataire n'en est pas l'auteur affiché).
+// Dupliqué de socle/convex/modules/reseauPersonnel/marks.ts @ ad2e7fdc2 — adaptations : marques et sourdines PAR RÉSEAU (celui de la fonction appelée), garde d'adhésion par le constructeur ; `myBookmarks`/`myHiddenPosts` (qui levaient au-delà de 50, D18) non recopiées au profit des versions paginées ; `myMutes` paginée (`paginateMyMutes`, D19) ; ensembles du fil (`hiddenPostIds`, `mutedPersonIds`) bornés AVEC leur lacune ; marques du lecteur (`readerMarks`, en tête de `posts.ts` au socle) rangées ici ; débit sur les gestes ; garde de visibilité du moteur (contexte de lecture, blocage) ; une publication de PAGE marquée porte la carte de sa page (son signataire n'en est pas l'auteur affiché) ; lecture `isAuthorMuted` de MA sourdine, pour le geste de la fiche (PF-01).
 /**
  * Marques personnelles et mise en sourdine — le menu « … » d'une publication.
  *
@@ -241,6 +241,24 @@ export const unmuteAuthor = networkMutation({
       .unique()
     if (existing) await ctx.db.delete(existing._id)
     return { muted: false as const }
+  },
+})
+
+/**
+ * Ai-je mis cette personne en sourdine dans ce réseau ? — le strict nécessaire au
+ * geste « Mettre en sourdine / Réactiver » de sa fiche (PF-01). Une lecture de MA
+ * marque seulement : elle ne dit rien de la personne visée.
+ */
+export const isAuthorMuted = networkQuery({
+  minStatus: "en_attente",
+  args: { targetPersonId: v.id("persons") },
+  returns: v.boolean(),
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("mutes")
+      .withIndex("by_network_person_muted", (q) => q.eq("networkId", ctx.networkId).eq("personId", ctx.person._id).eq("mutedPersonId", args.targetPersonId))
+      .unique()
+    return existing !== null
   },
 })
 

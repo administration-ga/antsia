@@ -105,10 +105,11 @@ const ACTION_KEY: Readonly<Record<VisibilityActionId, string>> = Object.freeze({
  * profil en place, le second dépublie le profil lui-même.
  *
  * ⚠️ `bloquer` décrit `graph.connections.blockPerson` du moteur (la paire est
- * fermée dans tous les réseaux, sans annonce ; la lever ne rétablit aucune
- * relation). Aucun écran de ce lot ne l'offre encore : l'entrée est là pour que
- * la copie soit écrite UNE fois, pas pour annoncer un bouton. Ne pas la rendre
- * tant que le geste n'est pas offert.
+ * fermée dans tous les réseaux, sans annonce, et les abonnements de la paire
+ * sont retirés dans les deux sens — D1 du plan 05 ; la lever ne rétablit ni
+ * relation ni abonnement). La confirmation du blocage la lit
+ * (`person-block.ts`, `BlockPersonDialog`, PF-01) : c'est la phrase que voit
+ * la personne AVANT de bloquer, où que le geste lui soit offert.
  */
 export function visibilityAction(id: VisibilityActionId, t: TFunction): VisibilityAction {
   const key = ACTION_KEY[id]

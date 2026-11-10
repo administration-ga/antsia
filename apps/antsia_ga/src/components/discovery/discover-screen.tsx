@@ -42,6 +42,8 @@ const CHIP_LINK =
  * Découvrir rangé par piliers (étude des sept univers, § 4 et § 12, lot SU02) : le Business et ses univers OUVERTS
  * seulement, la Vie publique, puis le Divertissement. Un univers sans adresse ni offre réelle n'a pas de tuile
  * (aucune entrée vide, ADR-0034) : les services attendent une offre publiée, l'alimentation une adresse ouverte.
+ * Une fonction fermée n'en a pas non plus (ADR-0035 D04) : les rencontres, fermées faute de preuve de majorité,
+ * ne reviendront ici qu'à leur ouverture effective (décision du propriétaire du 9/11/2026, plan 03, décision 2).
  */
 function DiscoverPillars({ services }: { services: boolean }) {
   const { t } = useTranslation("memberNetwork")
@@ -56,7 +58,6 @@ function DiscoverPillars({ services }: { services: boolean }) {
     { id: "public", label: t("discoverHub.pillars.publicLife"), entries: [{ href: routes.press(), label: t("specializedSpaces:editorialSpace") }] },
     { id: "entertainment", label: t("discoverHub.pillars.entertainment"), entries: [
       { href: routes.clips(), label: t("discoverHub.universes.clips") },
-      { href: routes.personalMeetings(), label: t("personalMeetings:entryLabel") },
     ] },
   ]
   return <nav aria-label={t("discoverHub.pillars.label")} className="grid min-w-0 gap-4">

@@ -137,7 +137,10 @@ describe("registre des usages", () => {
 
   it("les usages des publications, stories et avatars suivent les bornes du domaine (une seule source)", () => {
     expect(UPLOAD_USAGES.media_social.maxBytes).toBe(Math.max(POST_IMAGE_MAX_BYTES, POST_VIDEO_MAX_BYTES))
-    expect(isMimeAllowedForUsage("media_social", "video/quicktime")).toBe(true)
+    // SD-03 : le .mov n'entre plus à l'envoi d'une publication (le composeur le convertit).
+    expect(isMimeAllowedForUsage("media_social", "video/quicktime")).toBe(false)
+    expect(isMimeAllowedForUsage("media_social", "video/mp4")).toBe(true)
+    expect(isMimeAllowedForUsage("media_social", "video/webm")).toBe(true)
     expect(isMimeAllowedForUsage("media_social", "application/pdf")).toBe(false)
     expect(UPLOAD_USAGES.story_media.maxBytes).toBe(STORY_VIDEO_MAX_BYTES)
     expect(isMimeAllowedForUsage("story_media", "video/quicktime")).toBe(false)

@@ -10,6 +10,7 @@ import { FederationPanel } from "./console-federation"
 import { FilesPanel } from "./console-files"
 import { HealthPanel } from "./console-health"
 import { IncidentsPanel } from "./console-incidents"
+import { NetworkRolesPanel } from "./console-network-roles"
 import { OperationDraftProvider } from "./console-operation-controls"
 import { PagesPanel } from "./console-pages"
 import { TeamsPanel } from "./console-teams"
@@ -28,7 +29,8 @@ export function OperationsPanel({ section, networkId, canAdmin, onDirtyChange, o
 
 function OperationSection({ section, networkId, canAdmin }: OperationsPanelProps) {
   switch (section) {
-    case "teams": return networkId ? <TeamsPanel networkId={networkId} /> : null
+    // EX-08 : les responsables du réseau précèdent ses équipes de modération, dans la même section.
+    case "teams": return networkId ? <div className="flex min-w-0 flex-col gap-5"><NetworkRolesPanel networkId={networkId} canAdmin={canAdmin} /><TeamsPanel networkId={networkId} /></div> : null
     case "appeals": return networkId ? <AppealsPanel networkId={networkId} /> : null
     case "federation": return networkId ? <FederationPanel networkId={networkId} canAdmin={canAdmin} /> : null
     case "pages": return networkId ? <PagesPanel networkId={networkId} canAdmin={canAdmin} /> : null

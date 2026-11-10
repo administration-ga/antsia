@@ -1,7 +1,7 @@
 /** PA5 : dossiers polymorphes, compétence vivante, décisions et recours sans copie de contenu. */
 import { assertDecisionReason, type AuditCapacity } from "@antsia/social-domain/audit"
 import { reportOutcome } from "@antsia/social-domain/moderation"
-import { normalizeBlockedTerm, validSanctionDuration } from "@antsia/social-domain/moderationPolicy"
+import { validSanctionDuration } from "@antsia/social-domain/moderationPolicy"
 import { parseCommercePublicBody } from "@antsia/social-domain/commerce/projection"
 import { paginationOptsValidator } from "convex/server"
 import { v } from "convex/values"
@@ -23,6 +23,7 @@ import { editorialMediaReviewSource, editorialReviewSource } from "./editorialRe
 import { acknowledgeReport, legalDeadlineColumns, notifyReporterOfDecision } from "./reporterNotices"
 import { refreshSuspension } from "./sanctions"
 import { contentReportStatusValidator, moderationSurfaceValidator, moderationTargetValidator, sanctionKindValidator } from "./tables"
+import { blockedTermsPage as readBlockedTermsPage, blockedTermsPageValidator, moderationSettings, moderationSettingsValidator, writeBlockedTerm, writeModerationPolicy } from "./settings"
 import { removeTarget, resolveVisibleTarget, restoreTarget } from "./targets"
 
 type ReadCtx = Pick<QueryCtx, "db">
@@ -136,7 +137,7 @@ export const DEADLINE_QUEUE_MAX = 50
 export const myCapacity = networkQuery({
   minStatus: "declaree",
   args: {},
-  returns: v.object({ networkWide: v.boolean(), canReviewAppeals: v.boolean(), teams: v.array(v.object({ teamId: v.id("moderationTeams"), name: v.string(), scope: v.union(moderationSurfaceValidator, v.null()) })) }),
+  returns: v.object({ networkWide: v.boolean(), canReviewAppeals: v.boolean(), canManagePolicy: v.boolean(), teams: v.array(v.object({ teamId: v.id("moderationTeams"), name: v.string(), scope: v.union(moderationSurfaceValidator, v.null()) })) }),
   handler: async (ctx) => {
     const rows = await ctx.db.query("moderationTeams").withIndex("by_network_active", (q) => q.eq("networkId", ctx.networkId).eq("active", true)).take(101)
     if (rows.length > 100) return fail("policyRefused")
@@ -145,7 +146,8 @@ export const myCapacity = networkQuery({
       const member = await ctx.db.query("moderationTeamMembers").withIndex("by_team_person", (q) => q.eq("teamId", team._id).eq("personId", ctx.person._id)).unique()
       if (ctx.membership.role === "network_admin" || member?.active) teams.push({ teamId: team._id, name: team.name, scope: team.scope ?? null })
     }
-    return { networkWide: ctx.membership.role === "network_admin" || ctx.membership.role === "network_moderator", canReviewAppeals: ctx.membership.role === "network_admin", teams }
+    // MC-02 : seul l'administrateur du réseau règle relecture, liens, cadence et mots bloqués.
+    return { networkWide: ctx.membership.role === "network_admin" || ctx.membership.role === "network_moderator", canReviewAppeals: ctx.membership.role === "network_admin", canManagePolicy: ctx.membership.role === "network_admin", teams }
   },
 })
 
@@ -463,18 +465,40 @@ export const pageDecisions = networkQuery({
   },
 })
 
+/**
+ * MC-02 — les réglages de modération du réseau, par surface : le réglage posé, ou `null` quand les défauts
+ * prudents du moteur s'appliquent (`defaults`). Administrateur du réseau seulement ; tout autre lecteur
+ * reçoit le refus indistinct.
+ */
+export const policies = networkQuery({
+  minStatus: "declaree",
+  args: {},
+  returns: moderationSettingsValidator,
+  handler: async (ctx) => {
+    await requireNetworkAdmin(ctx)
+    return await moderationSettings(ctx, ctx.networkId)
+  },
+})
+
+/** MC-02 — les mots bloqués actifs du réseau, par pages de 50 au plus. Administrateur du réseau seulement. */
+export const blockedTermsPage = networkQuery({
+  minStatus: "declaree",
+  args: { paginationOpts: paginationOptsValidator },
+  returns: blockedTermsPageValidator,
+  handler: async (ctx, args) => {
+    await requireNetworkAdmin(ctx)
+    return await readBlockedTermsPage(ctx, ctx.networkId, args.paginationOpts)
+  },
+})
+
 export const setPolicy = networkMutation({
   args: { surface: moderationSurfaceValidator, preReview: v.boolean(), maxLinks: v.number(), maxWrites: v.number(), windowMs: v.number(), reason: v.string() },
   handler: async (ctx, args) => {
     await requireNetworkAdmin(ctx)
     await enforceRateLimit(ctx, "moderation.decide", ctx.person._id)
     const reason = motiveOf(args.reason)
-    if (![args.maxLinks, args.maxWrites, args.windowMs].every(Number.isSafeInteger) || args.maxLinks < 0 || args.maxLinks > 20 || args.maxWrites < 1 || args.maxWrites > 100 || args.windowMs < 1_000 || args.windowMs > 86_400_000) return fail("invalidArgument")
-    const existing = await ctx.db.query("moderationPolicies").withIndex("by_network_surface", (q) => q.eq("networkId", ctx.networkId).eq("surface", args.surface)).unique()
-    const data = { networkId: ctx.networkId, surface: args.surface, preReview: args.preReview, maxLinks: args.maxLinks, maxWrites: args.maxWrites, windowMs: args.windowMs, updatedAt: Date.now() }
-    const policyId = existing ? existing._id : await ctx.db.insert("moderationPolicies", data)
-    if (existing) await ctx.db.patch(existing._id, data)
-    await appendAudit(ctx, { action: "moderation.policy_set", capacity: "network_admin", actorPersonId: ctx.person._id, networkId: ctx.networkId, subject: { table: "moderationPolicies", id: policyId }, details: { reason, surface: args.surface, preReview: args.preReview } })
+    const { policyId, details } = await writeModerationPolicy(ctx, ctx.networkId, args)
+    await appendAudit(ctx, { action: "moderation.policy_set", capacity: "network_admin", actorPersonId: ctx.person._id, networkId: ctx.networkId, subject: { table: "moderationPolicies", id: policyId }, details: { reason, ...details } })
     return { policyId }
   },
 })
@@ -485,14 +509,8 @@ export const setBlockedTerm = networkMutation({
     await requireNetworkAdmin(ctx)
     await enforceRateLimit(ctx, "moderation.decide", ctx.person._id)
     const reason = motiveOf(args.reason)
-    const term = normalizeBlockedTerm(args.term)
-    if (term.length < 2 || term.length > 80) return fail("invalidArgument", { field: "term" })
-    const existing = await ctx.db.query("blockedTerms").withIndex("by_network_term", (q) => q.eq("networkId", ctx.networkId).eq("term", term)).unique()
-    const active = await ctx.db.query("blockedTerms").withIndex("by_network_active", (q) => q.eq("networkId", ctx.networkId).eq("active", true)).take(100)
-    if (args.active && !existing?.active && active.length >= 100) return fail("policyRefused")
-    const termId = existing ? existing._id : await ctx.db.insert("blockedTerms", { networkId: ctx.networkId, term, active: args.active, updatedAt: Date.now() })
-    if (existing) await ctx.db.patch(existing._id, { active: args.active, updatedAt: Date.now() })
-    await appendAudit(ctx, { action: "moderation.term_set", capacity: "network_admin", actorPersonId: ctx.person._id, networkId: ctx.networkId, subject: { table: "blockedTerms", id: termId }, details: { reason, active: args.active } })
+    const { termId, details } = await writeBlockedTerm(ctx, ctx.networkId, args.term, args.active)
+    await appendAudit(ctx, { action: "moderation.term_set", capacity: "network_admin", actorPersonId: ctx.person._id, networkId: ctx.networkId, subject: { table: "blockedTerms", id: termId }, details: { reason, ...details } })
     return { termId }
   },
 })

@@ -548,6 +548,87 @@ describe("médias", () => {
 })
 
 // ═══════════════════════════════════════════════════════════════
+// SD-03 — vidéos lisibles partout et bornées
+// ═══════════════════════════════════════════════════════════════
+
+describe("SD-03 — une vidéo de publication se lit partout et sa durée déclarée est bornée", () => {
+  /** L'en-tête d'un MP4 (`ftyp`) : le harnais ne lit pas les octets, seul le poids compte. */
+  const MP4_HEAD = new Uint8Array([0, 0, 0, 24, 0x66, 0x74, 0x79, 0x70])
+  const video = (storageId: Id<"_storage">, extra: { mimeType?: string; durationMs?: number } = {}) => ({
+    storageId,
+    kind: "video" as const,
+    mimeType: extra.mimeType ?? "video/mp4",
+    sizeBytes: MP4_HEAD.length,
+    ...(extra.durationMs === undefined ? {} : { durationMs: extra.durationMs }),
+  })
+
+  it("un .mov NOUVEAU est refusé par une règle traduite, jamais une erreur brute ; le MP4 part avec sa durée", async () => {
+    const t = testConvex()
+    const { root } = await seed(t)
+    const alice = await enter(t, root, "alice")
+    const mov = await storeBlob(t, MP4_HEAD, "video/quicktime")
+    const refusal = engineErrorRule(
+      await caught(alice.as.mutation(api.modules.posts.posts.publish, { networkId: root, body: "Clip", media: [video(mov, { mimeType: "video/quicktime" })] })),
+    )
+    expect(refusal?.rule).toBe("UPLOAD_TYPE_NOT_ALLOWED")
+    const mp4 = await storeBlob(t, MP4_HEAD, "video/mp4")
+    const { postId } = await alice.as.mutation(api.modules.posts.posts.publish, { networkId: root, body: "Clip", media: [video(mp4, { durationMs: 12_401 })] })
+    expect((await getPost(alice, root, postId)).media).toEqual([{ url: null, withheld: "fileScanPending", kind: "video", mimeType: "video/mp4", durationMs: 12_401 }])
+    const webm = await storeBlob(t, MP4_HEAD, "video/webm")
+    expect((await alice.as.mutation(api.modules.posts.posts.publish, { networkId: root, body: "WebM", media: [video(webm, { mimeType: "video/webm" })] })).created).toBe(true)
+  })
+
+  it("la durée DÉCLARÉE au-delà de cinq minutes est refusée ; la borne passe ; une durée absente passe aussi", async () => {
+    const t = testConvex()
+    const { root } = await seed(t)
+    const alice = await enter(t, root, "alice")
+    const tooLong = await storeBlob(t, MP4_HEAD, "video/mp4")
+    const refusal = engineErrorRule(
+      await caught(alice.as.mutation(api.modules.posts.posts.publish, { networkId: root, body: "Long", media: [video(tooLong, { durationMs: 5 * 60_000 + 1 })] })),
+    )
+    expect(refusal).toEqual({ rule: "POST_VIDEO_TOO_LONG", params: { maxMinutes: 5 } })
+    // Le refus a défait la transaction : le même dépôt reste neuf et passe à la borne exacte.
+    const atBound = await alice.as.mutation(api.modules.posts.posts.publish, { networkId: root, body: "Borne", media: [video(tooLong, { durationMs: 5 * 60_000 })] })
+    expect(atBound.created).toBe(true)
+    // Un front non mis à jour ne déclare aucune durée : la vidéo passe, bornée par son poids relu.
+    const undeclared = await storeBlob(t, MP4_HEAD, "video/mp4")
+    const { postId } = await alice.as.mutation(api.modules.posts.posts.publish, { networkId: root, body: "Sans durée", media: [video(undeclared)] })
+    expect((await getPost(alice, root, postId)).media[0]).not.toHaveProperty("durationMs")
+  })
+
+  it("une publication ANCIENNE en .mov reste servie par sa ligne, et son auteur la modifie encore", async () => {
+    const t = testConvex()
+    const { root } = await seed(t)
+    const alice = await enter(t, root, "alice")
+    const bob = await enter(t, root, "bob")
+    const postId = await t.run(async (ctx) => {
+      const at = Date.now()
+      const storageId = await ctx.storage.store(new Blob([MP4_HEAD as BlobPart], { type: "video/quicktime" }))
+      await ctx.db.insert("fileScans", { storageId, status: "clean", source: "post_media", networkId: root, uploadedByPersonId: alice.personId, attempts: 1, createdAt: at, updatedAt: at })
+      return await ctx.db.insert("posts", {
+        networkId: root,
+        authorPersonId: alice.personId,
+        body: "Vidéo d'avant SD-03",
+        audience: "public",
+        visibility: "network",
+        onRoot: true,
+        status: "published",
+        media: [{ storageId, kind: "video", mimeType: "video/quicktime", sizeBytes: MP4_HEAD.length, durationMs: 9_000 }],
+        searchText: "Vidéo d'avant SD-03",
+        publishedAt: at,
+        createdAt: at,
+        updatedAt: at,
+      })
+    })
+    const [served] = (await getPost(bob, root, postId)).media
+    expect(served).toMatchObject({ kind: "video", mimeType: "video/quicktime", withheld: null, durationMs: 9_000 })
+    expect(served?.url).toBeTruthy()
+    await alice.as.mutation(api.modules.posts.posts.edit, { postId, networkId: root, body: "Vidéo d'avant SD-03, légende corrigée" })
+    expect((await getPost(bob, root, postId)).media[0]?.mimeType).toBe("video/quicktime")
+  })
+})
+
+// ═══════════════════════════════════════════════════════════════
 // Partage
 // ═══════════════════════════════════════════════════════════════
 

@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/messagerie/icom-mobile-tabs.ts @ ad2e7fdc2 — adaptations : adresses composées depuis les bases INJECTÉES (`icomMobileTabHref(id, bases)`, `bases = { home, messages }` tirées de `useRoutes()`) ; le premier emplacement, faute de menu principal d'espace (volets de l'espace agent non repris), REVIENT à l'accueil du réseau (lien vers `home`) au lieu de basculer la barre ; libellés sortis du module — `IcomMobileTab` ne porte plus que `id` et `icon`, les textes viennent de `icomMobileTabText(id, t)` (dérivés des clés du dock, `t` en dernier paramètre) ; phrases des pastilles traduites et pluralisées (`icomMobileBadge(id, counts, t)`).
+// Dupliqué de socle/packages/agent-features/src/features/messagerie/icom-mobile-tabs.ts @ ad2e7fdc2 — adaptations : adresses composées depuis les bases INJECTÉES (`icomMobileTabHref(id, bases)`, `bases = { home, messages }` tirées de `useRoutes()`) ; le premier emplacement, faute de menu principal d'espace (volets de l'espace agent non repris), REVIENT à l'accueil du réseau (lien vers `home`) au lieu de basculer la barre ; libellés sortis du module — `IcomMobileTab` ne porte plus que `id` et `icon`, les textes viennent de `icomMobileTabText(id, t)` (dérivés des clés du dock, `t` en dernier paramètre) ; phrases des pastilles traduites et pluralisées (`icomMobileBadge(id, counts, t)`) ; IC-02 : iAppel porte les messages vocaux non écoutés (`voicemailTabBadge`).
 /**
  * icom-mobile-tabs — la barre basse d'iCom au téléphone (ADR-0079 du socle).
  *
@@ -182,15 +182,34 @@ export interface IcomTabBadge {
 }
 
 /**
+ * IC-02 : la pastille des messages vocaux non écoutés, portée par l'onglet des
+ * appels — barre du téléphone, vues de la page Messages, carte iCom du bureau.
+ */
+export function voicemailTabBadge(
+  unheardVoicemails: number | undefined,
+  t: TFunction,
+): IcomTabBadge | null {
+  const badge = formatUnreadBadge(unheardVoicemails)
+  if (badge === null) return null
+  return {
+    badge,
+    label: t("messagerie:icomMobileTabs.unheardVoicemails", {
+      count: unheardVoicemails ?? 0,
+    }),
+  }
+}
+
+/**
  * La pastille d'un emplacement. iChat porte les messages non lus, Statuts les
- * statuts non vus — JAMAIS additionnés : un total ne répondrait à aucune
- * question.
+ * statuts non vus, iAppel les messages vocaux non écoutés (IC-02) — JAMAIS
+ * additionnés : un total ne répondrait à aucune question.
  */
 export function icomMobileBadge(
   id: IcomMobileTabId,
-  counts: { unreadMessages?: number; unseenActus?: number },
+  counts: { unreadMessages?: number; unseenActus?: number; unheardVoicemails?: number },
   t: TFunction,
 ): IcomTabBadge | null {
+  if (id === "iappel") return voicemailTabBadge(counts.unheardVoicemails, t)
   if (id === "ichat") {
     const badge = formatUnreadBadge(counts.unreadMessages)
     if (badge === null) return null

@@ -41,6 +41,13 @@ export const NOTIFICATION_KINDS = [
   "event_invite",
   /** Rappel personnel d'un événement de page, sans contenu dans la notification. */
   "association_event_reminder",
+  /**
+   * EV-03 (issue antsia#97) : l'événement de page est ANNULÉ — à chaque inscrit confirmé et à
+   * chaque personne en attente, sans acteur ni titre, lieu, date, nom de page ou motif.
+   */
+  "association_event_cancelled",
+  /** EV-03 : une place s'est libérée et la personne en attente l'OBTIENT — sans acteur ni contenu. */
+  "association_event_seat_confirmed",
   /** Une page que je suis a publié : le sujet est la PUBLICATION, sans acteur (c'est la page qui parle). */
   "page_post",
   /** Une personne que je suis a publié un album (première publication seulement) : le sujet est l'ALBUM. */
@@ -75,6 +82,24 @@ export const NOTIFICATION_KINDS = [
 ] as const
 
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number]
+
+/**
+ * Les avis d'un ÉVÉNEMENT DE PAGE (DG-023, EV-03) : avis du système, sans acteur, dont le
+ * sujet est l'événement ; chacun est relu avec sa garde à l'écriture, à la lecture de la
+ * cloche et avant tout transport. La cloche les mène à la fiche de l'événement.
+ */
+export const ASSOCIATION_EVENT_NOTICE_KINDS = [
+  "association_event_reminder",
+  "association_event_cancelled",
+  "association_event_seat_confirmed",
+] as const satisfies readonly NotificationKind[]
+
+export type AssociationEventNoticeKind = (typeof ASSOCIATION_EVENT_NOTICE_KINDS)[number]
+
+/** Un avis d'événement de page ? Liste fermée, comparée telle quelle. */
+export function isAssociationEventNoticeKind(kind: string): kind is AssociationEventNoticeKind {
+  return (ASSOCIATION_EVENT_NOTICE_KINDS as readonly string[]).includes(kind)
+}
 
 /**
  * Ce qu'est DEVENUE une notification actionnable — posé par le serveur dans la

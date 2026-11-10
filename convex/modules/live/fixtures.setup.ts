@@ -30,12 +30,18 @@ export type SessionInput = {
   maxViewers?: number
   chatMode?: Doc<"liveSessions">["chatMode"]
   title?: string
+  /**
+   * Session ENREGISTRÉE (`replayRequested`) — faux par défaut, comme
+   * `sessions.create` depuis DL-02. Vrai : l'accord de l'hôte est posé avec la
+   * session, comme à la création.
+   */
+  replay?: boolean
 }
 
 /**
- * Une session posée en base — `live` par défaut, audience `public`, 200 places —
- * et la ligne d'antenne de son hôte, comme à la création (l'hôte est un
- * intervenant dès la naissance).
+ * Une session posée en base — `live` par défaut, audience `public`, 200 places,
+ * non enregistrée — et la ligne d'antenne de son hôte, comme à la création
+ * (l'hôte est un intervenant dès la naissance).
  */
 export async function insertSession(t: T, input: SessionInput): Promise<Id<"liveSessions">> {
   return await t.run(async (ctx) => {
@@ -54,7 +60,7 @@ export async function insertSession(t: T, input: SessionInput): Promise<Id<"live
       stageFormat: "computer",
       stageLayout: "adaptive",
       maxViewers: input.maxViewers ?? 200,
-      replayRequested: true,
+      replayRequested: input.replay ?? false,
       createdAt: now,
       ...(status !== "scheduled" ? { startedAt: now } : {}),
       ...(status === "ended" ? { endedAt: now } : {}),
@@ -68,7 +74,19 @@ export async function insertSession(t: T, input: SessionInput): Promise<Id<"live
       grantEpoch: 1,
       addedAt: now,
     })
+    if (input.replay === true) {
+      await ctx.db.insert("liveRecordingConsents", { networkId: input.networkId, sessionId, personId: input.host.personId, acceptedAt: now })
+    }
     return sessionId
+  })
+}
+
+/** `person` accepte l'enregistrement de la session — accord posé en base (DL-02). */
+export async function consentToRecording(t: T, sessionId: Id<"liveSessions">, person: Person, acceptedAt = Date.now()): Promise<Id<"liveRecordingConsents">> {
+  return await t.run(async (ctx) => {
+    const session = await ctx.db.get(sessionId)
+    if (!session) throw new Error("session inconnue")
+    return await ctx.db.insert("liveRecordingConsents", { networkId: session.networkId, sessionId, personId: person.personId, acceptedAt })
   })
 }
 
@@ -135,12 +153,19 @@ export async function ban(t: T, sessionId: Id<"liveSessions">, person: Person): 
   })
 }
 
-/** `person` est intervenant VIVANT de la session. */
+/**
+ * `person` est intervenant VIVANT de la session — avec son accord à
+ * l'enregistrement si la session est enregistrée : c'est l'état qu'une montée
+ * produit depuis DL-02 (aucune montée sans accord).
+ */
 export async function promote(t: T, sessionId: Id<"liveSessions">, person: Person): Promise<void> {
   await t.run(async (ctx) => {
     const session = await ctx.db.get(sessionId)
     if (!session) throw new Error("session inconnue")
     await ctx.db.insert("liveSpeakers", { networkId: session.networkId, sessionId, personId: person.personId, role: "speaker", grantEpoch: 1, addedAt: Date.now() })
+    if (session.replayRequested) {
+      await ctx.db.insert("liveRecordingConsents", { networkId: session.networkId, sessionId, personId: person.personId, acceptedAt: Date.now() })
+    }
   })
 }
 

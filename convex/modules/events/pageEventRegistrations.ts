@@ -11,6 +11,7 @@ import { isDiasporaNetwork } from "../diaspora/facts"
 import { isFederatedPage } from "../federation/mirrorAccess"
 import { contentState } from "../moderation/policy"
 import { readablePageOrNull } from "../pages/access"
+import { notifyPerson } from "../notifications/notify"
 import { engineCounters } from "../posts/counters"
 import { participationOf, recordParticipation } from "./events"
 import { pageEventAccess } from "./pageEventAccess"
@@ -54,8 +55,13 @@ async function removeFromWaitlist(ctx: MutationCtx, row: Doc<"eventParticipants"
 /**
  * Aucune identité de session : chaque candidat est relu avec ses droits présents.
  * Les places accepted restent réservées jusqu'au retrait ou à l'effacement.
+ *
+ * EV-03 (issue antsia#97) : chaque personne PROMUE de la file reçoit l'avis neutre « place
+ * confirmée », dans la transaction de sa promotion (au plus un lot de file par transaction) —
+ * sauf l'auteur du geste en cours (`actorPersonId`), qui voit sa place à l'écran : la personne
+ * qui s'inscrit et obtient d'emblée une place n'est pas avisée de son propre geste.
  */
-export async function fillPageEventSeatsNow(ctx: MutationCtx, networkId: Id<"networks">, eventId: Id<"events">): Promise<void> {
+export async function fillPageEventSeatsNow(ctx: MutationCtx, networkId: Id<"networks">, eventId: Id<"events">, actorPersonId?: Id<"persons">): Promise<void> {
   const event = await ctx.db.get(eventId)
   if (!event || event.networkId !== networkId || !event.organizerPageId || event.organizerPersonId !== undefined || event.status !== "scheduled" || event.startAt <= Date.now()) return
   if (!isAssociationEventRegistrationOpen({ startAt: event.startAt, registrationClosesAt: event.pageRegistrationClosesAt }, Date.now())) return
@@ -87,6 +93,12 @@ export async function fillPageEventSeatsNow(ctx: MutationCtx, networkId: Id<"net
     await removeFromWaitlist(ctx, candidate)
     if (accepted) await schedulePageEventReminder(ctx, event, candidate._id)
     else await disablePageEventReminder(ctx, candidate)
+    if (accepted && candidate.personId !== actorPersonId) {
+      await notifyPerson(ctx, {
+        networkId, recipientPersonId: candidate.personId, kind: "association_event_seat_confirmed", subject: { event: event._id },
+        ...(actorPersonId !== undefined ? { sourcePersonId: actorPersonId } : {}),
+      })
+    }
     if (accepted) confirmedCount += 1
     processed += 1
   }
@@ -104,7 +116,7 @@ export async function registerPageEventParticipation(ctx: MutationCtx, event: Do
   if (existing && existing.networkId !== event.networkId) return notFound()
   if (existing?.status === "accepted" || isPageEventWaitlisted(existing)) {
     if (!isAssociationEventRegistrationOpen({ startAt: event.startAt, registrationClosesAt: event.pageRegistrationClosesAt }, Date.now())) return
-    await fillPageEventSeatsNow(ctx, event.networkId, event._id)
+    await fillPageEventSeatsNow(ctx, event.networkId, event._id, personId)
     return
   }
   if (!isAssociationEventRegistrationOpen({ startAt: event.startAt, registrationClosesAt: event.pageRegistrationClosesAt }, Date.now())) return failAppRule("association_event_registration_closed")
@@ -129,7 +141,7 @@ export async function registerPageEventParticipation(ctx: MutationCtx, event: Do
   }
   await recordParticipation(ctx, { _id: rowId, eventId: event._id }, false)
   await engineCounters.insertIfDoesNotExist(ctx, { namespace: waitlistedOf(event._id), key: sequence, id: rowId })
-  await fillPageEventSeatsNow(ctx, event.networkId, event._id)
+  await fillPageEventSeatsNow(ctx, event.networkId, event._id, personId)
 }
 
 /** Retrait volontaire : la ligne et le décompte historique participants sont conservés. */
@@ -139,7 +151,7 @@ export async function withdrawPageEventParticipation(ctx: MutationCtx, row: Doc<
   await ctx.db.patch(row._id, { status: "declined", respondedAt: Date.now() })
   await recordParticipation(ctx, row, false)
   await removeFromWaitlist(ctx, row)
-  await fillPageEventSeatsNow(ctx, row.networkId, row.eventId)
+  await fillPageEventSeatsNow(ctx, row.networkId, row.eventId, row.personId)
 }
 
 /** Hook d'effacement AVANT db.delete : les événements personnels restent inchangés. */

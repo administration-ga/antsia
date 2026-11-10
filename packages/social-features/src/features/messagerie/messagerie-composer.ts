@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/messagerie/messagerie-composer.ts @ ad2e7fdc2 — adaptations : bornes lues au contrat du moteur (`@antsia/social-contracts/attachments`, dérivé de la politique de dépôt `chat_attachment`) ; poids dit dans la langue courante (`formatBytes(bytes, locale, t)` : nombre par `Intl.NumberFormat`, unité par clé i18n) au lieu de la virgule et des unités françaises en dur ; refus par clés i18n qualifiées (`messagerie:messagerieComposer.*`), `locale` puis `t` en derniers paramètres de `attachmentRejection`.
+// Dupliqué de socle/packages/agent-features/src/features/messagerie/messagerie-composer.ts @ ad2e7fdc2 — adaptations : bornes lues au contrat du moteur (`@antsia/social-contracts/attachments`, dérivé de la politique de dépôt `chat_attachment`) ; poids dit dans la langue courante (`formatBytes(bytes, locale, t)` : nombre par `Intl.NumberFormat`, unité par clé i18n) au lieu de la virgule et des unités françaises en dur ; refus par clés i18n qualifiées (`messagerie:messagerieComposer.*`), `locale` puis `t` en derniers paramètres de `attachmentRejection` ; PF-03 : `attachmentNeedsPhotoPreparation` (toute pièce image passe par la préparation des photos).
 /**
  * messagerie-composer — ce que le COMPOSEUR décide.
  *
@@ -44,6 +44,19 @@ export {
 	ATTACHMENTS_MAX_PER_MESSAGE,
 	ATTACHMENT_MAX_BYTES,
 	isVoiceAttachment,
+}
+
+/**
+ * Une pièce IMAGE passe par la préparation des photos avant d'entrer au
+ * message (lot PF-03 ; décision du propriétaire du 9/11/2026) : ré-encodée,
+ * 2 048 px au plus, sans métadonnées, HEIC/HEIF rendus en JPEG ; GIF et WebP
+ * animés gardent leur animation, sans leurs métadonnées. TOUTE image : celles
+ * que le module ne sait pas préparer (SVG, TIFF…) sont refusées par lui, avec
+ * sa phrase, au lieu de partir brutes. Un échec refuse la pièce, jamais
+ * l'original.
+ */
+export function attachmentNeedsPhotoPreparation(mimeType: string): boolean {
+	return mimeType.trim().toLowerCase().startsWith("image/")
 }
 
 /**

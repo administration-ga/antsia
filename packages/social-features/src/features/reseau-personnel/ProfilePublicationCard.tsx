@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/ProfilePublicationCard.tsx @ ad2e7fdc2 — adaptations : branchée sur la personne du moteur (`people.persons.getMyPerson`, sur soi) et ses gestes (`people.profile.{publishMyProfile, withdrawMyProfile, setMyProfilePrivacy, setMyAvatar, setMyCover}`) ; photo et couverture déposées par `people.profile.generateProfileUploadUrl({ usage })` puis posées avec leur type déclaré (garde des fichiers : une image neuve peut être RETENUE le temps de son analyse, ce que la carte et le toast disent) ; retrait de la couverture ajouté (la copie de visibilité promet que chaque image se retire comme elle s'ajoute) ; rien n'est publié d'office (invariant 7) — plus d'étape « adresse posée d'office » : l'identifiant se choisit DANS l'éditeur (`HandleChoiceCard` contrôlé, propositions à partir du nom saisi), et un profil retiré se republie sous son identifiant gardé ; « Reprendre la photo de mon compte » retiré avec la prop `accountAvatarUrl` (rien n'est repris du compte) ; refus du moteur par leurs codes (`profileErrorText` : règle, puis code, puis phrase) ; « votre poste reste joignable dans l'annuaire » retiré ; textes par l'i18n (`reseau:profilePublicationCard.*`) ; bornes des champs lues dans le domaine (`@antsia/social-domain/content`).
+// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/ProfilePublicationCard.tsx @ ad2e7fdc2 — adaptations : branchée sur la personne du moteur (`people.persons.getMyPerson`, sur soi) et ses gestes (`people.profile.{publishMyProfile, withdrawMyProfile, setMyProfilePrivacy, setMyAvatar, setMyCover}`) ; photo et couverture déposées par `people.profile.generateProfileUploadUrl({ usage })` puis posées avec leur type déclaré (garde des fichiers : une image neuve peut être RETENUE le temps de son analyse, ce que la carte et le toast disent) ; retrait de la couverture ajouté (la copie de visibilité promet que chaque image se retire comme elle s'ajoute) ; rien n'est publié d'office (invariant 7) — plus d'étape « adresse posée d'office » : l'identifiant se choisit DANS l'éditeur (`HandleChoiceCard` contrôlé, propositions à partir du nom saisi), et un profil retiré se republie sous son identifiant gardé ; « Reprendre la photo de mon compte » retiré avec la prop `accountAvatarUrl` (rien n'est repris du compte) ; refus du moteur par leurs codes (`profileErrorText` : règle, puis code, puis phrase) ; « votre poste reste joignable dans l'annuaire » retiré ; textes par l'i18n (`reseau:profilePublicationCard.*`) ; bornes des champs lues dans le domaine (`@antsia/social-domain/content`) ; PF-03 : photo et couverture RECADRÉES (`ProfileImageCropper` : cercle, bandeau 3:1) puis préparées par le module commun (`features/media-upload` : ré-encodées, 1 024 px pour la photo, 2 048 px pour la couverture, sans métadonnées, échec fermé) AVANT `generateProfileUploadUrl` — l'envoi refuse toute image qui n'en sort pas (`isPreparedImage`), la borne de l'usage se juge sur l'image préparée ; préparation injectable (`prepareImage`).
 "use client"
 
 /**
@@ -36,9 +36,22 @@ import { useMutation } from "convex/react"
 import { useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
+import {
+  imagePreparationRefusalText,
+  isPreparedImage,
+  prepareImageForUpload,
+  type ImageCrop,
+  type PrepareImageWith,
+} from "../media-upload"
 import { Avatar } from "./Avatar"
 import { HandleChoiceCard } from "./HandleChoiceCard"
+import { ProfileImageCropper } from "./ProfileImageCropper"
 import { profileErrorText } from "./profil-personne"
+import {
+  PROFILE_IMAGE_FRAMES,
+  profileImageChoiceRefusal,
+  profileImagePreparedRefusal,
+} from "./profile-image-crop"
 import { profileOnboardingStep } from "./profile-onboarding"
 import { useProfileOnboardingAccount } from "./use-profile-onboarding"
 import {
@@ -49,7 +62,6 @@ import {
 import { ReseauQueryError } from "../../shell/ReseauQueryError"
 import {
   AVATAR_ACCEPT,
-  avatarRejectionFor,
   HANDLE_MAX_LENGTH,
   validateHandle,
 } from "./shared"
@@ -63,7 +75,24 @@ interface ProfileImageDelivery {
   withheld: MediaWithheld | null
 }
 
-export function ProfilePublicationCard() {
+/** L'image en cours de recadrage, et pour quel usage. */
+interface CroppingImage {
+  file: File
+  usage: ProfileImageUsage
+}
+
+/** Un refus déjà traduit, levé avant tout dépôt (préparation, borne, image non préparée). */
+class ProfileImageRefusal extends Error {}
+
+/** La préparation du navigateur (décodeur et canvas réels). */
+const prepareInBrowser: PrepareImageWith = (file, options) => prepareImageForUpload(file, undefined, options)
+
+export function ProfilePublicationCard({
+  prepareImage = prepareInBrowser,
+}: {
+  /** La préparation des images (injectable : `jsdom` n'a pas de canvas). */
+  prepareImage?: PrepareImageWith
+} = {}) {
   const { t } = useTranslation("reseau")
   const profile = useAuthenticatedConvexQuery(
     api.modules.people.persons.getMyPerson,
@@ -85,6 +114,8 @@ export function ProfilePublicationCard() {
   const coverInput = useRef<HTMLInputElement>(null)
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
   const [uploadingCover, setUploadingCover] = useState(false)
+  const [cropping, setCropping] = useState<CroppingImage | null>(null)
+  const [cropError, setCropError] = useState<string | null>(null)
 
   /**
    * Dépose le blob sous la politique de son usage. Deux temps, parce que le
@@ -93,9 +124,14 @@ export function ProfilePublicationCard() {
    * déclare.
    */
   const uploadImage = async (
-    file: Blob,
+    file: File,
     usage: ProfileImageUsage,
   ): Promise<Id<"_storage">> => {
+    // Aucun chemin ne dépose une image qui n'est pas sortie du module de
+    // préparation (PF-03) : pas même par oubli, pas même l'original.
+    if (!isPreparedImage(file)) {
+      throw new ProfileImageRefusal(t("reseau:mediaPreparation.notPrepared", { name: file.name }))
+    }
     const url = await generateUploadUrl({ usage })
     const response = await fetch(url, {
       method: "POST",
@@ -128,25 +164,54 @@ export function ProfilePublicationCard() {
     toast.success(t(`profilePublicationCard.toast.${usage}Updated`))
   }
 
-  const handleImageFile = async (file: File, usage: ProfileImageUsage) => {
-    const refusal = avatarRejectionFor(file, t)
+  /**
+   * Une image CHOISIE : son format et son poids sont jugés tout de suite, puis
+   * elle s'ouvre dans le recadreur. Rien ne part avant le geste d'envoi.
+   */
+  const chooseImageFile = (file: File, usage: ProfileImageUsage) => {
+    const refusal = profileImageChoiceRefusal(file, t)
     if (refusal) {
       toast.error(refusal)
       return
     }
+    setCropError(null)
+    setCropping({ file, usage })
+  }
+
+  /**
+   * L'envoi : la région gardée est préparée (ré-encodée, réduite sous la borne
+   * du cadre, sans métadonnées), la borne de l'usage jugée sur l'image
+   * préparée, puis l'image préparée — et elle seule — est déposée et posée.
+   * Un refus reste DANS le recadreur, qui reste ouvert : jamais l'original.
+   */
+  const sendCroppedImage = async (
+    image: CroppingImage,
+    crop: ImageCrop | null,
+  ) => {
+    const { file, usage } = image
     const setUploading = usage === "avatar" ? setUploadingAvatar : setUploadingCover
     setUploading(true)
+    setCropError(null)
     try {
-      const storageId = await uploadImage(file, usage)
-      const place = usage === "avatar" ? setMyAvatar : setMyCover
-      const delivery = await place({
-        storageId,
-        ...(file.type ? { mimeType: file.type } : {}),
+      const prepared = await prepareImage(file, {
+        maxDimension: PROFILE_IMAGE_FRAMES[usage].maxDimension,
+        ...(crop === null ? {} : { crop }),
       })
+      if (!prepared.ok) {
+        throw new ProfileImageRefusal(imagePreparationRefusalText(prepared.refusal, file.name, t))
+      }
+      const tooLarge = profileImagePreparedRefusal(prepared.file, usage, t)
+      if (tooLarge !== null) throw new ProfileImageRefusal(tooLarge)
+      const storageId = await uploadImage(prepared.file, usage)
+      const place = usage === "avatar" ? setMyAvatar : setMyCover
+      const delivery = await place({ storageId, mimeType: prepared.file.type })
+      setCropping(null)
       announceDelivery(delivery, usage)
     } catch (err) {
-      toast.error(
-        profileErrorText(err, `reseau:profilePublicationCard.toast.${usage}Failed`, t),
+      setCropError(
+        err instanceof ProfileImageRefusal
+          ? err.message
+          : profileErrorText(err, `reseau:profilePublicationCard.toast.${usage}Failed`, t),
       )
     } finally {
       setUploading(false)
@@ -392,6 +457,20 @@ export function ProfilePublicationCard() {
           </p>
         ) : null}
 
+        {cropping !== null ? (
+          <ProfileImageCropper
+            file={cropping.file}
+            kind={cropping.usage}
+            busy={cropping.usage === "avatar" ? uploadingAvatar : uploadingCover}
+            error={cropError}
+            onCancel={() => {
+              setCropping(null)
+              setCropError(null)
+            }}
+            onConfirm={(crop) => void sendCroppedImage(cropping, crop)}
+          />
+        ) : null}
+
         <input
           ref={avatarInput}
           type="file"
@@ -399,7 +478,7 @@ export function ProfilePublicationCard() {
           hidden
           onChange={(event) => {
             const file = event.target.files?.[0]
-            if (file) void handleImageFile(file, "avatar")
+            if (file) chooseImageFile(file, "avatar")
             event.target.value = ""
           }}
         />
@@ -410,7 +489,7 @@ export function ProfilePublicationCard() {
           hidden
           onChange={(event) => {
             const file = event.target.files?.[0]
-            if (file) void handleImageFile(file, "cover")
+            if (file) chooseImageFile(file, "cover")
             event.target.value = ""
           }}
         />

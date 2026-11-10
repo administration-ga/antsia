@@ -170,6 +170,10 @@ export function exportableRecord(table: string, row: DataRecord, personId: strin
     return null
   }
   if (table === "contextualPersonStates") return row.personId === personId ? projectedRecord(row, [...RECORD_METADATA, "threadId", "readAt", "callsAllowed"]) : null
+  // DL-02 : mon accord à l'enregistrement d'un direct, avec la référence du direct. Le champ
+  // `sessionId` serait retiré par la règle des secrets de session (il ne désigne pourtant pas une
+  // session d'authentification) : il sort sous un nom explicite.
+  if (table === "liveRecordingConsents") return row.personId === personId ? { ...projectedRecord(row, [...RECORD_METADATA, "personId", "acceptedAt"]), liveSessionId: row.sessionId } : null
   if (table === "feedEntries" || table === "feedFanoutJobs") return null
   if (table === "fileStagingReservations") return null
   if (table === "feedCursors") return row.personId === personId ? projectedRecord(row, [...RECORD_METADATA, "personId", "scope", "status", "windowStart", "startedAt", "completedAt"]) : null
@@ -207,6 +211,13 @@ export function exportableRecord(table: string, row: DataRecord, personId: strin
     if (row.reporterPersonId === personId) return projectedRecord(row, [...REPORT_REFERENCE_FIELDS, "reason", "note", "source", "legalBasis", "dueAt", "acknowledgedAt", "reporterNotifiedAt", "removedTarget"])
     if (table === "reports" && row.ownerPersonId === personId) return projectedRecord(row, [...REPORT_REFERENCE_FIELDS, "source", "decisionReason", "reviewedAt", "removedTarget"])
     return null
+  }
+  // IC-02 : un message vocal s'exporte à ses deux parties, sans `storageId`. L'état d'écoute (`isRead`,
+  // `readAt`) n'appartient qu'au destinataire : l'export ne remet jamais à l'expéditeur un accusé d'écoute.
+  if (table === "voicemails") {
+    const shared = [...RECORD_METADATA, "recipientPersonId", "fromPersonId", "callId", "durationMs"]
+    if (row.recipientPersonId === personId) return projectedRecord(row, [...shared, "isRead", "readAt"])
+    return row.fromPersonId === personId ? projectedRecord(row, shared) : null
   }
   if (table === "engineAudit") return row.actorPersonId === personId ? projectedRecord(row, [...RECORD_METADATA, "action", "capacity", "subjectTable", "subjectId", "at"]) : null
   // Tranche DIASPORALE (délégué par ANTSIA le 18/10/2026) : une demande de mentorat appartient aux

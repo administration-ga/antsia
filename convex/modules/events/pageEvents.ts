@@ -15,6 +15,7 @@ import { checkAssociationEventCapacityChange, isAssociationEventRegistrationOpen
 import { paginationOptsValidator } from "convex/server"
 import { v, type Infer } from "convex/values"
 
+import { internal } from "../../_generated/api"
 import type { Doc, Id } from "../../_generated/dataModel"
 import type { QueryCtx } from "../../_generated/server"
 import { memberHasStatus } from "../../lib/access"
@@ -30,6 +31,7 @@ import {
   pageEventWaitlistPosition, registerPageEventParticipation, withdrawPageEventParticipation,
 } from "./pageEventRegistrations"
 import { pageEventReminderView } from "./pageEventReminders"
+import { pageEventCancellationReasonValidator } from "./tables"
 
 const PAGE_MAX = 50
 const PAGE_BYTES = 2 * 1024 * 1024
@@ -236,13 +238,22 @@ export const update = networkMutation({
     // Capacité et clôture seules conservent la décision de modération.
     if (!sameTerms(event, terms)) await moderatePageContentWrite(ctx, { networkId: ctx.networkId, pageId: access.page._id, kind: "event", id: event._id, text: `${terms.title} ${terms.description ?? ""} ${terms.location ?? ""}` })
     await ctx.db.patch(event._id, { ...terms, pageCapacity: capacity ?? undefined, pageRegistrationClosesAt: registrationClosesAt ?? undefined, version: (event.version ?? 1) + 1, updatedAt: Date.now() })
-    await fillPageEventSeatsNow(ctx, ctx.networkId, event._id)
+    // EV-03 : une capacité relevée promeut des personnes en attente, avisées ; jamais le responsable lui-même.
+    await fillPageEventSeatsNow(ctx, ctx.networkId, event._id, ctx.person._id)
     return null
   },
 })
 
+/**
+ * Annuler l'événement de la page. EV-03 (issue antsia#97) : `reason`, FACULTATIF (les écrans
+ * déjà en ligne annulent sans motif), est pris dans la liste fermée du domaine, stocké sur
+ * l'événement et lu sur sa fiche (`cancellationReason`), jamais recopié dans un avis. Chaque
+ * inscrit confirmé et chaque personne en attente reçoit l'avis neutre « événement annulé »,
+ * diffusé par lots hors de cette transaction ; le responsable qui annule ne l'est pas.
+ * Rejouée sur un événement déjà annulé : rien ne change (ni motif, ni avis).
+ */
 export const cancel = networkMutation({
-  args: { eventId: v.id("events"), expectedVersion: v.number() }, returns: v.null(),
+  args: { eventId: v.id("events"), expectedVersion: v.number(), reason: v.optional(pageEventCancellationReasonValidator) }, returns: v.null(),
   handler: async (ctx, args) => {
     assertDiasporaNetwork(ctx.network)
     const { event, access } = await managedEvent(ctx, ctx.networkId, args.eventId, ctx.person._id)
@@ -251,8 +262,26 @@ export const cancel = networkMutation({
     checkVersion(event, args.expectedVersion)
     if (event.status === "cancelled") return null
     const now = Date.now()
-    await ctx.db.patch(event._id, { status: "cancelled", cancelledAt: now, version: (event.version ?? 1) + 1, updatedAt: now })
+    await ctx.db.patch(event._id, { status: "cancelled", cancelledAt: now, ...(args.reason !== undefined ? { pageCancellationReason: args.reason } : {}), version: (event.version ?? 1) + 1, updatedAt: now })
+    await ctx.scheduler.runAfter(0, internal.modules.events.pageEventNotices.notifyPageEventCancellation, { networkId: ctx.networkId, eventId: event._id, phase: "accepted", cursor: null, sourcePersonId: ctx.person._id })
     return null
+  },
+})
+
+/**
+ * EV-03 : le motif d'annulation, lu avec les droits du lecteur (même garde que la fiche, `get`).
+ * Une projection À PART : la vue de la fiche ne change pas de forme pour les écrans en ligne.
+ * `null` : événement illisible pour ce lecteur, ou non annulé ; `reason: null` : annulé sans motif.
+ */
+export const cancellationReason = networkQuery({
+  args: { eventId: v.id("events") },
+  returns: v.union(v.null(), v.object({ reason: v.union(pageEventCancellationReasonValidator, v.null()) })),
+  handler: async (ctx, args) => {
+    assertDiasporaNetwork(ctx.network)
+    const event = await ctx.db.get(args.eventId)
+    if (!event || event.networkId !== ctx.networkId || !event.organizerPageId || event.status !== "cancelled") return null
+    if (!(await pageEventAccess(ctx, event, ctx.person._id))) return null
+    return { reason: event.pageCancellationReason ?? null }
   },
 })
 

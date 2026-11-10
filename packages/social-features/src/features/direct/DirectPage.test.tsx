@@ -53,7 +53,8 @@ function session(patch: Partial<DirectSession> = {}): DirectSession {
     viewerRole: "viewer", viewerIsInvitee: false, permissions: noDirectPermissions(),
     host: { displayName: "Awa", handle: "awa", avatarUrl: null }, speakers: [], spotlight: null,
     startedAt: 1, endedAt: null, maxDurationAt: 10000, endReason: null,
-    counters: { viewers: 0, present: 0, comments: 0, reactions: 0 }, announcePostId: null, replay: null, ...patch,
+    counters: { viewers: 0, present: 0, comments: 0, reactions: 0 }, announcePostId: null, replay: null,
+    recording: { requested: false, consentedAt: null, proposedSpeakerAwaitingConsent: false }, ...patch,
   }
 }
 const i18n = createAppI18n({ locale: "fr", appResources: { fr: {}, en: {} }, defaultNS: "direct" })
@@ -223,5 +224,61 @@ describe("direct F3a — matériel avant notification de l'audience", () => {
     expect(track.stop).toHaveBeenCalled()
     expect(mocks.token).not.toHaveBeenCalled()
     expect(mocks.mutation).not.toHaveBeenCalled()
+  })
+})
+
+describe("DL-02 — accord à l'enregistrement et pastille de capture", () => {
+  const CONSENT = "J'accepte que mon image et ma voix soient enregistrées à l'antenne de cette conférence"
+  const capturing = { status: "pending" as const, egressState: "active" as const, failureReason: null, url: null, captionsUrl: null, captionsLang: null, durationMs: null, retentionUntil: null, visibility: "public" as const, publication: "undecided" as const, recoverable: false, canManage: false }
+  const recorded = (patch: Partial<DirectSession["recording"]> = {}) => ({ requested: true, consentedAt: null, proposedSpeakerAwaitingConsent: false, ...patch })
+
+  it("la pastille « REC » est là tant que la capture tourne, avec son libellé complet pour le lecteur d'écran", () => {
+    mocks.session = session({ replay: capturing, recording: recorded({ consentedAt: 1 }) })
+    const view = render(tree())
+    const label = screen.getByText("Enregistrement en cours")
+    expect(label.closest("[role='status']")).toHaveTextContent("REC")
+    // Capture seulement DEMANDÉE : aucune pastille.
+    mocks.session = session({ replay: { ...capturing, egressState: "requested" }, recording: recorded({ consentedAt: 1 }) })
+    view.rerender(tree())
+    expect(screen.queryByText("Enregistrement en cours")).toBeNull()
+  })
+
+  it("un intervenant sans accord : case DÉCOCHÉE, entrée bloquée jusqu'à la coche, accord envoyé AVANT le jeton", async () => {
+    mocks.session = session({ viewerRole: "speaker", recording: recorded() })
+    mocks.token.mockResolvedValue({ token: "test-token", wsUrl: "wss://test.invalid", role: "speaker", roomName: "test-room" })
+    render(tree())
+    const box = screen.getByRole("checkbox", { name: CONSENT })
+    expect(box).not.toBeChecked()
+    expect(screen.getByText(/conservée 90 jours au plus/)).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Rejoindre la salle" })).toBeDisabled()
+    fireEvent.click(box)
+    fireEvent.click(screen.getByRole("button", { name: "Rejoindre la salle" }))
+    await waitFor(() => expect(mocks.token).toHaveBeenCalledTimes(1))
+    expect(mocks.mutation).toHaveBeenCalledWith("modules/live/antenna:acceptRecording", { networkId: "network-a", sessionId })
+    const consentCall = mocks.mutation.mock.calls.findIndex(([name]) => name === "modules/live/antenna:acceptRecording")
+    expect(mocks.mutation.mock.invocationCallOrder[consentCall]).toBeLessThan(mocks.token.mock.invocationCallOrder[0]!)
+  })
+
+  it("un intervenant qui a déjà accepté, ou un direct non enregistré, n'a pas de case", () => {
+    mocks.session = session({ viewerRole: "speaker", recording: recorded({ consentedAt: 1 }) })
+    const view = render(tree())
+    expect(screen.queryByRole("checkbox", { name: CONSENT })).toBeNull()
+    mocks.session = session({ viewerRole: "speaker" })
+    view.rerender(tree())
+    expect(screen.queryByRole("checkbox", { name: CONSENT })).toBeNull()
+    expect(screen.getByRole("button", { name: "Rejoindre la salle" })).toBeEnabled()
+  })
+
+  it("l'invité intervenant dont la place attend son accord l'accepte avant le direct, case décochée", async () => {
+    mocks.session = session({ status: "scheduled", viewerRole: "viewer", viewerIsInvitee: true, recording: recorded({ proposedSpeakerAwaitingConsent: true }) })
+    render(tree())
+    expect(screen.getByText(/L'hôte vous propose d'intervenir/)).toBeInTheDocument()
+    const box = screen.getByRole("checkbox", { name: CONSENT })
+    expect(box).not.toBeChecked()
+    expect(screen.getByRole("button", { name: "Accepter l'enregistrement" })).toBeDisabled()
+    fireEvent.click(box)
+    fireEvent.click(screen.getByRole("button", { name: "Accepter l'enregistrement" }))
+    await waitFor(() => expect(mocks.mutation).toHaveBeenCalledWith("modules/live/antenna:acceptRecording", { networkId: "network-a", sessionId }))
+    expect(mocks.token).not.toHaveBeenCalled()
   })
 })

@@ -20,6 +20,7 @@ export const DOMAIN_RULES = [
   "POST_MEDIA_MIME_INVALID",
   "POST_MEDIA_TOO_LARGE",
   "POST_MEDIA_ALT_TOO_LONG",
+  "POST_VIDEO_TOO_LONG",
   "POST_SHARE_WITH_MEDIA",
   "POST_EMPTY",
   "POST_TOO_LONG",
@@ -86,6 +87,9 @@ export const DOMAIN_RULES = [
   "GROUP_NAME_LENGTH",
   "GROUP_DESCRIPTION_TOO_LONG",
   "GROUP_OWNER_CANNOT_LEAVE",
+  "GROUP_RULES_TOO_LONG",
+  "GROUP_RULES_NOT_ACCEPTED",
+  "GROUP_TRANSFER_TARGET_INELIGIBLE",
   // Évènements
   "EVENT_TITLE_LENGTH",
   "EVENT_DESCRIPTION_TOO_LONG",
@@ -106,6 +110,8 @@ export const DOMAIN_RULES = [
   "UPLOAD_MISMATCH",
   // Décisions (console, modération) : le motif
   "DECISION_REASON_LENGTH",
+  // Rôles d'un réseau (EX-08) : un réseau qui a un administrateur vivant en garde toujours un
+  "NETWORK_LAST_ADMIN",
   // Messagerie : pièces jointes
   "ATTACHMENTS_TOO_MANY",
   "ATTACHMENT_TYPE_NOT_ALLOWED",
@@ -179,6 +185,8 @@ export const DOMAIN_RULES = [
   "LIVE_PROMOTE_CONNECTIONS_ONLY",
   "LIVE_TARGET_EXCLUDED",
   "LIVE_HOST_MUTES_SELF",
+  // Direct : l'accord explicite à l'enregistrement avant de prendre l'antenne (DL-02)
+  "LIVE_RECORDING_CONSENT_REQUIRED",
   // Direct : la conversation, la modération, les délégations
   "LIVE_COMMENT_EMPTY",
   "LIVE_COMMENT_TOO_LONG",

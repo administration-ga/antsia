@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/PostComposer.tsx @ ad2e7fdc2 — adaptations : publication par `posts.posts.publish` du moteur et, au nom d'une PAGE du moteur (signataire vivant), par `pages.pages.publishAsPage` (identifiant `Id<"pages">`, audiences `public` / `followers` au lieu de la note de service `organisation`) ; groupe thématique `Id<"thematicGroups">` ; médias déposés par la garde des fichiers (`media.media.generateUploadUrl`, usage `media_social`) et déclarés avec leur identifiant de stockage TYPÉ ; réseau courant sur chaque appel (`useNetwork().networkId`) ; l'auteur du brouillon est la personne du moteur (`useNetwork().personId`) au lieu du handle lu par `getMyProfile`, et le magasin est configuré avec le préfixe du réseau (`configurePostDraftStorage(storagePrefix)`) ; libellés, compteur, alertes et toasts par l'i18n (clés `reseau:postComposer.*`, accords au nombre ; audiences et règles de `shared.ts` et `post-composer-target.ts` avec `t`) ; refus du moteur dit par son code (`postEngineErrorText`) ; borne du texte alternatif lue dans le domaine ; feuille de style sortie du JSX dans une constante de module (`COMPOSER_CSS`) — un littéral enfant de `<style>` passerait pour une chaîne d'interface — règles inchangées ; FP-01 : chaque photo choisie passe par le module de préparation (`features/media-upload` : ré-encodée, 2 048 px au plus, sans métadonnées, échec fermé) AVANT d'entrer au brouillon, le poids envoyé est annoncé, un refus est dit ; préparation injectable (`prepareImage`).
+// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/PostComposer.tsx @ ad2e7fdc2 — adaptations : publication par `posts.posts.publish` du moteur et, au nom d'une PAGE du moteur (signataire vivant), par `pages.pages.publishAsPage` (identifiant `Id<"pages">`, audiences `public` / `followers` au lieu de la note de service `organisation`) ; groupe thématique `Id<"thematicGroups">` ; médias déposés par la garde des fichiers (`media.media.generateUploadUrl`, usage `media_social`) et déclarés avec leur identifiant de stockage TYPÉ ; réseau courant sur chaque appel (`useNetwork().networkId`) ; l'auteur du brouillon est la personne du moteur (`useNetwork().personId`) au lieu du handle lu par `getMyProfile`, et le magasin est configuré avec le préfixe du réseau (`configurePostDraftStorage(storagePrefix)`) ; libellés, compteur, alertes et toasts par l'i18n (clés `reseau:postComposer.*`, accords au nombre ; audiences et règles de `shared.ts` et `post-composer-target.ts` avec `t`) ; refus du moteur dit par son code (`postEngineErrorText`) ; borne du texte alternatif lue dans le domaine ; feuille de style sortie du JSX dans une constante de module (`COMPOSER_CSS`) — un littéral enfant de `<style>` passerait pour une chaîne d'interface — règles inchangées ; FP-01 : chaque photo choisie passe par le module de préparation (`features/media-upload` : ré-encodée, 2 048 px au plus, sans métadonnées, échec fermé) AVANT d'entrer au brouillon, le poids envoyé est annoncé, un refus est dit ; préparation injectable (`prepareImage`) ; SD-03 : chaque vidéo choisie, quel qu'en soit le conteneur, passe par la préparation vidéo (`features/video-upload`, bornes d'une publication) — MP4/WebM lisibles tels quels, .mov converti quand ce navigateur sait le lire (progression, onglet visible, annulation), refus guidé sinon — et part avec sa durée mesurée ; sélecteur ouvert à toute vidéo ; préparation injectable (`prepareVideo`).
 "use client"
 
 /**
@@ -32,6 +32,14 @@
  * pesé, téléversé et déclaré ; un échec refuse la photo, jamais l'original, et
  * `useMediaDraft` refuse de toute façon une image qui ne sort pas du module.
  * « Publier » attend la fin de la préparation.
+ *
+ * ⚠️ Une VIDÉO n'entre au brouillon qu'APRÈS sa préparation (lot SD-03) : le
+ * serveur n'accepte plus que MP4 et WebM pour une nouvelle publication. Un
+ * MP4/WebM lisible partout part tel quel ; un .mov (ou un MP4 en HEVC) que ce
+ * navigateur sait lire est CONVERTI ici, en temps réel — l'écran montre la
+ * progression, demande de garder l'onglet visible et offre d'annuler ; sinon le
+ * refus dit quoi faire (Safari, ou un enregistrement au format MP4). La durée
+ * mesurée part avec le média : le serveur la borne, sans pouvoir la prouver.
  */
 
 import { api } from "@antsia/api/engine"
@@ -82,15 +90,27 @@ import {
   resolveComposerTarget,
   showsAudienceSelector,
 } from "./post-composer-target"
-import { MEDIA_ACCEPT, rejectionFor, useMediaDraft, type DraftMediaKind } from "./useMediaDraft"
+import { IMAGE_ONLY_ACCEPT, rejectionFor, useMediaDraft, type DraftMediaKind } from "./useMediaDraft"
 import {
   imagePreparationRefusalText,
   imagePreparationSummary,
-  isPreparableImageType,
   prepareImageForUpload,
   type ImagePreparation,
   type PrepareImage,
 } from "../media-upload"
+import {
+  isDirectUploadVideoType,
+  isVideoCandidateType,
+  POST_VIDEO_UPLOAD_LIMITS,
+  VIDEO_UPLOAD_ACCEPT,
+} from "../video-upload/video-upload-policy"
+import {
+  prepareVideoForUpload,
+  rememberVideoDuration,
+  type PrepareVideo,
+  type VideoPreparation,
+  type VideoPreparationPhase,
+} from "../video-upload/video-preparation"
 import {
   newIdempotencyKey,
   postDraftKey,
@@ -143,7 +163,18 @@ interface PostComposerProps {
    * par les tests : `jsdom` n'a ni décodeur d'image ni canvas.
    */
   prepareImage?: PrepareImage
+  /**
+   * La préparation des vidéos (SD-03) — celle du module partagé par défaut.
+   * Injectée par les tests : `jsdom` n'a ni décodeur vidéo ni `MediaRecorder`.
+   */
+  prepareVideo?: PrepareVideo
 }
+
+/**
+ * Ce que le sélecteur propose : les photos acceptées, et TOUTE vidéo — le .mov
+ * doit pouvoir être choisi pour être converti (SD-03) ; la préparation trie.
+ */
+const COMPOSER_ACCEPT = [IMAGE_ONLY_ACCEPT, VIDEO_UPLOAD_ACCEPT].join(",")
 
 /**
  * La feuille du composeur, hors du JSX : un littéral enfant de `<style>`
@@ -199,6 +230,7 @@ export function PostComposer({
   autoFocus = false,
   onPublished,
   prepareImage = prepareImageForUpload,
+  prepareVideo = prepareVideoForUpload,
 }: PostComposerProps = {}) {
   const { t, i18n } = useTranslation("reseau")
   const { networkId, personId, storagePrefix, slug } = useNetwork()
@@ -261,7 +293,15 @@ export function PostComposer({
   const currentContext = useRef(contextKey)
   currentContext.current = contextKey
   const active = useRef(true)
-  useEffect(() => { active.current = true; return () => { active.current = false } }, [])
+  /** SD-03 : l'annulation de la conversion vidéo en cours — par le bouton, ou au départ de l'écran. */
+  const conversionAbort = useRef<AbortController | null>(null)
+  useEffect(() => {
+    active.current = true
+    return () => {
+      active.current = false
+      conversionAbort.current?.abort()
+    }
+  }, [])
 
   const [submitting, setSubmitting] = useState(false)
   const [focused, setFocused] = useState(false)
@@ -282,12 +322,72 @@ export function PostComposer({
   const [preparationRefusal, setPreparationRefusal] = useState<string | null>(null)
   /** Le poids annoncé avant l'envoi : d'origine → envoyé. */
   const [preparationNotice, setPreparationNotice] = useState<string | null>(null)
+  /** SD-03 : la préparation d'une vidéo en cours — sonde, puis conversion et sa progression. */
+  const [videoPhase, setVideoPhase] = useState<VideoPreparationPhase | null>(null)
+  /** SD-03 : la conversion annulée par la personne — dit, sans ton d'erreur. */
+  const [videoNotice, setVideoNotice] = useState<string | null>(null)
+
+  /**
+   * SD-03 : préparer une VIDÉO choisie, quel qu'en soit le conteneur. Rend le
+   * fichier qui entrera au brouillon (MP4 ou WebM, sa durée mesurée attachée),
+   * ou la phrase du refus, ou `null` si la personne a annulé.
+   */
+  const prepareChosenVideo = async (
+    file: File,
+    kinds: readonly { kind: DraftMediaKind }[],
+  ): Promise<{ file: File } | { refusal: string } | null> => {
+    // Ce qui ne dépend pas du conteneur se juge AVANT la sonde : une vidéo est
+    // seule dans sa publication, et un MP4/WebM trop lourd ne partira pas.
+    const placement = isDirectUploadVideoType(file.type)
+      ? rejectionFor(file, kinds, undefined, t)
+      : kinds.length > 0
+        ? t("reseau:useMediaDraft.rejection.videoAlone")
+        : null
+    if (placement !== null) return { refusal: placement }
+    const controller = new AbortController()
+    conversionAbort.current = controller
+    setVideoPhase({ phase: "probing" })
+    let result: VideoPreparation
+    try {
+      result = await prepareVideo(file, {
+        limits: POST_VIDEO_UPLOAD_LIMITS,
+        t,
+        signal: controller.signal,
+        onPhase: (phase) => {
+          if (active.current && !controller.signal.aborted) setVideoPhase(phase)
+        },
+      })
+    } catch {
+      result = { status: "refused", message: t("reseau:videoPreparation.conversionFailed") }
+    } finally {
+      if (conversionAbort.current === controller) conversionAbort.current = null
+      if (active.current) setVideoPhase(null)
+    }
+    if (result.status === "cancelled") {
+      if (active.current) setVideoNotice(t("reseau:videoPreparation.cancelled"))
+      return null
+    }
+    if (result.status === "refused") return { refusal: result.message }
+    // Le fichier rendu se pèse comme un fichier choisi : `MediaRecorder` vise
+    // un débit sans le tenir à l'octet, et le serveur relira le poids réel.
+    const weight = rejectionFor(result.file, kinds, undefined, t)
+    if (weight !== null) {
+      return {
+        refusal: result.converted
+          ? t("reseau:videoPreparation.convertedTooLarge", { reason: weight })
+          : weight,
+      }
+    }
+    rememberVideoDuration(result.file, result.durationMs)
+    return { file: result.file }
+  }
 
   /**
    * Les fichiers choisis : les règles du brouillon d'abord (type, nombre,
    * poids, sur le fichier CHOISI — une photo refusée n'est pas préparée pour
    * rien), puis chaque PHOTO est préparée ; seul le fichier préparé entre au
-   * brouillon. Une vidéo y entre telle quelle (lots SD-03 et SD-05).
+   * brouillon. Une VIDÉO passe par sa propre préparation (SD-03) : seul le
+   * fichier qu'elle rend — l'original lisible, ou le converti — y entre.
    */
   const addFiles = async (files: readonly File[]) => {
     if (files.length === 0 || preparingRef.current) return
@@ -295,6 +395,7 @@ export function PostComposer({
     setPreparing(true)
     setPreparationRefusal(null)
     setPreparationNotice(null)
+    setVideoNotice(null)
     const startedIn = currentContext.current
     try {
       const ready: File[] = []
@@ -304,14 +405,21 @@ export function PostComposer({
       let preparedBytes = 0
       let prepared = 0
       for (const file of files) {
+        if (isVideoCandidateType(file.type)) {
+          const outcome = await prepareChosenVideo(file, kinds)
+          if (!active.current || startedIn !== currentContext.current) return
+          if (outcome === null) continue
+          if ("refusal" in outcome) {
+            refusals.push(outcome.refusal)
+            continue
+          }
+          ready.push(outcome.file)
+          kinds.push({ kind: "video" })
+          continue
+        }
         const refusal = rejectionFor(file, kinds, undefined, t)
         if (refusal !== null) {
           refusals.push(refusal)
-          continue
-        }
-        if (!isPreparableImageType(file.type)) {
-          ready.push(file)
-          kinds.push({ kind: "video" })
           continue
         }
         let result: ImagePreparation
@@ -426,6 +534,7 @@ export function PostComposer({
       postDraftStore.clear(draftKey)
       setPreparationNotice(null)
       setPreparationRefusal(null)
+      setVideoNotice(null)
       toast.success(t("postComposer.toast.published"))
       // APRÈS le nettoyage : la surface qui se referme démonte ce composeur,
       // et l'appeler avant laisserait un état à moitié remis à zéro derrière.
@@ -532,14 +641,52 @@ export function PostComposer({
         {media.rejection ? (
           <Alert tone="warning">{media.rejection}</Alert>
         ) : null}
-        {/* La préparation des photos, puis le poids ANNONCÉ avant l'envoi. */}
-        {preparing ? (
+        {/* SD-03 : la préparation d'une VIDÉO — sonde, puis conversion en
+            temps réel (le pourcentage se COMPTE : chasse fixe), onglet à
+            garder visible, et l'annulation. Sinon : la préparation des photos,
+            puis le poids ANNONCÉ avant l'envoi. */}
+        {videoPhase !== null ? (
+          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10 }}>
+            <p role="status" style={{ margin: 0, color: "var(--ink-600)", fontSize: 12, flex: "1 1 220px", minWidth: 0 }}>
+              {videoPhase.phase === "probing" ? (
+                t("videoPreparation.probing")
+              ) : (
+                <>
+                  {t("videoPreparation.converting")}{" "}
+                  <span style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums" }}>
+                    {new Intl.NumberFormat(i18n.language, {
+                      style: "percent",
+                      maximumFractionDigits: 0,
+                    }).format(videoPhase.progress)}
+                  </span>
+                  <span style={{ display: "block" }}>
+                    {t("videoPreparation.keepTabVisible")}
+                  </span>
+                </>
+              )}
+            </p>
+            {videoPhase.phase === "converting" ? (
+              <Button
+                variant="secondary"
+                type="button"
+                onClick={() => conversionAbort.current?.abort()}
+                style={RESEAU_SECONDARY_ACTION_STYLE}
+              >
+                {t("videoPreparation.cancel")}
+              </Button>
+            ) : null}
+          </div>
+        ) : preparing ? (
           <p role="status" style={{ margin: 0, color: "var(--ink-600)", fontSize: 12 }}>
             {t("mediaPreparation.preparing")}
           </p>
         ) : preparationNotice !== null && media.items.length > 0 ? (
           <p role="status" style={{ margin: 0, color: "var(--ink-600)", fontSize: 12 }}>
             {preparationNotice}
+          </p>
+        ) : videoNotice !== null ? (
+          <p role="status" style={{ margin: 0, color: "var(--ink-600)", fontSize: 12 }}>
+            {videoNotice}
           </p>
         ) : null}
 
@@ -683,7 +830,7 @@ export function PostComposer({
             <input
               ref={fileInput}
               type="file"
-              accept={MEDIA_ACCEPT}
+              accept={COMPOSER_ACCEPT}
               multiple
               hidden
               disabled={preparing}

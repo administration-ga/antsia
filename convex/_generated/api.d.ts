@@ -88,6 +88,7 @@ import type * as modules_contextualMessaging_hooks from "../modules/contextualMe
 import type * as modules_contextualMessaging_messages from "../modules/contextualMessaging/messages.js";
 import type * as modules_contextualMessaging_operator from "../modules/contextualMessaging/operator.js";
 import type * as modules_contextualMessaging_personStates from "../modules/contextualMessaging/personStates.js";
+import type * as modules_contextualMessaging_policy from "../modules/contextualMessaging/policy.js";
 import type * as modules_contextualMessaging_projection from "../modules/contextualMessaging/projection.js";
 import type * as modules_contextualMessaging_registry from "../modules/contextualMessaging/registry.js";
 import type * as modules_contextualMessaging_retention from "../modules/contextualMessaging/retention.js";
@@ -162,6 +163,8 @@ import type * as modules_events_pageEventAttendanceState from "../modules/events
 import type * as modules_events_pageEventCalendar from "../modules/events/pageEventCalendar.js";
 import type * as modules_events_pageEventGallery from "../modules/events/pageEventGallery.js";
 import type * as modules_events_pageEventGalleryAccess from "../modules/events/pageEventGalleryAccess.js";
+import type * as modules_events_pageEventNoticeAccess from "../modules/events/pageEventNoticeAccess.js";
+import type * as modules_events_pageEventNotices from "../modules/events/pageEventNotices.js";
 import type * as modules_events_pageEventRegistrations from "../modules/events/pageEventRegistrations.js";
 import type * as modules_events_pageEventReminderAccess from "../modules/events/pageEventReminderAccess.js";
 import type * as modules_events_pageEventReminders from "../modules/events/pageEventReminders.js";
@@ -242,6 +245,7 @@ import type * as modules_live_permissions from "../modules/live/permissions.js";
 import type * as modules_live_presence from "../modules/live/presence.js";
 import type * as modules_live_reactions from "../modules/live/reactions.js";
 import type * as modules_live_reap from "../modules/live/reap.js";
+import type * as modules_live_recordingConsent from "../modules/live/recordingConsent.js";
 import type * as modules_live_replay from "../modules/live/replay.js";
 import type * as modules_live_replayComposition from "../modules/live/replayComposition.js";
 import type * as modules_live_retention from "../modules/live/retention.js";
@@ -275,9 +279,11 @@ import type * as modules_moderation_professionalReviewSource from "../modules/mo
 import type * as modules_moderation_reporterNotices from "../modules/moderation/reporterNotices.js";
 import type * as modules_moderation_reviewProjection from "../modules/moderation/reviewProjection.js";
 import type * as modules_moderation_sanctions from "../modules/moderation/sanctions.js";
+import type * as modules_moderation_settings from "../modules/moderation/settings.js";
 import type * as modules_moderation_tables from "../modules/moderation/tables.js";
 import type * as modules_moderation_targets from "../modules/moderation/targets.js";
 import type * as modules_networks_networks from "../modules/networks/networks.js";
+import type * as modules_networks_sliceRegistry from "../modules/networks/sliceRegistry.js";
 import type * as modules_networks_tables from "../modules/networks/tables.js";
 import type * as modules_notifications_bell from "../modules/notifications/bell.js";
 import type * as modules_notifications_commerceAccess from "../modules/notifications/commerceAccess.js";
@@ -323,6 +329,7 @@ import type * as modules_people_feedDataPage from "../modules/people/feedDataPag
 import type * as modules_people_identity from "../modules/people/identity.js";
 import type * as modules_people_memberships from "../modules/people/memberships.js";
 import type * as modules_people_miniProfile from "../modules/people/miniProfile.js";
+import type * as modules_people_networkRoles from "../modules/people/networkRoles.js";
 import type * as modules_people_persons from "../modules/people/persons.js";
 import type * as modules_people_preferences from "../modules/people/preferences.js";
 import type * as modules_people_profile from "../modules/people/profile.js";
@@ -335,6 +342,7 @@ import type * as modules_platform_console from "../modules/platform/console.js";
 import type * as modules_platform_consoleTables from "../modules/platform/consoleTables.js";
 import type * as modules_platform_demoAccounts from "../modules/platform/demoAccounts.js";
 import type * as modules_platform_devTools from "../modules/platform/devTools.js";
+import type * as modules_platform_networkRoles from "../modules/platform/networkRoles.js";
 import type * as modules_platform_operationalHealth from "../modules/platform/operationalHealth.js";
 import type * as modules_platform_operationalTables from "../modules/platform/operationalTables.js";
 import type * as modules_platform_operatorAccess from "../modules/platform/operatorAccess.js";
@@ -561,6 +569,7 @@ declare const fullApi: ApiFromModules<{
   "modules/contextualMessaging/messages": typeof modules_contextualMessaging_messages;
   "modules/contextualMessaging/operator": typeof modules_contextualMessaging_operator;
   "modules/contextualMessaging/personStates": typeof modules_contextualMessaging_personStates;
+  "modules/contextualMessaging/policy": typeof modules_contextualMessaging_policy;
   "modules/contextualMessaging/projection": typeof modules_contextualMessaging_projection;
   "modules/contextualMessaging/registry": typeof modules_contextualMessaging_registry;
   "modules/contextualMessaging/retention": typeof modules_contextualMessaging_retention;
@@ -635,6 +644,8 @@ declare const fullApi: ApiFromModules<{
   "modules/events/pageEventCalendar": typeof modules_events_pageEventCalendar;
   "modules/events/pageEventGallery": typeof modules_events_pageEventGallery;
   "modules/events/pageEventGalleryAccess": typeof modules_events_pageEventGalleryAccess;
+  "modules/events/pageEventNoticeAccess": typeof modules_events_pageEventNoticeAccess;
+  "modules/events/pageEventNotices": typeof modules_events_pageEventNotices;
   "modules/events/pageEventRegistrations": typeof modules_events_pageEventRegistrations;
   "modules/events/pageEventReminderAccess": typeof modules_events_pageEventReminderAccess;
   "modules/events/pageEventReminders": typeof modules_events_pageEventReminders;
@@ -715,6 +726,7 @@ declare const fullApi: ApiFromModules<{
   "modules/live/presence": typeof modules_live_presence;
   "modules/live/reactions": typeof modules_live_reactions;
   "modules/live/reap": typeof modules_live_reap;
+  "modules/live/recordingConsent": typeof modules_live_recordingConsent;
   "modules/live/replay": typeof modules_live_replay;
   "modules/live/replayComposition": typeof modules_live_replayComposition;
   "modules/live/retention": typeof modules_live_retention;
@@ -748,9 +760,11 @@ declare const fullApi: ApiFromModules<{
   "modules/moderation/reporterNotices": typeof modules_moderation_reporterNotices;
   "modules/moderation/reviewProjection": typeof modules_moderation_reviewProjection;
   "modules/moderation/sanctions": typeof modules_moderation_sanctions;
+  "modules/moderation/settings": typeof modules_moderation_settings;
   "modules/moderation/tables": typeof modules_moderation_tables;
   "modules/moderation/targets": typeof modules_moderation_targets;
   "modules/networks/networks": typeof modules_networks_networks;
+  "modules/networks/sliceRegistry": typeof modules_networks_sliceRegistry;
   "modules/networks/tables": typeof modules_networks_tables;
   "modules/notifications/bell": typeof modules_notifications_bell;
   "modules/notifications/commerceAccess": typeof modules_notifications_commerceAccess;
@@ -796,6 +810,7 @@ declare const fullApi: ApiFromModules<{
   "modules/people/identity": typeof modules_people_identity;
   "modules/people/memberships": typeof modules_people_memberships;
   "modules/people/miniProfile": typeof modules_people_miniProfile;
+  "modules/people/networkRoles": typeof modules_people_networkRoles;
   "modules/people/persons": typeof modules_people_persons;
   "modules/people/preferences": typeof modules_people_preferences;
   "modules/people/profile": typeof modules_people_profile;
@@ -808,6 +823,7 @@ declare const fullApi: ApiFromModules<{
   "modules/platform/consoleTables": typeof modules_platform_consoleTables;
   "modules/platform/demoAccounts": typeof modules_platform_demoAccounts;
   "modules/platform/devTools": typeof modules_platform_devTools;
+  "modules/platform/networkRoles": typeof modules_platform_networkRoles;
   "modules/platform/operationalHealth": typeof modules_platform_operationalHealth;
   "modules/platform/operationalTables": typeof modules_platform_operationalTables;
   "modules/platform/operatorAccess": typeof modules_platform_operatorAccess;
