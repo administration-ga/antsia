@@ -28,7 +28,7 @@
  */
 import { formatViewerDate } from "@antsia/api/civil-date"
 import type { Id } from "@antsia/api/engine"
-import { useNetwork } from "@antsia/api/network"
+import { useCallsAvailable, useNetwork } from "@antsia/api/network"
 import { useViewerTimeZone } from "@antsia/api/viewer-preferences"
 import { CONTEXTUAL_ATTACHMENTS_MAX, contextualText, type ContextualSide } from "@antsia/social-domain/contextualMessaging"
 import { CONTENT_REPORT_REASONS, type ContentReportReason } from "@antsia/social-domain/moderation"
@@ -163,7 +163,9 @@ function ContextualConversation({ threadId: rawId, onBack, onOpenObject, onOpenC
   const closeTriggerRef = useRef<HTMLButtonElement>(null)
   const closeCancelRef = useRef<HTMLButtonElement>(null)
   const closeWasOpen = useRef(false)
-  const callsRelevant = thread !== undefined && thread !== null && contextualCallsRelevant(thread)
+  // IM-01 : une application sans appels déclarés ne montre ni le panneau d'appels ni l'accord (le serveur garde ses gardes).
+  const callsAvailable = useCallsAvailable()
+  const callsRelevant = callsAvailable && thread !== undefined && thread !== null && contextualCallsRelevant(thread)
   const calls = useCallStore()
 
   const announce = useCallback((text: string) => {

@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/iappel/IappelJournal.tsx @ ad2e7fdc2 — adaptations : journal du moteur (`calls.history.listCallHistory` du réseau courant, `{ calls, truncated }`) passé tel quel à `groupCallJournal` — le serveur a classé, l'identité du lecteur n'est plus lue (`users.getMe` retiré) ; acquittement par `calls.preferences.markJournalSeen` (sur soi) ; branche poste élaguée (prop `scope`, fonction, renvoi au secrétariat, appel prioritaire, raisons « hors horaires » et « secrétariat indisponible ») ; correspondant nommé par son libellé (`counterpartLabel`, nom neutre traduit) ; libellés traduits (i18n `iappel`), dates dans la langue courante. ; PA6 : préférence de fuseau injectée, calendrier grégorien et caches langue/fuseau. ; CC-5 : une ligne d'appel contextuel se rappelle et s'écrit par sa conversation (`onContextualOpen`), jamais par l'appel personnel. ; couleurs par fonction (ADR-0027) : « Écrire à » en tonal des messages (`data-role="message"`, feuille de la messagerie), facture d'origine en repli. ; IC-02 : filtre « Messages vocaux » (messagerie vocale reçue, `IappelVoicemails`, non-écoutés comptés), absent du journal d'iCom Pro.
+// Dupliqué de socle/packages/agent-features/src/features/iappel/IappelJournal.tsx @ ad2e7fdc2 — adaptations : journal du moteur (`calls.history.listCallHistory` du réseau courant, `{ calls, truncated }`) passé tel quel à `groupCallJournal` — le serveur a classé, l'identité du lecteur n'est plus lue (`users.getMe` retiré) ; acquittement par `calls.preferences.markJournalSeen` (sur soi) ; branche poste élaguée (prop `scope`, fonction, renvoi au secrétariat, appel prioritaire, raisons « hors horaires » et « secrétariat indisponible ») ; correspondant nommé par son libellé (`counterpartLabel`, nom neutre traduit) ; libellés traduits (i18n `iappel`), dates dans la langue courante. ; PA6 : préférence de fuseau injectée, calendrier grégorien et caches langue/fuseau. ; CC-5 : une ligne d'appel contextuel se rappelle et s'écrit par sa conversation (`onContextualOpen`), jamais par l'appel personnel. ; couleurs par fonction (ADR-0027) : « Écrire à » en tonal des messages (`data-role="message"`, feuille de la messagerie), facture d'origine en repli. ; IC-02 : filtre « Messages vocaux » (messagerie vocale reçue, `IappelVoicemails`, non-écoutés comptés), absent du journal d'iCom Pro. ; IM-01 (IC-04) : bouton « Rappeler » retiré quand l'application déclare `callsAvailable={false}` (le journal et « Écrire » restent).
 "use client"
 
 /**
@@ -26,7 +26,7 @@ import { api } from "@antsia/api/engine"
 import { civilDayKey, formatViewerDate, isPreviousCivilDay, sameCivilDay } from "@antsia/api/civil-date"
 import { useViewerTimeZone } from "@antsia/api/viewer-preferences"
 import { useAuthenticatedConvexQuery } from "@antsia/api/hooks"
-import { useNetwork } from "@antsia/api/network"
+import { useCallsAvailable, useNetwork } from "@antsia/api/network"
 import { useMutation } from "convex/react"
 import type { TFunction } from "i18next"
 import type { LucideIcon } from "lucide-react"
@@ -182,6 +182,8 @@ export function IappelJournal({
 	const { t, i18n } = useTranslation("iappel")
 	const timeZone = useViewerTimeZone()
 	const { networkId } = useNetwork()
+	// IM-01 : une application sans appels garde le journal (et la messagerie vocale reçue), sans rappel.
+	const callsAvailable = useCallsAvailable()
 	const [chosenFilter, setFilter] = useState<JournalFilter>("all")
 	// IC-02 : la messagerie vocale est personnelle — jamais dans le journal d'iCom Pro.
 	const voicemailsAvailable = family !== "pro"
@@ -372,7 +374,7 @@ export function IappelJournal({
 													<MessageSquare aria-hidden="true" size={16} />
 												</button>
 											) : null}
-											<button
+											{callsAvailable ? <button
 												type="button"
 												className="icom-relations-action"
 												data-icon="true"
@@ -398,7 +400,7 @@ export function IappelJournal({
 												}}
 											>
 												<Phone aria-hidden="true" size={16} />
-											</button>
+											</button> : null}
 										</span>
 									</li>
 								)

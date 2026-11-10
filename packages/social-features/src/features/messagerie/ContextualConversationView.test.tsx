@@ -535,3 +535,22 @@ describe("accessibilité de base et gestes d'une bulle", () => {
     expect(onBack).toHaveBeenCalledOnce()
   })
 })
+
+// ── Application sans appels déclarés (IM-01) ────────────────────────────────
+
+describe("IM-01 — une application sans appels déclarés (callsAvailable={false})", () => {
+  it("la mise en relation garde sa conversation, sans panneau d'appels ni accord", () => {
+    state.thread = contextThread({ threadId: "thread-no-calls", callConsent: true, capabilities: { ...OPEN_CAPABILITIES, canSetCallConsent: true, canCall: true } })
+    renderWithEngine(view("thread-no-calls"), { callsAvailable: false })
+    expect(screen.queryByRole("button", { name: "Appels" })).toBeNull()
+    expect(screen.queryByRole("button", { name: "Retirer mon accord d'appel" })).toBeNull()
+    expect(screen.queryByRole("button", { name: "Appel audio" })).toBeNull()
+    expect(writes.startCall).not.toHaveBeenCalled()
+  })
+
+  it("absente, le panneau d'appels reste proposé (rien ne change pour antsia.ga)", () => {
+    state.thread = contextThread({ threadId: "thread-calls", capabilities: { ...OPEN_CAPABILITIES, canSetCallConsent: true } })
+    renderWithEngine(view("thread-calls"))
+    expect(screen.getByRole("button", { name: "Appels" })).toBeInTheDocument()
+  })
+})

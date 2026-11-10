@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/messagerie/IcomRelationsPanel.test.tsx @ ad2e7fdc2 — adaptations : fonctions du moteur moquées (`calls.direct.callMember`, `groups.threads.paginateMyGroupThreads` en page, `calls.presence.*`) ; portée poste retirée (plus de `useOptionalOrg` à moquer) ; relations au DTO du graphe (`otherPersonId`, badges calculés) ; rendu dans l'enveloppe du moteur (`renderWithEngine` : i18n français, réseau de test) ; le refus « d'affiliation » du socle (règle administrative absente du moteur) devient un refus à CODE du moteur, dit par sa phrase traduite ; l'appel vise la PERSONNE (`target: { personId }`) ; « iRéseau » devient « le réseau » ; cas neufs : nom nul d'une relation rendu par le libellé neutre, appel admis qui ouvre la fenêtre sortante sur la personne.
+// Dupliqué de socle/packages/agent-features/src/features/messagerie/IcomRelationsPanel.test.tsx @ ad2e7fdc2 — adaptations : fonctions du moteur moquées (`calls.direct.callMember`, `groups.threads.paginateMyGroupThreads` en page, `calls.presence.*`) ; portée poste retirée (plus de `useOptionalOrg` à moquer) ; relations au DTO du graphe (`otherPersonId`, badges calculés) ; rendu dans l'enveloppe du moteur (`renderWithEngine` : i18n français, réseau de test) ; le refus « d'affiliation » du socle (règle administrative absente du moteur) devient un refus à CODE du moteur, dit par sa phrase traduite ; l'appel vise la PERSONNE (`target: { personId }`) ; « iRéseau » devient « le réseau » ; cas neufs : nom nul d'une relation rendu par le libellé neutre, appel admis qui ouvre la fenêtre sortante sur la personne. ; IM-01 (IC-04) : sans appels déclarés, ni appel sur une relation ni vue « Nouvel appel ».
 // @vitest-environment jsdom
 
 import { act, cleanup, fireEvent, screen } from "@testing-library/react"
@@ -463,5 +463,27 @@ describe("IcomRelationsPanel — le moteur nomme et appelle la PERSONNE", () => 
       }),
     )
     expect(mocks.openRefusedCall).not.toHaveBeenCalled()
+  })
+})
+
+describe("IcomRelationsPanel — application sans appels déclarés (IM-01)", () => {
+  it("une relation garde « Écrire », sans appel audio ni vidéo ; le journal ne propose plus « Nouvel appel »", () => {
+    mocks.relations.items = [ZOE]
+    const journal = vi.fn((controls: unknown) => <div data-testid="journal">{controls as never}</div>)
+    renderWithEngine(
+      <IcomRelationsPanel mode="contact" variant="page" onOpenDraft={vi.fn()} onOpenGroup={vi.fn()} onCreateGroup={vi.fn()} />,
+      { callsAvailable: false },
+    )
+    expect(screen.getByRole("button", { name: "Écrire à Zoé Famille26" })).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Appeler Zoé Famille26" })).toBeNull()
+    expect(screen.queryByRole("button", { name: "Appeler Zoé Famille26 en vidéo" })).toBeNull()
+    cleanup()
+    renderWithEngine(
+      <IcomRelationsPanel mode="appel" variant="page" journal={journal} onOpenDraft={vi.fn()} onOpenGroup={vi.fn()} onCreateGroup={vi.fn()} />,
+      { callsAvailable: false },
+    )
+    expect(screen.getByTestId("journal")).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Nouvel appel" })).toBeNull()
+    expect(journal).toHaveBeenLastCalledWith(null)
   })
 })

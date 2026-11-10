@@ -193,6 +193,14 @@ export interface NetworkContextValue {
   storagePrefix: string
   /** L'application sert réellement sa route de conférence (activation explicite F3a). */
   liveAvailable: boolean
+  /**
+   * IM-01 (issue antsia#100, lot IC-04) : l'application PROPOSE des appels. `false` retire les gestes
+   * qui LANCENT un appel (en-tête et vue d'une conversation, rappel du journal, panneau d'appels et
+   * accord d'une mise en relation) ; la couche qui REÇOIT un appel reste montée. Déclaration absente :
+   * `true`, rien ne change (antsia.ga). Une capacité de présentation, jamais un droit : le serveur
+   * garde toutes ses gardes.
+   */
+  callsAvailable: boolean
   /** La navigation déclarée par l'application, déjà rabattue sur `"volets"` si une destination manque. */
   navigation: EngineNavigation
   /** U02 : absent dans les consommateurs historiques ; téléphone <768, rail compact <1200 sur opt-in. */
@@ -308,6 +316,8 @@ export function NetworkProvider(props: {
   charte: string
   routes: EngineRoutes
   liveAvailable?: boolean
+  /** IM-01 : `false` retire les gestes qui lancent un appel ; absent = appels proposés (comportement historique). */
+  callsAvailable?: boolean
   /** Opt-in de la navigation par destinations ; absent = `"volets"` (comportement historique). */
   navigation?: EngineNavigation
   /** U02 : géométrie à trois formats, seulement sous destinations ; absent = seuil historique 960. */
@@ -360,6 +370,7 @@ export function NetworkProvider(props: {
     charte: props.charte,
     storagePrefix: `${storageNamespace}antsia:${props.slug}:`,
     liveAvailable: props.liveAvailable === true,
+    callsAvailable: props.callsAvailable !== false,
     navigation: resolveEngineNavigation(props.navigation, props.routes),
     navigationLayout: resolveEngineNavigationLayout(props.navigationLayout, resolveEngineNavigation(props.navigation, props.routes)),
     navigationLabels: props.navigationLabels,
@@ -391,6 +402,15 @@ export function useNetwork(): NetworkContextValue {
 /** Le réseau courant, ou `null` hors d'un `NetworkProvider` (surfaces montées avant l'adhésion). */
 export function useOptionalNetwork(): NetworkContextValue | null {
   return useContext(NetworkContext)
+}
+
+/**
+ * IM-01 : l'application propose-t-elle des appels ? Vrai hors d'un `NetworkProvider` et tant que
+ * l'application ne déclare pas `callsAvailable={false}` : les surfaces qui LANCENT un appel le
+ * lisent ; celles qui le REÇOIVENT ne le lisent jamais.
+ */
+export function useCallsAvailable(): boolean {
+  return useContext(NetworkContext)?.callsAvailable !== false
 }
 
 /** Les adresses de l'application ; lève hors d'un `NetworkProvider`. */

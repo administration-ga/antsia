@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/messagerie/MessagerieGroupeInfos.tsx @ ad2e7fdc2 — adaptations : fonctions du moteur `groups.threads.*`, `groups.invites.*`, `groups.cascade.deleteGroup` (réseau courant, membre visé par sa PERSONNE `memberPersonId`) ; la fiche (`getGroupThread`) ne porte plus les membres : membres et invitations en attente lus par `paginateGroupMembers` et `paginateGroupPendingInvites`, chargés jusqu'au bout (borné par le plafond de structure) et places comptées sur l'effectif du serveur ; noms par le contrat `counterpartLabel` (nom nul = libellé neutre) ; photo déposée par `generateGroupAvatarUploadUrl` et posée avec son type, refusée par `refusPhotoDeGroupe` ; ressources lues dans le DTO des messages du moteur (`content`, `attachmentFiles`) ; lien d'invitation sur la base `useRoutes().messages()` ; recherche de relations sans langue écrite en dur (`normaliseRecherche`) ; échec de copie du lien dit tel quel (le socle le noyait dans le refus générique) ; dates dans la langue courante ; textes traduits (i18n `messagerie`, clés `messagerieGroupeInfos.…`) ; « Groupe iCom » et « espace agent » deviennent « réseau » ; code QR sans couleur littérale (encre héritée, fond transparent). ; PA6 : dates et jours civils dans le fuseau personnel du lecteur (repli appareil) ; PF-03 : la photo choisie passe par la préparation des photos (`preparerPhotoDeGroupe` : ré-encodée, 1 024 px au plus, sans métadonnées, échec fermé) — seule l'image préparée est déposée et déclarée.
+// Dupliqué de socle/packages/agent-features/src/features/messagerie/MessagerieGroupeInfos.tsx @ ad2e7fdc2 — adaptations : fonctions du moteur `groups.threads.*`, `groups.invites.*`, `groups.cascade.deleteGroup` (réseau courant, membre visé par sa PERSONNE `memberPersonId`) ; la fiche (`getGroupThread`) ne porte plus les membres : membres et invitations en attente lus par `paginateGroupMembers` et `paginateGroupPendingInvites`, chargés jusqu'au bout (borné par le plafond de structure) et places comptées sur l'effectif du serveur ; noms par le contrat `counterpartLabel` (nom nul = libellé neutre) ; photo déposée par `generateGroupAvatarUploadUrl` et posée avec son type, refusée par `refusPhotoDeGroupe` ; ressources lues dans le DTO des messages du moteur (`content`, `attachmentFiles`) ; lien d'invitation sur la base `useRoutes().messages()` ; recherche de relations sans langue écrite en dur (`normaliseRecherche`) ; échec de copie du lien dit tel quel (le socle le noyait dans le refus générique) ; dates dans la langue courante ; textes traduits (i18n `messagerie`, clés `messagerieGroupeInfos.…`) ; « Groupe iCom » et « espace agent » deviennent « réseau » ; code QR sans couleur littérale (encre héritée, fond transparent). ; PA6 : dates et jours civils dans le fuseau personnel du lecteur (repli appareil) ; PF-03 : la photo choisie passe par la préparation des photos (`preparerPhotoDeGroupe` : ré-encodée, 1 024 px au plus, sans métadonnées, échec fermé) — seule l'image préparée est déposée et déclarée. ; IM-01 (IC-04) : boutons d'appel de la fiche retirés quand l'application déclare `callsAvailable={false}`.
 "use client"
 
 /**
@@ -23,7 +23,7 @@ import {
 	useAuthenticatedPaginatedQuery,
 	useConvexMutationQuery,
 } from "@antsia/api/hooks"
-import { useNetwork, useRoutes } from "@antsia/api/network"
+import { useCallsAvailable, useNetwork, useRoutes } from "@antsia/api/network"
 import { GROUP_DESCRIPTION_MAX_LENGTH } from "@antsia/social-contracts/groupCapacity"
 import {
 	ArrowLeft,
@@ -129,6 +129,7 @@ export function MessagerieGroupeInfos({
 	const { t, i18n } = useTranslation("messagerie")
 	const timeZone = useViewerTimeZone()
 	const { networkId } = useNetwork()
+	const callsAvailable = useCallsAvailable()
 	const routes = useRoutes()
 	const locale = i18n.language
 	// Posé AVANT une mutation qui retire l'accès : la requête ne doit pas se
@@ -605,8 +606,9 @@ export function MessagerieGroupeInfos({
 							</section>
 
 							<div className="msg-infos-quick-actions" aria-label={t("messagerieGroupeInfos.quickActions")}>
-								<button type="button" className="msg-infos-quick" disabled={onStartAudio === undefined || callPending} onClick={onStartAudio}><Phone aria-hidden="true" size={18} /><span>{t("messagerieGroupeInfos.audio")}</span></button>
-								<button type="button" className="msg-infos-quick" disabled={onStartVideo === undefined || callPending} onClick={onStartVideo}><Video aria-hidden="true" size={18} /><span>{t("messagerieGroupeInfos.video")}</span></button>
+								{/* IM-01 : sans appels déclarés, la fiche du groupe ne propose pas d'appel. */}
+								{callsAvailable ? <button type="button" className="msg-infos-quick" disabled={onStartAudio === undefined || callPending} onClick={onStartAudio}><Phone aria-hidden="true" size={18} /><span>{t("messagerieGroupeInfos.audio")}</span></button> : null}
+								{callsAvailable ? <button type="button" className="msg-infos-quick" disabled={onStartVideo === undefined || callPending} onClick={onStartVideo}><Video aria-hidden="true" size={18} /><span>{t("messagerieGroupeInfos.video")}</span></button> : null}
 								<button type="button" className="msg-infos-quick" disabled={!vue.inviter} onClick={ouvrirAjoutMembre}><UserPlus aria-hidden="true" size={18} /><span>{t("messagerieGroupeInfos.add")}</span></button>
 								<button type="button" className="msg-infos-quick" onClick={chercherUnMembre}><Search aria-hidden="true" size={18} /><span>{t("messagerieGroupeInfos.search")}</span></button>
 							</div>
