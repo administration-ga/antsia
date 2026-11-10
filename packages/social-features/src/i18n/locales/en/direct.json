@@ -28,6 +28,23 @@
   "cameraOn": "Enable camera",
   "counters": "{{present}} present · {{admitted}} admissions since the start",
   "recording": "This conference is being recorded. The host will decide whether to publish the replay afterwards.",
+  "recordingBadge": {
+    "short": "REC",
+    "label": "Recording in progress"
+  },
+  "recordingConsent": {
+    "notice": "This conference is being recorded. On stage, your image, your voice and your screen share will be part of the recording.",
+    "where": "After the conference, the host decides whether to publish the replay, never beyond the conference audience; it is kept for {{days}} days at most.",
+    "withdraw": "You can leave the stage at any time: what follows is no longer recorded, but what has already been recorded stays in the replay, which the host decides on.",
+    "accept": "I agree that my image and voice are recorded on the stage of this conference",
+    "given": "You have accepted the recording of this conference.",
+    "proposedSpeaker": "The host invites you to speak. Accept the recording to go on stage as soon as the conference starts.",
+    "proposedSpeakerLive": "The host invites you to speak. Accept the recording to go on stage.",
+    "confirm": "Accept the recording",
+    "takeStage": "Accept and go on stage",
+    "promotedLater": "Your consent is saved. The stage is full for now: the host can bring you on stage as soon as a place opens up.",
+    "hostNotice": "This conference is being recorded: a person only goes on stage after accepting the recording."
+  },
   "status": {
     "scheduled": "Upcoming",
     "live": "Live",
@@ -57,7 +74,7 @@
     "capacity": "Maximum number of viewers",
     "networkOnly": "This conference stays in this network, even with the “Whole network” audience.",
     "record": "Record this conference",
-    "recordDescription": "Participants are informed about recording. It will remain private until you decide to publish it after the conference.",
+    "recordDescription": "Participants are informed about recording, and each speaker will have to accept it before going on stage; by ticking, you accept it for yourself. It will remain private until you decide to publish it after the conference.",
     "announce": "Publish an announcement in the feed",
     "submit": "Prepare the conference",
     "invalidTitle": "Enter a title of 1 to {{max}} characters.",
@@ -209,7 +226,7 @@
   },
   "antenna": {
     "failed": "The stage could not be loaded.",
-    "consent": "A stage role lets you speak. Your microphone and camera remain your choice when you rejoin the room.",
+    "consent": "A stage role lets you speak. Your microphone and camera remain your choice when you rejoin the room. If the conference is being recorded, you will first have to accept the recording.",
     "speakerReady": "You may speak. Rejoin the room to apply this role.",
     "leave": "Leave the stage",
     "invited": "The host invites you to speak.",

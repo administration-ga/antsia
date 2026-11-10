@@ -256,6 +256,29 @@ export const liveTables = {
     .index("by_session_removedAt", ["sessionId", "removedAt"]),
 
   /**
+   * L'ACCORD EXPLICITE et horodaté d'une personne à l'enregistrement d'un
+   * direct (DL-02, décision du propriétaire du 9/11/2026) — UNE ligne par
+   * (session, personne), jamais réécrite : rejouer l'accord rend la ligne
+   * existante.
+   *
+   * Exigé, quand la session est enregistrée (`replayRequested`), avant toute
+   * place à l'antenne (`speakers.promoteSpeakerRow`) et avant tout jeton
+   * d'intervenant (`access.authorizeToken`). L'hôte le donne en cochant
+   * « Enregistrer » à la création.
+   *
+   * Donnée personnelle de la personne (`personId`) : exportée et effacée avec
+   * elle (`people/dataPolicies.ts`). Elle dure autant que la rediffusion :
+   * purgée quand celle-ci est retirée ou expire, ou quand la session se
+   * termine sans avoir jamais été enregistrée (`recordingConsent.ts`).
+   */
+  liveRecordingConsents: defineTable({
+    networkId: v.id("networks"),
+    sessionId: v.id("liveSessions"),
+    personId: v.id("persons"),
+    acceptedAt: v.number(),
+  }).index("by_session_person", ["sessionId", "personId"]),
+
+  /**
    * Une admission SPECTATEUR durable pour la session — ET son bail de présence.
    *
    * Le jeton LiveKit expire et peut devoir être redemandé (réseau, recharge,

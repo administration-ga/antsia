@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/modules/direct/retention.ts @ ad2e7fdc2 — adaptations : aucune dans le code (module pur gardé dans le module du backend, comme au socle) ; en-tête de provenance seul.
+// Dupliqué de socle/convex/modules/direct/retention.ts @ ad2e7fdc2 — adaptations : module pur gardé dans le module du backend, comme au socle ; DL-02 : la durée (90 jours) vient du domaine (`DIRECT_REPLAY_RETENTION_DAYS`, que l'écran annonce à qui accepte l'enregistrement), même valeur.
 /**
  * Politique de conservation des copies durables d'un DIRECT.
  *
@@ -7,9 +7,10 @@
  * vidéo et ses éventuels sous-titres afin qu'aucun dérivé ne survive à la
  * copie principale.
  */
+import { DIRECT_REPLAY_RETENTION_DAYS } from "@antsia/social-domain/live/domain"
 
 /** Aligné sur la politique existante des enregistrements iAppel : 90 jours. */
-export const DIRECT_REPLAY_RETENTION_MS = 90 * 24 * 60 * 60 * 1000
+export const DIRECT_REPLAY_RETENTION_MS = DIRECT_REPLAY_RETENTION_DAYS * 24 * 60 * 60 * 1000
 
 /** Une transaction de purge ne lit et ne traite jamais plus de 50 lignes. */
 export const DIRECT_REPLAY_PURGE_BATCH = 50

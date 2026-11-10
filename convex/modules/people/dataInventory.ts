@@ -170,6 +170,10 @@ export function exportableRecord(table: string, row: DataRecord, personId: strin
     return null
   }
   if (table === "contextualPersonStates") return row.personId === personId ? projectedRecord(row, [...RECORD_METADATA, "threadId", "readAt", "callsAllowed"]) : null
+  // DL-02 : mon accord à l'enregistrement d'un direct, avec la référence du direct. Le champ
+  // `sessionId` serait retiré par la règle des secrets de session (il ne désigne pourtant pas une
+  // session d'authentification) : il sort sous un nom explicite.
+  if (table === "liveRecordingConsents") return row.personId === personId ? { ...projectedRecord(row, [...RECORD_METADATA, "personId", "acceptedAt"]), liveSessionId: row.sessionId } : null
   if (table === "feedEntries" || table === "feedFanoutJobs") return null
   if (table === "fileStagingReservations") return null
   if (table === "feedCursors") return row.personId === personId ? projectedRecord(row, [...RECORD_METADATA, "personId", "scope", "status", "windowStart", "startedAt", "completedAt"]) : null

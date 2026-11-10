@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/modules/direct/speakers.ts @ ad2e7fdc2 — adaptations : personnes et réseaux — constructeur `networkMutation`, lecteur `directCaller`, cible `targetPersonId`, tables `liveSessions`/`liveSpeakers` (`networkId` copié de la session sur la ligne d'intervenant, champs `hostPersonId`/`spotlightPersonId`), session des primitives avec son `networkId` ; relation ACCEPTÉE avec l'hôte lue DANS le réseau de la session ; compte « actif » = personne non effacée (`deletionRequestedAt`), l'adhésion au réseau étant relue par la décision d'accès (V35) ; `promote` réservé à une cible membre DÉCLARÉE du réseau de la session (`lib/access.memberHasStatus`, comme les appels) — un membre en attente est refusé `LIVE_TARGET_CANNOT_JOIN_STAGE`, sans ligne ni action SFU ; sujet LiveKit = `authUserId` de la personne (toujours posé : seule une personne disparue de la base n'a plus d'identité à viser) ; actions SFU planifiées sous `modules/live/livekitActions` ; refus à CODE de règle (`LIVE_ALREADY_ON_STAGE`, `LIVE_ENDED`, `LIVE_NOT_LIVE`, `LIVE_TARGET_CANNOT_JOIN_STAGE`, `LIVE_STAGE_FULL{max}`, `LIVE_HOST_STAYS_ON_STAGE`, `LIVE_PROMOTE_CONNECTIONS_ONLY`, `LIVE_TARGET_EXCLUDED`, `LIVE_HOST_MUTES_SELF`, `LIVE_TARGET_NOT_ON_STAGE`) et refus de droit `liveRoleRequired` (garde de la fondation) au lieu des phrases ; commentaires rapportés au moteur.
+// Dupliqué de socle/convex/modules/direct/speakers.ts @ ad2e7fdc2 — adaptations : personnes et réseaux — constructeur `networkMutation`, lecteur `directCaller`, cible `targetPersonId`, tables `liveSessions`/`liveSpeakers` (`networkId` copié de la session sur la ligne d'intervenant, champs `hostPersonId`/`spotlightPersonId`), session des primitives avec son `networkId` ; relation ACCEPTÉE avec l'hôte lue DANS le réseau de la session ; compte « actif » = personne non effacée (`deletionRequestedAt`), l'adhésion au réseau étant relue par la décision d'accès (V35) ; `promote` réservé à une cible membre DÉCLARÉE du réseau de la session (`lib/access.memberHasStatus`, comme les appels) — un membre en attente est refusé `LIVE_TARGET_CANNOT_JOIN_STAGE`, sans ligne ni action SFU ; sujet LiveKit = `authUserId` de la personne (toujours posé : seule une personne disparue de la base n'a plus d'identité à viser) ; actions SFU planifiées sous `modules/live/livekitActions` ; refus à CODE de règle (`LIVE_ALREADY_ON_STAGE`, `LIVE_ENDED`, `LIVE_NOT_LIVE`, `LIVE_TARGET_CANNOT_JOIN_STAGE`, `LIVE_STAGE_FULL{max}`, `LIVE_HOST_STAYS_ON_STAGE`, `LIVE_PROMOTE_CONNECTIONS_ONLY`, `LIVE_TARGET_EXCLUDED`, `LIVE_HOST_MUTES_SELF`, `LIVE_TARGET_NOT_ON_STAGE`) et refus de droit `liveRoleRequired` (garde de la fondation) au lieu des phrases ; commentaires rapportés au moteur ; DL-02 : toute montée exige, dans un direct enregistré, l'accord horodaté de la personne (`recordingConsent.assertRecordingConsent` dans `promoteSpeakerRow`, refus `LIVE_RECORDING_CONSENT_REQUIRED`).
 /**
  * PROMOTION et RÉTROGRADATION des intervenants.
  * API publique : `api.modules.live.speakers.*`
@@ -36,11 +36,20 @@ import { networkMutation } from "../../lib/functions"
 import { isBlockedBetween, isConnectedTo } from "../graph/graph"
 import { assertVisibleDirectSession, banRow, directCaller, directSessionAccessDecision, liveSpeakerRow, requireDirectPermission } from "./access"
 import { DIRECT_MAX_SPEAKERS } from "./grants"
+import { assertRecordingConsent } from "./recordingConsent"
 
 type SpeakerWriteCtx = Pick<MutationCtx, "db" | "scheduler">
-type SpeakerSession = Pick<Doc<"liveSessions">, "_id" | "networkId" | "hostPersonId" | "status" | "roomName" | "spotlightPersonId">
+type SpeakerSession = Pick<Doc<"liveSessions">, "_id" | "networkId" | "hostPersonId" | "status" | "roomName" | "spotlightPersonId" | "replayRequested">
 
-/** Primitive transactionnelle, la garde d'appelant reste dans l'API publique. */
+/**
+ * Primitive transactionnelle, la garde d'appelant reste dans l'API publique.
+ *
+ * ⚠️ DL-02 — C'EST LE POINT UNIQUE de toute montée à l'antenne (main acceptée,
+ * invitation acceptée, promotion directe, invité intervenant) : dans un direct
+ * enregistré, la personne doit avoir donné son accord horodaté
+ * (`recordingConsent`), sinon `LIVE_RECORDING_CONSENT_REQUIRED`, AVANT toute
+ * écriture et toute action SFU.
+ */
 export async function promoteSpeakerRow(ctx: SpeakerWriteCtx, session: SpeakerSession, personId: Id<"persons">): Promise<boolean> {
   if (personId === session.hostPersonId) {
     return failRule("LIVE_ALREADY_ON_STAGE")
@@ -54,6 +63,7 @@ export async function promoteSpeakerRow(ctx: SpeakerWriteCtx, session: SpeakerSe
   }
   const already = await liveSpeakerRow(ctx, session._id, personId)
   if (already) return false
+  await assertRecordingConsent(ctx, session, personId)
   const live = await ctx.db
     .query("liveSpeakers")
     .withIndex("by_session_removedAt", (q) => q.eq("sessionId", session._id).eq("removedAt", undefined))
@@ -146,7 +156,9 @@ export async function demoteSpeakerRow(ctx: SpeakerWriteCtx, session: SpeakerSes
  * Fail-closed, dans l'ordre : session vivante → cible en relation (la
  * promotion ouvre un micro : elle exige un lien NÉGOCIÉ, même sur un direct
  * public) → ni bloquée ni exclue → dans l'audience → membre DÉCLARÉE du
- * réseau → plafond 8 (hôte compris) → écriture durable → SFU planifié.
+ * réseau → accord à l'enregistrement si le direct est enregistré (DL-02, dans
+ * `promoteSpeakerRow`) → plafond 8 (hôte compris) → écriture durable → SFU
+ * planifié.
  *
  * ⚠️ Le LIEN exigé est celui de l'HÔTE, pas de l'appelant (ADR-0061 inchangé) :
  * un cohôte fait monter les relations du titulaire, jamais les siennes. Pour

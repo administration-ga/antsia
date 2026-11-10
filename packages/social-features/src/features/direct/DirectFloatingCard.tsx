@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/direct/DirectFloatingCard.tsx @ ad2e7fdc2 — adaptations : registre/salle ANTSIA sans montage audio, identité personId, rôles et permissions serveur, charte et routes injectées ; déplacement existant de la coque et pose mobile/reduite.
+// Dupliqué de socle/packages/agent-features/src/features/direct/DirectFloatingCard.tsx @ ad2e7fdc2 — adaptations : registre/salle ANTSIA sans montage audio, identité personId, rôles et permissions serveur, charte et routes injectées ; déplacement existant de la coque et pose mobile/reduite ; DL-02 : pastille « REC » tant que la capture tourne, dans toutes les poses.
 "use client"
 import { useNetwork, useRoutes } from "@antsia/api/network"
 import { Link } from "@antsia/api/routing"
@@ -16,6 +16,7 @@ import { useEscapeLayer } from "../../shell/floating-surface/use-escape-layer"
 import { ESCAPE_PRIORITY } from "../../shell/floating-surface/escape-stack"
 import type { DirectSession } from "./DirectPage"
 import { DirectExitDialog } from "./DirectExitDialog"
+import { DirectRecordingBadge } from "./DirectRecordingConsent"
 import { directCardPose, type DirectCardPose } from "./direct-floating"
 import { directParticipantPersonId, directRosterTracks } from "./direct-studio-model"
 
@@ -57,6 +58,7 @@ function FloatingFrame({ pose, session, onLeave }: { pose: DirectCardPose; sessi
     <aside ref={surfaceRef} data-charte={charte} data-pose={pose} data-dragging={dragging || undefined} aria-label={t("floating.label", { title })} className="antsia-direct-float" style={draggable ? surfaceStyle : { left: "12px", top: "auto" }}>
       <header className="flex min-w-0 flex-wrap items-center justify-between gap-2">
         {draggable ? <div {...handleProps} className="flex min-h-11 min-w-0 flex-1 items-center"><span className="truncate text-sm font-semibold">{title}</span></div> : <span className="min-w-0 truncate text-sm font-semibold">{title}</span>}
+        {session ? <DirectRecordingBadge session={session} /> : null}
         {pose !== "mobile" ? <Button size="sm" variant="ghost" onClick={() => directSessionStore.setCardMinimized(pose !== "pill")}>{t(pose === "pill" ? "floating.expand" : "floating.minimize")}</Button> : null}
       </header>
       {pose === "card" && room && session ? <RoomContext.Provider value={room}><MiniScene session={session} /></RoomContext.Provider> : null}
