@@ -18,7 +18,8 @@ import { useModerationDraft, useModerationGuard } from "./moderation-guard"
 import { MODERATION_ACTIONS, moderationDecisionInput, moderationDecisionSchema, moderationReasonSchema, type ModerationAction } from "./moderation-model"
 import { ModerationPreview, moderationSourceProof, useModerationPreview } from "./moderation-preview"
 
-function useDecisionOperation() {
+/** Une décision à la fois, toast et alerte traduits ; partagée par les files et les réglages (MC-02). */
+export function useDecisionOperation() {
   const { t } = useTranslation("memberNetwork")
   const guard = useModerationGuard()
   const live = useRef(true)

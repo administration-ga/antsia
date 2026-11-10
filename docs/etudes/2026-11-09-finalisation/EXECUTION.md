@@ -325,7 +325,7 @@ Plan : [`12_MODERATION_CONFORMITE_SECURITE.md`](12_MODERATION_CONFORMITE_SECURIT
 |---|---|---|---|---|---|---|
 | SU01h | Mesures sur ordre du juge (référé numérique) | P0 | M | S1 | avis du juriste conseillé [A12] ; décision 2 du § 7 (double validation) ; publication. | à faire |
 | MC-01 | Signaler depuis chaque objet | P0 | L | S1 | aucune. | à faire |
-| MC-02 | Réglages de modération du réseau | P0 | M | S1 | décision 3 du § 7. | à faire |
+| MC-02 | Réglages de modération du réseau | P0 | M | S1 | décision 3 du § 7. | fusionné |
 | MC-03 | Sanctions complètes et récidive | P1 | M | S1 | aucune. | à faire |
 | MC-04 | Avis motivé et état du compte | P1 | M | S1 | texte des règles validé par le juriste. | à faire |
 | MC-05 | Rapport de transparence périodique | P1 | M | S1 | décision 6 du § 7. | à faire |

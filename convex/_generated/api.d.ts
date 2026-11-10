@@ -275,6 +275,7 @@ import type * as modules_moderation_professionalReviewSource from "../modules/mo
 import type * as modules_moderation_reporterNotices from "../modules/moderation/reporterNotices.js";
 import type * as modules_moderation_reviewProjection from "../modules/moderation/reviewProjection.js";
 import type * as modules_moderation_sanctions from "../modules/moderation/sanctions.js";
+import type * as modules_moderation_settings from "../modules/moderation/settings.js";
 import type * as modules_moderation_tables from "../modules/moderation/tables.js";
 import type * as modules_moderation_targets from "../modules/moderation/targets.js";
 import type * as modules_networks_networks from "../modules/networks/networks.js";
@@ -748,6 +749,7 @@ declare const fullApi: ApiFromModules<{
   "modules/moderation/reporterNotices": typeof modules_moderation_reporterNotices;
   "modules/moderation/reviewProjection": typeof modules_moderation_reviewProjection;
   "modules/moderation/sanctions": typeof modules_moderation_sanctions;
+  "modules/moderation/settings": typeof modules_moderation_settings;
   "modules/moderation/tables": typeof modules_moderation_tables;
   "modules/moderation/targets": typeof modules_moderation_targets;
   "modules/networks/networks": typeof modules_networks_networks;

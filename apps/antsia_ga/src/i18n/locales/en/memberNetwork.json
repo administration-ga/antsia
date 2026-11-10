@@ -155,6 +155,7 @@
       "overturn": "Overturn with this reason"
     },
     "appeals": "Network appeals",
+    "settings": "Settings",
     "appealScope": "Appeals referred to the network after a team decision. The engine requires an independent decision-maker.",
     "appealTitle": "Appeal awaiting review",
     "appealReason": "Appeal reason: {{reason}}",
@@ -195,6 +196,50 @@
       "acknowledged": "Acknowledgement sent on {{date}}",
       "notAcknowledged": "Acknowledgement not delivered",
       "ordinaryTitle": "Other reports"
+    },
+    "policy": {
+      "title": "Pre-review, links and pace",
+      "lead": "For each surface, choose when a post goes to review before it becomes visible: always (pre-review), beyond a number of links, or beyond a number of writes by the same member within a time window, across all surfaces. Every change needs a reason, is recorded in the decision log and applies to later writes.",
+      "exceptions": "Without a setting, shop offers and terms, job offers, service reviews and their replies, page events and the posts in their galleries wait for review. DIASPORALE’s own content (mutual aid, mentoring, arrival kit, jobs) is published without automatic checks.",
+      "surface": "Surface to set",
+      "configuredSuffix": " (set)",
+      "explicit": "Setting saved on {{date}}.",
+      "withoutDefaults": "No setting: the engine defaults apply (pre-review: {{review}}; at most {{links}} links; {{writes}} writes per {{seconds}} s).",
+      "withoutHeld": "No setting: every item on this surface waits for review before it becomes visible.",
+      "withoutUnchecked": "No setting: items on this surface are published without automatic checks.",
+      "reviewOn": "yes",
+      "reviewOff": "no",
+      "formLabel": "Setting for the surface: {{surface}}",
+      "preReview": "Pre-review every write",
+      "maxLinks": "Link limit",
+      "maxLinksHint": "Beyond this number of links, the write goes to review.",
+      "maxLinksInvalid": "Enter a whole number from {{min}} to {{max}}.",
+      "maxWrites": "Pace: writes allowed",
+      "maxWritesHint": "Beyond this, the member’s next write goes to review.",
+      "maxWritesInvalid": "Enter a whole number from {{min}} to {{max}}.",
+      "window": "Pace window (seconds)",
+      "windowHint": "Period over which the member’s writes are counted.",
+      "windowInvalid": "Enter a whole number of seconds from {{min}} to {{max}}.",
+      "save": "Save the setting",
+      "configuredTitle": "Surfaces with a setting",
+      "noneConfigured": "No surface has a setting yet: the rules above apply.",
+      "summary": "{{surface}} — pre-review: {{review}}; at most {{links}} links; {{writes}} writes per {{seconds}} s."
+    },
+    "terms": {
+      "title": "Blocked words",
+      "lead": "A write containing one of these words goes to review before it becomes visible, on every surface of the network. Case and accents are ignored. At most {{max}} active words.",
+      "term": "Word or phrase",
+      "termHint": "{{min}} to {{max}} characters, accents and extra spaces removed.",
+      "termInvalid": "The word must contain {{min}} to {{max}} characters.",
+      "add": "Add the word",
+      "addLabel": "Add a blocked word",
+      "listTitle": "Active words",
+      "empty": "No blocked words.",
+      "remove": "Remove",
+      "removeLabel": "Remove the word “{{term}}”",
+      "confirmRemove": "Confirm removal",
+      "cancel": "Cancel",
+      "pagination": "Blocked words pagination"
     }
   }
 }
