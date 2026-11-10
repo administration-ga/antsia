@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/groupes-thematiques.test.ts @ ad2e7fdc2 — adaptations : libellés lus dans l'i18n du moteur (français, et l'anglais pour l'accord) — les constantes portent des clés traduites par `t` ; bornes comparées à celles du domaine du moteur ; tous les cas du socle portés ; cas ajoutés pour le zéro de l'effectif, le nom neutre et la lecture des refus du moteur (règle, code parlant, phrase du geste).
+// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/groupes-thematiques.test.ts @ ad2e7fdc2 — adaptations : libellés lus dans l'i18n du moteur (français, et l'anglais pour l'accord) — les constantes portent des clés traduites par `t` ; bornes comparées à celles du domaine du moteur ; tous les cas du socle portés ; cas ajoutés pour le zéro de l'effectif, le nom neutre et la lecture des refus du moteur (règle, code parlant, phrase du geste) ; gestion d'un groupe (PG-02) : règles à l'entrée et après un changement, gestes selon l'état, bandeau, confirmation de suppression, refus traduits des règles et du transfert.
 /**
  * groupes-thematiques — ce que le volet Groupes décide, vérifié :
  *
@@ -8,7 +8,7 @@
  *     rôle que le serveur refuse est un échec assuré ;
  *  3. les libellés disent l'état, jamais l'inverse.
  */
-import { THEMATIC_GROUP_NAME_MAX_LENGTH, THEMATIC_GROUP_NAME_MIN_LENGTH } from "@antsia/social-domain/thematicGroups"
+import { THEMATIC_GROUP_NAME_MAX_LENGTH, THEMATIC_GROUP_NAME_MIN_LENGTH, THEMATIC_GROUP_RULES_MAX_LENGTH } from "@antsia/social-domain/thematicGroups"
 import { ConvexError } from "convex/values"
 import { describe, expect, it } from "vitest"
 
@@ -39,6 +39,13 @@ import {
   GROUP_INVITE_PICKER_LABEL_KEY,
   classifyInviteResult,
   groupInviteReportLabel,
+  GROUP_RULES_MAX_LENGTH,
+  deleteConfirmationMatches,
+  entryRequiresRules,
+  groupManageActions,
+  groupStateNoticeKey,
+  isGroupOpen,
+  memberMustReviewRules,
 } from "./groupes-thematiques"
 
 const i18n = createAppI18n({ locale: "fr", appResources: { fr: {}, en: {} }, defaultNS: "reseau" })
@@ -107,6 +114,11 @@ describe("libellés", () => {
     expect(joinCtaLabel({ myRole: null, invited: true }, t)).toBe("Accepter l'invitation")
     expect(joinCtaLabel({ myRole: "member", invited: false }, t)).toBeNull()
     expect(joinCtaLabel({ myRole: "owner", invited: false }, t)).toBeNull()
+    // PG-02 : un groupe à règles se rejoint après les avoir lues.
+    expect(joinCtaLabel({ myRole: null, invited: false, rulesVersion: 2 }, t)).toBe("Lire les règles")
+    expect(joinCtaLabel({ myRole: null, invited: true, rulesVersion: 2 }, t)).toBe("Lire les règles")
+    expect(joinCtaLabel({ myRole: null, invited: false, rulesVersion: null }, t)).toBe("Rejoindre")
+    expect(joinCtaLabel({ myRole: "member", invited: false, rulesVersion: 2 }, t)).toBeNull()
   })
 
   it("le bandeau d'invitations compte, ou se tait", () => {
@@ -203,5 +215,53 @@ describe("un refus du moteur se dit par son code, jamais par sa trace", () => {
     expect(groupActionErrorText(new ConvexError({ code: "notFound" }), FALLBACK, t)).toBe(t(FALLBACK))
     expect(groupActionErrorText(new Error("[CONVEX M(x)] Server Error"), FALLBACK, t)).toBe(t(FALLBACK))
     expect(t(FALLBACK)).not.toContain("groupsPanel")
+  })
+})
+
+describe("gérer un groupe (PG-02)", () => {
+  it("la borne des règles est celle du domaine", () => {
+    expect(GROUP_RULES_MAX_LENGTH).toBe(THEMATIC_GROUP_RULES_MAX_LENGTH)
+  })
+
+  it("entrer exige les règles dès qu'une version est en vigueur ; un membre revoit une version qu'il n'a pas acceptée", () => {
+    expect(entryRequiresRules(null)).toBe(false)
+    // Une réponse d'un moteur d'avant les règles (champ absent) n'en a pas.
+    expect(entryRequiresRules(undefined)).toBe(false)
+    expect(entryRequiresRules(1)).toBe(true)
+    expect(memberMustReviewRules({ myRole: "member", rulesVersion: 2, myAcceptedRulesVersion: 1 })).toBe(true)
+    expect(memberMustReviewRules({ myRole: "moderator", rulesVersion: 2, myAcceptedRulesVersion: null })).toBe(true)
+    expect(memberMustReviewRules({ myRole: "member", rulesVersion: 2, myAcceptedRulesVersion: 2 })).toBe(false)
+    expect(memberMustReviewRules({ myRole: "member", rulesVersion: null, myAcceptedRulesVersion: 1 })).toBe(false)
+    // Un non-membre ne « revoit » rien : il voit les règles AVANT d'entrer.
+    expect(memberMustReviewRules({ myRole: null, rulesVersion: 2, myAcceptedRulesVersion: null })).toBe(false)
+  })
+
+  it("les gestes selon l'état : un groupe gelé garde l'archivage et la suppression", () => {
+    expect(groupManageActions("active")).toEqual({ rules: true, transfer: true, close: true, archive: true, delete: true })
+    expect(groupManageActions("closed")).toEqual({ rules: false, transfer: false, close: false, archive: true, delete: true })
+    expect(groupManageActions("archived")).toEqual({ rules: false, transfer: false, close: false, archive: false, delete: true })
+    expect(isGroupOpen("active")).toBe(true)
+    expect(isGroupOpen("closed")).toBe(false)
+    expect(groupStateNoticeKey("active")).toBeNull()
+    expect(t(groupStateNoticeKey("closed") ?? "")).toContain("Ce groupe est fermé")
+    expect(t(groupStateNoticeKey("archived") ?? "")).toContain("Ce groupe est archivé")
+    expect(tEn(groupStateNoticeKey("archived") ?? "")).toContain("This group is archived")
+  })
+
+  it("la suppression se confirme par le nom EXACT du groupe, espaces de bord ignorés", () => {
+    expect(deleteConfirmationMatches("Cuisine du pays", "Cuisine du pays")).toBe(true)
+    expect(deleteConfirmationMatches("  Cuisine du pays ", "Cuisine du pays")).toBe(true)
+    expect(deleteConfirmationMatches("cuisine du pays", "Cuisine du pays")).toBe(false)
+    expect(deleteConfirmationMatches("Cuisine", "Cuisine du pays")).toBe(false)
+    expect(deleteConfirmationMatches("", "   ")).toBe(false)
+  })
+
+  it("les refus des règles et du transfert se lisent traduits, jamais bruts", () => {
+    const rule = (name: string, params?: Record<string, number>) => new ConvexError({ code: "invalidArgument", rule: name, ...(params ? { params } : {}) })
+    expect(groupActionErrorText(rule("GROUP_RULES_NOT_ACCEPTED"), "reseau:groupsPanel.toast.joinFailed", t)).toContain("Lisez les règles en vigueur")
+    expect(groupActionErrorText(rule("GROUP_TRANSFER_TARGET_INELIGIBLE"), "reseau:groupsPanel.toast.transferFailed", t)).toContain("modérateur actif")
+    expect(groupActionErrorText(rule("GROUP_RULES_TOO_LONG", { max: 2000 }), "reseau:groupsPanel.toast.rulesFailed", t)).toBe("Les règles d'un groupe sont limitées à 2000 caractères.")
+    expect(groupActionErrorText(rule("GROUP_OWNER_CANNOT_LEAVE"), "reseau:groupsPanel.toast.leaveFailed", t)).toContain("transmet d'abord son rôle")
+    expect(t(GROUPS_ERROR_TEXT_KEYS.transfer.title)).toBe("Modérateurs indisponibles")
   })
 })

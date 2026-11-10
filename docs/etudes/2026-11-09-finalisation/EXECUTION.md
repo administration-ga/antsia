@@ -197,7 +197,7 @@ Plan : [`07_PAGES_GROUPES_EVENEMENTS.md`](07_PAGES_GROUPES_EVENEMENTS.md)
 | Lot | Titre | Priorité | Taille | Session | Porte | État |
 |---|---|---|---|---|---|---|
 | PG-01 | Gouvernance des pages : file des revendications, console de reprise, cloches | P0 | M | S1 | publication en ligne. | à faire |
-| PG-02 | Gestion d'un groupe : fermer, archiver, supprimer, transférer, règles | P0 | M | S1 | aucune. | à faire |
+| PG-02 | Gestion d'un groupe : fermer, archiver, supprimer, transférer, règles | P0 | M | S1 | aucune. | fusionné |
 | PG-03 | Remonter les évènements de page dans le moteur, pour tous les réseaux | P1 | L | S1 (avec S2) | décision du propriétaire n° 1. | à faire |
 | PG-04 | Évènements de page sur antsia.ga | P1 | L | S1 | publication en ligne. | à faire |
 | PG-05 | Évènement personnel complet | P1 | M | S1 | aucune. | à faire |
