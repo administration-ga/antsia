@@ -546,7 +546,8 @@ describe("facette et confidentialité", () => {
     const refused = await refusal(ada.as.mutation(api.modules.diaspora.facet.setDirectoryVisibility, { networkId: diasporale, level: "network" }))
     expect(refused.app?.appRule).toBe("consent_directory_required")
     await ada.as.mutation(api.modules.diaspora.facet.setDirectoryVisibility, { networkId: diasporale, level: "hidden" })
-    await ada.as.mutation(api.modules.people.consents.recordConsent, { purpose: "directory", origin: "settings" })
+    // NP-01 : l'accord à l'annuaire vaut pour le réseau exact (une ligne sans réseau ne compte plus).
+    await ada.as.mutation(api.modules.people.consents.recordConsent, { purpose: "directory", origin: "settings", networkId: diasporale })
     await ada.as.mutation(api.modules.diaspora.facet.setDirectoryVisibility, { networkId: diasporale, level: "network" })
     expect((await ada.as.query(api.modules.diaspora.membership.myMembership, { networkId: diasporale }))?.directoryVisibility).toBe("network")
   })
@@ -628,7 +629,7 @@ describe("hubs pays — compteurs matérialisés, jamais calculés à la lecture
     await linkIdn(t, hidden.personId, 1, "GA")
     await join(hidden.as, diasporale)
     const light = await person(t, "auth-leger", "leger")
-    await light.as.mutation(api.modules.people.consents.recordConsent, { purpose: "directory", origin: "onboarding" })
+    await light.as.mutation(api.modules.people.consents.recordConsent, { purpose: "directory", origin: "onboarding", networkId: diasporale })
     await join(light.as, diasporale, FRANCE, "country")
 
     const before = await first.as.query(api.modules.diaspora.hubs.getCountryHub, { networkId: diasporale, country: "fr" })
@@ -681,8 +682,9 @@ describe("ce que la personne lit d'elle-même pour DIASPORALE", () => {
     const { diasporale } = await seedAll(t)
     const ada = await person(t, "auth-ada", "ada")
     await ada.as.mutation(api.modules.people.consents.recordConsent, { purpose: "directory", origin: "onboarding", networkId: diasporale })
-    await ada.as.mutation(api.modules.people.consents.recordConsent, { purpose: "notifications", origin: "onboarding" })
-    await ada.as.mutation(api.modules.people.consents.revokeConsent, { purpose: "notifications" })
+    // NP-01 : les notifications se lisent au réseau exact (portée détaillée dans consentScope.test.ts).
+    await ada.as.mutation(api.modules.people.consents.recordConsent, { purpose: "notifications", origin: "onboarding", networkId: diasporale })
+    await ada.as.mutation(api.modules.people.consents.revokeConsent, { purpose: "notifications", networkId: diasporale })
     const consents = await ada.as.query(api.modules.diaspora.membership.myConsents, { networkId: diasporale })
     expect(consents.map((consent) => [consent.purpose, consent.granted])).toEqual([
       ["social_profile", true],
