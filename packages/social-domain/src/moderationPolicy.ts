@@ -1,6 +1,23 @@
 /** Règles pures PA5 : bornes, sanctions et jugement de relecture sans contenu conservé. */
-export const MODERATION_SURFACES = ["post", "comment", "groupMessage", "event", "page", "person", "live", "story", "album", "serviceReview", "serviceReviewReply", "commerceOffer", "commerceStorefront", "commercialMessage", "contextualMessage", "professionalProfile", "professionalCollaboration", "editorialVersion", "editorialMedia", "commerceJob", "diasporaAidQuestion", "diasporaAidAnswer", "diasporaAidMission", "diasporaMentorProfile", "diasporaMentoringRequest", "diasporaKitResource", "diasporaJobOffer", "diasporaTalentProfile", "diasporaJobApplication"] as const
+export const MODERATION_SURFACES = ["post", "comment", "groupMessage", "event", "page", "person", "live", "story", "album", "serviceReview", "serviceReviewReply", "commerceOffer", "commerceStorefront", "commercialMessage", "contextualMessage", "professionalProfile", "professionalCollaboration", "editorialVersion", "editorialMedia", "commerceJob", "thematicGroup", "personalMessage", "diasporaAidQuestion", "diasporaAidAnswer", "diasporaAidMission", "diasporaMentorProfile", "diasporaMentoringRequest", "diasporaKitResource", "diasporaJobOffer", "diasporaTalentProfile", "diasporaJobApplication"] as const
 export type ModerationSurface = (typeof MODERATION_SURFACES)[number]
+
+/**
+ * MC-01 (plan 12) — les surfaces SIGNALABLES SEULEMENT : la fiche et les règles d'un groupe thématique,
+ * un message personnel d'iCom. Aucune écriture n'y passe la règle de relecture (`moderateContentWrite`) :
+ * un réglage de relecture, de liens ou de cadence n'y aurait aucun effet, l'écran des réglages ne les
+ * propose donc pas et le moteur refuse d'en poser un. Elles entrent dans la file, les délais légaux,
+ * les décisions, les recours et la transparence par les chemins communs.
+ */
+export const REPORT_ONLY_SURFACES = ["thematicGroup", "personalMessage"] as const satisfies readonly ModerationSurface[]
+const REPORT_ONLY: ReadonlySet<string> = new Set<string>(REPORT_ONLY_SURFACES)
+
+export function isReportOnlySurface(surface: ModerationSurface): boolean {
+  return REPORT_ONLY.has(surface)
+}
+
+/** Les surfaces qu'un réseau peut régler (MC-02), dans l'ordre de `MODERATION_SURFACES`. */
+export const MODERATION_POLICY_SURFACES: readonly ModerationSurface[] = Object.freeze(MODERATION_SURFACES.filter((surface) => !isReportOnlySurface(surface)))
 export const SANCTION_KINDS = ["warning", "removal", "mute", "suspension", "exclusion"] as const
 export type SanctionKind = (typeof SANCTION_KINDS)[number]
 export const MODERATION_SCAN_LIMIT = 100

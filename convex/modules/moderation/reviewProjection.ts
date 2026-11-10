@@ -158,6 +158,22 @@ async function targetPreview(ctx: QueryCtx, networkId: Id<"networks">, target: M
       const extract = await jobModerationExcerpt(ctx, networkId, target.id)
       return extract ? { ...empty, available: true, title: excerpt(extract.title, 200), body: excerpt(extract.body) } : empty
     }
+    case "thematicGroup": {
+      // MC-01 : la fiche et les règles du groupe, telles qu'elles se lisent AUJOURD'HUI ; ni membres, ni publications,
+      // ni invitations. Un groupe supprimé (ou en cours de suppression) n'est plus disponible.
+      const row = await ctx.db.get(target.id)
+      if (!row || row.networkId !== networkId || row.deletingAt !== undefined) return empty
+      const body = [row.description, row.rules].filter((part): part is string => part !== undefined && part.length > 0).join("\n\n")
+      return { ...empty, available: true, title: excerpt(row.name, 200), body: excerpt(body) }
+    }
+    case "personalMessage": {
+      // MC-01 : le SEUL message signalé, relu ici à la décision (le dossier n'en garde aucune copie) : son texte borné
+      // comme P10, ni pièce jointe, ni participant, ni message voisin. Retiré pour tous par son expéditeur, ou effacé
+      // avec la personne : indisponible.
+      const row = await ctx.db.get(target.id)
+      if (!row || row.networkId !== networkId || row.deletedAt !== undefined || (row.type !== undefined && row.type !== "text")) return empty
+      return { ...empty, available: true, body: excerpt(row.content, 2000) }
+    }
     // Vague H DIASPORALE (G9, délégué) : l'extrait borné de la tranche — ni auteur, candidat, coordonnée, créneau ni profil joint.
     case "diasporaAidQuestion":
     case "diasporaAidAnswer":

@@ -22,7 +22,8 @@ import { isVisibleToMember } from "../groups/messages"
 import { scheduleGroupMessageFanout } from "../groups/unread"
 import { assertVisibleDirectSession } from "../live/access"
 import { recomputeAggregates } from "../live/reap"
-import { previewColumns } from "../messaging/threads"
+import { requireThread } from "../messaging/participation"
+import { isHiddenFor, previewColumns } from "../messaging/threads"
 import { enqueueFanout } from "../notifications/fanout"
 import { notifyPerson } from "../notifications/notify"
 import { liveSignatoryRole, readablePageOrNull } from "../pages/access"
@@ -36,6 +37,7 @@ import { isPublishedPerson } from "../people/miniProfile"
 import { readableProfessionalCollaboration, readableProfessionalProfile } from "../professionals/read"
 import { syncProfessionalProfileConversations } from "../professionals/profiles"
 import { assertVisiblePost } from "../posts/access"
+import { canDiscoverThematicGroup, liveThematicGroupMembership } from "../thematicGroups/access"
 import { markCommentRemoved, markPostRemoved } from "../posts/contentRemoval"
 import { recordComment, recordPagePost, recordShare } from "../posts/counters"
 import { schedulePostFeed } from "../posts/feedMaterialization"
@@ -179,6 +181,26 @@ export async function resolveVisibleTarget(ctx: MutationCtx, network: Doc<"netwo
       if (!live || !jobHeadBelongsToCurrent(head, live)) return notFound()
       return { ...base, networkId: head.networkId }
     }
+    case "thematicGroup": {
+      // MC-01 : la FICHE et les RÈGLES d'un groupe découvrable dans CE réseau — fermé ou archivé compris, sa fiche se
+      // lit encore ; jamais pendant sa suppression. Son propriétaire VIVANT ne le signale pas. Le groupe d'adhérents
+      // d'une page est un contenu de la page : aucun propriétaire personnel (la page porte le dossier au retrait).
+      const group = await ctx.db.get(target.id)
+      if (!group || group.networkId !== network._id || group.deletingAt !== undefined || !(await canDiscoverThematicGroup(ctx, group, personId))) return notFound()
+      if ((await liveThematicGroupMembership(ctx, group._id, personId))?.role === "owner") return notFound()
+      if (group.associationPageId !== undefined) return base
+      const owner = await ctx.db.query("thematicGroupMembers").withIndex("by_group_role_leftAt", (q) => q.eq("groupId", group._id).eq("role", "owner").eq("leftAt", undefined)).first()
+      return { ...base, ...(owner ? { ownerPersonId: owner.personId } : {}) }
+    }
+    case "personalMessage": {
+      // MC-01 : seule une PARTIE au fil 1:1, dans CE réseau et sans blocage entre les deux, signale un message texte
+      // qu'elle LIT (ni retiré pour tous, ni masqué pour elle) ; l'expéditeur en est le propriétaire et ne se signale
+      // pas. Le dossier garde la RÉFÉRENCE seule : la modération relit le message, par sa garde, à la décision.
+      const message = await ctx.db.get(target.id)
+      if (!message || message.networkId !== network._id || message.deletedAt !== undefined || (message.type !== undefined && message.type !== "text") || isHiddenFor(message, personId)) return notFound()
+      await requireThread(ctx, network._id, message.threadId, personId)
+      return { ...base, ownerPersonId: message.senderPersonId }
+    }
     // Vague H DIASPORALE (G9, délégué) : audience réelle et propriétaire résolus par la tranche (personne, ou page sans propriétaire).
     case "diasporaAidQuestion":
     case "diasporaAidAnswer":
@@ -236,6 +258,21 @@ export async function removeTarget(ctx: MutationCtx, target: ResolvedTarget): Pr
       if (thread?.lastMessageId === message._id) await ctx.db.patch(thread._id, { lastMessageText: undefined, lastMessageKind: undefined, lastMessageAttachmentCount: undefined })
       if (thread?.pinnedMessageId === message._id) await ctx.db.patch(thread._id, { pinnedMessageId: undefined })
     }
+  } else if (target.target.kind === "personalMessage") {
+    // MC-01 : la ligne DEMEURE (un recours admis la rend) ; l'aperçu de la liste et l'épingle ne la portent plus.
+    const message = await ctx.db.get(target.target.id)
+    const thread = message ? await ctx.db.get(message.threadId) : null
+    if (message && thread) {
+      if (thread.lastMessageAt === message.createdAt && thread.lastMessageByPersonId === message.senderPersonId) await ctx.db.patch(thread._id, { lastMessageText: undefined, lastMessageKind: undefined, lastMessageAttachmentCount: undefined })
+      if (thread.pinnedMessageId === message._id) await ctx.db.patch(thread._id, { pinnedMessageId: undefined })
+    }
+  } else if (target.target.kind === "thematicGroup") {
+    // MC-01 : retirer n'est ni fermer, ni archiver, ni supprimer — aucune colonne du groupe ne bouge, les gardes
+    // relisent l'état de modération. Le groupe d'adhérents d'une page est porté par la page : ses signataires
+    // vivants reçoivent l'avis neutre, lisent la décision et peuvent former le recours (P16).
+    const group = await ctx.db.get(target.target.id)
+    const state = group?.associationPageId !== undefined ? await contentState(ctx, "thematicGroup", target.target.id) : null
+    if (group?.associationPageId !== undefined && state && state.ownerPageId === undefined) await ctx.db.patch(state._id, { ownerPageId: group.associationPageId })
   }
 }
 
@@ -311,6 +348,14 @@ export async function restoreTarget(ctx: MutationCtx, target: ResolvedTarget): P
   } else if (target.target.kind === "contextualMessage" && previous?.status === "pending_review") {
     // CC-2b : un message contextuel sorti de relecture émet l'avis qu'il n'avait pas émis (émetteur relu).
     await onContextualMessageReleased(ctx, target.target.id)
+  } else if (target.target.kind === "personalMessage" && previous?.status === "removed") {
+    // MC-01 : l'aperçu revient s'il désignait ce message et qu'aucun plus récent ne l'a remplacé ; l'épingle, non
+    // (épingler reste un geste des participants). Un message retiré entre-temps par son expéditeur ne revient pas.
+    const message = await ctx.db.get(target.target.id)
+    const thread = message ? await ctx.db.get(message.threadId) : null
+    if (message && thread && message.deletedAt === undefined && thread.lastMessageAt === message.createdAt && thread.lastMessageByPersonId === message.senderPersonId && thread.lastMessageKind === undefined) {
+      await ctx.db.patch(thread._id, previewColumns(message.content ?? "", message.attachmentFiles ?? []))
+    }
   }
 }
 

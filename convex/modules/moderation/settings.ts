@@ -8,7 +8,9 @@
 import {
   admissibleBlockedTerm,
   BLOCKED_TERMS_ACTIVE_MAX,
+  isReportOnlySurface,
   MODERATION_POLICY_DEFAULTS,
+  MODERATION_POLICY_SURFACES,
   MODERATION_SURFACES,
   moderationPolicyProblem,
   type ModerationSurface,
@@ -62,7 +64,11 @@ export const blockedTermsPageValidator = v.object({
 
 export type ModerationPolicyInput = { surface: ModerationSurface; preReview: boolean; maxLinks: number; maxWrites: number; windowMs: number }
 
-/** Les réglages d'un réseau, une ligne par surface ; au plus une ligne posée par surface (index unique de fait). */
+/**
+ * Les réglages d'un réseau, une ligne par surface réglable ; au plus une ligne posée par surface (index
+ * unique de fait). MC-01 : les surfaces signalables seulement (`REPORT_ONLY_SURFACES`) n'ont aucune règle
+ * d'écriture, elles ne sont pas proposées.
+ */
 export async function moderationSettings(ctx: ReadCtx, networkId: Id<"networks">) {
   // borné : une ligne au plus par surface ; un surplus éventuel est ignoré, jamais lu en entier.
   const rows = await ctx.db.query("moderationPolicies").withIndex("by_network_surface", (q) => q.eq("networkId", networkId)).take(MODERATION_SURFACES.length + 1)
@@ -70,7 +76,7 @@ export async function moderationSettings(ctx: ReadCtx, networkId: Id<"networks">
   for (const row of rows) if (!bySurface.has(row.surface)) bySurface.set(row.surface, row)
   return {
     defaults: { ...MODERATION_POLICY_DEFAULTS },
-    surfaces: MODERATION_SURFACES.map((surface) => {
+    surfaces: MODERATION_POLICY_SURFACES.map((surface) => {
       const row = bySurface.get(surface)
       return { surface, withoutPolicy: moderationWithoutPolicy(surface), policy: row ? { preReview: row.preReview, maxLinks: row.maxLinks, maxWrites: row.maxWrites, windowMs: row.windowMs, updatedAt: row.updatedAt } : null }
     }),
@@ -85,6 +91,8 @@ export async function blockedTermsPage(ctx: ReadCtx, networkId: Id<"networks">, 
 
 /** Pose (ou remplace) le réglage d'une surface ; rend la ligne et le détail du journal, sans motif. */
 export async function writeModerationPolicy(ctx: WriteCtx, networkId: Id<"networks">, input: ModerationPolicyInput) {
+  // MC-01 : un réglage sur une surface sans règle d'écriture serait une promesse sans effet.
+  if (isReportOnlySurface(input.surface)) return fail("invalidArgument", { field: "surface" })
   const problem = moderationPolicyProblem(input)
   if (problem) return fail("invalidArgument", { field: problem })
   const existing = await ctx.db.query("moderationPolicies").withIndex("by_network_surface", (q) => q.eq("networkId", networkId).eq("surface", input.surface)).unique()

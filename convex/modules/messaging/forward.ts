@@ -36,8 +36,8 @@ import { findPublishedPersonByHandle } from "../people/miniProfile"
 import { type StoredAttachment, verifyDeclaredAttachments } from "./attachmentStorage"
 import type { ForwardedFrom } from "./forwardedFrom"
 import { assertCanOpenPersonalThread } from "./inbox"
-import { requireThread } from "./participation"
-import { appendPersonalMessage, ensurePersonalThread, findIdempotentReplay, isHiddenFor, otherParticipant } from "./threads"
+import { isPersonalMessageServedTo, requireThread } from "./participation"
+import { appendPersonalMessage, ensurePersonalThread, findIdempotentReplay, otherParticipant } from "./threads"
 
 /** La cible d'un transfert — TOUJOURS explicite, jamais « le dernier fil ». */
 const forwardTargetValidator = v.union(
@@ -160,7 +160,8 @@ export const forwardMessage = networkMutation({
     // Lire la source, c'est être partie à SON fil, sans blocage avec son auteur
     // (dans un fil 1:1, l'auteur est moi ou l'autre participant : la garde du fil suffit).
     const sourceThread = await requirePersonalThreadHere(ctx, source.threadId)
-    if (isHiddenFor(source, ctx.person._id)) return notFound()
+    // MC-01 : un message retiré par la modération, ou que j'ai signalé, ne revit pas ailleurs.
+    if (!(await isPersonalMessageServedTo(ctx, source, ctx.person._id))) return notFound()
     if (source.type !== undefined && source.type !== "text") return failRule("MESSAGE_FORWARD_NOT_TEXT")
     if (source.deletedAt !== undefined) return failRule("MESSAGE_FORWARD_UNAVAILABLE")
     const files = source.attachmentFiles ?? []

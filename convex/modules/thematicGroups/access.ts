@@ -16,6 +16,7 @@ import type { QueryCtx } from "../../_generated/server"
 import { isActiveMember } from "../../lib/access"
 import { fail, notFound } from "../../lib/errors"
 import { isFederatedPage } from "../federation/mirrorAccess"
+import { canReadModeratedContent, contentState } from "../moderation/policy"
 import { liveSignatoryRole, readablePageOrNull } from "../pages/access"
 
 type ReadCtx = Pick<QueryCtx, "db">
@@ -26,6 +27,25 @@ type ReadCtx = Pick<QueryCtx, "db">
  */
 export function isActiveThematicGroup(group: Doc<"thematicGroups">): boolean {
   return group.closedAt === undefined && group.archivedAt === undefined && group.deletingAt === undefined
+}
+
+/**
+ * MC-01 (plan 12) : le groupe RETIRÉ par une décision de modération. Ce n'est ni
+ * une fermeture, ni un archivage, ni une suppression : aucune colonne du groupe
+ * ne bouge, ses membres, ses publications et ses règles restent, et une
+ * restauration (recours admis) le rend tel quel. Seules les gardes ferment.
+ */
+export async function isThematicGroupRemovedByModeration(ctx: ReadCtx, groupId: Id<"thematicGroups">): Promise<boolean> {
+  return (await contentState(ctx, "thematicGroup", groupId))?.status === "removed"
+}
+
+/**
+ * La FICHE du groupe est-elle servie à ce lecteur ? Découvrable pour lui, ni
+ * retirée par la modération, ni signalée par LUI (le masque du déclarant vaut
+ * sur le lien direct aussi, comme pour tout contenu signalé).
+ */
+export async function isThematicGroupServedTo(ctx: ReadCtx, group: Doc<"thematicGroups">, personId: Id<"persons">): Promise<boolean> {
+  return (await canDiscoverThematicGroup(ctx, group, personId)) && (await canReadModeratedContent(ctx, "thematicGroup", group._id, personId))
 }
 
 /** DG-010 : la page native d'association active et lisible dans SON réseau. */
@@ -69,6 +89,7 @@ export async function canAccessAssociationGroupPost(ctx: ReadCtx, post: Pick<Doc
   if (!group) return false
   if (group.associationPageId === undefined) return true
   return group.networkId === post.networkId && readingNetworkId === group.networkId && isActiveThematicGroup(group)
+    && !(await isThematicGroupRemovedByModeration(ctx, group._id))
     && (await liveThematicGroupMembership(ctx, group._id, personId)) !== null
 }
 
@@ -93,7 +114,7 @@ export async function liveThematicGroupMembership(
 /** Membre VIVANT d'un groupe vivant ? — la question que pose la garde d'audience `group`. */
 export async function isLiveThematicGroupMember(ctx: ReadCtx, groupId: Id<"thematicGroups">, personId: Id<"persons">): Promise<boolean> {
   const group = await ctx.db.get(groupId)
-  if (!group || !isActiveThematicGroup(group)) return false
+  if (!group || !isActiveThematicGroup(group) || (await isThematicGroupRemovedByModeration(ctx, groupId))) return false
   return (await liveThematicGroupMembership(ctx, groupId, personId)) !== null
 }
 
@@ -112,7 +133,7 @@ export async function requireLiveThematicGroupMembership(
   personId: Id<"persons">,
 ): Promise<{ group: Doc<"thematicGroups">; membership: Doc<"thematicGroupMembers"> }> {
   const group = await ctx.db.get(groupId)
-  if (!group || group.networkId !== networkId || !isActiveThematicGroup(group)) return notFound()
+  if (!group || group.networkId !== networkId || !isActiveThematicGroup(group) || (await isThematicGroupRemovedByModeration(ctx, groupId))) return notFound()
   const membership = await liveThematicGroupMembership(ctx, groupId, personId)
   if (!membership) return group.associationPageId === undefined ? fail("groupMembershipRequired") : notFound()
   return { group, membership }
