@@ -111,6 +111,7 @@ import type * as modules_diaspora_demoAccounts from "../modules/diaspora/demoAcc
 import type * as modules_diaspora_directory from "../modules/diaspora/directory.js";
 import type * as modules_diaspora_facet from "../modules/diaspora/facet.js";
 import type * as modules_diaspora_facts from "../modules/diaspora/facts.js";
+import type * as modules_diaspora_founders from "../modules/diaspora/founders.js";
 import type * as modules_diaspora_hubEvents from "../modules/diaspora/hubEvents.js";
 import type * as modules_diaspora_hubPages from "../modules/diaspora/hubPages.js";
 import type * as modules_diaspora_hubs from "../modules/diaspora/hubs.js";
@@ -601,6 +602,7 @@ declare const fullApi: ApiFromModules<{
   "modules/diaspora/directory": typeof modules_diaspora_directory;
   "modules/diaspora/facet": typeof modules_diaspora_facet;
   "modules/diaspora/facts": typeof modules_diaspora_facts;
+  "modules/diaspora/founders": typeof modules_diaspora_founders;
   "modules/diaspora/hubEvents": typeof modules_diaspora_hubEvents;
   "modules/diaspora/hubPages": typeof modules_diaspora_hubPages;
   "modules/diaspora/hubs": typeof modules_diaspora_hubs;
