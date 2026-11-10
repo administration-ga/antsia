@@ -154,6 +154,20 @@ export async function blockedCounterpartIds(ctx: ReadCtx, personId: Id<"persons"
 }
 
 /**
+ * Les abonnements de la paire dans TOUS les réseaux, dans les deux sens (bornés :
+ * une ligne par réseau commun et par sens). Au-delà de la borne, `overflow` :
+ * l'appelant refuse sans écrire, comme pour les lignes de connexion de la paire.
+ */
+export async function pairFollows(ctx: ReadCtx, a: Id<"persons">, b: Id<"persons">) {
+  const [aToB, bToA] = await Promise.all([
+    // borné : une ligne par réseau commun aux deux personnes.
+    ctx.db.query("follows").withIndex("by_follower_target", (q) => q.eq("followerPersonId", a).eq("targetPersonId", b)).take(PAIR_ROWS_MAX + 1),
+    ctx.db.query("follows").withIndex("by_follower_target", (q) => q.eq("followerPersonId", b).eq("targetPersonId", a)).take(PAIR_ROWS_MAX + 1),
+  ])
+  return { rows: [...aToB, ...bToA], overflow: aToB.length > PAIR_ROWS_MAX || bToA.length > PAIR_ROWS_MAX }
+}
+
+/**
  * Suis-je abonné à cette personne dans le réseau ? Ce que cette réponse
  * N'OUVRE PAS : un abonnement ne donne accès qu'au `public`.
  */
