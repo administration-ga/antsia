@@ -30,7 +30,11 @@ import {
   signatoryDisplayName,
   signatoryHandleOf,
   type PageIdentityCurrent,
+  preparePageImage,
 } from "./profil-page"
+import { jpegHasGpsMetadata, listImageMetadata } from "@antsia/social-domain/imageMetadata"
+import { isPreparedImage } from "../media-upload"
+import { TEST_JPEG_WITH_GPS_BYTES, TEST_PNG_BYTES, testPrepareImageWith } from "../../tests/image-runtime"
 
 const i18n = createAppI18n({ locale: "fr", appResources: { fr: {}, en: {} }, defaultNS: "reseau" })
 const t = i18n.getFixedT("fr")
@@ -250,5 +254,40 @@ describe("signataires", () => {
     expect(signatoryDisplayName({ displayName: "Awa", handle: "awa" }, t)).toBe("Awa")
     expect(signatoryDisplayName({ displayName: null, handle: "awa" }, t)).toBe("@awa")
     expect(signatoryDisplayName({ displayName: null, handle: null }, t)).toBe("Profil non publié")
+  })
+})
+
+describe("preparePageImage — logo et bannière partent sans métadonnées (PF-03)", () => {
+  const gps = (name = "banniere.jpg") => new File([TEST_JPEG_WITH_GPS_BYTES as Uint8Array<ArrayBuffer>], name, { type: "image/jpeg" })
+
+  it("la bannière : image préparée à 2 048 px, sans position GPS, jamais l'original", async () => {
+    const prepare = testPrepareImageWith({ width: 6000, height: 2000, output: { bytes: TEST_JPEG_WITH_GPS_BYTES, type: "image/jpeg" } })
+    const original = gps()
+    const result = await preparePageImage("page_banner", original, t, prepare)
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.file).not.toBe(original)
+    expect(isPreparedImage(result.file)).toBe(true)
+    expect(prepare.runtime.canvases).toEqual([{ width: 2048, height: 683 }])
+    const sent = new Uint8Array(await result.file.arrayBuffer())
+    expect(jpegHasGpsMetadata(sent)).toBe(false)
+    expect(listImageMetadata(sent, "image/jpeg")).toEqual([])
+  })
+
+  it("le logo : borné à 1 024 px, un PNG reste PNG", async () => {
+    const prepare = testPrepareImageWith({ width: 3000, height: 3000 })
+    const result = await preparePageImage("page_logo", new File([TEST_PNG_BYTES as Uint8Array<ArrayBuffer>], "logo.png", { type: "image/png" }), t, prepare)
+    expect(result.ok && result.file.type).toBe("image/png")
+    expect(prepare.runtime.canvases).toEqual([{ width: 1024, height: 1024 }])
+  })
+
+  it("le fichier choisi est jugé comme avant ; un ré-encodage impossible refuse, sans retomber sur l'original", async () => {
+    const prepare = testPrepareImageWith()
+    expect(await preparePageImage("page_logo", new File(["x"], "a.gif", { type: "image/gif" }), t, prepare)).toEqual({ ok: false, refus: "Ce type de fichier n'est pas accepté ici." })
+    expect(prepare.runtime.decoded).toEqual([])
+    expect(await preparePageImage("page_banner", gps(), t, testPrepareImageWith({ output: null }))).toEqual({
+      ok: false,
+      refus: "La préparation de « banniere.jpg » a échoué : cette photo ne sera pas envoyée.",
+    })
   })
 })
