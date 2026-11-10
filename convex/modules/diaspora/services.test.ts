@@ -211,6 +211,35 @@ describe("catalogue des services — écrire", () => {
     expect((await reader.as.query(S.searchOffers, { networkId, query: "écrasement", paginationOpts: FIRST })).page).toEqual([])
   })
 
+  it("SV-04 : les réglages de prestation s'écrivent avec l'offre, se lisent par l'équipe seulement, sous les refus de la proposition", async () => {
+    const { t, networkId, pro, reader, pageId } = await fixture()
+    const providerSettings = { timeZone: " US/Eastern ", location: { mode: "onsite" as const, area: "  Paris   11e " }, cancellationTerms: " Annulation  libre jusqu'à la veille. " }
+    const { offerId } = await pro.as.mutation(S.createOffer, { networkId, pageId, ...OFFER, providerSettings, publish: true })
+    const written = { timeZone: "America/New_York", location: { mode: "onsite", area: "Paris 11e" }, cancellationTerms: "Annulation libre jusqu'à la veille." }
+    expect((await pro.as.query(S.getOffer, { networkId, offerId }))?.providerSettings).toEqual(written)
+    expect((await pro.as.query(S.myPageOffers, { networkId, pageId, paginationOpts: FIRST })).page[0]?.providerSettings).toEqual(written)
+    // Le lecteur et le catalogue n'en voient rien : ce sont les réglages internes de l'équipe.
+    expect((await reader.as.query(S.getOffer, { networkId, offerId }))?.providerSettings).toBeNull()
+    const card = (await reader.as.query(S.searchOffers, { networkId, paginationOpts: FIRST })).page[0]!
+    expect(Object.keys(card).sort()).toEqual(CARD_KEYS)
+
+    // Une modification sans réglages les garde ; des réglages vides les effacent.
+    await pro.as.mutation(S.updateOffer, { networkId, offerId, expectedVersion: 1, ...OFFER, title: "Nattes et vanilles" })
+    expect((await pro.as.query(S.getOffer, { networkId, offerId }))?.providerSettings).toEqual(written)
+    await pro.as.mutation(S.updateOffer, { networkId, offerId, expectedVersion: 2, ...OFFER, providerSettings: { timeZone: null, location: { mode: "remote" }, cancellationTerms: null } })
+    expect((await pro.as.query(S.getOffer, { networkId, offerId }))?.providerSettings).toEqual({ timeZone: null, location: { mode: "remote" }, cancellationTerms: null })
+    await pro.as.mutation(S.updateOffer, { networkId, offerId, expectedVersion: 3, ...OFFER, providerSettings: { timeZone: " ", location: null, cancellationTerms: "" } })
+    expect((await t.run(async (ctx) => ctx.db.get(offerId)))?.providerSettings).toBeUndefined()
+
+    // Les mêmes refus que la proposition : ni adresse exacte, ni coordonnée, ni fuseau inconnu.
+    const refused = async (settings: { timeZone: string | null; location: { mode: "onsite"; area: string } | null; cancellationTerms: string | null }) =>
+      await failure(pro.as.mutation(S.updateOffer, { networkId, offerId, expectedVersion: 4, ...OFFER, providerSettings: settings }))
+    expect(await refused({ timeZone: null, location: { mode: "onsite", area: "8 rue Oberkampf" }, cancellationTerms: null })).toEqual({ code: "invalidArgument", appRule: "request_address_forbidden" })
+    expect(await refused({ timeZone: null, location: null, cancellationTerms: "Prévenir au 07 12 34 56 78" })).toEqual({ code: "invalidArgument", appRule: "request_contact_forbidden" })
+    expect(await refused({ timeZone: "+02:00", location: null, cancellationTerms: null })).toEqual({ code: "invalidArgument", appRule: "request_time_zone_invalid" })
+    expect((await t.run(async (ctx) => ctx.db.get(offerId)))?.version).toBe(4)
+  })
+
   it("refuse hors réseau, sans rôle vivant, sur une page retirée, pour une nature non admise et sous le statut requis", async () => {
     const { t, root, networkId, pro, reader, pageId } = await fixture()
     const args = { ...OFFER, publish: true }

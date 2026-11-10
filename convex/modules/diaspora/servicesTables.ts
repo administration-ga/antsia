@@ -18,6 +18,7 @@ import { defineTable } from "convex/server"
 import { v } from "convex/values"
 
 import { literals } from "../../lib/validators"
+import { serviceLocationValidator } from "./serviceRequestsTables"
 
 /** Tarif annoncé : montant ENTIER en unités mineures et devise ISO 4217, ou sur devis. */
 export const servicePricingValidator = v.union(
@@ -27,6 +28,17 @@ export const servicePricingValidator = v.union(
 )
 
 export const serviceOfferStatusValidator = literals(SERVICE_OFFER_STATUSES)
+
+/**
+ * SV-04 : les réglages de prestation d'une offre, lus par l'équipe de sa page
+ * seulement, repris dans chaque nouvelle proposition. Un champ absent n'est pas
+ * réglé. Jamais une adresse exacte ni une coordonnée (règle du domaine).
+ */
+export const serviceProviderSettingsValidator = v.object({
+  timeZone: v.optional(v.string()),
+  location: v.optional(serviceLocationValidator),
+  cancellationTerms: v.optional(v.string()),
+})
 
 export const servicesTables = {
   serviceOffers: defineTable({
@@ -52,6 +64,8 @@ export const servicesTables = {
     searchText: v.string(),
     /** Version de l'offre : toute modification l'incrémente ; une demande cite la version lue. */
     version: v.number(),
+    /** SV-04 : réglages de prestation (fuseau, lieu, conditions habituels), pour l'équipe seulement ; absent, rien n'est réglé. */
+    providerSettings: v.optional(serviceProviderSettingsValidator),
     createdAt: v.number(),
     updatedAt: v.number(),
   })

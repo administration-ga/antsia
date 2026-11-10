@@ -42,6 +42,7 @@ import {
   SERVICE_SLOT_MAX_MINUTES,
   serviceRequestFingerprint,
   serviceRequestTimeline,
+  SERVICE_DELIVERY_MODES,
   slotsOverlap,
   type ServiceRequestAction,
   type ServiceRequestActor,
@@ -79,6 +80,8 @@ import {
   serviceRequestStatusValidator,
   serviceWindowValidator,
 } from "./serviceRequestsTables"
+import { providerSettingsOf, providerSettingsValidator } from "./services"
+import { servicePricingValidator } from "./servicesTables"
 
 const LIST_PAGE_MAX = 50
 const LIST_PAGE_BYTES = 2 * 1024 * 1024
@@ -160,6 +163,19 @@ const proposalDetailValidator = v.object({
   createdAt: v.number(),
 })
 
+/**
+ * SV-04 : ce qu'une nouvelle proposition reprend de l'offre (tarif annoncé, durée,
+ * mode, ville) et de ses réglages de prestation. Pour l'équipe de la page seulement ;
+ * rien n'est envoyé sans que le signataire valide le formulaire.
+ */
+const proposalPrefillValidator = v.object({
+  pricing: servicePricingValidator,
+  durationMinutes: v.union(v.number(), v.null()),
+  delivery: literals(SERVICE_DELIVERY_MODES),
+  city: v.string(),
+  settings: providerSettingsValidator,
+})
+
 const timelineEventValidator = v.object({
   status: serviceRequestStatusValidator,
   at: v.number(),
@@ -181,6 +197,8 @@ const detailValidator = v.object({
   noShowContest: v.union(v.object({ at: v.number(), reason: v.string() }), v.null()),
   /** Le demandeur peut-il contester l'absence maintenant (quatorze jours après le constat) ? */
   canContestNoShow: v.boolean(),
+  /** SV-04 : la proposition préremplie depuis l'offre, pour l'équipe de la page ; `null` pour le demandeur. */
+  proposalPrefill: v.union(proposalPrefillValidator, v.null()),
 })
 
 export type ServiceRequestSummaryDto = typeof summaryValidator.type
@@ -355,10 +373,16 @@ async function detailOf(ctx: ReadScope, request: Doc<"serviceRequests">, viewer:
     .order("desc")
     .take(SERVICE_PROPOSAL_MAX_VERSIONS)
   const booking = request.bookingId ? await ctx.db.get(request.bookingId) : null
+  // SV-04 : l'offre de la demande, relue pour l'équipe seulement (même réseau, même page).
+  const offer = viewer === "page" ? await ctx.db.get(request.offerId) : null
+  const proposalPrefill = offer && offer.networkId === ctx.networkId && offer.pageId === request.pageId
+    ? { pricing: offer.pricing, durationMinutes: offer.durationMinutes ?? null, delivery: offer.delivery, city: offer.city, settings: providerSettingsOf(offer) }
+    : null
   return {
     ...summary,
     viewerRole: viewer,
     need: request.need,
+    proposalPrefill,
     proposals: proposals.map((proposal) => ({
       version: proposal.version,
       amountMinor: proposal.amountMinor,

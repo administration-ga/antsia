@@ -420,3 +420,27 @@ describe("contestation d'une absence (DG-015)", () => {
     expect(await codeOf(f.requester.as.mutation(SR.contestServiceNoShow, { networkId: f.networkId, requestId: sent.requestId, reason: REASON }))).toBe("request_contest_unavailable")
   })
 })
+
+describe("proposition préremplie depuis l'offre (SV-04)", () => {
+  it("l'équipe lit le tarif, la durée, le mode, la ville et les réglages de l'offre ; le demandeur n'en lit rien ; rien n'est écrit", async () => {
+    const f = await fixture()
+    const settings = { timeZone: "Europe/Paris", location: { mode: "onsite" as const, area: "Paris 11e" }, cancellationTerms: "Annulation libre jusqu'à la veille." }
+    await f.t.run(async (ctx) => { await ctx.db.patch(f.offerId, { providerSettings: settings }) })
+    const { requestId } = await f.requester.as.mutation(SR.createServiceRequest, sendArgs(f))
+    const pageView = await f.pro.as.query(SR.getServiceRequest, { networkId: f.networkId, requestId })
+    expect(pageView?.proposalPrefill).toEqual({ pricing: { mode: "from", amountMinor: 4500, currency: "EUR" }, durationMinutes: 90, delivery: "onsite", city: "Paris", settings })
+    expect((await f.requester.as.query(SR.getServiceRequest, { networkId: f.networkId, requestId }))?.proposalPrefill).toBeNull()
+    // La lecture ne propose rien : aucune proposition sans le geste explicite de l'équipe.
+    expect((await rows(f.t)).proposals).toEqual([])
+  })
+
+  it("une offre sur devis ne reprend aucun montant ; sans réglages, chaque champ reste vide", async () => {
+    const f = await fixture()
+    await f.t.run(async (ctx) => { await ctx.db.patch(f.offerId, { pricing: { mode: "quote" }, durationMinutes: undefined, delivery: "remote" }) })
+    const { requestId } = await f.requester.as.mutation(SR.createServiceRequest, sendArgs(f))
+    expect((await f.pro.as.query(SR.getServiceRequest, { networkId: f.networkId, requestId }))?.proposalPrefill).toEqual({
+      pricing: { mode: "quote" }, durationMinutes: null, delivery: "remote", city: "Paris",
+      settings: { timeZone: null, location: null, cancellationTerms: null },
+    })
+  })
+})
