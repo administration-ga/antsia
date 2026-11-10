@@ -168,6 +168,8 @@ export const DATA_TABLE_POLICIES: Record<string, { shared?: boolean; owners?: re
   consularAttestations: {},
   communityImports: {shared: true},
   memberPrivacy: {},
+  // Admissions fondatrices de DIASPORALE (EA-01) : la ligne appartient à la personne admise ; l'opérateur n'y est qu'une référence.
+  foundingAdmissions: {owners: ["personId"]},
   // Catalogue des services DIASPORALE : contenu d'une PAGE, aucune référence personnelle stockée.
   serviceOffers: {shared: true},
   // Demandes DIASPORALE : au demandeur ; propositions et rendez-vous suivent leur demande
