@@ -36,11 +36,32 @@
   },
   "health": {
     "title": "État du service",
+    "lead": {
+      "ok": "Le site et son moteur répondent.",
+      "degraded": "Le moteur ne répond pas normalement : des fonctions peuvent être indisponibles."
+    },
+    "overall": {
+      "ok": "En service",
+      "degraded": "Service dégradé"
+    },
     "application": "Application",
+    "version": "Version de l'application",
     "backend": "Moteur",
-    "configured": "configuré",
-    "missing": "non configuré",
-    "version": "Version",
+    "engine": {
+      "reachable": "répond",
+      "slow": "répond lentement",
+      "error": "répond en erreur",
+      "timeout": "ne répond pas dans le délai",
+      "unreachable": "injoignable",
+      "missing": "non configuré"
+    },
+    "engineVersion": "Version du moteur",
+    "undeclared": "non déclarée",
+    "serverTime": "Heure du moteur",
+    "latency": "Temps de réponse du moteur",
+    "latencyValue": "{{latency}} ms",
+    "unknown": "inconnue",
+    "notMeasured": "non mesuré",
     "backHome": "Retour à l'accueil"
   },
   "session": {
