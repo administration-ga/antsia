@@ -40,6 +40,8 @@
   "mobile.notificationUi.notificationTargets.viewDecisions": "View decisions",
   "mobile.notificationUi.notificationTargets.viewReports": "View my reports",
   "mobile.notificationUi.notificationTargets.sentence.associationEventReminder": "Reminder: an event you registered for is approaching.",
+  "mobile.notificationUi.notificationTargets.sentence.associationEventCancelled": "An event you registered or are waitlisted for has been cancelled.",
+  "mobile.notificationUi.notificationTargets.sentence.associationEventSeatConfirmed": "A place opened up: your registration for an event is confirmed.",
   "mobile.notificationUi.notificationTargets.sentence.membershipChanged": "Your network membership has changed.",
   "mobile.notificationUi.notificationTargets.sentence.badgeChanged": "Your badges have changed.",
   "mobile.notificationUi.notificationTargets.sentence.moderationDecision": "A moderation decision concerns you. View your decisions and appeals.",

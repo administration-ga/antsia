@@ -162,6 +162,8 @@ import type * as modules_events_pageEventAttendanceState from "../modules/events
 import type * as modules_events_pageEventCalendar from "../modules/events/pageEventCalendar.js";
 import type * as modules_events_pageEventGallery from "../modules/events/pageEventGallery.js";
 import type * as modules_events_pageEventGalleryAccess from "../modules/events/pageEventGalleryAccess.js";
+import type * as modules_events_pageEventNoticeAccess from "../modules/events/pageEventNoticeAccess.js";
+import type * as modules_events_pageEventNotices from "../modules/events/pageEventNotices.js";
 import type * as modules_events_pageEventRegistrations from "../modules/events/pageEventRegistrations.js";
 import type * as modules_events_pageEventReminderAccess from "../modules/events/pageEventReminderAccess.js";
 import type * as modules_events_pageEventReminders from "../modules/events/pageEventReminders.js";
@@ -635,6 +637,8 @@ declare const fullApi: ApiFromModules<{
   "modules/events/pageEventCalendar": typeof modules_events_pageEventCalendar;
   "modules/events/pageEventGallery": typeof modules_events_pageEventGallery;
   "modules/events/pageEventGalleryAccess": typeof modules_events_pageEventGalleryAccess;
+  "modules/events/pageEventNoticeAccess": typeof modules_events_pageEventNoticeAccess;
+  "modules/events/pageEventNotices": typeof modules_events_pageEventNotices;
   "modules/events/pageEventRegistrations": typeof modules_events_pageEventRegistrations;
   "modules/events/pageEventReminderAccess": typeof modules_events_pageEventReminderAccess;
   "modules/events/pageEventReminders": typeof modules_events_pageEventReminders;
