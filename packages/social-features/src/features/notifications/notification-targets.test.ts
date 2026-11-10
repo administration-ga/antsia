@@ -19,6 +19,7 @@ import {
 	notificationTarget,
 	targetCallback,
 } from "./notification-targets"
+import { resolutionSentence } from "../reseau-personnel/shared"
 
 const i18n = createAppI18n({ locale: "fr", appResources: { fr: {}, en: {} }, defaultNS: "notifications" })
 const t = i18n.getFixedT("fr")
@@ -52,6 +53,26 @@ function subject(kind: NotificationSubjectKind, id: string): NotificationSubject
 }
 
 describe("notificationTarget — une adresse par nature de sujet", () => {
+	it("mène l'invitation à signer et la revendication tranchée (PG-01) à la page relue par le serveur, jamais depuis un identifiant", () => {
+		const routes = { ...ROUTES, page: (handle: string) => `/page/${encodeURIComponent(handle)}` }
+		for (const [kind, kindSubject] of [["page_signatory_invite", subject("page", "page-1")], ["page_claim_decided", subject("pageClaim", "claim-1")]] as const) {
+			const notice = item({ kind, actor: null, subject: kindSubject, target: { kind: "page", pageId: "page-1", pageHandle: "pecheurs du lac" } })
+			expect(notificationRowAction(notice, routes, {}, t), kind).toEqual({ mode: "link", kind: "page", href: "/page/pecheurs%20du%20lac", label: "Ouvrir" })
+			// Sans route servie, sans destination relue (page devenue illisible) : aucune adresse inventée.
+			expect(notificationTarget(notice, ROUTES, t), kind).toBeNull()
+			expect(notificationTarget({ ...notice, target: null }, routes, t), kind).toBeNull()
+		}
+	})
+	it("phrase l'invitation à signer et la revendication tranchée sans acteur ni contenu, en français et en anglais ; l'invitation dit sa résolution", () => {
+		const actor = { displayName: "Personne sans rapport" }
+		expect(notificationRowSentence({ kind: "page_signatory_invite", actor }, t)).toBe("Vous êtes invité à signer pour une page. Ouvrez-la pour répondre.")
+		expect(notificationRowSentence({ kind: "page_signatory_invite", actor }, tEn)).toBe("You have been invited to sign for a page. Open it to respond.")
+		expect(notificationRowSentence({ kind: "page_claim_decided", actor }, t)).toBe("Une décision a été prise sur votre demande concernant une page. Ouvrez la page pour la consulter.")
+		expect(notificationRowSentence({ kind: "page_claim_decided", actor }, tEn)).toBe("A decision has been made on your request about a page. Open the page to read it.")
+		const invite = item({ kind: "page_signatory_invite", actor: null, subject: subject("page", "page-1") })
+		expect(notificationRowNote({ ...invite, resolution: { kind: "accepted", at: 1 } }, { mode: "none" }, t)).toBe(resolutionSentence("thematic_group_invite", "accepted", t))
+		expect(notificationRowNote({ ...invite, resolution: { kind: "cancelled", at: 1 } }, { mode: "none" }, t)).toBe(resolutionSentence("thematic_group_invite", "cancelled", t))
+	})
 	it("garde le rappel associatif sur sa route injectée, sans agenda ni callback personnels", () => {
 		const notice = item({ kind: "association_event_reminder", subject: subject("event", "ev-asso"), associationEvent: { eventId: "ev-asso", pageHandle: "association-demo" } })
 		expect(notificationTarget(notice, ROUTES, t)).toBeNull()
@@ -481,7 +502,7 @@ describe("connectionInviteOutcome — relire avant d'agir", () => {
 
 describe("notificationRowSentence — ce que dit la ligne, pour TOUS les genres du moteur", () => {
 	const OTHER = "Nouvelle activité dans le réseau."
-	const SYSTEM_KINDS: readonly NotificationKind[] = ["membership_changed", "badge_changed", "moderation_decision", "report_received", "report_decided", "page_post", "file_withheld", "attestation_verified", "attestation_not_confirmed", "association_event_reminder", "association_event_cancelled", "association_event_seat_confirmed"]
+	const SYSTEM_KINDS: readonly NotificationKind[] = ["membership_changed", "badge_changed", "moderation_decision", "report_received", "report_decided", "page_post", "file_withheld", "attestation_verified", "attestation_not_confirmed", "association_event_reminder", "association_event_cancelled", "association_event_seat_confirmed", "page_signatory_invite", "page_claim_decided"]
 
 	it("chaque genre du domaine a sa phrase — jamais une clé brute, jamais la phrase générique", () => {
 		for (const kind of NOTIFICATION_KINDS) {

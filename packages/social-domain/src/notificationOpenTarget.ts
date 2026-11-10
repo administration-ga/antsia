@@ -19,6 +19,9 @@
  *  - `contextualThread` (CC-2b, ADR-0025) : une conversation contextuelle relue pour CE lecteur
  *    (partie actuelle) — sujet GÉNÉRIQUE (fil, nature, objet, côté, page) que l'application de la
  *    nature route elle-même ; aucune route ANTSIA en V1.
+ *  - `page` (PG-01) : la page d'un avis de gouvernance (invitation à signer, revendication
+ *    tranchée), lisible par CE lecteur à l'instant — l'invitation y attend sa réponse, la décision
+ *    s'y relit.
  */
 import type { ContextualKind, ContextualSide } from "./contextualMessaging"
 
@@ -32,6 +35,7 @@ export const NOTIFICATION_OPEN_TARGET_KINDS = [
   "diasporaServiceNotice",
   "diasporaCommunityNotice",
   "contextualThread",
+  "page",
 ] as const
 export type NotificationOpenTargetKind = (typeof NOTIFICATION_OPEN_TARGET_KINDS)[number]
 
@@ -90,4 +94,11 @@ export type NotificationOpenTarget =
       side: ContextualSide
       /** L'adresse de la page répondante si elle est active ; `null` sinon (côté personne compris). */
       pageHandle: string | null
+    }
+  | {
+      kind: "page"
+      /** La page (identifiant du moteur), lisible par ce lecteur à l'instant. */
+      pageId: string
+      /** Son adresse actuelle, pour composer la route de l'application. */
+      pageHandle: string
     }

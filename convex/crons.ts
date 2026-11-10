@@ -69,6 +69,9 @@ crons.interval("data-resume-erasure", { minutes: 15 }, internal.modules.people.e
 crons.daily("data-purge-export-receipts", { hourUTC: 4, minuteUTC: 30 }, internal.modules.people.erasure.purgeExpiredExports, {})
 // PA7 : la lecture ferme immédiatement les preuves expirées ; rétention par lots de 100.
 crons.daily("operators-purge-expired-idn-proofs", { hourUTC: 3, minuteUTC: 55 }, internal.modules.platform.operatorAccess.purgeExpiredProofs, {})
+// PG-01 : pièces des revendications de page TRANCHÉES, conservation échue (90 jours, valeur à
+// valider) : purge par lots bornés, poursuivie par chaîne ; la revendication et sa décision restent.
+crons.daily("pages-purge-decided-claim-evidence", { hourUTC: 4, minuteUTC: 20 }, internal.modules.pages.claims.purgeDecidedClaimEvidence, {})
 
 // PA8 : mesures publiques par générations et tranches bornées, sans identités.
 crons.interval("public-refresh-aggregates", { minutes: 15 }, internal.modules.public.aggregate.refresh, {})
