@@ -5,7 +5,7 @@
  * présence pour une vitrine publiée seulement.
  */
 import { createAppI18n } from "@antsia/social-features/i18n"
-import { shopPauseDayBounds, shopPauseReopensAt } from "@antsia/social-domain/commerce/shopPause"
+import { shopPauseDayBounds, shopPauseReopensAt } from "@antsia/social-domain/shopPause"
 import { act, type ReactNode } from "react"
 import { createRoot, type Root } from "react-dom/client"
 import { I18nextProvider } from "react-i18next"

@@ -7,7 +7,7 @@
  * de Libreville (UTC+1 toute l'année) ; la boutique rouvre à minuit, heure de Libreville, au début de ce jour.
  * Pendant la pause, la vitrine reste lisible ; seuls les NOUVEAUX engagements sont refusés (règle `SHOP_PAUSED`).
  */
-import { librevilleDay } from "../dailySpecial"
+import { librevilleDay } from "./dailySpecial"
 
 /** Libreville vit à UTC+1 toute l'année. */
 const LIBREVILLE_OFFSET_MS = 60 * 60 * 1000

@@ -13,7 +13,7 @@
  *  - APRÈS le rejeu idempotent (même clé, même intention) et HORS des reprises d'un engagement existant
  *    (reconfirmation d'un total, d'un prix) : ce qui a commencé avant la pause suit son cours.
  */
-import { isShopPaused } from "@antsia/social-domain/commerce/shopPause"
+import { isShopPaused } from "@antsia/social-domain/shopPause"
 
 import type { Doc, Id } from "../../_generated/dataModel"
 import type { QueryCtx } from "../../_generated/server"

@@ -2,7 +2,7 @@
 
 import { api } from "@antsia/api/engine"
 import { useNetwork } from "@antsia/api/network"
-import { checkShopPauseDay, isShopPaused, SHOP_PAUSE_MAX_DAYS, shopPauseDayBounds, shopPauseReopenDay, shopPauseReopensAt } from "@antsia/social-domain/commerce/shopPause"
+import { checkShopPauseDay, isShopPaused, SHOP_PAUSE_MAX_DAYS, shopPauseDayBounds, shopPauseReopenDay, shopPauseReopensAt } from "@antsia/social-domain/shopPause"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useMutation } from "convex/react"
 import type { TFunction } from "i18next"

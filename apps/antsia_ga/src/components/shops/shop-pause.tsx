@@ -3,7 +3,7 @@
 import { api } from "@antsia/api/engine"
 import { useAuthenticatedConvexQuery } from "@antsia/api/hooks"
 import { useNetwork } from "@antsia/api/network"
-import { isShopPaused } from "@antsia/social-domain/commerce/shopPause"
+import { isShopPaused } from "@antsia/social-domain/shopPause"
 import { CalendarClock } from "lucide-react"
 import { type ReactNode, useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"

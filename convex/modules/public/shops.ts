@@ -9,7 +9,7 @@ import { servableUrl } from "../files/storageGuard"
 import { findPageByHandle } from "../pages/access"
 import { publicStorefrontPage, shopOfPage } from "../shops/access"
 import { type PublicDailySpecial, type PublicStorefront, type PublicStorefrontPause, publicDailySpecialValidator, publicStorefrontPauseValidator, publicStorefrontValidator } from "../shops/validators"
-import { isShopPaused } from "@antsia/social-domain/commerce/shopPause"
+import { isShopPaused } from "@antsia/social-domain/shopPause"
 import { originDto, publicContext } from "./access"
 import { catalogStorefrontBlocks, resolveCatalogOffer } from "../shops/catalogRead"
 
