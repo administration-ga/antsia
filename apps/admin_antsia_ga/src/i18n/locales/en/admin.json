@@ -96,6 +96,7 @@
     "incidents": "Incidents",
     "audit": "Decision log",
     "health": "Engine health",
+    "files": "Files",
     "export": "Aggregate exports"
   },
   "networks": {

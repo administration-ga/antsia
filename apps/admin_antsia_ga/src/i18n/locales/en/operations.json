@@ -274,6 +274,71 @@
       "clockHint": "A case becomes overdue by this screen's clock, refreshed every minute. No external notification is sent."
     }
   },
+  "files": {
+    "title": "Guarded files",
+    "lead": "Every uploaded file is scanned (byte inspection and antivirus) before it is shown, and no upload larger than {{max}} MiB is accepted. A file held after an antivirus outage can be rescanned here, with a reason written to the log: it only becomes readable again after a clean verdict. These queues cover every network.",
+    "filter": "Filter files by status",
+    "filters": {
+      "pending": "Pending",
+      "running": "Scanning",
+      "clean": "Clean",
+      "suspicious": "Suspicious",
+      "infected": "Infected",
+      "error": "Scan failed",
+      "skipped": "Not scanned"
+    },
+    "statuses": {
+      "pending": "Awaiting scan",
+      "running": "Scan in progress",
+      "clean": "Clean",
+      "suspicious": "Suspicious",
+      "infected": "Infected",
+      "error": "Scan failed",
+      "skipped": "Not scanned"
+    },
+    "atLeast": "at least {{count}}",
+    "countUnknown": "Unknown",
+    "sampleHint": "Each counter reads at most {{cap}} rows per status; beyond that, the number shown is a floor.",
+    "listTitle": "Files: {{status}}",
+    "listLabel": "File list, status {{status}}",
+    "unnamed": "Unnamed file",
+    "fields": {
+      "source": "Origin",
+      "size": "Size",
+      "attempts": "Scan attempts",
+      "reason": "Technical reason",
+      "created": "Uploaded on",
+      "updated": "Last change on"
+    },
+    "size": "{{value}} MiB",
+    "sizeUnknown": "Unknown size",
+    "noReason": "No reason recorded",
+    "sources": {
+      "post_media": "Post media",
+      "profile": "Profile",
+      "story": "Story",
+      "message": "Message",
+      "group": "Group",
+      "thematic_group": "Topic group",
+      "event": "Event",
+      "page": "Page",
+      "page_claim": "Page claim",
+      "album": "Album",
+      "editorial": "Editorial article",
+      "voice": "Voice message",
+      "live": "Live",
+      "job_application": "Job application",
+      "generated": "Produced by the platform"
+    },
+    "skippedGenerated": "Produced by the platform (live recording): served without scanning, and traced.",
+    "skippedWithheld": "Uploaded before admission was closed above the scan ceiling: nobody has scanned it. It stays held and is never served.",
+    "tooLargeForAnalysis": "Larger than the scan ceiling: a rescan could not inspect it.",
+    "requeue": "Rescan",
+    "requeued": "Rescan requested. The file will only become readable again after a clean verdict.",
+    "loadFailed": "Files could not be loaded. No decision has been made; you can try again.",
+    "denied": "This operator session cannot read the file queue.",
+    "retry": "Try again"
+  },
   "export": {
     "title": "Aggregate export",
     "lead": "At most twelve periods, without identities or free text. Privacy threshold: {{threshold}} cases and distinct authors.",

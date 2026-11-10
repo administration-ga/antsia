@@ -377,11 +377,59 @@ describe("libération par un modérateur, relance par un opérateur", () => {
     await runScan(t, scanId)
     expect((await scanOf(t, storageId))?.status).toBe("infected")
     expect(engineErrorCode(await caught(op.as.mutation(api.modules.files.mutations.releaseScan, { scanId, reason: "on verra" })))).toBe("conflict")
-    expect(engineErrorCode(await caught(plain.as.mutation(api.modules.files.mutations.requeueScan, { scanId })))).toBe("operatorRequired")
+    expect(engineErrorCode(await caught(plain.as.mutation(api.modules.files.mutations.requeueScan, { scanId, reason: "Nouvelle analyse" })))).toBe("operatorRequired")
     vi.useFakeTimers()
-    await op.as.mutation(api.modules.files.mutations.requeueScan, { scanId })
+    await op.as.mutation(api.modules.files.mutations.requeueScan, { scanId, reason: "Signatures antivirus mises à jour" })
     expect(await scanOf(t, storageId)).toMatchObject({ status: "pending", attempts: 0 })
-    expect(await auditOf(t, scanId)).toMatchObject([{ action: "file.requeue", capacity: "platform_operator", actorPersonId: op.personId, details: { from: "infected" } }])
+    expect(await auditOf(t, scanId)).toMatchObject([{ action: "file.requeue", capacity: "platform_operator", actorPersonId: op.personId, details: { reason: "Signatures antivirus mises à jour", from: "infected" } }])
+  })
+
+  it("EX-17 — un fichier figé en `error` est relancé depuis la console, avec motif, et devient lisible après un verdict sain", async () => {
+    vi.useFakeTimers()
+    const t = testConvex()
+    const rootId = await seedRoot(t)
+    const op = await operator(t, rootId, "operatrice")
+    const uploader = await member(t, rootId, "deposante")
+    const storageId = await store(t, PDF, "application/pdf")
+    const { scanId } = await admit(t, storageId, "application/pdf", { networkId: rootId, uploadedByPersonId: uploader.personId, filename: "programme.pdf" })
+
+    // Panne de l'antivirus (aucun fournisseur hors développement local) : la dernière tentative fige la ligne.
+    vi.unstubAllEnvs()
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {})
+    await t.run(async (ctx) => {
+      await ctx.db.patch(scanId, { attempts: 2 })
+    })
+    await runScan(t, scanId)
+    warn.mockRestore()
+    expect(await scanOf(t, storageId)).toMatchObject({ status: "error", verdictReason: "AV_ERROR:provider_unconfigured" })
+    expect(await t.run(async (ctx) => resolveFileDelivery(ctx as unknown as MutationCtx, storageId))).toEqual({ url: null, scan: "error" })
+
+    // L'antivirus revient ; un motif vide est refusé, sans ligne de journal.
+    vi.stubEnv("CONVEX_CLOUD_URL", "http://127.0.0.1:3210")
+    expect(engineErrorRule(await caught(op.as.mutation(api.modules.files.mutations.requeueScan, { scanId, reason: "  " })))?.rule).toBe("DECISION_REASON_LENGTH")
+    expect(await auditOf(t, scanId)).toEqual([])
+
+    await op.as.mutation(api.modules.files.mutations.requeueScan, { scanId, reason: "Antivirus rétabli après panne" })
+    expect(await scanOf(t, storageId)).toMatchObject({ status: "pending", attempts: 0 })
+    expect(await auditOf(t, scanId)).toMatchObject([
+      { action: "file.requeue", capacity: "platform_operator", actorPersonId: op.personId, networkId: rootId, details: { reason: "Antivirus rétabli après panne", from: "error" } },
+    ])
+    await runScan(t, scanId)
+    expect(await scanOf(t, storageId)).toMatchObject({ status: "clean", attempts: 1 })
+    expect((await t.run(async (ctx) => resolveFileDelivery(ctx as unknown as MutationCtx, storageId))).url).toBeTruthy()
+  })
+
+  it("EX-17 — aucune relance au-delà du plafond d'analyse : un enregistrement de 70 Mio produit par la plateforme reste servable", async () => {
+    vi.useFakeTimers()
+    const t = testConvex()
+    const rootId = await seedRoot(t)
+    const op = await operator(t, rootId, "operateur")
+    const storageId = await store(t, new Uint8Array(70 * 1024 * 1024), "video/mp4")
+    const { scanId } = await t.run(async (ctx) => registerGeneratedBlob(ctx as unknown as MutationCtx, storageId, { mimeType: "video/mp4", networkId: rootId }))
+    expect(engineErrorCode(await caught(op.as.mutation(api.modules.files.mutations.requeueScan, { scanId, reason: "Vérifier la rediffusion" })))).toBe("conflict")
+    expect(await scanOf(t, storageId)).toMatchObject({ status: "skipped", skipReason: "server_generated" })
+    expect((await t.run(async (ctx) => resolveFileDelivery(ctx as unknown as MutationCtx, storageId))).url).toBeTruthy()
+    expect(await auditOf(t, scanId)).toEqual([])
   })
 })
 

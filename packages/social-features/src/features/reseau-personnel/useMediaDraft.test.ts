@@ -74,9 +74,11 @@ describe("refus au moment de choisir", () => {
     )
     expect(refusal).toContain("chantier.png")
     expect(refusal).toContain("20 Mo")
+    // EX-17 (décision du 9/11/2026) : la vidéo de publication est bornée à 60 Mio.
     expect(
-      rejectionFor(file("video/mp4", 101 * 1024 * 1024, "clip.mp4"), [], undefined, t),
-    ).toContain("100 Mo")
+      rejectionFor(file("video/mp4", 61 * 1024 * 1024, "clip.mp4"), [], undefined, t),
+    ).toContain("60 Mo")
+    expect(rejectionFor(file("video/mp4", 60 * 1024 * 1024, "clip.mp4"), [], undefined, t)).toBeNull()
   })
 })
 

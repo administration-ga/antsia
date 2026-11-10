@@ -96,6 +96,7 @@
     "incidents": "Incidents",
     "audit": "Journal des décisions",
     "health": "Santé du moteur",
+    "files": "Fichiers",
     "export": "Exports agrégés"
   },
   "networks": {

@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/modules/fileGuard/queries.ts @ ad2e7fdc2 — adaptations : adhésion au réseau au lieu de `hasOrgAccess` (`statusByStorageIds` borné au réseau, l'ÉTAT seul) ; rapport lisible par le déposant, un modérateur du réseau du fichier ou un opérateur, refus INDISTINCT sinon ; console réservée aux opérateurs (`listForConsole`, `stats`) ; `getScanByStorageId` et `_reportForTriage` (triage IA, V2) non recopiées ; noms d'organisation retirés.
+// Dupliqué de socle/convex/modules/fileGuard/queries.ts @ ad2e7fdc2 — adaptations : adhésion au réseau au lieu de `hasOrgAccess` (`statusByStorageIds` borné au réseau, l'ÉTAT seul) ; rapport lisible par le déposant, un modérateur du réseau du fichier ou un opérateur, refus INDISTINCT sinon ; console réservée aux opérateurs (`listForConsole`, `stats`) ; `getScanByStorageId` et `_reportForTriage` (triage IA, V2) non recopiées ; noms d'organisation retirés ; EX-17 : l'état rendu est celui que la garde APPLIQUE (`getScanStatus` : un dépôt sauté sans analyse se lit `error`), et le rapport porte le motif d'un saut (`skipReason`) pour la console.
 /**
  * Garde des fichiers — QUERIES.
  *
@@ -16,7 +16,7 @@ import { getMembership } from "../../lib/access"
 import { fail, notFound } from "../../lib/errors"
 import { networkQuery, operatorQuery, personQuery } from "../../lib/functions"
 import { FILE_SCAN_STATUSES, type FileScanStatus } from "./policy"
-import { getScanForStorage } from "./storageGuard"
+import { getScanStatus } from "./storageGuard"
 import { fileScanAvValidator, fileScanFindingValidator, fileScanSourceValidator, fileScanStatusValidator } from "./tables"
 
 const STATUS_BATCH_MAX = 100
@@ -33,8 +33,8 @@ export const statusByStorageIds = networkQuery({
     if (args.storageIds.length > STATUS_BATCH_MAX) return fail("invalidArgument", { field: "storageIds" })
     const out: { storageId: (typeof args.storageIds)[number]; status: FileScanStatus | null }[] = []
     for (const storageId of args.storageIds) {
-      const scan = await getScanForStorage(ctx, storageId)
-      out.push({ storageId, status: scan?.status ?? null })
+      // L'état APPLIQUÉ par la garde de délivrance, jamais un « sauté » qui ne serait pas servi.
+      out.push({ storageId, status: await getScanStatus(ctx, storageId) })
     }
     return out
   },
@@ -65,6 +65,8 @@ const scanReportValidator = v.object({
   findings: v.array(fileScanFindingValidator),
   av: v.optional(fileScanAvValidator),
   verdictReason: v.optional(v.string()),
+  /** Pourquoi l'analyse a sauté le fichier : `server_generated` (servi, tracé) ou `too_large` (retenu, EX-17). */
+  skipReason: v.optional(v.string()),
   attempts: v.number(),
   releasedAt: v.optional(v.number()),
   createdAt: v.number(),
@@ -84,6 +86,7 @@ function toReport(scan: Doc<"fileScans">) {
     findings: scan.findings ?? [],
     ...(scan.av ? { av: scan.av } : {}),
     ...(scan.verdictReason !== undefined ? { verdictReason: scan.verdictReason } : {}),
+    ...(scan.skipReason !== undefined ? { skipReason: scan.skipReason } : {}),
     attempts: scan.attempts,
     ...(scan.releasedAt !== undefined ? { releasedAt: scan.releasedAt } : {}),
     createdAt: scan.createdAt,
