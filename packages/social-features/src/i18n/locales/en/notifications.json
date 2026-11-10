@@ -54,6 +54,8 @@
     "viewReports": "View my reports",
     "sentence": {
       "associationEventReminder": "Reminder: an event you registered for is approaching.",
+      "associationEventCancelled": "An event you registered or are waitlisted for has been cancelled.",
+      "associationEventSeatConfirmed": "A place opened up: your registration for an event is confirmed.",
       "membershipChanged": "Your network membership has changed.",
       "badgeChanged": "Your badges have changed.",
       "moderationDecision": "A moderation decision concerns you. View your decisions and appeals.",

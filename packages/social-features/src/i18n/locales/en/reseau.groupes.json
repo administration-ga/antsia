@@ -45,11 +45,16 @@
       "candidates": {
         "title": "Connections unavailable",
         "message": "Your connections could not be loaded."
+      },
+      "transfer": {
+        "title": "Moderators unavailable",
+        "message": "The list of moderators could not be loaded."
       }
     },
     "join": {
       "acceptInvite": "Accept the invitation",
-      "join": "Join"
+      "join": "Join",
+      "readRules": "Read the rules"
     },
     "invitesBanner_one": "{{count}} pending group invitation",
     "invitesBanner_many": "{{count}} pending group invitations",
@@ -101,7 +106,22 @@
       "removeFailed": "The removal failed.",
       "pinned": "Post pinned at the top of the group.",
       "pinFailed": "Pinning failed.",
-      "postRemoved": "Post removed from the group."
+      "postRemoved": "Post removed from the group.",
+      "rulesAccepted": "Rules accepted.",
+      "rulesAcceptFailed": "Your acceptance of the rules could not be recorded.",
+      "rulesSaved": "Rules saved: version {{version}}.",
+      "rulesRemoved": "Rules removed: joining is open again.",
+      "rulesUnchanged": "The rules have not changed.",
+      "rulesFailed": "The rules could not be saved.",
+      "transferred": "Ownership handed over. You are now a moderator of the group.",
+      "transferFailed": "The ownership transfer failed.",
+      "closed": "Group closed.",
+      "closeFailed": "Closing failed.",
+      "archived": "Group archived.",
+      "archiveFailed": "Archiving failed.",
+      "deleted": "Group deleted.",
+      "deletePending": "Deletion started: it finishes in the background.",
+      "deleteFailed": "Deletion failed."
     },
     "directory": {
       "mine": "My groups",
@@ -139,7 +159,76 @@
       "pinnedBadge": "Pinned",
       "unpin": "Unpin",
       "joinToRead": "Join this group to read and publish its contributions.",
-      "morePosts": "See more posts"
+      "morePosts": "See more posts",
+      "manage": "Manage the group",
+      "hideManage": "Hide management",
+      "showRules": "Show the rules",
+      "hideRules": "Hide the rules"
+    },
+    "state": {
+      "closed": "This group is closed: it can no longer be joined or posted to, and its posts are no longer shown.",
+      "archived": "This group is archived: it is closed and removed from discovery, and its posts are no longer shown."
+    },
+    "rules": {
+      "title": "Group rules",
+      "lead": "Set by the group's owner. Everyone accepts them on joining.",
+      "updatedOn": "Updated on {{date}}.",
+      "accept": "I have read this group's rules and I commit to respecting them.",
+      "acceptHint": "Tick the box to be able to join the group.",
+      "changedTitle": "The group's rules have changed",
+      "changedLead": "You remain a member. Please read the new version:",
+      "acknowledge": "I have read the new rules"
+    },
+    "manage": {
+      "title": "Manage the group",
+      "lead": "These actions are reserved for the group's owner.",
+      "frozen": "This group is no longer active: its rules and roles are frozen. It can still be archived or deleted.",
+      "back": "Go back",
+      "rules": {
+        "title": "Group rules",
+        "hint": "These are your rules, not the platform's. Everyone sees and accepts them before joining; a new version is shown to current members, who remain members.",
+        "label": "Text of the rules",
+        "placeholder": "For example: stay courteous, no advertising, post about the group's topic.",
+        "current": "Version {{version}} in force since {{date}}.",
+        "none": "No rules yet: joining is open.",
+        "count": "{{count}} / {{max}} characters",
+        "save": "Save the rules",
+        "saving": "Saving…",
+        "remove": "Remove the rules"
+      },
+      "transfer": {
+        "title": "Hand over ownership",
+        "hint": "The new owner is an active moderator of the group. You will become a moderator, and can then leave the group.",
+        "legend": "Choose the new owner",
+        "empty": "No moderator can receive ownership for now. First appoint a moderator: “Show members”, then “Promote”.",
+        "truncated": "Only the first {{max}} moderators are offered.",
+        "submit": "Hand over ownership",
+        "confirmStatus": "Confirm the ownership transfer, or go back.",
+        "confirmText": "Hand over ownership of “{{group}}” to {{name}}? You will become a moderator: only the new owner will then be able to manage the group.",
+        "confirm": "Confirm the transfer"
+      },
+      "close": {
+        "title": "Close the group",
+        "hint": "Closing freezes the group: no more joining, invitations, posts or moderation, and its posts are no longer shown. Closing is final; archiving and deletion remain possible.",
+        "ask": "Close the group",
+        "confirmStatus": "Confirm closing the group, or go back.",
+        "confirm": "Confirm closing"
+      },
+      "archive": {
+        "title": "Archive the group",
+        "hint": "Archiving closes the group and removes it from discovery, without deleting anything. Archiving is final; deletion remains possible.",
+        "ask": "Archive the group",
+        "confirmStatus": "Confirm archiving the group, or go back.",
+        "confirm": "Confirm archiving"
+      },
+      "delete": {
+        "title": "Delete the group",
+        "hint": "Deletion permanently erases the group, its rules, its posts with their reactions, comments and media, its members and its invitations. It cannot be undone.",
+        "label": "Type the group's name to confirm: {{name}}",
+        "mismatch": "The name you typed does not match the group's name.",
+        "submit": "Delete permanently",
+        "submitting": "Deleting…"
+      }
     },
     "members": {
       "title": "Members",

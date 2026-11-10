@@ -51,6 +51,14 @@ describe("refus au moment de choisir", () => {
     expect(rejectionFor(file("application/pdf"), [], undefined, t)).toContain("ni une image")
   })
 
+  it("SD-03 — n'accepte tel quel qu'un MP4 ou un WebM : un .mov doit passer par la préparation", () => {
+    expect(MEDIA_ACCEPT).not.toContain("video/quicktime")
+    expect(rejectionFor(file("video/webm"), [], undefined, t)).toBeNull()
+    expect(rejectionFor(file("video/quicktime", 1000, "IMG_0412.MOV"), [], undefined, t)).toBe(
+      "« IMG_0412.MOV » n'est ni une image ni une vidéo acceptée.",
+    )
+  })
+
   it("tient la règle « une vidéo est seule »", () => {
     expect(rejectionFor(file("video/mp4"), [draft("image")], undefined, t)).toContain("seule")
     expect(rejectionFor(file("image/png"), [draft("video")], undefined, t)).toContain("seule")
@@ -74,9 +82,11 @@ describe("refus au moment de choisir", () => {
     )
     expect(refusal).toContain("chantier.png")
     expect(refusal).toContain("20 Mo")
+    // EX-17 (décision du 9/11/2026) : la vidéo de publication est bornée à 60 Mio.
     expect(
-      rejectionFor(file("video/mp4", 101 * 1024 * 1024, "clip.mp4"), [], undefined, t),
-    ).toContain("100 Mo")
+      rejectionFor(file("video/mp4", 61 * 1024 * 1024, "clip.mp4"), [], undefined, t),
+    ).toContain("60 Mo")
+    expect(rejectionFor(file("video/mp4", 60 * 1024 * 1024, "clip.mp4"), [], undefined, t)).toBeNull()
   })
 })
 

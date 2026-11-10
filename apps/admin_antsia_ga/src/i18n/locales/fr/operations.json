@@ -73,6 +73,41 @@
     "remove": "Retirer de l’équipe",
     "noMembers": "Aucun membre dans cette équipe."
   },
+  "moderationPolicy": {
+    "title": "Réglages de modération du réseau",
+    "lead": "Par surface : relecture préalable, plafond de liens et cadence au-delà desquels une écriture passe en relecture avant d’être visible. Mêmes réglages que l’onglet « Réglages » de l’administrateur du réseau ; chaque décision est motivée, inscrite au journal et vaut pour les écritures suivantes.",
+    "exceptions": "Sans réglage, les offres et conditions de boutique, les offres d’emploi, les avis de prestation et leurs réponses, les évènements de page et les publications de leurs galeries attendent une relecture. Les contenus propres à DIASPORALE (entraide, mentorat, kit d’arrivée, emploi) sont publiés sans contrôle automatique.",
+    "surface": "Surface réglée",
+    "configuredSuffix": " (réglée)",
+    "explicit": "Réglage posé le",
+    "withoutDefaults": "Aucun réglage posé : défauts du moteur (relecture préalable : {{review}} ; {{links}} liens au plus ; {{writes}} écritures par {{seconds}} s).",
+    "withoutHeld": "Aucun réglage posé : chaque contenu de cette surface attend une relecture avant d’être visible.",
+    "withoutUnchecked": "Aucun réglage posé : les contenus de cette surface sont publiés sans contrôle automatique.",
+    "reviewOn": "oui",
+    "reviewOff": "non",
+    "formLabel": "Réglage de la surface : {{surface}}",
+    "preReview": "Relecture préalable de chaque écriture",
+    "maxLinks": "Plafond de liens",
+    "maxLinksHint": "Au-delà, l’écriture passe en relecture.",
+    "maxWrites": "Cadence : écritures admises",
+    "maxWritesHint": "Au-delà, l’écriture suivante du même membre passe en relecture.",
+    "window": "Fenêtre de cadence (secondes)",
+    "windowHint": "Durée sur laquelle les écritures du membre sont comptées.",
+    "numberInvalid": "Saisissez un nombre entier de {{min}} à {{max}}.",
+    "save": "Enregistrer le réglage",
+    "configuredTitle": "Surfaces réglées",
+    "noneConfigured": "Aucune surface n’a encore de réglage dans ce réseau.",
+    "summary": "{{surface}} — relecture préalable : {{review}} ; {{links}} liens au plus ; {{writes}} écritures par {{seconds}} s.",
+    "termsTitle": "Mots bloqués",
+    "termsLead": "Une écriture qui contient l’un de ces mots passe en relecture avant d’être visible, sur toutes les surfaces du réseau. Majuscules et accents ne comptent pas. {{max}} mots actifs au plus.",
+    "term": "Mot ou expression",
+    "termHint": "De {{min}} à {{max}} caractères, accents et espaces superflus retirés.",
+    "termInvalid": "Le mot doit contenir de {{min}} à {{max}} caractères.",
+    "add": "Ajouter le mot",
+    "addLabel": "Ajouter un mot bloqué",
+    "activeTerms": "Mots actifs",
+    "remove": "Retirer « {{term}} »"
+  },
   "appeals": {
     "title": "Recours auprès de la plateforme",
     "lead": "Recours ouverts du réseau sélectionné. Chaque décision laisse une trace dans le journal.",
@@ -274,6 +309,71 @@
       "clockHint": "Un dossier passe en retard à l’heure de cet écran, actualisée chaque minute. Aucune notification externe n’est envoyée."
     }
   },
+  "files": {
+    "title": "Fichiers sous garde",
+    "lead": "Tout fichier déposé est analysé (inspection des octets et antivirus) avant d’être montré, et aucun dépôt de plus de {{max}} Mio n’est admis. Un fichier retenu après une panne de l’antivirus se relance ici, avec un motif écrit au journal : il ne redevient lisible qu’après un verdict sain. Ces files couvrent tous les réseaux.",
+    "filter": "Filtrer les fichiers par statut",
+    "filters": {
+      "pending": "En attente",
+      "running": "En cours",
+      "clean": "Sains",
+      "suspicious": "Suspects",
+      "infected": "Infectés",
+      "error": "Analyse en échec",
+      "skipped": "Non analysés"
+    },
+    "statuses": {
+      "pending": "En attente d’analyse",
+      "running": "Analyse en cours",
+      "clean": "Sain",
+      "suspicious": "Suspect",
+      "infected": "Infecté",
+      "error": "Analyse en échec",
+      "skipped": "Non analysé"
+    },
+    "atLeast": "au moins {{count}}",
+    "countUnknown": "Inconnu",
+    "sampleHint": "Chaque compteur lit au plus {{cap}} lignes par statut ; au-delà, le nombre affiché est un plancher.",
+    "listTitle": "Fichiers : {{status}}",
+    "listLabel": "Liste des fichiers, statut {{status}}",
+    "unnamed": "Fichier sans nom",
+    "fields": {
+      "source": "Origine",
+      "size": "Poids",
+      "attempts": "Tentatives d’analyse",
+      "reason": "Motif technique",
+      "created": "Déposé le",
+      "updated": "Dernier changement le"
+    },
+    "size": "{{value}} Mio",
+    "sizeUnknown": "Poids inconnu",
+    "noReason": "Aucun motif enregistré",
+    "sources": {
+      "post_media": "Média de publication",
+      "profile": "Profil",
+      "story": "Story",
+      "message": "Message",
+      "group": "Groupe",
+      "thematic_group": "Groupe thématique",
+      "event": "Évènement",
+      "page": "Page",
+      "page_claim": "Revendication de page",
+      "album": "Album",
+      "editorial": "Article éditorial",
+      "voice": "Message vocal",
+      "live": "Direct",
+      "job_application": "Candidature",
+      "generated": "Produit par la plateforme"
+    },
+    "skippedGenerated": "Produit par la plateforme (enregistrement de direct) : servi sans analyse, et tracé.",
+    "skippedWithheld": "Déposé avant la fermeture de l’admission au-delà du plafond d’analyse : personne ne l’a analysé. Il reste retenu et n’est jamais servi.",
+    "tooLargeForAnalysis": "Plus lourd que le plafond d’analyse : une relance ne pourrait pas l’analyser.",
+    "requeue": "Relancer l’analyse",
+    "requeued": "Analyse relancée. Le fichier ne redeviendra lisible qu’après un verdict sain.",
+    "loadFailed": "Les fichiers n’ont pas pu être chargés. Aucune décision n’a été prise ; vous pouvez réessayer.",
+    "denied": "Cette session d’opérateur ne permet pas de lire la file des fichiers.",
+    "retry": "Réessayer"
+  },
   "export": {
     "title": "Export agrégé",
     "lead": "Douze périodes au maximum, sans identité ni texte libre. Seuil de confidentialité : {{threshold}} dossiers et auteurs distincts.",
@@ -457,5 +557,28 @@
     "enable": "Ouvrir la préparation des commandes",
     "disable": "Fermer la préparation des commandes",
     "updated": "Dernière décision le"
+  },
+  "networkRoles": {
+    "title": "Responsables du réseau",
+    "lead": "Les responsables d’un réseau sont des membres actifs, nommés par un administrateur de la plateforme. Un modérateur du réseau traite les signalements adressés au réseau, ceux qu’aucune équipe ne prend en charge, et lit le journal du réseau ; un administrateur du réseau traite toute la file, tranche les recours du réseau et gère ses équipes. Un retrait vaut dès l’action suivante ; chaque décision est motivée et inscrite au journal.",
+    "managed": "Ce réseau est gouverné par sa propre application : la console y nomme le premier administrateur, puis l’administration du réseau nomme ses responsables dans l’application du réseau. Son annuaire dépend du choix de chaque membre : seuls les membres qui y paraissent se trouvent par leur identifiant.",
+    "roles": {
+      "network_admin": "Administrateurs du réseau",
+      "network_moderator": "Modérateurs du réseau"
+    },
+    "roleOption": {
+      "network_admin": "Administrateur du réseau",
+      "network_moderator": "Modérateur du réseau"
+    },
+    "inactive": "Sans effet : adhésion suspendue, quittée ou en attente",
+    "appoint": "Nommer un responsable",
+    "handleHint": "Recherchez un membre publié et actif du réseau ; aucune adhésion n’est créée par la console.",
+    "role": "Rôle confié",
+    "appointAs": "Confier le rôle : {{role}}",
+    "appointed": "Rôle confié et inscrit au journal.",
+    "unchanged": "Cette personne a déjà ce rôle : rien n’a changé.",
+    "remove": "Retirer le rôle",
+    "removed": "Rôle retiré et inscrit au journal.",
+    "adminRequired": "Nommer ou retirer un responsable exige le rôle d’administrateur de la plateforme."
   }
 }

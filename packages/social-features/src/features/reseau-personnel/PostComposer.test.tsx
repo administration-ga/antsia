@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/PostComposer.test.tsx @ ad2e7fdc2 — adaptations : composeur monté dans l'enveloppe du moteur (`renderWithEngine` : i18n française, réseau et personne de test) ; fonctions du moteur simulées (`posts.posts.publish`, `pages.pages.publishAsPage`, `media.media.generateUploadUrl`) — plus de lecture du profil : l'auteur du brouillon est la personne du réseau ; le brouillon « relu d'une session précédente » est écrit sous la clé du réseau ET de la personne (`configurePostDraftStorage`, `setScope`) ; les six cas du socle portés ; cas ajoutés : chaque appel porte le réseau et le dépôt l'usage `media_social`, publication au nom d'une page (audiences `public` / `followers`), publication dans un groupe, persistance sous la clé du réseau et de la personne.
+// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/PostComposer.test.tsx @ ad2e7fdc2 — adaptations : composeur monté dans l'enveloppe du moteur (`renderWithEngine` : i18n française, réseau et personne de test) ; fonctions du moteur simulées (`posts.posts.publish`, `pages.pages.publishAsPage`, `media.media.generateUploadUrl`) — plus de lecture du profil : l'auteur du brouillon est la personne du réseau ; le brouillon « relu d'une session précédente » est écrit sous la clé du réseau ET de la personne (`configurePostDraftStorage`, `setScope`) ; les six cas du socle portés ; cas ajoutés : chaque appel porte le réseau et le dépôt l'usage `media_social`, publication au nom d'une page (audiences `public` / `followers`), publication dans un groupe, persistance sous la clé du réseau et de la personne ; FP-01 : les photos passent par la préparation (module `features/media-upload`, décodeur et canvas simulés), et cas ajoutés — l'octet téléversé est celui du module, jamais l'original ; un échec est dit et rien n'entre ; le poids est annoncé ; « Publier » attend la préparation ; une vidéo et un fichier refusé par les règles ne sont pas préparés ; une image non préparée est refusée par le brouillon.
 // @vitest-environment jsdom
 
 /**
@@ -27,7 +27,20 @@ import type {
 } from "react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
+import { listImageMetadata } from "@antsia/social-domain/imageMetadata"
+
 import { renderWithEngine, TEST_NETWORK_ID, TEST_PERSON_ID } from "../../tests/engine-wrapper"
+import { TEST_PNG_BYTES, testPrepareImage } from "../../tests/image-runtime"
+import { isPreparedImage, type PrepareImage } from "../media-upload"
+import {
+  prepareVideoForUpload,
+  type PrepareVideo,
+  type VideoPreparation,
+  type VideoRuntime,
+} from "../video-upload/video-preparation"
+
+/** SD-03 : une vidéo déjà lisible partout — la préparation la rend telle quelle. */
+const readyAsChosen: PrepareVideo = async (file) => ({ status: "ready", file, durationMs: 12_401, converted: false })
 
 /** Le préfixe de stockage du réseau de test (`NetworkProvider`, slug `test`). */
 const PREFIXE = "antsia:test:"
@@ -131,6 +144,9 @@ function image(name: string): File {
   return { name, size: 1024, type: "image/png" } as File
 }
 
+/** La préparation réelle du module, sur un décodeur et un canvas simulés. */
+let prepare = testPrepareImage()
+
 function choisirMedias(files: File[]) {
   const input = document.querySelector<HTMLInputElement>('input[type="file"]')
   if (input === null) throw new Error("Le sélecteur de fichiers est absent.")
@@ -139,6 +155,7 @@ function choisirMedias(files: File[]) {
 }
 
 beforeEach(() => {
+  prepare = testPrepareImage()
   postDraftStore.resetForTests()
   window.sessionStorage.clear()
   mocks.publish.mockReset().mockResolvedValue({ postId: "p1" })
@@ -159,7 +176,7 @@ beforeEach(() => {
 
 describe("PA8 — publication accessible sans compte par geste explicite", () => {
   it("le changement d'audience vers le public n'est pas un consentement, le geste seul est transmis", async () => {
-    render(<PostComposer />)
+    render(<PostComposer prepareImage={prepare} />)
     fireEvent.change(zoneDeTexte(), { target: { value: "Choix explicite" } })
     fireEvent.change(screen.getByRole("combobox"), { target: { value: "public" } })
     const publicChoice = screen.getByRole("checkbox") as HTMLInputElement
@@ -170,7 +187,7 @@ describe("PA8 — publication accessible sans compte par geste explicite", () =>
     expect(mocks.publish.mock.calls[0]?.[0]).toMatchObject({ audience: "public", alsoOnRoot: true, body: "Choix explicite" })
   })
   it("un aller-retour par Connexions révoque le choix public du brouillon", async () => {
-    render(<PostComposer />)
+    render(<PostComposer prepareImage={prepare} />)
     const audience = screen.getByRole("combobox")
     fireEvent.change(audience, { target: { value: "public" } })
     fireEvent.click(screen.getByRole("checkbox"))
@@ -184,7 +201,7 @@ describe("PA8 — publication accessible sans compte par geste explicite", () =>
     expect(mocks.publish.mock.calls[0]?.[0]).not.toHaveProperty("alsoOnRoot")
   })
   it("la province du contenu est facultative et volontaire, pas déduite du profil", async () => {
-    render(<NetworkProvider networkId={TEST_NETWORK_ID} personId={TEST_PERSON_ID} slug="antsia" charte="antsia" routes={TEST_ROUTES}><PostComposer /></NetworkProvider>)
+    render(<NetworkProvider networkId={TEST_NETWORK_ID} personId={TEST_PERSON_ID} slug="antsia" charte="antsia" routes={TEST_ROUTES}><PostComposer prepareImage={prepare} /></NetworkProvider>)
     const province = screen.getByRole("combobox", { name: /Province du contenu/ }) as HTMLSelectElement
     expect(province.value).toBe("")
     fireEvent.change(province, { target: { value: "nyanga" } })
@@ -220,7 +237,7 @@ describe("le brouillon survit au démontage (R-12)", () => {
   it("garde texte ET médias d'un montage à l'autre", async () => {
     const premier = render(
       <>
-        <PostComposer />
+        <PostComposer prepareImage={prepare} />
         <DraftProbe />
       </>,
     )
@@ -239,7 +256,7 @@ describe("le brouillon survit au démontage (R-12)", () => {
 
     render(
       <>
-        <PostComposer />
+        <PostComposer prepareImage={prepare} />
         <DraftProbe />
       </>,
     )
@@ -257,7 +274,7 @@ describe("le brouillon survit au démontage (R-12)", () => {
   it("sépare les brouillons par CIBLE", async () => {
     render(
       <>
-        <PostComposer />
+        <PostComposer prepareImage={prepare} />
         <DraftProbe />
       </>,
     )
@@ -284,7 +301,7 @@ describe("le brouillon survit au démontage (R-12)", () => {
 describe("l'envoi — idempotence et reprise sans doublon", () => {
   it("renvoie la MÊME clé après un échec de publication", async () => {
     mocks.publish.mockRejectedValueOnce(new Error("réseau"))
-    render(<PostComposer />)
+    render(<PostComposer prepareImage={prepare} />)
     fireEvent.change(zoneDeTexte(), {
       target: { value: "Essai" },
     })
@@ -306,7 +323,7 @@ describe("l'envoi — idempotence et reprise sans doublon", () => {
     mocks.publish.mockRejectedValueOnce(new Error("réseau"))
     render(
       <>
-        <PostComposer />
+        <PostComposer prepareImage={prepare} />
         <DraftProbe />
       </>,
     )
@@ -339,7 +356,7 @@ describe("l'envoi — idempotence et reprise sans doublon", () => {
     const onPublished = vi.fn()
     render(
       <>
-        <PostComposer onPublished={onPublished} />
+        <PostComposer onPublished={onPublished} prepareImage={prepare} />
         <DraftProbe />
       </>,
     )
@@ -387,7 +404,7 @@ describe("un média irrécupérable est ANNONCÉ, jamais présenté comme sauveg
     configurePostDraftStorage(PREFIXE)
     postDraftStore.setScope(TEST_PERSON_ID)
 
-    render(<PostComposer />)
+    render(<PostComposer prepareImage={prepare} />)
 
     expect(screen.getByDisplayValue("Texte repris")).toBeTruthy()
     expect(screen.getByRole("alert").textContent).toContain("chantier.png")
@@ -411,7 +428,7 @@ describe("un média irrécupérable est ANNONCÉ, jamais présenté comme sauveg
 
 describe("le moteur — réseau, garde des fichiers, lieux de publication", () => {
   it("publie DANS le réseau courant, et dépose par la garde des fichiers", async () => {
-    render(<PostComposer />)
+    render(<PostComposer prepareImage={prepare} />)
     fireEvent.change(zoneDeTexte(), { target: { value: "  Bonjour le réseau  " } })
     choisirMedias([image("a.png")])
     await waitFor(() => expect(screen.getByRole("button", { name: "Retirer a.png" })).toBeTruthy())
@@ -424,13 +441,14 @@ describe("le moteur — réseau, garde des fichiers, lieux de publication", () =
       networkId: TEST_NETWORK_ID,
       body: "Bonjour le réseau",
       audience: "connections",
-      media: [{ storageId: "storage-1", kind: "image", mimeType: "image/png", sizeBytes: 1024 }],
+      // Le fichier PRÉPARÉ, tel que le module l'a rendu (PNG gardé PNG).
+      media: [{ storageId: "storage-1", kind: "image", mimeType: "image/png", sizeBytes: TEST_PNG_BYTES.length }],
     })
     expect(typeof appel.idempotencyKey).toBe("string")
   })
 
   it("persiste le brouillon sous la clé du réseau ET de la personne", async () => {
-    render(<PostComposer />)
+    render(<PostComposer prepareImage={prepare} />)
     fireEvent.change(zoneDeTexte(), { target: { value: "À reprendre" } })
     await waitFor(() =>
       expect(window.sessionStorage.getItem(postDraftStorageKey(PREFIXE, TEST_PERSON_ID))).toContain("À reprendre")
@@ -479,11 +497,303 @@ describe("le moteur — réseau, garde des fichiers, lieux de publication", () =
 
   it("dit le refus du moteur par son code, jamais par le message brut", async () => {
     mocks.publish.mockRejectedValueOnce({ data: { code: "rateLimited" } })
-    render(<PostComposer />)
+    render(<PostComposer prepareImage={prepare} />)
     fireEvent.change(zoneDeTexte(), { target: { value: "Trop vite" } })
     fireEvent.click(screen.getByRole("button", { name: "Publier" }))
     await waitFor(() =>
       expect(mocks.toast.error).toHaveBeenCalledWith("Trop de tentatives. Réessayez dans quelques instants.")
     )
+  })
+})
+
+describe("FP-01 — chaque photo est préparée avant le téléversement", () => {
+  function deferred<T>() {
+    let resolve!: (value: T) => void
+    const promise = new Promise<T>((done) => { resolve = done })
+    return { promise, resolve }
+  }
+
+  it("l'octet téléversé est celui du module — réduit, sans métadonnées —, jamais le fichier choisi", async () => {
+    const original = image("chantier.png")
+    render(<PostComposer prepareImage={prepare} />)
+    choisirMedias([original])
+    await waitFor(() => expect(screen.getByRole("button", { name: "Retirer chantier.png" })).toBeTruthy())
+    fireEvent.click(screen.getByRole("button", { name: "Publier" }))
+    await waitFor(() => expect(mocks.publish).toHaveBeenCalledTimes(1))
+
+    const [, init] = vi.mocked(fetch).mock.calls[0] as unknown as [string, RequestInit]
+    const sent = init.body as File
+    expect(sent).not.toBe(original)
+    expect(isPreparedImage(sent)).toBe(true)
+    expect(init.headers).toEqual({ "Content-Type": "image/png" })
+    expect(listImageMetadata(new Uint8Array(await sent.arrayBuffer()), "image/png")).toEqual([])
+    expect(prepare.runtime.canvases).toEqual([{ width: 2048, height: 1536 }])
+  })
+
+  it("annonce le poids envoyé, accordé au nombre de photos", async () => {
+    render(<PostComposer prepareImage={prepare} />)
+    choisirMedias([image("a.png"), image("b.png")])
+    const notice = await screen.findByText(/^2 photos prêtes à l'envoi/)
+    expect(notice.textContent).toMatch(/2[\s\u00a0\u202f]ko → \d+[\s\u00a0\u202f]ko, sans leurs informations cachées \(lieu, appareil\)\.$/)
+  })
+
+  it("un échec de préparation est DIT, la photo n'entre pas au brouillon, et rien n'est téléversé", async () => {
+    render(
+      <>
+        <PostComposer prepareImage={testPrepareImage({ canvas: "absent" })} />
+        <DraftProbe />
+      </>,
+    )
+    fireEvent.change(zoneDeTexte(), { target: { value: "Texte seul" } })
+    choisirMedias([image("a.png")])
+    expect(await screen.findByText(/Ce navigateur ne peut pas préparer « a\.png »/)).toBeTruthy()
+    expect(lireSonde().media).toEqual([])
+    fireEvent.click(screen.getByRole("button", { name: "Publier" }))
+    await waitFor(() => expect(mocks.publish).toHaveBeenCalledTimes(1))
+    expect(fetch).not.toHaveBeenCalled()
+    expect(mocks.publish.mock.calls[0]?.[0]).not.toHaveProperty("media")
+  })
+
+  it("« Publier » et le choix de fichiers attendent la fin de la préparation", async () => {
+    const pending = deferred<Awaited<ReturnType<PrepareImage>>>()
+    const slow = vi.fn(() => pending.promise)
+    render(<PostComposer prepareImage={slow} />)
+    fireEvent.change(zoneDeTexte(), { target: { value: "Avec une photo" } })
+    choisirMedias([image("a.png")])
+    expect(await screen.findByText(/^Préparation en cours/)).toBeTruthy()
+    expect(screen.getByRole("button", { name: "Publier" })).toHaveProperty("disabled", true)
+    expect(screen.getByRole("button", { name: "Photo ou vidéo" })).toHaveProperty("disabled", true)
+    pending.resolve(await prepare(image("a.png")))
+    await waitFor(() => expect(screen.getByRole("button", { name: "Publier" })).toHaveProperty("disabled", false))
+    expect(screen.getByRole("button", { name: "Retirer a.png" })).toBeTruthy()
+  })
+
+  it("une vidéo n'est pas préparée comme une photo ; un fichier refusé par les règles non plus", async () => {
+    const spy = vi.fn(prepare)
+    render(
+      <>
+        <PostComposer prepareImage={spy} prepareVideo={readyAsChosen} />
+        <DraftProbe />
+      </>,
+    )
+    choisirMedias([{ name: "clip.mp4", size: 1024, type: "video/mp4" } as File])
+    await waitFor(() => expect(lireSonde().media).toHaveLength(1))
+    expect(spy).not.toHaveBeenCalled()
+    // Une photo à côté d'une vidéo : refusée par la règle, jamais préparée.
+    choisirMedias([image("a.png")])
+    expect(await screen.findByText("Une vidéo est seule dans sa publication.")).toBeTruthy()
+    expect(spy).not.toHaveBeenCalled()
+  })
+
+  it("le brouillon refuse une image qui ne sort pas du module, même rendue « prête » par une autre préparation", async () => {
+    const rogue = vi.fn(async (file: File) => ({ ok: true as const, file, width: 2, height: 2, originalBytes: file.size, preparedBytes: file.size }))
+    render(
+      <>
+        <PostComposer prepareImage={rogue} />
+        <DraftProbe />
+      </>,
+    )
+    choisirMedias([image("brute.png")])
+    expect(await screen.findByText(/« brute\.png » n'est pas passée par la préparation des photos/)).toBeTruthy()
+    expect(lireSonde().media).toEqual([])
+  })
+})
+
+describe("SD-03 — une vidéo de publication se lit partout, bornée, et part avec sa durée", () => {
+  function deferred<T>() {
+    let resolve!: (value: T) => void
+    const promise = new Promise<T>((done) => { resolve = done })
+    return { promise, resolve }
+  }
+
+  /** Le .mov d'un iPhone : plus lourd que la borne, ce qui n'empêche pas de le convertir. */
+  const mov = (name = "IMG_0412.MOV", size = 80 * 1024 * 1024) => ({ name, size, type: "video/quicktime" }) as File
+  const mp4 = (name = "visite.mp4", size = 1024) => ({ name, size, type: "video/mp4" }) as File
+
+  /**
+   * La VRAIE préparation (politique comprise), sur un navigateur simulé : ce
+   * qu'il sait lire, la durée qu'il mesure, et ce que rend sa conversion.
+   */
+  function browser(options: { decodable: boolean; durationMs: number | null }): PrepareVideo {
+    const runtime: VideoRuntime = {
+      createObjectUrl: () => "blob:source",
+      revokeObjectUrl: () => undefined,
+      probe: async () => ({ decodable: options.decodable, durationMs: options.durationMs }),
+      sniffMp4Codecs: async () => ["avc1"],
+      recorderTargets: () => ["video/mp4"],
+      transcode: async (_url, _options, onProgress) => {
+        onProgress?.(1)
+        return { blob: new Blob([new Uint8Array(2_048)], { type: "video/mp4" }), mimeType: "video/mp4", durationMs: 9_000 }
+      },
+    }
+    return (file, prepareOptions) => prepareVideoForUpload(file, prepareOptions, runtime)
+  }
+
+  it("le sélecteur propose toute vidéo : le .mov doit pouvoir être choisi pour être converti", () => {
+    render(<PostComposer prepareImage={prepare} />)
+    const accept = document.querySelector('input[type="file"]')?.getAttribute("accept") ?? ""
+    expect(accept.split(",")).toEqual(["image/jpeg", "image/png", "image/webp", "image/gif", "video/*"])
+  })
+
+  it("un MP4 lisible part tel quel, avec sa durée DÉCLARÉE au serveur", async () => {
+    const chosen = mp4()
+    render(<PostComposer prepareImage={prepare} prepareVideo={browser({ decodable: true, durationMs: 12_400.6 })} />)
+    choisirMedias([chosen])
+    await waitFor(() => expect(screen.getByRole("button", { name: "Retirer visite.mp4" })).toBeTruthy())
+    fireEvent.click(screen.getByRole("button", { name: "Publier" }))
+    await waitFor(() => expect(mocks.publish).toHaveBeenCalledTimes(1))
+    const [, init] = vi.mocked(fetch).mock.calls[0] as unknown as [string, RequestInit]
+    expect(init.body).toBe(chosen)
+    expect(init.headers).toEqual({ "Content-Type": "video/mp4" })
+    expect(mocks.publish.mock.calls[0]?.[0]).toMatchObject({
+      media: [{ storageId: "storage-1", kind: "video", mimeType: "video/mp4", sizeBytes: 1024, durationMs: 12_401 }],
+    })
+  })
+
+  it("un .mov de 80 Mo lu par ce navigateur (Safari) est CONVERTI puis entre au brouillon en MP4", async () => {
+    render(<PostComposer prepareImage={prepare} prepareVideo={browser({ decodable: true, durationMs: 9_000 })} />)
+    choisirMedias([mov()])
+    await waitFor(() => expect(screen.getByRole("button", { name: "Retirer IMG_0412.mp4" })).toBeTruthy())
+    fireEvent.click(screen.getByRole("button", { name: "Publier" }))
+    await waitFor(() => expect(mocks.publish).toHaveBeenCalledTimes(1))
+    const [, init] = vi.mocked(fetch).mock.calls[0] as unknown as [string, RequestInit]
+    expect((init.body as File).name).toBe("IMG_0412.mp4")
+    expect(init.headers).toEqual({ "Content-Type": "video/mp4" })
+    expect(mocks.publish.mock.calls[0]?.[0]).toMatchObject({ media: [{ kind: "video", mimeType: "video/mp4", sizeBytes: 2_048, durationMs: 9_000 }] })
+  })
+
+  it("pendant la conversion : progression, onglet à garder visible, « Annuler », et « Publier » attend", async () => {
+    const pending = deferred<VideoPreparation>()
+    const converting: PrepareVideo = async (_file, options) => {
+      options.onPhase?.({ phase: "converting", progress: 0.42 })
+      return pending.promise
+    }
+    render(<PostComposer prepareImage={prepare} prepareVideo={converting} />)
+    fireEvent.change(zoneDeTexte(), { target: { value: "Souvenir" } })
+    choisirMedias([mov()])
+    const status = await screen.findByText(/Conversion de la vidéo en cours…/)
+    expect(status.textContent).toMatch(/42/)
+    expect(status.textContent).toContain("Elle se fait ici, en temps réel : gardez cet onglet visible jusqu'au bout.")
+    expect(screen.getByRole("button", { name: "Annuler la conversion" })).toBeTruthy()
+    expect(screen.getByRole("button", { name: "Publier" })).toHaveProperty("disabled", true)
+    expect(screen.getByRole("button", { name: "Photo ou vidéo" })).toHaveProperty("disabled", true)
+    pending.resolve({ status: "ready", file: new File([new Uint8Array(2_048)], "IMG_0412.mp4", { type: "video/mp4" }), durationMs: 8_960, converted: true })
+    await waitFor(() => expect(screen.getByRole("button", { name: "Retirer IMG_0412.mp4" })).toBeTruthy())
+    expect(screen.queryByRole("button", { name: "Annuler la conversion" })).toBeNull()
+    expect(screen.getByRole("button", { name: "Publier" })).toHaveProperty("disabled", false)
+  })
+
+  it("« Annuler la conversion » arrête tout : la vidéo n'entre pas et rien n'est téléversé", async () => {
+    const cancellable: PrepareVideo = (_file, options) =>
+      new Promise((resolve) => {
+        options.onPhase?.({ phase: "converting", progress: 0.1 })
+        options.signal?.addEventListener("abort", () => resolve({ status: "cancelled" }), { once: true })
+      })
+    render(
+      <>
+        <PostComposer prepareImage={prepare} prepareVideo={cancellable} />
+        <DraftProbe />
+      </>,
+    )
+    fireEvent.change(zoneDeTexte(), { target: { value: "Texte seul" } })
+    choisirMedias([mov()])
+    fireEvent.click(await screen.findByRole("button", { name: "Annuler la conversion" }))
+    expect(await screen.findByText("Conversion annulée : la vidéo n'a pas été ajoutée.")).toBeTruthy()
+    expect(lireSonde().media).toEqual([])
+    fireEvent.click(screen.getByRole("button", { name: "Publier" }))
+    await waitFor(() => expect(mocks.publish).toHaveBeenCalledTimes(1))
+    expect(fetch).not.toHaveBeenCalled()
+    expect(mocks.publish.mock.calls[0]?.[0]).not.toHaveProperty("media")
+  })
+
+  it("quitter l'écran pendant la conversion l'annule", async () => {
+    let signal: AbortSignal | undefined
+    const endless: PrepareVideo = (_file, options) => {
+      signal = options.signal
+      options.onPhase?.({ phase: "converting", progress: 0 })
+      return new Promise(() => undefined)
+    }
+    const view = render(<PostComposer prepareImage={prepare} prepareVideo={endless} />)
+    choisirMedias([mov()])
+    await screen.findByRole("button", { name: "Annuler la conversion" })
+    view.unmount()
+    expect(signal?.aborted).toBe(true)
+  })
+
+  it("un .mov que ce navigateur ne lit pas (Chrome) est refusé avec la marche à suivre, et n'entre pas", async () => {
+    render(
+      <>
+        <PostComposer prepareImage={prepare} prepareVideo={browser({ decodable: false, durationMs: null })} />
+        <DraftProbe />
+      </>,
+    )
+    choisirMedias([mov()])
+    expect(
+      await screen.findByText(
+        "« IMG_0412.MOV » ne peut pas être lue par ce navigateur. Choisissez-la depuis Safari (iPhone, iPad ou Mac), qui la convertit, ou enregistrez-la d'abord au format MP4, puis réessayez.",
+      ),
+    ).toBeTruthy()
+    expect(lireSonde().media).toEqual([])
+  })
+
+  it("une vidéo de plus de cinq minutes est refusée avant tout envoi, en nommant la borne", async () => {
+    render(<PostComposer prepareImage={prepare} prepareVideo={browser({ decodable: true, durationMs: 6 * 60_000 })} />)
+    choisirMedias([mp4("conference.mp4")])
+    expect(await screen.findByText("« conference.mp4 » est trop longue. Une vidéo dure au plus 5 minutes.")).toBeTruthy()
+    expect(fetch).not.toHaveBeenCalled()
+  })
+
+  it("un MP4 de plus de 60 Mo est refusé AVANT la sonde ; une vidéo à côté d'une photo aussi", async () => {
+    const spy = vi.fn(readyAsChosen)
+    render(<PostComposer prepareImage={prepare} prepareVideo={spy} />)
+    choisirMedias([mp4("lourde.mp4", 61 * 1024 * 1024)])
+    expect(await screen.findByText("« lourde.mp4 » dépasse 60 Mo.")).toBeTruthy()
+    choisirMedias([image("a.png")])
+    await waitFor(() => expect(screen.getByRole("button", { name: "Retirer a.png" })).toBeTruthy())
+    choisirMedias([mov()])
+    expect(await screen.findByText("Une vidéo est seule dans sa publication.")).toBeTruthy()
+    expect(spy).not.toHaveBeenCalled()
+  })
+
+  it("une vidéo convertie encore trop lourde est refusée en le disant", async () => {
+    const tooHeavy: PrepareVideo = async () => ({
+      status: "ready",
+      file: { name: "IMG_0412.mp4", size: 61 * 1024 * 1024, type: "video/mp4" } as File,
+      durationMs: 9_000,
+      converted: true,
+    })
+    render(
+      <>
+        <PostComposer prepareImage={prepare} prepareVideo={tooHeavy} />
+        <DraftProbe />
+      </>,
+    )
+    choisirMedias([mov()])
+    expect(
+      await screen.findByText(
+        "La vidéo convertie reste trop lourde. « IMG_0412.mp4 » dépasse 60 Mo. Raccourcissez-la, ou enregistrez-la au format MP4 avant de la publier.",
+      ),
+    ).toBeTruthy()
+    expect(lireSonde().media).toEqual([])
+  })
+
+  it("la durée mesurée survit au démontage du composeur et part avec le média", async () => {
+    const first = render(<PostComposer prepareImage={prepare} prepareVideo={readyAsChosen} />)
+    choisirMedias([mp4()])
+    await waitFor(() => expect(screen.getByRole("button", { name: "Retirer visite.mp4" })).toBeTruthy())
+    first.unmount()
+    render(<PostComposer prepareImage={prepare} prepareVideo={readyAsChosen} />)
+    fireEvent.click(screen.getByRole("button", { name: "Publier" }))
+    await waitFor(() => expect(mocks.publish).toHaveBeenCalledTimes(1))
+    expect(mocks.publish.mock.calls[0]?.[0]).toMatchObject({ media: [{ kind: "video", mimeType: "video/mp4", durationMs: 12_401 }] })
+  })
+
+  it("le refus de durée du SERVEUR est dit dans la langue de l'écran, jamais par le message brut", async () => {
+    mocks.publish.mockRejectedValueOnce({ data: { code: "invalidArgument", rule: "POST_VIDEO_TOO_LONG", params: { maxMinutes: 5 } } })
+    render(<PostComposer prepareImage={prepare} prepareVideo={readyAsChosen} />)
+    choisirMedias([mp4()])
+    await waitFor(() => expect(screen.getByRole("button", { name: "Retirer visite.mp4" })).toBeTruthy())
+    fireEvent.click(screen.getByRole("button", { name: "Publier" }))
+    await waitFor(() => expect(mocks.toast.error).toHaveBeenCalledWith("Une vidéo de publication dure au plus 5 minutes."))
   })
 })

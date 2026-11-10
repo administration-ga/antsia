@@ -105,6 +105,10 @@
       "label": "Ne plus voir les publications de {{name}}",
       "hint": "Uniquement dans votre fil. La personne reste trouvable, et vous pouvez toujours vous écrire."
     },
+    "blockAuthor": {
+      "label": "Bloquer {{name}}",
+      "hint": "Vous ne vous verrez plus, dans aucun réseau. La personne n'est pas prévenue."
+    },
     "report": {
       "label": "Signaler",
       "hint": "Transmis à la modération de la plateforme. La publication quitte aussitôt votre fil."
@@ -142,6 +146,21 @@
       }
     }
   },
+  "mediaPreparation": {
+    "notPrepared": "« {{name}} » n'est pas passée par la préparation des photos : elle ne sera pas envoyée.",
+    "preparing": "Préparation en cours : allègement et retrait des informations cachées (lieu, appareil)…",
+    "summary_one": "Photo prête à l'envoi : {{before}} → {{after}}, sans ses informations cachées (lieu, appareil).",
+    "summary_many": "{{count}} photos prêtes à l'envoi : {{before}} → {{after}}, sans leurs informations cachées (lieu, appareil).",
+    "summary_other": "{{count}} photos prêtes à l'envoi : {{before}} → {{after}}, sans leurs informations cachées (lieu, appareil).",
+    "refusal": {
+      "unsupportedType": "« {{name}} » n'est pas une photo que l'on peut préparer (JPEG, PNG, WebP ou GIF) : elle ne sera pas envoyée.",
+      "unreadable": "« {{name}} » n'a pas pu être lue : cette photo ne sera pas envoyée.",
+      "canvasUnavailable": "Ce navigateur ne peut pas préparer « {{name}} » : cette photo ne sera pas envoyée. Essayez avec un navigateur à jour.",
+      "encoderFailed": "La préparation de « {{name}} » a échoué : cette photo ne sera pas envoyée.",
+      "metadataRemaining": "Les informations cachées de « {{name}} » n'ont pas pu être retirées : cette photo ne sera pas envoyée.",
+      "notCroppable": "« {{name}} » est une image animée : elle ne peut pas être recadrée sans perdre son animation, elle ne sera pas envoyée."
+    }
+  },
   "useMediaDraft": {
     "rejection": {
       "notImage": "« {{name}} » n'est pas une image acceptée.",
@@ -153,6 +172,27 @@
     "error": {
       "reselect": "« {{name}} » est à resélectionner : le fichier n'est plus en mémoire.",
       "uploadRefused": "Téléversement refusé pour « {{name}} »."
+    }
+  },
+  "videoPreparation": {
+    "probing": "Analyse de la vidéo…",
+    "converting": "Conversion de la vidéo en cours…",
+    "keepTabVisible": "Elle se fait ici, en temps réel : gardez cet onglet visible jusqu'au bout.",
+    "cancel": "Annuler la conversion",
+    "cancelled": "Conversion annulée : la vidéo n'a pas été ajoutée.",
+    "conversionFailed": "La conversion de la vidéo a échoué. Enregistrez-la au format MP4, puis réessayez.",
+    "convertedTooLarge": "La vidéo convertie reste trop lourde. {{reason}} Raccourcissez-la, ou enregistrez-la au format MP4 avant de la publier.",
+    "refusal": {
+      "notDecodable": "« {{name}} » ne peut pas être lue par ce navigateur. Choisissez-la depuis Safari (iPhone, iPad ou Mac), qui la convertit, ou enregistrez-la d'abord au format MP4, puis réessayez.",
+      "tooLong": "« {{name}} » est trop longue. Une vidéo dure au plus {{duration}}.",
+      "tooLongToConvert": "« {{name}} » doit être convertie pour être lisible partout, et la conversion se fait ici, en temps réel : au-delà de {{duration}}, elle est trop longue à attendre. Enregistrez-la au format MP4 : elle partira alors sans conversion.",
+      "noEncoder": "Ce navigateur ne sait pas convertir « {{name}} ». Choisissez-la depuis Safari, ou enregistrez-la au format MP4 avant de la publier."
+    },
+    "units": {
+      "minutes_one": "{{count}} minute",
+      "minutes_other": "{{count}} minutes",
+      "seconds_one": "{{count}} seconde",
+      "seconds_other": "{{count}} secondes"
     }
   },
   "reportContentDialog": {

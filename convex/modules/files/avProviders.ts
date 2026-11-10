@@ -13,7 +13,8 @@
  *                             (ex. https://clamav-rest-xxx.run.app/scan)
  *   FILE_SCAN_CLAMAV_TOKEN  : secret partagé, envoyé en `Authorization: Bearer`
  *   FILE_SCAN_TIMEOUT_MS    : défaut 60 000
- *   FILE_SCAN_MAX_BYTES     : défaut 60 Mo — au-delà, `skipped`
+ *   FILE_SCAN_MAX_BYTES     : défaut 60 Mo — au-delà, `skipped`, que le
+ *                             verdict rend `error` (fichier retenu, EX-17)
  *
  * Le mock n'est pas un « toujours sain » : il reconnaît la chaîne de test
  * EICAR, ce qui rend le chemin `infected` recettable sans moteur — mais il ne

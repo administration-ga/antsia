@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/lib/uploadPolicy.ts @ ad2e7fdc2 — adaptations : partie PURE seulement (registre des usages, normalisations, recoupement déclaré ↔ stocké), la lecture de `_storage` reste au backend (`convex/lib/uploadPolicy.ts`) ; usages SOCIAUX seulement (D36 : `media_social` avec GIF, `avatar`, `cover`, `page_logo`, `page_banner`, `page_claim_evidence`, `album_image`, `story_media`, `chat_attachment`, `voice`, `live_recording`), les usages des publications, stories et avatars DÉRIVÉS des constantes du domaine (une seule source : le socle les laissait diverger, d'où l'exception `media_social`) ; libellés retirés ; refus à code de règle (`DomainViolation`) au lieu de chaînes `UPLOAD_*:usage`.
+// Dupliqué de socle/convex/lib/uploadPolicy.ts @ ad2e7fdc2 — adaptations : partie PURE seulement (registre des usages, normalisations, recoupement déclaré ↔ stocké), la lecture de `_storage` reste au backend (`convex/lib/uploadPolicy.ts`) ; usages SOCIAUX seulement (D36 : `media_social` avec GIF, `avatar`, `cover`, `page_logo`, `page_banner`, `page_claim_evidence`, `album_image`, `story_media`, `chat_attachment`, `voice`, `live_recording`), les usages des publications, stories et avatars DÉRIVÉS des constantes du domaine (une seule source : le socle les laissait diverger, d'où l'exception `media_social`) ; libellés retirés ; refus à code de règle (`DomainViolation`) au lieu de chaînes `UPLOAD_*:usage` ; EX-17 : usages produits par le serveur nommés (`SERVER_PRODUCED_UPLOAD_USAGES`), tout autre usage borné au plafond d'analyse de la garde (test du registre).
 /**
  * Politique de dépôt de fichiers — les règles pures.
  *
@@ -14,7 +14,7 @@
  * à l'usage. Ajouter une surface = ajouter une entrée, pas élargir une entrée.
  * Les écrans lisent ce registre pour refuser AVANT le dépôt (même borne).
  */
-import { AVATAR_MAX_BYTES, AVATAR_MIME_TYPES, POST_IMAGE_MAX_BYTES, POST_IMAGE_MIME_TYPES, POST_VIDEO_MAX_BYTES, POST_VIDEO_MIME_TYPES } from "./content"
+import { AVATAR_MAX_BYTES, AVATAR_MIME_TYPES, POST_IMAGE_MAX_BYTES, POST_IMAGE_MIME_TYPES, POST_VIDEO_MAX_BYTES, POST_VIDEO_UPLOAD_MIME_TYPES } from "./content"
 import { STORY_VIDEO_MAX_BYTES, STORY_VIDEO_MIME_TYPES } from "./stories"
 import { DomainViolation, megabytes } from "./violation"
 
@@ -52,8 +52,8 @@ export type UploadUsageSpec = {
  * appliquée ensuite par le domaine (`assertPostMedia`, `assertStoryMedia`).
  */
 export const UPLOAD_USAGES = {
-  /** Média d'une publication (images, GIF, vidéos). */
-  media_social: { mimeTypes: [...POST_IMAGE_MIME_TYPES, ...POST_VIDEO_MIME_TYPES], maxBytes: Math.max(POST_IMAGE_MAX_BYTES, POST_VIDEO_MAX_BYTES) },
+  /** Média d'une publication (images, GIF, vidéos MP4/WebM — SD-03 : plus de .mov à l'envoi). */
+  media_social: { mimeTypes: [...POST_IMAGE_MIME_TYPES, ...POST_VIDEO_UPLOAD_MIME_TYPES], maxBytes: Math.max(POST_IMAGE_MAX_BYTES, POST_VIDEO_MAX_BYTES) },
   /** Photo de profil, avatar de groupe. */
   avatar: { mimeTypes: AVATAR_MIME_TYPES, maxBytes: AVATAR_MAX_BYTES },
   /** Image de couverture d'un profil, d'un groupe ou d'un évènement. */
@@ -86,6 +86,16 @@ export const UPLOAD_USAGES = {
 export type UploadUsage = keyof typeof UPLOAD_USAGES
 
 export const UPLOAD_USAGE_NAMES = Object.keys(UPLOAD_USAGES) as UploadUsage[]
+
+/**
+ * Les usages dont le fichier est PRODUIT par la plateforme, jamais déposé par
+ * un membre (aucune URL de dépôt n'en est délivrée à un client). Eux seuls
+ * dépassent le plafond d'analyse de la garde (`FILE_GUARD_MAX_INSPECT_BYTES`) :
+ * au-delà, le fichier est inscrit `skipped:server_generated`. Tout autre usage
+ * reste en deçà — décision du propriétaire du 9/11/2026 (EX-17), vérifiée par
+ * le test du registre ; l'admission refuse de toute façon un dépôt plus lourd.
+ */
+export const SERVER_PRODUCED_UPLOAD_USAGES = ["live_recording"] as const satisfies readonly UploadUsage[]
 
 /** Métadonnées déclarées par le client. Ce qui n'est pas déclaré est LU dans le stockage. */
 export type DeclaredUpload<StorageId extends string = string> = {

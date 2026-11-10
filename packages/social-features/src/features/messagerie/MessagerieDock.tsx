@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/messagerie/MessagerieDock.tsx @ ad2e7fdc2 — adaptations : portail détaché re-scopé par la charte DU RÉSEAU (`data-charte` = `useNetwork().charte`) ; stockage par réseau — position flottante sous `icomFloatPlacementStorageKey(storagePrefix)` et `configureDockStorage(storagePrefix)` rappelé au montage (idempotent, la coque l'appelle d'abord) ; réconciliation des brouillons sur les fenêtres de la source personnelle (`SOURCE_AGENT.useThreads` / `useGroupThreads` → `messaging.inbox.paginateMyThreads`, `groups.threads.paginateMyGroupThreads`) au lieu de `listMyThreads` / `listMyGroupThreads`, identifiants `threadId` du moteur ; seuil mobile par `@antsia/ui/overlay` ; libellés des briques lus par leurs clés (`ICOM_DOCK_TABS`) ; toutes les chaînes d'interface traduites (clés `messagerieDock.*`, annonce des non-lus pluralisée) ; hôte d'appel `ICOM_AGENT_CALL_HOST_ID` inchangé (nom et valeur) ; doc : adresses de l'espace agent remplacées par la base injectée de l'application.
+// Dupliqué de socle/packages/agent-features/src/features/messagerie/MessagerieDock.tsx @ ad2e7fdc2 — adaptations : portail détaché re-scopé par la charte DU RÉSEAU (`data-charte` = `useNetwork().charte`) ; stockage par réseau — position flottante sous `icomFloatPlacementStorageKey(storagePrefix)` et `configureDockStorage(storagePrefix)` rappelé au montage (idempotent, la coque l'appelle d'abord) ; réconciliation des brouillons sur les fenêtres de la source personnelle (`SOURCE_AGENT.useThreads` / `useGroupThreads` → `messaging.inbox.paginateMyThreads`, `groups.threads.paginateMyGroupThreads`) au lieu de `listMyThreads` / `listMyGroupThreads`, identifiants `threadId` du moteur ; seuil mobile par `@antsia/ui/overlay` ; libellés des briques lus par leurs clés (`ICOM_DOCK_TABS`) ; toutes les chaînes d'interface traduites (clés `messagerieDock.*`, annonce des non-lus pluralisée) ; hôte d'appel `ICOM_AGENT_CALL_HOST_ID` inchangé (nom et valeur) ; doc : adresses de l'espace agent remplacées par la base injectée de l'application. ; IC-02 : pastille des messages vocaux non écoutés sur la brique des appels (`voicemailTabBadge`, phrase `sr-only`).
 "use client"
 
 /**
@@ -76,6 +76,7 @@ import {
 	useCallHostMode,
 } from "../iappel/call-host-store"
 import type { CallScope } from "../iappel/call-types"
+import { useVoicemailInbox } from "../iappel/use-voicemail-inbox"
 import { useIsReseauMobile } from "@antsia/ui/overlay"
 import {
 	configureDockStorage,
@@ -93,6 +94,7 @@ import {
 } from "./icom-dock"
 import { IcomActusPanel } from "./IcomActusPanel"
 import { IcomAppelJournal } from "./IcomAppelJournal"
+import { voicemailTabBadge } from "./icom-mobile-tabs"
 import { IcomRelationsPanel } from "./IcomRelationsPanel"
 import { ICOM_VIEWS } from "./icom-views"
 import { messagerieListScope } from "./messagerie-list-state"
@@ -259,6 +261,9 @@ export function MessagerieDock() {
 	const threads = SOURCE_AGENT.useThreads()
 	const groupes = SOURCE_AGENT.useGroupThreads()
 	const nonLus = SOURCE_AGENT.useUnreadTotals()
+	// IC-02 : la pastille de la brique des appels — la carte rendue seulement (au
+	// téléphone et sur la page Messages, la carte n'existe pas : aucune souscription).
+	const voicemailBadge = voicemailTabBadge(useVoicemailInbox(isMobile === false && !messagesDestination).unreadCount, t)
 
 	/**
 	 * Au DÉTACHEMENT, porter le focus dans la fenêtre : le geste vient d'un
@@ -511,6 +516,7 @@ export function MessagerieDock() {
 				>
 					{ICOM_DOCK_TABS.filter((item) => !destinations || item.id !== "actus").map((item) => {
 						const Icon = TAB_ICONS[item.id]
+						const badge = item.id === "iappel" ? voicemailBadge : null
 						return (
 							<button
 								key={item.id}
@@ -529,8 +535,10 @@ export function MessagerieDock() {
 							>
 								<span aria-hidden="true" className="icom-tab-icon">
 									<Icon size={17} />
+									{badge !== null ? <span className="msg-badge icom-tab-badge">{badge.badge}</span> : null}
 								</span>
 								{t(destinations ? ICOM_VIEWS.find((view) => view.brique === item.id)?.labelKey ?? item.labelKey : item.labelKey)}
+								{badge !== null ? <span className="sr-only">{badge.label}</span> : null}
 							</button>
 						)
 					})}

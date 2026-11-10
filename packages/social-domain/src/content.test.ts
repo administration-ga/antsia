@@ -18,6 +18,7 @@ import {
   assertPersonalPostBody,
   assertPostContent,
   assertPostMedia,
+  assertPostVideoDuration,
   assertShareable,
   FEED_SCOPE_DEFAULT,
   FEED_SCOPES,
@@ -36,7 +37,12 @@ import {
   PERSONAL_REACH_AUDIENCES,
   PERSONAL_REACTION_KINDS,
   POST_IMAGE_MAX_BYTES,
+  POST_VIDEO_MAX_BYTES,
+  POST_VIDEO_MAX_DURATION_MS,
+  POST_VIDEO_MIME_TYPES,
+  POST_VIDEO_UPLOAD_MIME_TYPES,
 } from "./content"
+import { STORY_VIDEO_LIMITS } from "./stories"
 import { DomainViolation } from "./violation"
 
 function violationOf(run: () => unknown): DomainViolation | null {
@@ -234,8 +240,58 @@ describe("médias", () => {
     expect(violationOf(() => assertPostMedia([{ ...image, sizeBytes: POST_IMAGE_MAX_BYTES + 1 }]))?.params).toEqual({ maxMegabytes: 20 })
   })
 
+  it("EX-17 — une vidéo de publication va jusqu'à 60 Mio, pas un octet de plus", () => {
+    expect(() => assertPostMedia([{ ...video, sizeBytes: POST_VIDEO_MAX_BYTES }])).not.toThrow()
+    expect(violationOf(() => assertPostMedia([{ ...video, sizeBytes: POST_VIDEO_MAX_BYTES + 1 }]))).toMatchObject({ code: "POST_MEDIA_TOO_LARGE", params: { maxMegabytes: 60 } })
+    expect(() => assertPostMedia([{ ...video, sizeBytes: 100 * 1024 * 1024 }])).toThrow(DomainViolation)
+  })
+
   it("borne le texte alternatif", () => {
     expect(() => assertPostMedia([{ ...image, altText: "a".repeat(301) }])).toThrow(DomainViolation)
+  })
+})
+
+describe("SD-03 — une vidéo de publication se lit partout et sa durée déclarée est bornée", () => {
+  const video = { kind: "video" as const, mimeType: "video/mp4", sizeBytes: 1000 }
+
+  it("une NOUVELLE vidéo est MP4 ou WebM ; le .mov de l'iPhone ne passe plus, mais reste porté par les lignes anciennes", () => {
+    expect([...POST_VIDEO_UPLOAD_MIME_TYPES]).toEqual(["video/mp4", "video/webm"])
+    expect([...POST_VIDEO_MIME_TYPES]).toEqual(["video/mp4", "video/webm", "video/quicktime"])
+    expect(() => assertPostMedia([video])).not.toThrow()
+    expect(() => assertPostMedia([{ ...video, mimeType: "video/webm" }])).not.toThrow()
+    expect(violationOf(() => assertPostMedia([{ ...video, mimeType: "video/quicktime" }]))?.code).toBe("POST_MEDIA_MIME_INVALID")
+  })
+
+  it("la borne de durée reprend celle des Stories — cinq minutes", () => {
+    expect(POST_VIDEO_MAX_DURATION_MS).toBe(5 * 60_000)
+    expect(POST_VIDEO_MAX_DURATION_MS).toBe(STORY_VIDEO_LIMITS.maxDurationMs)
+  })
+
+  it("accepte une durée dans la borne, la borne comprise", () => {
+    expect(() => assertPostVideoDuration([{ ...video, durationMs: 12_401 }])).not.toThrow()
+    expect(() => assertPostVideoDuration([{ ...video, durationMs: POST_VIDEO_MAX_DURATION_MS }])).not.toThrow()
+  })
+
+  it("refuse au-delà, en nommant la borne", () => {
+    expect(violationOf(() => assertPostVideoDuration([{ ...video, durationMs: POST_VIDEO_MAX_DURATION_MS + 1 }]))).toMatchObject({
+      code: "POST_VIDEO_TOO_LONG",
+      params: { maxMinutes: 5 },
+    })
+  })
+
+  it("une durée ABSENTE passe : un front ancien n'en déclare aucune, le poids reste la borne relue", () => {
+    expect(() => assertPostVideoDuration([video])).not.toThrow()
+    expect(() => assertPostVideoDuration([])).not.toThrow()
+  })
+
+  it("une durée négative ou illisible ne se tient pas pour une durée dans la borne", () => {
+    for (const durationMs of [-1, Number.NaN, Number.POSITIVE_INFINITY]) {
+      expect(violationOf(() => assertPostVideoDuration([{ ...video, durationMs }]))?.code).toBe("POST_VIDEO_TOO_LONG")
+    }
+  })
+
+  it("une image ne porte pas de durée à juger", () => {
+    expect(() => assertPostVideoDuration([{ kind: "image", durationMs: POST_VIDEO_MAX_DURATION_MS * 10 }])).not.toThrow()
   })
 })
 

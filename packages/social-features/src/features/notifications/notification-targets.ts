@@ -23,7 +23,7 @@
 import type { ConnectionInviteState } from "@antsia/social-domain/connectionState"
 import type { FileScanStatus } from "@antsia/social-domain/filePolicy"
 import { isServableStatus } from "@antsia/social-domain/filePolicy"
-import type { NotificationKind, NotificationSubject, NotificationSubjectKind } from "@antsia/social-domain/notifications"
+import { isAssociationEventNoticeKind, type NotificationKind, type NotificationSubject, type NotificationSubjectKind } from "@antsia/social-domain/notifications"
 import { type CommerceNotificationKind, isCommerceNotificationKind } from "@antsia/social-domain/commerceNotifications"
 import type { NotificationOpenTarget } from "@antsia/social-domain/notificationOpenTarget"
 import type { TFunction } from "i18next"
@@ -253,8 +253,9 @@ function typedTarget(target: NotificationOpenTarget, routes: NotificationRoutes,
 export function notificationTarget(item: NotificationTargetInput, routes: NotificationRoutes, t: TFunction): NotificationTargetRef | null {
 	// P14B : une destination TYPÉE relue par le serveur l'emporte sur le sujet commun.
 	if (item.target) return typedTarget(item.target, routes, t)
-  // Aucun repli vers l'agenda personnel pour un événement collectif de page.
-  if (item.kind === "association_event_reminder") {
+  // Aucun repli vers l'agenda personnel pour un événement collectif de page (rappel ; EV-03 :
+  // annulation, place confirmée) : la fiche de l'événement, sur la route injectée de l'application.
+  if (isAssociationEventNoticeKind(item.kind)) {
     const event = item.associationEvent
     return event && routes.associationEvent && item.subject?.kind === "event" && item.subject.id === event.eventId
       ? { kind: "event", id: event.eventId, href: routes.associationEvent(event.pageHandle, event.eventId), label: t(OPEN_LABEL) } : null
@@ -387,7 +388,7 @@ export function notificationRowAction(item: NotificationTargetInput, routes: Not
 	if (target.kind === "connection") {
 		return { mode: "connection", connectionId: target.id }
 	}
-	if (item.kind === "association_event_reminder") return { mode: "link", kind: target.kind, href: target.href, label: target.label }
+	if (isAssociationEventNoticeKind(item.kind)) return { mode: "link", kind: target.kind, href: target.href, label: target.label }
 	if (targetCallback(target.kind, targets) !== undefined) {
 		return { mode: "callback", kind: target.kind, id: target.id, label: target.label }
 	}
@@ -467,6 +468,9 @@ const ENGINE_ONLY_SENTENCES: Readonly<Record<EngineOnlyKind, { actor: string | n
     system: "notifications:notificationTargets.sentence.commercialContact",
   },
   association_event_reminder: { actor: null, system: "notifications:notificationTargets.sentence.associationEventReminder" },
+  // EV-03 : avis du système, sans titre, lieu, date, nom de page ni motif.
+  association_event_cancelled: { actor: null, system: "notifications:notificationTargets.sentence.associationEventCancelled" },
+  association_event_seat_confirmed: { actor: null, system: "notifications:notificationTargets.sentence.associationEventSeatConfirmed" },
 		membership_changed: { actor: null, system: "notifications:notificationTargets.sentence.membershipChanged" },
 		badge_changed: { actor: null, system: "notifications:notificationTargets.sentence.badgeChanged" },
 		moderation_decision: { actor: null, system: "notifications:notificationTargets.sentence.moderationDecision" },

@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/reseau-albums/AlbumComposer.tsx @ ad2e7fdc2 — adaptations : fonctions TYPÉES du moteur (`albums.albums.*`, dépôt par `media.media.generateUploadUrl` sous l'usage `album_image`) appelées avec le réseau courant (`useNetwork().networkId`) ; identifiants d'album et de photo typés ; phrases par l'i18n (espace de noms `albums`, clés `albumComposer.*`, et `album-model` avec `t`) ; pourcentage dit dans la langue courante (`Intl.NumberFormat`) ; refus du moteur traduits par leur règle ou leur code (`albumEngineErrorText`), jamais le texte brut ; `ReencodeImage` reçoit `t` en second paramètre ; ajout des photos par lots de `ALBUM_ADD_BATCH_MAX` (le moteur refuse un lot plus grand, quand le composeur en propose jusqu'à soixante) ; barre de progression rendue sur place (`Progress` n'existe pas dans `@antsia/ui`) ; bornes lues au domaine du moteur.
+// Dupliqué de socle/packages/agent-features/src/features/reseau-albums/AlbumComposer.tsx @ ad2e7fdc2 — adaptations : fonctions TYPÉES du moteur (`albums.albums.*`, dépôt par `media.media.generateUploadUrl` sous l'usage `album_image`) appelées avec le réseau courant (`useNetwork().networkId`) ; identifiants d'album et de photo typés ; phrases par l'i18n (espace de noms `albums`, clés `albumComposer.*`, et `album-model` avec `t`) ; pourcentage dit dans la langue courante (`Intl.NumberFormat`) ; refus du moteur traduits par leur règle ou leur code (`albumEngineErrorText`), jamais le texte brut ; `ReencodeImage` reçoit `t` en second paramètre ; ajout des photos par lots de `ALBUM_ADD_BATCH_MAX` (le moteur refuse un lot plus grand, quand le composeur en propose jusqu'à soixante) ; barre de progression rendue sur place (`Progress` n'existe pas dans `@antsia/ui`) ; bornes lues au domaine du moteur ; SD-02 : le ré-encodage sur canvas passe au module partagé `features/media-upload` (`reencodeImage`, sous le plan d'album : qualité 0,92, dimensions d'origine, GIF refusé, échec fermé) et sa sortie est débarrassée de tout bloc de métadonnées.
 // Adaptations PD4 : reprise propriétaire via `getAlbum` typé, formulaire RHF/Zod, sauvegarde explicite du même album (même vide), photos serveur séparées des fichiers locaux et relecture après rattachement, ordre/couverture/légendes conservés, commandes verrouillées et publication conditionnée au droit de l'application.
 "use client"
 
@@ -23,8 +23,9 @@
  * ⚠️ Les métadonnées EXIF partent AVANT le téléversement : chaque image est
  * ré-encodée sur un `<canvas>`, et un ré-encodage impossible REFUSE le fichier
  * (fail-closed) au lieu de laisser passer l'original. La décision est dans
- * `albumReencodePlan` ; l'exécution est injectable (`reencode`) pour être
- * vérifiable sans navigateur.
+ * `albumReencodePlan` ; l'exécution est celle du module partagé
+ * (`features/media-upload`, `reencodeImage`, lot SD-02), injectable
+ * (`reencode`) pour être vérifiable sans navigateur.
  */
 
 import { themedActionStyle } from "../themed-action-style"
@@ -41,6 +42,7 @@ import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 import { z } from "zod"
 import { ReseauQueryError } from "../../shell/ReseauQueryError"
+import { browserImageRuntime, reencodeImage, type ImageRuntime } from "../media-upload"
 import {
   IMAGE_ONLY_ACCEPT,
   useMediaDraft,
@@ -90,40 +92,30 @@ export type ReencodeImage = (file: File, t: TFunction) => Promise<ReencodeResult
 const AUDIENCE_CHOICES = ["connections", "public"] as const satisfies readonly AlbumAudienceValue[]
 
 /**
- * Le ré-encodage RÉEL — décodage puis ré-encodage sur canvas.
+ * Le ré-encodage RÉEL — celui du module partagé (`reencodeImage`), sous le
+ * plan de l'album : qualité `ALBUM_REENCODE_QUALITY`, dimensions d'origine
+ * (`maxDimension: null`), PNG gardé PNG, le reste en JPEG, GIF refusé.
  *
- * Aucun bloc APP1/EXIF n'est recopié par ce chemin : ce qui sort est une image
- * nue. L'orientation est aplatie au passage (le navigateur applique
- * `image-orientation` au décodage), ce qui rend le champ EXIF correspondant
- * inutile.
+ * Aucun bloc APP1/EXIF ne sort par ce chemin : le canvas n'en recopie pas, et
+ * la sortie de l'encodeur repasse par `@antsia/social-domain/imageMetadata`.
+ * L'orientation est aplatie au passage (le navigateur l'applique au décodage).
  *
  * ⚠️ FAIL-CLOSED : tout échec — canvas indisponible, image illisible, encodeur
  * muet — rend un refus. Jamais l'original.
+ *
+ * `runtime` : le décodeur et le canvas (ceux du navigateur par défaut ; un
+ * test injecte les siens).
  */
-const reencodeOnCanvas: ReencodeImage = async (file, t) => {
-  const plan = albumReencodePlan(file.type, t)
-  if (plan.action === "refuse") return { ok: false, reason: plan.reason }
-  try {
-    const bitmap = await createImageBitmap(file)
-    const canvas = document.createElement("canvas")
-    canvas.width = bitmap.width
-    canvas.height = bitmap.height
-    const context = canvas.getContext("2d")
-    if (!context) return { ok: false, reason: reencodeFailureMessage(file.name, t) }
-    context.drawImage(bitmap, 0, 0)
-    bitmap.close?.()
-    const blob = await new Promise<Blob | null>((resolve) => {
-      canvas.toBlob((result) => resolve(result), plan.targetType, ALBUM_REENCODE_QUALITY)
-    })
-    if (!blob) return { ok: false, reason: reencodeFailureMessage(file.name, t) }
-    return {
-      ok: true,
-      file: new File([blob], file.name, { type: plan.targetType }),
-    }
-  } catch {
-    return { ok: false, reason: reencodeFailureMessage(file.name, t) }
+export function createAlbumReencode(runtime: ImageRuntime = browserImageRuntime): ReencodeImage {
+  return async (file, t) => {
+    const plan = albumReencodePlan(file.type, t)
+    if (plan.action === "refuse") return { ok: false, reason: plan.reason }
+    const result = await reencodeImage(file, { targetType: plan.targetType, maxDimension: null, quality: ALBUM_REENCODE_QUALITY }, runtime)
+    return result.ok ? { ok: true, file: result.file } : { ok: false, reason: reencodeFailureMessage(file.name, t) }
   }
 }
+
+const reencodeOnCanvas: ReencodeImage = createAlbumReencode()
 
 /**
  * La barre d'avancement de l'envoi — décorative : la phrase `aria-live` qui la

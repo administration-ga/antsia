@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/stories/story-video-codecs.test.ts @ ad2e7fdc2 — adaptations : `storyVideoPlan` reçoit la fonction de traduction du moteur (`t` français, mêmes fragments attendus) ; aucun cas retiré.
+// Dupliqué de socle/packages/agent-features/src/features/stories/story-video-codecs.test.ts @ ad2e7fdc2 — adaptations : la politique reçoit la fonction de traduction du moteur (`t` français, mêmes fragments attendus) ; aucun cas retiré ; SD-03 : modules renommés (`video-upload-codecs`, `video-upload-policy` : `videoUploadPlan` avec les bornes d'une Story, `STORY_VIDEO_UPLOAD_LIMITS`), refus guidé sans nom de codec (« MP4 »).
 import { describe, expect, it } from "vitest"
 
 import { createAppI18n } from "../../i18n"
@@ -6,12 +6,13 @@ import {
 	parseMoovVideoCodecs,
 	sniffMp4VideoCodecs,
 	type Mp4ByteReader,
-} from "./story-video-codecs"
+} from "./video-upload-codecs"
 import {
 	MP4_UNIVERSAL_VIDEO_CODECS,
 	mp4CodecsRequireTranscode,
-	storyVideoPlan,
-} from "./story-video-policy"
+	STORY_VIDEO_UPLOAD_LIMITS,
+	videoUploadPlan,
+} from "./video-upload-policy"
 
 const t = createAppI18n({ locale: "fr", appResources: { fr: {}, en: {} }, defaultNS: "stories" }).getFixedT("fr")
 
@@ -185,12 +186,13 @@ describe("mp4CodecsRequireTranscode — la frontière de l'universel", () => {
 	})
 })
 
-describe("storyVideoPlan — le MP4 HEVC route vers la conversion", () => {
+describe("videoUploadPlan — le MP4 HEVC route vers la conversion", () => {
 	const PROBE = { decodable: true, durationMs: 60_000 }
 	const TARGETS = ["video/webm;codecs=vp9"]
 
 	it("MP4 H.264 prouvé → départ tel quel", () => {
-		const plan = storyVideoPlan({
+		const plan = videoUploadPlan({
+			limits: STORY_VIDEO_UPLOAD_LIMITS,
 			fileName: "visite.mp4",
 			mimeType: "video/mp4",
 			probe: PROBE,
@@ -201,7 +203,8 @@ describe("storyVideoPlan — le MP4 HEVC route vers la conversion", () => {
 	})
 
 	it("MP4 HEVC prouvé → conversion, comme un .mov", () => {
-		const plan = storyVideoPlan({
+		const plan = videoUploadPlan({
+			limits: STORY_VIDEO_UPLOAD_LIMITS,
 			fileName: "iphone-hevc.mp4",
 			mimeType: "video/mp4",
 			probe: PROBE,
@@ -212,7 +215,8 @@ describe("storyVideoPlan — le MP4 HEVC route vers la conversion", () => {
 	})
 
 	it("MP4 aux codecs illisibles → fail-open, départ tel quel", () => {
-		const plan = storyVideoPlan({
+		const plan = videoUploadPlan({
+			limits: STORY_VIDEO_UPLOAD_LIMITS,
 			fileName: "exotique.mp4",
 			mimeType: "video/mp4",
 			probe: PROBE,
@@ -223,7 +227,8 @@ describe("storyVideoPlan — le MP4 HEVC route vers la conversion", () => {
 	})
 
 	it("le WebM ignore les codecs — décision au mime, comme avant", () => {
-		const plan = storyVideoPlan({
+		const plan = videoUploadPlan({
+			limits: STORY_VIDEO_UPLOAD_LIMITS,
 			fileName: "clip.webm",
 			mimeType: "video/webm",
 			probe: PROBE,
@@ -234,7 +239,8 @@ describe("storyVideoPlan — le MP4 HEVC route vers la conversion", () => {
 	})
 
 	it("HEVC trop long à convertir → refus qui dit quoi faire", () => {
-		const plan = storyVideoPlan({
+		const plan = videoUploadPlan({
+			limits: STORY_VIDEO_UPLOAD_LIMITS,
 			fileName: "long-hevc.mp4",
 			mimeType: "video/mp4",
 			probe: { decodable: true, durationMs: 4 * 60_000 },
@@ -243,7 +249,7 @@ describe("storyVideoPlan — le MP4 HEVC route vers la conversion", () => {
 		}, t)
 		expect(plan.action).toBe("refuse")
 		if (plan.action === "refuse") {
-			expect(plan.error).toContain("MP4 (H.264)")
+			expect(plan.error).toContain("MP4")
 		}
 	})
 })

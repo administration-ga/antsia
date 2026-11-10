@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/modules/fileGuard/policy.ts @ ad2e7fdc2 — adaptations : FAIL-CLOSED (aucune ligne d'analyse = fichier RETENU, jamais « antériorité servable », owner map §1.4 et D06) ; sources sociales du moteur au lieu des surfaces administratives ; libellés et phrases d'écran retirés (l'écran traduit le statut) ; interrupteurs d'environnement déplacés côté backend (`convex/modules/files/policy.ts`) ; triage IA retiré (option V2).
+// Dupliqué de socle/convex/modules/fileGuard/policy.ts @ ad2e7fdc2 — adaptations : FAIL-CLOSED (aucune ligne d'analyse = fichier RETENU, jamais « antériorité servable », owner map §1.4 et D06) ; sources sociales du moteur au lieu des surfaces administratives ; libellés et phrases d'écran retirés (l'écran traduit le statut) ; interrupteurs d'environnement déplacés côté backend (`convex/modules/files/policy.ts`) ; triage IA retiré (option V2) ; EX-17 (décision du 9/11/2026) : aucun dépôt de membre au-delà du plafond d'analyse, et un `skipped` ne sert que s'il est produit par la plateforme (`isUnanalyzedUpload`).
 /**
  * Garde des fichiers — règles PURES, partagées par le serveur et les écrans.
  *
@@ -13,7 +13,12 @@
  *                                      personne (le socle le servait, ce qui
  *                                      rendait chaque oubli d'admission public) ;
  *   - `pending` / `running`         → URL `null`, « analyse en cours » ;
- *   - `clean` / `skipped`           → servable ;
+ *   - `clean`                        → servable ;
+ *   - `skipped`                      → servable SEULEMENT s'il est produit par
+ *                                      la plateforme (`server_generated`) ; un
+ *                                      dépôt sauté sans analyse (trop lourd,
+ *                                      ligne d'avant EX-17) est retenu comme
+ *                                      `error` (`isUnanalyzedUpload`) ;
  *   - `suspicious` / `infected`     → URL `null`, bloqué ;
  *   - `error`                        → URL `null`, libérable par un modérateur
  *                                      du réseau ou relancé.
@@ -70,7 +75,14 @@ export interface Finding {
   detail?: string
 }
 
-/** Au-delà, l'inspection déterministe est sautée (`skipped:too_large`). */
+/**
+ * Le PLAFOND D'ANALYSE : au-delà, l'inspection et l'antivirus ne lisent pas le
+ * fichier (`skipped:too_large`). Décision du propriétaire du 9/11/2026 (EX-17) :
+ * aucun dépôt de membre ne le dépasse — l'admission le refuse
+ * (`UPLOAD_SIZE_OUT_OF_RANGE`), et chaque usage de dépôt d'un membre est borné
+ * en deçà (`uploadPolicy.ts`). Seuls les fichiers PRODUITS par la plateforme
+ * (enregistrements de direct) vont au-delà, inscrits `skipped:server_generated`.
+ */
 export const FILE_GUARD_MAX_INSPECT_BYTES = 60 * 1024 * 1024
 
 /** Une ligne `pending`/`running` plus vieille que ça est un job perdu. */
@@ -104,6 +116,21 @@ export function serviceStateOf(status: FileScanStatus | null | undefined): Servi
 
 export function isServableStatus(status: FileScanStatus | null | undefined): boolean {
   return serviceStateOf(status) === "servable"
+}
+
+/**
+ * Un dépôt que l'analyse a SAUTÉ sans être produit par la plateforme : personne
+ * n'en a lu un octet. Jamais servable (EX-17) — la garde de délivrance le
+ * retient comme une analyse en échec (`error`). Un fichier produit par la
+ * plateforme (`server_generated`) n'en est pas un : servable, et tracé.
+ */
+export function isUnanalyzedUpload(scan: { status: FileScanStatus; skipReason?: string | null }): boolean {
+  return scan.status === "skipped" && scan.skipReason !== GENERATED_BLOB_SKIP_REASON
+}
+
+/** L'analyse de ce poids est-elle possible ? Au-delà du plafond, aucun dépôt n'est admis ni relancé. */
+export function isWithinInspectCeiling(sizeBytes: number): boolean {
+  return sizeBytes <= FILE_GUARD_MAX_INSPECT_BYTES
 }
 
 /** Un modérateur peut libérer ces statuts ; `infected` jamais. */

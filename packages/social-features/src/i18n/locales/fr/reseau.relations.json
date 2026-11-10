@@ -100,7 +100,7 @@
     },
     "blocks": {
       "title": "Personnes bloquées",
-      "globalScope": "Ces blocages s’appliquent à tous vos réseaux ANTSIA. Aucune nouvelle relation n’est créée au déblocage. Les abonnements existants sont conservés.",
+      "globalScope": "Ces blocages s’appliquent à tous vos réseaux ANTSIA. Débloquer ne rétablit ni la relation ni les abonnements retirés au blocage.",
       "neutral": "Personne bloquée",
       "blockedAt": "Bloquée le {{date}}",
       "empty": "Vous n’avez bloqué aucune personne.",
@@ -109,7 +109,7 @@
       "errorMessage": "Vos blocages n’ont pas pu être chargés.",
       "unblock": "Débloquer",
       "confirmTitle": "Débloquer cette personne ?",
-      "confirmBody": "Le blocage que vous avez défini sera retiré sur tous vos réseaux ANTSIA. Aucune nouvelle relation n’est créée. Les abonnements existants sont conservés.",
+      "confirmBody": "Le blocage que vous avez défini sera retiré sur tous vos réseaux ANTSIA. Aucune relation ni aucun abonnement n’est rétabli.",
       "cancel": "Annuler",
       "close": "Fermer la confirmation",
       "unblocked": "Blocage retiré.",
@@ -199,5 +199,21 @@
     "followed": "Vous suivez {{name}}.",
     "unfollowed": "Vous ne suivez plus {{name}}.",
     "followFailed": "Le suivi n'a pas pu être enregistré."
+  },
+  "personBlock": {
+    "blockTitle": "Bloquer {{name}} ?",
+    "blockTitleUnnamed": "Bloquer cette personne ?",
+    "listHint": "Vous retrouverez ce blocage dans « Personnes bloquées », sous « Modifier mon profil », pour le lever.",
+    "confirmBlock": "Bloquer",
+    "blocked": "Vous avez bloqué {{name}}.",
+    "blockedUnnamed": "Blocage enregistré.",
+    "blockFailed": "Le blocage n’a pas pu être enregistré.",
+    "unblockTitle": "Débloquer {{name}} ?",
+    "unblockTitleUnnamed": "Débloquer cette personne ?",
+    "confirmUnblock": "Débloquer",
+    "unblocked": "Blocage retiré.",
+    "unblockFailed": "Le blocage n’a pas pu être retiré.",
+    "cancel": "Annuler",
+    "close": "Fermer la confirmation"
   }
 }

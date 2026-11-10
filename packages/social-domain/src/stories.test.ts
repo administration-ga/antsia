@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from "vitest"
 
-import { POST_IMAGE_MAX_BYTES, POST_VIDEO_MIME_TYPES } from "./content"
+import { POST_IMAGE_MAX_BYTES, POST_VIDEO_MIME_TYPES, POST_VIDEO_UPLOAD_MIME_TYPES } from "./content"
 import {
   assertStoryCaption,
   assertStoryMedia,
@@ -158,8 +158,9 @@ describe("isStoryVisibleTo", () => {
 })
 
 describe("STORY_VIDEO_MIME_TYPES — la garantie « lisible partout »", () => {
-  it("MP4 et WebM seulement — QuickTime reste toléré pour les publications, jamais pour une story", () => {
+  it("MP4 et WebM seulement — depuis SD-03, la même liste pour une NOUVELLE publication ; le .mov ancien reste porté", () => {
     expect([...STORY_VIDEO_MIME_TYPES]).toEqual(["video/mp4", "video/webm"])
+    expect([...POST_VIDEO_UPLOAD_MIME_TYPES]).toEqual([...STORY_VIDEO_MIME_TYPES])
     expect([...POST_VIDEO_MIME_TYPES]).toContain("video/quicktime")
   })
 

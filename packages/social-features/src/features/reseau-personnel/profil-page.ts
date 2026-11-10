@@ -1,4 +1,4 @@
-// Réécrit d'après socle/packages/agent-features/src/features/reseau-personnel/profil-page.ts @ ad2e7fdc2 — ce qui change : la fiche d'une page à IDENTITÉ PROPRE du moteur (plus d'administration derrière) ; refus indistinct, libellés, mur vide et compteurs traduits (`t` en DERNIER paramètre, clés qualifiées `reseau:profilPage.*`, nombres mis en forme dans la langue courante, toujours sans plafond) ; le bouton de suivi et le compteur d'abonnés reprennent les décisions du volet (`followLabel`, `formatFollowerCount` : un seul mot pour un même geste) ; le droit de publier se lit dans le RÔLE VIVANT du lecteur (`viewer.role`, signataire ou administrateur) au lieu de `canPublish` ; ajouts : note de rôle, revendication et demande de vérification (`pageClaimAction`, statut, pièces jugées par la politique de dépôt), identité modifiable jugée par les règles du domaine (`checkPageIdentity`), identifiant d'un signataire à inviter, taille de page du mur. ; PA6 : préférence de fuseau injectée, calendrier grégorien et caches langue/fuseau.
+// Réécrit d'après socle/packages/agent-features/src/features/reseau-personnel/profil-page.ts @ ad2e7fdc2 — ce qui change : la fiche d'une page à IDENTITÉ PROPRE du moteur (plus d'administration derrière) ; refus indistinct, libellés, mur vide et compteurs traduits (`t` en DERNIER paramètre, clés qualifiées `reseau:profilPage.*`, nombres mis en forme dans la langue courante, toujours sans plafond) ; le bouton de suivi et le compteur d'abonnés reprennent les décisions du volet (`followLabel`, `formatFollowerCount` : un seul mot pour un même geste) ; le droit de publier se lit dans le RÔLE VIVANT du lecteur (`viewer.role`, signataire ou administrateur) au lieu de `canPublish` ; ajouts : note de rôle, revendication et demande de vérification (`pageClaimAction`, statut, pièces jugées par la politique de dépôt), identité modifiable jugée par les règles du domaine (`checkPageIdentity`), identifiant d'un signataire à inviter, taille de page du mur. ; PA6 : préférence de fuseau injectée, calendrier grégorien et caches langue/fuseau. ; PF-03 : `preparePageImage` — logo et bannière passent par la préparation des photos (`features/media-upload` : ré-encodés, 1 024 px pour le logo, 2 048 px pour la bannière, sans métadonnées, échec fermé) avant leur dépôt ; les pièces d'une revendication n'y passent pas (des preuves, envoyées telles quelles).
 /**
  * profil-page — décisions VÉRIFIABLES de la fiche d'une page (`ProfilPagePage`,
  * montée par l'application sur `useRoutes().page(handle)`).
@@ -27,6 +27,14 @@ import { isMimeAllowedForUsage, UPLOAD_USAGES } from "@antsia/social-domain/uplo
 import { isDomainViolation, megabytes } from "@antsia/social-domain/violation"
 import type { TFunction } from "i18next"
 
+import {
+  AVATAR_UPLOAD_MAX_DIMENSION,
+  IMAGE_UPLOAD_MAX_DIMENSION,
+  imagePreparationRefusalText,
+  prepareImageForUpload,
+  type ImagePreparation,
+  type PrepareImageWith,
+} from "../media-upload"
 import { followLabel, formatFollowerCount, PAGE_ACTION_ERROR_FALLBACK_KEY } from "./pages-panel"
 
 // ═══════════════════════════════════════════════════════════════
@@ -211,6 +219,48 @@ export function pageFileRefusal(usage: PageUploadUsage, file: { type: string; si
 /** Ce qu'un champ de fichier propose de choisir : la liste blanche même de l'usage (`accept`). */
 export function pageUploadAccept(usage: PageUploadUsage): string {
   return UPLOAD_USAGES[usage].mimeTypes.join(",")
+}
+
+/**
+ * Le plus grand côté d'une image de page (lot PF-03) : le LOGO comme une image
+ * ronde (même plafond de 5 Mio que l'usage `avatar` : un PNG de 1 024 px y
+ * tient toujours), la BANNIÈRE à la borne commune de 2 048 px.
+ */
+export const PAGE_IMAGE_MAX_DIMENSION: Readonly<Record<"page_logo" | "page_banner", number>> = {
+  page_logo: AVATAR_UPLOAD_MAX_DIMENSION,
+  page_banner: IMAGE_UPLOAD_MAX_DIMENSION,
+}
+
+/** La préparation du navigateur (décodeur et canvas réels). */
+const prepareInBrowser: PrepareImageWith = (file, options) => prepareImageForUpload(file, undefined, options)
+
+/**
+ * Le logo ou la bannière d'une page prêts à l'envoi, ou le refus à dire
+ * (lot PF-03 ; décision du propriétaire du 9/11/2026) : le fichier choisi est
+ * jugé comme avant (`pageFileRefusal`), puis préparé — ré-encodé, réduit sous
+ * `PAGE_IMAGE_MAX_DIMENSION`, sans aucune métadonnée — et l'image préparée est
+ * jugée à son tour. Seule elle part ; un échec refuse, jamais l'original.
+ *
+ * Les pièces d'une REVENDICATION n'y passent pas : ce sont des preuves (un
+ * statut, un récépissé), qui doivent rester lisibles et fidèles.
+ */
+export async function preparePageImage(
+  usage: "page_logo" | "page_banner",
+  file: File,
+  t: TFunction,
+  prepare: PrepareImageWith = prepareInBrowser,
+): Promise<{ ok: true; file: File } | { ok: false; refus: string }> {
+  const avant = pageFileRefusal(usage, file, t)
+  if (avant !== null) return { ok: false, refus: avant }
+  let result: ImagePreparation
+  try {
+    result = await prepare(file, { maxDimension: PAGE_IMAGE_MAX_DIMENSION[usage] })
+  } catch {
+    result = { ok: false, refusal: "unreadable" }
+  }
+  if (!result.ok) return { ok: false, refus: imagePreparationRefusalText(result.refusal, file.name, t) }
+  const apres = pageFileRefusal(usage, result.file, t)
+  return apres === null ? { ok: true, file: result.file } : { ok: false, refus: apres }
 }
 
 /** Le nombre de pièces d'une revendication (une à cinq) — `null` s'il convient. */

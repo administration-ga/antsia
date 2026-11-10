@@ -15,6 +15,7 @@ import {
   assertGroupAudienceShape,
   assertPostContent,
   assertPostMedia,
+  assertPostVideoDuration,
   assertPinnableOnWall,
   assertPostReach,
   assertShareable,
@@ -614,6 +615,8 @@ export const publish = networkMutation({
     checked(() =>
       assertPostMedia(media.map((item) => ({ kind: item.kind, mimeType: item.mimeType, sizeBytes: item.sizeBytes, ...(item.altText ? { altText: item.altText } : {}) }))),
     )
+    // SD-03 : la durée DÉCLARÉE (le stockage ne la connaît pas) ; absente, la vidéo passe.
+    checked(() => assertPostVideoDuration(media))
     const body = checked(() => assertPostContent({ body: args.body, mediaCount: media.length, isShare: shared !== null }))
     const placed = checked(() =>
       assertPostReach({

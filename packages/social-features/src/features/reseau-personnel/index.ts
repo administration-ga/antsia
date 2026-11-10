@@ -58,6 +58,15 @@ export { ProfilPersonnePage } from "./ProfilPersonnePage"
 export { ProfilFrame } from "./ProfilFrame"
 export { ProfileMiniCard } from "./ProfileMiniCard"
 export { ProfilePublicationCard } from "./ProfilePublicationCard"
+// PF-03 : le recadreur des images de profil (cercle, bandeau) et ses décisions,
+// pour toute application du moteur qui pose une photo ou une couverture.
+export { ProfileImageCropper, type ProfileImageCropperProps } from "./ProfileImageCropper"
+export {
+  PROFILE_IMAGE_FRAMES,
+  profileImageChoiceRefusal,
+  profileImagePreparedRefusal,
+  type ProfileImageKind,
+} from "./profile-image-crop"
 export { PrivacyLists } from "./PrivacyLists"
 
 // ── Pages (réécrites sur les pages du moteur) ──────────────────────────────
@@ -105,6 +114,7 @@ export type { FeedImmersion, FeedModeState, FeedRestoreTarget, ImmersivePageRepo
 export { PostCard } from "./PostCard"
 export { PostComposer } from "./PostComposer"
 export { PostMedia } from "./PostMedia"
+export { FeedLeadMediaScope } from "./PostMediaPresentation"
 export { RichText } from "./RichText"
 export { Avatar, initialsOf } from "./Avatar"
 export { SharePostDialog } from "./SharePostDialog"
@@ -112,6 +122,13 @@ export { SharePostDialog } from "./SharePostDialog"
 // ── Relations et groupes ────────────────────────────────────────────────────
 export { PeoplePanel, PeopleSearchPanel, FollowsSection, SentInvitationsSection } from "./PeoplePanel"
 export { BlockedPeopleSection } from "./BlockedPeopleSection"
+// Bloquer une personne (PF-01) : LA brique commune — la confirmation qui dit
+// les conséquences et appelle le moteur, et sa copie pure. La fiche, le menu
+// d'une publication et la conversation (IC-03) la montent, sans la réécrire.
+export { BlockPersonDialog, type BlockPersonDialogProps } from "./BlockPersonDialog"
+export { personBlockCopy, type PersonBlockCopy, type PersonBlockMode } from "./person-block"
+export { ProfileOverflowMenu, type ProfileOverflowMenuProps } from "./ProfileOverflowMenu"
+export { profileOverflowEntriesFor, type ProfileOverflowAction, type ProfileOverflowEntry, type ProfileOverflowInput } from "./profile-overflow"
 // Chaînes natives partagées avec les applications : pas de copie du réducteur.
 export {
   appendCursorPage,

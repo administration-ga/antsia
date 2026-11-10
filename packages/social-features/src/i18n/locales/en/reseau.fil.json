@@ -105,6 +105,10 @@
       "label": "Stop seeing posts from {{name}}",
       "hint": "Only in your feed. The person can still be found, and you can still write to each other."
     },
+    "blockAuthor": {
+      "label": "Block {{name}}",
+      "hint": "You will no longer see each other, in any network. The person is not told."
+    },
     "report": {
       "label": "Report",
       "hint": "Sent to the platform's moderation. The post leaves your feed right away."
@@ -142,6 +146,21 @@
       }
     }
   },
+  "mediaPreparation": {
+    "notPrepared": "“{{name}}” did not go through photo preparation: it will not be sent.",
+    "preparing": "Preparing: reducing size and removing hidden information (location, device)…",
+    "summary_one": "Photo ready to send: {{before}} → {{after}}, without its hidden information (location, device).",
+    "summary_many": "{{count}} photos ready to send: {{before}} → {{after}}, without their hidden information (location, device).",
+    "summary_other": "{{count}} photos ready to send: {{before}} → {{after}}, without their hidden information (location, device).",
+    "refusal": {
+      "unsupportedType": "“{{name}}” is not a photo that can be prepared (JPEG, PNG, WebP or GIF): it will not be sent.",
+      "unreadable": "“{{name}}” could not be read: this photo will not be sent.",
+      "canvasUnavailable": "This browser cannot prepare “{{name}}”: this photo will not be sent. Try an up-to-date browser.",
+      "encoderFailed": "Preparing “{{name}}” failed: this photo will not be sent.",
+      "metadataRemaining": "The hidden information in “{{name}}” could not be removed: this photo will not be sent.",
+      "notCroppable": "“{{name}}” is an animated image: it cannot be cropped without losing its animation, so it will not be sent."
+    }
+  },
   "useMediaDraft": {
     "rejection": {
       "notImage": "“{{name}}” is not an accepted image.",
@@ -153,6 +172,27 @@
     "error": {
       "reselect": "“{{name}}” must be selected again: the file is no longer in memory.",
       "uploadRefused": "Upload refused for “{{name}}”."
+    }
+  },
+  "videoPreparation": {
+    "probing": "Analysing the video…",
+    "converting": "Converting the video…",
+    "keepTabVisible": "It happens here, in real time: keep this tab visible until the end.",
+    "cancel": "Cancel the conversion",
+    "cancelled": "Conversion cancelled: the video was not added.",
+    "conversionFailed": "The video conversion failed. Save it as MP4, then try again.",
+    "convertedTooLarge": "The converted video is still too large. {{reason}} Shorten it, or save it as MP4 before posting it.",
+    "refusal": {
+      "notDecodable": "This browser cannot play “{{name}}”. Choose it from Safari (iPhone, iPad or Mac), which converts it, or save it as MP4 first, then try again.",
+      "tooLong": "“{{name}}” is too long. A video lasts at most {{duration}}.",
+      "tooLongToConvert": "“{{name}}” must be converted to play everywhere, and the conversion happens here, in real time: beyond {{duration}}, it takes too long to wait for. Save it as MP4: it will then be sent without conversion.",
+      "noEncoder": "This browser cannot convert “{{name}}”. Choose it from Safari, or save it as MP4 before posting it."
+    },
+    "units": {
+      "minutes_one": "{{count}} minute",
+      "minutes_other": "{{count}} minutes",
+      "seconds_one": "{{count}} second",
+      "seconds_other": "{{count}} seconds"
     }
   },
   "reportContentDialog": {

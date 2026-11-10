@@ -206,9 +206,9 @@ export const routes = {
   privacy: () => "/confidentialite",
   transparency: () => "/transparence",
   moderation: () => "/moderation",
-  moderationView: (view: "reports" | "pending" | "appeals", team?: string, cursor?: string) => {
+  moderationView: (view: "reports" | "pending" | "appeals" | "settings", team?: string, cursor?: string) => {
     const query = new URLSearchParams({ vue: view })
-    if (team && view !== "appeals") query.set("equipe", team)
+    if (team && view !== "appeals" && view !== "settings") query.set("equipe", team)
     if (cursor) query.set("curseur", cursor)
     return `/moderation?${query}`
   },

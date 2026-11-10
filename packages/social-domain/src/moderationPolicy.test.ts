@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { contentNeedsReview, isSanctionLive, LEGAL_DEADLINE_STATUSES, legalDeadlineDisclosure, legalDeadlineStatus, normalizeBlockedTerm, TRANSPARENCY_MIN_CASES, validSanctionDuration } from "./moderationPolicy"
+import { admissibleBlockedTerm, BLOCKED_TERMS_ACTIVE_MAX, contentNeedsReview, effectiveModerationPolicy, isSanctionLive, LEGAL_DEADLINE_STATUSES, legalDeadlineDisclosure, legalDeadlineStatus, MODERATION_POLICY_BOUNDS, MODERATION_POLICY_DEFAULTS, MODERATION_SCAN_LIMIT, moderationPolicyProblem, normalizeBlockedTerm, TRANSPARENCY_MIN_CASES, validSanctionDuration } from "./moderationPolicy"
 
 describe("modération PA5 — règles pures", () => {
   it("normalise sans accents et sans ambiguïté de casse", () => {
@@ -30,6 +30,59 @@ describe("modération PA5 — règles pures", () => {
     expect(contentNeedsReview({ ...base, text: "MENÁCE", blockedTerms: ["menace"] })).toBe(true)
     expect(contentNeedsReview({ ...base, text: "www.a www.b www.c" })).toBe(true)
     expect(contentNeedsReview({ ...base, recentWrites: 10 })).toBe(true)
+  })
+})
+
+describe("MC-02 — défauts prudents d'un réseau sans réglage", () => {
+  // La règle du moteur sans réglage : le texte, les mots du réseau, et les défauts (décision 3 du plan 12).
+  const review = (text: string, recentWrites = 0, blockedTerms: readonly string[] = []) => {
+    const rule = effectiveModerationPolicy(null)
+    return contentNeedsReview({ text, blockedTerms, recentWrites, ...rule })
+  }
+
+  it("les défauts sont plus prudents que les anciens (20 liens, 100 écritures par minute) et restent dans les bornes admises", () => {
+    expect(MODERATION_POLICY_DEFAULTS).toEqual({ preReview: false, maxLinks: 2, maxWrites: 30, windowMs: 60_000 })
+    expect(MODERATION_POLICY_DEFAULTS.maxLinks).toBeLessThan(20)
+    expect(MODERATION_POLICY_DEFAULTS.maxWrites / MODERATION_POLICY_DEFAULTS.windowMs).toBeLessThan(100 / 60_000)
+    expect(moderationPolicyProblem(MODERATION_POLICY_DEFAULTS)).toBeNull()
+    expect(Object.isFrozen(MODERATION_POLICY_DEFAULTS)).toBe(true)
+  })
+
+  it("publie un texte ordinaire, un ou deux liens, et une conversation vive", () => {
+    expect(review("Bonjour à toutes et à tous")).toBe(false)
+    expect(review("À lire : https://exemple.test/article et sa source www.source.test")).toBe(false)
+    expect(review("Message", 29)).toBe(false)
+  })
+
+  it("met en relecture trois liens, la trentième écriture de la minute, et un mot bloqué du réseau", () => {
+    expect(review("https://a.test https://b.test https://c.test")).toBe(true)
+    expect(review("Message", 30)).toBe(true)
+    expect(review("Une MENÁCE voilée", 0, [normalizeBlockedTerm("menace")])).toBe(true)
+  })
+
+  it("un réglage explicite remplace les défauts, champ par champ", () => {
+    const explicit = { preReview: true, maxLinks: 20, maxWrites: 100, windowMs: 1_000 }
+    expect(effectiveModerationPolicy(explicit)).toEqual(explicit)
+    expect(contentNeedsReview({ text: "https://a.test https://b.test https://c.test", blockedTerms: [], recentWrites: 0, ...effectiveModerationPolicy({ ...explicit, preReview: false }) })).toBe(false)
+  })
+
+  it("refuse un réglage hors bornes ou non entier, en nommant le champ", () => {
+    expect(MODERATION_POLICY_BOUNDS.maxWrites.max).toBe(MODERATION_SCAN_LIMIT)
+    expect(moderationPolicyProblem({ maxLinks: 21, maxWrites: 10, windowMs: 60_000 })).toBe("maxLinks")
+    expect(moderationPolicyProblem({ maxLinks: -1, maxWrites: 10, windowMs: 60_000 })).toBe("maxLinks")
+    expect(moderationPolicyProblem({ maxLinks: 2, maxWrites: 0, windowMs: 60_000 })).toBe("maxWrites")
+    expect(moderationPolicyProblem({ maxLinks: 2, maxWrites: 101, windowMs: 60_000 })).toBe("maxWrites")
+    expect(moderationPolicyProblem({ maxLinks: 2, maxWrites: 1.5, windowMs: 60_000 })).toBe("maxWrites")
+    expect(moderationPolicyProblem({ maxLinks: 2, maxWrites: 10, windowMs: 999 })).toBe("windowMs")
+    expect(moderationPolicyProblem({ maxLinks: 2, maxWrites: 10, windowMs: 86_400_001 })).toBe("windowMs")
+    expect(moderationPolicyProblem({ maxLinks: 0, maxWrites: 1, windowMs: 1_000 })).toBeNull()
+  })
+
+  it("un mot bloqué se normalise et se borne ; le plafond des mots actifs est celui que la garde lit", () => {
+    expect(admissibleBlockedTerm("  Arnaque  AU  Mobile Money ")).toBe("arnaque au mobile money")
+    expect(admissibleBlockedTerm(" é ")).toBeNull()
+    expect(admissibleBlockedTerm("x".repeat(81))).toBeNull()
+    expect(BLOCKED_TERMS_ACTIVE_MAX).toBe(MODERATION_SCAN_LIMIT)
   })
 })
 

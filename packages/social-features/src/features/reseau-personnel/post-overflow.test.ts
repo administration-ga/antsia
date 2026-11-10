@@ -175,6 +175,28 @@ describe("signalement", () => {
 	})
 })
 
+describe("bloquer l'auteur (PF-01)", () => {
+	it("s'offre pour une PERSONNE, grave, avant « Signaler » qui reste la dernière entrée", () => {
+		const list = entries({ ...BASE, isOwn: false, authorKind: "person", canBlockAuthor: true })
+		expect(list.map((e) => e.id)).toEqual(["bookmark", "notify", "hide", "mute_author", "block_author", "report"])
+		const block = list.find((e) => e.id === "block_author")!
+		expect(block.grave).toBe(true)
+		expect(block.label).toBe("Bloquer Awa NDONG")
+		expect(block.hint).toBe(t("reseau:postOverflow.blockAuthor.hint"))
+	})
+
+	it("ne s'offre ni sur une page, ni sur sa propre publication, ni sans y être autorisé", () => {
+		for (const input of [
+			{ ...BASE, isOwn: false, authorKind: "page" as const, canBlockAuthor: true },
+			{ ...BASE, isOwn: true, authorKind: "person" as const, canBlockAuthor: true },
+			{ ...BASE, isOwn: false, authorKind: "person" as const },
+			{ ...BASE, isOwn: false, authorKind: "person" as const, canBlockAuthor: false },
+		]) {
+			expect(entries(input).map((e) => e.id)).not.toContain("block_author")
+		}
+	})
+})
+
 describe("undoLabelFor", () => {
 	it("dit ce qui vient d'arriver, au passé", () => {
 		expect(undoLabelFor("hide", "Awa NDONG", t)).toBe("Publication masquée.")

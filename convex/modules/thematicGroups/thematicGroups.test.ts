@@ -1,5 +1,5 @@
 // @vitest-environment edge-runtime
-// Dupliqué de socle/convex/modules/reseauPersonnel/groupesThematiques.test.ts @ ad2e7fdc2 — adaptations : personnes et réseaux (graine des fondations) ; codes de refus au lieu des libellés ; effectif lu dans l'agrégat ; cas de suspension (ADR-0087) rendus au statut d'adhésion par le constructeur ; cascade de suppression vérifiée jusqu'à la ligne d'analyse et au blob (D10) ; mur à curseur composite ; tests neufs : un groupe d'un autre réseau est introuvable, la découverte par pays, une clé rejouée ailleurs est refusée, la lacune du vivier.
+// Dupliqué de socle/convex/modules/reseauPersonnel/groupesThematiques.test.ts @ ad2e7fdc2 — adaptations : personnes et réseaux (graine des fondations) ; codes de refus au lieu des libellés ; effectif lu dans l'agrégat ; cas de suspension (ADR-0087) rendus au statut d'adhésion par le constructeur ; cascade de suppression vérifiée jusqu'à la ligne d'analyse et au blob (D10) ; mur à curseur composite ; tests neufs : un groupe d'un autre réseau est introuvable, la découverte par pays, une clé rejouée ailleurs est refusée, la lacune du vivier ; gestion par le propriétaire (PG-02) : règles versionnées et acceptées à l'entrée, transfert de propriété, gestes refusés à un modérateur, cascade avec les règles, export de la version acceptée.
 import { engineErrorCode, engineErrorRule } from "@antsia/social-contracts/errors"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
@@ -9,6 +9,7 @@ import type { MutationCtx } from "../../_generated/server"
 import { SEED_CONFIRMATION } from "../../seeds/foundations"
 import { testConvex } from "../../test.setup"
 import { admitStoredUpload } from "../files/admission"
+import { exportableRecord, type DataRecord } from "../people/dataInventory"
 
 type T = ReturnType<typeof testConvex>
 type Person = { as: ReturnType<T["withIdentity"]>; personId: Id<"persons">; handle: string }
@@ -128,7 +129,9 @@ describe("cycle de vie d'un groupe", () => {
     const carol = await enter(t, root, "carol")
     await connect(t, root, alice, carol)
     const groupId = await createGroup(alice, root)
-    await bob.as.mutation(api.modules.thematicGroups.thematicGroups.join, { networkId: root, groupId })
+    // PG-02 : les règles et la version acceptée partent avec le groupe et ses appartenances.
+    const { rulesVersion } = await alice.as.mutation(api.modules.thematicGroups.thematicGroups.setGroupRules, { networkId: root, groupId, rules: "Courtoisie." })
+    await bob.as.mutation(api.modules.thematicGroups.thematicGroups.join, { networkId: root, groupId, acceptedRulesVersion: rulesVersion ?? undefined })
     await alice.as.mutation(api.modules.thematicGroups.thematicGroups.invite, { networkId: root, groupId, handle: "carol" })
     const storageId = await t.run(async (ctx) => ctx.storage.store(new Blob([PNG as BlobPart], { type: "image/png" })))
     const { postId } = await alice.as.mutation(api.modules.posts.posts.publish, {
@@ -160,6 +163,207 @@ describe("cycle de vie d'un groupe", () => {
       blob: await ctx.storage.getUrl(storageId),
     }))
     expect(remaining).toEqual({ group: null, post: null, reactions: 0, shards: 0, comments: 0, marks: 0, reports: 0, members: 0, invites: 0, scans: 0, blob: null })
+  })
+})
+
+// ═══════════════════════════════════════════════════════════════
+// PG-02 — la gestion d'un groupe par son propriétaire
+// ═══════════════════════════════════════════════════════════════
+
+const G = api.modules.thematicGroups.thematicGroups
+
+/** Un groupe d'alice, bob modérateur, carla simple membre. */
+async function staffedGroup(t: T, root: Id<"networks">) {
+  const alice = await enter(t, root, "alice")
+  const bob = await enter(t, root, "bob")
+  const carla = await enter(t, root, "carla")
+  const groupId = await createGroup(alice, root)
+  await bob.as.mutation(G.join, { networkId: root, groupId })
+  await carla.as.mutation(G.join, { networkId: root, groupId })
+  await alice.as.mutation(G.setMemberRole, { networkId: root, groupId, memberPersonId: bob.personId, role: "moderator" })
+  return { alice, bob, carla, groupId }
+}
+
+describe("gestion d'un groupe par son propriétaire (PG-02)", () => {
+  it("les gestes du propriétaire sont refusés à un modérateur : règles, transfert, fermer, archiver, supprimer", async () => {
+    const t = testConvex()
+    const { root } = await seed(t)
+    const { bob, carla, groupId } = await staffedGroup(t, root)
+    expect(await codeOf(bob.as.mutation(G.setGroupRules, { networkId: root, groupId, rules: "Les miennes." }))).toBe("groupRoleRequired")
+    expect(await codeOf(bob.as.mutation(G.transferGroupOwnership, { networkId: root, groupId, newOwnerPersonId: carla.personId }))).toBe("groupRoleRequired")
+    expect(await codeOf(bob.as.mutation(G.closeGroup, { networkId: root, groupId }))).toBe("groupRoleRequired")
+    expect(await codeOf(bob.as.mutation(G.archiveGroup, { networkId: root, groupId }))).toBe("groupRoleRequired")
+    expect(await codeOf(bob.as.mutation(G.deleteGroup, { networkId: root, groupId }))).toBe("groupRoleRequired")
+    expect(await codeOf(bob.as.query(G.listTransferCandidates, { networkId: root, groupId }))).toBe("groupRoleRequired")
+    expect(await card(bob, root, groupId)).toMatchObject({ myRole: "moderator", canManage: false, state: "active" })
+  })
+
+  it("transférer : le modérateur devient propriétaire, l'ancien devient modérateur et peut enfin partir ; le nouveau gère", async () => {
+    const t = testConvex()
+    const { root } = await seed(t)
+    const { alice, bob, groupId } = await staffedGroup(t, root)
+    expect(await card(alice, root, groupId)).toMatchObject({ myRole: "owner", canManage: true })
+    expect(await ruleOf(alice.as.mutation(G.leave, { networkId: root, groupId }))).toBe("GROUP_OWNER_CANNOT_LEAVE")
+    expect((await alice.as.query(G.listTransferCandidates, { networkId: root, groupId })).items.map((row) => row.personId)).toEqual([bob.personId])
+
+    expect(await alice.as.mutation(G.transferGroupOwnership, { networkId: root, groupId, newOwnerPersonId: bob.personId })).toEqual({ transferred: true })
+    expect(await card(bob, root, groupId)).toMatchObject({ myRole: "owner", canManage: true, memberCount: 3 })
+    expect(await card(alice, root, groupId)).toMatchObject({ myRole: "moderator", canManage: false })
+    // Un seul propriétaire : l'ancien n'a plus la main, même pour rejouer le geste.
+    expect(await codeOf(alice.as.mutation(G.transferGroupOwnership, { networkId: root, groupId, newOwnerPersonId: bob.personId }))).toBe("groupRoleRequired")
+    // GROUP_OWNER_CANNOT_LEAVE levé : l'ancien propriétaire part en modérateur.
+    expect(await alice.as.mutation(G.leave, { networkId: root, groupId })).toEqual({ left: true })
+    expect(await card(alice, root, groupId)).toMatchObject({ myRole: null, memberCount: 2 })
+    // Le nouveau propriétaire ferme ; un rejeu de suppression lui revient aussi (créateur ou propriétaire du moment).
+    await bob.as.mutation(G.closeGroup, { networkId: root, groupId })
+    expect((await card(bob, root, groupId)).state).toBe("closed")
+  })
+
+  it("la cible d'un transfert est un modérateur VIVANT : simple membre, soi-même, non-membre, bloqué, suspendu ou en instance d'effacement — la même règle", async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(1_760_000_000_000)
+    const t = testConvex()
+    const { root } = await seed(t)
+    const { alice, bob, carla, groupId } = await staffedGroup(t, root)
+    const dan = await enter(t, root, "dan")
+    const eve = await enter(t, root, "eve")
+    const fanny = await enter(t, root, "fanny")
+    for (const person of [eve, fanny]) {
+      await person.as.mutation(G.join, { networkId: root, groupId })
+      await alice.as.mutation(G.setMemberRole, { networkId: root, groupId, memberPersonId: person.personId, role: "moderator" })
+    }
+    const transfer = async (target: Person) => await ruleOf(alice.as.mutation(G.transferGroupOwnership, { networkId: root, groupId, newOwnerPersonId: target.personId }))
+    // Le seau `group.manage` d'alice (cinq gestes) se recharge entre deux essais.
+    const tick = () => vi.setSystemTime(Date.now() + 60 * 60 * 1000)
+    expect(await transfer(carla)).toBe("GROUP_TRANSFER_TARGET_INELIGIBLE")
+    expect(await transfer(alice)).toBe("GROUP_TRANSFER_TARGET_INELIGIBLE")
+    expect(await transfer(dan)).toBe("GROUP_TRANSFER_TARGET_INELIGIBLE")
+    tick()
+    // Bob bloque alice : ni le transfert ni la liste ne le trahissent.
+    await bob.as.mutation(api.modules.graph.connections.blockPerson, { networkId: root, targetPersonId: alice.personId })
+    expect(await transfer(bob)).toBe("GROUP_TRANSFER_TARGET_INELIGIBLE")
+    // Eve est suspendue du réseau ; Fanny a demandé l'effacement de son compte.
+    await t.run(async (ctx) => {
+      const membership = await ctx.db.query("networkMemberships").withIndex("by_network_and_person", (q) => q.eq("networkId", root).eq("personId", eve.personId)).unique()
+      await ctx.db.patch(membership!._id, { status: "suspendue", statusChangedAt: Date.now() })
+      await ctx.db.patch(fanny.personId, { deletionRequestedAt: Date.now() })
+    })
+    expect(await transfer(eve)).toBe("GROUP_TRANSFER_TARGET_INELIGIBLE")
+    expect(await transfer(fanny)).toBe("GROUP_TRANSFER_TARGET_INELIGIBLE")
+    expect((await alice.as.query(G.listTransferCandidates, { networkId: root, groupId })).items).toEqual([])
+    expect(await card(alice, root, groupId)).toMatchObject({ myRole: "owner" })
+  })
+
+  it("un groupe fermé gèle règles et propriété ; il refuse adhésion, invitation acceptée et publication", async () => {
+    const t = testConvex()
+    const { root } = await seed(t)
+    const { alice, bob, groupId } = await staffedGroup(t, root)
+    const dan = await enter(t, root, "dan")
+    await connect(t, root, alice, dan)
+    await alice.as.mutation(G.invite, { networkId: root, groupId, handle: "dan" })
+    const [pending] = (await dan.as.query(G.paginateMyInvites, { networkId: root, paginationOpts: PAGE })).page
+    await alice.as.mutation(G.closeGroup, { networkId: root, groupId })
+    expect(await codeOf(alice.as.mutation(G.setGroupRules, { networkId: root, groupId, rules: "Trop tard." }))).toBe("notFound")
+    expect(await codeOf(alice.as.mutation(G.transferGroupOwnership, { networkId: root, groupId, newOwnerPersonId: bob.personId }))).toBe("notFound")
+    expect(await codeOf(dan.as.mutation(G.join, { networkId: root, groupId }))).toBe("notFound")
+    expect(await codeOf(dan.as.mutation(G.respondInvite, { networkId: root, inviteId: pending!.inviteId, accept: true }))).toBe("notFound")
+    expect(await codeOf(bob.as.mutation(api.modules.posts.posts.publish, { networkId: root, body: "Encore ?", audience: "group", groupId }))).toBe("notFound")
+    // La fiche reste lisible, et dit au propriétaire qu'il garde l'archivage et la suppression.
+    expect(await card(alice, root, groupId)).toMatchObject({ state: "closed", canManage: true })
+  })
+})
+
+describe("règles du groupe (PG-02)", () => {
+  it("sans règles, rejoindre est libre comme avant ; avec des règles, il faut accepter CELLES EN VIGUEUR", async () => {
+    const t = testConvex()
+    const { root } = await seed(t)
+    const alice = await enter(t, root, "alice")
+    const bob = await enter(t, root, "bob")
+    const carla = await enter(t, root, "carla")
+    const groupId = await createGroup(alice, root)
+    expect(await card(bob, root, groupId)).toMatchObject({ rulesVersion: null, rules: null })
+    await carla.as.mutation(G.join, { networkId: root, groupId })
+    expect((await card(carla, root, groupId)).myAcceptedRulesVersion).toBeNull()
+
+    expect(await alice.as.mutation(G.setGroupRules, { networkId: root, groupId, rules: "  Pas d'insultes.  " })).toEqual({ rulesVersion: 1, changed: true })
+    // Un texte identique n'émet aucune version.
+    expect(await alice.as.mutation(G.setGroupRules, { networkId: root, groupId, rules: "Pas d'insultes." })).toEqual({ rulesVersion: 1, changed: false })
+    // La fiche montre les règles AVANT d'entrer, à tout membre du réseau.
+    expect(await card(bob, root, groupId)).toMatchObject({ rulesVersion: 1, rules: "Pas d'insultes.", myRole: null })
+    expect((await bob.as.query(G.discover, { networkId: root })).find((row) => row.groupId === groupId)?.rulesVersion).toBe(1)
+    // L'autrice accepte d'office les règles qu'elle pose.
+    expect((await card(alice, root, groupId)).myAcceptedRulesVersion).toBe(1)
+
+    expect(await ruleOf(bob.as.mutation(G.join, { networkId: root, groupId }))).toBe("GROUP_RULES_NOT_ACCEPTED")
+    expect(await ruleOf(bob.as.mutation(G.join, { networkId: root, groupId, acceptedRulesVersion: 2 }))).toBe("GROUP_RULES_NOT_ACCEPTED")
+    expect((await card(bob, root, groupId)).myRole).toBeNull()
+    await bob.as.mutation(G.join, { networkId: root, groupId, acceptedRulesVersion: 1 })
+    expect(await card(bob, root, groupId)).toMatchObject({ myRole: "member", myAcceptedRulesVersion: 1, memberCount: 3 })
+    // Membre vivant : rejoindre reste idempotent, sans re-jugement.
+    expect(await bob.as.mutation(G.join, { networkId: root, groupId })).toEqual({ joined: true })
+  })
+
+  it("une version nouvelle ne renvoie personne : le membre la voit, l'accepte ; une version périmée est refusée", async () => {
+    const t = testConvex()
+    const { root } = await seed(t)
+    const alice = await enter(t, root, "alice")
+    const bob = await enter(t, root, "bob")
+    const groupId = await createGroup(alice, root)
+    await alice.as.mutation(G.setGroupRules, { networkId: root, groupId, rules: "Version une." })
+    await bob.as.mutation(G.join, { networkId: root, groupId, acceptedRulesVersion: 1 })
+    expect(await alice.as.mutation(G.setGroupRules, { networkId: root, groupId, rules: "Version deux." })).toEqual({ rulesVersion: 2, changed: true })
+    expect(await card(bob, root, groupId)).toMatchObject({ myRole: "member", rulesVersion: 2, myAcceptedRulesVersion: 1, rules: "Version deux." })
+    // Bob publie toujours : la version nouvelle se montre, elle ne coupe rien.
+    await bob.as.mutation(api.modules.posts.posts.publish, { networkId: root, body: "Toujours là", audience: "group", groupId })
+    expect(await ruleOf(bob.as.mutation(G.acceptGroupRules, { networkId: root, groupId, rulesVersion: 1 }))).toBe("GROUP_RULES_NOT_ACCEPTED")
+    expect(await bob.as.mutation(G.acceptGroupRules, { networkId: root, groupId, rulesVersion: 2 })).toEqual({ accepted: true })
+    expect((await card(bob, root, groupId)).myAcceptedRulesVersion).toBe(2)
+    // Retirer les règles rend l'adhésion libre ; les remettre en fait une version nouvelle.
+    expect(await alice.as.mutation(G.setGroupRules, { networkId: root, groupId })).toEqual({ rulesVersion: null, changed: true })
+    expect(await card(bob, root, groupId)).toMatchObject({ rulesVersion: null, rules: null })
+    expect(await bob.as.mutation(G.acceptGroupRules, { networkId: root, groupId, rulesVersion: 2 })).toEqual({ accepted: false })
+    expect(await alice.as.mutation(G.setGroupRules, { networkId: root, groupId, rules: "Version deux." })).toEqual({ rulesVersion: 4, changed: true })
+    // Hors des membres, rien à accepter : la garde du groupe répond.
+    const carla = await enter(t, root, "carla")
+    expect(await codeOf(carla.as.mutation(G.acceptGroupRules, { networkId: root, groupId, rulesVersion: 4 }))).toBe("groupMembershipRequired")
+  })
+
+  it("les règles sont bornées ; une invitation ne s'accepte pas sans elles ; l'invitation dit leur version", async () => {
+    const t = testConvex()
+    const { root } = await seed(t)
+    const alice = await enter(t, root, "alice")
+    const dan = await enter(t, root, "dan")
+    await connect(t, root, alice, dan)
+    const groupId = await createGroup(alice, root)
+    expect(await ruleOf(alice.as.mutation(G.setGroupRules, { networkId: root, groupId, rules: "x".repeat(2001) }))).toBe("GROUP_RULES_TOO_LONG")
+    await alice.as.mutation(G.setGroupRules, { networkId: root, groupId, rules: "Courtoisie." })
+    await alice.as.mutation(G.invite, { networkId: root, groupId, handle: "dan" })
+    const [pending] = (await dan.as.query(G.paginateMyInvites, { networkId: root, paginationOpts: PAGE })).page
+    expect(pending).toMatchObject({ groupId, rulesVersion: 1 })
+    expect(await ruleOf(dan.as.mutation(G.respondInvite, { networkId: root, inviteId: pending!.inviteId, accept: true }))).toBe("GROUP_RULES_NOT_ACCEPTED")
+    // Rien n'a été consommé : l'invitation attend toujours.
+    expect((await dan.as.query(G.paginateMyInvites, { networkId: root, paginationOpts: PAGE })).page).toHaveLength(1)
+    expect(await dan.as.mutation(G.respondInvite, { networkId: root, inviteId: pending!.inviteId, accept: true, acceptedRulesVersion: 1 })).toEqual({ joined: true })
+    expect(await card(dan, root, groupId)).toMatchObject({ myRole: "member", myAcceptedRulesVersion: 1 })
+  })
+
+  it("la version acceptée s'exporte avec l'appartenance ; les règles restent le contenu collectif du groupe", async () => {
+    const t = testConvex()
+    const { root } = await seed(t)
+    const alice = await enter(t, root, "alice")
+    const bob = await enter(t, root, "bob")
+    const groupId = await createGroup(alice, root)
+    await alice.as.mutation(G.setGroupRules, { networkId: root, groupId, rules: "Courtoisie." })
+    await bob.as.mutation(G.join, { networkId: root, groupId, acceptedRulesVersion: 1 })
+    const { membership, group } = await t.run(async (ctx) => ({
+      membership: await ctx.db.query("thematicGroupMembers").withIndex("by_group_and_person", (q) => q.eq("groupId", groupId).eq("personId", bob.personId)).unique(),
+      group: await ctx.db.get(groupId),
+    }))
+    expect(exportableRecord("thematicGroupMembers", membership as unknown as DataRecord,bob.personId)).toMatchObject({ groupId, acceptedRulesVersion: 1, acceptedRulesAt: expect.any(Number) })
+    expect(exportableRecord("thematicGroupMembers", membership as unknown as DataRecord,alice.personId)).toBeNull()
+    const exportedGroup = exportableRecord("thematicGroups", group as unknown as DataRecord,alice.personId)
+    expect(exportedGroup).toMatchObject({ _id: groupId, createdByPersonId: alice.personId })
+    expect(exportedGroup).not.toHaveProperty("rules")
   })
 })
 

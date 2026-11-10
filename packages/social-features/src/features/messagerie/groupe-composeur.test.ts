@@ -1,11 +1,14 @@
-// Dupliqué de socle/packages/agent-features/src/features/messagerie/groupe-composeur.test.ts @ ad2e7fdc2 — adaptations : raison de refus lue par un `t` français (`createAppI18n`) ; bornes du contrat du moteur (plafond 256, plus « 21 avec le créateur ») ; cas neufs : bornes égales au contrat, raison anglaise, refus d'une photo de groupe (`refusPhotoDeGroupe`).
+// Dupliqué de socle/packages/agent-features/src/features/messagerie/groupe-composeur.test.ts @ ad2e7fdc2 — adaptations : raison de refus lue par un `t` français (`createAppI18n`) ; bornes du contrat du moteur (plafond 256, plus « 21 avec le créateur ») ; cas neufs : bornes égales au contrat, raison anglaise, refus d'une photo de groupe (`refusPhotoDeGroupe`) ; PF-03 : préparation de la photo de groupe (`preparerPhotoDeGroupe`) sur des octets réels porteurs d'un bloc GPS.
 import {
 	GROUP_MEMBERS_MAX,
 	GROUP_MIN_OTHERS,
 	GROUP_TITLE_MAX_LENGTH,
 } from "@antsia/social-contracts/groupCapacity"
+import { jpegHasGpsMetadata, listImageMetadata } from "@antsia/social-domain/imageMetadata"
 import { describe, expect, it } from "vitest"
 import { createAppI18n } from "../../i18n"
+import { isPreparedImage } from "../media-upload"
+import { TEST_JPEG_WITH_GPS_BYTES, testPrepareImageWith } from "../../tests/image-runtime"
 import {
 	GROUPE_MAX_AUTRES,
 	GROUPE_MAX_MEMBRES,
@@ -15,6 +18,7 @@ import {
 	GROUPE_TITRE_MAX,
 	peutContinuer,
 	peutEnvoyer,
+	preparerPhotoDeGroupe,
 	refusPhotoDeGroupe,
 	toggleSelection,
 	validerSelection,
@@ -158,5 +162,40 @@ describe("refusPhotoDeGroupe — le refus nomme la photo de GROUPE", () => {
 		expect(refus).toBe(
 			`Une photo de groupe est limitée à ${GROUPE_PHOTO_MAX_MO} Mo.`,
 		)
+	})
+})
+
+describe("preparerPhotoDeGroupe — la photo d'un groupe part sans position GPS (PF-03)", () => {
+	const gps = () => new File([TEST_JPEG_WITH_GPS_BYTES as Uint8Array<ArrayBuffer>], "groupe.jpg", { type: "image/jpeg" })
+
+	it("rend l'image préparée, à 1 024 px au plus, sans aucune métadonnée — jamais l'original", async () => {
+		const prepare = testPrepareImageWith({ width: 4032, height: 3024, output: { bytes: TEST_JPEG_WITH_GPS_BYTES, type: "image/jpeg" } })
+		const original = gps()
+		const result = await preparerPhotoDeGroupe(original, t, prepare)
+		expect(result.ok).toBe(true)
+		if (!result.ok) return
+		expect(result.file).not.toBe(original)
+		expect(isPreparedImage(result.file)).toBe(true)
+		expect(prepare.runtime.canvases).toEqual([{ width: 1024, height: 768 }])
+		const sent = new Uint8Array(await result.file.arrayBuffer())
+		expect(jpegHasGpsMetadata(sent)).toBe(false)
+		expect(listImageMetadata(sent, "image/jpeg")).toEqual([])
+	})
+
+	it("le fichier choisi est jugé comme avant (format, poids de l'aide), sans rien préparer", async () => {
+		const prepare = testPrepareImageWith()
+		expect(await preparerPhotoDeGroupe(new File(["x"], "a.gif", { type: "image/gif" }), t, prepare)).toEqual({ ok: false, refus: "Formats acceptés : JPEG, PNG ou WebP." })
+		expect(prepare.runtime.decoded).toEqual([])
+	})
+
+	it("un ré-encodage impossible refuse la photo, avec la phrase de la préparation", async () => {
+		expect(await preparerPhotoDeGroupe(gps(), t, testPrepareImageWith({ output: null }))).toEqual({
+			ok: false,
+			refus: "La préparation de « groupe.jpg » a échoué : cette photo ne sera pas envoyée.",
+		})
+		expect(await preparerPhotoDeGroupe(gps(), t, async () => Promise.reject(new Error("panne")))).toEqual({
+			ok: false,
+			refus: "« groupe.jpg » n'a pas pu être lue : cette photo ne sera pas envoyée.",
+		})
 	})
 })

@@ -100,7 +100,7 @@
     },
     "blocks": {
       "title": "Blocked people",
-      "globalScope": "These blocks apply across all your ANTSIA networks. Unblocking does not create a new connection. Existing follows are kept.",
+      "globalScope": "These blocks apply across all your ANTSIA networks. Unblocking restores neither the connection nor the follows removed when blocking.",
       "neutral": "Blocked person",
       "blockedAt": "Blocked on {{date}}",
       "empty": "You have not blocked anyone.",
@@ -109,7 +109,7 @@
       "errorMessage": "Your blocks could not be loaded.",
       "unblock": "Unblock",
       "confirmTitle": "Unblock this person?",
-      "confirmBody": "The block you set will be removed across all your ANTSIA networks. No new connection is created. Existing follows are kept.",
+      "confirmBody": "The block you set will be removed across all your ANTSIA networks. No connection or follow is restored.",
       "cancel": "Cancel",
       "close": "Close confirmation",
       "unblocked": "Block removed.",
@@ -199,5 +199,21 @@
     "followed": "You follow {{name}}.",
     "unfollowed": "You no longer follow {{name}}.",
     "followFailed": "The follow could not be saved."
+  },
+  "personBlock": {
+    "blockTitle": "Block {{name}}?",
+    "blockTitleUnnamed": "Block this person?",
+    "listHint": "You will find this block under “Blocked people”, in “Edit my profile”, to lift it.",
+    "confirmBlock": "Block",
+    "blocked": "You blocked {{name}}.",
+    "blockedUnnamed": "Block saved.",
+    "blockFailed": "The block could not be saved.",
+    "unblockTitle": "Unblock {{name}}?",
+    "unblockTitleUnnamed": "Unblock this person?",
+    "confirmUnblock": "Unblock",
+    "unblocked": "Block removed.",
+    "unblockFailed": "The block could not be removed.",
+    "cancel": "Cancel",
+    "close": "Close the confirmation"
   }
 }

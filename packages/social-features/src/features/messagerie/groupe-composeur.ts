@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/messagerie/groupe-composeur.ts @ ad2e7fdc2 — adaptations : bornes lues dans le contrat du moteur (`@antsia/social-contracts/groupCapacity` : plafond de structure 256, minimum d'autres membres et longueur du titre, au lieu de deux copies locales) ; raison de refus traduite (`validerSelection` reçoit `t` en dernier paramètre, clés qualifiées `messagerie:groupeComposeur.…`) ; refus d'une PHOTO DE GROUPE (`refusPhotoDeGroupe`, types et poids du domaine `@antsia/social-domain/content`) qui remplace la réécriture, par remplacement de texte, du refus de photo de profil ; `GROUPE_PHOTO_ACCEPT` et `GROUPE_PHOTO_MAX_MO` pour le sélecteur de fichier et son aide.
+// Dupliqué de socle/packages/agent-features/src/features/messagerie/groupe-composeur.ts @ ad2e7fdc2 — adaptations : bornes lues dans le contrat du moteur (`@antsia/social-contracts/groupCapacity` : plafond de structure 256, minimum d'autres membres et longueur du titre, au lieu de deux copies locales) ; raison de refus traduite (`validerSelection` reçoit `t` en dernier paramètre, clés qualifiées `messagerie:groupeComposeur.…`) ; refus d'une PHOTO DE GROUPE (`refusPhotoDeGroupe`, types et poids du domaine `@antsia/social-domain/content`) qui remplace la réécriture, par remplacement de texte, du refus de photo de profil ; `GROUPE_PHOTO_ACCEPT` et `GROUPE_PHOTO_MAX_MO` pour le sélecteur de fichier et son aide ; PF-03 : `preparerPhotoDeGroupe` — la photo choisie passe par la préparation des photos (`features/media-upload` : ré-encodée, 1 024 px au plus, sans métadonnées, échec fermé) avant son envoi.
 /**
  * groupe-composeur — ce que le composeur de GROUPE décide.
  *
@@ -25,6 +25,14 @@ import {
 import { AVATAR_MAX_BYTES, AVATAR_MIME_TYPES } from "@antsia/social-domain/content"
 import { megabytes } from "@antsia/social-domain/violation"
 import type { TFunction } from "i18next"
+
+import {
+	AVATAR_UPLOAD_MAX_DIMENSION,
+	imagePreparationRefusalText,
+	prepareImageForUpload,
+	type ImagePreparation,
+	type PrepareImageWith,
+} from "../media-upload"
 
 /** Plafond d'un groupe, CRÉATEUR COMPRIS — la SOURCE, plus un miroir. */
 export const GROUPE_MAX_MEMBRES = GROUP_MEMBERS_MAX
@@ -148,4 +156,35 @@ export function refusPhotoDeGroupe(file: Blob, t: TFunction): string | null {
 		})
 	}
 	return null
+}
+
+/** La préparation du navigateur (décodeur et canvas réels). */
+const prepareInBrowser: PrepareImageWith = (file, options) => prepareImageForUpload(file, undefined, options)
+
+/**
+ * La photo de GROUPE prête à l'envoi, ou le refus à dire (lot PF-03 ;
+ * décision du propriétaire du 9/11/2026).
+ *
+ * Le fichier choisi est jugé comme avant (`refusPhotoDeGroupe` : types et
+ * poids de l'usage `avatar`, que l'aide du sélecteur annonce), puis préparé :
+ * ré-encodé, 1 024 px au plus (`AVATAR_UPLOAD_MAX_DIMENSION`), sans aucune
+ * métadonnée. Seule l'image préparée part ; un échec refuse la photo, jamais
+ * l'original. `prepare` est injectable (`jsdom` n'a pas de canvas).
+ */
+export async function preparerPhotoDeGroupe(
+	file: File,
+	t: TFunction,
+	prepare: PrepareImageWith = prepareInBrowser,
+): Promise<{ ok: true; file: File } | { ok: false; refus: string }> {
+	const avant = refusPhotoDeGroupe(file, t)
+	if (avant !== null) return { ok: false, refus: avant }
+	let result: ImagePreparation
+	try {
+		result = await prepare(file, { maxDimension: AVATAR_UPLOAD_MAX_DIMENSION })
+	} catch {
+		result = { ok: false, refusal: "unreadable" }
+	}
+	if (!result.ok) return { ok: false, refus: imagePreparationRefusalText(result.refusal, file.name, t) }
+	const apres = refusPhotoDeGroupe(result.file, t)
+	return apres === null ? { ok: true, file: result.file } : { ok: false, refus: apres }
 }

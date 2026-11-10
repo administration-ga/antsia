@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/GroupsPanel.tsx @ ad2e7fdc2 — adaptations : groupes thématiques du réseau courant (`thematicGroups.thematicGroups.*`, `networkId` par `useNetwork()`) ; invitations reçues et membres PAGINÉS par le moteur (`paginateMyInvites`, `paginateMembers`, pannes dites par `ReseauPaginatedErrorBoundary`, « Voir plus ») ; `myGroups` borné qui dit sa lacune (`truncated`) ; vivier d'invitation `{ items, truncated }` du moteur passé tel quel au sélecteur ; mur à curseur COMPOSITE (`FeedCursor`, clé de page par `feedCursorKey`) et publications au DTO du fil (`_id`) rendues par `PostCard` ; membres et invitants nommés par la personne (`personId`, nom neutre quand le profil n'est pas publié) ; refus du moteur lus par code (`groupActionErrorText`), et le refus indistinct de la fiche (`notFound`) dit « plus accessible » ; états vides par `reseauEmptyState(id, home, t)` ; toutes les chaînes par l'i18n (espace `reseau`, clés `groupsPanel.*` et `groupesThematiques.*`) ; « agents » → le réseau ; primitives de `@antsia/ui`, kit d'espace de `@antsia/ui/espace-kit` (phrases de la pagination par `useEspacePaginationLabels`). ; couleurs par fonction (ADR-0027) : Rejoindre en variante `social`, Accepter en validation opt-in.
+// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/GroupsPanel.tsx @ ad2e7fdc2 — adaptations : groupes thématiques du réseau courant (`thematicGroups.thematicGroups.*`, `networkId` par `useNetwork()`) ; invitations reçues et membres PAGINÉS par le moteur (`paginateMyInvites`, `paginateMembers`, pannes dites par `ReseauPaginatedErrorBoundary`, « Voir plus ») ; `myGroups` borné qui dit sa lacune (`truncated`) ; vivier d'invitation `{ items, truncated }` du moteur passé tel quel au sélecteur ; mur à curseur COMPOSITE (`FeedCursor`, clé de page par `feedCursorKey`) et publications au DTO du fil (`_id`) rendues par `PostCard` ; membres et invitants nommés par la personne (`personId`, nom neutre quand le profil n'est pas publié) ; refus du moteur lus par code (`groupActionErrorText`), et le refus indistinct de la fiche (`notFound`) dit « plus accessible » ; états vides par `reseauEmptyState(id, home, t)` ; toutes les chaînes par l'i18n (espace `reseau`, clés `groupsPanel.*` et `groupesThematiques.*`) ; « agents » → le réseau ; primitives de `@antsia/ui`, kit d'espace de `@antsia/ui/espace-kit` (phrases de la pagination par `useEspacePaginationLabels`). ; couleurs par fonction (ADR-0027) : Rejoindre en variante `social`, Accepter en validation opt-in ; gestion d'un groupe (PG-02) : règles montrées et acceptées avant « Rejoindre » ou l'acceptation d'une invitation (la carte et l'invitation d'un groupe à règles ouvrent sa fiche), règles nouvelles montrées au membre jusqu'à son acceptation, bandeau d'un groupe fermé ou archivé qui retire composeur, mur, invitation et membres, écran « Gérer le groupe » du propriétaire (`GroupManageCard`).
 "use client"
 
 /**
@@ -24,7 +24,7 @@ import { api, type Id } from "@antsia/api/engine"
 import { useAuthenticatedConvexQuery, useAuthenticatedPaginatedQuery } from "@antsia/api/hooks"
 import { useNetwork, useRoutes } from "@antsia/api/network"
 import { engineErrorCode } from "@antsia/social-contracts/errors"
-import { Alert, Badge, Button, Card, SkeletonCard, TextArea, TextInput } from "@antsia/ui"
+import { Alert, Badge, Button, Card, Checkbox, SkeletonCard, TextArea, TextInput } from "@antsia/ui"
 import { clampPage, EspaceEmptyState, EspacePagination, pageSlice } from "@antsia/ui/espace-kit"
 import { useMutation } from "convex/react"
 import { type ReactNode, useEffect, useRef, useState } from "react"
@@ -51,19 +51,24 @@ import {
   canModerateGroup,
   classifyInviteResult,
   emptyGroupWallText,
+  entryRequiresRules,
   groupActionErrorText,
   groupInviteReportLabel,
   groupInvitesBannerLabel,
   groupPersonName,
   groupRoleLabel,
+  groupStateNoticeKey,
   initialGroupsViewFor,
+  isGroupOpen,
   joinCtaLabel,
   memberCountLabel,
+  memberMustReviewRules,
   validateGroupName,
   type GroupInviteOutcome,
   type GroupsView,
   type ThematicGroupRole,
 } from "./groupes-thematiques"
+import { GroupManageCard } from "./GroupManageCard"
 import { PostCard } from "./PostCard"
 import { PostComposer } from "./PostComposer"
 import { RelationPicker } from "./RelationPicker"
@@ -223,6 +228,7 @@ function GroupsDirectory({ onOpen }: { onOpen: (groupId: GroupId) => void }) {
                 memberCount={group.memberCount}
                 myRole={group.myRole}
                 invited={group.invited}
+                rulesVersion={group.rulesVersion}
                 onOpen={() => onOpen(group.groupId)}
               />
             ))}
@@ -287,8 +293,14 @@ function GroupsDirectory({ onOpen }: { onOpen: (groupId: GroupId) => void }) {
                 memberCount={group.memberCount}
                 myRole={group.myRole}
                 invited={group.invited}
+                rulesVersion={group.rulesVersion}
                 onOpen={() => onOpen(group.groupId)}
                 onJoin={() => {
+                  // Un groupe à règles ne se rejoint pas d'ici : sa fiche les montre d'abord (PG-02).
+                  if (entryRequiresRules(group.rulesVersion)) {
+                    onOpen(group.groupId)
+                    return
+                  }
                   void join({ networkId, groupId: group.groupId })
                     .then(() => {
                       toast.success(t("groupsPanel.toast.joined"))
@@ -346,6 +358,11 @@ function GroupInvites({ onOpen }: { onOpen: (groupId: GroupId) => void }) {
                 // Accepter : couleur de validation, relations en repli hors ANTSIA (ADR-0027).
                 variant="success"
                 onClick={() => {
+                  // Un groupe à règles : accepter se fait sur sa fiche, règles lues (PG-02).
+                  if (entryRequiresRules(invite.rulesVersion)) {
+                    onOpen(invite.groupId)
+                    return
+                  }
                   void respondInvite({ networkId, inviteId: invite.inviteId, accept: true })
                     .then(() => {
                       toast.success(t("groupsPanel.toast.joined"))
@@ -354,7 +371,7 @@ function GroupInvites({ onOpen }: { onOpen: (groupId: GroupId) => void }) {
                     .catch((error: unknown) => toast.error(groupActionErrorText(error, "reseau:groupsPanel.toast.inviteExpired", t)))
                 }}
               >
-                {t("groupsPanel.invites.accept")}
+                {entryRequiresRules(invite.rulesVersion) ? t("groupesThematiques.join.readRules") : t("groupsPanel.invites.accept")}
               </Button>
               <Button style={themedActionStyle("danger", "ghost")}
                 size="sm"
@@ -389,6 +406,7 @@ function GroupCardRow({
   memberCount,
   myRole,
   invited,
+  rulesVersion,
   onOpen,
   onJoin,
 }: {
@@ -397,11 +415,12 @@ function GroupCardRow({
   memberCount: number
   myRole: ThematicGroupRole | null
   invited: boolean
+  rulesVersion: number | null
   onOpen: () => void
   onJoin?: () => void
 }) {
   const { t } = useTranslation("reseau")
-  const cta = joinCtaLabel({ myRole, invited }, t)
+  const cta = joinCtaLabel({ myRole, invited, rulesVersion }, t)
   const roleLabel = groupRoleLabel(myRole, t)
   return (
     <Card style={RESEAU_CARD_STYLE}>
@@ -548,6 +567,25 @@ function BackToGroups({ onBack }: { onBack: () => void }) {
   )
 }
 
+/**
+ * Les RÈGLES d'un groupe telles que le propriétaire les a écrites (PG-02) :
+ * le texte brut, ses retours à la ligne gardés, et la date du dernier
+ * changement. Montrées avant d'entrer, et au membre quand elles changent.
+ */
+function GroupRulesText({ rules, updatedOn }: { rules: string; updatedOn: string | null }) {
+  const { t } = useTranslation("reseau")
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <h3 style={{ ...SECTION_TITLE_STYLE, fontFamily: "inherit", fontSize: "var(--esp-subsection-title-size, 14px)", lineHeight: "var(--esp-subsection-title-leading, inherit)" }}>
+        {t("groupsPanel.rules.title")}
+      </h3>
+      <p style={{ ...MUTED_TEXT_STYLE, fontSize: 12.5 }}>{t("groupsPanel.rules.lead")}</p>
+      <p style={{ ...MUTED_TEXT_STYLE, color: "var(--ink-900)", whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{rules}</p>
+      {updatedOn ? <p style={{ ...MUTED_TEXT_STYLE, fontSize: 12.5 }}>{t("groupsPanel.rules.updatedOn", { date: updatedOn })}</p> : null}
+    </div>
+  )
+}
+
 function GroupPage({
   groupId,
   now,
@@ -561,18 +599,24 @@ function GroupPage({
   onMention?: (handle: string) => void
   onBack: () => void
 }) {
-  const { t } = useTranslation("reseau")
+  const { t, i18n } = useTranslation("reseau")
   const { networkId } = useNetwork()
   const fiche = useAuthenticatedConvexQuery(api.modules.thematicGroups.thematicGroups.getGroup, { networkId, groupId })
   const join = useMutation(api.modules.thematicGroups.thematicGroups.join)
   const leave = useMutation(api.modules.thematicGroups.thematicGroups.leave)
   const respondInvite = useMutation(api.modules.thematicGroups.thematicGroups.respondInvite)
   const unpin = useMutation(api.modules.thematicGroups.thematicGroups.unpinGroupPost)
+  const acceptRules = useMutation(api.modules.thematicGroups.thematicGroups.acceptGroupRules)
 
   const [pages, setPages] = useState(() => initialFeedPages<GroupWallCursor>())
   const [tailCursor, setTailCursor] = useState<GroupWallCursor | null>(null)
   const [announcement, setAnnouncement] = useState("")
   const [showMembers, setShowMembers] = useState(false)
+  /** La version des règles que la case « j'ai lu » couvre : une version nouvelle la décoche d'elle-même. */
+  const [rulesTickedFor, setRulesTickedFor] = useState<number | null>(null)
+  const [showRules, setShowRules] = useState(false)
+  const [showManage, setShowManage] = useState(false)
+  const [acceptingRules, setAcceptingRules] = useState(false)
 
   const myRole = fiche.data?.myRole ?? null
   const isMember = myRole !== null
@@ -612,6 +656,19 @@ function GroupPage({
 
   const group = fiche.data
   const roleLabel = groupRoleLabel(myRole, t)
+  // Fermé ou archivé : le serveur refuse adhésion, publication, mur, invitation et liste des membres.
+  const open = isGroupOpen(group.state)
+  const stateNotice = groupStateNoticeKey(group.state)
+  const rulesVersion = group.rulesVersion
+  const rulesUpdatedOn = group.rulesUpdatedAt === null ? null : new Intl.DateTimeFormat(i18n.resolvedLanguage ?? i18n.language, { dateStyle: "medium" }).format(group.rulesUpdatedAt)
+  // Entrer dans un groupe à règles : les lire, cocher, puis seulement rejoindre (PG-02).
+  const rulesForEntry = !isMember && open && entryRequiresRules(rulesVersion)
+  const entryBlocked = rulesForEntry && (rulesVersion === null || rulesTickedFor !== rulesVersion)
+  const entryAcceptance = rulesForEntry && rulesVersion !== null ? { acceptedRulesVersion: rulesVersion } : {}
+  const rulesHintId = `regles-aide-${groupId}`
+  // Une version nouvelle ne renvoie personne : elle se montre au membre jusqu'à son acceptation.
+  const mustReview = open && memberMustReviewRules({ myRole, rulesVersion, myAcceptedRulesVersion: group.myAcceptedRulesVersion })
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       {/* ── Retour : l'invariant de reseau-layout, appliqué à ce volet. ── */}
@@ -639,16 +696,40 @@ function GroupPage({
           </div>
           {group.description ? <p style={MUTED_TEXT_STYLE}>{group.description}</p> : null}
           <p style={{ ...MUTED_TEXT_STYLE, fontSize: 12.5 }}>{memberCountLabel(group.memberCount, t)}</p>
+          {stateNotice ? (
+            <p style={{ ...MUTED_TEXT_STYLE, padding: "10px 12px", border: "1px solid var(--ink-200)", borderRadius: "var(--esp-primitive-card-radius, 8px)", color: "var(--ink-800)" }}>
+              {t(stateNotice)}
+            </p>
+          ) : null}
+          {/* ── Les règles AVANT « Rejoindre » : lues, cochées, puis seulement acceptées. ── */}
+          {rulesForEntry && group.rules !== null ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: "12px 14px", border: "1px solid var(--ink-200)", borderRadius: "var(--esp-primitive-card-radius, 8px)" }}>
+              <GroupRulesText rules={group.rules} updatedOn={rulesUpdatedOn} />
+              <Checkbox
+                id={`regles-${groupId}`}
+                checked={!entryBlocked}
+                onChange={(next) => setRulesTickedFor(next ? rulesVersion : null)}
+                label={t("groupsPanel.rules.accept")}
+              />
+              {entryBlocked ? (
+                <p id={rulesHintId} style={{ ...MUTED_TEXT_STYLE, fontSize: 12.5 }}>
+                  {t("groupsPanel.rules.acceptHint")}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {group.pendingInviteId !== null && !isMember ? (
+            {group.pendingInviteId !== null && !isMember && open ? (
               <Button
                 size="sm"
                 // Accepter l'invitation : couleur des relations (ADR-0027).
                 variant="success"
+                disabled={entryBlocked}
+                aria-describedby={entryBlocked ? rulesHintId : undefined}
                 style={themedActionStyle("success", "social", RESEAU_PRIMARY_ACTION_STYLE)}
                 onClick={() => {
                   if (group.pendingInviteId === null) return
-                  void respondInvite({ networkId, inviteId: group.pendingInviteId, accept: true })
+                  void respondInvite({ networkId, inviteId: group.pendingInviteId, accept: true, ...entryAcceptance })
                     .then(() => toast.success(t("groupsPanel.toast.joined")))
                     .catch((error: unknown) => toast.error(groupActionErrorText(error, "reseau:groupsPanel.toast.inviteExpired", t)))
                 }}
@@ -656,14 +737,16 @@ function GroupPage({
                 {t("groupesThematiques.join.acceptInvite")}
               </Button>
             ) : null}
-            {!isMember ? (
+            {!isMember && open ? (
               <Button
                 size="sm"
                 // Rejoindre : couleur des relations, sauf quand l'invitation tient déjà ce rôle (ADR-0027).
                 variant={group.pendingInviteId !== null ? "secondary" : "social"}
+                disabled={entryBlocked}
+                aria-describedby={entryBlocked ? rulesHintId : undefined}
                 style={group.pendingInviteId !== null ? RESEAU_SECONDARY_ACTION_STYLE : RESEAU_PRIMARY_ACTION_STYLE}
                 onClick={() => {
-                  void join({ networkId, groupId })
+                  void join({ networkId, groupId, ...entryAcceptance })
                     .then(() => toast.success(t("groupsPanel.toast.joined")))
                     .catch((error: unknown) => toast.error(groupActionErrorText(error, "reseau:groupsPanel.toast.joinFailed", t)))
                 }}
@@ -684,19 +767,72 @@ function GroupPage({
                 {t("groupsPanel.page.leave")}
               </Button>
             ) : null}
-            <Button size="sm" variant="ghost" aria-expanded={showMembers} onClick={() => setShowMembers((current) => !current)}>
-              {showMembers ? t("groupsPanel.page.hideMembers") : t("groupsPanel.page.showMembers")}
-            </Button>
+            {open ? (
+              <Button size="sm" variant="ghost" aria-expanded={showMembers} onClick={() => setShowMembers((current) => !current)}>
+                {showMembers ? t("groupsPanel.page.hideMembers") : t("groupsPanel.page.showMembers")}
+              </Button>
+            ) : null}
+            {isMember && group.rules !== null && !mustReview ? (
+              <Button size="sm" variant="ghost" aria-expanded={showRules} onClick={() => setShowRules((current) => !current)}>
+                {showRules ? t("groupsPanel.page.hideRules") : t("groupsPanel.page.showRules")}
+              </Button>
+            ) : null}
+            {/* Le propriétaire seul (le serveur le dit, et re-juge chaque geste). */}
+            {group.canManage ? (
+              <Button size="sm" variant="ghost" icon="settings" aria-expanded={showManage} onClick={() => setShowManage((current) => !current)}>
+                {showManage ? t("groupsPanel.page.hideManage") : t("groupsPanel.page.manage")}
+              </Button>
+            ) : null}
           </div>
-          {isMember && canInviteToGroup(myRole) ? <GroupInviteCard groupId={groupId} /> : null}
+          {isMember && open && canInviteToGroup(myRole) ? <GroupInviteCard groupId={groupId} /> : null}
         </div>
       </Card>
 
-      {showMembers && isMember ? (
+      {/* ── Gérer le groupe : règles, transfert, fermer, archiver, supprimer. ── */}
+      {showManage && group.canManage ? (
+        <GroupManageCard
+          group={{ groupId, name: group.name, state: group.state, rules: group.rules, rulesVersion, rulesUpdatedAt: group.rulesUpdatedAt }}
+          onDeleted={onBack}
+        />
+      ) : null}
+
+      {/* ── Règles nouvelles : montrées au membre, qui reste membre, jusqu'à son acceptation. ── */}
+      {mustReview && group.rules !== null && rulesVersion !== null ? (
+        <Alert tone="info" title={t("groupsPanel.rules.changedTitle")}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <p style={MUTED_TEXT_STYLE}>{t("groupsPanel.rules.changedLead")}</p>
+            <GroupRulesText rules={group.rules} updatedOn={rulesUpdatedOn} />
+            <div>
+              <Button
+                size="sm"
+                disabled={acceptingRules}
+                style={RESEAU_PRIMARY_ACTION_STYLE}
+                onClick={() => {
+                  setAcceptingRules(true)
+                  void acceptRules({ networkId, groupId, rulesVersion })
+                    .then(() => toast.success(t("groupsPanel.toast.rulesAccepted")))
+                    .catch((error: unknown) => toast.error(groupActionErrorText(error, "reseau:groupsPanel.toast.rulesAcceptFailed", t)))
+                    .finally(() => setAcceptingRules(false))
+                }}
+              >
+                {t("groupsPanel.rules.acknowledge")}
+              </Button>
+            </div>
+          </div>
+        </Alert>
+      ) : null}
+
+      {showRules && isMember && group.rules !== null && !mustReview ? (
+        <Card style={RESEAU_CARD_STYLE}>
+          <GroupRulesText rules={group.rules} updatedOn={rulesUpdatedOn} />
+        </Card>
+      ) : null}
+
+      {showMembers && isMember && open ? (
         <ReseauPaginatedErrorBoundary resetKey={`members-${groupId}`} title={t(GROUPS_ERROR_TEXT_KEYS.members.title)} message={t(GROUPS_ERROR_TEXT_KEYS.members.message)}>
           <MembersCard groupId={groupId} myRole={myRole} />
         </ReseauPaginatedErrorBoundary>
-      ) : showMembers ? (
+      ) : showMembers && open ? (
         <EspaceEmptyState text={t("groupsPanel.page.membersReserved")} />
       ) : null}
 
@@ -725,11 +861,11 @@ function GroupPage({
         </div>
       ) : null}
 
-      {/* ── Publier — membres seulement : l'audience vient du lieu. ── */}
-      {isMember ? <PostComposer group={{ groupId, name: group.name }} /> : <EspaceEmptyState text={t("groupsPanel.page.joinToRead")} />}
+      {/* ── Publier — membres d'un groupe ouvert seulement : l'audience vient du lieu. ── */}
+      {isMember && open ? <PostComposer group={{ groupId, name: group.name }} /> : !isMember && open ? <EspaceEmptyState text={t("groupsPanel.page.joinToRead")} /> : null}
 
       {/* ── Le mur — même chaîne de pages montées que le fil. ── */}
-      {isMember ? (
+      {isMember && open ? (
         <>
           {pages.cursors.map((cursor, index) => (
             <GroupWallPage

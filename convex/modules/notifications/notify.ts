@@ -28,6 +28,7 @@ import { canReadCommercialThread } from "../commercialMessaging/access"
 import { canReadContextualThread } from "../contextualMessaging/access"
 import { isBlockedBetween } from "../graph/graph"
 import { pageEventReminderVisible } from "../events/pageEventReminderAccess"
+import { isPageEventOutcomeNoticeKind, pageEventNoticeVisible } from "../events/pageEventNoticeAccess"
 import { serviceNoticeAdmission } from "../diaspora/serviceNotifications"
 import { communityNoticeAdmission } from "../diaspora/communityNotifications"
 import { commerceNoticeAdmission } from "./commerceAccess"
@@ -132,6 +133,8 @@ export type NotifyInput = {
    * stocké ni montré). Il ne sert qu'aux refus « soi-même » et « blocage » ; ignoré
    * pour les autres genres.
    * P14B : même rôle pour les avis commerce (le client dont le geste est annoncé à l'équipe).
+   * EV-03 : même rôle pour les avis d'issue d'un événement de page (le responsable qui annule,
+   * la personne dont le geste libère une place) — jamais avisé de son propre geste.
    */
   sourcePersonId?: Id<"persons">
   /**
@@ -161,6 +164,9 @@ export async function notifyPerson(ctx: Pick<MutationCtx, "db"> & Partial<Pick<M
   // CC-2b : un avis contextuel désigne un fil que le destinataire lit ENCORE (relecture complète, à l'émission).
   if (isContextualNotificationKind(input.kind) && (!input.subject || !("contextualThread" in input.subject) || !await canReadContextualThread(ctx, input.networkId, input.recipientPersonId, input.subject.contextualThread))) return null
   if (input.kind === "association_event_reminder" && (input.actorPersonId !== undefined || !input.subject || !("event" in input.subject) || !(await pageEventReminderVisible(ctx, input.networkId, input.subject.event, input.recipientPersonId)))) return null
+  // EV-03 : « événement annulé », « place confirmée » — avis du système (aucun acteur), sujet = l'événement,
+  // jamais à l'auteur du geste annoncé, et seulement si la garde relue tient (accès, réseau, état annoncé).
+  if (isPageEventOutcomeNoticeKind(input.kind) && (input.actorPersonId !== undefined || !input.subject || !("event" in input.subject) || input.sourcePersonId === input.recipientPersonId || !(await pageEventNoticeVisible(ctx, input.networkId, input.subject.event, input.recipientPersonId, input.kind)))) return null
   const moderationNotice = input.kind === "moderation_decision"
   if (moderationNotice && (!input.subject || !("report" in input.subject) || input.actorPersonId !== undefined || !(await moderationNoticeRecipient(ctx, input.networkId, input.recipientPersonId, input.subject.report)))) return null
   // SU01d : l'accusé de réception et la décision vont au seul DÉCLARANT du dossier, sans acteur (le modérateur ne se nomme pas).
@@ -178,8 +184,10 @@ export async function notifyPerson(ctx: Pick<MutationCtx, "db"> & Partial<Pick<M
     .withIndex("by_network_recipient_dedupKey", (q) => q.eq("networkId", input.networkId).eq("recipientPersonId", input.recipientPersonId).eq("dedupKey", dedupKey))
     .unique()
   if (existing) {
-    // Un rappel personnel n'est ni rouvert ni redistribué lors d'un rejeu.
-    if (input.kind === "association_event_reminder") return existing._id
+    // Un rappel personnel, comme l'avis d'annulation (une annulation n'a lieu qu'une fois), n'est ni rouvert
+    // ni redistribué lors d'un rejeu d'un lot de diffusion. Une place de nouveau confirmée (après un retrait
+    // et une nouvelle attente) rafraîchit sa ligne comme tout autre genre, sans nouveau push.
+    if (input.kind === "association_event_reminder" || input.kind === "association_event_cancelled") return existing._id
     // REMPLACE : date rafraîchie, non-lu rouvert, résolution EFFACÉE — une invitation rouverte est neuve.
     await ctx.db.patch(existing._id, { createdAt: now, readAt: undefined, resolvedAt: undefined, resolution: undefined })
     return existing._id

@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/modules/fileGuard/mutations.ts @ ad2e7fdc2 — adaptations : table `fileScans` ; quarantaine iDocument et triage IA retirés (le statut bloquant EST la retenue ; l'avis part par la cloche sociale, `notify.ts`) ; libération par un MODÉRATEUR du réseau du fichier ou un opérateur (au lieu de `settings.manage` d'une administration), relance par un opérateur (au lieu du superadmin) ; `logAudit` (journal de l'archive iDocument) remplacé par le journal du moteur (`appendAudit` : libération, relance, purge, avec la qualité de l'acteur) ; débit sur les gestes humains ; coupe-circuit respecté par l'analyse et le balayeur (fail-closed) ; purge indexée sur `blobPurgedAt` (D31 : une ligne purgée ne bloque plus la file) ; `_ageScanForTests` non recopiée (les tests vieillissent la ligne eux-mêmes) ; refus à code du moteur. ; `_markRunning` rend la taille STOCKÉE (`sizeBytes`, table `_storage`) pour que l'analyse écarte un fichier trop gros AVANT de le télécharger (lot 16) ; lots pleins poursuivis par chaîne pour la relance et la purge (lot 17).
+// Dupliqué de socle/convex/modules/fileGuard/mutations.ts @ ad2e7fdc2 — adaptations : table `fileScans` ; quarantaine iDocument et triage IA retirés (le statut bloquant EST la retenue ; l'avis part par la cloche sociale, `notify.ts`) ; libération par un MODÉRATEUR du réseau du fichier ou un opérateur (au lieu de `settings.manage` d'une administration), relance par un opérateur (au lieu du superadmin) ; `logAudit` (journal de l'archive iDocument) remplacé par le journal du moteur (`appendAudit` : libération, relance, purge, avec la qualité de l'acteur) ; débit sur les gestes humains ; coupe-circuit respecté par l'analyse et le balayeur (fail-closed) ; purge indexée sur `blobPurgedAt` (D31 : une ligne purgée ne bloque plus la file) ; `_ageScanForTests` non recopiée (les tests vieillissent la ligne eux-mêmes) ; refus à code du moteur. ; `_markRunning` rend la taille STOCKÉE (`sizeBytes`, table `_storage`) pour que l'analyse écarte un fichier trop gros AVANT de le télécharger (lot 16) ; lots pleins poursuivis par chaîne pour la relance et la purge (lot 17) ; EX-17 : relance MOTIVÉE depuis la console (motif obligatoire, écrit au journal) et refusée (`conflict`) pour un fichier plus lourd que le plafond d'analyse — l'analyse le sauterait, et un enregistrement produit par la plateforme y perdrait sa servabilité.
 /**
  * Garde des fichiers — MUTATIONS.
  *
@@ -27,6 +27,7 @@ import { appendAudit, networkRoleCapacity, operatorCapacity } from "../platform/
 import { deliverVerdictNotice } from "./notify"
 import {
   FILE_GUARD_MAX_ATTEMPTS,
+  FILE_GUARD_MAX_INSPECT_BYTES,
   FILE_GUARD_RUNNING_STALE_MS,
   isKillSwitched,
   isReleasableStatus,
@@ -38,6 +39,8 @@ const RETRY_BACKOFF_MS = 30_000
 const SWEEP_TAKE = 50
 const PURGE_TAKE = 50
 const MIN_RELEASE_REASON_CHARS = 3
+/** Même borne que la libération : la console motive chaque relance (`MotiveAction`, 3 caractères). */
+const MIN_REQUEUE_REASON_CHARS = 3
 
 /** Ce que l'action d'analyse a besoin de savoir pour travailler. */
 export const scanFactsValidator = v.object({
@@ -222,15 +225,27 @@ async function requeueForAnalysis(ctx: MutationCtx, scan: Doc<"fileScans">, now:
   if (!isKillSwitched(process.env)) await ctx.scheduler.runAfter(0, internal.modules.files.scan.runScan, { scanId: scan._id })
 }
 
-/** Relance une analyse depuis zéro (opérateur) — seule issue d'un `infected`. */
+/**
+ * Relance une analyse depuis zéro (opérateur, console « Fichiers ») — seule
+ * issue d'un `infected`, reprise d'un fichier figé en `error` après les
+ * tentatives (panne de l'antivirus). MOTIVÉE : le motif part au journal.
+ *
+ * Refus `conflict` : fichier purgé, ou plus lourd que le plafond d'analyse
+ * (poids lu dans le stockage) — l'analyse le sauterait sans le lire, et un
+ * enregistrement produit par la plateforme (`server_generated`) perdrait sa
+ * servabilité pour rien.
+ */
 export const requeueScan = operatorMutation({
-  args: { scanId: v.id("fileScans") },
+  args: { scanId: v.id("fileScans"), reason: v.string() },
   returns: v.null(),
   handler: async (ctx, args) => {
     await enforceRateLimit(ctx, "file.moderate", ctx.person._id)
     const scan = await ctx.db.get(args.scanId)
     if (!scan) return notFound()
+    const reason = checked(() => assertDecisionReason(args.reason, MIN_REQUEUE_REASON_CHARS))
     if (scan.blobPurgedAt !== undefined) return fail("conflict")
+    const storedSize = (await ctx.db.system.get("_storage", scan.storageId))?.size ?? scan.sizeBytes
+    if (storedSize !== undefined && storedSize > FILE_GUARD_MAX_INSPECT_BYTES) return fail("conflict")
     const now = Date.now()
     await requeueForAnalysis(ctx, scan, now)
     await appendAudit(ctx, {
@@ -239,7 +254,7 @@ export const requeueScan = operatorMutation({
       actorPersonId: ctx.person._id,
       ...(scan.networkId ? { networkId: scan.networkId } : {}),
       subject: { table: "fileScans", id: scan._id },
-      details: { from: scan.status },
+      details: { reason, from: scan.status },
       at: now,
     })
     return null

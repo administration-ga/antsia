@@ -59,6 +59,23 @@ describe("notificationTarget — une adresse par nature de sujet", () => {
 		expect(notificationRowAction(notice, routes, { onOpenPersonalEvent: vi.fn() }, t)).toEqual({ mode: "link", kind: "event", href: "/pages/association-demo/evenements/ev-asso", label: "Ouvrir" })
 		expect(notificationTarget({ ...notice, subject: subject("event", "autre") }, routes, t)).toBeNull()
 	})
+	it("mène l'annulation et la place confirmée (EV-03) à la fiche de l'événement, jamais à l'agenda personnel", () => {
+		const routes = { ...ROUTES, associationEvent: (handle: string, eventId: string) => `/pages/${encodeURIComponent(handle)}/evenements/${encodeURIComponent(eventId)}` }
+		for (const kind of ["association_event_cancelled", "association_event_seat_confirmed"]) {
+			const notice = item({ kind, actor: null, subject: subject("event", "ev-asso"), associationEvent: { eventId: "ev-asso", pageHandle: "association-demo" } })
+			expect(notificationRowAction(notice, routes, { onOpenPersonalEvent: vi.fn() }, t), kind).toEqual({ mode: "link", kind: "event", href: "/pages/association-demo/evenements/ev-asso", label: "Ouvrir" })
+			// Sans route servie par l'application, ou sans événement relu : aucune adresse inventée.
+			expect(notificationTarget(notice, ROUTES, t), kind).toBeNull()
+			expect(notificationTarget({ ...notice, associationEvent: null }, routes, t), kind).toBeNull()
+		}
+	})
+	it("phrase l'annulation et la place confirmée sans acteur ni contenu, en français et en anglais", () => {
+		const actor = { displayName: "Personne sans rapport" }
+		expect(notificationRowSentence({ kind: "association_event_cancelled", actor }, t)).toBe("Un événement auquel vous êtes inscrit ou en liste d'attente est annulé.")
+		expect(notificationRowSentence({ kind: "association_event_cancelled", actor }, tEn)).toBe("An event you registered or are waitlisted for has been cancelled.")
+		expect(notificationRowSentence({ kind: "association_event_seat_confirmed", actor }, t)).toBe("Une place s'est libérée : votre inscription à un événement est confirmée.")
+		expect(notificationRowSentence({ kind: "association_event_seat_confirmed", actor }, tEn)).toBe("A place opened up: your registration for an event is confirmed.")
+	})
 	it("phrase le rappel sans acteur ni contenu en français et en anglais", () => {
 		const notice = { kind: "association_event_reminder", actor: { displayName: "Personne sans rapport" } }
 		expect(notificationRowSentence(notice, t)).toBe("Rappel : un événement auquel vous êtes inscrit approche.")
@@ -464,7 +481,7 @@ describe("connectionInviteOutcome — relire avant d'agir", () => {
 
 describe("notificationRowSentence — ce que dit la ligne, pour TOUS les genres du moteur", () => {
 	const OTHER = "Nouvelle activité dans le réseau."
-	const SYSTEM_KINDS: readonly NotificationKind[] = ["membership_changed", "badge_changed", "moderation_decision", "report_received", "report_decided", "page_post", "file_withheld", "attestation_verified", "attestation_not_confirmed", "association_event_reminder"]
+	const SYSTEM_KINDS: readonly NotificationKind[] = ["membership_changed", "badge_changed", "moderation_decision", "report_received", "report_decided", "page_post", "file_withheld", "attestation_verified", "attestation_not_confirmed", "association_event_reminder", "association_event_cancelled", "association_event_seat_confirmed"]
 
 	it("chaque genre du domaine a sa phrase — jamais une clé brute, jamais la phrase générique", () => {
 		for (const kind of NOTIFICATION_KINDS) {

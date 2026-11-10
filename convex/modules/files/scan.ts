@@ -92,6 +92,8 @@ export const runScan = internalAction({
       // La taille STOCKÉE d'abord : `storage.get` charge le fichier ENTIER en mémoire, et
       // un fichier de plus de 512 Mio ferait tomber l'action avant tout verdict (trois
       // tentatives, puis `error` bloqué). Au-delà du plafond, rien n'est téléchargé.
+      // EX-17 : l'admission refuse désormais un tel fichier ; ce saut ne vise plus que
+      // les lignes d'avant, que la garde de délivrance RETIENT (`isUnanalyzedUpload`).
       if (facts.sizeBytes !== null && facts.sizeBytes > FILE_GUARD_MAX_INSPECT_BYTES) {
         await record({ kind: "skipped", reason: "too_large", sizeBytes: facts.sizeBytes })
         return null

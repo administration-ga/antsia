@@ -85,11 +85,37 @@ export const AVATAR_MAX_BYTES = 5 * 1024 * 1024
 export const AVATAR_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"] as const
 
 export const POST_IMAGE_MAX_BYTES = 20 * 1024 * 1024
-export const POST_VIDEO_MAX_BYTES = 100 * 1024 * 1024
+/** Décision du propriétaire du 9/11/2026 (EX-17) : 60 Mio, le plafond d'analyse de la garde des fichiers — jamais au-delà. */
+export const POST_VIDEO_MAX_BYTES = 60 * 1024 * 1024
 export const POST_MEDIA_MAX_COUNT = 4
 export const POST_MEDIA_ALT_MAX_LENGTH = 300
 export const POST_IMAGE_MIME_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"] as const
+/**
+ * Les vidéos qu'une publication peut PORTER : celles qu'on accepte aujourd'hui,
+ * plus le QuickTime (.mov) des publications antérieures au lot SD-03, toujours
+ * servi par sa ligne (le DTO rend le type stocké). Ce n'est PAS une liste
+ * d'acceptation : une nouvelle vidéo suit `POST_VIDEO_UPLOAD_MIME_TYPES`.
+ * Gardée telle quelle parce que DIASPORALE la lit encore pour reconnaître une
+ * vidéo (`postMediaKindOf`) ; elle devra passer à la liste d'envoi de son côté.
+ */
 export const POST_VIDEO_MIME_TYPES = ["video/mp4", "video/webm", "video/quicktime"] as const
+/**
+ * Vidéo d'une NOUVELLE publication : MP4 ou WebM, les deux conteneurs que lisent
+ * tous les navigateurs — Android, iPhone, ordinateur (lot SD-03). QuickTime
+ * (.mov, l'enregistrement de l'iPhone) ne se lit que dans Safari : il n'entre
+ * plus à l'envoi, le composeur le CONVERTIT quand le navigateur sait le lire et
+ * guide sinon. Seule liste d'acceptation : domaine (`assertPostMedia`), dépôt
+ * (`UPLOAD_USAGES.media_social`) et brouillon de médias la lisent.
+ */
+export const POST_VIDEO_UPLOAD_MIME_TYPES = ["video/mp4", "video/webm"] as const
+/**
+ * Durée maximale DÉCLARÉE d'une vidéo de publication (lot SD-03, plan 03,
+ * décision 6) : cinq minutes, la borne des Stories (`STORY_VIDEO_LIMITS`), la
+ * plus prudente déjà en usage pour une vidéo du moteur — à valider par le
+ * propriétaire. Recopiée ici et non importée (`stories.ts` importe ce module) ;
+ * un test tient les deux égales.
+ */
+export const POST_VIDEO_MAX_DURATION_MS = 5 * 60 * 1000
 
 export type PostMediaKind = "image" | "video"
 
@@ -137,7 +163,7 @@ export function assertPostMedia(media: readonly PostMediaInput[]): void {
     throw new DomainViolation("POST_VIDEO_MUST_BE_ALONE")
   }
   for (const item of media) {
-    const allowed: readonly string[] = item.kind === "image" ? POST_IMAGE_MIME_TYPES : POST_VIDEO_MIME_TYPES
+    const allowed: readonly string[] = item.kind === "image" ? POST_IMAGE_MIME_TYPES : POST_VIDEO_UPLOAD_MIME_TYPES
     if (!allowed.includes(item.mimeType)) {
       throw new DomainViolation("POST_MEDIA_MIME_INVALID")
     }
@@ -147,6 +173,28 @@ export function assertPostMedia(media: readonly PostMediaInput[]): void {
     }
     if ((item.altText ?? "").length > POST_MEDIA_ALT_MAX_LENGTH) {
       throw new DomainViolation("POST_MEDIA_ALT_TOO_LONG", { max: POST_MEDIA_ALT_MAX_LENGTH })
+    }
+  }
+}
+
+/**
+ * La durée DÉCLARÉE d'une vidéo de publication déposée par un membre (lot SD-03).
+ *
+ * Le stockage ne connaît pas la durée : le client la mesure et la déclare, et le
+ * serveur ne peut que refuser celle qui s'avoue hors borne — c'est une borne
+ * DÉCLARÉE, jamais une preuve ; la borne réelle reste le poids, relu au stockage.
+ * Absente (front non mis à jour, navigateur qui n'a pas su la mesurer) : la vidéo
+ * passe, comme avant. Négative, illisible ou au-delà de la borne : refusée par la
+ * même règle, car rien ne la tient alors pour une durée dans la borne.
+ *
+ * Hors d'`assertPostMedia` à dessein : ce dernier juge aussi les reflets fédérés,
+ * dont le contrat (`RESEAU-PUBLIC-V1`) admet une durée jusqu'à vingt-quatre heures.
+ */
+export function assertPostVideoDuration(media: readonly { kind: PostMediaKind; durationMs?: number | undefined }[]): void {
+  for (const item of media) {
+    if (item.kind !== "video" || item.durationMs === undefined) continue
+    if (!(item.durationMs >= 0 && item.durationMs <= POST_VIDEO_MAX_DURATION_MS)) {
+      throw new DomainViolation("POST_VIDEO_TOO_LONG", { maxMinutes: POST_VIDEO_MAX_DURATION_MS / 60_000 })
     }
   }
 }

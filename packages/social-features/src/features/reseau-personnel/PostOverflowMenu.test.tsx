@@ -8,7 +8,7 @@
 import type { Id } from "@antsia/api/engine"
 import { NetworkProvider, type EnginePostPresentation } from "@antsia/api/network"
 import { RouterProvider } from "@antsia/api/routing"
-import { act, fireEvent, render, screen } from "@testing-library/react"
+import { act, fireEvent, render, screen, within } from "@testing-library/react"
 import type { ReactElement, ReactNode } from "react"
 import { I18nextProvider } from "react-i18next"
 import { afterEach, describe, expect, it, vi } from "vitest"
@@ -33,6 +33,7 @@ vi.mock("@antsia/api/engine", () => ({
           unmuteAuthor: "unmuteAuthor",
         },
       },
+      graph: { connections: { blockPerson: "blockPerson", unblockPerson: "unblockPerson" } },
     },
   },
 }))
@@ -110,7 +111,8 @@ describe("PostOverflowMenu au clavier (P18b, A01)", () => {
     fireEvent.click(trigger())
 
     const items = screen.getAllByRole("menuitem")
-    expect(items).toHaveLength(5)
+    // Enregistrer, suivre, masquer, sourdine, bloquer l'auteur (PF-01), signaler.
+    expect(items).toHaveLength(6)
     expect(document.activeElement).toBe(items[0])
     expect(items[0]).toHaveAttribute("tabindex", "0")
     expect(items[1]).toHaveAttribute("tabindex", "-1")
@@ -122,12 +124,12 @@ describe("PostOverflowMenu au clavier (P18b, A01)", () => {
     expect(items[1]).toHaveAttribute("tabindex", "0")
     expect(items[0]).toHaveAttribute("tabindex", "-1")
     fireEvent.keyDown(items[1]!, { key: "End" })
-    expect(document.activeElement).toBe(items[4])
-    fireEvent.keyDown(items[4]!, { key: "ArrowDown" })
+    expect(document.activeElement).toBe(items[5])
+    fireEvent.keyDown(items[5]!, { key: "ArrowDown" })
     expect(document.activeElement).toBe(items[0])
     fireEvent.keyDown(items[0]!, { key: "ArrowUp" })
-    expect(document.activeElement).toBe(items[4])
-    fireEvent.keyDown(items[4]!, { key: "Home" })
+    expect(document.activeElement).toBe(items[5])
+    fireEvent.keyDown(items[5]!, { key: "Home" })
     expect(document.activeElement).toBe(items[0])
 
     fireEvent.keyDown(items[0]!, { key: "Escape" })
@@ -223,5 +225,33 @@ describe("PostOverflowMenu au clavier (P18b, A01)", () => {
     })
     expect(screen.queryByRole("menu")).toBeNull()
     expect(document.activeElement).toBe(button)
+  })
+})
+
+describe("PostOverflowMenu — bloquer l'auteur (PF-01)", () => {
+  it("un seul filet avant les gestes graves ; « Bloquer » ouvre la confirmation commune, puis le moteur", async () => {
+    mocks.mutation.mockClear()
+    renderWithEngine(<PostOverflowMenu {...menuProps()} />)
+    fireEvent.click(trigger())
+    expect(document.body.querySelectorAll(".rp-of-sep")).toHaveLength(1)
+    fireEvent.click(screen.getByRole("menuitem", { name: /^Bloquer Awa/ }))
+    expect(screen.queryByRole("menu")).toBeNull()
+    const dialog = screen.getByRole("dialog", { name: "Bloquer Awa ?" })
+    expect(mocks.mutation).not.toHaveBeenCalled()
+    await act(async () => {
+      fireEvent.click(within(dialog).getByRole("button", { name: "Bloquer" }))
+    })
+    expect(mocks.mutation).toHaveBeenCalledExactlyOnceWith({ networkId: TEST_NETWORK_ID, targetPersonId: "persons_author" })
+    expect(screen.queryByRole("dialog")).toBeNull()
+  })
+
+  it.each([
+    ["une page", { authorKind: "page" as const }],
+    ["sa propre publication", { isOwn: true }],
+    ["un reflet sans signataire local", { authorPersonId: null }],
+  ])("ne propose pas de bloquer sur %s", (_label, overrides) => {
+    renderWithEngine(<PostOverflowMenu {...menuProps(overrides)} />)
+    fireEvent.click(trigger())
+    expect(screen.queryByRole("menuitem", { name: /^Bloquer/ })).toBeNull()
   })
 })

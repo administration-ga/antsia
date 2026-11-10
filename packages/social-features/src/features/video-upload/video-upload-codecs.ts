@@ -1,12 +1,12 @@
-// Dupliqué de socle/packages/agent-features/src/features/stories/story-video-codecs.ts @ ad2e7fdc2 — adaptations : aucune dans le code (module pur, aucun libellé) ; en-tête de provenance, commentaire du contrat de lecture rapporté au réseau.
+// Dupliqué de socle/packages/agent-features/src/features/stories/story-video-codecs.ts @ ad2e7fdc2 — adaptations : aucune dans le code (module pur, aucun libellé) ; en-tête de provenance, commentaire du contrat de lecture rapporté au réseau ; SD-03 : module renommé `video-upload-codecs` et sorti des Stories (`features/video-upload`), il sert aussi le composeur de publication.
 /**
- * story-video-codecs — QUEL codec vidéo un MP4 embarque, lu dans ses boîtes.
+ * video-upload-codecs — QUEL codec vidéo un MP4 embarque, lu dans ses boîtes.
  *
  * ═══════════════════════════════════════════════════════════════════════════
  * POURQUOI LIRE LES BOÎTES : LE CONTENEUR NE DIT PAS LE CODEC
  * ═══════════════════════════════════════════════════════════════════════════
  *
- * Le contrat d'une actu est « lisible par TOUS » (ADR-0079 du socle), et la politique
+ * Le contrat d'une vidéo, Story ou publication, est « lisible par TOUS » (ADR-0079 du socle), et la politique
  * l'assure en n'envoyant TELS QUELS que les MP4/WebM. Mais `video/mp4` est un
  * CONTENEUR : un iPhone en réglage « Haute efficacité » y range du HEVC
  * (`hvc1`), que Firefox et la plupart des Chrome sous Windows ne décodent
@@ -18,7 +18,7 @@
  * D'où cette lecture : trouver `moov`, descendre `trak → mdia → minf → stbl →
  * stsd`, et rendre le fourcc des entrées d'échantillon des pistes VIDÉO
  * (celles dont le `hdlr` dit `vide`). La POLITIQUE décide ensuite ce qui est
- * universel (`mp4CodecsRequireTranscode`, story-video-policy.ts) — ce module
+ * universel (`mp4CodecsRequireTranscode`, video-upload-policy.ts) — ce module
  * EXTRAIT, il ne juge pas.
  *
  * ── Fail-open, délibérément ─────────────────────────────────────────────

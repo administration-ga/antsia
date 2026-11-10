@@ -25,8 +25,8 @@ function hrefsOf(html: string): string[] {
   return [...html.matchAll(/href="([^"]+)"/g)].map((match) => (match[1] ?? "").replaceAll("&amp;", "&"))
 }
 
-/** SU02 : les piliers d'abord — Business (boutiques, réseau pro), Vie publique (presse), Divertissement (Clips, rencontres) —, puis le hub. */
-const EXPECTED_HREFS = [routes.marketplaceHome(), routes.professionals(), routes.press(), routes.clips(), routes.personalMeetings(), routes.memberDiscover(), routes.shopDirectory(), ...discoverHrefs().filter((href) => href !== routes.shopDirectory())]
+/** SU02 : les piliers d'abord — Business (boutiques, réseau pro), Vie publique (presse), Divertissement (Clips) —, puis le hub. */
+const EXPECTED_HREFS = [routes.marketplaceHome(), routes.professionals(), routes.press(), routes.clips(), routes.memberDiscover(), routes.shopDirectory(), ...discoverHrefs().filter((href) => href !== routes.shopDirectory())]
 
 describe("Découvrir — l'écran rend chaque entrée du modèle, et rien d'autre", () => {
   it("SU02 : range Découvrir par piliers et n'ouvre l'univers Alimentation qu'avec une adresse", () => {
@@ -46,6 +46,11 @@ describe("Découvrir — l'écran rend chaque entrée du modèle, et rien d'autr
     expect(html).toContain("nav.discover")
     expect(html).toContain("discovery.memberScope")
     expect(hrefsOf(html)).toEqual(EXPECTED_HREFS)
+  })
+
+  it("SD-13, décision 2 : aucune tuile « Rencontres » tant que la fonction reste fermée", () => {
+    expect(hrefsOf(html)).not.toContain(routes.personalMeetings())
+    expect(html).not.toContain("personalMeetings:")
   })
 
   it("garde le fil national, les provinces, les volets et la vue publique atteignables", () => {
