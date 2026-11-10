@@ -310,6 +310,7 @@ import type * as modules_notifications_transports from "../modules/notifications
 import type * as modules_pages_access from "../modules/pages/access.js";
 import type * as modules_pages_admin from "../modules/pages/admin.js";
 import type * as modules_pages_claims from "../modules/pages/claims.js";
+import type * as modules_pages_closedByBlocks from "../modules/pages/closedByBlocks.js";
 import type * as modules_pages_followedUpdates from "../modules/pages/followedUpdates.js";
 import type * as modules_pages_follows from "../modules/pages/follows.js";
 import type * as modules_pages_identity from "../modules/pages/identity.js";
@@ -793,6 +794,7 @@ declare const fullApi: ApiFromModules<{
   "modules/pages/access": typeof modules_pages_access;
   "modules/pages/admin": typeof modules_pages_admin;
   "modules/pages/claims": typeof modules_pages_claims;
+  "modules/pages/closedByBlocks": typeof modules_pages_closedByBlocks;
   "modules/pages/followedUpdates": typeof modules_pages_followedUpdates;
   "modules/pages/follows": typeof modules_pages_follows;
   "modules/pages/identity": typeof modules_pages_identity;
