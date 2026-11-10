@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/modules/direct/invitees.ts @ ad2e7fdc2 — adaptations : contexte de brouillon followers gardé avant recherche et vérification (F3c) ; personnes et réseaux — constructeurs bornés (`networkQuery`/`networkMutation`, lecteur `directCaller`), tables `live*`, invité désigné par une PERSONNE (`personId`, liste `personIds` de `checkEligibility`, DTO compris) ; audience « organisation » retirée (V39) : une conférence réservée aux abonnés d'une page (`followers`) ne convie que le CERCLE de la page — abonnés et signataires vivants (`inviteePageRequirement`, `followsOrSignsPage`) — au lieu des agents rattachés (`validatedOrgIds`) ; « compte citoyen ou inactif » → personne effacée ou non membre active du réseau (`isInviteeAccountEligible(ctx, networkId, personId)`) ; fil source = fil de GROUPE du moteur (`groupThreads`, garde `requireLiveMembership` du réseau) — la portée « personnel » / « poste » n'existe plus, et son refus `THREAD_NOT_FOUND` devient le `notFound` indistinct de la garde ; relations et blocages lus par le graphe du moteur (`acceptedCounterpartIds` dans le réseau, `blockedCounterpartIds`) ; profils PUBLIÉS (`miniProfileCache` du moteur : nom `null` sans profil publié, liste triée sur le nom publié, à défaut l'identifiant) ; recherche repliée par `foldDiacritics` du domaine (même repli des accents) ; cloche par la porte unique (`notifyPerson`, `resolveNotifications` dans le réseau de la session, genre `live_invite`, sujet `liveSession`) ; refus à CODE : `LIVE_INVITEE_NOT_ELIGIBLE` (le refus indistinct d'un ajout), `LIVE_ENDED`, `LIVE_INVITEE_CHECK_TOO_MANY{max}`, bornes de la liste par `checked` (`LIVE_INVITEES_TOO_MANY`, `LIVE_SPEAKER_INVITEES_TOO_MANY`), `notFound` et `liveRoleRequired` des gardes ; débit `live.inviteesAdd` sur `add` (D14, ordre du moteur : adhésion → visibilité → débit → droit) ; coupure SFU par le sujet d'authentification de la personne (`persons.authUserId`) vers `livekitActions.applyDirectSfuState`.
+// Dupliqué de socle/convex/modules/direct/invitees.ts @ ad2e7fdc2 — adaptations : contexte de brouillon followers gardé avant recherche et vérification (F3c) ; personnes et réseaux — constructeurs bornés (`networkQuery`/`networkMutation`, lecteur `directCaller`), tables `live*`, invité désigné par une PERSONNE (`personId`, liste `personIds` de `checkEligibility`, DTO compris) ; audience « organisation » retirée (V39) : une conférence réservée aux abonnés d'une page (`followers`) ne convie que le CERCLE de la page — abonnés et signataires vivants (`inviteePageRequirement`, `followsOrSignsPage`) — au lieu des agents rattachés (`validatedOrgIds`) ; « compte citoyen ou inactif » → personne effacée ou non membre active du réseau (`isInviteeAccountEligible(ctx, networkId, personId)`) ; fil source = fil de GROUPE du moteur (`groupThreads`, garde `requireLiveMembership` du réseau) — la portée « personnel » / « poste » n'existe plus, et son refus `THREAD_NOT_FOUND` devient le `notFound` indistinct de la garde ; relations et blocages lus par le graphe du moteur (`acceptedCounterpartIds` dans le réseau, `blockedCounterpartIds`) ; profils PUBLIÉS (`miniProfileCache` du moteur : nom `null` sans profil publié, liste triée sur le nom publié, à défaut l'identifiant) ; recherche repliée par `foldDiacritics` du domaine (même repli des accents) ; cloche par la porte unique (`notifyPerson`, `resolveNotifications` dans le réseau de la session, genre `live_invite`, sujet `liveSession`) ; refus à CODE : `LIVE_INVITEE_NOT_ELIGIBLE` (le refus indistinct d'un ajout), `LIVE_ENDED`, `LIVE_INVITEE_CHECK_TOO_MANY{max}`, bornes de la liste par `checked` (`LIVE_INVITEES_TOO_MANY`, `LIVE_SPEAKER_INVITEES_TOO_MANY`), `notFound` et `liveRoleRequired` des gardes ; débit `live.inviteesAdd` sur `add` (D14, ordre du moteur : adhésion → visibilité → débit → droit) ; coupure SFU par le sujet d'authentification de la personne (`persons.authUserId`) vers `livekitActions.applyDirectSfuState` ; DL-02 : un invité intervenant ne monte, dans un direct enregistré, qu'avec son accord (`promoteInviteeSpeaker`, jamais un refus) et monte quand il l'accorde (`promoteConsentingSpeakerInvitee`).
 /**
  * Les INVITÉS NOMINATIFS d'une conférence (ADR-0150).
  * API publique : `api.modules.live.invitees.*`
@@ -20,6 +20,8 @@
  *     APRÈS que ses gardes ont été rejouées : décision d'accès (blocage et
  *     exclusion compris) et éligibilité. `promoteSpeakerRow` ne contrôle rien —
  *     c'est pourquoi aucune ligne `liveSpeakers` n'est écrite à la création.
+ *     Dans un direct ENREGISTRÉ, il faut en plus son accord (DL-02) : sans
+ *     lui, il reste spectateur et monte quand il accepte l'enregistrement.
  *
  * ⚠️ GÉRER la liste = `changeAudienceOrReplay` (matrice de `permissions.ts`),
  * qui ne se délègue pas : c'est la PORTÉE de la conférence, pas sa police.
@@ -58,6 +60,7 @@ import {
   requireDirectPermission,
 } from "./access"
 import { assertInviteeCapacity, DIRECT_MAX_INVITEES } from "./domain"
+import { hasRecordingConsent } from "./recordingConsent"
 import { demoteSpeakerRow, promoteSpeakerRow } from "./speakers"
 import { directInviteeStageRoleValidator } from "./validators"
 
@@ -120,24 +123,7 @@ export async function openConferenceToInvitee(
   }
 
   if (row.stageRole === "speaker") {
-    const followersPage = await inviteePageRequirement(ctx, session)
-    const eligible =
-      followersPage !== undefined &&
-      (await isEligibleDirectInvitee(ctx, {
-        networkId: session.networkId,
-        hostPersonId: session.hostPersonId,
-        targetPersonId: row.personId,
-        sourceThreadId: session.sourceThreadId ?? null,
-        followersPage,
-      }))
-    if (eligible) {
-      try {
-        await promoteSpeakerRow(ctx, session, row.personId)
-      } catch (err) {
-        // `promoteSpeakerRow` refuse AVANT toute écriture : rien n'est à défaire.
-        if (opts.stageFullIsFatal) throw err
-      }
-    }
+    await promoteInviteeSpeaker(ctx, session, row, opts)
   }
 
   if (row.notifiedAt === undefined) {
@@ -151,6 +137,58 @@ export async function openConferenceToInvitee(
     })
     await ctx.db.patch(row._id, { notifiedAt: Date.now() })
   }
+}
+
+/**
+ * FAIRE MONTER un invité intervenant — gardes rejouées (éligibilité, accord à
+ * l'enregistrement), puis `promoteSpeakerRow`. Rend `true` s'il est monté.
+ *
+ * ⚠️ DL-02 — SANS ACCORD dans un direct enregistré, l'invité ne monte PAS, et ce
+ * n'est jamais un refus : il reste spectateur, sonné comme les autres, et monte
+ * de lui-même quand il accepte l'enregistrement (`antenna.acceptRecording`).
+ * Faire échouer ici annulerait l'ajout de l'hôte, ou le passage en live entier,
+ * faute d'un geste qui n'appartient qu'à l'invité.
+ */
+async function promoteInviteeSpeaker(
+  ctx: InviteeWriteCtx,
+  session: Doc<"liveSessions">,
+  row: Doc<"liveInvitees">,
+  opts: { stageFullIsFatal: boolean },
+): Promise<boolean> {
+  const followersPage = await inviteePageRequirement(ctx, session)
+  const eligible =
+    followersPage !== undefined &&
+    (await isEligibleDirectInvitee(ctx, {
+      networkId: session.networkId,
+      hostPersonId: session.hostPersonId,
+      targetPersonId: row.personId,
+      sourceThreadId: session.sourceThreadId ?? null,
+      followersPage,
+    }))
+  if (!eligible) return false
+  if (!(await hasRecordingConsent(ctx, session, row.personId))) return false
+  try {
+    return await promoteSpeakerRow(ctx, session, row.personId)
+  } catch (err) {
+    // `promoteSpeakerRow` refuse AVANT toute écriture : rien n'est à défaire.
+    if (opts.stageFullIsFatal) throw err
+    return false
+  }
+}
+
+/**
+ * L'invité intervenant qui vient d'ACCEPTER l'enregistrement monte — s'il est
+ * invité VIVANT au rôle `speaker`, dans un direct EN COURS, pas déjà à
+ * l'antenne. Appelé par `antenna.acceptRecording`, après la garde de
+ * visibilité de la personne. Une antenne pleine ne fait pas échouer l'accord :
+ * il est gardé, la montée attend une place (l'hôte peut la relancer).
+ */
+export async function promoteConsentingSpeakerInvitee(ctx: InviteeWriteCtx, session: Doc<"liveSessions">, personId: Id<"persons">): Promise<boolean> {
+  if (session.status !== "live") return false
+  const row = await liveInviteeRow(ctx, session._id, personId)
+  if (row === null || row.stageRole !== "speaker") return false
+  if ((await liveSpeakerRow(ctx, session._id, personId)) !== null) return false
+  return await promoteInviteeSpeaker(ctx, session, row, { stageFullIsFatal: false })
 }
 
 /**

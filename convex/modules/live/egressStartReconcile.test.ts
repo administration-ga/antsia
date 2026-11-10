@@ -1,5 +1,5 @@
 // @vitest-environment edge-runtime
-// Dupliqué de socle/convex/modules/direct/egressStartReconcile.test.ts @ ad2e7fdc2 — adaptations : actions du direct du moteur (`modules/live/livekitActions`) et modules simulés sous leur nom du moteur (`lib/livekitWake`, `lib/livekitEgressFileTransfer`) ; sessions `liveSessions` COMPLÈTES posées par l'outillage du module (`insertSession` : le schéma du moteur est validé, une ligne partielle `as never` n'y entre plus) ; motifs attendus en CODES (`recorder_unresponsive`, `ended_before_start`, `transfer_too_large`) au lieu des phrases ; horloge simulée (les tentatives replanifiées ne partent jamais seules) ; les sept cas du socle portés, et le rapatriement réussi affirme en plus l'inscription du fichier à la garde des fichiers.
+// Dupliqué de socle/convex/modules/direct/egressStartReconcile.test.ts @ ad2e7fdc2 — adaptations : actions du direct du moteur (`modules/live/livekitActions`) et modules simulés sous leur nom du moteur (`lib/livekitWake`, `lib/livekitEgressFileTransfer`) ; sessions `liveSessions` COMPLÈTES posées par l'outillage du module (`insertSession` : le schéma du moteur est validé, une ligne partielle `as never` n'y entre plus) ; motifs attendus en CODES (`recorder_unresponsive`, `ended_before_start`, `transfer_too_large`) au lieu des phrases ; horloge simulée (les tentatives replanifiées ne partent jamais seules) ; les sept cas du socle portés, et le rapatriement réussi affirme en plus l'inscription du fichier à la garde des fichiers ; DL-02 : sessions posées ENREGISTRÉES (`replay: true`), l'outillage posant désormais des sessions non enregistrées par défaut.
 /**
  * Démarrage et réconciliation de l'Egress d'un direct — correctifs du 2026-09-17.
  *
@@ -86,7 +86,7 @@ afterEach(() => {
 async function directEnDirect(t: T): Promise<Id<"liveSessions">> {
   const { root } = await seed(t)
   const host = await enter(t, root, "hote")
-  const sessionId = await insertSession(t, { networkId: root, host })
+  const sessionId = await insertSession(t, { networkId: root, host, replay: true })
   await t.run((ctx) => ctx.db.patch(sessionId, { roomName: ROOM, replayStatus: "pending" }))
   return sessionId
 }
@@ -234,7 +234,7 @@ describe("reconcileDirectEgress — la VM dort quand le filet passe", () => {
   async function directTermineEnAttente(t: T): Promise<Id<"liveSessions">> {
     const { root } = await seed(t)
     const host = await enter(t, root, "hote")
-    const sessionId = await insertSession(t, { networkId: root, host, status: "ended" })
+    const sessionId = await insertSession(t, { networkId: root, host, status: "ended", replay: true })
     await t.run((ctx) =>
       ctx.db.patch(sessionId, {
         roomName: ROOM,

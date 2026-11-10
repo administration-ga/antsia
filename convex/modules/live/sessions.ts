@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/modules/direct/sessions.ts @ ad2e7fdc2 — adaptations : PERSONNES ET RÉSEAUX — constructeurs bornés `networkMutation`/`networkQuery` (adhésion par le constructeur) au lieu d'`authMutation`/`authQuery`, `networkId` posé sur la session et sur ses lignes d'hôte et d'invités, toute session lue DANS le réseau de la fonction (inconnue ou d'un autre réseau : `notFound` indistinct ; garde `assertVisibleDirectSession(ctx, directCaller(ctx), …)`), personnes (`Id<"persons">`, `hostPersonId`, `targetPersonId`, `spotlight.personId`, `speakers[].personId`), noms du profil PUBLIÉ (`miniProfileCache` du moteur : nom neutre `null` au lieu d'un nom de repli) ; V36/V37 — l'audience `organisation` devient `followers` : page du moteur EXIGÉE (`LIVE_FOLLOWERS_REQUIRES_PAGE`), parler au nom d'une page exige d'en être SIGNATAIRE VIVANT (`pages/access.requireManagedPage`, refus `notFound` ou `pageRoleRequired`) au lieu de `getMembership` + `assertCanDoTask("communication.publish")`, un invité ne franchit jamais ce cercle (`followersPage`), la découverte précharge les PAGES SUIVIES d'ici (`followedPageIds`) au lieu de `validatedOrgIds` ; DÉCOUVERTE préfixée par le réseau (fenêtres et curseurs relus dans le réseau de la fonction), liens du lecteur préchargés par une aide commune (`discoveryFacts`) et chacun OMIS quand l'ensemble borné est tronqué (la décision relit alors la source par candidat, au lieu d'un ensemble tronqué en silence) ; fil source = fil de GROUPE du moteur (`groups/access.requireLiveMembership` dans le réseau ; la portée « personnel »/« poste » n'existe plus) ; D14 — débit `live.create` sur `create`, APRÈS le rejeu idempotent ; D28 — aucun compteur sur la session : `get` et les vignettes lisent `liveSessionCounters` (`access.sessionCountersOf`), la fin recompose par l'écrivain unique (`reap.recomputeAggregates`) ; CLOCHE — `notifyPersonal` en boucle bornée (200 par source) remplacé par la diffusion par lots chaînés (`notifications/fanout`, source `liveSessionAudience`) : démarrage `live_started`, publication de l'enregistrement `live_replay_published`, l'audience rejugée par destinataire au moment de sonner (abonnés et signataires vivants de la page pour `followers`, relations puis abonnés de l'hôte, invités vivants à la publication), les invités vivants sautés au démarrage (ils ont `live_invite`) ; ANNONCE — identité de page transmise à writePost pour public/followers (F3c) ; `writePersonalPost` → `posts/postWrite.writePost` (session portée par `liveSessionId`, visibilité `network` : la session ne se lit que dans son réseau), corps jugé par `assertPersonalPostBody` du domaine ; ERREURS — phrases → règles `LIVE_*` (`failRule`, `checked`) et `directNotFound()`, `rethrowDirectDomain` retiré ; DÉLIVRANCE — URLs de rediffusion et de sous-titres par la garde des fichiers (`servableUrl`, D05) ; références du moteur (`internal.modules.live.livekitActions.*`, `internal.modules.live.invitationSettle.*`) et index du moteur (`by_network_host_status`, `by_network_host_idempotencyKey`, `by_network_status_startedAt`, `by_network_status_replayStatus_endedAt`) ; décision sur l'enregistrement par `directReplayDecisionValidator` (mêmes littéraux) ; commentaires rapportés au moteur ; « Mes conférences » (`listMinePage`) lit ses trois statuts par le flux de convex-helpers dans UNE exécution (`mineStatusPage`, `mineActivityPage`), jamais par sous-requête : correctif du socle du 25/10/2026 (PR 778) repris.
+// Dupliqué de socle/convex/modules/direct/sessions.ts @ ad2e7fdc2 — adaptations : PERSONNES ET RÉSEAUX — constructeurs bornés `networkMutation`/`networkQuery` (adhésion par le constructeur) au lieu d'`authMutation`/`authQuery`, `networkId` posé sur la session et sur ses lignes d'hôte et d'invités, toute session lue DANS le réseau de la fonction (inconnue ou d'un autre réseau : `notFound` indistinct ; garde `assertVisibleDirectSession(ctx, directCaller(ctx), …)`), personnes (`Id<"persons">`, `hostPersonId`, `targetPersonId`, `spotlight.personId`, `speakers[].personId`), noms du profil PUBLIÉ (`miniProfileCache` du moteur : nom neutre `null` au lieu d'un nom de repli) ; V36/V37 — l'audience `organisation` devient `followers` : page du moteur EXIGÉE (`LIVE_FOLLOWERS_REQUIRES_PAGE`), parler au nom d'une page exige d'en être SIGNATAIRE VIVANT (`pages/access.requireManagedPage`, refus `notFound` ou `pageRoleRequired`) au lieu de `getMembership` + `assertCanDoTask("communication.publish")`, un invité ne franchit jamais ce cercle (`followersPage`), la découverte précharge les PAGES SUIVIES d'ici (`followedPageIds`) au lieu de `validatedOrgIds` ; DÉCOUVERTE préfixée par le réseau (fenêtres et curseurs relus dans le réseau de la fonction), liens du lecteur préchargés par une aide commune (`discoveryFacts`) et chacun OMIS quand l'ensemble borné est tronqué (la décision relit alors la source par candidat, au lieu d'un ensemble tronqué en silence) ; fil source = fil de GROUPE du moteur (`groups/access.requireLiveMembership` dans le réseau ; la portée « personnel »/« poste » n'existe plus) ; D14 — débit `live.create` sur `create`, APRÈS le rejeu idempotent ; D28 — aucun compteur sur la session : `get` et les vignettes lisent `liveSessionCounters` (`access.sessionCountersOf`), la fin recompose par l'écrivain unique (`reap.recomputeAggregates`) ; CLOCHE — `notifyPersonal` en boucle bornée (200 par source) remplacé par la diffusion par lots chaînés (`notifications/fanout`, source `liveSessionAudience`) : démarrage `live_started`, publication de l'enregistrement `live_replay_published`, l'audience rejugée par destinataire au moment de sonner (abonnés et signataires vivants de la page pour `followers`, relations puis abonnés de l'hôte, invités vivants à la publication), les invités vivants sautés au démarrage (ils ont `live_invite`) ; ANNONCE — identité de page transmise à writePost pour public/followers (F3c) ; `writePersonalPost` → `posts/postWrite.writePost` (session portée par `liveSessionId`, visibilité `network` : la session ne se lit que dans son réseau), corps jugé par `assertPersonalPostBody` du domaine ; ERREURS — phrases → règles `LIVE_*` (`failRule`, `checked`) et `directNotFound()`, `rethrowDirectDomain` retiré ; DÉLIVRANCE — URLs de rediffusion et de sous-titres par la garde des fichiers (`servableUrl`, D05) ; références du moteur (`internal.modules.live.livekitActions.*`, `internal.modules.live.invitationSettle.*`) et index du moteur (`by_network_host_status`, `by_network_host_idempotencyKey`, `by_network_status_startedAt`, `by_network_status_replayStatus_endedAt`) ; décision sur l'enregistrement par `directReplayDecisionValidator` (mêmes littéraux) ; commentaires rapportés au moteur ; « Mes conférences » (`listMinePage`) lit ses trois statuts par le flux de convex-helpers dans UNE exécution (`mineStatusPage`, `mineActivityPage`), jamais par sous-requête : correctif du socle du 25/10/2026 (PR 778) repris ; DL-02 : enregistrement DÉCOCHÉ par défaut (`replay ?? false`, décision du propriétaire du 9/11/2026), accord de l'hôte écrit à la création, bloc `recording` du DTO (enregistré, mon accord, ma place d'invité intervenant en attente d'accord), accords purgés au retrait de la copie et à l'annulation d'un direct programmé.
 /**
  * Le CYCLE DE VIE d'un direct — créer, démarrer, terminer, lire.
  * API publique : `api.modules.live.sessions.*`
@@ -48,6 +48,7 @@ import {
   directReplayAccessDecision,
   directSessionAccessDecision,
   isEligibleDirectInvitee,
+  liveInviteeRow,
   liveSpeakerRow,
   readerInviteeSessionIds,
   readerIsLiveInvitee,
@@ -73,6 +74,7 @@ import { buildDirectRoomName, DIRECT_MAX_SPEAKERS } from "./grants"
 import { openConferenceToInviteesAtGoLive } from "./invitees"
 import type { DirectPermissions } from "./permissions"
 import { recomputeAggregates } from "./reap"
+import { recordingConsentRow, scheduleRecordingConsentPurge, writeRecordingConsent } from "./recordingConsent"
 import { purgeReplayBlobs } from "./replay"
 // Module PUR partagé avec l'action Egress, la mutation de replay et le webhook.
 import { DIRECT_REPLAY_CAPTIONS_MAX_BYTES, directReplayEgressView, type DirectReplayEgressView } from "./replayComposition"
@@ -123,10 +125,12 @@ export const create = networkMutation({
     /**
      * Enregistrer la conférence (Egress démarré au passage en live).
      *
-     * ⚠️ ADR-0158 — VRAI PAR DÉFAUT : une conférence est enregistrée d'office,
-     * et c'est à la FIN que l'hôte décide du sort de la copie (publier, garder
-     * pour lui, supprimer). Sans capture, ce choix n'existerait pas. `false`
-     * reste un opt-out EXPLICITE pour un appelant qui ne veut aucune copie.
+     * ⚠️ DL-02 — FAUX PAR DÉFAUT (décision du propriétaire du 9/11/2026, qui
+     * remplace le « vrai par défaut » d'ADR-0158) : un seul défaut, celui du
+     * formulaire, celui qui protège. Enregistrer est un choix EXPLICITE de
+     * l'hôte, qui vaut SON accord (sa ligne `liveRecordingConsents` est écrite
+     * ici) ; chaque autre personne donnera le sien avant de prendre l'antenne.
+     * À la fin, l'hôte décide toujours du sort de la copie (ADR-0158).
      */
     replay: v.optional(v.boolean()),
     /** Publier une annonce sur le fil — audience IDENTIQUE à la session. */
@@ -229,6 +233,7 @@ export const create = networkMutation({
     // Préfixe dédié, reconnaissable dans LiveKit. L'entropie vient d'ici
     // (module pur = pas d'aléatoire).
     const roomName = buildDirectRoomName(now, crypto.randomUUID().replace(/-/g, "").substring(0, 8))
+    const replayRequested = args.replay ?? false
 
     const sessionId = await ctx.db.insert("liveSessions", {
       networkId: ctx.networkId,
@@ -243,7 +248,7 @@ export const create = networkMutation({
       stageFormat: args.stageFormat ?? "computer",
       stageLayout: args.stageLayout ?? "adaptive",
       maxViewers: clampMaxViewers(args.maxViewers),
-      replayRequested: args.replay ?? true,
+      replayRequested,
       ...(args.idempotencyKey === undefined ? {} : { idempotencyKey: args.idempotencyKey }),
       createdAt: now,
       updatedAt: now,
@@ -261,6 +266,11 @@ export const create = networkMutation({
       grantEpoch: 1,
       addedAt: now,
     })
+    // DL-02 — cocher « Enregistrer » EST l'accord de l'hôte : horodaté comme
+    // celui de toute autre personne à l'antenne, exporté et effacé pareil.
+    if (replayRequested) {
+      await writeRecordingConsent(ctx, { _id: sessionId, networkId: ctx.networkId, replayRequested }, me, now)
+    }
 
     // ⚠️ AUCUNE ligne `liveSpeakers` pour un invité intervenant : la promotion
     // attend le passage en live, où ses gardes sont rejouées. Aucune cloche non
@@ -443,6 +453,11 @@ export const end = networkMutation({
     if (session.status === "live") {
       await ctx.scheduler.runAfter(0, internal.modules.live.invitationSettle.expireSessionInvitations, { sessionId: session._id, endedAt: now })
     }
+    // DL-02 — annulé avant d'avoir commencé, le direct ne sera jamais enregistré :
+    // les accords déjà donnés (l'hôte, les invités intervenants) n'ont plus d'objet.
+    if (session.status === "scheduled" && session.replayRequested) {
+      await scheduleRecordingConsentPurge(ctx, session._id)
+    }
     return { ended: true }
   },
 })
@@ -537,6 +552,23 @@ export type DirectSessionDto = {
   }
   /** L'annonce sur le fil — une référence, relue là-bas avec sa garde. */
   announcePostId: Id<"posts"> | null
+  /**
+   * L'ENREGISTREMENT tel que JE dois le connaître avant de prendre l'antenne
+   * (DL-02). Servi dès la préparation, à toute personne qui voit le direct : le
+   * formulaire annonce l'enregistrement aux participants, et un invité
+   * intervenant doit pouvoir accepter avant le passage en live.
+   */
+  recording: {
+    /** Le direct est-il enregistré ? Choix de l'hôte à la création, immuable. */
+    requested: boolean
+    /** MON accord horodaté — `null` sans accord, et toujours hors enregistrement. */
+    consentedAt: number | null
+    /**
+     * Suis-je invité INTERVENANT, hors antenne, dans un direct enregistré à
+     * venir ou en cours, sans avoir accepté ? Ma place n'attend que mon accord.
+     */
+    proposedSpeakerAwaitingConsent: boolean
+  }
   /**
    * Le replay, SI le lecteur y a droit MAINTENANT (`replayVisibility` ne
    * peut que restreindre). `null` = pas de replay pour ce lecteur — sans
@@ -681,6 +713,12 @@ export const get = networkQuery({
     // D28 — les compteurs vivent hors de la session, recomposés par la récolte.
     const counts = await sessionCountersOf(ctx, session._id)
 
+    // DL-02 — MON accord seulement (une lecture indexée sur ma ligne : l'accord
+    // d'une autre personne ne réveille pas ma souscription), et ma place
+    // d'invité intervenant si elle n'attend que lui.
+    const myConsent = session.replayRequested ? await recordingConsentRow(ctx, session._id, me) : null
+    const myInvitee = session.replayRequested && myConsent === null && viewerIsInvitee && viewerRole === "viewer" && session.status !== "ended" ? await liveInviteeRow(ctx, session._id, me) : null
+
     return {
       sessionId: session._id,
       title: session.title,
@@ -713,6 +751,11 @@ export const get = networkQuery({
       },
       announcePostId: isHost ? (session.announcePostId ?? null) : null,
       replay,
+      recording: {
+        requested: session.replayRequested,
+        consentedAt: myConsent?.acceptedAt ?? null,
+        proposedSpeakerAwaitingConsent: myInvitee?.stageRole === "speaker",
+      },
     }
   },
 })
@@ -860,6 +903,8 @@ async function withdrawReplayRow(ctx: MutationCtx, session: Doc<"liveSessions">)
     replayPurgedAt: now,
     updatedAt: now,
   })
+  // DL-02 — les accords à l'enregistrement durent autant que la copie.
+  await scheduleRecordingConsentPurge(ctx, session._id)
   return true
 }
 

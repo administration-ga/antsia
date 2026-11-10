@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/direct/DirectAntennaPanel.tsx @ ad2e7fdc2 — adaptations : API typée et réseau courant, droits du DTO, invitations consenties sans ouverture automatique du matériel, horloge effective et i18n ; recherche privée réservée à l’hôte ; couleurs par fonction (ADR-0027) : Accepter en variante `social`, « Demander la parole » en participation (variante `commerce`, aplat d’identité en repli).
+// Dupliqué de socle/packages/agent-features/src/features/direct/DirectAntennaPanel.tsx @ ad2e7fdc2 — adaptations : API typée et réseau courant, droits du DTO, invitations consenties sans ouverture automatique du matériel, horloge effective et i18n ; recherche privée réservée à l’hôte ; couleurs par fonction (ADR-0027) : Accepter en variante `social`, « Demander la parole » en participation (variante `commerce`, aplat d’identité en repli) ; DL-02 : dans un direct enregistré, case d’accord décochée exigée avant d’accepter une invitation ou de demander la parole, accord envoyé avant le geste, rappel de la règle dans la console de l’hôte.
 "use client"
 
 import { themedActionStyle } from "../themed-action-style"
@@ -15,6 +15,7 @@ import { useTranslation } from "react-i18next"
 import { z } from "zod"
 import { useDirectSessionStore } from "../../stores/direct-session-store"
 import type { DirectSession } from "./DirectPage"
+import { needsMyRecordingConsent, RecordingConsentField, RecordingConsentGiven } from "./DirectRecordingConsent"
 import { useDirectClock, useDirectCommand } from "./use-direct-command"
 
 const handleSchema = z.object({ handle: z.string().trim().min(1).max(80) })
@@ -28,22 +29,36 @@ export function DirectMyAntenna({ session, admitted }: { session: DirectSession;
   const cancel = useMutation(api.modules.live.antenna.cancelHand)
   const respond = useMutation(api.modules.live.antenna.respondToInvitation)
   const leave = useMutation(api.modules.live.antenna.leaveAntenna)
+  const acceptRecording = useMutation(api.modules.live.antenna.acceptRecording)
   const command = useDirectCommand()
   const held = useDirectSessionStore()
+  // DL-02 — dans un direct enregistré, l'accord (case décochée) part AVANT le
+  // geste qui fait monter : accepter une invitation, demander la parole.
+  const [recordingConsent, setRecordingConsent] = useState(false)
+  const consentRequired = needsMyRecordingConsent(session)
+  const blockedByConsent = consentRequired && !recordingConsent
+  const withConsent = async (operation: () => Promise<unknown>) => {
+    if (consentRequired) await acceptRecording({ networkId, sessionId: session.sessionId })
+    await operation()
+  }
   if (query.isError) return <p role="alert">{t("antenna.failed")}</p>
   if (!query.data) return <p role="status">{t("loading")}</p>
   const state = query.data
+  const consentField = consentRequired ? <RecordingConsentField checked={recordingConsent} onChange={setRecordingConsent} disabled={command.pending} /> : null
   return <div className="flex flex-col gap-3">
     <p>{t("antenna.consent")}</p>
+    {session.recording.requested && !consentRequired ? <RecordingConsentGiven /> : null}
     {session.viewerRole === "speaker" ? <>
+      {consentRequired ? <>{consentField}<Button style={themedActionStyle("success", "social")} variant="success" disabled={blockedByConsent || command.pending} onClick={() => void command.run(() => acceptRecording({ networkId, sessionId: session.sessionId }))}>{t("recordingConsent.confirm")}</Button></> : null}
       <p role="status">{t(held.sessionId === session.sessionId && held.credentials?.role === "speaker" && held.phase === "connected" ? "antenna.speakerConnected" : "antenna.speakerReady")}</p>
       <Button variant="ghost" disabled={command.pending} onClick={() => void command.run(() => leave({ networkId, sessionId: session.sessionId }))}>{t("antenna.leave")}</Button>
     </> : <>
-      {state.invitation?.status === "pending" ? <div className="flex flex-wrap items-center gap-3"><p>{t("antenna.invited")}</p><Button style={themedActionStyle("success", "social")} variant="success" disabled={command.pending} onClick={() => void command.run(() => respond({ networkId, invitationId: state.invitation!.invitationId, response: "accepted" }))}>{t("antenna.accept")}</Button><Button style={themedActionStyle("danger", "ghost")} variant="danger" disabled={command.pending} onClick={() => void command.run(() => respond({ networkId, invitationId: state.invitation!.invitationId, response: "declined" }))}>{t("antenna.decline")}</Button></div> : null}
+      {state.invitation?.status === "pending" || state.request?.status !== "pending" ? consentField : null}
+      {state.invitation?.status === "pending" ? <div className="flex flex-wrap items-center gap-3"><p>{t("antenna.invited")}</p><Button style={themedActionStyle("success", "social")} variant="success" disabled={blockedByConsent || command.pending} onClick={() => void command.run(() => withConsent(() => respond({ networkId, invitationId: state.invitation!.invitationId, response: "accepted" })))}>{t("antenna.accept")}</Button><Button style={themedActionStyle("danger", "ghost")} variant="danger" disabled={command.pending} onClick={() => void command.run(() => respond({ networkId, invitationId: state.invitation!.invitationId, response: "declined" }))}>{t("antenna.decline")}</Button></div> : null}
       {state.invitation && state.invitation.status !== "pending" ? <p role="status">{t(`antenna.invitationStatus.${state.invitation.status}`)}</p> : null}
       {state.request?.status === "pending" ? <><p role="status">{t("antenna.handPending")}</p><Button style={themedActionStyle("cancel", "ghost")} variant="outline" disabled={command.pending} onClick={() => void command.run(() => cancel({ networkId, sessionId: session.sessionId }))}>{t("antenna.cancelHand")}</Button></> : <>
         {state.request ? <p role="status">{t(`antenna.requestStatus.${state.request.status}`)}</p> : null}
-        <Button variant="commerce" disabled={!admitted || command.pending} onClick={() => void command.run(() => raise({ networkId, sessionId: session.sessionId }))}>{t("antenna.raiseHand")}</Button>
+        <Button variant="commerce" disabled={!admitted || blockedByConsent || command.pending} onClick={() => void command.run(() => withConsent(() => raise({ networkId, sessionId: session.sessionId })))}>{t("antenna.raiseHand")}</Button>
         {!admitted ? <p className="text-sm text-muted-foreground">{t("antenna.joinFirst")}</p> : null}
       </>}
     </>}
@@ -70,6 +85,7 @@ export function DirectAntennaPanel({ session }: { session: DirectSession }) {
   const full = state.speakers.length >= DIRECT_MAX_SPEAKERS
   return <div className="flex flex-col gap-5">
     <p>{t("antenna.capacity", { count: state.speakers.length, max: DIRECT_MAX_SPEAKERS })}</p>
+    {session.recording.requested ? <p className="text-sm text-muted-foreground">{t("recordingConsent.hostNotice")}</p> : null}
     <h3 className="font-semibold" style={{ fontSize: "var(--esp-subsection-title-size, inherit)", lineHeight: "var(--esp-subsection-title-leading, inherit)", fontWeight: "var(--esp-heading-font-weight, 600)" }}>{t("antenna.onStage")}</h3>
     <ul className="flex flex-col gap-3">{state.speakers.map((speaker) => <li key={speaker.personId} className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
       <span>{speaker.profile.displayName ?? t("person")}{speaker.isHost ? <span className="ml-2 text-sm text-muted-foreground">{t("antenna.host")}</span> : null}</span>

@@ -18,7 +18,7 @@ vi.mock("convex/react", () => ({
 const i18n = createAppI18n({ locale: "fr", appResources: { fr: {}, en: {} }, defaultNS: "direct" })
 function makeSession(patch: Partial<NonNullable<DirectSession["replay"]>> = {}): DirectSession {
   return { sessionId: "session-a" as never, title: "Recette", status: "ended", audience: "public", chatMode: "open", stageFormat: "computer", stageLayout: "adaptive", maxViewers: 200, viewerRole: "host", viewerIsInvitee: false, permissions: { ...noDirectPermissions(), changeAudienceOrReplay: true }, host: { displayName: "Awa", handle: "awa", avatarUrl: null }, speakers: [], spotlight: null, startedAt: 1, endedAt: 2, maxDurationAt: null, endReason: null, counters: { viewers: 0, present: 0, comments: 0, reactions: 0 }, announcePostId: null,
-    replay: { status: "ready", egressState: "ready", failureReason: null, url: "https://media.test/replay", captionsUrl: null, captionsLang: null, durationMs: 65000, retentionUntil: null, visibility: "public", publication: "undecided", recoverable: false, canManage: true, ...patch } }
+    replay: { status: "ready", egressState: "ready", failureReason: null, url: "https://media.test/replay", captionsUrl: null, captionsLang: null, durationMs: 65000, retentionUntil: null, visibility: "public", publication: "undecided", recoverable: false, canManage: true, ...patch }, recording: { requested: true, consentedAt: 1, proposedSpeakerAwaitingConsent: false } }
 }
 const tree = (session = makeSession()) => <I18nextProvider i18n={i18n}><DirectReplay session={session} /></I18nextProvider>
 beforeEach(() => { vi.clearAllMocks(); calls.mutation.mockResolvedValue({}); calls.captions.mockResolvedValue({ accepted: true, reason: "ok" }) })
