@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/reseau-albums/AlbumComposer.test.tsx @ ad2e7fdc2 — adaptations : références TYPÉES du moteur reconnues par leur nom généré (`modules/albums/albums:*`, dépôt `modules/media/media:generateUploadUrl`) ; rendu dans l'enveloppe du moteur (`renderWithEngine` : i18n français, réseau de test) ; chaque appel porte le réseau courant, le dépôt l'usage `album_image` ; refus serveur à la forme du moteur (`error.data` porte une règle et ses bornes, traduite) ; barre de progression rendue sur place (plus de `Progress` à simuler) ; adresses de dépôt neutres ; les 15 cas sont gardés ; cas ajoutés : au-delà de douze photos l'enregistrement part par lots, et un refus à la publication se dit traduit sans publier ; SD-02 : le ré-encodage par défaut est celui du module partagé (`features/media-upload`) — refus sans canvas, jamais l'original — et, sous le plan d'album, garde son comportement (qualité 0,92, dimensions d'origine, PNG gardé, WebP en JPEG, GIF refusé), sortie sans métadonnées.
+// Dupliqué de socle/packages/agent-features/src/features/reseau-albums/AlbumComposer.test.tsx @ ad2e7fdc2 — adaptations : références TYPÉES du moteur reconnues par leur nom généré (`modules/albums/albums:*`, dépôt `modules/media/media:generateUploadUrl`) ; rendu dans l'enveloppe du moteur (`renderWithEngine` : i18n français, réseau de test) ; chaque appel porte le réseau courant, le dépôt l'usage `album_image` ; refus serveur à la forme du moteur (`error.data` porte une règle et ses bornes, traduite) ; barre de progression rendue sur place (plus de `Progress` à simuler) ; adresses de dépôt neutres ; les 15 cas sont gardés ; cas ajoutés : au-delà de douze photos l'enregistrement part par lots, et un refus à la publication se dit traduit sans publier ; SD-02 : le ré-encodage par défaut est celui du module partagé (`features/media-upload`) — refus sans canvas, jamais l'original — et, sous le plan d'album, garde son comportement (qualité 0,92, dimensions d'origine, PNG gardé, WebP en JPEG, GIF refusé), sortie sans métadonnées ; FP-01 : le ré-encodage injecté est celui de l'album sur un canvas simulé, le brouillon refusant toute image non préparée — le refus du brouillon se prouve par la soixante et unième photo, et un fichier qui n'est pas une image échoue au décodage.
 // Adaptations PD4 : lecture et garde propriétaire, reprise sans nouvel upload, sauvegarde vide/métadonnées/ordre/couverture/légendes, publication conditionnelle et concurrence, remise à zéro réseau/personne/album.
 // @vitest-environment jsdom
 
@@ -20,6 +20,7 @@
 import { NetworkProvider } from "@antsia/api/network"
 import type { Id } from "@antsia/api/engine"
 import { act, cleanup, fireEvent, screen, waitFor } from "@testing-library/react"
+import type { TFunction } from "i18next"
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from "react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
@@ -110,8 +111,13 @@ function photo(name: string): File {
   return new File([new Uint8Array([1, 2, 3])], name, { type: "image/jpeg" })
 }
 
-/** Le ré-encodage, injecté : `canvas` n'existe pas en `jsdom`. */
-const reencodeOk = vi.fn(async (file: File) => ({ ok: true as const, file }))
+/**
+ * Le ré-encodage, injecté : celui de l'album (module partagé), sur un
+ * décodeur et un canvas SIMULÉS — `canvas` n'existe pas en `jsdom`. Le
+ * brouillon de médias refuse une image qui ne sort pas du module (FP-01).
+ */
+const albumReencode = createAlbumReencode(fakeImageRuntime({ width: 1200, height: 900 }))
+const reencodeOk = vi.fn((file: File, t: TFunction) => albumReencode(file, t))
 
 function nomsAppeles(): string[] {
   return mocks.calls.map((call) => call.name.split(":").at(-1) ?? call.name)
@@ -572,6 +578,27 @@ describe("AlbumComposer — un refus se LIT", () => {
   })
 
   it("une image refusée par le brouillon le dit, sans faire tomber la sélection", async () => {
+    // Le brouillon juge les photos PRÉPARÉES (FP-01) : ce qu'il refuse après le
+    // ré-encodage, c'est le nombre — la soixante et unième photo d'un album.
+    renderWithEngine(<AlbumComposer handle="awa" reencode={reencodeOk} />)
+    ouvrirEtapePhotos()
+
+    const input = screen.getByLabelText("Choisir des photos") as HTMLInputElement
+    Object.defineProperty(input, "files", {
+      value: Array.from({ length: 61 }, (_, index) => photo(`p${index + 1}.jpg`)),
+      configurable: true,
+    })
+    fireEvent.change(input)
+
+    await waitFor(() =>
+      expect(screen.getByRole("alert").textContent).toContain(
+        "Un album porte au plus 60 photos.",
+      ),
+    )
+    expect(screen.getAllByText(/^En attente$/)).toHaveLength(60)
+  })
+
+  it("un fichier qui n'est pas une image n'est jamais envoyé : le décodage échoue, le refus est dit", async () => {
     renderWithEngine(<AlbumComposer handle="awa" reencode={reencodeOk} />)
     ouvrirEtapePhotos()
 
@@ -582,11 +609,9 @@ describe("AlbumComposer — un refus se LIT", () => {
     })
     fireEvent.change(input)
 
-    await waitFor(() =>
-      expect(screen.getByRole("alert").textContent).toContain(
-        "n'est pas une image acceptée",
-      ),
-    )
+    await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("« note.txt »"))
+    expect(screen.getByText(/Aucune photo —/)).toBeTruthy()
+    expect(global.fetch).not.toHaveBeenCalled()
   })
 })
 

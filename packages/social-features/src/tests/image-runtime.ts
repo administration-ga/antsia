@@ -65,7 +65,8 @@ export function fakeImageRuntime(options: FakeImageRuntimeOptions = {}): FakeIma
     released: 0,
     async decode(file) {
       runtime.decoded.push(file)
-      if (options.decodeFails) throw new Error("illisible")
+      // Comme un navigateur : ce qui n'est pas une image ne se décode pas.
+      if (options.decodeFails || !file.type.startsWith("image/")) throw new Error("illisible")
       return {
         width: options.width ?? 4032,
         height: options.height ?? 3024,

@@ -33,12 +33,17 @@
  *    et comportement ci-dessus à l'identique ;
  *  · la galerie de la publication elle-même retrouve son index au retour
  *    (`useOptionalFeedPostMemory`), jamais celle d'une publication citée.
+ *
+ * FP-01 (9/11/2026) — la PREMIÈRE image du fil se charge tout de suite
+ * (`loading="eager"`, `fetchpriority="high"`) : c'est l'image du premier
+ * affichage. Toutes les autres restent paresseuses (`loading="lazy"`). Le fil
+ * la désigne par `FeedLeadMediaScope` ; hors de ce contexte, rien ne change.
  */
 
 import type { PostMediaDto } from "@antsia/social-contracts/media"
 import { ImmersiveOverlay } from "@antsia/ui/overlay"
 import { ChevronLeft, ChevronRight, X } from "lucide-react"
-import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react"
+import { createContext, useContext, useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react"
 import { useTranslation } from "react-i18next"
 import type { TFunction } from "i18next"
 
@@ -307,6 +312,19 @@ function PresentationStyles() {
   )
 }
 
+/** La publication de tête du fil : sa première image est celle du premier affichage. */
+const FeedLeadMediaContext = createContext(false)
+
+/**
+ * Désigne la publication de TÊTE du fil (`lead`) : la première image de ses
+ * propres médias se charge tout de suite et en priorité, jamais celle d'une
+ * publication citée. Toujours monté (la valeur seule change) : la carte n'est
+ * pas remontée quand une autre publication prend la tête.
+ */
+export function FeedLeadMediaScope({ lead, children }: { lead: boolean; children: ReactNode }) {
+  return <FeedLeadMediaContext.Provider value={lead}>{children}</FeedLeadMediaContext.Provider>
+}
+
 /** Le cadre d'un média : son ratio (borné), ses bandes, aucun recadrage. */
 function MediaFrame({ kind, ratio, square, children }: { kind: PostMediaDto["kind"]; ratio: number; square: boolean; children: ReactNode }) {
   return (
@@ -330,7 +348,7 @@ function MediaNote({ text }: { text: string }) {
  * dès qu'elle est chargée — y compris quand elle l'était avant l'hydratation
  * (`complete`), où `onLoad` ne se rejouerait pas.
  */
-function MediaImage({ item, onRatio, onFailed, className = "rpm-m-media" }: { item: ServableMedia; onRatio?: (ratio: number) => void; onFailed: () => void; className?: string }) {
+function MediaImage({ item, onRatio, onFailed, className = "rpm-m-media", priority = false }: { item: ServableMedia; onRatio?: (ratio: number) => void; onFailed: () => void; className?: string; priority?: boolean }) {
   const ref = useRef<HTMLImageElement>(null)
   useEffect(() => {
     const image = ref.current
@@ -348,7 +366,10 @@ function MediaImage({ item, onRatio, onFailed, className = "rpm-m-media" }: { it
       // Un texte alternatif absent vaut IMAGE DÉCORATIVE (`alt=""`) plutôt
       // qu'un nom de fichier lu à voix haute.
       alt={item.altText ?? ""}
-      loading="lazy"
+      // FP-01 : l'image du premier affichage part tout de suite et en
+      // priorité ; toutes les autres attendent qu'on les approche.
+      loading={priority ? "eager" : "lazy"}
+      fetchPriority={priority ? "high" : undefined}
       decoding="async"
       onLoad={(event) => {
         const ratio = intrinsicRatio(event.currentTarget.naturalWidth, event.currentTarget.naturalHeight)
@@ -373,6 +394,8 @@ export interface MediaPlacement {
 
 export function PostMediaPresentation({ media, bleed, primary = bleed !== null, inset = false }: { media: readonly PostMediaDto[]; bleed: MediaBleed | null; primary?: boolean; inset?: boolean }) {
   const placement: MediaPlacement = { bleed, primary, inset }
+  // La première image de la publication de tête — ses propres médias seuls.
+  const lead = useContext(FeedLeadMediaContext) && primary
   // Le DTO n'expose pas d'identifiant de stockage. Son contenu suffit à
   // délimiter l'état de présentation : index, erreurs et visionneuse ne
   // passent jamais d'une série de médias à une autre de même longueur.
@@ -381,8 +404,8 @@ export function PostMediaPresentation({ media, bleed, primary = bleed !== null, 
   if (video) return <MediaVideo key={mediaKey} item={video} placement={placement} />
   const images = media.filter((item) => item.kind === "image")
   if (images.length === 0) return null
-  if (images.length === 1) return <MediaSingleImage key={mediaKey} item={images[0]!} placement={placement} />
-  return <MediaGallery key={mediaKey} images={images} placement={placement} />
+  if (images.length === 1) return <MediaSingleImage key={mediaKey} item={images[0]!} placement={placement} lead={lead} />
+  return <MediaGallery key={mediaKey} images={images} placement={placement} lead={lead} />
 }
 
 /** Une vidéo seule (règle du domaine) : en ligne, commandes natives, jamais lue d'elle-même. */
@@ -433,7 +456,7 @@ function MediaVideo({ item, placement }: { item: PostMediaDto; placement: MediaP
 }
 
 /** Une photo seule : son cadre, et l'original entier dans la visionneuse. */
-function MediaSingleImage({ item, placement }: { item: PostMediaDto; placement: MediaPlacement }) {
+function MediaSingleImage({ item, placement, lead }: { item: PostMediaDto; placement: MediaPlacement; lead: boolean }) {
   const { bleed } = placement
   const { t } = useTranslation("reseau")
   const [measured, setMeasured] = useState<number | null>(null)
@@ -450,7 +473,7 @@ function MediaSingleImage({ item, placement }: { item: PostMediaDto; placement: 
           <MediaNote text={t("postMedia.unavailable")} />
         ) : (
           <button type="button" className="rpm-m-open" onClick={() => setViewerOpen(true)}>
-            <MediaImage item={item} onRatio={setMeasured} onFailed={() => setFailed(true)} />
+            <MediaImage item={item} onRatio={setMeasured} onFailed={() => setFailed(true)} priority={lead} />
             <span className="sr-only">{t("postMedia.expandSingle")}</span>
           </button>
         )}
@@ -463,7 +486,7 @@ function MediaSingleImage({ item, placement }: { item: PostMediaDto; placement: 
 }
 
 /** Deux à quatre photos : une à la fois, index, flèches, points, clavier, visionneuse. */
-function MediaGallery({ images, placement }: { images: readonly PostMediaDto[]; placement: MediaPlacement }) {
+function MediaGallery({ images, placement, lead }: { images: readonly PostMediaDto[]; placement: MediaPlacement; lead: boolean }) {
   const { bleed } = placement
   const { t } = useTranslation("reseau")
   const trackRef = useRef<HTMLDivElement>(null)
@@ -571,6 +594,7 @@ function MediaGallery({ images, placement }: { images: readonly PostMediaDto[]; 
                     item={item}
                     onRatio={position === 0 ? setMeasuredFirst : undefined}
                     onFailed={() => markFailed(position)}
+                    priority={lead && position === 0}
                   />
                   <span className="sr-only">{t("postMedia.expand", { position: position + 1, total: count })}</span>
                 </button>

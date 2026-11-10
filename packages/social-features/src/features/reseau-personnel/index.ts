@@ -105,6 +105,7 @@ export type { FeedImmersion, FeedModeState, FeedRestoreTarget, ImmersivePageRepo
 export { PostCard } from "./PostCard"
 export { PostComposer } from "./PostComposer"
 export { PostMedia } from "./PostMedia"
+export { FeedLeadMediaScope } from "./PostMediaPresentation"
 export { RichText } from "./RichText"
 export { Avatar, initialsOf } from "./Avatar"
 export { SharePostDialog } from "./SharePostDialog"

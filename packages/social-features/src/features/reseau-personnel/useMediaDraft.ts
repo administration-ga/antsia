@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/useMediaDraft.ts @ ad2e7fdc2 — adaptations : bornes et types lus dans le domaine du moteur (`@antsia/social-domain/content`) ; refus et erreurs par l'i18n — `rejectionFor(file, existing, limits, t)` reçoit `t` en DERNIER paramètre (clés qualifiées `reseau:useMediaDraft.*`, `limits` devient un paramètre explicite, éventuellement `undefined`), le poids maximal se dit depuis la borne du domaine, les erreurs levées par `upload` sont traduites par la langue de l'écran ; identifiant de stockage TYPÉ (`UploadedMedia.storageId: Id<"_storage">`) au lieu d'une chaîne ; API du hook inchangée.
+// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/useMediaDraft.ts @ ad2e7fdc2 — adaptations : bornes et types lus dans le domaine du moteur (`@antsia/social-domain/content`) ; refus et erreurs par l'i18n — `rejectionFor(file, existing, limits, t)` reçoit `t` en DERNIER paramètre (clés qualifiées `reseau:useMediaDraft.*`, `limits` devient un paramètre explicite, éventuellement `undefined`), le poids maximal se dit depuis la borne du domaine, les erreurs levées par `upload` sont traduites par la langue de l'écran ; identifiant de stockage TYPÉ (`UploadedMedia.storageId: Id<"_storage">`) au lieu d'une chaîne ; API du hook inchangée ; FP-01 : une image qui ne sort pas du module de préparation (`features/media-upload`, `isPreparedImage`) est refusée à l'ajout comme à l'envoi — aucune photo ne part avec ses métadonnées.
 "use client"
 
 /**
@@ -35,6 +35,12 @@
  *    n'accepte d'ailleurs qu'un dépôt frais par média.
  *  · **Un média sans fichier ET sans téléversement n'est pas publiable** :
  *    `unrecoverable` le nomme, l'écran demande de le resélectionner.
+ *
+ * ⚠️ UNE IMAGE BRUTE NE PASSE PAS (lot FP-01). Toute image ajoutée doit sortir
+ * du module de préparation (`features/media-upload` : ré-encodée, 2 048 px au
+ * plus, sans métadonnées) ; une autre est refusée à `add`, et `upload` refuse
+ * encore d'envoyer une image qui n'en sortirait pas. Le composeur prépare les
+ * photos AVANT `add` ; l'album aussi, par son propre plan.
  */
 
 import type { Id } from "@antsia/api/engine"
@@ -48,6 +54,7 @@ import {
 import type { TFunction } from "i18next"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
+import { isPreparedImage } from "../media-upload"
 import {
   postDraftKey,
   unrecoverableMedia,
@@ -156,6 +163,16 @@ export function rejectionFor(
   return null
 }
 
+/**
+ * Le refus d'une IMAGE qui n'est pas sortie du module de préparation, ou
+ * `null` (une vidéo, ou une image préparée). Le type déclaré suffit à dire
+ * « image » : c'est la lecture que fait `kindOf`.
+ */
+function unpreparedRefusal(file: File, t: TFunction): string | null {
+  if (!(POST_IMAGE_MIME_TYPES as readonly string[]).includes(file.type)) return null
+  return isPreparedImage(file) ? null : t("reseau:mediaPreparation.notPrepared", { name: file.name })
+}
+
 export interface UploadedMedia {
   /** L'identifiant rendu par le STOCKAGE à son dépôt — jamais fabriqué ici. */
   storageId: Id<"_storage">
@@ -254,7 +271,7 @@ export function useMediaDraft(
         setLocalItems((current) => {
           const next = [...current]
           for (const file of files) {
-            const refusal = rejectionFor(file, next, limits, t)
+            const refusal = rejectionFor(file, next, limits, t) ?? unpreparedRefusal(file, t)
             if (refusal) {
               setRejection(refusal)
               continue
@@ -284,7 +301,7 @@ export function useMediaDraft(
       const existing = [...storedMedia]
       const accepted: { meta: PostDraftMedia; file: File; previewUrl: string }[] = []
       for (const file of files) {
-        const refusal = rejectionFor(file, existing, limits, t)
+        const refusal = rejectionFor(file, existing, limits, t) ?? unpreparedRefusal(file, t)
         if (refusal) {
           setRejection(refusal)
           continue
@@ -424,6 +441,13 @@ export function useMediaDraft(
         }
         if (item.file === null) {
           throw new Error(t("reseau:useMediaDraft.error.reselect", { name: item.fileName }))
+        }
+        // ÉCHEC FERMÉ : une image qui ne sort pas du module de préparation ne
+        // part pas, même si elle est entrée par un chemin qui l'aurait oubliée.
+        const unprepared = item.kind === "image" ? unpreparedRefusal(item.file, t) : null
+        if (unprepared !== null) {
+          markFailed(item.localId)
+          throw new Error(unprepared)
         }
         const url = await generateUrl()
         let response: Response
