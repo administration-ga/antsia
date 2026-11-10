@@ -132,7 +132,7 @@ export function NotificationRow({
 	// A system notice must not turn a projected actor into its apparent
 	// author. In particular, page posts keep the page voice, and moderation
 	// notices never acquire a moderator portrait from an incidental actor.
-	const systemVoice = ["page_post", "moderation_decision", "report_received", "report_decided", "membership_changed", "badge_changed", "file_withheld", "association_event_reminder", "association_event_cancelled", "association_event_seat_confirmed", "attestation_verified", "attestation_not_confirmed"].includes(item.kind) || item.kind.startsWith("commerce_")
+	const systemVoice = ["page_post", "moderation_decision", "report_received", "report_decided", "membership_changed", "badge_changed", "file_withheld", "association_event_reminder", "association_event_cancelled", "association_event_seat_confirmed", "page_signatory_invite", "page_claim_decided", "attestation_verified", "attestation_not_confirmed"].includes(item.kind) || item.kind.startsWith("commerce_")
 	const actorName = item.actor?.displayName?.trim() || ""
 	const displayName = item.page?.name.trim() || (!systemVoice && actorName && sentence.includes(actorName) ? actorName : "")
 	const nameAt = displayName.length > 0 ? sentence.indexOf(displayName) : -1

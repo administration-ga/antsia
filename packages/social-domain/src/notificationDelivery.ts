@@ -22,7 +22,8 @@ export function notificationCategory(kind: NotificationKind | "call_incoming"): 
   if (kind === "call_missed" || kind === "voicemail_left" || kind === "call_incoming") return "calls"
   if (kind === "moderation_decision" || kind === "report_received" || kind === "report_decided") return "moderation"
   if (kind === "file_withheld") return "files"
-  if (["membership_changed", "badge_changed", "attestation_verified", "attestation_not_confirmed", "sponsorship_received", "sponsorship_withdrawn"].includes(kind)) return "network"
+  // PG-01 : la décision sur une revendication de page est une issue de vérification, comme l'attestation.
+  if (["membership_changed", "badge_changed", "attestation_verified", "attestation_not_confirmed", "sponsorship_received", "sponsorship_withdrawn", "page_claim_decided"].includes(kind)) return "network"
   return "social"
 }
 

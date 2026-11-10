@@ -313,7 +313,10 @@
       "withdrawFailed": "Withdrawal from public reading could not be saved.",
       "availableOnRoot": "Also readable in {{brand}}."
     },
-    "pageKind": "Page"
+    "pageKind": "Page",
+    "moderation": {
+      "pendingReview": "Under review: only you can see it for now."
+    }
   },
   "sharePostDialog": {
     "title": "Share {{name}}'s post",
@@ -333,6 +336,7 @@
     "share": "Share",
     "toast": {
       "shared": "Post shared.",
+      "pendingReview": "Share under review: only you can see it for now.",
       "failed": "The share could not be saved."
     }
   },
@@ -411,6 +415,7 @@
     "remaining_other": "{{count}} characters left",
     "toast": {
       "published": "Post published.",
+      "pendingReview": "Under review: only you can see it for now.",
       "failed": "The post could not be saved."
     },
     "publication": {

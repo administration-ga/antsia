@@ -1,5 +1,6 @@
 /** PA5 — admission et relecture identiques avant le transport différé. */
 import { notificationCategory } from "@antsia/social-domain/notificationDelivery"
+import { isPageGovernanceNoticeKind } from "@antsia/social-domain/notifications"
 import { COMMERCE_NOTIFICATION_CATEGORY, isCommerceNotificationKind } from "@antsia/social-domain/commerceNotifications"
 import { isContextualNotificationKind } from "@antsia/social-domain/contextualMessaging"
 import type { Doc, Id } from "../../_generated/dataModel"
@@ -18,6 +19,7 @@ import { directReplayAccessDecision, directSessionAccessDecision } from "../live
 import { canSeePostDoc } from "../posts/access"
 import { owningPageOfReport } from "../moderation/policy"
 import { liveSignatoryRole } from "../pages/access"
+import { pageGovernanceNoticeVisible } from "../pages/governanceNoticeAccess"
 import { serviceNoticeVisible } from "../diaspora/serviceNotifications"
 import { communityNoticeVisible } from "../diaspora/communityNotifications"
 import { commerceNoticeVisible } from "./commerceAccess"
@@ -75,6 +77,8 @@ export async function notificationStillVisible(ctx: ReadCtx, row: Doc<"notificat
   if (row.kind === "association_event_reminder") return row.actorPersonId === undefined && row.subjectEventId !== undefined && await pageEventReminderVisible(ctx, row.networkId, row.subjectEventId, row.recipientPersonId)
   // EV-03 : même relecture qu'à l'écriture (accès à l'événement, réseau, état annoncé), pour la cloche et les transports.
   if (isPageEventOutcomeNoticeKind(row.kind)) return row.actorPersonId === undefined && row.subjectEventId !== undefined && await pageEventNoticeVisible(ctx, row.networkId, row.subjectEventId, row.recipientPersonId, row.kind)
+  // PG-01 : même relecture qu'à l'écriture (invitation encore en attente, revendication tranchée du destinataire).
+  if (isPageGovernanceNoticeKind(row.kind)) return await pageGovernanceNoticeVisible(ctx, row)
   if (row.kind === "moderation_decision") return row.subjectReportId !== undefined && await moderationNoticeRecipient(ctx, row.networkId, row.recipientPersonId, row.subjectReportId)
   if (isReporterNoticeKind(row.kind)) return row.actorPersonId === undefined && row.subjectReportId !== undefined && await reporterNoticeRecipient(ctx, row.networkId, row.recipientPersonId, row.subjectReportId)
   if (!(await isActiveMember(ctx, row.networkId, row.recipientPersonId))) return false

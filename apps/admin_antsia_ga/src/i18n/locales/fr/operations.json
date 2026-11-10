@@ -215,6 +215,56 @@
     "status": {
       "active": "Active",
       "inactive": "Retirée"
+    },
+    "governance": {
+      "open": "Gouvernance de la page",
+      "close": "Fermer la gouvernance",
+      "title": "Gouvernance : {{name}}",
+      "tabs": "Gestes de gouvernance",
+      "retry": "Réessayer",
+      "tab": {
+        "trust": "Confiance",
+        "handle": "Adresse",
+        "rescue": "Administrateur de secours"
+      },
+      "trust": {
+        "current": "Confiance actuelle : {{trust}}",
+        "label": "Nouvelle confiance",
+        "hint": "« Officiel » est réservé aux pages d’institution. Le badge affiché est calculé par le moteur à partir de cette confiance.",
+        "unchanged": "Choisissez une confiance différente de l’actuelle.",
+        "submit": "Poser cette confiance",
+        "confirm": "Poser la confiance « {{trust}} » sur cette page ? La décision et son motif seront inscrits au journal.",
+        "saved": "Confiance posée et inscrite au journal."
+      },
+      "handle": {
+        "current": "Adresse actuelle : {{handle}}",
+        "label": "Nouvelle adresse",
+        "unchanged": "Saisissez une adresse différente de l’actuelle.",
+        "warning": "L’ancienne adresse n’est pas réservée et aucune redirection n’existe : les liens déjà partagés vers elle cesseront d’aboutir. Elle reste inscrite dans l’historique d’identité de la page.",
+        "submit": "Changer l’adresse",
+        "confirm": "Remplacer l’adresse « {{previous}} » par « {{handle}} » ? Les anciens liens cesseront d’aboutir. La décision et son motif seront inscrits au journal.",
+        "saved": "Adresse changée et inscrite au journal."
+      },
+      "rescue": {
+        "lead": "Seulement pour une page sans administrateur actif (adhésion active au réseau de la page, sans suspension). La personne désignée, membre active du réseau, reçoit une invitation à accepter.",
+        "liveAdmins_one": "Cette page a {{count}} administrateur actif : le secours ne s’applique pas.",
+        "liveAdmins_other": "Cette page a {{count}} administrateurs actifs : le secours ne s’applique pas.",
+        "none": "Aucun administrateur actif : un administrateur de secours peut être désigné.",
+        "pending_one": "{{count}} invitation d’administrateur attend déjà sa réponse.",
+        "pending_other": "{{count}} invitations d’administrateur attendent déjà leur réponse.",
+        "federated": "Page reflétée : elle est gérée par sa source, jamais depuis cette console.",
+        "inactive": "Rétablissez la page avant de désigner un administrateur de secours.",
+        "unknown": "Cette page n’est plus lisible par la console.",
+        "failed": "L’état de gouvernance de la page est indisponible.",
+        "handle": "Identifiant du membre",
+        "handleHint": "L’identifiant public du membre, avec ou sans @, dans le réseau de la page.",
+        "find": "Rechercher le membre",
+        "notFound": "Aucun membre visible de ce réseau ne porte cet identifiant.",
+        "designate": "Désigner comme administrateur de secours",
+        "confirm": "Désigner {{name}} comme administrateur de secours de cette page ? La personne recevra une invitation à accepter. La décision et son motif seront inscrits au journal.",
+        "invited": "Invitation envoyée et inscrite au journal.",
+        "promoted": "Administrateur de secours nommé et inscrit au journal."
+      }
     }
   },
   "incidents": {

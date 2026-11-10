@@ -5,7 +5,8 @@
  *   tout autre réseau, archivé ou absent, reçoit le refus indistinct.
  * - Le statut d'adhésion ne se saisit pas : il se DÉRIVE de faits relus à chaque
  *   acte (lien IDN et sa garantie, parrainage en vigueur, attestation consulaire,
- *   départ) par LA règle du domaine (`deriveMembershipStatus`), jamais mise en cache.
+ *   admission fondatrice en vigueur, départ) par LA règle du domaine
+ *   (`deriveMembershipStatus`), jamais mise en cache.
  * - Les niveaux fins de la facette et le niveau d'annuaire vivent dans
  *   `memberPrivacy` ; les valeurs de la facette, dans `personFacets` du moteur.
  */
@@ -107,6 +108,59 @@ export async function endSponsorshipOnDeparture(
   if (active) await ctx.db.patch(active._id, { revokedAt: now, revokedBy: "departure" })
 }
 
+/**
+ * EA-01 — l'admission fondatrice EN VIGUEUR d'une personne dans le réseau. Une
+ * nouvelle décision n'est admise que si aucune n'est en vigueur : c'est donc
+ * toujours la dernière.
+ */
+export async function activeFoundingAdmissionOf(
+  ctx: QueryCtx,
+  networkId: Id<"networks">,
+  personId: Id<"persons">,
+): Promise<Doc<"foundingAdmissions"> | null> {
+  const latest = await ctx.db
+    .query("foundingAdmissions")
+    .withIndex("by_network_and_person", (q) => q.eq("networkId", networkId).eq("personId", personId))
+    .order("desc")
+    .first()
+  return latest && latest.withdrawnAt === undefined ? latest : null
+}
+
+/** L'admission fondatrice s'éteint avec le départ, comme le parrainage ; la décision reste au journal. */
+export async function endFoundingAdmissionOnDeparture(
+  ctx: MutationCtx,
+  networkId: Id<"networks">,
+  personId: Id<"persons">,
+  now: number,
+): Promise<void> {
+  const active = await activeFoundingAdmissionOf(ctx, networkId, personId)
+  if (active) await ctx.db.patch(active._id, { withdrawnAt: now, withdrawnBy: "departure" })
+}
+
+/**
+ * Les faits d'éligibilité, depuis des lectures déjà faites : UNE forme, pour l'acte
+ * (`membershipGrounds`) comme pour la lecture de soi (`myMembership`), afin que les
+ * deux chemins ne divergent jamais.
+ */
+export function groundsFrom(input: {
+  links: readonly Doc<"identityLinks">[]
+  sponsorship: Doc<"sponsorships"> | null
+  foundingAdmission: Doc<"foundingAdmissions"> | null
+  membership: Doc<"networkMemberships"> | null
+}): MembershipGrounds {
+  const idn = input.links.find((link) => link.provider === "idn")
+  const { membership } = input
+  return {
+    idn: idn ? idnGroundFromLink(idn) : null,
+    sponsored: input.sponsorship !== null,
+    consularAttestation: input.links.some((link) => link.provider === "consular_attestation"),
+    foundingAdmission: input.foundingAdmission ? { seniorityWaiver: input.foundingAdmission.seniorityWaiver } : null,
+    // Une sanction vit dans le statut du moteur (ici ou à la racine) : la garde la lit à chaque appel.
+    suspension: null,
+    leftAt: membership?.status === "partie" ? (membership.leftAt ?? membership.statusChangedAt) : null,
+  }
+}
+
 /** Les faits d'éligibilité d'une personne, relus à l'acte. */
 export async function membershipGrounds(
   ctx: QueryCtx,
@@ -114,16 +168,12 @@ export async function membershipGrounds(
   personId: Id<"persons">,
   membership: Doc<"networkMemberships"> | null,
 ): Promise<MembershipGrounds> {
-  const links = await liveIdentityLinks(ctx, personId)
-  const idn = links.find((link) => link.provider === "idn")
-  return {
-    idn: idn ? idnGroundFromLink(idn) : null,
-    sponsored: (await activeSponsorshipOf(ctx, networkId, personId)) !== null,
-    consularAttestation: links.some((link) => link.provider === "consular_attestation"),
-    // Une sanction vit dans le statut du moteur (ici ou à la racine) : la garde la lit à chaque appel.
-    suspension: null,
-    leftAt: membership?.status === "partie" ? (membership.leftAt ?? membership.statusChangedAt) : null,
-  }
+  return groundsFrom({
+    links: await liveIdentityLinks(ctx, personId),
+    sponsorship: await activeSponsorshipOf(ctx, networkId, personId),
+    foundingAdmission: await activeFoundingAdmissionOf(ctx, networkId, personId),
+    membership,
+  })
 }
 
 /**
@@ -156,10 +206,29 @@ export async function applyDerivedStatus(
   }
   if (derived === membership.status) await ctx.db.patch(membership._id, extra)
   else await setMembershipStatus(ctx, membership, derived, extra)
-  if (derived === "verifiee" && verifiedBy !== undefined) {
+  // La racine ne s'élève que sur les faits propres de la personne : une admission fondatrice
+  // est une décision de CE réseau (EA-01), retirable, qui n'engage pas ANTSIA.
+  if (derived === "verifiee" && verifiedBy !== undefined && verifiedBy !== "operator") {
     await promoteDerivedRootMembership(ctx, membership.personId, membership.networkId, verifiedBy)
   }
   return derived
+}
+
+/**
+ * Relit les faits d'une adhésion et y applique LA règle, avec le parrain en vigueur.
+ * Un départ et une sanction restent inchangés (`applyDerivedStatus`). Partagée par la
+ * relecture de soi (`membership.refreshMyMembership`, EA-03), les décisions
+ * d'admission fondatrice (`founders`, EA-01) — et, demain, par la réconciliation du
+ * moteur quand une identité change (issue [S1]).
+ */
+export async function rederiveMembership(
+  ctx: MutationCtx,
+  membership: Doc<"networkMemberships">,
+  now: number,
+): Promise<MembershipStatus> {
+  const grounds = await membershipGrounds(ctx, membership.networkId, membership.personId, membership)
+  const sponsorship = await activeSponsorshipOf(ctx, membership.networkId, membership.personId)
+  return await applyDerivedStatus(ctx, membership, grounds, sponsorship?.sponsorPersonId ?? null, now)
 }
 
 /** Le statut qui compte pour lire et agir : une suspension à la racine vaut partout. */

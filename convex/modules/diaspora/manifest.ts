@@ -26,6 +26,8 @@ export const DIASPORA_SLICE_MANIFEST = {
     "consularAttestations",
     "communityImports",
     "memberPrivacy",
+    // EA-01 : admissions fondatrices décidées par un opérateur (classement de données attendu du moteur).
+    "foundingAdmissions",
     // Plan global (docs/14 de DIASPORALE) : catalogue des services (DG-011/012),
     // demandes et rendez-vous (DG-014/015), adhésions aux associations (DG-010).
     "serviceOffers",
@@ -58,6 +60,8 @@ export const DIASPORA_SLICE_MANIFEST = {
     "network.join",
     "network.leave",
     "person.facet",
+    // EA-01 : les décisions d'admission fondatrice consomment le budget « adhésions » des opérateurs.
+    "operator.membership",
     "diaspora.sponsor",
     "diaspora.sponsor.revoke",
     "diaspora.attestation.request",

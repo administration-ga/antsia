@@ -157,6 +157,73 @@
       "overturn": "Overturn with this reason"
     },
     "appeals": "Network appeals",
+    "claims": "Page claims",
+    "pageClaims": {
+      "title": "Page claims",
+      "lead": "Requests to take over or verify a page of this network, with supporting documents. A decision is reasoned, logged and final: once approved, the requester becomes an administrator of the page and a community page becomes “Verified”.",
+      "status": "Requests shown",
+      "statuses": {
+        "pending": "Pending",
+        "approved": "Approved",
+        "rejected": "Rejected"
+      },
+      "statusLabel": {
+        "pending": "Pending",
+        "approved": "Approved",
+        "rejected": "Rejected",
+        "withdrawn": "Withdrawn by the requester"
+      },
+      "empty": "No request in this queue.",
+      "claimant": "Requester: {{name}}",
+      "neutralClaimant": "Network member",
+      "submittedAt": "Submitted on {{date}}",
+      "decidedAt": "Decided on {{date}}",
+      "note": "Requester's note: {{note}}",
+      "noNote": "No note from the requester.",
+      "evidenceCount_one": "{{count}} document attached",
+      "evidenceCount_other": "{{count}} documents attached",
+      "openPage": "View the page",
+      "instruct": "Review the request",
+      "closeDetail": "Close the record",
+      "detailTitle": "Request record",
+      "evidenceTitle": "Documents",
+      "evidenceOpen": "Open document {{index}}",
+      "evidenceWithheld": {
+        "fileScanPending": "Document {{index}}: security scan in progress, it is not served yet.",
+        "fileScanUnavailable": "Document {{index}}: scan unavailable, the document stays withheld.",
+        "fileQuarantined": "Document {{index}}: withheld by the security scan."
+      },
+      "evidencePurged": "The documents were deleted at the end of their retention period.",
+      "evidenceNone": "No document is served for this request.",
+      "decision": "Decision",
+      "decisions": {
+        "approved": "Approve the request",
+        "rejected": "Reject the request"
+      },
+      "submit": {
+        "approved": "Approve with this reason",
+        "rejected": "Reject with this reason"
+      },
+      "confirm": {
+        "approved": "Approve this request? The requester will become an administrator of the page and a community page will become “Verified”. The decision is final and logged.",
+        "rejected": "Reject this request? The requester will be notified and will read your reason. The decision is final and logged."
+      },
+      "decisionReason": "Reason: {{reason}}",
+      "anotherDecider": "This request must be decided by another moderator: the requester and the page's signatories never decide its claim.",
+      "badges": {
+        "official": "Official",
+        "verified": "Verified",
+        "community": "Community",
+        "public_agent": "Public agent"
+      },
+      "ownerKinds": {
+        "institution": "Institution",
+        "association": "Association",
+        "company": "Company",
+        "media": "Media",
+        "community": "Community"
+      }
+    },
     "settings": "Settings",
     "appealScope": "Appeals referred to the network after a team decision. The engine requires an independent decision-maker.",
     "appealTitle": "Appeal awaiting review",

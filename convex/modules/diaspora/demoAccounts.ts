@@ -15,7 +15,8 @@
  * compte ne peut pas se donner seul, pour la seule personne de la session, et
  * seulement si son adresse vérifiée est celle de l'acteur demandé :
  * - les FAITS fictifs dont le statut se dérive — identité IDN (niveau,
- *   nationalité), attestation consulaire, parrainage par l'acteur « verifie » —
+ *   nationalité), attestation consulaire, admission fondatrice (EA-01, par le vrai
+ *   chemin de décision, sans opérateur), parrainage par l'acteur « verifie » —
  *   puis la vraie dérivation (`applyDerivedStatus`) : aucun statut n'est écrit ;
  * - l'ancienneté d'un parrain (vérifié depuis plus de 30 jours, comme la graine
  *   `verifyForRecette`) ;
@@ -79,7 +80,8 @@ import { suspendRootMembership } from "../people/memberships"
 import { hasStrongIdentityFor, liveIdentityLinks } from "../people/persons"
 import { refreshReaderContexts } from "../posts/feedMaterialization"
 import { sha256Hex } from "./attestation"
-import { activeSponsorshipOf, applyDerivedStatus, effectiveStatusIn, isDiasporaNetwork, membershipGrounds } from "./facts"
+import { activeFoundingAdmissionOf, activeSponsorshipOf, applyDerivedStatus, effectiveStatusIn, isDiasporaNetwork, membershipGrounds } from "./facts"
+import { admitFounder } from "./founders"
 import { hubRow } from "./hubs"
 
 export const demoActorValidator = literals(DIASPORALE_DEMO_ACTORS)
@@ -92,6 +94,8 @@ const SPONSOR_SENIORITY_DAYS = 31
 const DEMO_MODERATION_TEAM = "Équipe de démonstration"
 /** Le poste consulaire FICTIF des attestations de démonstration. */
 const DEMO_POST_SLUG = "poste-de-demonstration"
+/** Le motif de l'admission fondatrice FICTIVE (EA-01) : aucune décision réelle n'est imitée. */
+const DEMO_FOUNDING_REASON = "Membre fondateur de démonstration (développement local)."
 
 /** Sujets fictifs, propres à DIASPORALE : ceux de la racine (`demo-idn-<acteur>`) portent les mêmes noms d'acteurs. */
 function demoIdnSubjectOf(actor: DiasporaleDemoActor): string {
@@ -259,6 +263,16 @@ async function ensureDemoAttestation(
     requestedAt: now,
     respondedAt: now,
   })
+}
+
+/**
+ * EA-01 — l'admission fondatrice FICTIVE de l'acteur, par le vrai chemin de décision
+ * (`admitFounder` : membre active, plafond de la cohorte, motif), sans opérateur :
+ * seul l'équipement de démonstration décide ainsi. Une admission en vigueur n'est pas rejouée.
+ */
+async function ensureDemoFoundingAdmission(ctx: MutationCtx, network: Doc<"networks">, person: Doc<"persons">, seniorityWaiver: boolean, now: number): Promise<void> {
+  if (await activeFoundingAdmissionOf(ctx, network._id, person._id)) return
+  await admitFounder(ctx, network, { personId: person._id, reason: DEMO_FOUNDING_REASON, seniorityWaiver, admittedByPersonId: null, now })
 }
 
 /** Le parrainage du filleul par le parrain de la démonstration, s'il n'en a aucun en cours. */
@@ -473,6 +487,7 @@ export const equipMyDemoAccount = personMutation({
     // Les faits, puis la vraie dérivation (un lien IDN posé après coup n'est pas relu pour diasporale).
     if (spec.grounds.idn) await ensureDemoIdentity(ctx, actor, person, spec.grounds.idn, now)
     if (spec.grounds.consularAttestation) await ensureDemoAttestation(ctx, network, actor, person, spec.country, now)
+    if (spec.grounds.foundingAdmission) await ensureDemoFoundingAdmission(ctx, network, person, spec.grounds.foundingAdmission.seniorityWaiver, now)
     if (spec.grounds.sponsored) {
       const sponsor = await personOfActor(ctx, DEMO_SPONSOR)
       if (sponsor) await ensureSponsorship(ctx, network, sponsor, person._id, now)
