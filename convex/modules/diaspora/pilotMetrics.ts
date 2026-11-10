@@ -16,6 +16,12 @@
  *      confirmées et présences pointées, évènement par évènement ;
  *   6. l'écriture : UNE ligne par jour et par portée (tout le réseau, et chaque
  *      pays mesuré ou déjà présent ce jour-là), une seule fois par passage.
+ * ET-10 — l'utilité de l'entraide s'y ajoute : en tête de passage, le relevé des
+ * ressources du kit listées et « à revoir » (état effectif) ; puis, pour chaque
+ * bloc, après les avis, les questions d'entraide créées dans le bloc (posées,
+ * répondues, résolues, classe du délai de première réponse), les inscriptions
+ * bénévoles et les demandes de mentorat (et leur acceptation). Aucun texte de
+ * question, de réponse ou de demande n'est lu ni recopié.
  * Les demandes, adhésions et avis se lisent par l'index de création du moteur
  * (`_creationTime`), à un jour près de leur date métier `createdAt`, qui seule
  * range la ligne dans son jour. Le passage ne lit que des états, des dates et
@@ -47,6 +53,10 @@ import {
   pilotPassRange,
   pilotRegistrationCounters,
   pilotRequestTally,
+  pilotAidQuestionTally,
+  pilotAidSignupCounters,
+  pilotKitSnapshot,
+  pilotMentoringCounters,
   pilotReviewCounters,
   pilotUtcDayStart,
   pilotWindow,
@@ -87,13 +97,15 @@ const COUNTRIES_MAX = 250
 /** La clé de portée « tout le réseau » dans les comptes du passage (un pays s'écrit en majuscules). */
 const NETWORK_SCOPE = "network"
 
-const PASS_STAGES = ["offers", "requests", "memberships", "reviews", "events", "participants", "write"] as const
+const PASS_STAGES = ["offers", "kit", "requests", "memberships", "reviews", "questions", "signups", "mentoring", "events", "participants", "write"] as const
 
 const cellValidator = v.object({
   dayStartAt: v.number(),
   country: v.union(v.string(), v.null()),
   counts: pilotDailyCountsValidator,
   firstResponse: v.array(v.number()),
+  /** ET-10 — premières réponses aux questions d'entraide, par classe (facultatif : étape lancée avant ET-10). */
+  aidFirstAnswer: v.optional(v.array(v.number())),
 })
 
 const queuedEventValidator = v.object({
@@ -114,6 +126,9 @@ const passFields = {
   pageSize: v.number(),
   /** Offres actives par portée (`network` ou pays), relevées en tête de passage. */
   offersActive: v.record(v.string(), v.number()),
+  /** ET-10 — ressources du kit listées, et « à revoir », par portée, relevées en tête de passage (facultatif : passage lancé avant ET-10). */
+  kitListed: v.optional(v.record(v.string(), v.number())),
+  kitToReview: v.optional(v.record(v.string(), v.number())),
   /** Les comptes du bloc en cours, par jour et portée. */
   cells: v.array(cellValidator),
   /** Les évènements du bloc dont les places restent à compter. */
@@ -152,12 +167,12 @@ class BlockTally {
     for (const cell of cells) this.cells.set(`${cell.dayStartAt}|${scopeKey(cell.country)}`, cell)
   }
 
-  add(dayStartAt: number, country: string | null, counters: readonly PilotDailyCounter[], firstResponseBucket: number | null = null): void {
+  add(dayStartAt: number, country: string | null, counters: readonly PilotDailyCounter[], firstResponseBucket: number | null = null, aidFirstAnswerBucket: number | null = null): void {
     if (counters.length === 0) return
     for (const scope of country === null ? [null] : [null, country]) {
       const key = `${dayStartAt}|${scopeKey(scope)}`
-      const next = tallyPilotDay(this.cells.get(key) ?? emptyPilotDay(), counters, firstResponseBucket)
-      this.cells.set(key, { dayStartAt, country: scope, counts: next.counts, firstResponse: next.firstResponse })
+      const next = tallyPilotDay(this.cells.get(key) ?? emptyPilotDay(), counters, firstResponseBucket, aidFirstAnswerBucket)
+      this.cells.set(key, { dayStartAt, country: scope, counts: next.counts, firstResponse: next.firstResponse, aidFirstAnswer: next.aidFirstAnswer })
     }
   }
 
@@ -219,7 +234,39 @@ async function offersStage(ctx: MutationCtx, network: Doc<"networks">, args: Pas
     if (isResidenceCountry(offer.country)) offersActive[offer.country] = (offersActive[offer.country] ?? 0) + 1
   }
   if (!page.isDone) return { ...args, cursor: page.continueCursor, offersActive }
-  return { ...args, stage: "requests", cursor: null, offersActive }
+  return { ...args, stage: "kit", cursor: null, offersActive }
+}
+
+/** Une portée de plus dans un relevé (`network`, et le pays s'il est un pays de résidence). */
+function counted(snapshot: Readonly<Record<string, number>>, country: string): Record<string, number> {
+  const next = { ...snapshot, [NETWORK_SCOPE]: (snapshot[NETWORK_SCOPE] ?? 0) + 1 }
+  if (isResidenceCountry(country)) next[country] = (next[country] ?? 0) + 1
+  return next
+}
+
+/**
+ * 1b. ET-10 — le relevé du kit public : les ressources listées et servies (ni retirées ni en
+ * relecture de modération), et parmi elles celles « à revoir » par leur état EFFECTIF
+ * (relecteur, ancienneté, signalements), par pays.
+ */
+async function kitStage(ctx: MutationCtx, network: Doc<"networks">, args: PassArgs): Promise<PassArgs> {
+  const page = await ctx.db
+    .query("kitResources")
+    .withIndex("by_network_listed_country", (q) => q.eq("networkId", network._id).eq("listed", true))
+    .paginate({ cursor: args.cursor, numItems: passPageSize(args.pageSize) })
+  let kitListed: Record<string, number> = { ...(args.kitListed ?? {}) }
+  let kitToReview: Record<string, number> = { ...(args.kitToReview ?? {}) }
+  for (const resource of page.page) {
+    if (resource.networkId !== network._id) continue
+    const state = await contentState(ctx, "diasporaKitResource", resource._id)
+    if (state?.status === "removed" || state?.status === "pending_review") continue
+    const snapshot = pilotKitSnapshot({ status: resource.status, lastVerifiedAt: resource.lastVerifiedAt, outdatedFlags: resource.outdatedFlags }, args.startedAt)
+    if (!snapshot.listed) continue
+    kitListed = counted(kitListed, resource.country)
+    if (snapshot.toReview) kitToReview = counted(kitToReview, resource.country)
+  }
+  if (!page.isDone) return { ...args, cursor: page.continueCursor, kitListed, kitToReview }
+  return { ...args, stage: "requests", cursor: null, kitListed, kitToReview }
 }
 
 /** 2. Les demandes créées dans le bloc ; seuls états, dates et versions sont lus. */
@@ -293,6 +340,96 @@ async function reviewsStage(ctx: MutationCtx, network: Doc<"networks">, args: Pa
     tally.add(pilotUtcDayStart(review.createdAt), await offerCountry(ctx, countries, review.offerId), counters)
   }
   if (!page.isDone) return { ...args, cursor: page.continueCursor, cells: tally.list() }
+  return { ...args, stage: "questions", cursor: null, cells: tally.list() }
+}
+
+/**
+ * 4b. ET-10 — les questions d'entraide créées dans le bloc : posées, répondues (une réponse
+ * publiée au passage), résolues (une réponse retenue) ; classe du délai jusqu'à la plus
+ * ancienne réponse encore publiée. Une question retirée par son auteur ou par la modération
+ * ne compte pas. Aucun texte n'est lu.
+ */
+async function questionsStage(ctx: MutationCtx, network: Doc<"networks">, args: PassArgs): Promise<PassArgs> {
+  const range = creationRange(args)
+  const page = await ctx.db
+    .query("aidQuestions")
+    .withIndex("by_creation_time", (q) => q.gte("_creationTime", range.from).lt("_creationTime", range.to))
+    .paginate({ cursor: args.cursor, numItems: passPageSize(args.pageSize) })
+  const tally = new BlockTally(args.cells)
+  for (const question of page.page) {
+    if (question.networkId !== network._id || !inBlock(args, question.createdAt) || question.status === "withdrawn") continue
+    if ((await contentState(ctx, "diasporaAidQuestion", question._id))?.status === "removed") continue
+    const firstAnswer = await ctx.db
+      .query("aidAnswers")
+      .withIndex("by_network_question_status_createdAt", (q) => q.eq("networkId", network._id).eq("questionId", question._id).eq("status", "published"))
+      .order("asc")
+      .first()
+    const counted = pilotAidQuestionTally({
+      status: question.status,
+      hasAcceptedAnswer: question.acceptedAnswerId !== undefined,
+      answerCount: question.answerCount,
+      createdAt: question.createdAt,
+      firstAnswerAt: firstAnswer?.createdAt ?? null,
+    })
+    tally.add(pilotUtcDayStart(question.createdAt), isResidenceCountry(question.country) ? question.country : null, counted.counters, null, counted.aidFirstAnswerBucket)
+  }
+  if (!page.isDone) return { ...args, cursor: page.continueCursor, cells: tally.list() }
+  return { ...args, stage: "signups", cursor: null, cells: tally.list() }
+}
+
+/** Le pays d'une mission bénévole, lu une fois par étape. */
+async function missionCountry(ctx: MutationCtx, cache: CountryCache, missionId: Id<"aidMissions">): Promise<string | null> {
+  const cached = cache.get(missionId)
+  if (cached !== undefined) return cached
+  const mission = await ctx.db.get(missionId)
+  const country = mission !== null && isResidenceCountry(mission.country) ? mission.country : null
+  cache.set(missionId, country)
+  return country
+}
+
+/** 4c. ET-10 — les inscriptions bénévoles nées dans le bloc, confirmées au passage, par pays de la mission. */
+async function signupsStage(ctx: MutationCtx, network: Doc<"networks">, args: PassArgs): Promise<PassArgs> {
+  const range = creationRange(args)
+  const page = await ctx.db
+    .query("aidMissionSignups")
+    .withIndex("by_creation_time", (q) => q.gte("_creationTime", range.from).lt("_creationTime", range.to))
+    .paginate({ cursor: args.cursor, numItems: passPageSize(args.pageSize) })
+  const tally = new BlockTally(args.cells)
+  const countries: CountryCache = new Map()
+  for (const signup of page.page) {
+    if (signup.networkId !== network._id || !inBlock(args, signup.createdAt)) continue
+    const counters = pilotAidSignupCounters(signup.status)
+    if (counters.length === 0) continue
+    tally.add(pilotUtcDayStart(signup.createdAt), await missionCountry(ctx, countries, signup.missionId), counters)
+  }
+  if (!page.isDone) return { ...args, cursor: page.continueCursor, cells: tally.list() }
+  return { ...args, stage: "mentoring", cursor: null, cells: tally.list() }
+}
+
+/** Le pays du profil d'un mentor, lu une fois par étape. */
+async function mentorCountry(ctx: MutationCtx, cache: CountryCache, mentorProfileId: Id<"mentorProfiles">): Promise<string | null> {
+  const cached = cache.get(mentorProfileId)
+  if (cached !== undefined) return cached
+  const profile = await ctx.db.get(mentorProfileId)
+  const country = profile !== null && isResidenceCountry(profile.country) ? profile.country : null
+  cache.set(mentorProfileId, country)
+  return country
+}
+
+/** 4d. ET-10 — les demandes de mentorat créées dans le bloc, et leur acceptation (même close ensuite), par pays du mentor. */
+async function mentoringStage(ctx: MutationCtx, network: Doc<"networks">, args: PassArgs): Promise<PassArgs> {
+  const range = creationRange(args)
+  const page = await ctx.db
+    .query("mentoringRequests")
+    .withIndex("by_creation_time", (q) => q.gte("_creationTime", range.from).lt("_creationTime", range.to))
+    .paginate({ cursor: args.cursor, numItems: passPageSize(args.pageSize) })
+  const tally = new BlockTally(args.cells)
+  const countries: CountryCache = new Map()
+  for (const request of page.page) {
+    if (request.networkId !== network._id || !inBlock(args, request.createdAt)) continue
+    tally.add(pilotUtcDayStart(request.createdAt), await mentorCountry(ctx, countries, request.mentorProfileId), pilotMentoringCounters(request.acceptedAt !== undefined))
+  }
+  if (!page.isDone) return { ...args, cursor: page.continueCursor, cells: tally.list() }
   return { ...args, stage: "events", cursor: null, cells: tally.list(), eventsCursor: null, eventsDone: false, eventQueue: [] }
 }
 
@@ -355,14 +492,18 @@ async function writeDay(ctx: MutationCtx, networkId: Id<"networks">, dayStartAt:
     .take(COUNTRIES_MAX + 2)
   const rows = new Map(existing.map((row) => [scopeKey(row.country), row]))
   const cells = new Map(args.cells.filter((cell) => cell.dayStartAt === dayStartAt).map((cell) => [scopeKey(cell.country), cell]))
-  const scopes = new Set<string>([NETWORK_SCOPE, ...rows.keys(), ...cells.keys(), ...(isLastDay ? Object.keys(args.offersActive) : [])])
+  const kitListed = args.kitListed ?? {}
+  const kitToReview = args.kitToReview ?? {}
+  const scopes = new Set<string>([NETWORK_SCOPE, ...rows.keys(), ...cells.keys(), ...(isLastDay ? [...Object.keys(args.offersActive), ...Object.keys(kitListed)] : [])])
   for (const scope of scopes) {
     const cell = cells.get(scope)
     const fields = {
-      counts: cell?.counts ?? emptyPilotCounts(),
+      // ET-10 : chaque compteur s'écrit, ceux de l'entraide compris (zéro faute de ligne source).
+      counts: { ...emptyPilotCounts(), ...cell?.counts },
       firstResponse: normalizePilotHistogram(cell?.firstResponse ?? []),
+      aidFirstAnswer: normalizePilotHistogram(cell?.aidFirstAnswer ?? []),
       computedAt: args.startedAt,
-      ...(isLastDay ? { offersActive: args.offersActive[scope] ?? 0 } : {}),
+      ...(isLastDay ? { offersActive: args.offersActive[scope] ?? 0, kitListed: kitListed[scope] ?? 0, kitToReview: kitToReview[scope] ?? 0 } : {}),
     }
     const row = rows.get(scope)
     if (row) await ctx.db.patch(row._id, fields)
@@ -400,12 +541,20 @@ async function runStage(ctx: MutationCtx, network: Doc<"networks">, args: PassAr
   switch (args.stage) {
     case "offers":
       return await offersStage(ctx, network, args)
+    case "kit":
+      return await kitStage(ctx, network, args)
     case "requests":
       return await requestsStage(ctx, network, args)
     case "memberships":
       return await membershipsStage(ctx, network, args)
     case "reviews":
       return await reviewsStage(ctx, network, args)
+    case "questions":
+      return await questionsStage(ctx, network, args)
+    case "signups":
+      return await signupsStage(ctx, network, args)
+    case "mentoring":
+      return await mentoringStage(ctx, network, args)
     case "events":
       return await eventsStage(ctx, network, args)
     case "participants":
@@ -435,6 +584,8 @@ export const refreshPilotMetrics = internalMutation({
       cursor: null,
       pageSize: pageSize ?? PILOT_PASS_PAGE_SIZE,
       offersActive: {},
+      kitListed: {},
+      kitToReview: {},
       cells: [],
       eventQueue: [],
       eventsCursor: null,
@@ -552,7 +703,7 @@ async function readPilotMetrics(ctx: QueryCtx, network: Doc<"networks">, args: {
     windowEndAt: window.endAt,
     computedAt: networkRows.reduce((oldest, row) => Math.min(oldest, row.computedAt), latest.computedAt),
     daysMeasured: networkRows.length,
-    indicators: presentPilotIndicators({ days: rows, offersActive: lastDay?.offersActive ?? 0 }),
+    indicators: presentPilotIndicators({ days: rows, offersActive: lastDay?.offersActive ?? 0, kitListed: lastDay?.kitListed ?? 0, kitToReview: lastDay?.kitToReview ?? 0 }),
   }
 }
 
