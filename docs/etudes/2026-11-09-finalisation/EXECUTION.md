@@ -229,7 +229,7 @@ Plan : [`08_COMMERCE_MARKETPLACE_BOUTIQUES.md`](08_COMMERCE_MARKETPLACE_BOUTIQUE
 | CM-07 | Commandes reçues dans Ma boutique | P1 | M | S1 | aucune (activation de la lecture : propriétaire). | à faire |
 | CM-08 | Panier durable | P1 | M | S1 | aucune. | à faire |
 | CM-09 | Favoris d'offres et de boutiques | P1 | M | S1 | aucune. | fusionné |
-| CM-10 | Boutique en pause | P1 | S | S1 | aucune. | à faire |
+| CM-10 | Boutique en pause | P1 | S | S1 | aucune. | fusionné |
 | CM-11 | Alerte de retour en stock et de baisse de prix | P2 | M | S1 | aucune. | à faire |
 | CM-12 | Vus récemment | P2 | S | S1 | aucune. | à faire |
 | CM-13 | Notre sélection | P2 | S | S1 | aucune. | à faire |
