@@ -68,7 +68,7 @@ import {
   toFeedItem,
   WALL_WINDOWS_MAX,
 } from "../posts/posts"
-import { associationGroupPageOrNull, associationGroupRoleOrNull, canDiscoverThematicGroup, isActiveThematicGroup, liveThematicGroupMembership, requireLiveThematicGroupMembership } from "./access"
+import { associationGroupPageOrNull, associationGroupRoleOrNull, canDiscoverThematicGroup, isActiveThematicGroup, isThematicGroupServedTo, liveThematicGroupMembership, requireLiveThematicGroupMembership } from "./access"
 
 type ReadCtx = Pick<QueryCtx, "db">
 
@@ -213,7 +213,7 @@ export const join = networkMutation({
   handler: async (ctx, args) => {
     await enforceRateLimit(ctx, "group.join", ctx.person._id)
     const group = await groupInNetwork(ctx, ctx.networkId, args.groupId)
-    if (!group || !isActiveThematicGroup(group)) return notFound()
+    if (!group || !isActiveThematicGroup(group) || !(await isThematicGroupServedTo(ctx, group, ctx.person._id))) return notFound()
     const now = Date.now()
     if (!(await liveThematicGroupMembership(ctx, group._id, ctx.person._id))) {
       await admitMember(ctx, group, ctx.person._id, now, rulesAcceptedOnEntry(group, args.acceptedRulesVersion))
@@ -694,7 +694,7 @@ export const respondInvite = networkMutation({
       return { joined: false }
     }
     const group = await groupInNetwork(ctx, ctx.networkId, pending.groupId)
-    if (!group || !isActiveThematicGroup(group)) return notFound()
+    if (!group || !isActiveThematicGroup(group) || !(await isThematicGroupServedTo(ctx, group, ctx.person._id))) return notFound()
     // Déjà membre entre-temps : aucune règle à re-juger, l'invitation se résout seulement.
     const accepted = (await liveThematicGroupMembership(ctx, group._id, ctx.person._id)) ? undefined : rulesAcceptedOnEntry(group, args.acceptedRulesVersion)
     await ctx.db.patch(pending._id, { status: "accepted", respondedAt: now })
@@ -728,7 +728,7 @@ export const paginateMyInvites = networkQuery({
     const page: MyInviteDto[] = []
     for (const row of result.page) {
       const group = await ctx.db.get(row.groupId)
-      if (!group || group.networkId !== ctx.networkId || !isActiveThematicGroup(group) || !(await canDiscoverThematicGroup(ctx, group, ctx.person._id))) continue
+      if (!group || group.networkId !== ctx.networkId || !isActiveThematicGroup(group) || !(await isThematicGroupServedTo(ctx, group, ctx.person._id))) continue
       const inviter = await profileOf(row.invitedByPersonId)
       page.push({
         inviteId: row._id,
@@ -939,7 +939,7 @@ export const discover = networkQuery({
     }
     const states = await myGroupStates(ctx, ctx.networkId, ctx.person._id)
     const cards: GroupCard[] = []
-    for (const group of groups) if (isActiveThematicGroup(group) && await canDiscoverThematicGroup(ctx, group, ctx.person._id)) cards.push(await toCard(ctx, group, states))
+    for (const group of groups) if (isActiveThematicGroup(group) && await isThematicGroupServedTo(ctx, group, ctx.person._id)) cards.push(await toCard(ctx, group, states))
     return cards
   },
 })
@@ -953,7 +953,7 @@ export const myGroups = networkQuery({
     const groups: Doc<"thematicGroups">[] = []
     for (const membership of states.memberships) {
       const group = await ctx.db.get(membership.groupId)
-      if (group && group.networkId === ctx.networkId && group.deletingAt === undefined && await canDiscoverThematicGroup(ctx, group, ctx.person._id)) groups.push(group)
+      if (group && group.networkId === ctx.networkId && group.deletingAt === undefined && await isThematicGroupServedTo(ctx, group, ctx.person._id)) groups.push(group)
     }
     groups.sort((left, right) => right.updatedAt - left.updatedAt)
     const items: GroupCard[] = []
@@ -983,7 +983,8 @@ export const getGroup = networkQuery({
   }),
   handler: async (ctx, args) => {
     const group = await groupInNetwork(ctx, ctx.networkId, args.groupId)
-    if (!group || !(await canDiscoverThematicGroup(ctx, group, ctx.person._id))) return notFound()
+    // MC-01 : retirée par la modération, ou signalée par le lecteur, la fiche se refuse comme une fiche inconnue.
+    if (!group || !(await isThematicGroupServedTo(ctx, group, ctx.person._id))) return notFound()
     const reader = readerOf(ctx)
     const [membership, invitation] = await Promise.all([
       liveThematicGroupMembership(ctx, group._id, ctx.person._id),
@@ -1039,6 +1040,8 @@ export const groupWall = networkQuery({
   returns: v.object({ items: v.array(feedItemValidator), nextCursor: v.union(cursorValidator, v.null()) }),
   handler: async (ctx, args) => {
     const { group } = await requireLiveThematicGroupMembership(ctx, ctx.networkId, args.groupId, ctx.person._id)
+    // MC-01 : le mur suit la fiche — un membre qui a signalé le groupe ne le lit plus.
+    if (!(await isThematicGroupServedTo(ctx, group, ctx.person._id))) return notFound()
     const reader = readerOf(ctx)
     const limit = clampLimit(args.limit)
     const [blocked, hidden, marks, cursorCreationTime] = await Promise.all([

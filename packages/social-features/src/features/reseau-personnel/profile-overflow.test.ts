@@ -7,13 +7,19 @@ import { profileOverflowEntriesFor } from "./profile-overflow"
 const t = createAppI18n({ locale: "fr", appResources: { fr: {}, en: {} }, defaultNS: "reseau" }).getFixedT("fr")
 
 describe("profileOverflowEntriesFor", () => {
-  it("sourdine à bascule selon l'état lu, puis le blocage, grave et en dernier", () => {
-    expect(profileOverflowEntriesFor({ handle: "awa", muted: false }, t).map((entry) => [entry.id, entry.grave])).toEqual([["mute", false], ["block", true]])
-    expect(profileOverflowEntriesFor({ handle: "awa", muted: true }, t).map((entry) => [entry.id, entry.grave])).toEqual([["unmute", false], ["block", true]])
+  it("sourdine à bascule selon l'état lu, puis le blocage, puis le signalement, graves et en dernier (MC-01)", () => {
+    expect(profileOverflowEntriesFor({ handle: "awa", muted: false }, t).map((entry) => [entry.id, entry.grave])).toEqual([["mute", false], ["block", true], ["report", true]])
+    expect(profileOverflowEntriesFor({ handle: "awa", muted: true }, t).map((entry) => [entry.id, entry.grave])).toEqual([["unmute", false], ["block", true], ["report", true]])
   })
 
-  it("tant que l'état de la sourdine est inconnu, seule l'entrée du blocage s'offre", () => {
-    expect(profileOverflowEntriesFor({ handle: "awa", muted: undefined }, t).map((entry) => entry.id)).toEqual(["block"])
+  it("tant que l'état de la sourdine est inconnu, seuls le blocage et le signalement s'offrent", () => {
+    expect(profileOverflowEntriesFor({ handle: "awa", muted: undefined }, t).map((entry) => entry.id)).toEqual(["block", "report"])
+  })
+
+  it("dit ce que fait le signalement du profil, sans promettre une sanction", () => {
+    const report = profileOverflowEntriesFor({ handle: "awa", muted: false }, t).at(-1)
+    expect(report?.label).toBe("Signaler le profil")
+    expect(report?.hint).toContain("accusé de réception")
   })
 
   it("nomme l'identifiant dans « Bloquer @… » et dit chaque conséquence", () => {

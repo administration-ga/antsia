@@ -650,3 +650,17 @@ describe("agenda associatif — lecture sans actes personnels", () => {
     expect(screen.queryByText("Association de recette")).toBeNull()
   })
 })
+
+describe("signaler un évènement (MC-01)", () => {
+  it("l'invité voit « Signaler » en dernier geste de la carte ; l'organisateur, jamais", () => {
+    mocks.agenda.data = agenda([
+      event("e1", "Chez Awa", { isOrganizer: false, myParticipation: { participationId: "pp1" as Id<"eventParticipants">, status: "pending" } }),
+      event("e2", "Revue des archives"),
+    ])
+    renderWithEngine(<EvenementsPanel now={NOW} />)
+    const signaler = screen.getAllByRole("button", { name: "Signaler" })
+    expect(signaler).toHaveLength(1)
+    expect(signaler[0]?.closest("article")?.textContent).toContain("Chez Awa")
+    expect(signaler[0]?.parentElement?.lastElementChild).toBe(signaler[0])
+  })
+})

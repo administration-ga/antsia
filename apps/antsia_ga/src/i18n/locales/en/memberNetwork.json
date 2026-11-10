@@ -112,6 +112,8 @@
       "album": "Album",
       "commercialMessage": "Commercial message",
       "commerceJob": "Job opening",
+      "thematicGroup": "Group (profile and rules)",
+      "personalMessage": "Personal message",
       "serviceReview": "Service review",
       "serviceReviewReply": "Service review reply",
       "commerceOffer": "Store offer",

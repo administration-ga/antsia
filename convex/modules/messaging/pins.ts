@@ -11,8 +11,7 @@ import type { Id } from "../../_generated/dataModel"
 import { failRule, notFound } from "../../lib/errors"
 import { networkMutation, networkQuery } from "../../lib/functions"
 import { enforceRateLimit } from "../../lib/rateLimit"
-import { counterpartOf, requireThread } from "./participation"
-import { isHiddenFor } from "./threads"
+import { counterpartOf, isPersonalMessageServedTo, requireThread } from "./participation"
 
 /** Épingler — ou désépingler (`messageId: null`). Idempotent. */
 export const setPinnedMessage = networkMutation({
@@ -55,7 +54,8 @@ export const getPinnedMessage = networkQuery({
     const { thread } = await requireThread(ctx, ctx.networkId, args.threadId, ctx.person._id)
     if (thread.pinnedMessageId === undefined) return null
     const message = await ctx.db.get(thread.pinnedMessageId)
-    if (!message || message.threadId !== thread._id || message.deletedAt !== undefined || isHiddenFor(message, ctx.person._id)) return null
+    // MC-01 : retiré par la modération ou signalé par ce lecteur, il quitte aussi la bande d'en-tête.
+    if (!message || message.threadId !== thread._id || message.deletedAt !== undefined || !(await isPersonalMessageServedTo(ctx, message, ctx.person._id))) return null
     return {
       messageId: message._id,
       senderPersonId: message.senderPersonId,

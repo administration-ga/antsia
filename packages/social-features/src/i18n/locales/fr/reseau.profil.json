@@ -89,6 +89,10 @@
       "block": {
         "label": "Bloquer @{{handle}}",
         "hint": "Vous ne vous verrez plus, dans aucun réseau. La personne n'est pas prévenue."
+      },
+      "report": {
+        "label": "Signaler le profil",
+        "hint": "La modération l'examine ; vous recevez un accusé de réception, puis la décision. La personne ne sait pas qui l'a signalée."
       }
     },
     "blockedByMe": {

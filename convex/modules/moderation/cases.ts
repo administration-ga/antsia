@@ -17,6 +17,7 @@ import { editorialAccessOrNull } from "../editorial/access"
 import { notifyPerson } from "../notifications/notify"
 import { liveSignatoryRole, signatoryRowsOf } from "../pages/access"
 import { appendAudit, networkRoleCapacity, operatorCapacity } from "../platform/audit"
+import { liveThematicGroupMembership } from "../thematicGroups/access"
 import { contentState, owningPageOfReport } from "./policy"
 import { professionalReviewSource } from "./professionalReviewSource"
 import { editorialMediaReviewSource, editorialReviewSource } from "./editorialReviewSource"
@@ -39,6 +40,18 @@ async function assertNoPageDecisionConflict(ctx: ReadCtx, actorPersonId: Id<"per
   if (target.kind === "professionalCollaboration") {
     const collaboration = await ctx.db.get(target.id)
     if (collaboration && (collaboration.fromPersonId === actorPersonId || collaboration.toPersonId === actorPersonId)) return notFound()
+  }
+  // MC-01 : une partie au fil 1:1 ne tranche jamais le dossier d'un de ses messages (le déclarant en est une).
+  if (target.kind === "personalMessage") {
+    const message = await ctx.db.get(target.id)
+    const thread = message ? await ctx.db.get(message.threadId) : null
+    if (thread && (thread.personLow === actorPersonId || thread.personHigh === actorPersonId)) return notFound()
+  }
+  // MC-01 : le propriétaire ou un modérateur vivant du groupe (ou, pour un groupe d'adhérents, un responsable de sa
+  // page) ne tranche pas le dossier de son propre groupe.
+  if (target.kind === "thematicGroup") {
+    const role = (await liveThematicGroupMembership(ctx, target.id, actorPersonId))?.role
+    if (role === "owner" || role === "moderator") return notFound()
   }
   if (target.kind === "editorialMedia") {
     const media = await ctx.db.get(target.id)

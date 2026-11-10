@@ -31,7 +31,8 @@
     "unpin": "Unpin",
     "edit": "Edit",
     "deleteForMe": "Delete for me",
-    "deleteForEveryone": "Delete for everyone"
+    "deleteForEveryone": "Delete for everyone",
+    "report": "Report"
   },
   "messagerieBulles": {
     "today": "Today",

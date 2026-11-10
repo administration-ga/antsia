@@ -2,7 +2,8 @@
 
 /**
  * Le menu « … » de la fiche d'AUTRUI (PF-01) : mettre en sourdine ou réactiver,
- * bloquer. Ce qu'il propose vit dans `profile-overflow.ts` (module pur).
+ * bloquer, signaler le profil (MC-01, en dernier). Ce qu'il propose vit dans
+ * `profile-overflow.ts` (module pur).
  *
  * Bloquer passe par la brique commune `BlockPersonDialog` (confirmation, appel
  * du moteur, toast), puis ramène au volet Relations : la fiche d'une personne
@@ -39,6 +40,7 @@ import { COMPACT_SOCIAL_ACTION_STYLE } from "../social-action-style"
 import { BlockPersonDialog } from "./BlockPersonDialog"
 import { postEngineErrorText } from "./post-overflow"
 import { profileOverflowEntriesFor, type ProfileOverflowAction } from "./profile-overflow"
+import { ReportTargetDialog } from "./ReportTarget"
 
 const MENU_WIDTH = 288
 const VIEWPORT_MARGIN = 12
@@ -64,6 +66,7 @@ export function ProfileOverflowMenu({ targetPersonId, handle, displayName }: Pro
   const [open, setOpen] = useState(false)
   const [anchor, setAnchor] = useState<Anchor | null>(null)
   const [confirmingBlock, setConfirmingBlock] = useState(false)
+  const [reporting, setReporting] = useState(false)
   const [pending, setPending] = useState(false)
   const [activeIndex, setActiveIndex] = useState(0)
   const buttonRef = useRef<HTMLButtonElement | null>(null)
@@ -196,6 +199,10 @@ export function ProfileOverflowMenu({ targetPersonId, handle, displayName }: Pro
       setConfirmingBlock(true)
       return
     }
+    if (action === "report") {
+      setReporting(true)
+      return
+    }
     if (pending) return
     setPending(true)
     const gesture = action === "mute" ? mute({ networkId, targetPersonId }) : unmute({ networkId, targetPersonId })
@@ -310,6 +317,9 @@ export function ProfileOverflowMenu({ targetPersonId, handle, displayName }: Pro
           onDone={() => router.push(reseauAgentHref("relations", routes.home()))}
         />
       ) : null}
+
+      {/* MC-01 : la brique commune ; le profil signalé est aussitôt masqué pour le déclarant. */}
+      {reporting ? <ReportTargetDialog target={{ kind: "person", id: targetPersonId }} onClose={() => setReporting(false)} /> : null}
     </>
   )
 }

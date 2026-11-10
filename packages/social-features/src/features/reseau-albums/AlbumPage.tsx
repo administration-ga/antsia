@@ -32,6 +32,7 @@ import { useEffect, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 import { ProfilFrame } from "../reseau-personnel/ProfilFrame"
+import { ReportTargetButton } from "../reseau-personnel/ReportTarget"
 import { ReseauQueryError } from "../../shell/ReseauQueryError"
 import { albumsApi, type AlbumId } from "./albums-api"
 import {
@@ -267,6 +268,13 @@ function AlbumPageBody({ handle, albumId, canEdit = true, onEdit }: AlbumPagePro
                 </EspaceDialog>
               ) : null}
             </>
+          ) : null}
+
+          {/* MC-01 : l'album d'autrui se signale, en dernier geste de la carte (la brique commune). */}
+          {!album.isOwner && album.status === "published" ? (
+            <div className="ap-actions">
+              <ReportTargetButton target={{ kind: "album", id }} />
+            </div>
           ) : null}
 
           {items.length === 0 ? (

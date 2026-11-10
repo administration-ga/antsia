@@ -39,6 +39,10 @@ export const moderationTargetValidator = v.union(
   v.object({ kind: v.literal("commerceStorefront"), id: v.id("commerceCatalogHeads") }),
   // P15 : offre d'emploi reflétée, contenu public de la page (jamais une candidature).
   v.object({ kind: v.literal("commerceJob"), id: v.id("commerceJobHeads") }),
+  // MC-01 (plan 12) : la fiche et les règles d'un groupe thématique ; un message personnel d'iCom,
+  // signalable par une partie au fil seulement — le dossier ne garde que la référence, jamais le texte.
+  v.object({ kind: v.literal("thematicGroup"), id: v.id("thematicGroups") }),
+  v.object({ kind: v.literal("personalMessage"), id: v.id("personalMessages") }),
   // Vague H DIASPORALE (G9, ajout délégué) : contenus de l'entraide, du mentorat, du kit d'arrivée et de l'emploi.
   v.object({ kind: v.literal("diasporaAidQuestion"), id: v.id("aidQuestions") }),
   v.object({ kind: v.literal("diasporaAidAnswer"), id: v.id("aidAnswers") }),

@@ -675,3 +675,18 @@ describe("GroupsPanel — « Gérer le groupe » (PG-02)", () => {
     expect(mocks.queryCalls.some(([query]) => query === "listTransferCandidates")).toBe(false)
   })
 })
+
+describe("GroupsPanel — signaler la fiche et les règles (MC-01)", () => {
+  it("un membre voit « Signaler », en dernier geste de la fiche", () => {
+    mocks.queries.getGroup = ok(FICHE_MEMBRE)
+    monter({ groupId: "g1" })
+    const signaler = screen.getByRole("button", { name: "Signaler" })
+    expect(signaler.parentElement?.lastElementChild).toBe(signaler)
+  })
+
+  it("le propriétaire ne signale jamais son propre groupe", () => {
+    mocks.queries.getGroup = ok(FICHE_PROPRIETAIRE)
+    monter({ groupId: "g1" })
+    expect(screen.queryByRole("button", { name: "Signaler" })).toBeNull()
+  })
+})

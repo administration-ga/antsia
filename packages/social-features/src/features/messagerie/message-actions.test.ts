@@ -42,13 +42,14 @@ function ids(context: Parameters<typeof actionsFor>[0]): MessageActionId[] {
 }
 
 describe("actionsFor — un message reçu", () => {
-	it("offre répondre, réagir, copier, transférer et masquer pour moi", () => {
+	it("offre répondre, réagir, copier, transférer, masquer pour moi, puis signaler en dernier (MC-01)", () => {
 		expect(ids(RECU)).toEqual([
 			"repondre",
 			"reagir",
 			"copier",
 			"transferer",
 			"supprimerPourMoi",
+			"signaler",
 		])
 	})
 
@@ -335,5 +336,25 @@ describe("actionsFor — la langue de l'écran", () => {
 			"Delete for me",
 			"Delete for everyone",
 		])
+	})
+})
+
+describe("actionsFor — signaler (MC-01)", () => {
+	it("s'offre sur le message servi d'un autre, en 1:1 comme en groupe, en ton d'alerte", () => {
+		for (const conversationKind of ["chat", "groupe"] as const) {
+			const signaler = actionsFor({ ...RECU, conversationKind }).find((action) => action.id === "signaler")
+			expect(signaler).toEqual({ id: "signaler", label: "Signaler", destructive: true })
+		}
+	})
+
+	it("ne s'offre jamais sur MON message, une pierre tombale, un corps masqué ou un brouillon", () => {
+		expect(ids({ ...RECU, mine: true })).not.toContain("signaler")
+		expect(ids({ ...RECU, deleted: true })).not.toContain("signaler")
+		expect(ids({ ...RECU, conversationKind: "groupe", masked: true })).not.toContain("signaler")
+		expect(ids({ ...RECU, conversationKind: "draft", canReply: false })).not.toContain("signaler")
+	})
+
+	it("porte son libellé dans la langue de l'écran", () => {
+		expect(actionsForT(RECU, en).find((action) => action.id === "signaler")?.label).toBe("Report")
 	})
 })

@@ -5,10 +5,12 @@
  * module pur, vérifiable en environnement `node`, et le composant
  * (`ProfileOverflowMenu`) ne fait que la rendre.
  *
- * Deux gestes aujourd'hui, tous deux SILENCIEUX pour la personne visée :
+ * Trois gestes, tous SILENCIEUX pour la personne visée :
  *  · la sourdine (ses publications quittent MON fil de ce réseau), à bascule ;
- *  · le blocage, à part et en dernier (geste grave, confirmé).
- * Signaler le profil (PF-02) et copier le lien (PF-06) viendront ici.
+ *  · le blocage, à part (geste grave, confirmé) ;
+ *  · le signalement du profil (MC-01, brique commune `ReportTargetDialog`),
+ *    grave lui aussi et TOUJOURS en dernier, comme au menu d'une publication.
+ * Copier le lien (PF-06) viendra ici.
  *
  * ⚠️ La sourdine ne s'offre que si son état est CONNU : proposer « Mettre en
  * sourdine » à quelqu'un déjà en sourdine ferait douter de ce que l'écran a
@@ -16,7 +18,7 @@
  */
 import type { TFunction } from "i18next"
 
-export type ProfileOverflowAction = "mute" | "unmute" | "block"
+export type ProfileOverflowAction = "mute" | "unmute" | "block" | "report"
 
 export interface ProfileOverflowEntry {
   id: ProfileOverflowAction
@@ -43,6 +45,12 @@ export function profileOverflowEntriesFor(input: ProfileOverflowInput, t: TFunct
     id: "block",
     label: t("reseau:profilPersonnePage.overflow.block.label", { handle: input.handle }),
     hint: t("reseau:profilPersonnePage.overflow.block.hint"),
+    grave: true,
+  })
+  entries.push({
+    id: "report",
+    label: t("reseau:profilPersonnePage.overflow.report.label"),
+    hint: t("reseau:profilPersonnePage.overflow.report.hint"),
     grave: true,
   })
   return Object.freeze(entries)
