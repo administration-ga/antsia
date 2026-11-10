@@ -10,6 +10,7 @@
 
 import type * as betterAuth_auth from "../betterAuth/auth.js";
 import type * as betterAuth_delivery from "../betterAuth/delivery.js";
+import type * as betterAuth_idnRefusalReturn from "../betterAuth/idnRefusalReturn.js";
 import type * as betterAuth_nativeIdn from "../betterAuth/nativeIdn.js";
 import type * as betterAuth_settings from "../betterAuth/settings.js";
 import type * as crons from "../crons.js";
@@ -110,6 +111,7 @@ import type * as modules_diaspora_demoAccounts from "../modules/diaspora/demoAcc
 import type * as modules_diaspora_directory from "../modules/diaspora/directory.js";
 import type * as modules_diaspora_facet from "../modules/diaspora/facet.js";
 import type * as modules_diaspora_facts from "../modules/diaspora/facts.js";
+import type * as modules_diaspora_hubEvents from "../modules/diaspora/hubEvents.js";
 import type * as modules_diaspora_hubPages from "../modules/diaspora/hubPages.js";
 import type * as modules_diaspora_hubs from "../modules/diaspora/hubs.js";
 import type * as modules_diaspora_jobs from "../modules/diaspora/jobs.js";
@@ -492,6 +494,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   "betterAuth/auth": typeof betterAuth_auth;
   "betterAuth/delivery": typeof betterAuth_delivery;
+  "betterAuth/idnRefusalReturn": typeof betterAuth_idnRefusalReturn;
   "betterAuth/nativeIdn": typeof betterAuth_nativeIdn;
   "betterAuth/settings": typeof betterAuth_settings;
   crons: typeof crons;
@@ -592,6 +595,7 @@ declare const fullApi: ApiFromModules<{
   "modules/diaspora/directory": typeof modules_diaspora_directory;
   "modules/diaspora/facet": typeof modules_diaspora_facet;
   "modules/diaspora/facts": typeof modules_diaspora_facts;
+  "modules/diaspora/hubEvents": typeof modules_diaspora_hubEvents;
   "modules/diaspora/hubPages": typeof modules_diaspora_hubPages;
   "modules/diaspora/hubs": typeof modules_diaspora_hubs;
   "modules/diaspora/jobs": typeof modules_diaspora_jobs;

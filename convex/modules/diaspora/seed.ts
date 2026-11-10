@@ -11,18 +11,21 @@
  * `managedBy: "diaspora"`.
  */
 import { normalizeHandle } from "@antsia/social-domain/content"
+import { CONTEXTUAL_KINDS } from "@antsia/social-domain/contextualMessaging"
 import { validateFacetSchema } from "@antsia/social-domain/facets"
 import { isActiveStatus } from "@antsia/social-domain/membership"
 import { isValidNetworkSlug, validateNetworkShape } from "@antsia/social-domain/network"
-import { DAY_MS, DIASPORALE_NETWORK_SEED, DIASPORALE_SLICE, type EngineFacetField } from "@diasporale/domain"
+import { DAY_MS, DIASPORALE_DEMO_ACTOR_SPECS, DIASPORALE_DEMO_ACTORS, DIASPORALE_NETWORK_SEED, DIASPORALE_SLICE, type EngineFacetField } from "@diasporale/domain"
 import { v } from "convex/values"
 
 import type { Doc } from "../../_generated/dataModel"
 import { internalMutation, type MutationCtx } from "../../_generated/server"
-import { getMembership, getRootNetwork } from "../../lib/access"
+import { getMembership, getRootNetwork, isActiveMember } from "../../lib/access"
 import { isLocalDeployment } from "../../lib/devTools"
 import { membershipStatusValidator } from "../../lib/validators"
 import { assertSeedsAllowed, ensureNetwork } from "../../seeds/foundations"
+import { contextualPolicyEnabled } from "../contextualMessaging/access"
+import { contextualKindValidator } from "../contextualMessaging/tables"
 import { followerCounts } from "../graph/follows"
 import { isBlockedBetween, isFollowingPerson } from "../graph/graph"
 import { verifiedEmailHashOf } from "../people/identity"
@@ -30,6 +33,7 @@ import { isPublishedPerson } from "../people/miniProfile"
 import { liveIdentityLinks } from "../people/persons"
 import { writePost } from "../posts/postWrite"
 import { sha256Hex } from "./attestation"
+import { ensureDemoModerationTeam, ensureModerationTeamMember, personOfActor } from "./demoAccounts"
 import { activeSponsorshipOf, applyDerivedStatus, effectiveStatusIn, facetOf, isDiasporaNetwork, membershipGrounds } from "./facts"
 import { hubRow } from "./hubs"
 
@@ -268,6 +272,73 @@ export const albumDraftsForRecette = internalMutation({
       created += 1
     }
     return { handle: PROFILE_POSTS_RECETTE_HANDLE, created, existing } as const
+  },
+})
+
+/** Le réseau de recette : `diasporale`, actif, fermé, enfant de la racine préexistante — backend LOCAL seulement. */
+async function requireLocalRecetteNetwork(ctx: MutationCtx): Promise<Doc<"networks">> {
+  // Même une autorisation de graines sur un déploiement en nuage ne suffit pas.
+  if (!isLocalDeployment()) throw new Error("Recette refusée : backend local obligatoire.")
+  const network = await ctx.db
+    .query("networks")
+    .withIndex("by_slug", (q) => q.eq("slug", DIASPORALE_NETWORK_SEED.slug))
+    .unique()
+  const root = await getRootNetwork(ctx)
+  if (!isDiasporaNetwork(network) || network.kind !== "closed" || !root || network.parentId !== root._id) {
+    throw new Error("Recette refusée : réseau diasporale actif et racine préexistante requis.")
+  }
+  return network
+}
+
+/**
+ * LX-04 — Banc de recette LOCAL de la mise en relation (plan 17 de DIASPORALE, § 5 ; décision 2
+ * du § 7 retenue par le propriétaire : une graine locale seulement, gardée, sans opérateur).
+ *
+ * Gardes : la double garde des graines (confirmation ET déploiement autorisé), puis le backend
+ * LOCAL obligatoire : une autorisation de graines posée sur un déploiement en nuage — la
+ * démonstration comprise — ne suffit jamais. Le réseau `diasporale` doit déjà exister : rien
+ * n'est créé d'office, ni réseau, ni personne, ni adhésion.
+ *
+ * Idempotente, elle pose :
+ * - l'équipe de modération de démonstration du réseau, la même que celle des comptes de
+ *   démonstration (`ensureDemoModerationTeam`), sans périmètre : elle reçoit les signalements
+ *   d'un message de mise en relation et les contenus retenus ;
+ * - la modératrice de démonstration parmi ses membres actifs, si son compte existe déjà (adresse
+ *   réservée vérifiée, adhésion active) ; sinon, l'équipement de son compte l'y mettra.
+ *
+ * Elle ne pose PAS encore la politique des trois natures de mise en relation
+ * (`CONTEXTUAL_KINDS`) : celle-ci ne s'écrit que par `contextualMessaging/operator.setPolicy`,
+ * fonction de console réservée à l'administrateur de plateforme, et la table
+ * `contextualPolicies` n'a pas d'autre utilitaire. La tranche ne la contourne pas : l'extraction
+ * du cœur de `setPolicy` (comme `graph/connections.blockPair` pour le blocage) est demandée au
+ * moteur par une issue [S1]. D'ici là, la graine RELIT et rend l'état des trois politiques.
+ */
+export const matchmakingBenchForRecette = internalMutation({
+  args: { confirmNonProduction: v.string() },
+  returns: v.object({
+    network: v.id("networks"),
+    team: v.object({ teamId: v.id("moderationTeams"), created: v.boolean(), moderatorsAdded: v.number() }),
+    policies: v.array(v.object({ kind: contextualKindValidator, enabled: v.boolean() })),
+  }),
+  handler: async (ctx, { confirmNonProduction }) => {
+    assertSeedsAllowed(confirmNonProduction)
+    const network = await requireLocalRecetteNetwork(ctx)
+    const now = Date.now()
+
+    const team = await ensureDemoModerationTeam(ctx, network, now)
+    let moderatorsAdded = 0
+    for (const actor of DIASPORALE_DEMO_ACTORS) {
+      if (!DIASPORALE_DEMO_ACTOR_SPECS[actor].moderationTeam) continue
+      // Retenue sur son adresse réservée vérifiée, jamais sur son seul identifiant public.
+      const person = await personOfActor(ctx, actor)
+      if (!person || !(await isActiveMember(ctx, network._id, person._id))) continue
+      if (await ensureModerationTeamMember(ctx, network, team.teamId, person._id, now)) moderatorsAdded += 1
+    }
+
+    // Lecture seule : l'ouverture attend l'extraction du cœur de `setPolicy` (issue [S1]).
+    const policies: { kind: (typeof CONTEXTUAL_KINDS)[number]; enabled: boolean }[] = []
+    for (const kind of CONTEXTUAL_KINDS) policies.push({ kind, enabled: await contextualPolicyEnabled(ctx, network._id, kind) })
+    return { network: network._id, team: { teamId: team.teamId, created: team.created, moderatorsAdded }, policies }
   },
 })
 

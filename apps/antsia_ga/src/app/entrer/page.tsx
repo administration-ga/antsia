@@ -1,3 +1,4 @@
+import { idnReturnRefusal } from "@antsia/social-features/features/identity/idn-return"
 import type { Metadata } from "next"
 
 import { AccessHomeScreen } from "@/components/access-home-screen"
@@ -14,5 +15,5 @@ export function generateMetadata(): Metadata {
 
 export default async function SignInPage({ searchParams }: { searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
   const search = await searchParams ?? {}
-  return <AccessHomeScreen intent={search.inscription === "1" ? "sign-up" : "sign-in"} signOutIncomplete={search.deconnexion === "incomplete"} publicPostId={parsePublicPostContinuation(search[PUBLIC_POST_CONTINUATION_PARAM])} notificationReference={parseNotificationReference(search[NOTIFICATION_REFERENCE_PARAM])} shopContact={shopContactFromSearch(search)} specializedDestination={specializedDestinationFromSearch(search)} />
+  return <AccessHomeScreen intent={search.inscription === "1" ? "sign-up" : "sign-in"} signOutIncomplete={search.deconnexion === "incomplete"} publicPostId={parsePublicPostContinuation(search[PUBLIC_POST_CONTINUATION_PARAM])} notificationReference={parseNotificationReference(search[NOTIFICATION_REFERENCE_PARAM])} shopContact={shopContactFromSearch(search)} specializedDestination={specializedDestinationFromSearch(search)} idnReturn={idnReturnRefusal(search.error)} />
 }

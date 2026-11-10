@@ -53,6 +53,7 @@ import {
   activeSponsorshipOf,
   applyDerivedStatus,
   assertDiasporaNetwork,
+  consentCountsForNetwork,
   consentInForce,
   effectiveStatusIn,
   endSponsorshipOnDeparture,
@@ -438,6 +439,10 @@ export const sponsorDashboard = networkQuery({
  * @selfScoped La personne de la session lit l'état de SES consentements pour
  * DIASPORALE (les finalités du réseau) : en vigueur ou non, date du dernier geste,
  * version du texte. Rien n'est présumé : sans geste, une finalité n'est pas accordée.
+ * Chaque finalité se lit à SA portée (NP-01, `consentCountsForNetwork`) : le réseau exact
+ * pour l'annuaire, les notifications, l'attestation et les talents — ce que le moteur relit
+ * avant d'agir —, la personne pour le profil social. Une ancienne ligne sans réseau n'est ni
+ * comptée ni réécrite : la personne redonne son accord, à la bonne portée.
  */
 export const myConsents = query({
   args: { networkId: v.id("networks") },
@@ -458,7 +463,7 @@ export const myConsents = query({
       .query("consents")
       .withIndex("by_person_and_purpose", (q) => q.eq("personId", person._id))
       .take(100)
-    const scoped = rows.filter((row) => row.networkId === undefined || row.networkId === network._id)
+    const scoped = rows.filter((row) => consentCountsForNetwork(row, network._id))
     return DIASPORALE_CONSENT_PURPOSES.map((purpose) => {
       const mine = scoped.filter((row) => row.purpose === purpose)
       const moment = (row: Doc<"consents">) => row.revokedAt ?? row.grantedAt

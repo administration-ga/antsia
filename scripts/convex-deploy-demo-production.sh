@@ -1,31 +1,41 @@
 #!/usr/bin/env bash
+# DÉPRÉCIÉ (EX-01, 10/11/2026) : utiliser `node scripts/release.mjs` (méthode complète, étape
+# par étape, avec contrôle après coup et retour arrière ; docs/36_PUBLICATION_ET_RETOUR_ARRIERE.md).
+# Conservé pour mémoire et pour le mode `verifier` ; il ne rejoue plus aucune graine par défaut.
+#
 # Déploiement Convex d'ANTSIA : démonstration puis production (marketplace MP00–MP14, ADR-0034).
 #
-# À lancer par le propriétaire, sur sa machine, avec ses clés de déploiement :
+# À lancer par le propriétaire, sur sa machine, avec ses clés de déploiement et les NOMS des
+# déploiements posés dans l'environnement de la machine (jamais dans le dépôt, qui est public) :
 #
+#   ANTSIA_RELEASE_CONVEX_DEMO='…' ANTSIA_RELEASE_CONVEX_PROD='…' \
 #   ANTSIA_CONVEX_DEMO_DEPLOY_KEY='…' ANTSIA_CONVEX_PROD_DEPLOY_KEY='…' \
 #     bash scripts/convex-deploy-demo-production.sh [verifier|demo|graines|production|tout]
 #
 #   verifier    contrôles seulement (clés, cible, main, disque) : rien n'est déployé ;
 #   demo        déploie la démonstration seule ;
-#   graines     graines de la démonstration seules (comptes OTP, contenus, figurants, images) ;
+#   graines     graines de la démonstration seules (comptes OTP, contenus, figurants, images),
+#               SEULEMENT sur demande explicite : aucun autre mode ne les rejoue ;
 #   production  déploie la production seule ;
-#   tout        démonstration, graines de démo, pause de contrôle, puis production (défaut).
+#   tout        démonstration, pause de contrôle, puis production (défaut) — sans graines.
 #
 # Garde-fous :
 # - le code vient d'un export propre de origin/main (jamais de l'arbre de travail partagé,
 #   dont le .env.local désigne le backend local anonyme des autres sessions) ;
 # - main doit contenir la marketplace : sinon le front publié ensuite appellerait des
 #   fonctions absentes ;
-# - chaque clé doit désigner le déploiement attendu, et chaque cible se confirme en
-#   retapant son nom ;
+# - chaque clé doit désigner le déploiement attendu (nommé par la machine), et chaque cible
+#   se confirme en retapant son nom ;
 # - les clés ne sont ni affichées, ni écrites dans un fichier.
 #
-# Le front (Vercel, enfant démo puis principal) se publie APRÈS ce script.
+# Le front (enfant démo puis principal) se publie APRÈS ce script.
 set -euo pipefail
 
-DEMO_DEPLOYMENT="vivid-hedgehog-655"
-PROD_DEPLOYMENT="diligent-avocet-585"
+echo "⚠ Script DÉPRÉCIÉ : préférer node scripts/release.mjs (docs/36_PUBLICATION_ET_RETOUR_ARRIERE.md)." >&2
+
+# Noms des déploiements : variables de la machine (EX-01), jamais écrits dans le dépôt public.
+DEMO_DEPLOYMENT="${ANTSIA_RELEASE_CONVEX_DEMO:-}"
+PROD_DEPLOYMENT="${ANTSIA_RELEASE_CONVEX_PROD:-}"
 MARKETPLACE_MARKER="convex/modules/shops/marketplaceRead.ts"
 MIN_FREE_MIB=3072
 
@@ -51,6 +61,8 @@ check_key() {
 }
 
 step "Contrôles"
+if [ "$mode" != "production" ]; then [ -n "$DEMO_DEPLOYMENT" ] || fail "ANTSIA_RELEASE_CONVEX_DEMO absente : nom du déploiement de démonstration (variable de la machine)."; fi
+if [ "$mode" != "demo" ] && [ "$mode" != "graines" ]; then [ -n "$PROD_DEPLOYMENT" ] || fail "ANTSIA_RELEASE_CONVEX_PROD absente : nom du déploiement de production (variable de la machine)."; fi
 command -v git >/dev/null || fail "git introuvable."
 command -v bun >/dev/null || fail "bun introuvable."
 if [ "$mode" != "production" ]; then check_key "démonstration" ANTSIA_CONVEX_DEMO_DEPLOY_KEY "$DEMO_DEPLOYMENT"; fi
@@ -96,7 +108,7 @@ if [ "$mode" = "demo" ] || [ "$mode" = "tout" ]; then
   deploy "la démonstration" ANTSIA_CONVEX_DEMO_DEPLOY_KEY "$DEMO_DEPLOYMENT"
 fi
 
-if [ "$mode" = "graines" ] || [ "$mode" = "tout" ]; then
+if [ "$mode" = "graines" ]; then
   step "Graines de démonstration ($DEMO_DEPLOYMENT)"
   # Rejouables : rien n'est recréé, rien de retiré n'est republié ; la clé reste dans l'environnement.
   (cd "$WORK/ANTSIA" && node scripts/seed-demo-content.mjs)
@@ -104,7 +116,7 @@ fi
 
 if [ "$mode" = "tout" ]; then
   step "Pause : contrôle de la démonstration"
-  echo "Contrôlez la démo sur https://antsia.vercel.app/demo, puis appuyez sur Entrée pour passer à la production."
+  echo "Contrôlez la démo sur ${ANTSIA_RELEASE_SITE_ORIGIN:-<origine du site principal>}/demo, puis appuyez sur Entrée pour passer à la production."
   read -r -p "Entrée pour continuer, Ctrl-C pour s'arrêter ici. " _
 fi
 
@@ -114,4 +126,4 @@ fi
 
 step "Terminé"
 echo "Backend à jour sur main ${ANTSIA_REV:0:12}. Publier ensuite le front : enfant démo, puis principal."
-echo "Retour arrière du front : promouvoir le déploiement Vercel précédent."
+echo "Retour arrière : docs/36_PUBLICATION_ET_RETOUR_ARRIERE.md (sites : promouvoir le déploiement précédent ; moteur : republier le commit précédent)."
