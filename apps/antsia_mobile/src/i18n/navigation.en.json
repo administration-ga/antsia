@@ -42,6 +42,8 @@
   "mobile.notificationUi.notificationTargets.sentence.associationEventReminder": "Reminder: an event you registered for is approaching.",
   "mobile.notificationUi.notificationTargets.sentence.associationEventCancelled": "An event you registered or are waitlisted for has been cancelled.",
   "mobile.notificationUi.notificationTargets.sentence.associationEventSeatConfirmed": "A place opened up: your registration for an event is confirmed.",
+  "mobile.notificationUi.notificationTargets.sentence.pageSignatoryInvite": "You have been invited to sign for a page. Open it to respond.",
+  "mobile.notificationUi.notificationTargets.sentence.pageClaimDecided": "A decision has been made on your request about a page. Open the page to read it.",
   "mobile.notificationUi.notificationTargets.sentence.membershipChanged": "Your network membership has changed.",
   "mobile.notificationUi.notificationTargets.sentence.badgeChanged": "Your badges have changed.",
   "mobile.notificationUi.notificationTargets.sentence.moderationDecision": "A moderation decision concerns you. View your decisions and appeals.",

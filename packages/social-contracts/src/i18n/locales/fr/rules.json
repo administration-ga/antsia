@@ -46,6 +46,8 @@
   "PAGE_CLAIM_PENDING": "Votre revendication de cette page est déjà en cours d'examen.",
   "PAGE_CLAIM_EVIDENCE_COUNT": "Joignez entre une et {{max}} pièces à votre revendication.",
   "PAGE_CLAIM_NOTE_TOO_LONG": "La note d'une revendication compte au plus {{max}} caractères.",
+  "PAGE_HAS_LIVE_ADMIN": "Cette page a encore un administrateur actif : un administrateur de secours ne se nomme que pour une page sans administrateur.",
+  "PAGE_RESCUE_INELIGIBLE": "La personne désignée doit être membre active du réseau de la page, sans demande d'effacement en cours.",
   "ALBUM_TITLE_REQUIRED": "Un album porte un titre.",
   "ALBUM_TITLE_TOO_LONG": "Un titre d'album est limité à {{max}} caractères.",
   "ALBUM_DESCRIPTION_TOO_LONG": "Une description d'album est limitée à {{max}} caractères.",

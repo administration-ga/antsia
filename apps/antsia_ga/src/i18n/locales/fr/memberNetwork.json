@@ -155,6 +155,73 @@
       "overturn": "Annuler avec ce motif"
     },
     "appeals": "Recours réseau",
+    "claims": "Revendications de pages",
+    "pageClaims": {
+      "title": "Revendications de pages",
+      "lead": "Les demandes de prise en main ou de vérification d'une page de ce réseau, pièces à l'appui. Une décision est motivée, tracée et définitive : validée, elle rend le demandeur administrateur de la page, et une page de la communauté devient « Vérifiée ».",
+      "status": "Demandes affichées",
+      "statuses": {
+        "pending": "En attente",
+        "approved": "Validées",
+        "rejected": "Refusées"
+      },
+      "statusLabel": {
+        "pending": "En attente",
+        "approved": "Validée",
+        "rejected": "Refusée",
+        "withdrawn": "Retirée par le demandeur"
+      },
+      "empty": "Aucune demande dans cette file.",
+      "claimant": "Demandeur : {{name}}",
+      "neutralClaimant": "Membre du réseau",
+      "submittedAt": "Déposée le {{date}}",
+      "decidedAt": "Tranchée le {{date}}",
+      "note": "Note du demandeur : {{note}}",
+      "noNote": "Aucune note du demandeur.",
+      "evidenceCount_one": "{{count}} pièce jointe",
+      "evidenceCount_other": "{{count}} pièces jointes",
+      "openPage": "Voir la page",
+      "instruct": "Instruire la demande",
+      "closeDetail": "Fermer la fiche",
+      "detailTitle": "Fiche de la demande",
+      "evidenceTitle": "Pièces",
+      "evidenceOpen": "Ouvrir la pièce {{index}}",
+      "evidenceWithheld": {
+        "fileScanPending": "Pièce {{index}} : analyse de sécurité en cours, elle n'est pas encore servie.",
+        "fileScanUnavailable": "Pièce {{index}} : analyse indisponible, la pièce reste retenue.",
+        "fileQuarantined": "Pièce {{index}} : retenue par l'analyse de sécurité."
+      },
+      "evidencePurged": "Les pièces ont été supprimées au terme de leur durée de conservation.",
+      "evidenceNone": "Aucune pièce n'est servie pour cette demande.",
+      "decision": "Décision",
+      "decisions": {
+        "approved": "Valider la demande",
+        "rejected": "Refuser la demande"
+      },
+      "submit": {
+        "approved": "Valider avec ce motif",
+        "rejected": "Refuser avec ce motif"
+      },
+      "confirm": {
+        "approved": "Valider cette demande ? Le demandeur deviendra administrateur de la page et une page de la communauté deviendra « Vérifiée ». La décision est définitive et tracée.",
+        "rejected": "Refuser cette demande ? Le demandeur sera averti et lira votre motif. La décision est définitive et tracée."
+      },
+      "decisionReason": "Motif : {{reason}}",
+      "anotherDecider": "Cette demande doit être tranchée par un autre modérateur : le demandeur et les signataires de la page ne décident jamais de sa revendication.",
+      "badges": {
+        "official": "Officiel",
+        "verified": "Vérifié",
+        "community": "Communauté",
+        "public_agent": "Agent public"
+      },
+      "ownerKinds": {
+        "institution": "Institution",
+        "association": "Association",
+        "company": "Entreprise",
+        "media": "Média",
+        "community": "Communauté"
+      }
+    },
     "settings": "Réglages",
     "appealScope": "Recours transmis au niveau réseau après une décision d’équipe. Le moteur impose un décideur indépendant.",
     "appealTitle": "Recours à réexaminer",
