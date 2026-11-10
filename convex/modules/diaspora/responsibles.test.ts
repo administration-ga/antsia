@@ -1,10 +1,10 @@
 // @vitest-environment edge-runtime
 /**
- * MD-01 — les responsables de DIASPORALE, SANS la porte de démonstration : la
+ * MD-01 et LX-03 — les responsables de DIASPORALE, SANS la porte de démonstration : la
  * console du moteur nomme le premier administrateur (`platform/networkRoles`) ; celui-ci
  * nomme, change et retire les responsables dans la tranche (`membership.setResponsibleRole`),
- * motif à l'appui, par l'aide du moteur ; le rôle ouvre ou ferme la file et `/pilote` au
- * geste suivant ; la liste des responsables ne montre que des profils publiés.
+ * motif à l'appui, par l'aide du moteur ; le rôle ouvre ou ferme la file, les recours et
+ * `/pilote` au geste suivant ; la liste des responsables ne montre que des profils publiés.
  * Données de fixture fictives.
  */
 import { engineErrorCode, engineErrorRule } from "@antsia/social-contracts/errors"
@@ -182,6 +182,24 @@ describe("MD-01 — nommer les responsables du réseau, sans la porte de démons
     expect(await codeOf(name(f, f.moderator, "network_moderator"))).toBe("notFound")
     // Le nouvel administrateur est désormais le dernier : il ne se retire pas.
     expect(await codeOf(name(f, f.plain, "member", f.plain))).toBe("NETWORK_LAST_ADMIN")
+  })
+})
+
+describe("LX-03 — lecteurs du tableau du pilote et de la file des recours", () => {
+  it("un administrateur nommé ouvre /pilote et la file des recours ; retiré, il reçoit le refus indistinct", async () => {
+    const f = await fixture()
+    expect(await codeOf(pilotOf(f, f.plain))).toBe("notFound")
+    expect(await codeOf(appealsOf(f, f.plain))).toBe("notFound")
+
+    await name(f, f.plain, "network_admin")
+    expect(await pilotAccessOf(f, f.plain)).toEqual({ allowed: true })
+    expect(await codeOf(pilotOf(f, f.plain))).toBeNull()
+    expect(await appealsOf(f, f.plain)).toMatchObject({ items: [], isDone: true })
+
+    await name(f, f.plain, "member")
+    expect(await pilotAccessOf(f, f.plain)).toEqual({ allowed: false })
+    expect(await codeOf(pilotOf(f, f.plain))).toBe("notFound")
+    expect(await codeOf(appealsOf(f, f.plain))).toBe("notFound")
   })
 })
 
