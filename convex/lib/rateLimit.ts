@@ -253,6 +253,9 @@ const RATE_LIMITS = {
   "shop.edit": { kind: "token bucket", rate: 120, period: HOUR, capacity: 30 },
   "shop.publish": { kind: "token bucket", rate: 20, period: HOUR, capacity: 6 },
   "shop.decide": { kind: "token bucket", rate: 300, period: HOUR, capacity: 60 },
+  // CM-09 : enregistrer, retirer ou nettoyer un favori d'offre — geste privé et réversible,
+  // même cadence que les marques d'une publication (`mark.toggle`).
+  "shop.offer.save": { kind: "token bucket", rate: 240, period: HOUR, capacity: 60 },
   // P15 : emploi. Candidater sollicite un employeur : budget journalier, renforcé
   // pour les comptes légers ; pièces, suivi et retrait ont leurs seaux ; la
   // politique d'un réseau reste une décision opérateur. Valeurs de départ.

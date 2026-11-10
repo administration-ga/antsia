@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/PostCard.tsx @ 25398f565 — adaptations : la carte est la PROJECTION du moteur (`PostCardPost` = `FunctionReturnType<typeof api.modules.posts.posts.getPost>`, rendue telle quelle par le fil, la recherche, les murs, les groupes et les pages : `_id`, `isMine`, `author.personId`, `page`, réactions `counts`) au lieu du DTO du socle (`postId`, `authorUserId`, `authorKind`, `signedBy`, `page.orgId`) ; identité d'auteur par `PostIdentityLines` (nom, badges CALCULÉS par le serveur — ni fonction ni administration) et `author-link` (lien, forme de pastille, signature) avec les adresses INJECTÉES (`useRoutes()` : profil d'une personne, `page(handle)` d'une page) ; une publication de PAGE parle sous l'identité de la page (nom, logo, badge de confiance), son auteur n'en est que le signataire ; nom neutre traduit pour un profil non publié ; annonce du direct branchée sur sa projection vivante et la route de conférence injectée ; gestes du moteur avec le réseau courant (`engagement.engagement.toggleReaction`, `posts.posts.{edit, remove, pinOnMyWall}`, `pages.pages.removePagePost` pour une publication de page, `moderation.moderation.{reportPost, reportComment}`) ; l'épinglage personnel n'est pas offert sur une publication de page ; libellés, toasts et noms accessibles par l'i18n (clés `reseau:postCard.*`) ; refus du moteur dit par son code (`postEngineErrorText`) ; partage cité avec la page de l'original quand c'est une page qui parle, ses mots-dièse et mentions suivant les gestionnaires de la carte. ; PA6 : dates de publication et citation dans la préférence du lecteur, origine réseau attribuée sans lien, carte de l’évènement annoncé avec dates/statut/réponse réellement projetés et sans droits inventés ; P03 (étude social-commerce du 18/10/2026) : présentation « media » déclarée par l'application (`useNetwork().postPresentation`) — auteur → média (photo, galerie, vidéo, citation, direct, évènement) → actions (réagir avec choix explicite, commenter, partager et copier le lien, enregistrer) → légende bornée « Lire la suite » → offre liée facultative (`offer`, emplacement typé vide jusqu'au lot P09) ; texte seul à hauteur naturelle ; la présentation historique reste le défaut, à l'identique ; ADR-0028 : présentation « charte », l'écran des chartes de la série 3 à la lettre — en-tête (nom, badges en signes : coche Vérifié, Officiel, Agent public ; `@identifiant` ou « Page », date), texte, média POSÉ dans la carte (angle des photos), direct, évènement annoncé (titre et dates en une phrase, Participer à la couleur du commerce et Plus tard en gris quand le lecteur est invité, `events.events.respond` sur l'identifiant de SA ligne), citation, puis une rangée d'icônes avec leurs décomptes (réagir, commenter, partager ; enregistrer à droite) ; étude du 22/10/2026 (fil sans cadre) : sous la présentation « charte », média de la publication bord à bord dans la carte, sans angle, recadré au centre dans son ratio borné ; carte pleine largeur au téléphone ; marge de 12 px quand le média ouvre la lecture ; lot 3 (ADR-0037) : sous la charte, l'offre liée suit le média, et le rendu d'offre reçoit ce que la publication montre (`postMedia`).
+// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/PostCard.tsx @ 25398f565 — adaptations : la carte est la PROJECTION du moteur (`PostCardPost` = `FunctionReturnType<typeof api.modules.posts.posts.getPost>`, rendue telle quelle par le fil, la recherche, les murs, les groupes et les pages : `_id`, `isMine`, `author.personId`, `page`, réactions `counts`) au lieu du DTO du socle (`postId`, `authorUserId`, `authorKind`, `signedBy`, `page.orgId`) ; identité d'auteur par `PostIdentityLines` (nom, badges CALCULÉS par le serveur — ni fonction ni administration) et `author-link` (lien, forme de pastille, signature) avec les adresses INJECTÉES (`useRoutes()` : profil d'une personne, `page(handle)` d'une page) ; une publication de PAGE parle sous l'identité de la page (nom, logo, badge de confiance), son auteur n'en est que le signataire ; nom neutre traduit pour un profil non publié ; annonce du direct branchée sur sa projection vivante et la route de conférence injectée ; gestes du moteur avec le réseau courant (`engagement.engagement.toggleReaction`, `posts.posts.{edit, remove, pinOnMyWall}`, `pages.pages.removePagePost` pour une publication de page, `moderation.moderation.{reportPost, reportComment}`) ; l'épinglage personnel n'est pas offert sur une publication de page ; libellés, toasts et noms accessibles par l'i18n (clés `reseau:postCard.*`) ; refus du moteur dit par son code (`postEngineErrorText`) ; partage cité avec la page de l'original quand c'est une page qui parle, ses mots-dièse et mentions suivant les gestionnaires de la carte. ; PA6 : dates de publication et citation dans la préférence du lecteur, origine réseau attribuée sans lien, carte de l’évènement annoncé avec dates/statut/réponse réellement projetés et sans droits inventés ; P03 (étude social-commerce du 18/10/2026) : présentation « media » déclarée par l'application (`useNetwork().postPresentation`) — auteur → média (photo, galerie, vidéo, citation, direct, évènement) → actions (réagir avec choix explicite, commenter, partager et copier le lien, enregistrer) → légende bornée « Lire la suite » → offre liée facultative (`offer`, emplacement typé vide jusqu'au lot P09) ; texte seul à hauteur naturelle ; la présentation historique reste le défaut, à l'identique ; ADR-0028 : présentation « charte », l'écran des chartes de la série 3 à la lettre — en-tête (nom, badges en signes : coche Vérifié, Officiel, Agent public ; `@identifiant` ou « Page », date), texte, média POSÉ dans la carte (angle des photos), direct, évènement annoncé (titre et dates en une phrase, Participer à la couleur du commerce et Plus tard en gris quand le lecteur est invité, `events.events.respond` sur l'identifiant de SA ligne), citation, puis une rangée d'icônes avec leurs décomptes (réagir, commenter, partager ; enregistrer à droite) ; étude du 22/10/2026 (fil sans cadre) : sous la présentation « charte », média de la publication bord à bord dans la carte, sans angle, recadré au centre dans son ratio borné ; carte pleine largeur au téléphone ; marge de 12 px quand le média ouvre la lecture ; lot 3 (ADR-0037) : sous la charte, l'offre liée suit le média, et le rendu d'offre reçoit ce que la publication montre (`postMedia`) ; FD-04 : « En relecture » dit sous l'en-tête des trois présentations quand le moteur rend `moderation: "pending_review"` (champ servi à l'auteur seul).
 "use client"
 
 /**
@@ -446,6 +446,15 @@ function PostCardContent({ post, now, onTag, onMention, offer }: PostCardProps) 
         </header>
   )
 
+  /*
+   * FD-04 : l'état de modération ne vient du moteur que pour l'AUTEUR
+   * (`moderation`, absent pour tout autre lecteur) ; la carte le dit tel quel,
+   * sous l'en-tête, quand la publication (ou sa modification) est retenue.
+   */
+  const moderationNotice = post.moderation === "pending_review" ? (
+    <p role="status" className="m-0 text-xs text-muted-foreground">{t("postCard.moderation.pendingReview")}</p>
+  ) : null
+
   const withdrawBlock = isOwn && post.visibility === "root" && post.audience === "public" ? <>
           {slug !== ROOT_NETWORK_SLUG && slug !== LEGACY_ROOT_NETWORK_SLUG ? <p className="text-xs text-muted-foreground">{t("postCard.publication.availableOnRoot", { brand: BRAND_NAME })}</p> : null}
           <Button type="button" variant="ghost" disabled={withdrawing} aria-busy={withdrawing || undefined} className="self-start" style={{ minHeight: 44, whiteSpace: "normal" }} onClick={() => void withdrawPublic()}><GlobeLock aria-hidden="true" size={16} />{t(withdrawing ? "postCard.publication.withdrawing" : "postCard.publication.withdraw")}</Button>
@@ -699,6 +708,8 @@ function PostCardContent({ post, now, onTag, onMention, offer }: PostCardProps) 
             {overflowMenu}
           </header>
 
+          {moderationNotice}
+
           {!mediaFirst || textOnly ? body : null}
 
           {post.media.length > 0 ? <PostMedia media={post.media} presentation="charte" primary /> : null}
@@ -819,6 +830,8 @@ function PostCardContent({ post, now, onTag, onMention, offer }: PostCardProps) 
         >
           {header}
 
+          {moderationNotice}
+
           {textOnly ? body : (
             <>
               {/* Bord à bord, comme la présentation historique : la MÊME
@@ -914,6 +927,8 @@ function PostCardContent({ post, now, onTag, onMention, offer }: PostCardProps) 
         }}
       >
         {header}
+
+        {moderationNotice}
 
         {withdrawBlock}
 

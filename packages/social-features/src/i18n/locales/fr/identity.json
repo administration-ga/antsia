@@ -33,6 +33,12 @@
   "resent": "Un nouveau code a été envoyé. Utilisez le plus récent.",
   "localCode": "Code de développement : {{code}}",
   "localCodeHint": "Ce code est affiché uniquement dans le développement local.",
+  "idnReturn": {
+    "refused": "Vous n’avez pas autorisé la connexion avec IDN. Vous pouvez recommencer quand vous le souhaitez.",
+    "unavailable": "IDN ne répond pas pour le moment. Réessayez dans quelques instants.",
+    "accountExists": "Un compte ouvert avec un code utilise déjà cette adresse e-mail. Connectez-vous à ce compte, puis reliez votre identité IDN depuis ses réglages.",
+    "failed": "La connexion avec IDN n’a pas abouti. Vous pouvez recommencer."
+  },
   "errors": {
     "invalidEmail": "Saisissez une adresse e-mail valide.",
     "invalidPhone": "Saisissez un numéro au format international, par exemple + suivi de l’indicatif et du numéro.",

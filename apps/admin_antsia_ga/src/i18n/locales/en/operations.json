@@ -213,6 +213,56 @@
     "status": {
       "active": "Active",
       "inactive": "Withdrawn"
+    },
+    "governance": {
+      "open": "Page governance",
+      "close": "Close governance",
+      "title": "Governance: {{name}}",
+      "tabs": "Governance actions",
+      "retry": "Try again",
+      "tab": {
+        "trust": "Trust",
+        "handle": "Address",
+        "rescue": "Backup administrator"
+      },
+      "trust": {
+        "current": "Current trust: {{trust}}",
+        "label": "New trust",
+        "hint": "“Official” is reserved for institution pages. The displayed badge is computed by the engine from this trust.",
+        "unchanged": "Choose a trust different from the current one.",
+        "submit": "Set this trust",
+        "confirm": "Set the trust “{{trust}}” on this page? The decision and its reason will be recorded in the log.",
+        "saved": "Trust set and recorded in the log."
+      },
+      "handle": {
+        "current": "Current address: {{handle}}",
+        "label": "New address",
+        "unchanged": "Enter an address different from the current one.",
+        "warning": "The previous address is not reserved and no redirection exists: links already shared to it will stop working. It remains in the page’s identity history.",
+        "submit": "Change the address",
+        "confirm": "Replace the address “{{previous}}” with “{{handle}}”? Previous links will stop working. The decision and its reason will be recorded in the log.",
+        "saved": "Address changed and recorded in the log."
+      },
+      "rescue": {
+        "lead": "Only for a page without an active administrator (active membership in the page’s network, not suspended). The designated person, an active member of the network, receives an invitation to accept.",
+        "liveAdmins_one": "This page has {{count}} active administrator: the backup does not apply.",
+        "liveAdmins_other": "This page has {{count}} active administrators: the backup does not apply.",
+        "none": "No active administrator: a backup administrator can be designated.",
+        "pending_one": "{{count}} administrator invitation is already awaiting an answer.",
+        "pending_other": "{{count}} administrator invitations are already awaiting an answer.",
+        "federated": "Mirrored page: it is managed by its source, never from this console.",
+        "inactive": "Restore the page before designating a backup administrator.",
+        "unknown": "This page can no longer be read by the console.",
+        "failed": "The page’s governance status is unavailable.",
+        "handle": "Member handle",
+        "handleHint": "The member’s public handle, with or without @, in the page’s network.",
+        "find": "Find the member",
+        "notFound": "No visible member of this network has this handle.",
+        "designate": "Designate as backup administrator",
+        "confirm": "Designate {{name}} as backup administrator of this page? The person will receive an invitation to accept. The decision and its reason will be recorded in the log.",
+        "invited": "Invitation sent and recorded in the log.",
+        "promoted": "Backup administrator appointed and recorded in the log."
+      }
     }
   },
   "incidents": {

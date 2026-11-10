@@ -305,7 +305,8 @@ describe("publier au nom d'une page", () => {
     const t = testConvex()
     const { root, alice, pageId } = await pageWithPost(t)
     const first = await publishAs(alice, root, pageId, "Communiqué", { idempotencyKey: "cle-1" })
-    expect(await publishAs(alice, root, pageId, "Communiqué", { idempotencyKey: "cle-1" })).toEqual({ postId: first.postId, created: false })
+    // FD-04 : le rejeu dit aussi l'état de modération COURANT de la publication existante.
+    expect(await publishAs(alice, root, pageId, "Communiqué", { idempotencyKey: "cle-1" })).toEqual({ postId: first.postId, created: false, moderation: "published" })
     const other = await createPage(t, alice, root, "Autre page")
     expect(await codeOf(publishAs(alice, root, other.pageId, "Communiqué", { idempotencyKey: "cle-1" }))).toBe("conflict")
   })

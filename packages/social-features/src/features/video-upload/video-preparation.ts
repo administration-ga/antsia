@@ -14,7 +14,9 @@
  *   - `ready`     — le fichier à envoyer (l'original, ou le converti) et sa
  *                   durée, que le serveur bornera (une durée DÉCLARÉE) ;
  *   - `refused`   — la phrase à montrer, dans la langue de l'écran, qui dit
- *                   quoi faire ;
+ *                   quoi faire, et À CÔTÉ son code à liste fermée (`refusal`,
+ *                   `VIDEO_PREPARATION_REFUSALS`, issue antsia#142) pour un
+ *                   écran qui a ses propres textes ;
  *   - `cancelled` — la personne a annulé : rien n'est retenu, rien n'est dit.
  *
  * ⚠️ Le poids du converti n'est PAS jugé ici : `MediaRecorder` vise un débit
@@ -35,6 +37,7 @@ import {
 import {
 	VIDEO_TRANSCODE_TARGETS,
 	videoUploadPlan,
+	type VideoPreparationRefusal,
 	type VideoUploadLimits,
 	type VideoUploadProbe,
 } from "./video-upload-policy"
@@ -83,7 +86,13 @@ export type VideoPreparation =
 			durationMs: number | undefined
 			converted: boolean
 	  }
-	| { status: "refused"; message: string }
+	| {
+			status: "refused"
+			/** Le code du refus, à liste fermée (`VIDEO_PREPARATION_REFUSALS`). */
+			refusal: VideoPreparationRefusal
+			/** La phrase, dans la langue de `t`, qui dit quoi faire. */
+			message: string
+	  }
 	| { status: "cancelled" }
 
 export interface PrepareVideoOptions {
@@ -152,7 +161,7 @@ export async function prepareVideoForUpload(
 			},
 			t,
 		)
-		if (plan.action === "refuse") return { status: "refused", message: plan.error }
+		if (plan.action === "refuse") return { status: "refused", refusal: plan.refusal, message: plan.error }
 		if (plan.action === "upload") {
 			return { status: "ready", file, durationMs: plan.durationMs, converted: false }
 		}
@@ -180,7 +189,7 @@ export async function prepareVideoForUpload(
 		return { status: "ready", file: converted, durationMs, converted: true }
 	} catch (error) {
 		if (signal?.aborted || isTranscodeAborted(error)) return CANCELLED
-		return { status: "refused", message: t("reseau:videoPreparation.conversionFailed") }
+		return { status: "refused", refusal: "conversion-failed", message: t("reseau:videoPreparation.conversionFailed") }
 	} finally {
 		runtime.revokeObjectUrl(sourceUrl)
 	}

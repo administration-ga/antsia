@@ -1,8 +1,12 @@
 /**
- * Graines de la démonstration ANTSIA (vivid-hedgehog-655), à lancer par le propriétaire
- * APRÈS le convex deploy de la démo :
+ * Graines de la démonstration ANTSIA, à lancer par le propriétaire APRÈS le convex deploy de
+ * la démo, et JAMAIS par la publication (`scripts/release.mjs` n'en rejoue aucune) :
  *
  *   ANTSIA_CONVEX_DEMO_DEPLOY_KEY='…' node scripts/seed-demo-content.mjs [--dry-run]
+ *
+ * Le déploiement de démonstration est nommé par la variable de la machine
+ * `ANTSIA_RELEASE_CONVEX_DEMO` (et le site par `ANTSIA_RELEASE_SITE_ORIGIN`), jamais par le
+ * dépôt (EX-01, dépôt public).
  *
  * 1. comptes OTP : sept acteurs puis dix figurants (vrai parcours, `prepare-demo-content`) ;
  * 2. `seeds/demoContent:run` puis `:runFigurants`, puis `seeds/demoConversations:run` (iCom et
@@ -20,8 +24,14 @@ import { ConvexHttpClient } from "convex/browser"
 import { makeFunctionReference } from "convex/server"
 
 import { prepareDemoAccounts, prepareDemoFigurants, targetConfiguration } from "./prepare-demo-content.mjs"
+import { validVariable } from "./release/targets.mjs"
 
-export const DEMO_DEPLOYMENT = "vivid-hedgehog-655"
+/** Le nom du déploiement de démonstration, lu sur la machine ; absent ou mal formé : refus. */
+export function demoDeployment(env = process.env) {
+  const name = env.ANTSIA_RELEASE_CONVEX_DEMO
+  if (!validVariable("convex", name)) throw new Error("ANTSIA_RELEASE_CONVEX_DEMO absente ou mal formée : nom du déploiement de démonstration (variable de la machine).")
+  return name
+}
 const CONFIRMATION = "ANTSIA_DEMO_CONTENT_2026_10_20"
 const MEDIA_ROOT = new URL("../apps/antsia_ga/public/demo-media/", import.meta.url)
 const MEDIA_FILE = /^[a-z0-9-]+\/[a-z0-9-]+\.(png|jpg)$/
@@ -33,9 +43,10 @@ export function deploymentOfKey(key) {
   return head.includes(":") ? head.slice(head.lastIndexOf(":") + 1) : null
 }
 
-export function adminClient(key, { backend = targetConfiguration("demo").backend } = {}) {
-  if (deploymentOfKey(key) !== DEMO_DEPLOYMENT) throw new Error(`ANTSIA_CONVEX_DEMO_DEPLOY_KEY ne désigne pas ${DEMO_DEPLOYMENT}.`)
-  const client = new ConvexHttpClient(backend)
+export function adminClient(key, { env = process.env, backend } = {}) {
+  const expected = demoDeployment(env)
+  if (deploymentOfKey(key) !== expected) throw new Error(`ANTSIA_CONVEX_DEMO_DEPLOY_KEY ne désigne pas ${expected}.`)
+  const client = new ConvexHttpClient(backend ?? targetConfiguration("demo", env).backend)
   client.setAdminAuth(key)
   const call = (name, args) => client.function(makeFunctionReference(name), undefined, args)
   return { call }
@@ -57,16 +68,16 @@ export async function seedMedia(call, { log = console.log, readMedia = (file) =>
   return { attached, remaining }
 }
 
-export async function seedDemoContent({ key, dryRun = false, log = console.log, prepare = { prepareDemoAccounts, prepareDemoFigurants }, client } = {}) {
-  const { call } = client ?? adminClient(key)
+export async function seedDemoContent({ key, dryRun = false, log = console.log, prepare = { prepareDemoAccounts, prepareDemoFigurants }, client, env = process.env } = {}) {
+  const { call } = client ?? adminClient(key, { env })
   if (dryRun) {
-    const accounts = await prepare.prepareDemoAccounts("demo", { log })
-    const figurants = await prepare.prepareDemoFigurants("demo", { log })
+    const accounts = await prepare.prepareDemoAccounts("demo", { log, env })
+    const figurants = await prepare.prepareDemoFigurants("demo", { log, env })
     return { action: "dry-run", accounts, figurants }
   }
   const args = { confirmNonProduction: CONFIRMATION }
-  await prepare.prepareDemoAccounts("demo", { apply: true, log })
-  await prepare.prepareDemoFigurants("demo", { apply: true, log })
+  await prepare.prepareDemoAccounts("demo", { apply: true, log, env })
+  await prepare.prepareDemoFigurants("demo", { apply: true, log, env })
   const content = await call("seeds/demoContent:run", args)
   log(`Contenus des acteurs : ${content.postsCreated} publications créées, ${content.postsExisting} déjà en place.`)
   const figurants = await call("seeds/demoContent:runFigurants", args)

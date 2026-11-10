@@ -20,7 +20,10 @@
  *   (indistinct) — elle ne pourrait de toute façon rien décider ;
  * - RETIRER (rôle `member`) vaut sur toute adhésion existante, même suspendue : retirer un pouvoir
  *   n'attend jamais la levée d'une sanction ;
- * - un réseau qui a un administrateur ACTIF en garde toujours un (`NETWORK_LAST_ADMIN`) ;
+ * - un réseau qui a un administrateur ACTIF en garde toujours un (`NETWORK_LAST_ADMIN`) — par le
+ *   retrait du rôle ici, et par le DÉPART VOLONTAIRE avec `assertLeaveKeepsNetworkAdmin`, que
+ *   chaque chemin de départ volontaire appelle (moteur : `./memberships.leaveNetwork`, cascade de
+ *   la racine comprise ; tranche : son propre chemin de départ) ;
  * - au plus `NETWORK_ROLE_HOLDERS_MAX` titulaires par rôle et par réseau (`policyRefused`).
  */
 import type { MembershipRole } from "@antsia/social-domain/membership"
@@ -72,6 +75,35 @@ async function hasAnotherActiveAdmin(ctx: Pick<QueryCtx, "db">, networkId: Id<"n
 }
 
 /**
+ * L'adhésion est-elle celle du DERNIER administrateur actif de son réseau ? Une seule définition
+ * d'« actif » pour le retrait du rôle et pour le départ : adhésion active, « déclarée » au moins,
+ * sans suspension (ici, à la racine, ou sanction globale). Un administrateur qui n'est pas actif
+ * lui-même n'est jamais « le dernier » : il ne gouverne plus, rien ne le retient.
+ */
+async function isLastActiveAdmin(ctx: Pick<QueryCtx, "db">, membership: Doc<"networkMemberships">): Promise<boolean> {
+  if (membership.role !== "network_admin") return false
+  if (!(await canHoldNetworkRole(ctx, membership.networkId, membership.personId))) return false
+  return !(await hasAnotherActiveAdmin(ctx, membership.networkId, membership.personId))
+}
+
+/**
+ * Garde du DÉPART VOLONTAIRE : le dernier administrateur actif d'un réseau ne le quitte pas sans
+ * remplaçant (`NETWORK_LAST_ADMIN`, la règle du retrait du rôle) ; sinon le réseau resterait sans
+ * administrateur et seule la console pourrait en renommer un. Sans adhésion, ou pour tout autre
+ * membre, rien n'est refusé : le chemin appelant garde ses propres refus. Lecture bornée par
+ * l'index du rôle (`hasAnotherActiveAdmin`).
+ *
+ * À appeler dans les SEULS chemins de départ voulu par la personne, avant toute écriture — jamais
+ * dans `./admission.setMembershipStatus`, qui sert aussi la suspension, les sanctions de
+ * modération et la révocation : l'effacement du compte est un droit et une sanction doit pouvoir
+ * tomber ; la console renomme ensuite un administrateur.
+ */
+export async function assertLeaveKeepsNetworkAdmin(ctx: Pick<QueryCtx, "db">, networkId: Id<"networks">, personId: Id<"persons">): Promise<void> {
+  const membership = await getMembership(ctx, networkId, personId)
+  if (membership && (await isLastActiveAdmin(ctx, membership))) failRule("NETWORK_LAST_ADMIN")
+}
+
+/**
  * Pose (`network_admin`, `network_moderator`) ou retire (`member`) le rôle de réseau de
  * l'adhésion EXISTANTE de `personId` dans `network`. Voir l'en-tête pour les refus.
  */
@@ -94,9 +126,7 @@ export async function setMembershipRole(
       .take(NETWORK_ROLE_HOLDERS_MAX)
     if (holders.length >= NETWORK_ROLE_HOLDERS_MAX) return fail("policyRefused")
   }
-  if (membership.role === "network_admin" && (await canHoldNetworkRole(ctx, network._id, personId)) && !(await hasAnotherActiveAdmin(ctx, network._id, personId))) {
-    return failRule("NETWORK_LAST_ADMIN")
-  }
+  if (await isLastActiveAdmin(ctx, membership)) return failRule("NETWORK_LAST_ADMIN")
   await ctx.db.patch(membership._id, { role })
   return { personId, from: membership.role, to: role, changed: true }
 }

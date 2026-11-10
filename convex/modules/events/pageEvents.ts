@@ -24,6 +24,7 @@ import { networkMutation, networkQuery } from "../../lib/functions"
 import { enforceRateLimit } from "../../lib/rateLimit"
 import { assertDiasporaNetwork } from "../diaspora/facts"
 import { moderatePageContentWrite } from "../moderation/policy"
+import { isPageClosedByBlocks } from "../pages/closedByBlocks"
 import { participationOf } from "./events"
 import { associationEventPage, canManagePageEvent, pageEventAccess, type PageEventAccess } from "./pageEventAccess"
 import {
@@ -294,6 +295,9 @@ export const register = networkMutation({
     if (!event || event.networkId !== ctx.networkId || !event.organizerPageId || event.organizerPersonId !== undefined) return notFound()
     const access = await pageEventAccess(ctx, event, ctx.person._id)
     if (!access || access.moderation !== "published") return notFound()
+    // Issue #141 : une page dont tous les signataires vivants sont en blocage avec la personne se
+    // tait comme un évènement introuvable — jamais « vous êtes bloqué ». Annuler reste possible.
+    if (await isPageClosedByBlocks(ctx, access.page, ctx.person._id)) return notFound()
     if (!isAssociationEventRegistrationOpen({ startAt: event.startAt, registrationClosesAt: event.pageRegistrationClosesAt }, Date.now())) {
       const own = await participationOf(ctx, event._id, ctx.person._id)
       if (own && own.networkId !== ctx.networkId) return notFound()

@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/direct/DirectScene.tsx @ ad2e7fdc2 — adaptations : studio réécrit sur la salle persistante ANTSIA, personId au lieu des noms, géométrie pure du socle, commandes d’intention conservées dans le store et partage explicite ; i18n et jetons ; chaque tuile CONTENUE dans sa case mesurée (requête de conteneur), à la proportion de la source ; DL-02 : la pastille « REC » reste visible en plein écran (l’en-tête de la page est alors masqué).
+// Dupliqué de socle/packages/agent-features/src/features/direct/DirectScene.tsx @ ad2e7fdc2 — adaptations : studio réécrit sur la salle persistante ANTSIA, personId au lieu des noms, géométrie pure du socle, commandes d’intention conservées dans le store et partage explicite ; i18n et jetons ; chaque tuile CONTENUE dans sa case mesurée (requête de conteneur), à la proportion de la source ; DL-02 : la pastille « REC » reste visible en plein écran (l’en-tête de la page est alors masqué) ; DL-04 : au spectateur, « Écouter seulement » (scène d’écoute sobre, partage d’écran coupé dit à l’écran), choix d’image et suggestion sur connexion faible — l’abonnement est réglé par la salle.
 "use client"
 
 import { Button } from "@antsia/ui"
@@ -6,12 +6,14 @@ import { ParticipantTile, useLocalParticipant, useSpeakingParticipants, useTrack
 import { Track } from "livekit-client"
 import { useEffect, useRef, useState, type CSSProperties } from "react"
 import { useTranslation } from "react-i18next"
+import { useDirectReception } from "../../stores/direct-reception-store"
 import { directSessionStore, useDirectSessionStore } from "../../stores/direct-session-store"
 import type { DirectSession } from "./DirectPage"
 import { orderDirectTiles, planDirectScene } from "./direct-scene"
 import { directParticipantPersonId, directRosterTracks } from "./direct-studio-model"
 import { DIRECT_SCENE_CELL_CLASS, directTileFit } from "./direct-tile-fit"
 import { DIRECT_SCENE_VIEWS, type DirectSceneView } from "./direct-view"
+import { DirectListeningStage, DirectReceptionControls, DirectReceptionHint } from "./DirectReception"
 import { DirectRecordingBadge } from "./DirectRecordingConsent"
 import { useDirectCommand } from "./use-direct-command"
 
@@ -37,6 +39,7 @@ export function DirectStudio({ session, onLeave, onEnd }: { session: DirectSessi
   const frame = useRef<HTMLDivElement>(null)
   const scene = useRef<HTMLDivElement>(null)
   const [fullscreen, setFullscreen] = useState(false)
+  const { preference } = useDirectReception()
   const activeKey = speaking.map(directParticipantPersonId).find((id) => session.speakers.some((speaker) => speaker.personId === id)) ?? null
   const roster = directRosterTracks(cameras, session.speakers)
   const effectivePin = roster.some((speaker) => speaker.key === pinned) ? pinned : null
@@ -50,6 +53,10 @@ export function DirectStudio({ session, onLeave, onEnd }: { session: DirectSessi
   const banded = plan.band !== "none" || plan.kind === "cinema"
   const rest = candidates.filter((candidate) => candidate.key !== dominant?.key)
   const canPublish = state.sessionId === session.sessionId && state.credentials?.role === "speaker" && session.viewerRole !== "viewer" && state.phase === "connected"
+  // DL-04 — la réception ne se règle qu'avec un jeton de SPECTATEUR : à l'antenne, on voit le plateau.
+  const receptionAvailable = state.sessionId === session.sessionId && state.credentials?.role === "viewer"
+  const listening = receptionAvailable && preference.mode === "audio"
+  const speakingName = activeKey ? session.speakers.find((speaker) => speaker.personId === activeKey)?.displayName || t("person") : null
 
   useEffect(() => {
     const node = scene.current
@@ -75,11 +82,12 @@ export function DirectStudio({ session, onLeave, onEnd }: { session: DirectSessi
   return <div ref={frame} data-lk-theme="antsia" className="flex min-w-0 flex-col gap-[var(--esp-card-gap,0.75rem)] rounded-[var(--esp-primitive-card-radius,0.75rem)] border border-[var(--esp-primitive-surface-border,var(--border))] bg-card p-[var(--esp-card-padding,0.75rem)]" style={{ ...studioTokens, fontSize: "var(--esp-content-font-size, inherit)", lineHeight: "var(--esp-content-line-height, inherit)", boxShadow: "var(--esp-surface-shadow, none)", ...(fullscreen ? { height: "100%", overflow: "hidden" } : {}) }}>
     <div className="flex shrink-0 flex-wrap items-center justify-between gap-2">
       {fullscreen ? <DirectRecordingBadge session={session} /> : null}
-      <label className="flex min-h-11 items-center gap-2 text-sm">{t("studio.view")}<select value={view} onChange={(event) => setView(event.target.value as DirectSceneView)} className="min-h-11 rounded-[var(--esp-input-radius,0.5rem)] border border-input bg-background px-2">{DIRECT_SCENE_VIEWS.map((value) => <option key={value} value={value}>{t(`studio.views.${value}`)}</option>)}</select></label>
+      {listening ? null : <label className="flex min-h-11 items-center gap-2 text-sm">{t("studio.view")}<select value={view} onChange={(event) => setView(event.target.value as DirectSceneView)} className="min-h-11 rounded-[var(--esp-input-radius,0.5rem)] border border-input bg-background px-2">{DIRECT_SCENE_VIEWS.map((value) => <option key={value} value={value}>{t(`studio.views.${value}`)}</option>)}</select></label>}
       {typeof document !== "undefined" && document.fullscreenEnabled ? <Button variant="ghost" disabled={command.pending} onClick={() => void command.run(() => fullscreen ? document.exitFullscreen() : frame.current!.requestFullscreen())}>{t(fullscreen ? "studio.exitFullscreen" : "studio.fullscreen")}</Button> : null}
     </div>
-    <div ref={scene} aria-label={t(`studio.scene.${plan.kind}`, { count: plan.tiles })} className="flex min-h-0 min-w-0 flex-col gap-2 overflow-hidden" style={fullscreen ? { flex: "1 1 0%" } : { height: "clamp(12rem, 60vh, 38rem)" }}>
-      {candidates.length === 0 && !screen ? <p className="p-6">{t("emptyStage")}</p> : banded ? <>
+    {receptionAvailable ? <DirectReceptionHint sessionId={session.sessionId} /> : null}
+    <div ref={scene} aria-label={listening ? undefined : t(`studio.scene.${plan.kind}`, { count: plan.tiles })} className="flex min-h-0 min-w-0 flex-col gap-2 overflow-hidden" style={fullscreen ? { flex: "1 1 0%" } : listening ? undefined : { height: "clamp(12rem, 60vh, 38rem)" }}>
+      {listening ? <DirectListeningStage speakerName={speakingName} presentationCut={!!screen} /> : candidates.length === 0 && !screen ? <p className="p-6">{t("emptyStage")}</p> : banded ? <>
         <div className="grid min-h-0 flex-1 gap-2" style={{ gridTemplateColumns: plan.band === "right" ? "minmax(0, 1fr) minmax(6rem, 22%)" : "minmax(0, 1fr)", gridTemplateRows: plan.band === "bottom" ? "minmax(0, 1fr) 6rem" : "minmax(0, 1fr)" }}>
           <div className={DIRECT_SCENE_CELL_CLASS}>{dominant ? tile(dominant) : presentation}</div>
           {plan.kind !== "cinema" ? <div className={`flex min-h-0 min-w-0 gap-2 ${plan.band === "right" ? "flex-col overflow-y-auto" : "overflow-x-auto"}`}>{rest.map((candidate) => <div key={candidate.key} className={`${DIRECT_SCENE_CELL_CLASS} ${plan.band === "right" ? "h-24 shrink-0" : "w-32 shrink-0"}`}>{tile(candidate)}</div>)}{dominant && screen ? <div className={plan.band === "right" ? "h-24 shrink-0" : "w-48 shrink-0"}>{presentation}</div> : null}</div> : null}
@@ -96,6 +104,7 @@ export function DirectStudio({ session, onLeave, onEnd }: { session: DirectSessi
         <Button variant="ghost" aria-pressed={state.intent.cameraEnabled && !state.intent.audioOnly} onClick={() => directSessionStore.setIntent({ cameraEnabled: !(state.intent.cameraEnabled && !state.intent.audioOnly), audioOnly: false })}>{t(state.intent.cameraEnabled && !state.intent.audioOnly ? "cameraOff" : "cameraOn")}</Button>
         {typeof navigator !== "undefined" && typeof navigator.mediaDevices?.getDisplayMedia === "function" ? <Button variant="ghost" disabled={command.pending} aria-pressed={isScreenShareEnabled} onClick={() => void command.run(() => localParticipant.setScreenShareEnabled(!isScreenShareEnabled, { audio: false }))}>{t(isScreenShareEnabled ? "studio.stopSharing" : "studio.shareScreen")}</Button> : null}
       </> : null}
+      {receptionAvailable ? <DirectReceptionControls sessionId={session.sessionId} /> : null}
       {onLeave ? <Button variant="ghost" onClick={onLeave}>{t("leave")}</Button> : null}
       {onEnd && session.permissions.endOrTransfer ? <Button variant="ghost" disabled={command.pending} onClick={() => void command.run(async () => { if (document.fullscreenElement === frame.current) await document.exitFullscreen(); onEnd() })}>{t("end")}</Button> : null}
     </div>

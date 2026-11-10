@@ -20,6 +20,7 @@ import { JobPolicy } from "./console-job-policy"
 import { StorefrontPolicy } from "./console-storefront-policy"
 import { CatalogPolicy } from "./console-catalog-policy"
 import { CheckoutPolicy } from "./console-checkout-policy"
+import { PageGovernancePanel } from "./console-page-governance"
 
 type PageValues = { name: string; handle: string; country: string; reason: string }
 function CreateInstitutionPage({ networkId, canAdmin }: { networkId: Id<"networks">; canAdmin: boolean }) {
@@ -56,6 +57,10 @@ function CreateInstitutionPage({ networkId, canAdmin }: { networkId: Id<"network
 function PageList({ networkId, status, canAdmin }: { networkId: Id<"networks">; status: "active" | "inactive"; canAdmin: boolean }) {
   const { t } = useTranslation("operations")
   const window = useWindowCursor()
+  // PG-01 : une seule fiche de gouvernance ouverte à la fois ; la fermer ne perd aucun brouillon sans accord.
+  const [governed, setGoverned] = useState<Id<"pages"> | null>(null)
+  const canChange = useOperationDraftGuard()
+  const governanceId = useId()
   const pages = useQuery(api.modules.pages.admin.paginatePages, { networkId, status, paginationOpts: { cursor: window.cursor, numItems: 20, maximumRowsRead: 50, maximumBytesRead: 524_288 } })
   const setStatus = useMutation(api.modules.pages.admin.setPageStatus)
   return <div className="flex flex-col gap-4">
@@ -64,6 +69,8 @@ function PageList({ networkId, status, canAdmin }: { networkId: Id<"networks">; 
       <p className="break-words text-sm text-muted-foreground">{t("pages.address", { handle: page.handle })}</p>
       <p className="text-xs text-muted-foreground">{t(`pages.status.${page.status}`)} · <ConsoleDate at={page.createdAt} /></p>
       {canAdmin ? <MotiveAction label={t(page.status === "active" ? "pages.deactivate" : "pages.reactivate")} minLength={10} danger={page.status === "active"} onDecision={(reason) => setStatus({ pageId: page.pageId, status: page.status === "active" ? "inactive" : "active", reason })} /> : null}
+      <Button type="button" variant="outline" style={controlStyle} aria-expanded={governed === page.pageId} aria-controls={governed === page.pageId ? `${governanceId}-${page.pageId}` : undefined} onClick={() => { if (canChange()) setGoverned(governed === page.pageId ? null : page.pageId) }}>{t(governed === page.pageId ? "pages.governance.close" : "pages.governance.open")}</Button>
+      {governed === page.pageId ? <div id={`${governanceId}-${page.pageId}`}><PageGovernancePanel page={page} canAdmin={canAdmin} /></div> : null}
     </li>)}</ul>}
     <WindowPagination window={window} result={pages} />
   </div>

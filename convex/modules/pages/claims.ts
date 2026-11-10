@@ -12,18 +12,21 @@
  *  · les pièces (statuts, récépissé, mandat) passent la garde des fichiers
  *    (usage `page_claim_evidence`, source `page_claim`) et ne sont lues que par
  *    la modération du réseau et le demandeur ; une demande RETIRÉE les purge
- *    aussitôt (la rétention des pièces d'une demande tranchée vient avec PA5) ;
+ *    aussitôt ; celles d'une demande TRANCHÉE sont purgées au terme de
+ *    `PAGE_CLAIM_EVIDENCE_RETENTION_DAYS` (PG-01, valeur à valider) ;
  *  · trancher est une DÉCISION : motivée, tracée (`page.claim_decide`, qualité
  *    du décideur). Validée, elle fait du demandeur un administrateur et de la
- *    page `community` une page `verified`.
+ *    page `community` une page `verified`. Le demandeur et tout signataire de la
+ *    page (même invité) ne tranchent jamais ; le demandeur reçoit une cloche
+ *    neutre (`page_claim_decided`, PG-01), la décision motivée se relit ici.
  */
 import { assertDecisionReason } from "@antsia/social-domain/audit"
-import { pageTrustRank, assertPageClaimable, assertPageClaimEvidenceCount, isPageClaimOpen, normalizePageClaimNote } from "@antsia/social-domain/pages"
-import { paginationOptsValidator, type PaginationResult } from "convex/server"
+import { pageTrustRank, assertPageClaimable, assertPageClaimEvidenceCount, isPageClaimOpen, normalizePageClaimNote, PAGE_CLAIM_EVIDENCE_RETENTION_MS } from "@antsia/social-domain/pages"
+import { makeFunctionReference, paginationOptsValidator, type PaginationResult } from "convex/server"
 import { type Infer, v } from "convex/values"
 
 import type { Doc, Id } from "../../_generated/dataModel"
-import type { MutationCtx, QueryCtx } from "../../_generated/server"
+import { internalMutation, type MutationCtx, type QueryCtx } from "../../_generated/server"
 import { isActiveMember } from "../../lib/access"
 import { checked, fail, failRule, notFound } from "../../lib/errors"
 import { networkMutation, networkQuery } from "../../lib/functions"
@@ -33,6 +36,7 @@ import { assertNativePageManagement } from "../federation/mirrorAccess"
 import { admitStoredUpload, assertFreshUpload, findScanByStorageId } from "../files/admission"
 import { purgeStoredFile } from "../files/purge"
 import { resolveFileDelivery, withheldCodeOf, withheldCodeValidator } from "../files/storageGuard"
+import { notifyPerson } from "../notifications/notify"
 import { miniProfileCache } from "../people/miniProfile"
 import { appendAudit, networkRoleCapacity } from "../platform/audit"
 import { countLiveAdmins, liveSignatoryRole, pageCardOf, signatoryRowOf } from "./access"
@@ -72,6 +76,15 @@ async function toClaimDto(ctx: ReadCtx, claim: Doc<"pageClaims">, profileOf: Ret
     createdAt: claim.createdAt,
     decidedAt: claim.decidedAt ?? null,
   }
+}
+
+/**
+ * Un CONFLIT d'intérêts : le demandeur, ou toute personne qui a une ligne de signataire sur la
+ * page (administrateur, signataire, invitation en attente), ne tranche jamais la revendication.
+ */
+async function hasClaimConflict(ctx: Pick<QueryCtx, "db">, claim: Doc<"pageClaims">, personId: Id<"persons">): Promise<boolean> {
+  if (claim.claimantPersonId === personId) return true
+  return (await signatoryRowOf(ctx, claim.pageId, personId)) !== null
 }
 
 /** Purger les pièces d'une revendication — seulement celles que le registre dit admises pour elle. */
@@ -214,11 +227,17 @@ export const paginatePageClaims = networkQuery({
  */
 export const getPageClaim = networkQuery({
   args: { claimId: v.id("pageClaims") },
-  returns: v.object({ ...claimDtoValidator.fields, evidence: v.array(v.object({ url: v.union(v.string(), v.null()), withheld: v.union(withheldCodeValidator, v.null()) })) }),
+  returns: v.object({
+    ...claimDtoValidator.fields,
+    evidence: v.array(v.object({ url: v.union(v.string(), v.null()), withheld: v.union(withheldCodeValidator, v.null()) })),
+    /** PG-01 : le lecteur peut-il trancher MAINTENANT ? (modération du réseau, demande en attente, sans conflit d'intérêts) */
+    canDecide: v.optional(v.boolean()),
+  }),
   handler: async (ctx, args) => {
     const claim = await ctx.db.get(args.claimId)
     if (!claim || claim.networkId !== ctx.networkId) return notFound()
-    if (claim.claimantPersonId !== ctx.person._id && networkRoleCapacity(ctx.membership.role) === null) return notFound()
+    const reviewer = networkRoleCapacity(ctx.membership.role) !== null
+    if (claim.claimantPersonId !== ctx.person._id && !reviewer) return notFound()
     const dto = await toClaimDto(ctx, claim, miniProfileCache(ctx))
     if (!dto) return notFound()
     const evidence = []
@@ -226,7 +245,8 @@ export const getPageClaim = networkQuery({
       const delivery = await resolveFileDelivery(ctx, storageId)
       evidence.push({ url: delivery.url, withheld: withheldCodeOf(delivery.scan) })
     }
-    return { ...dto, evidence }
+    const canDecide = reviewer && isPageClaimOpen(claim.status) && !(await hasClaimConflict(ctx, claim, ctx.person._id))
+    return { ...dto, evidence, canDecide }
   },
 })
 
@@ -235,6 +255,9 @@ export const getPageClaim = networkQuery({
  * tracée (`page.claim_decide`). Validée : le demandeur, encore membre actif du
  * réseau, devient administrateur (habilitation acceptée, c'est sa demande) et
  * une page `community` devient `verified`. Une décision est définitive.
+ * PG-01 : le demandeur et les signataires de la page reçoivent le refus
+ * indistinct ; la conservation des pièces court dès la décision ; le demandeur
+ * est averti par une cloche sans contenu.
  */
 export const decidePageClaim = networkMutation({
   minStatus: "declaree",
@@ -246,6 +269,7 @@ export const decidePageClaim = networkMutation({
     if (capacity === null) return notFound()
     const claim = await ctx.db.get(args.claimId)
     if (!claim || claim.networkId !== ctx.networkId) return notFound()
+    if (await hasClaimConflict(ctx, claim, ctx.person._id)) return notFound()
     if (!isPageClaimOpen(claim.status)) return fail("conflict")
     const decisionReason = checked(() => assertDecisionReason(args.reason, 3))
     const page = await ctx.db.get(claim.pageId)
@@ -265,7 +289,10 @@ export const decidePageClaim = networkMutation({
         await ctx.db.patch(page._id, { trust, trustRank: pageTrustRank(trust), updatedAt: now })
       }
     }
-    await ctx.db.patch(claim._id, { status: args.decision, decidedByPersonId: ctx.person._id, decisionReason, decidedAt: now, updatedAt: now })
+    await ctx.db.patch(claim._id, {
+      status: args.decision, decidedByPersonId: ctx.person._id, decisionReason, decidedAt: now, updatedAt: now,
+      ...(claim.evidenceStorageIds.length > 0 ? { evidencePurgeAt: now + PAGE_CLAIM_EVIDENCE_RETENTION_MS } : {}),
+    })
     await appendAudit(ctx, {
       action: "page.claim_decide",
       capacity,
@@ -275,6 +302,36 @@ export const decidePageClaim = networkMutation({
       details: { pageId: page._id, claimantPersonId: claim.claimantPersonId, decision: args.decision, decisionReason, previousTrust: page.trust, trust },
       at: now,
     })
+    // PG-01 : le demandeur seul est averti — ni nom de page, ni sens de la décision, ni motif dans la cloche.
+    await notifyPerson(ctx, { networkId: claim.networkId, recipientPersonId: claim.claimantPersonId, kind: "page_claim_decided", subject: { pageClaim: claim._id } })
     return { status: args.decision }
+  },
+})
+
+/** Revendications purgées par transaction : cinq pièces au plus chacune. */
+const EVIDENCE_PURGE_BATCH = 10
+const purgeNext = makeFunctionReference<"mutation", Record<string, never>, number>("modules/pages/claims:purgeDecidedClaimEvidence")
+
+/**
+ * PG-01 — la purge des pièces d'une revendication TRANCHÉE, conservation échue : par lots bornés
+ * (index `by_evidencePurgeAt`), poursuivie par chaîne. Seules les pièces que le registre dit
+ * admises pour une revendication sont purgées ; la revendication, sa décision et son motif restent
+ * (le demandeur et la modération les relisent ; l'effacement de la personne les emporte).
+ */
+export const purgeDecidedClaimEvidence = internalMutation({
+  args: {},
+  returns: v.number(),
+  handler: async (ctx): Promise<number> => {
+    const now = Date.now()
+    const due = await ctx.db
+      .query("pageClaims")
+      .withIndex("by_evidencePurgeAt", (q) => q.gt("evidencePurgeAt", 0).lte("evidencePurgeAt", now))
+      .take(EVIDENCE_PURGE_BATCH)
+    for (const claim of due) {
+      await purgeClaimEvidence(ctx, claim)
+      await ctx.db.patch(claim._id, { evidenceStorageIds: [], evidencePurgeAt: undefined, updatedAt: now })
+    }
+    if (due.length === EVIDENCE_PURGE_BATCH) await ctx.scheduler.runAfter(0, purgeNext, {})
+    return due.length
   },
 })

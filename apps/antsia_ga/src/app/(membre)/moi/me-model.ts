@@ -59,6 +59,8 @@ export function meEntries(handle: string | null): MeEntry[] {
     })),
     { id: "stories", section: "activity", href: routes.stories(), labelKey: "reseau:reseauMobileTabs.menu.stories", descriptionKey: "antsia:me.storiesHint" },
     { id: "shop", section: "activity", href: routes.myShops(), labelKey: "memberNetwork:commerce.myShop", descriptionKey: "memberNetwork:commerce.myShopLead" },
+    // CM-09 : les offres que j'ai enregistrées, privées, avant le panier.
+    { id: "savedOffers", section: "activity", href: routes.savedOffers(), labelKey: "shops:saved.title", descriptionKey: "shops:saved.lead" },
     { id: "cart", section: "activity", href: routes.cart(), labelKey: "cart:title", descriptionKey: "cart:lead" },
     { id: "purchases", section: "activity", href: routes.purchases(), labelKey: "purchases:title", descriptionKey: "purchases:lead" },
     { id: "checkoutPreparations", section: "activity", href: routes.myOrders(), labelKey: "checkout:ordersTitle", descriptionKey: "checkout:ordersLead" },
