@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/iappel/call-phase.test.ts @ ad2e7fdc2 — adaptations : phrases lues dans les locales françaises du moteur (`t` réel, clés `iappel:callPhase.…`) ; cas des branches retirées ôtés (poste nommé comme sujet, horaires de poste, secrétariat indisponible, phrase composée par le serveur qui primait) ; listes de raisons ramenées à celles du moteur ; les écrans « Hors ligne » et « Hors de ses relations » gardent leur phrase, désormais composée par l'écran.
+// Dupliqué de socle/packages/agent-features/src/features/iappel/call-phase.test.ts @ ad2e7fdc2 — adaptations : phrases lues dans les locales françaises du moteur (`t` réel, clés `iappel:callPhase.…`) ; cas des branches retirées ôtés (poste nommé comme sujet, horaires de poste, secrétariat indisponible, phrase composée par le serveur qui primait) ; listes de raisons ramenées à celles du moteur ; les écrans « Hors ligne » et « Hors de ses relations » gardent leur phrase, désormais composée par l'écran. ; IC-04 : « hors de ses relations » dit à l'appelant comme un appel sans réponse.
 import { describe, expect, it } from "vitest"
 
 import { createAppI18n } from "../../i18n"
@@ -342,9 +342,9 @@ describe("hors ligne (2026-09-01)", () => {
 	})
 })
 
-describe("hors de ses relations (lot 5)", () => {
-	it("« hors de ses relations » : ni rappel ni message vocal, mais écrire reste offert", () => {
-		expect(endLabel("outside_relations", t)).toBe("Hors de ses relations")
+describe("hors de ses relations (lot 5, IC-04)", () => {
+	it("IC-04 : l'appelant lit un appel SANS RÉPONSE — même titre, même phrase, même rappel que le manqué ; jamais de message vocal", () => {
+		expect(endLabel("outside_relations", t)).toBe(endLabel("missed", t))
 
 		const copy = describeCallEnd(
 			"outside_relations",
@@ -356,17 +356,16 @@ describe("hors de ses relations (lot 5)", () => {
 			},
 			t,
 		)
-		expect(copy.title).toBe("Hors de ses relations")
-		expect(copy.body).toContain("que de ses relations")
-		expect(copy.canRetry).toBe(false)
-		expect(copy.canLeaveVoicemail).toBe(false)
+		const missed = describeCallEnd("missed", { peerName: "Marie Ndong" }, t)
+		expect(copy).toEqual({ ...missed, canLeaveVoicemail: false })
+		expect(copy.title).toBe("Pas de réponse")
 		expect(copy.canWrite).toBe(true)
 	})
 
-	it("la phrase nomme la personne, sans rien inventer d'autre", () => {
-		expect(describeCallEnd("outside_relations", { peerName: "Paul" }, t).body).toBe(
-			"Paul ne reçoit les appels que de ses relations.",
-		)
+	it("aucune phrase ne dit le réglage de l'appelé", () => {
+		const body = describeCallEnd("outside_relations", { peerName: "Paul" }, t).body
+		expect(body).toBe("Paul n'a pas répondu.")
+		expect(body).not.toContain("relations")
 	})
 
 	it("c'est un refus d'ADMISSION, pas un manqué", () => {
@@ -381,8 +380,8 @@ describe("refusalEndKind — la reason du serveur devient un écran", () => {
 		expect(refusalEndKind("in_meeting")).toBe("in_meeting")
 		expect(refusalEndKind("offline")).toBe("offline")
 		// Un littéral que le serveur émet et que cette liste ignorerait
-		// retomberait sur « Appel refusé » — l'appelant ne saurait pas qu'il
-		// n'est pas une relation.
+		// retomberait sur « Appel refusé » ; IC-04 : son écran le dit comme
+		// un appel sans réponse (`describeCallEnd`).
 		expect(refusalEndKind("outside_relations")).toBe("outside_relations")
 	})
 

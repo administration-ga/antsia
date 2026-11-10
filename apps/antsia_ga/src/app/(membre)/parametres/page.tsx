@@ -10,7 +10,8 @@ export function generateMetadata(): Metadata {
 
 /**
  * « Paramètres » des MEMBRES : affichage (apparence, thème, motif de fond),
- * langue et fuseau horaire. Sous le gabarit `(membre)`, rangée sous Profil.
+ * langue et fuseau horaire, réglages iCom (IC-04). Sous le gabarit `(membre)`,
+ * rangée sous Profil.
  */
 export default function MemberSettingsPage() {
   return <SettingsScreen />

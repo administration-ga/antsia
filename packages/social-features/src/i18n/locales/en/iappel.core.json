@@ -61,7 +61,6 @@
       "dnd": "Do not disturb",
       "inMeeting": "In a meeting",
       "offline": "Offline",
-      "outsideRelations": "Outside their connections",
       "cancelled": "Call cancelled",
       "error": "Connection failed",
       "ended": "Call ended"
@@ -75,7 +74,6 @@
       "dnd": "{{subject}} is unavailable right now.",
       "inMeeting": "{{subject}} is in a meeting.",
       "offline": "{{subject}} is offline right now.",
-      "outsideRelations": "{{subject}} only takes calls from their connections.",
       "error": "The call could not be established. Check your connection, then try again.",
       "cancelled": "You cancelled the call.",
       "duration": "Duration: {{duration}}"

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// Paramètres : un volet atteignable qui rend l'affichage (apparence, sept thèmes, motif de fond), la langue et le fuseau.
+// Paramètres : un volet atteignable qui rend l'affichage (apparence, sept thèmes, motif de fond), la langue et le fuseau, puis la rubrique iCom (IC-04).
 import { MEMBER_THEME_IDS } from "@antsia/social-contracts/appearance"
 import { ViewerPreferencesProvider } from "@antsia/api/viewer-preferences"
 import { createAppI18n, type Locale } from "@antsia/social-features/i18n"
@@ -21,6 +21,8 @@ vi.mock("next/link", () => ({ default: ({ href, children, ...props }: { href: st
 vi.mock("@/components/member-chrome", () => ({ MemberPage: ({ children }: { children: ReactNode }) => <main>{children}</main> }))
 vi.mock("@/components/network-shell", () => ({ useMemberSession: () => ({ person: state.person }) }))
 vi.mock("@/lib/sign-out", () => ({ signOutAndRedirect: vi.fn() }))
+// IC-04 : la rubrique iCom a ses propres tests (`components/icom-settings.test.tsx`) ; ici, seulement sa place.
+vi.mock("@/components/icom-settings", () => ({ IcomSettings: () => <section><h2>iCom : appels et messages</h2></section> }))
 
 import { PersonalTheme } from "@/components/personal-theme"
 import { appResources } from "@/i18n/resources"
@@ -82,7 +84,7 @@ describe("Paramètres", () => {
   it("un volet nommé : l'affichage avec les sept thèmes, la langue et le fuseau, puis les réglages voisins", async () => {
     await mount("fr")
     expect(container.querySelector("h1")?.textContent).toBe("Réglages")
-    expect([...container.querySelectorAll("h2")].map((heading) => heading.textContent)).toEqual(["Affichage", "Langue et fuseau horaire", "Autres réglages"])
+    expect([...container.querySelectorAll("h2")].map((heading) => heading.textContent)).toEqual(["Affichage", "Langue et fuseau horaire", "iCom : appels et messages", "Autres réglages"])
     expect(container.querySelector("select option[value='dark']")).not.toBeNull()
     expect(legends()).toEqual(["Thème", "Motif de fond"])
     expect(themeRadios().map((radio) => radio.value)).toEqual([...MEMBER_THEME_IDS])
@@ -101,7 +103,7 @@ describe("Paramètres", () => {
   it("les libellés existent aussi en anglais", async () => {
     await mount("en")
     expect(container.querySelector("h1")?.textContent).toBe("Settings")
-    expect([...container.querySelectorAll("h2")].map((heading) => heading.textContent)).toEqual(["Display", "Language and time zone", "More settings"])
+    expect([...container.querySelectorAll("h2")].map((heading) => heading.textContent)).toEqual(["Display", "Language and time zone", "iCom : appels et messages", "More settings"])
     expect(legends()).toEqual(["Theme", "Background pattern"])
   })
 
