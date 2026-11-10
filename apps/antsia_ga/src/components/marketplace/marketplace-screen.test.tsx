@@ -6,6 +6,8 @@ import { I18nextProvider } from "react-i18next"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 const mocks = vi.hoisted(() => ({ query: vi.fn(), push: vi.fn(), params: null as URLSearchParams | null, network: { networkId: "root-a", personId: "person-a" }, toastSuccess: vi.fn(), toastError: vi.fn() }))
+// CM-09 : le bouton « Enregistrer » a ses propres tests (`save-offer-button.test.tsx`) ; ici, sa seule présence.
+vi.mock("@/components/shops/save-offer-button", () => ({ SaveOfferButton: ({ offer, layout }: { offer: { offerRef: string }; layout?: string }) => <span data-save-offer={offer.offerRef} data-save-layout={layout ?? "overlay"} /> }))
 vi.mock("@antsia/api/engine", () => ({ api: { modules: { shops: { marketplace: { search: "offers", demoSelection: "demo" }, marketplaceShops: { search: "shops" } } } } }))
 vi.mock("@antsia/api/hooks", () => ({ useAuthenticatedConvexQuery: (...args: unknown[]) => mocks.query(...args) }))
 vi.mock("@antsia/api/network", () => ({ useNetwork: () => mocks.network }))
@@ -77,6 +79,8 @@ describe("MP04 — résultats de la marketplace : vues, rayons, recherche et fen
     // L'offre a une variante : elle se choisit avant tout ajout ; aucune préparation ni paiement depuis la carte.
     expect(container.querySelector("[data-offer-card-action] button")?.textContent).toBe("Choisir")
     expect(container.querySelector("[data-offer-card] form, [data-checkout]")).toBeNull()
+    // CM-09 : « Enregistrer » est posé dans le coin de la photo de chaque carte du membre.
+    expect(container.querySelector("[data-offer-card-save] [data-save-offer]")?.getAttribute("data-save-offer")).toBe(catalogOfferFixture().offerRef)
     expect(container.querySelector('a[aria-label^="Mes paniers"]')?.getAttribute("href")).toBe(routes.cart())
     expect(link("Accueil")?.getAttribute("href")).toBe(routes.marketplaceHome())
     expect(link("Produits")?.getAttribute("aria-current")).toBe("page")
