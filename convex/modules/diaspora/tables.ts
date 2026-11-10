@@ -68,9 +68,12 @@ export const diasporaTables = {
     members: v.number(),
     associations: v.number(),
     companies: v.number(),
+    /** Évènements à venir ouverts au réseau des associations du pays ; zéro non mesuré tant que la date ci-dessous manque. */
     upcomingEvents: v.number(),
     /** Dernier passage nocturne ; absent tant qu'aucun passage n'a compté. */
     countersComputedAt: v.optional(v.number()),
+    /** HB-02 : dernier passage qui a compté EXACTEMENT les évènements à venir ; absent, le compteur n'est pas mesuré. */
+    upcomingEventsComputedAt: v.optional(v.number()),
     updatedAt: v.number(),
   }).index("by_network_and_country", ["networkId", "country"]),
 
