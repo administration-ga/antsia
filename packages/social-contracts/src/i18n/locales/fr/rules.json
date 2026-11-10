@@ -187,5 +187,8 @@
   "CONTEXT_CALLS_CLOSED": "Les appels ne sont pas ouverts à ce stade de la conversation.",
   "CONTEXT_CALL_CONSENT_REQUIRED": "Un appel exige l'accord des deux parties dans cette conversation.",
   "CONTEXT_IDEMPOTENCY_CONFLICT": "Ce message a déjà été envoyé avec un autre contenu. Rédigez-le à nouveau.",
-  "CONTEXT_TEXT_CONTROL": "Le message contient des caractères non pris en charge."
+  "CONTEXT_TEXT_CONTROL": "Le message contient des caractères non pris en charge.",
+  "SHOP_PAUSED": "Cette boutique est fermée temporairement et rouvre le {{until, datetime(dateStyle: long; timeZone: Africa/Libreville)}} : elle n'accepte aucune nouvelle commande ni demande d'ici là. Sa vitrine et vos échanges avec elle restent ouverts.",
+  "SHOP_PAUSE_END_PAST": "La date de réouverture doit être au plus tôt demain.",
+  "SHOP_PAUSE_TOO_LONG": "Une fermeture temporaire ne peut pas dépasser {{days}} jours. Pour plus longtemps, retirez la vitrine."
 }

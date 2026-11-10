@@ -21,6 +21,7 @@ import { routes } from "@/lib/routes"
 import { CART_LINES, CartBar, CartLayout, CartLine, CartSummary } from "./cart-layout"
 import { OfferQuickAdd } from "./offer-quick-add"
 import { SaveOfferButton } from "@/components/shops/save-offer-button"
+import { ShopPauseNotice, useShopPause } from "@/components/shops/shop-pause"
 import { useCartConnectivity, useCartDraft } from "./use-cart-draft"
 
 /** Une boutique par panier, en pastilles qui défilent ; celle choisie prend la couleur du commerce (ADR-0027). */
@@ -51,6 +52,8 @@ function CartContents({ draft, save }: { draft: CartDraft; save: (draft: CartDra
   const router = useRouter()
   const convex = useConvex()
   const query = useAuthenticatedConvexQuery(api.modules.shops.checkout.cartContext, { networkId, handle: draft.handle, items: draft.items })
+  // CM-10 : boutique fermée temporairement — le panier reste, mais ni validation ni étape de remise avant la réouverture.
+  const pausedUntil = useShopPause(draft.handle)
   const optionsAction = useAction(api.modules.shops.checkoutActions.options)
   const prepare = useAction(api.modules.shops.checkoutActions.prepare)
   const action = useShopAction()
@@ -71,7 +74,7 @@ function CartContents({ draft, save }: { draft: CartDraft; save: (draft: CartDra
   const context = query.isError ? previousContext.current : query.data ?? previousContext.current
   const lines: CheckoutCartLine[] = context?.items.flatMap((item) => item.available && item.offer ? [{ offer: item.offer, quantity: item.quantity, ...(item.variantRef ? { variantRef: item.variantRef } : {}) }] : []) ?? []
   const first = lines[0]
-  const deliveryOpen = !!(options && first && lines.length === draft.items.length && context && (!context.pending || !!submitted))
+  const deliveryOpen = !!(options && first && lines.length === draft.items.length && context && (!context.pending || !!submitted)) && pausedUntil === null
   // L'étape de remise vient d'être ouverte par « Valider mon panier » : la lecture y est conduite.
   useEffect(() => {
     if (!deliveryOpen || !openDelivery.current) return
@@ -117,10 +120,11 @@ function CartContents({ draft, save }: { draft: CartDraft; save: (draft: CartDra
   const itemsAmount = prepared ? prepared.reduce((sum, line) => sum + line.expectedUnitAmount.amount * line.quantity, 0) : null
   const articles = draft.items.reduce((sum, item) => sum + item.quantity, 0)
   // « Valider mon panier » relit prix, disponibilités et modes de remise ; ensuite (ou en reprise), « Relire ».
-  const validate = <Button variant="commerce" pending={action.pending} disabled={!connectivity.online} onClick={refresh}>{t(deliveryOpen || submitted ? "refresh" : "validate")}</Button>
+  const validate = <Button variant="commerce" pending={action.pending} disabled={!connectivity.online || pausedUntil !== null} onClick={refresh}>{t(deliveryOpen || submitted ? "refresh" : "validate")}</Button>
   return <CartLayout
     main={<>
       <CartShopHeader handle={draft.handle} />
+      {pausedUntil !== null ? <ShopPauseNotice until={pausedUntil} /> : null}
       {!connectivity.online ? <p role="status">{t("offline")}</p> : null}
       {recover && submitted ? <Card><p>{t("recoverHint")}</p><SubmittedCart draft={draft} save={save} onRecover={() => setRecover(true)} onStopped={stopped} recovery /></Card> : null}
       {submitted && !recover ? <SubmittedCart draft={draft} save={save} onRecover={() => setRecover(true)} onStopped={stopped} recovery /> : null}

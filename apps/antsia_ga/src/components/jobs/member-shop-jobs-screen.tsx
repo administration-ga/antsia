@@ -8,6 +8,7 @@ import { useTranslation } from "react-i18next"
 
 import { Button, Card, CenteredStatus } from "@/components/shared/controls"
 import { ShopFrame, ShopLink, ShopQueryFailure } from "@/components/shops/shop-ui"
+import { ShopPauseBanner } from "@/components/shops/shop-pause"
 import { routes } from "@/lib/routes"
 import { JobApplicationForm, type JobApplicationDraft } from "./job-application-form"
 import { JobIntentBoundary, useJobAction } from "./job-guards"
@@ -65,6 +66,8 @@ function MemberJobQuery({ handle, jobRef }: { handle: string; jobRef: string }) 
   const saveDraft = useCallback((next: JobApplicationDraft) => { draft.current = next }, [])
   const refreshJob = async () => { const fresh = await query.refetch(); return !fresh.isError && fresh.data?.revision === query.data?.revision && fresh.data?.status === "open" && fresh.data.actions.apply }
   return <ShopFrame title={t("details.title")}><ShopLink href={routes.shopJobs(handle)}>{t("details.backToJobs")}</ShopLink>
+    {/* CM-10 : boutique fermée temporairement — la réouverture, avant toute nouvelle candidature. */}
+    <ShopPauseBanner handle={handle} />
     {query.isError ? <ShopQueryFailure href={routes.storefront(handle)} retry={() => { void query.refetch() }} />
       : query.isPending || query.data === undefined ? <CenteredStatus label={t("details.loading")} />
         : query.data === null ? <Card><div className="grid gap-2"><h2 className="text-lg font-semibold">{t("details.unavailableTitle")}</h2><p>{t("details.unavailableBody")}</p><ShopLink href={routes.storefront(handle)}>{t("shop.backToShop")}</ShopLink></div></Card>

@@ -20,6 +20,7 @@ import { ensureCommerceBuyerSubject } from "./commerceBuyerSubjects"
 import { readCommerceLinkConfig } from "./commerceLinkConfig"
 import { sha256Hex, validLinkToken } from "./commerceLinkCrypto"
 import { checkoutAuthorityFields } from "./checkoutTables"
+import { refuseNewEngagementWithShop } from "./shopPause"
 import { CHECKOUT_BODY_TTL_MS, CHECKOUT_HOLD_MAX_MS, CHECKOUT_LEASE_MS, CHECKOUT_LINES_MAX, CHECKOUT_REQUEST_TTL_MS, checkoutActionResultValidator, checkoutFulfillmentValidator, checkoutLineValidator, checkoutMoneyValidator, checkoutOptionsResultValidator, checkoutResponseRequest, copyCheckoutLines, copyCheckoutResult, type CheckoutActionResult } from "./checkoutRules"
 
 export const checkoutAuthorityValidator = v.object(checkoutAuthorityFields)
@@ -157,6 +158,9 @@ export const createAttempt = internalMutation({
     const intentDigest = await sha256Hex(intent)
     const existing = await ctx.db.query("checkoutAttempts").withIndex("by_client", (q) => q.eq("personId", authority.personId).eq("networkId", args.networkId).eq("clientRequestId", args.clientRequestId)).unique()
     if (existing) return existing.intentDigest === intentDigest && existing.shopId === authority.shopId ? { outcome: "attempt", attemptId: existing.attemptId } : { outcome: "refused" }
+    // CM-10 : une boutique en pause refuse une NOUVELLE préparation (règle `SHOP_PAUSED`, avec la réouverture) ; le
+    // rejeu ci-dessus et la reconfirmation d'une préparation déjà engagée suivent leur cours.
+    if (!args.reconfirmAttemptId) await refuseNewEngagementWithShop(ctx, authority.shopId)
     // Même transaction que l'insertion finale : une fermeture gagnante interdit l'ancien envoi.
     if (await ctx.db.query("checkoutClientIntentFences").withIndex("by_client", (q) => q.eq("personId", authority.personId).eq("networkId", args.networkId).eq("clientRequestId", args.clientRequestId)).unique()) return { outcome: "refused" }
     // Index du verrou temporaire : ni scan historique ni troncature masquant un hold vivant.

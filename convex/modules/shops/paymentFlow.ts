@@ -12,6 +12,7 @@ import { sha256Hex, validLinkToken } from "./commerceLinkCrypto"
 import { checkoutMoneyValidator } from "./checkoutRules"
 import { PAYMENT_CONSENT_VERSION, PAYMENT_LEASE_MS, PAYMENT_PRIVATE_TTL_MS, PAYMENT_REQUEST_TTL_MS, paymentActionAllowed, paymentActionResultValidator, paymentOptionsResultValidator, paymentRefundReasonValidator, projectPaymentAttempt, type PaymentActionResult, type PaymentOptionsResult } from "./paymentRules"
 import { paymentScopeFields } from "./paymentTables"
+import { refuseNewEngagementWithShop } from "./shopPause"
 
 const scopeValidator = v.object(paymentScopeFields)
 type Scope = Infer<typeof scopeValidator>
@@ -79,6 +80,9 @@ export const createStart = internalMutation({
     // Une préparation ne reçoit qu'une intention. Une réponse perdue n'autorise pas un nouveau débit.
     const existing = await ctx.db.query("shopPaymentAttempts").withIndex("by_person_checkout", (q) => q.eq("personId", access.person._id).eq("networkId", args.networkId).eq("checkoutAttemptId", args.checkoutAttemptId)).unique()
     if (existing) return existing.privacyRevokedAt === undefined ? await dto(ctx, existing) : { outcome: "refused" }
+    // CM-10 : lancer un paiement crée la commande chez PRO.GA, un engagement NOUVEAU : une boutique en pause le refuse
+    // (`SHOP_PAUSED`). La préparation tenue n'est pas touchée ; un paiement déjà lancé suit son cours (rejeu ci-dessus).
+    await refuseNewEngagementWithShop(ctx, current.scope.shopId)
     const cached = await ctx.db.query("shopPaymentOptions").withIndex("by_person_checkout", (q) => q.eq("personId", access.person._id).eq("networkId", args.networkId).eq("checkoutAttemptId", args.checkoutAttemptId)).unique()
     const now = Date.now()
     if (!cached || cached.sessionDigest !== current.scope.sessionDigest || cached.configFingerprint !== current.config.fingerprint || cached.validUntil <= now || !cached.options.available || cached.options.readinessRef !== args.readinessRef || (cached.options.readinessExpiresAt ?? 0) <= now || !sameMoney(cached.options.amount, args.expectedTotal)) return { outcome: "unavailable" }

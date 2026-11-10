@@ -10,19 +10,19 @@ import en from "@/i18n/locales/en/checkout.json"
 import { appResources } from "@/i18n/resources"
 import { routes } from "@/lib/routes"
 
-const mocks = vi.hoisted(() => ({ person: "person-a", error: false, attempt: null as CheckoutAttempt | null, read: vi.fn(), action: vi.fn(), push: vi.fn(), refetch: vi.fn() }))
-vi.mock("@antsia/api/engine", () => ({ api: { modules: { shops: { checkout: { context: "context", getAttempt: "attempt", listMy: "list" }, checkoutActions: { options: "options", prepare: "prepare", status: "status", retry: "retry", release: "release", reconfirm: "reconfirm" } } } } }))
+const mocks = vi.hoisted(() => ({ person: "person-a", error: false, attempt: null as CheckoutAttempt | null, context: null as unknown, pause: null as unknown, read: vi.fn(), action: vi.fn(), push: vi.fn(), refetch: vi.fn() }))
+vi.mock("@antsia/api/engine", () => ({ api: { modules: { shops: { shops: { storefrontPause: "storefrontPause" }, checkout: { context: "context", getAttempt: "attempt", listMy: "list" }, checkoutActions: { options: "options", prepare: "prepare", status: "status", retry: "retry", release: "release", reconfirm: "reconfirm" } } } } }))
 vi.mock("@antsia/api/network", () => ({ useNetwork: () => ({ networkId: "root", personId: mocks.person }) }))
-vi.mock("@antsia/api/hooks", () => ({ useAuthenticatedConvexQuery: (reference: string, args: unknown) => { mocks.read(reference, args); return { isPending: false, isError: mocks.error, refetch: mocks.refetch, data: reference === "list" ? { page: mocks.attempt ? [mocks.attempt] : [], isDone: false, continueCursor: "next-page" } : mocks.attempt } } }))
+vi.mock("@antsia/api/hooks", () => ({ useAuthenticatedConvexQuery: (reference: string, args: unknown) => { mocks.read(reference, args); return { isPending: false, isError: mocks.error, refetch: mocks.refetch, data: reference === "list" ? { page: mocks.attempt ? [mocks.attempt] : [], isDone: false, continueCursor: "next-page" } : reference === "storefrontPause" ? mocks.pause : reference === "context" && mocks.context !== null ? mocks.context : mocks.attempt } } }))
 vi.mock("convex/react", () => ({ useAction: (reference: string) => (args: unknown) => mocks.action(reference, args), useConvexAuth: () => ({ isAuthenticated: true }) }))
 vi.mock("@antsia/api/sign-out-everywhere", () => ({ isSigningOutEverywhere: () => false }))
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: mocks.push }) }))
 vi.mock("@/components/payment/payment-checkout-panel", () => ({ PaymentCheckoutPanel: () => null }))
 vi.mock("@/components/member-chrome", () => ({ MemberPage: ({ children }: { children: ReactNode }) => <main>{children}</main> }))
 
-import { CheckoutAttemptScreen, CheckoutOrdersScreen } from "./checkout-screen"
+import { CheckoutAttemptScreen, CheckoutOrdersScreen, CheckoutPrepareScreen } from "./checkout-screen"
 import { checkoutDate } from "./checkout-model"
-import { checkoutAttemptFixture, checkoutResultFixture, NOW } from "./checkout-fixtures.test-support"
+import { catalogOfferFixture, checkoutAttemptFixture, checkoutResultFixture, NOW, OFFER_REF } from "./checkout-fixtures.test-support"
 
 const i18n = createAppI18n({ locale: "fr", appResources: { fr: { ...appResources.fr, checkout: fr }, en: { ...appResources.en, checkout: en } }, defaultNS: "checkout" })
 let root: Root
@@ -34,7 +34,7 @@ beforeEach(() => {
   vi.useFakeTimers(); vi.setSystemTime(NOW)
   ;(globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
   container = document.createElement("div"); document.body.append(container); root = createRoot(container)
-  mocks.person = "person-a"; mocks.error = false; mocks.attempt = checkoutAttemptFixture()
+  mocks.person = "person-a"; mocks.error = false; mocks.attempt = checkoutAttemptFixture(); mocks.context = null; mocks.pause = null
   mocks.read.mockClear(); mocks.action.mockReset(); mocks.push.mockReset(); mocks.refetch.mockReset()
   mocks.action.mockResolvedValue({ outcome: "attempt", attemptId: "attempt-opaque-a" })
 })
@@ -140,5 +140,22 @@ describe("suivi privé et reprise de préparation", () => {
     await click(button("Page suivante")!)
     expect(mocks.read).toHaveBeenLastCalledWith("list", { networkId: "root", paginationOpts: { cursor: "next-page", numItems: 10 } })
     expect(container.textContent).not.toContain("préparations au total")
+  })
+})
+
+describe("CM-10 — préparation d'une boutique fermée temporairement", () => {
+  const context = () => ({ available: true, reason: null, pending: null, consentTextVersion: "version-serveur", offer: catalogOfferFixture() })
+  it("le bandeau dit la réouverture et aucune préparation ne s'ouvre d'ici là", async () => {
+    mocks.context = context(); mocks.pause = { pausedUntil: NOW + 2 * 86_400_000 }
+    await render(<CheckoutPrepareScreen handle="atelier" offerRef={OFFER_REF} />)
+    expect(mocks.read).toHaveBeenCalledWith("storefrontPause", expect.objectContaining({ networkId: "root", handle: "atelier" }))
+    expect(container.querySelector("[data-shop-pause]")?.textContent).toContain(i18n.t("shops:pause.bannerTitle"))
+    expect(button(i18n.t("loadOptions"))?.disabled).toBe(true)
+  })
+  it("boutique ouverte : ni bandeau ni blocage", async () => {
+    mocks.context = context()
+    await render(<CheckoutPrepareScreen handle="atelier" offerRef={OFFER_REF} />)
+    expect(container.querySelector("[data-shop-pause]")).toBeNull()
+    expect(button(i18n.t("loadOptions"))?.disabled).toBe(false)
   })
 })

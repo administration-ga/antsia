@@ -31,6 +31,7 @@ import { deliverJobApplicationRef, withdrawJobApplication } from "./jobApplicati
 import { captureJobAuthorization } from "./jobApplicationAuthority"
 import { jobFileScanOf } from "./jobFiles"
 import { type JobReadContext, resolveShopJob } from "./jobRead"
+import { refuseNewEngagementWhenPaused } from "./shopPause"
 import { jobApplicationRejectionValidator, jobApplicationStateValidator, jobAttachmentKindValidator, jobFileTransferValidator } from "./jobTables"
 
 /** Candidatures conservées par personne et par offre (retraits et refus compris). */
@@ -220,6 +221,9 @@ export const apply = networkMutation({
 
     const resolved = shop ? await applicableJob(ctx, readContext(ctx), shop._id, args.jobRef) : null
     if (!resolved) return notFound()
+    // CM-10 : la candidature passe par la boutique ; en pause, elle refuse une NOUVELLE candidature (`SHOP_PAUSED`),
+    // après la lecture de l'offre (refus indistinct d'abord) et le rejeu ci-dessus (une candidature admise suit son cours).
+    refuseNewEngagementWhenPaused(resolved.live.shop)
     const files = await chosenFiles(ctx, ctx.person._id, args.fileIds)
     const config = await readCommerceLinkConfig()
     const identity = await getActiveIdentity(ctx)

@@ -47,6 +47,7 @@ import {
   serviceControlContractValidator, serviceQuoteResultValidator, serviceQuotesResultValidator, serviceSlotsResultValidator, type ServiceActionResult, type ServiceBookingSnapshot,
   type ServiceCommandKind, type ServiceMode, type ServiceOptionsResult, type ServiceQuoteResult, type ServiceQuotesResult, type ServiceSlotsResult,
 } from "./serviceRules"
+import { refuseNewEngagementWithShop } from "./shopPause"
 
 type CommandRow = Doc<"commerceServiceCommands">
 type RequestRow = Doc<"commerceServiceRequests">
@@ -227,6 +228,8 @@ export const admitQuoteRequest = internalMutation({
     const intentDigest = await sha256Hex(intent)
     const replay = await replayByClient(ctx, authority, args.clientRequestId, intentDigest)
     if (replay) return replay
+    // CM-10 : une boutique en pause refuse une NOUVELLE demande (règle `SHOP_PAUSED`) ; la conversation reste ouverte.
+    await refuseNewEngagementWithShop(ctx, authority.shopId)
     const rawBody = p06Body(authority, args.requestId, now, "inquiry.submit", {
       shopRef: authority.shopRef, conversationRef: thread.thread.conversationRef, kind: "quote_request", message, offerRef: args.offerRef,
       consent: { purpose: "commerce_inquiry", textVersion: COMMERCE_INQUIRY_CONSENT_VERSION, givenAt: now },
@@ -261,6 +264,8 @@ export const admitBooking = internalMutation({
     const intentDigest = await sha256Hex(intent)
     const replay = await replayByClient(ctx, authority, args.clientRequestId, intentDigest)
     if (replay) return replay
+    // CM-10 : une boutique en pause refuse un NOUVEAU rendez-vous (règle `SHOP_PAUSED`).
+    await refuseNewEngagementWithShop(ctx, authority.shopId)
     const rawBody = p06Body(authority, args.requestId, now, "booking.request", {
       shopRef: authority.shopRef, serviceRef: args.serviceRef, offerRef: args.offerRef, ...(args.resourceRef ? { resourceRef: args.resourceRef } : {}),
       slot: { startAt: args.startAt, endAt: args.endAt, timeZone: COMMERCE_SERVICE_TIME_ZONE },
@@ -299,6 +304,9 @@ export const admitServiceOrder = internalMutation({
     const intentDigest = await sha256Hex(intent)
     const replay = await replayByClient(ctx, authority, args.clientRequestId, intentDigest)
     if (replay) return replay
+    // CM-10 : une boutique en pause refuse une NOUVELLE prestation (règle `SHOP_PAUSED`) ; la reconfirmation du prix
+    // d'une demande déjà engagée (`existingRequestRowId`) suit son cours.
+    if (args.existingRequestRowId === undefined) await refuseNewEngagementWithShop(ctx, authority.shopId)
     // Reconfirmation d'un nouveau prix : la MÊME demande reçoit une nouvelle commande signée, au prix montré.
     let requestRowId = args.requestRowId
     if (args.existingRequestRowId !== undefined) {

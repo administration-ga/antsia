@@ -126,6 +126,11 @@ export const shopEditorValidator = v.object({
   blocks: v.array(v.object({ id: shopBlockValidator, state: shopBlockStateValidator })),
   capabilities: shopCapabilitiesValidator,
   checkout: v.object({ available: v.literal(false), missing: v.array(checkoutMissingValidator) }),
+  /**
+   * CM-10 : l'échéance de la pause telle qu'elle est stockée (facultative : les clients existants l'ignorent).
+   * Elle peut être passée : l'écran la juge à son horloge (`isShopPaused`), la requête ne lisant pas l'heure.
+   */
+  pausedUntil: v.optional(v.number()),
   updatedAt: v.number(),
 })
 export type ShopEditor = Infer<typeof shopEditorValidator>
@@ -207,6 +212,11 @@ export const publicDailySpecialValidator = v.object({
   offer: catalogOfferValidator,
 })
 export type PublicDailySpecial = Infer<typeof publicDailySpecialValidator>
+
+/** CM-10 : une boutique en pause et son instant de réouverture — projection À PART, la vitrine stricte reste inchangée. */
+export const storefrontPauseValidator = v.object({ pausedUntil: v.number() })
+export const publicStorefrontPauseValidator = v.object({ version: v.literal(1), pausedUntil: v.number() })
+export type PublicStorefrontPause = Infer<typeof publicStorefrontPauseValidator>
 
 /** Une demande en FILE D'ADMISSION, pour l'équipe de la plateforme : la présentation à relire et son préparateur. */
 export const storefrontReviewItemValidator = v.object({

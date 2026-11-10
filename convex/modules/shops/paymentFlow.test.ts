@@ -1,5 +1,6 @@
 // @vitest-environment edge-runtime
 /** P12 : scénarios sources uniquement ; aucune exécution pendant cette reprise. */
+import { engineErrorRule } from "@antsia/social-contracts/errors"
 import { type CommerceCommandRequest } from "@antsia/social-domain/commerce/command"
 import { COMMERCE_COMMAND_CONTRACT, COMMERCE_PUBLIC_CONTRACT, commerceCanonicalJson } from "@antsia/social-domain/commerce/primitives"
 import { commercePublicEffect, type CommerceOfferEvent, type CommercePublicEvent, type CommerceShopEvent } from "@antsia/social-domain/commerce/projection"
@@ -424,6 +425,27 @@ describe("P12 — intention privée de paiement, baux et preuve de statut", () =
     vi.setSystemTime(NOW + 31_000)
     expect(await f.as.mutation(beginOperation, { networkId: f.root, ...lease(f), ...args, reason: "other" })).toBeNull()
     expect(await f.t.run(ctx => ctx.db.query("shopPaymentRequests").withIndex("by_client", q => q.eq("personId", f.personId).eq("networkId", f.root).eq("kind", "refund_request").eq("clientRequestId", args.clientRequestId)).take(2))).toHaveLength(1)
+  })
+})
+
+describe("CM-10 — boutique en pause : aucun nouveau paiement, celui lancé avant suit son cours", () => {
+  const DAY = 86_400_000
+  it("refuse le lancement d'un paiement en disant la réouverture, sans autorisation ni débit envoyés", async () => {
+    const f = await fixture(), p = peer()
+    expect(await f.as.action(options, { networkId: f.root, checkoutAttemptId: f.checkoutAttemptId })).toEqual({ outcome: "ready" })
+    await f.t.run(ctx => ctx.db.patch(f.shopId, { pausedUntil: NOW + DAY }))
+    const error = await f.as.action(start, intent(f)).then(() => null, (reason: unknown) => reason)
+    expect(engineErrorRule(error)).toEqual({ rule: "SHOP_PAUSED", params: { until: NOW + DAY } })
+    expect(p.sent.some(s => JSON.parse(s.raw).command === "payment.start" || JSON.parse(s.raw).operation === "authorize_start")).toBe(false)
+    expect(await f.t.run(ctx => ctx.db.query("shopPaymentAttempts").withIndex("by_person", q => q.eq("personId", f.personId)).take(1))).toEqual([])
+  })
+
+  it("un paiement lancé avant la pause se rejoue par la même clé et se relit, sans second débit", async () => {
+    const f = await fixture(), p = peer(), first = await pay(f)
+    await f.t.run(ctx => ctx.db.patch(f.shopId, { pausedUntil: NOW + DAY }))
+    expect(await f.as.action(start, intent(f))).toMatchObject({ outcome: "attempt", attempt: { paymentAttemptId: first.paymentAttemptId } })
+    expect((await f.as.action(status, { networkId: f.root, paymentAttemptId: first.paymentAttemptId })).outcome).toBe("attempt")
+    expect(p.sent.filter(s => JSON.parse(s.raw).command === "payment.start")).toHaveLength(1)
   })
 })
 

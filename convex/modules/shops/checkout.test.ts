@@ -1,5 +1,6 @@
 // @vitest-environment edge-runtime
 /** P11 : scénarios rédigés seulement, aucune exécution pendant cette reprise. */
+import { engineErrorRule } from "@antsia/social-contracts/errors"
 import { type CommerceCommandRequest } from "@antsia/social-domain/commerce/command"
 import { COMMERCE_COMMAND_CONTRACT, COMMERCE_PUBLIC_CONTRACT, commerceCanonicalJson } from "@antsia/social-domain/commerce/primitives"
 import { commercePublicEffect, type CommerceOfferEvent, type CommercePublicEvent, type CommerceShopEvent } from "@antsia/social-domain/commerce/projection"
@@ -226,5 +227,45 @@ describe("P11 — préparation privée et reprise",()=>{
   vi.setSystemTime(NOW+1800001);await f.t.mutation(purge,{})
   expect((await row(f,id))?.privatePurgedAt).toBeDefined()
   expect(p.sent.filter(s=>JSON.parse(s.raw).command==="payment.start")).toHaveLength(0)
+ })
+})
+
+describe("CM-10 — boutique en pause : nouvelle préparation refusée, engagements en cours intacts",()=>{
+ const DAY=86_400_000
+ async function pause(f:Fixture,until=NOW+DAY){await f.t.run(async ctx=>ctx.db.patch(f.shopId,{pausedUntil:until}))}
+ async function caught(work:Promise<unknown>){try{await work;return null}catch(error){return error}}
+ async function attempts(f:Fixture){return await f.t.run(async ctx=>ctx.db.query("checkoutAttempts").withIndex("by_person_network",q=>q.eq("personId",f.personId).eq("networkId",f.root)).take(5))}
+ it("refuse une nouvelle préparation en disant la réouverture, sans tentative ni commande envoyée",async()=>{
+  const f=await ready(),p=peer();await pause(f)
+  expect(engineErrorRule(await caught(f.as.action(prepare,intent(f))))).toEqual({rule:"SHOP_PAUSED",params:{until:NOW+DAY}})
+  expect(p.sent.some(s=>s.path==="/commerce/v1/commands")).toBe(false)
+  expect(await attempts(f)).toEqual([])
+ })
+ it("à l'échéance, la boutique rouvre seule : la préparation passe, sans écriture de réouverture",async()=>{
+  const f=await ready();peer();await pause(f,NOW+60_000)
+  vi.setSystemTime(NOW+60_000)
+  expect((await f.as.action(prepare,intent(f))).outcome).toBe("attempt")
+  expect((await f.t.run(async ctx=>ctx.db.get(f.shopId)))?.pausedUntil).toBe(NOW+60_000)
+ })
+ it("une préparation déjà envoyée quand la pause tombe suit son cours jusqu'à la réserve tenue",async()=>{
+  const f=await ready(),p=peer();p.before(async()=>{await pause(f)})
+  const result=await f.as.action(prepare,intent(f))
+  expect(result.outcome).toBe("attempt")
+  if(result.outcome!=="attempt")return
+  expect(await f.as.query(get,{networkId:f.root,attemptId:result.attemptId})).toMatchObject({state:"held"})
+ })
+ it("pendant la pause, une préparation engagée avant se rejoue, se relit et se libère",async()=>{
+  const f=await ready(),p=peer(),id=await start(f);await pause(f)
+  expect(await f.as.action(prepare,intent(f))).toEqual({outcome:"attempt",attemptId:id})
+  expect((await f.as.action(status,{networkId:f.root,attemptId:id})).outcome).toBe("attempt")
+  expect((await f.as.action(release,{networkId:f.root,attemptId:id})).outcome).toBe("attempt")
+  expect(await row(f,id)).toMatchObject({state:"released"})
+  expect(p.sent.filter(s=>JSON.parse(s.raw).command==="checkout.prepare")).toHaveLength(1)
+ })
+ it("pendant la pause, la reconfirmation d'un total changé reste possible : elle poursuit l'engagement",async()=>{
+  const f=await ready(),p=peer();p.setFee(500);const id=await start(f);await pause(f)
+  const result=await f.as.action(reconfirm,{networkId:f.root,attemptId:id,consentTextVersion:COMMERCE_CHECKOUT_CONSENT_VERSION,clientRequestId:"reconfirm-paused-0002",acceptedTotal:{amount:12500,currency:"XAF"}})
+  expect(result.outcome).toBe("attempt")
+  expect(await row(f,id)).toMatchObject({state:"released",reconfirmedByAttemptId:result.outcome==="attempt"?result.attemptId:"missing"})
  })
 })

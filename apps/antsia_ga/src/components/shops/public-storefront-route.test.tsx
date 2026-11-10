@@ -2,8 +2,8 @@ import type { ReactNode } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
-const mocks = vi.hoisted(() => ({ load: vi.fn(), catalog: vi.fn(), special: vi.fn() }))
-vi.mock("@/lib/public-shops-data", () => ({ loadPublicStorefront: mocks.load, loadPublicDailySpecial: mocks.special }))
+const mocks = vi.hoisted(() => ({ load: vi.fn(), catalog: vi.fn(), special: vi.fn(), pause: vi.fn() }))
+vi.mock("@/lib/public-shops-data", () => ({ loadPublicStorefront: mocks.load, loadPublicDailySpecial: mocks.special, loadPublicStorefrontPause: mocks.pause }))
 vi.mock("@/lib/public-catalog-data", () => ({ loadPublicCatalog: mocks.catalog, loadPublicOffer: vi.fn(), loadPublicPostOffer: vi.fn() }))
 vi.mock("@/lib/server-session", () => ({ getPublicLocale: async () => "fr", configuredMetadataOrigin: () => "https://antsia.ga", getServerViewer: vi.fn(), withinBridgeDeadline: (work: () => Promise<unknown>) => work() }))
 vi.mock("next/navigation", () => ({ notFound: () => { throw new Error("TEST_NOT_FOUND") } }))
@@ -21,7 +21,9 @@ beforeEach(() => {
   mocks.load.mockReset()
   mocks.catalog.mockReset()
   mocks.special.mockReset()
+  mocks.pause.mockReset()
   mocks.special.mockResolvedValue({ status: "ready", data: null, viewer: "anonymous" })
+  mocks.pause.mockResolvedValue({ status: "ready", data: null, viewer: "anonymous" })
   mocks.catalog.mockResolvedValue({ status: "ready", data: catalogPageFixture(), viewer: "anonymous" })
   mocks.load.mockResolvedValue({ status: "ready", data: storefront, viewer: "anonymous" })
 })
@@ -131,5 +133,23 @@ describe("SU06 — vitrine food et projection facultative", () => {
   it("ne consulte pas le complément pour une activité ordinaire", async () => {
     await PublicStorefrontScreen(props())
     expect(mocks.special).not.toHaveBeenCalled()
+  })
+
+  it("CM-10 : une boutique en pause garde sa vitrine publique, avec le bandeau de réouverture lu à part", async () => {
+    const pausedUntil = Date.now() + 2 * 24 * 60 * 60 * 1000
+    mocks.pause.mockResolvedValue({ status: "ready", viewer: "anonymous", data: { version: 1, pausedUntil } })
+    const html = renderToStaticMarkup(await PublicStorefrontScreen(props()))
+    expect(mocks.pause).toHaveBeenCalledWith("atelier", false)
+    expect(html).toContain(storefront.name)
+    expect(html).toContain("data-shop-pause")
+    expect(html).toContain("Boutique fermée temporairement")
+    expect(html).toContain(new Intl.DateTimeFormat("fr", { dateStyle: "long", timeZone: "Africa/Libreville" }).format(pausedUntil))
+  })
+
+  it.each([["ouverte", { status: "ready", data: null, viewer: "anonymous" }], ["ancien backend", { status: "unavailable" }], ["refus du complément", { status: "refused" }]] as const)("CM-10 : boutique %s, la vitrine reste lisible sans bandeau", async (_label, answer) => {
+    mocks.pause.mockResolvedValue(answer)
+    const html = renderToStaticMarkup(await PublicStorefrontScreen(props()))
+    expect(html).toContain(storefront.name)
+    expect(html).not.toContain("data-shop-pause")
   })
 })

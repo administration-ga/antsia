@@ -12,12 +12,12 @@ import { catalogOfferFixture, checkoutAttemptFixture, OFFER_REF, optionsFixture,
 import { checkoutAmount } from "@/components/checkout/checkout-model"
 import { catalogPageFixture } from "@/components/shops/__tests__/catalog-fixtures"
 
-const mocks = vi.hoisted(() => ({ lookup: { outcome: "absent" } as unknown, context: undefined as unknown, list: undefined as unknown, stop: vi.fn(), refetch: vi.fn(), push: vi.fn(), options: vi.fn(), prepare: vi.fn(), person: "person-a", error: false }))
+const mocks = vi.hoisted(() => ({ lookup: { outcome: "absent" } as unknown, context: undefined as unknown, list: undefined as unknown, pause: null as unknown, stop: vi.fn(), refetch: vi.fn(), push: vi.fn(), options: vi.fn(), prepare: vi.fn(), person: "person-a", error: false }))
 // CM-09 : le bouton « Enregistrer » a ses propres tests (`save-offer-button.test.tsx`) ; ici, sa seule présence.
 vi.mock("@/components/shops/save-offer-button", () => ({ SaveOfferButton: ({ offer, layout }: { offer: { offerRef: string }; layout?: string }) => <span data-save-offer={offer.offerRef} data-save-layout={layout ?? "overlay"} /> }))
-vi.mock("@antsia/api/engine", () => ({ api: { modules: { shops: { checkout: { cartContext: "cartContext", findByClientRequestId: "lookup", stopClientIntent: "stop" }, checkoutActions: { options: "options", prepare: "prepare" }, shops: { storefront: "storefront" }, catalog: { list: "list" } } } } }))
+vi.mock("@antsia/api/engine", () => ({ api: { modules: { shops: { checkout: { cartContext: "cartContext", findByClientRequestId: "lookup", stopClientIntent: "stop" }, checkoutActions: { options: "options", prepare: "prepare" }, shops: { storefront: "storefront", storefrontPause: "storefrontPause" }, catalog: { list: "list" } } } } }))
 vi.mock("@antsia/api/network", () => ({ useNetwork: () => ({ networkId: "network-a", personId: mocks.person }) }))
-vi.mock("@antsia/api/hooks", () => ({ useAuthenticatedConvexQuery: (ref: string) => ({ data: ref === "lookup" ? mocks.lookup : ref === "cartContext" ? mocks.context : ref === "list" ? mocks.list : undefined, isError: mocks.error, isPending: false, isFetching: false, refetch: mocks.refetch }) }))
+vi.mock("@antsia/api/hooks", () => ({ useAuthenticatedConvexQuery: (ref: string) => ({ data: ref === "lookup" ? mocks.lookup : ref === "cartContext" ? mocks.context : ref === "list" ? mocks.list : ref === "storefrontPause" ? mocks.pause : undefined, isError: mocks.error, isPending: false, isFetching: false, refetch: mocks.refetch }) }))
 vi.mock("convex/react", () => ({ useConvexAuth: () => ({ isAuthenticated: true }), useAction: (ref: string) => ref === "options" ? mocks.options : mocks.prepare, useMutation: () => mocks.stop, useConvex: () => ({ query: vi.fn() }) }))
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: mocks.push }) }))
 vi.mock("@antsia/api/sign-out-everywhere", () => ({ isSigningOutEverywhere: () => false }))
@@ -34,7 +34,7 @@ async function select(handle: string) { await act(async () => [...container.quer
 beforeEach(() => {
   ;(globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
   sessionStorage.clear(); sessionStorage.setItem(cartDraftKey("network-a", "person-a"), JSON.stringify(frozen()))
-  mocks.person = "person-a"; mocks.error = false; mocks.lookup = { outcome: "absent" }; mocks.context = undefined; mocks.list = undefined; mocks.stop.mockReset(); mocks.push.mockReset(); mocks.refetch.mockReset(); mocks.options.mockReset(); mocks.prepare.mockReset()
+  mocks.person = "person-a"; mocks.error = false; mocks.lookup = { outcome: "absent" }; mocks.context = undefined; mocks.list = undefined; mocks.pause = null; mocks.stop.mockReset(); mocks.push.mockReset(); mocks.refetch.mockReset(); mocks.options.mockReset(); mocks.prepare.mockReset()
   container = document.createElement("div"); document.body.append(container); root = createRoot(container)
 })
 afterEach(async () => { await act(async () => root.unmount()); container.remove(); sessionStorage.clear() })
@@ -158,5 +158,16 @@ describe("Le panier sur le modèle des ventes privées", () => {
     expect(container.querySelector("[data-cart-bar]")).toBeNull()
     expect(container.querySelector("[data-cart-summary]")?.textContent).toContain(i18n.t("refresh"))
     expect(mocks.prepare).not.toHaveBeenCalled()
+  })
+  it("CM-10 : boutique fermée temporairement — le panier reste, le bandeau dit la réouverture, rien ne se valide", async () => {
+    mocks.pause = { pausedUntil: Date.now() + 2 * 86_400_000 }
+    await render()
+    expect(container.querySelector("[data-shop-pause]")?.textContent).toContain(i18n.t("shops:pause.bannerTitle"))
+    expect(container.querySelectorAll("[data-cart-line]")).toHaveLength(2)
+    const validate = [...container.querySelectorAll("button")].filter(button => button.textContent === i18n.t("validate"))
+    expect(validate.length).toBeGreaterThan(0)
+    expect(validate.every(button => button.disabled)).toBe(true)
+    expect(container.querySelector("[data-cart-delivery]")).toBeNull()
+    expect(mocks.options).not.toHaveBeenCalled()
   })
 })

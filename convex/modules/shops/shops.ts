@@ -18,6 +18,7 @@ import { readableStorefrontTerms } from "./storefrontTerms"
 import { computePageBadge } from "@antsia/social-domain/badges"
 import { effectiveActivityConfiguration, parseActivityConfiguration, visibleActivityBlocks } from "@antsia/social-domain/activityConfiguration"
 import { librevilleDay } from "@antsia/social-domain/dailySpecial"
+import { checkShopPauseDay, isShopPaused, SHOP_PAUSE_MAX_DAYS } from "@antsia/social-domain/shopPause"
 import { catalogStorefrontBlocks, resolveCatalogOffer } from "./catalogRead"
 import { paginationOptsValidator, paginationResultValidator, type PaginationResult } from "convex/server"
 import { v } from "convex/values"
@@ -25,7 +26,7 @@ import { v } from "convex/values"
 import type { Doc, Id } from "../../_generated/dataModel"
 import type { QueryCtx } from "../../_generated/server"
 import { memberHasStatus } from "../../lib/access"
-import { fail, failAppRule, notFound } from "../../lib/errors"
+import { fail, failAppRule, failRule, notFound } from "../../lib/errors"
 import { networkMutation, networkQuery } from "../../lib/functions"
 import { enforceRateLimit } from "../../lib/rateLimit"
 import { guardUploadUrl } from "../../lib/uploadPolicy"
@@ -81,6 +82,7 @@ import {
   storefrontCardValidator,
   type Storefront,
   type StorefrontCard,
+  storefrontPauseValidator,
   storefrontStateValidator,
   storefrontValidator,
 } from "./validators"
@@ -172,6 +174,7 @@ async function editorOf(ctx: ReadCtx, managed: ManagedShop, viewer: { personId: 
     blocks: configuration.blocks.map((id) => ({ id, state: id === "catalog" || id === "services" ? catalogBlocks.includes(id) ? "active" : commerceLinked ? "awaiting_pro_catalog" : "awaiting_pro_link" : id === "publications" && page === null ? "awaiting_page" : "active" })),
     capabilities: { ...shopCapabilities(shop, servable), catalog: catalogReady },
     checkout: { available: false as const, missing: SHOP_CHECKOUT_MISSING.filter((step) => (step !== "pro_link" || !commerceLinked) && (step !== "pro_catalog" || !catalogReady)) },
+    ...(shop.pausedUntil !== undefined ? { pausedUntil: shop.pausedUntil } : {}),
     updatedAt: shop.updatedAt,
   }
 }
@@ -310,6 +313,26 @@ export const storefront = networkQuery({
     if (!shop || !(await isStorefrontInReadingContext(ctx, shop, ctx.network))) return null
     const servable = await servableStorefrontPage(ctx, shop, ctx.person._id)
     return servable ? await storefrontOf(ctx, shop, servable, ctx.rootNetwork, ctx.person._id) : null
+  },
+})
+
+/**
+ * CM-10 : l'instant de RÉOUVERTURE d'une boutique en pause, par l'adresse de sa page, pour le bandeau des écrans du
+ * membre (vitrine, fiche d'offre, panier, préparation, demandes, emploi). Lue À PART de la vitrine, sous les mêmes
+ * gardes de lecture. `now` vient de l'écran, arrondi à la minute : une requête ne lit pas l'horloge et reste en cache
+ * tant que rien ne change en base ; sans lui, le bandeau survivrait à l'échéance. Ouverte, inconnue ou illisible :
+ * le même `null`.
+ */
+export const storefrontPause = networkQuery({
+  args: { handle: v.string(), now: v.number() },
+  returns: v.union(storefrontPauseValidator, v.null()),
+  handler: async (ctx, args) => {
+    if (!Number.isFinite(args.now)) return fail("invalidArgument", { field: "now" })
+    const page = await findPageByHandle(ctx, args.handle)
+    const shop = page ? await shopOfPage(ctx, page._id) : null
+    const pausedUntil = shop?.pausedUntil
+    if (!shop || !isShopPaused(pausedUntil, args.now) || !(await isStorefrontInReadingContext(ctx, shop, ctx.network))) return null
+    return (await servableStorefrontPage(ctx, shop, ctx.person._id)) ? { pausedUntil } : null
   },
 })
 
@@ -624,6 +647,51 @@ export const withdrawStorefront = networkMutation({
     if (shop.storefront !== "published") return failAppRule("shop_state_invalid", {}, "conflict")
     await ctx.db.patch(shop._id, { storefront: "withdrawn", updatedAt: Date.now() })
     return { storefront: "withdrawn" as const }
+  },
+})
+
+/**
+ * FERMER TEMPORAIREMENT la vitrine publiée jusqu'au jour de réouverture choisi (CM-10, plan 08) : elle reste lisible
+ * (annuaire, marketplace, favoris, vitrine publique), les NOUVEAUX engagements sont refusés (`shopPause.ts`), ceux
+ * déjà en cours suivent leur cours. Mêmes personnes et même seau de débit que pour retirer la vitrine. Le jour est un
+ * jour civil de Libreville, de demain à `SHOP_PAUSE_MAX_DAYS` jours ; un autre jour remplace le précédent, le même
+ * n'écrit rien. La boutique rouvre seule à minuit, heure de Libreville, au début de ce jour : rien n'est planifié.
+ * Aucun motif libre : la phrase affichée est fixe, il n'y a pas de texte à modérer.
+ */
+export const pauseStorefront = networkMutation({
+  args: { shopId: v.id("shops"), reopenDay: v.string() },
+  returns: v.object({ pausedUntil: v.number() }),
+  handler: async (ctx, args) => {
+    await enforceRateLimit(ctx, "shop.publish", ctx.person._id)
+    const { shop } = await requireManagedShop(ctx, { networkId: ctx.networkId, personId: ctx.person._id }, args.shopId)
+    if (shop.storefront !== "published") return failAppRule("shop_state_invalid", {}, "conflict")
+    const now = Date.now()
+    const day = checkShopPauseDay(args.reopenDay, now)
+    if (!day.ok) {
+      if (day.reason === "past") return failRule("SHOP_PAUSE_END_PAST")
+      if (day.reason === "too_long") return failRule("SHOP_PAUSE_TOO_LONG", { days: SHOP_PAUSE_MAX_DAYS })
+      return fail("invalidArgument", { field: "reopenDay" })
+    }
+    if (shop.pausedUntil !== day.pausedUntil) await ctx.db.patch(shop._id, { pausedUntil: day.pausedUntil, updatedAt: now })
+    return { pausedUntil: day.pausedUntil }
+  },
+})
+
+/**
+ * ROUVRIR MAINTENANT, avant l'échéance (CM-10) : les nouveaux engagements sont de nouveau admis. Possible dans tout
+ * état de la vitrine (lever une pause ne fait rien courir) ; une échéance passée est simplement effacée.
+ */
+export const resumeStorefront = networkMutation({
+  args: { shopId: v.id("shops") },
+  returns: v.object({ resumed: v.boolean() }),
+  handler: async (ctx, args) => {
+    await enforceRateLimit(ctx, "shop.publish", ctx.person._id)
+    const { shop } = await requireManagedShop(ctx, { networkId: ctx.networkId, personId: ctx.person._id }, args.shopId)
+    if (shop.pausedUntil === undefined) return { resumed: false }
+    const now = Date.now()
+    const resumed = isShopPaused(shop.pausedUntil, now)
+    await ctx.db.patch(shop._id, { pausedUntil: undefined, ...(resumed ? { updatedAt: now } : {}) })
+    return { resumed }
   },
 })
 

@@ -11,6 +11,7 @@ import { z } from "zod"
 import { Button, Field } from "@/components/shared/controls"
 import { routes } from "@/lib/routes"
 import { publicationActions, type ShopEditorData } from "./shop-model"
+import { ShopPauseForm } from "./shop-pause-form"
 import { ShopLink, SHOP_SELECT_CLASS, useShopAction } from "./shop-ui"
 
 const schema = z.object({ publicListing: z.boolean(), visibility: z.enum(["network", "root"]) })
@@ -78,6 +79,8 @@ export function ShopPublicationForm({ shop, dirty, onDirty, onPrepare }: { shop:
     {dirty || form.formState.isDirty ? <p role="status" className="text-sm">{t("publication.saveFirst")}</p> : null}
     {shop.storefront.state === "suspended" ? <p>{t("publication.suspended")}</p> : null}
     {shop.storefront.state === "pending_review" ? <p>{t("publication.reviewPending")}</p> : null}
+    {/* CM-10 : fermer temporairement une vitrine publiée, avant le geste plus lourd de la retirer. */}
+    {shop.storefront.state === "published" ? <ShopPauseForm shop={shop} /> : null}
     {permissions.request ? <Button type="button" pending={action.pending} onClick={() => void action.run(() => request({ networkId, shopId: shop.shopId }), (result) => setNotice(t(`states.${result.storefront}`)))} className="w-full sm:w-auto sm:justify-self-start">{t(shop.publication.outcome === "admit" ? "publication.publish" : "publication.request")}</Button> : null}
     {permissions.cancel ? <Button type="button" variant="outline" pending={action.pending} onClick={() => void action.run(() => cancel({ networkId, shopId: shop.shopId }), (result) => setNotice(t(`states.${result.storefront}`)))} className="w-full sm:w-auto sm:justify-self-start">{t("publication.cancelRequest")}</Button> : null}
     {permissions.withdraw ? <Button type="button" variant="outline" pending={action.pending} onClick={() => { if (window.confirm(t("publication.withdrawConfirm"))) void action.run(() => withdraw({ networkId, shopId: shop.shopId }), (result) => setNotice(t(`states.${result.storefront}`))) }} className="w-full sm:w-auto sm:justify-self-start">{t("publication.withdraw")}</Button> : null}

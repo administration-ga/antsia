@@ -838,5 +838,22 @@
       "notFound": "This offer is no longer available.",
       "failed": "Saving did not complete. Try again."
     }
+  },
+  "pause": {
+    "bannerTitle": "Shop temporarily closed",
+    "bannerBody": "Reopens on {{until, datetime(dateStyle: long; timeZone: Africa/Libreville)}}. The storefront remains visible; new orders and requests will resume on that date.",
+    "editorTitle": "Close temporarily",
+    "editorLead": "For a holiday or an absence, without withdrawing the storefront: it stays visible but accepts no new orders, requests or applications until it reopens. Orders and requests already under way continue, and your conversations stay open.",
+    "reopenDay": "Reopens on",
+    "reopenHint": "The shop reopens by itself on that day, at midnight (Libreville time). At the latest in {{days}} days.",
+    "close": "Close temporarily",
+    "change": "Change the reopening date",
+    "closeConfirm": "Close this shop temporarily? It reopens on {{until, datetime(dateStyle: long; timeZone: Africa/Libreville)}}; until then, new orders and requests will be refused.",
+    "closedNow": "The shop is temporarily closed. Reopens on {{until, datetime(dateStyle: long; timeZone: Africa/Libreville)}}.",
+    "reopenNow": "Reopen now",
+    "reopenConfirm": "Reopen the shop now? It will accept orders and requests again.",
+    "saved": "The shop is temporarily closed.",
+    "reopened": "The shop has reopened.",
+    "required": "Choose the reopening date."
   }
 }

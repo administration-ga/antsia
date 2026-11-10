@@ -7,15 +7,16 @@ import Link from "next/link"
 import type { ReactNode } from "react"
 
 import { getAppT } from "@/i18n/server"
-import type { PublicDailySpecial as PublicDailySpecialData, PublicStorefront } from "@/lib/public-shops-data"
+import type { PublicDailySpecial as PublicDailySpecialData, PublicStorefront, PublicStorefrontPause } from "@/lib/public-shops-data"
 import { routes } from "@/lib/routes"
 import { SHOP_ACTION_CLASS } from "./offer-experience-styles"
 import { catalogPrice } from "./catalog-model"
 import { OfferMedia } from "./offer-media"
 import { PublicDailySpecial } from "./public-daily-special"
+import { PublicShopPauseBoundary, ShopPauseNoticeView } from "./shop-pause"
 
-/** SSR : identité et catalogue admis ; aucun état privé du lecteur. */
-export function PublicStorefrontCard({ storefront, locale, catalog, dailySpecial }: { storefront: PublicStorefront; locale: Locale; catalog?: ReactNode; dailySpecial?: PublicDailySpecialData | null }) {
+/** SSR : identité et catalogue admis ; aucun état privé du lecteur. `pause` (CM-10) : la fermeture temporaire, lue à part. */
+export function PublicStorefrontCard({ storefront, locale, catalog, dailySpecial, pause }: { storefront: PublicStorefront; locale: Locale; catalog?: ReactNode; dailySpecial?: PublicDailySpecialData | null; pause?: PublicStorefrontPause | null }) {
   const { t } = getAppT(locale)
   const configuration = effectiveActivityConfiguration(storefront.activityConfiguration, storefront.model)
   const food = configuration.template === "food"
@@ -48,6 +49,8 @@ export function PublicStorefrontCard({ storefront, locale, catalog, dailySpecial
         <p className="border-l-2 border-primary pl-3 text-sm text-muted-foreground">{t("shops:publicStorefront.origin", { name: storefront.origin.name })}</p>
         <p className="text-xs text-muted-foreground">{t("shops:publicStorefront.publicAudience")}</p>
       </header>
+
+      {pause ? <PublicShopPauseBoundary pausedUntil={pause.pausedUntil}><ShopPauseNoticeView title={t("shops:pause.bannerTitle")} body={t("shops:pause.bannerBody", { until: pause.pausedUntil })} /></PublicShopPauseBoundary> : null}
 
       {special ? <PublicDailySpecial special={{ day: special.day, offerRef: special.offer.offerRef }}><section aria-labelledby="public-daily-special" data-daily-special className="@container grid min-w-0 gap-3 rounded-[var(--ui2-card-radius)] bg-card p-3 text-card-foreground [overflow-wrap:anywhere]">
         <h2 id="public-daily-special" className="mp-subtitle">{t("shops:food.todaysSpecial")}</h2>

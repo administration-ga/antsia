@@ -67,6 +67,12 @@ export const shopsTables = {
     publicConsentTextVersion: v.optional(v.string()),
     publicConsentByPersonId: v.optional(v.id("persons")),
     publicConsentRevokedAt: v.optional(v.number()),
+    /**
+     * CM-10 : la boutique est EN PAUSE tant que cet instant (réouverture, minuit à Libreville) est dans le futur.
+     * La pause se lit, rien ne s'écrit à l'échéance ; facultatif : les boutiques historiques ne l'ont pas. Donnée de
+     * l'activité, sans référence personnelle (aucun auteur stocké).
+     */
+    pausedUntil: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
