@@ -279,6 +279,7 @@ import type * as modules_moderation_sanctions from "../modules/moderation/sancti
 import type * as modules_moderation_tables from "../modules/moderation/tables.js";
 import type * as modules_moderation_targets from "../modules/moderation/targets.js";
 import type * as modules_networks_networks from "../modules/networks/networks.js";
+import type * as modules_networks_sliceRegistry from "../modules/networks/sliceRegistry.js";
 import type * as modules_networks_tables from "../modules/networks/tables.js";
 import type * as modules_notifications_bell from "../modules/notifications/bell.js";
 import type * as modules_notifications_commerceAccess from "../modules/notifications/commerceAccess.js";
@@ -753,6 +754,7 @@ declare const fullApi: ApiFromModules<{
   "modules/moderation/tables": typeof modules_moderation_tables;
   "modules/moderation/targets": typeof modules_moderation_targets;
   "modules/networks/networks": typeof modules_networks_networks;
+  "modules/networks/sliceRegistry": typeof modules_networks_sliceRegistry;
   "modules/networks/tables": typeof modules_networks_tables;
   "modules/notifications/bell": typeof modules_notifications_bell;
   "modules/notifications/commerceAccess": typeof modules_notifications_commerceAccess;
