@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from "vitest"
 
-import { exportableRecord, unclassifiedDataTables, type DataRecord } from "../people/dataInventory"
+import { anonymizeReferences, directlyOwned, exportableRecord, shapeFor, unclassifiedDataTables, type DataRecord } from "../people/dataInventory"
 import { DATA_TABLE_POLICIES } from "../people/dataPolicies"
 
 const admission: DataRecord = {
@@ -42,6 +42,20 @@ describe("EA-01 — classement et export d'une admission fondatrice", () => {
       withdrawnBy: "operator",
       withdrawalReason: "Décision prise par erreur",
     })
+  })
+
+  it("l'effacement d'un opérateur laisse la ligne à la personne admise et retire la référence à cet opérateur", () => {
+    // La ligne n'appartient qu'à la personne admise : effacer l'opérateur ne la supprime pas.
+    expect(directlyOwned("foundingAdmissions", admission, "person-admise")).toBe(true)
+    expect(directlyOwned("foundingAdmissions", admission, "person-operateur-1")).toBe(false)
+    expect(directlyOwned("foundingAdmissions", admission, "person-operateur-2")).toBe(false)
+    // Le mécanisme générique, dérivé du schéma, retire la seule référence à l'opérateur effacé.
+    const kept = anonymizeReferences(admission, shapeFor("foundingAdmissions"), "person-operateur-1", "person-anonyme") as Record<string, unknown>
+    expect(kept).not.toHaveProperty("admittedByPersonId")
+    expect(kept.personId).toBe("person-admise")
+    expect(kept.withdrawnByPersonId).toBe("person-operateur-2")
+    expect(kept.reason).toBe(admission.reason)
+    expect(kept.withdrawalReason).toBe(admission.withdrawalReason)
   })
 
   it("ni l'opérateur ni une autre personne ne reçoivent la ligne", () => {
