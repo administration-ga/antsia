@@ -50,12 +50,14 @@ import { appendAudit, networkRoleCapacity } from "../platform/audit"
 import { findPublishedPersonByHandle } from "../people/miniProfile"
 import { hasStrongIdentityFor, liveIdentityLinks } from "../people/persons"
 import {
+  activeFoundingAdmissionOf,
   activeSponsorshipOf,
   applyDerivedStatus,
   assertDiasporaNetwork,
   consentCountsForNetwork,
   consentInForce,
   effectiveStatusIn,
+  endFoundingAdmissionOnDeparture,
   endSponsorshipOnDeparture,
   facetOf,
   isDiasporaNetwork,
@@ -127,9 +129,12 @@ export const joinDiasporale = personMutation({
       return failAppRule("consent_directory_required")
     }
 
-    // Un retour après un départ : le parrainage s'est éteint avec le départ.
+    // Un retour après un départ : le parrainage et l'admission fondatrice se sont éteints avec le départ.
     const existing = await getMembership(ctx, network._id, ctx.person._id)
-    if (existing?.status === "partie") await endSponsorshipOnDeparture(ctx, network._id, ctx.person._id, now)
+    if (existing?.status === "partie") {
+      await endSponsorshipOnDeparture(ctx, network._id, ctx.person._id, now)
+      await endFoundingAdmissionOnDeparture(ctx, network._id, ctx.person._id, now)
+    }
     const grounds = await membershipGrounds(ctx, network._id, ctx.person._id, null)
     const entry = deriveMembershipStatus(grounds, now)
     // Défensif : sans départ ni sanction dans les faits relus, l'entrée est toujours active.
@@ -163,7 +168,10 @@ export const joinDiasporale = personMutation({
   },
 })
 
-/** Ce que la règle du parrainage sait du PARRAIN : son statut, son ancienneté, son quota glissant. */
+/**
+ * Ce que la règle du parrainage sait du PARRAIN : son statut, son ancienneté (ou sa
+ * dispense, accordée avec une admission fondatrice en vigueur, EA-01), son quota glissant.
+ */
 async function sponsorFactsOf(
   ctx: QueryCtx & { networkId: Id<"networks">; person: Doc<"persons">; membership: Doc<"networkMemberships"> },
   now: number,
@@ -176,9 +184,11 @@ async function sponsorFactsOf(
     )
     .take(SPONSORSHIPS_PER_WINDOW)
   const status = ctx.membership.status
+  const founding = status === "verifiee" ? await activeFoundingAdmissionOf(ctx, ctx.networkId, ctx.person._id) : null
   return {
     status,
     ...(status === "verifiee" ? { verifiedSince: ctx.membership.statusChangedAt } : {}),
+    ...(founding?.seniorityWaiver === true ? { seniorityWaived: true } : {}),
     sponsorshipsInWindow: recent.length,
   }
 }
@@ -298,7 +308,10 @@ export const revokeSponsorship = networkMutation({
   },
 })
 
-/** Quitter DIASPORALE (l'adhésion ANTSIA reste) ; le parrainage reçu s'éteint avec le départ. */
+/**
+ * Quitter DIASPORALE (l'adhésion ANTSIA reste) ; le parrainage reçu et l'admission
+ * fondatrice s'éteignent avec le départ (leur journal reste).
+ */
 export const leaveDiasporale = networkMutation({
   minStatus: "en_attente",
   args: {},
@@ -308,6 +321,7 @@ export const leaveDiasporale = networkMutation({
     await enforceRateLimit(ctx, "network.leave", ctx.person._id)
     const now = Date.now()
     await endSponsorshipOnDeparture(ctx, ctx.networkId, ctx.person._id, now)
+    await endFoundingAdmissionOnDeparture(ctx, ctx.networkId, ctx.person._id, now)
     await setMembershipStatus(ctx, ctx.membership, "partie", { leftAt: now, sponsorPersonId: undefined })
     return null
   },

@@ -240,7 +240,7 @@ describe("comptes de démonstration DIASPORALE — garde de développement", () 
 
     // Contrôle : la garde seule refusait. Ouverte, le même appel de la même session aboutit.
     openDevTools()
-    expect(await t.query(api.modules.diaspora.demoAccounts.catalogue, {})).toHaveLength(20)
+    expect(await t.query(api.modules.diaspora.demoAccounts.catalogue, {})).toHaveLength(21)
     expect(await equip(institution.as, "institution")).toMatchObject({ status: "verifiee", pageCreated: true })
     expect(await footprintOf(t, diasporale, institution.personId)).toMatchObject({ status: "verifiee", idn: true, attestation: true, pages: 1 })
   })
@@ -256,15 +256,15 @@ describe("comptes de démonstration DIASPORALE — garde de développement", () 
 
     // Contrôle : la même variable sur un backend local ouvre bien la garde.
     vi.stubEnv("CONVEX_CLOUD_URL", "http://127.0.0.1:3210")
-    expect(await t.query(api.modules.diaspora.demoAccounts.catalogue, {})).toHaveLength(20)
+    expect(await t.query(api.modules.diaspora.demoAccounts.catalogue, {})).toHaveLength(21)
     expect(await equip(institution.as, "institution")).toMatchObject({ status: "verifiee" })
   })
 
-  it("le catalogue nomme les vingt acteurs dans l'ordre du domaine, sur le domaine réservé", async () => {
+  it("le catalogue nomme les vingt et un acteurs dans l'ordre du domaine, sur le domaine réservé", async () => {
     openDevTools()
     const { t } = await fixture()
     const entries = await t.query(api.modules.diaspora.demoAccounts.catalogue, {})
-    expect(entries).toHaveLength(20)
+    expect(entries).toHaveLength(21)
     expect(entries.map((entry) => entry.actor)).toEqual([...DIASPORALE_DEMO_ACTORS])
     expect(entries).toEqual(DIASPORALE_DEMO_ACTORS.map((actor) => ({ actor, email: `${actor}@${DEMO_EMAIL_DOMAIN}` })))
   })
@@ -292,7 +292,7 @@ describe("comptes de démonstration DIASPORALE — démonstration déclarée (AD
     expect(await footprintOf(t, diasporale, institution.personId)).toEqual(UNTOUCHED)
 
     vi.stubEnv("CONVEX_CLOUD_URL", "https://demo-antsia-123.convex.cloud")
-    expect(await t.query(api.modules.diaspora.demoAccounts.catalogue, {})).toHaveLength(20)
+    expect(await t.query(api.modules.diaspora.demoAccounts.catalogue, {})).toHaveLength(21)
     expect(await equip(institution.as, "institution")).toMatchObject({ status: "verifiee", pageCreated: true })
   })
 
@@ -465,6 +465,27 @@ describe("comptes de démonstration DIASPORALE — statut dérivé des faits fic
     expect(DIASPORALE_DEMO_ACTOR_SPECS.belgique.canSponsor).toBe(false)
     expect(Date.now() - (await membershipOf(t, diasporale, personId)).statusChangedAt).toBeLessThan(DAY_MS)
     expect(await as.query(api.modules.diaspora.membership.sponsorDashboard, { networkId: diasporale })).toMatchObject({ eligible: false, refusal: "sponsor_too_recent" })
+  })
+
+  it("fondateur (EA-01) : vérifiée par la seule décision du réseau, elle parraine aussitôt, sans antidate ; rejouer ne double rien", async () => {
+    openDevTools()
+    const { t, diasporale } = await fixture()
+    const { as, personId } = await joinedActor(t, diasporale, "fondateur")
+    expect(await equip(as, "fondateur")).toMatchObject({ status: "verifiee", role: "member" })
+    expect(await linkOf(t, personId, "consular_attestation")).toBeNull()
+    expect(await linkOf(t, personId, "idn")).toBeNull()
+    expect(await membershipOf(t, diasporale, personId)).toMatchObject({ status: "verifiee", verifiedBy: "operator" })
+    const admissions = async () => await t.run(async (ctx) => await ctx.db.query("foundingAdmissions").withIndex("by_network_and_person", (q) => q.eq("networkId", diasporale).eq("personId", personId)).take(5))
+    const rows = await admissions()
+    expect(rows).toHaveLength(1)
+    expect(rows[0]).toMatchObject({ networkId: diasporale, personId, seniorityWaiver: true })
+    expect(rows[0]?.admittedByPersonId).toBeUndefined()
+    // La dispense : éligible au parrainage dès l'équipement, sans ancienneté posée à la main.
+    expect(Date.now() - (await membershipOf(t, diasporale, personId)).statusChangedAt).toBeLessThan(DAY_MS)
+    expect(await as.query(api.modules.diaspora.membership.sponsorDashboard, { networkId: diasporale })).toMatchObject({ eligible: true, refusal: null })
+    expect(await as.query(api.modules.diaspora.membership.myMembership, { networkId: diasporale })).toMatchObject({ status: "verifiee", badges: ["verified"] })
+    await equip(as, "fondateur")
+    expect(await admissions()).toHaveLength(1)
   })
 
   it("institution : identité IDN de niveau 2 et attestation consulaire, deux faits indépendants", async () => {
@@ -1012,7 +1033,7 @@ describe("comptes de démonstration DIASPORALE — le catalogue entier", () => {
       members.set(actor, member)
       results.set(actor, await equip(member.as, actor))
     }
-    expect([...members.keys()]).toHaveLength(19)
+    expect([...members.keys()]).toHaveLength(20)
 
     for (const [actor, member] of members) {
       const spec = DIASPORALE_DEMO_ACTOR_SPECS[actor]
