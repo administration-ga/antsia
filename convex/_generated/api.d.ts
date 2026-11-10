@@ -10,6 +10,7 @@
 
 import type * as betterAuth_auth from "../betterAuth/auth.js";
 import type * as betterAuth_delivery from "../betterAuth/delivery.js";
+import type * as betterAuth_idnRefusalReturn from "../betterAuth/idnRefusalReturn.js";
 import type * as betterAuth_nativeIdn from "../betterAuth/nativeIdn.js";
 import type * as betterAuth_settings from "../betterAuth/settings.js";
 import type * as crons from "../crons.js";
@@ -285,6 +286,7 @@ import type * as modules_moderation_settings from "../modules/moderation/setting
 import type * as modules_moderation_tables from "../modules/moderation/tables.js";
 import type * as modules_moderation_targets from "../modules/moderation/targets.js";
 import type * as modules_networks_networks from "../modules/networks/networks.js";
+import type * as modules_networks_postPlacementRegistry from "../modules/networks/postPlacementRegistry.js";
 import type * as modules_networks_sliceRegistry from "../modules/networks/sliceRegistry.js";
 import type * as modules_networks_tables from "../modules/networks/tables.js";
 import type * as modules_notifications_bell from "../modules/notifications/bell.js";
@@ -310,8 +312,10 @@ import type * as modules_notifications_transports from "../modules/notifications
 import type * as modules_pages_access from "../modules/pages/access.js";
 import type * as modules_pages_admin from "../modules/pages/admin.js";
 import type * as modules_pages_claims from "../modules/pages/claims.js";
+import type * as modules_pages_closedByBlocks from "../modules/pages/closedByBlocks.js";
 import type * as modules_pages_followedUpdates from "../modules/pages/followedUpdates.js";
 import type * as modules_pages_follows from "../modules/pages/follows.js";
+import type * as modules_pages_governanceNoticeAccess from "../modules/pages/governanceNoticeAccess.js";
 import type * as modules_pages_identity from "../modules/pages/identity.js";
 import type * as modules_pages_pages from "../modules/pages/pages.js";
 import type * as modules_pages_presentation from "../modules/pages/presentation.js";
@@ -351,6 +355,7 @@ import type * as modules_platform_operatorAccess from "../modules/platform/opera
 import type * as modules_platform_recovery from "../modules/platform/recovery.js";
 import type * as modules_platform_tables from "../modules/platform/tables.js";
 import type * as modules_posts_access from "../modules/posts/access.js";
+import type * as modules_posts_authorModeration from "../modules/posts/authorModeration.js";
 import type * as modules_posts_contentRemoval from "../modules/posts/contentRemoval.js";
 import type * as modules_posts_counters from "../modules/posts/counters.js";
 import type * as modules_posts_feedMaterialization from "../modules/posts/feedMaterialization.js";
@@ -359,6 +364,7 @@ import type * as modules_posts_feedRead from "../modules/posts/feedRead.js";
 import type * as modules_posts_feedTables from "../modules/posts/feedTables.js";
 import type * as modules_posts_mediaFeed from "../modules/posts/mediaFeed.js";
 import type * as modules_posts_nativeAuthor from "../modules/posts/nativeAuthor.js";
+import type * as modules_posts_placement from "../modules/posts/placement.js";
 import type * as modules_posts_postNotify from "../modules/posts/postNotify.js";
 import type * as modules_posts_postWrite from "../modules/posts/postWrite.js";
 import type * as modules_posts_posts from "../modules/posts/posts.js";
@@ -453,6 +459,8 @@ import type * as modules_shops_purchases from "../modules/shops/purchases.js";
 import type * as modules_shops_purchasesActions from "../modules/shops/purchasesActions.js";
 import type * as modules_shops_purchasesClient from "../modules/shops/purchasesClient.js";
 import type * as modules_shops_rules from "../modules/shops/rules.js";
+import type * as modules_shops_savedOfferTables from "../modules/shops/savedOfferTables.js";
+import type * as modules_shops_savedOffers from "../modules/shops/savedOffers.js";
 import type * as modules_shops_serviceAccess from "../modules/shops/serviceAccess.js";
 import type * as modules_shops_serviceActions from "../modules/shops/serviceActions.js";
 import type * as modules_shops_serviceClient from "../modules/shops/serviceClient.js";
@@ -493,6 +501,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   "betterAuth/auth": typeof betterAuth_auth;
   "betterAuth/delivery": typeof betterAuth_delivery;
+  "betterAuth/idnRefusalReturn": typeof betterAuth_idnRefusalReturn;
   "betterAuth/nativeIdn": typeof betterAuth_nativeIdn;
   "betterAuth/settings": typeof betterAuth_settings;
   crons: typeof crons;
@@ -768,6 +777,7 @@ declare const fullApi: ApiFromModules<{
   "modules/moderation/tables": typeof modules_moderation_tables;
   "modules/moderation/targets": typeof modules_moderation_targets;
   "modules/networks/networks": typeof modules_networks_networks;
+  "modules/networks/postPlacementRegistry": typeof modules_networks_postPlacementRegistry;
   "modules/networks/sliceRegistry": typeof modules_networks_sliceRegistry;
   "modules/networks/tables": typeof modules_networks_tables;
   "modules/notifications/bell": typeof modules_notifications_bell;
@@ -793,8 +803,10 @@ declare const fullApi: ApiFromModules<{
   "modules/pages/access": typeof modules_pages_access;
   "modules/pages/admin": typeof modules_pages_admin;
   "modules/pages/claims": typeof modules_pages_claims;
+  "modules/pages/closedByBlocks": typeof modules_pages_closedByBlocks;
   "modules/pages/followedUpdates": typeof modules_pages_followedUpdates;
   "modules/pages/follows": typeof modules_pages_follows;
+  "modules/pages/governanceNoticeAccess": typeof modules_pages_governanceNoticeAccess;
   "modules/pages/identity": typeof modules_pages_identity;
   "modules/pages/pages": typeof modules_pages_pages;
   "modules/pages/presentation": typeof modules_pages_presentation;
@@ -834,6 +846,7 @@ declare const fullApi: ApiFromModules<{
   "modules/platform/recovery": typeof modules_platform_recovery;
   "modules/platform/tables": typeof modules_platform_tables;
   "modules/posts/access": typeof modules_posts_access;
+  "modules/posts/authorModeration": typeof modules_posts_authorModeration;
   "modules/posts/contentRemoval": typeof modules_posts_contentRemoval;
   "modules/posts/counters": typeof modules_posts_counters;
   "modules/posts/feedMaterialization": typeof modules_posts_feedMaterialization;
@@ -842,6 +855,7 @@ declare const fullApi: ApiFromModules<{
   "modules/posts/feedTables": typeof modules_posts_feedTables;
   "modules/posts/mediaFeed": typeof modules_posts_mediaFeed;
   "modules/posts/nativeAuthor": typeof modules_posts_nativeAuthor;
+  "modules/posts/placement": typeof modules_posts_placement;
   "modules/posts/postNotify": typeof modules_posts_postNotify;
   "modules/posts/postWrite": typeof modules_posts_postWrite;
   "modules/posts/posts": typeof modules_posts_posts;
@@ -936,6 +950,8 @@ declare const fullApi: ApiFromModules<{
   "modules/shops/purchasesActions": typeof modules_shops_purchasesActions;
   "modules/shops/purchasesClient": typeof modules_shops_purchasesClient;
   "modules/shops/rules": typeof modules_shops_rules;
+  "modules/shops/savedOfferTables": typeof modules_shops_savedOfferTables;
+  "modules/shops/savedOffers": typeof modules_shops_savedOffers;
   "modules/shops/serviceAccess": typeof modules_shops_serviceAccess;
   "modules/shops/serviceActions": typeof modules_shops_serviceActions;
   "modules/shops/serviceClient": typeof modules_shops_serviceClient;

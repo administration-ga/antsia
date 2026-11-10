@@ -12,7 +12,7 @@ import { z } from "zod"
 export type IdentityConfiguration = { idn: boolean; emailOtp: boolean; smsOtp: boolean; localCodes: boolean }
 export type IdentityAuthClient = {
   signIn: {
-    oauth2: (args: { providerId: string; callbackURL: string } & AuthRequestOptions) => Promise<unknown>
+    oauth2: (args: { providerId: string; callbackURL: string; errorCallbackURL?: string } & AuthRequestOptions) => Promise<unknown>
     emailOtp: (args: { email: string; otp: string } & AuthRequestOptions) => Promise<unknown>
   }
   emailOtp: { sendVerificationOtp: (args: { email: string; type: "sign-in" } & AuthRequestOptions) => Promise<unknown> }
@@ -25,6 +25,8 @@ export type IdentityAuthClient = {
 export type IdentityEntryProps = {
   authClient: IdentityAuthClient
   callbackURL: string
+  /** La porte où le moteur ramène un refus ou un abandon chez IDN (`?error=<code>`). */
+  errorCallbackURL?: string
   onAuthenticated: () => void
   /** undefined : chargement ; null : configuration indisponible. */
   configuration: IdentityConfiguration | null | undefined
@@ -77,7 +79,7 @@ async function authRequest(run: (options: AuthRequestOptions) => Promise<unknown
 }
 
 /** Porte commune, sans route ni origine propre à une application. */
-export function IdentityEntry({ authClient, callbackURL, onAuthenticated, configuration, renderLocalCode, presentation = "default", headingLevel = 1, title, lead }: IdentityEntryProps) {
+export function IdentityEntry({ authClient, callbackURL, errorCallbackURL, onAuthenticated, configuration, renderLocalCode, presentation = "default", headingLevel = 1, title, lead }: IdentityEntryProps) {
   const { t, i18n } = useTranslation("identity")
   const fieldId = useId()
   const [method, setMethod] = useState<Method>("email")
@@ -171,7 +173,7 @@ export function IdentityEntry({ authClient, callbackURL, onAuthenticated, config
           <div className={`flex flex-col ${compact ? "gap-2" : "gap-3"}`}>
             <Button size="lg" disabled={busy || configuration?.idn !== true} aria-busy={pending === "idn" || undefined} aria-describedby={`${fieldId}-idn-help`} style={{ whiteSpace: "normal" }} onClick={() => void perform("idn", async () => {
               if (!configuration?.idn) return
-              const result = await authRequest((options) => authClient.signIn.oauth2({ providerId: "idn", callbackURL, ...options }))
+              const result = await authRequest((options) => authClient.signIn.oauth2({ providerId: "idn", callbackURL, ...(errorCallbackURL ? { errorCallbackURL } : {}), ...options }))
               const data = responseData(result)
               if (responseError(result)) setError(t(identityErrorKey(responseError(result))))
               else if (typeof data !== "object" || data === null || !("url" in data) || typeof data.url !== "string" || !("redirect" in data) || data.redirect !== true) setError(t("errors.generic"))

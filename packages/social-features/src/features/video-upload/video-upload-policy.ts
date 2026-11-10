@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/stories/story-video-policy.ts @ ad2e7fdc2 — adaptations : destinations `reseau`/`icom` (ADR-0079 du socle) retirées avec le moteur, paramètre `surfaces` supprimé ; refus traduits par i18n (`t` en dernier paramètre) au lieu des phrases du domaine du socle ; SD-03 : module renommé `video-upload-policy` et sorti des Stories (`features/video-upload`) pour servir aussi le composeur de publication — les BORNES deviennent un paramètre (`limits` : `STORY_VIDEO_UPLOAD_LIMITS` ou `POST_VIDEO_UPLOAD_LIMITS`, lues dans le domaine), identifiants neutres (`videoUploadPlan`, `VideoUploadProbe`, `VIDEO_TRANSCODE_*`), refus lus dans `reseau:videoPreparation.refusal.*` et durées dites par `videoDurationLabel`.
+// Dupliqué de socle/packages/agent-features/src/features/stories/story-video-policy.ts @ ad2e7fdc2 — adaptations : destinations `reseau`/`icom` (ADR-0079 du socle) retirées avec le moteur, paramètre `surfaces` supprimé ; refus traduits par i18n (`t` en dernier paramètre) au lieu des phrases du domaine du socle ; SD-03 : module renommé `video-upload-policy` et sorti des Stories (`features/video-upload`) pour servir aussi le composeur de publication — les BORNES deviennent un paramètre (`limits` : `STORY_VIDEO_UPLOAD_LIMITS` ou `POST_VIDEO_UPLOAD_LIMITS`, lues dans le domaine), identifiants neutres (`videoUploadPlan`, `VideoUploadProbe`, `VIDEO_TRANSCODE_*`), refus lus dans `reseau:videoPreparation.refusal.*` et durées dites par `videoDurationLabel` ; issue antsia#142 : chaque refus porte À CÔTÉ de sa phrase un code à liste fermée (`refusal`, `VIDEO_PREPARATION_REFUSALS`).
 /**
  * video-upload-policy — ce qu'on FAIT d'une vidéo choisie pour une Story ou
  * pour une publication.
@@ -20,7 +20,8 @@
  *     produire ici, à un débit calculé pour tenir dans le budget d'octets ;
  *   - `refuse`    — indécodable ici (on ne convertit pas ce qu'on ne sait pas
  *     lire), trop long, trop long À CONVERTIR, ou aucun encodeur disponible.
- *     Message dans la langue de l'écran, qui nomme la borne et dit quoi faire.
+ *     Message dans la langue de l'écran, qui nomme la borne et dit quoi faire,
+ *     et son code à liste fermée (`VIDEO_PREPARATION_REFUSALS`, issue antsia#142).
  *
  * ⚠️ La sonde est PAR NAVIGATEUR : un Safari décode le .mov et le convertit ;
  * un Chrome ne le décode pas et le refuse en guidant. La liste SERVEUR reste
@@ -130,6 +131,30 @@ const TRANSCODE_SIZE_SAFETY = 0.85
 /** La marge au-delà de la borne : on n'arrête pas un flux à la milliseconde. */
 const TRANSCODE_HARD_STOP_MARGIN_MS = 1_500
 
+/**
+ * Pourquoi une vidéo n'est pas préparée — un code à LISTE FERMÉE (issue antsia#142), rendu À CÔTÉ
+ * de la phrase : antsia.ga montre la phrase, un écran qui a ses propres textes (DIASPORALE)
+ * traduit le code. Chacun veut dire : la vidéo n'est PAS envoyée.
+ *
+ * Ni le poids ni l'annulation n'y figurent : aucun fichier n'est pesé ici (l'original choisi comme
+ * le converti se pèsent par la règle du brouillon de l'appelant), et l'annulation a sa propre
+ * issue, `cancelled`, sans phrase.
+ */
+export const VIDEO_PREPARATION_REFUSALS = [
+	/** Ce navigateur ne sait pas la lire : on ne convertit pas ce qu'on ne sait pas lire. */
+	"not-decodable",
+	/** Plus longue que la borne de la surface (Story ou publication). */
+	"too-long",
+	/** Il faut la convertir, et elle dépasse la borne de la CONVERSION (`VIDEO_TRANSCODE_MAX_DURATION_MS`). */
+	"too-long-to-convert",
+	/** Il faut la convertir, et ce navigateur ne sait produire aucune des cibles. */
+	"no-encoder",
+	/** La conversion a échoué — dit par `prepareVideoForUpload`, jamais par le plan. */
+	"conversion-failed",
+] as const
+
+export type VideoPreparationRefusal = (typeof VIDEO_PREPARATION_REFUSALS)[number]
+
 export type VideoUploadPlan =
 	| { action: "upload"; durationMs: number | undefined }
 	| {
@@ -141,7 +166,12 @@ export type VideoUploadPlan =
 			/** La ceinture : au-delà, la conversion s'arrête d'elle-même. */
 			hardStopMs: number
 	  }
-	| { action: "refuse"; error: string }
+	| {
+			action: "refuse"
+			/** Le code du refus, à liste fermée (la conversion n'a pas encore eu lieu : jamais `conversion-failed`). */
+			refusal: Exclude<VideoPreparationRefusal, "conversion-failed">
+			error: string
+	  }
 
 /** Le conteneur nu, sans paramètres de codec — `video/webm;codecs=vp9` → `video/webm`. */
 function baseMime(mimeType: string): string {
@@ -248,6 +278,7 @@ export function videoUploadPlan(
 	if (!probe.decodable) {
 		return {
 			action: "refuse",
+			refusal: "not-decodable",
 			error: t("reseau:videoPreparation.refusal.notDecodable", { name: fileName }),
 		}
 	}
@@ -259,6 +290,7 @@ export function videoUploadPlan(
 	if (probe.durationMs !== null && probe.durationMs > limits.maxDurationMs) {
 		return {
 			action: "refuse",
+			refusal: "too-long",
 			error: t("reseau:videoPreparation.refusal.tooLong", {
 				name: fileName,
 				duration: videoDurationLabel(limits.maxDurationMs, t),
@@ -293,6 +325,7 @@ export function videoUploadPlan(
 	) {
 		return {
 			action: "refuse",
+			refusal: "too-long-to-convert",
 			error: t("reseau:videoPreparation.refusal.tooLongToConvert", {
 				name: fileName,
 				duration: videoDurationLabel(VIDEO_TRANSCODE_MAX_DURATION_MS, t),
@@ -304,6 +337,7 @@ export function videoUploadPlan(
 	if (targetMime === undefined) {
 		return {
 			action: "refuse",
+			refusal: "no-encoder",
 			error: t("reseau:videoPreparation.refusal.noEncoder", { name: fileName }),
 		}
 	}

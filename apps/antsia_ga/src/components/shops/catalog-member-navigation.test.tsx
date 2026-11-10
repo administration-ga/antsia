@@ -10,6 +10,8 @@ import { catalogOfferFixture } from "./__tests__/catalog-fixtures"
 import type { CatalogOffer } from "./catalog-model"
 
 const mocks = vi.hoisted(() => ({ query: vi.fn(), push: vi.fn(), search: "", listeners: new Set<() => void>() }))
+// CM-09 : le bouton « Enregistrer » a ses propres tests (`save-offer-button.test.tsx`) ; ici, sa seule présence.
+vi.mock("@/components/shops/save-offer-button", () => ({ SaveOfferButton: ({ offer, layout }: { offer: { offerRef: string }; layout?: string }) => <span data-save-offer={offer.offerRef} data-save-layout={layout ?? "overlay"} /> }))
 vi.mock("@antsia/api/engine", () => ({ api: { modules: { shops: { catalog: { list: "list" }, shops: { storefront: "storefront" } } } } }))
 vi.mock("@antsia/api/network", () => ({ useNetwork: () => ({ networkId: "root", personId: "reader" }) }))
 vi.mock("@antsia/api/hooks", () => ({ useAuthenticatedConvexQuery: (...args: unknown[]) => mocks.query(...args) }))

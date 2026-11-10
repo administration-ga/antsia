@@ -9,6 +9,7 @@ import { useTranslation } from "react-i18next"
 
 import { Button } from "@/components/shared/controls"
 import { OfferCard } from "@/components/shops/offer-card"
+import { SaveOfferButton } from "@/components/shops/save-offer-button"
 import { SHOP_ACTION_CLASS } from "@/components/shops/offer-experience-styles"
 import { routes } from "@/lib/routes"
 
@@ -36,7 +37,7 @@ function ServiceWindows() {
   const query = useAuthenticatedConvexQuery(api.modules.shops.marketplace.search, { networkId, kind: "service", paginationOpts: { cursor: cursors.at(-1) ?? null, numItems: 12 } })
   const demo = useAuthenticatedConvexQuery(api.modules.shops.marketplace.demoSelection, { networkId, kind: "service" })
   const result = query.data
-  const cards = (offers: NonNullable<typeof result>["page"]) => <ul className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-3">{offers.map(offer => <li key={`${offer.shopHandle}:${offer.offerRef}`} className="min-w-0"><OfferCard offer={offer} audience="member" locale={i18n.resolvedLanguage ?? "fr"} t={(key, options) => shopT(key, options)} /></li>)}</ul>
+  const cards = (offers: NonNullable<typeof result>["page"]) => <ul className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-3">{offers.map(offer => <li key={`${offer.shopHandle}:${offer.offerRef}`} className="min-w-0"><OfferCard offer={offer} audience="member" locale={i18n.resolvedLanguage ?? "fr"} t={(key, options) => shopT(key, options)} save={<SaveOfferButton offer={offer} />} /></li>)}</ul>
   return <section id="services" aria-labelledby={id} className="scroll-mt-24 grid min-w-0 gap-4">
     <header className="grid gap-2"><h2 id={id} className="mp-subtitle">{t("directory.title")}</h2><p className="text-sm text-muted-foreground">{t("directory.lead")}</p><Link href={routes.marketplace({ view: "services" })} className={`${SHOP_ACTION_CLASS} justify-self-start`}>{t("directory.all")}</Link></header>
     {query.isError ? <div role="alert" className="grid gap-3"><p>{marketplaceT("results.failed")}</p><Button variant="outline" pending={query.isFetching} onClick={() => { void query.refetch() }}>{t("actions.retry")}</Button></div> : query.isPending || !result ? <p role="status">{t("status.loading")}</p> : result.indexStatus !== "ready" ? <p role="status">{t("status.building")}</p> : <div className="grid min-w-0 gap-4" aria-busy={query.isFetching || undefined}>

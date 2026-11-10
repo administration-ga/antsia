@@ -12,7 +12,10 @@
  *  · la page garde toujours au moins un administrateur vivant ;
  *  · habiliter et révoquer sont des DÉCISIONS : une ligne au journal
  *    (`page.signatory_grant`, `page.signatory_revoke`, qualité `page_admin`) —
- *    se retirer soi-même ou décliner une invitation n'en sont pas.
+ *    se retirer soi-même ou décliner une invitation n'en sont pas ;
+ *  · PG-01 : une invitation en attente fait sonner la cloche de la personne
+ *    invitée (`page_signatory_invite`, sans acteur ni nom de page) ; la ligne se
+ *    RÉSOUT à la réponse (acceptée, déclinée) ou au retrait de l'invitation.
  */
 import { assertNotLastAdmin, assertPageHasRoomForSignatory } from "@antsia/social-domain/pages"
 import { v } from "convex/values"
@@ -23,6 +26,7 @@ import { checked, fail, failRule, notFound } from "../../lib/errors"
 import { networkMutation, networkQuery } from "../../lib/functions"
 import { enforceRateLimit } from "../../lib/rateLimit"
 import { assertNativePageManagement } from "../federation/mirrorAccess"
+import { notifyPerson, resolveNotifications } from "../notifications/notify"
 import { findPublishedPersonByHandle, miniProfileCache } from "../people/miniProfile"
 import { hasStrongIdentityFor } from "../people/persons"
 import { appendAudit } from "../platform/audit"
@@ -106,7 +110,10 @@ export const grantPageRole = networkMutation({
       details: { targetPersonId: target._id, role: args.role, previousRole: existing?.role ?? null, invited: existing === null },
       at: now,
     })
-    return { personId: target._id, role: args.role, invited: existing === null || existing.acceptedAt === undefined }
+    const invited = existing === null || existing.acceptedAt === undefined
+    // PG-01 : l'invitation (neuve, ou dont le rôle change avant réponse) sonne chez la personne invitée.
+    if (invited) await notifyPerson(ctx, { networkId: page.networkId, recipientPersonId: target._id, kind: "page_signatory_invite", subject: { page: page._id } })
+    return { personId: target._id, role: args.role, invited }
   },
 })
 
@@ -130,6 +137,8 @@ export const revokePageRole = networkMutation({
       checked(() => assertNotLastAdmin({ role: "admin", nextRole: null, adminCount }))
     }
     await ctx.db.delete(row._id)
+    // PG-01 : une invitation retirée avant réponse résout sa cloche (« annulée »).
+    if (row.acceptedAt === undefined) await resolveNotifications(ctx, { networkId: page.networkId, recipientPersonId: args.personId, kind: "page_signatory_invite", subject: { page: page._id }, resolution: "cancelled" })
     // Un signataire retiré sort du cercle de la page : sa connexion DÉJÀ ouverte à un direct
     // réservé aux abonnés est coupée, sauf s'il en reste abonné (la décision d'accès juge).
     await ctx.scheduler.runAfter(0, internal.modules.live.revocation.kickUserFromPageDirects, { personId: args.personId, pageId: page._id, cursor: null })
@@ -178,6 +187,7 @@ export const respondToPageInvitation = networkMutation({
     if (!page || !row || row.acceptedAt !== undefined) return notFound()
     if (!args.accept) {
       await ctx.db.delete(row._id)
+      await resolveNotifications(ctx, { networkId: page.networkId, recipientPersonId: ctx.person._id, kind: "page_signatory_invite", subject: { page: page._id }, resolution: "declined" })
       return { role: null }
     }
     await assertNativePageManagement(ctx, page._id)
@@ -185,6 +195,7 @@ export const respondToPageInvitation = networkMutation({
     if (page.trust === "official" && !(await hasStrongIdentityFor(ctx, ctx.person._id))) return failRule("PAGE_SIGNATORY_IDENTITY_REQUIRED")
     const now = Date.now()
     await ctx.db.patch(row._id, { acceptedAt: now, authorityRevision: (row.authorityRevision ?? 0) + 1, updatedAt: now })
+    await resolveNotifications(ctx, { networkId: page.networkId, recipientPersonId: ctx.person._id, kind: "page_signatory_invite", subject: { page: page._id }, resolution: "accepted", at: now })
     await refreshReaderContexts(ctx, row.networkId, ctx.person._id)
     return { role: row.role }
   },
