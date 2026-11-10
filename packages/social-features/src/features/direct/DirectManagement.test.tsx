@@ -22,7 +22,7 @@ vi.mock("@antsia/ui/espace-kit", () => ({ EspaceDialog: ({ title, description, c
 
 const i18n = createAppI18n({ locale: "fr", appResources: { fr: {}, en: {} }, defaultNS: "direct" })
 function session(patch: Partial<DirectSession> = {}): DirectSession {
-  return { sessionId: "session-a" as Id<"liveSessions">, title: "Recette", status: "live", audience: "public", chatMode: "open", stageFormat: "computer", stageLayout: "adaptive", maxViewers: 200, viewerRole: "viewer", viewerIsInvitee: false, permissions: noDirectPermissions(), host: { displayName: "Hôte", handle: "host", avatarUrl: null }, speakers: [], spotlight: null, startedAt: 1, endedAt: null, maxDurationAt: 10000, endReason: null, counters: { viewers: 0, present: 0, comments: 0, reactions: 0 }, announcePostId: null, replay: null, ...patch }
+  return { sessionId: "session-a" as Id<"liveSessions">, title: "Recette", status: "live", audience: "public", chatMode: "open", stageFormat: "computer", stageLayout: "adaptive", maxViewers: 200, viewerRole: "viewer", viewerIsInvitee: false, permissions: noDirectPermissions(), host: { displayName: "Hôte", handle: "host", avatarUrl: null }, speakers: [], spotlight: null, startedAt: 1, endedAt: null, maxDurationAt: 10000, endReason: null, counters: { viewers: 0, present: 0, comments: 0, reactions: 0 }, announcePostId: null, replay: null, recording: { requested: false, consentedAt: null, proposedSpeakerAwaitingConsent: false }, ...patch }
 }
 const host = () => session({ viewerRole: "host", permissions: directPermissionsFor({ isHost: true, delegation: null }) })
 const profile = { displayName: "Awa", handle: "awa", avatarUrl: null }
@@ -156,5 +156,48 @@ describe("F3b — volets et permissions, fail-closed", () => {
     const view = render(tree(host())); fireEvent.click(screen.getByRole("button", { name: "Admissions" }))
     mocks.network = "network-b"; mocks.query.mockClear(); view.rerender(tree(host()))
     expect(screen.queryByText("Awa")).toBeNull(); expect(mocks.query).not.toHaveBeenCalled()
+  })
+})
+
+describe("DL-02 — l'antenne d'un direct enregistré exige mon accord", () => {
+  const CONSENT = "J'accepte que mon image et ma voix soient enregistrées à l'antenne de cette conférence"
+  const recorded = { requested: true, consentedAt: null, proposedSpeakerAwaitingConsent: false }
+
+  it("accepter une invitation : case décochée, Accepter bloqué jusqu'à la coche, accord envoyé AVANT la réponse ; refuser reste libre", async () => {
+    mocks.data["modules/live/antenna:myState"] = { live: true, request: null, invitation: { invitationId: "invite-a", status: "pending" }, shouldJoinAsSpeaker: false }
+    render(tree(session({ recording: recorded }), true)); fireEvent.click(screen.getByRole("button", { name: "Antenne" }))
+    expect(screen.getByText(/Si la conférence est enregistrée, vous devrez d’abord accepter l’enregistrement/)).toBeInTheDocument()
+    const box = screen.getByRole("checkbox", { name: CONSENT })
+    expect(box).not.toBeChecked()
+    expect(screen.getByRole("button", { name: "Accepter" })).toBeDisabled()
+    expect(screen.getByRole("button", { name: "Demander la parole" })).toBeDisabled()
+    expect(screen.getByRole("button", { name: "Refuser" })).toBeEnabled()
+    fireEvent.click(box)
+    fireEvent.click(screen.getByRole("button", { name: "Accepter" }))
+    await waitFor(() => expect(mocks.mutation).toHaveBeenCalledWith("modules/live/antenna:respondToInvitation", { networkId: "network-a", invitationId: "invite-a", response: "accepted" }))
+    expect(mocks.mutation.mock.calls.map(([name]) => name)).toEqual(["modules/live/antenna:acceptRecording", "modules/live/antenna:respondToInvitation"])
+  })
+
+  it("demander la parole : l'accord part d'abord ; sans enregistrement, aucune case ni accord", async () => {
+    const view = render(tree(session({ recording: recorded }), true)); fireEvent.click(screen.getByRole("button", { name: "Antenne" }))
+    fireEvent.click(screen.getByRole("checkbox", { name: CONSENT }))
+    fireEvent.click(screen.getByRole("button", { name: "Demander la parole" }))
+    await waitFor(() => expect(mocks.mutation).toHaveBeenCalledWith("modules/live/antenna:raiseHand", { networkId: "network-a", sessionId: "session-a" }))
+    expect(mocks.mutation.mock.calls.map(([name]) => name)).toEqual(["modules/live/antenna:acceptRecording", "modules/live/antenna:raiseHand"])
+    view.unmount(); mocks.mutation.mockClear()
+    render(tree(session(), true)); fireEvent.click(screen.getByRole("button", { name: "Antenne" }))
+    expect(screen.queryByRole("checkbox", { name: CONSENT })).toBeNull()
+    fireEvent.click(screen.getByRole("button", { name: "Demander la parole" }))
+    await waitFor(() => expect(mocks.mutation).toHaveBeenCalledWith("modules/live/antenna:raiseHand", { networkId: "network-a", sessionId: "session-a" }))
+    expect(mocks.mutation).toHaveBeenCalledTimes(1)
+  })
+
+  it("l'accord déjà donné est dit ; la console de l'hôte rappelle la règle", () => {
+    const view = render(tree(session({ recording: { ...recorded, consentedAt: 1 } }), true)); fireEvent.click(screen.getByRole("button", { name: "Antenne" }))
+    expect(screen.getByText("Vous avez accepté l'enregistrement de cette conférence.")).toBeInTheDocument()
+    expect(screen.queryByRole("checkbox", { name: CONSENT })).toBeNull()
+    view.unmount()
+    render(tree({ ...host(), recording: { ...recorded, consentedAt: 1 } })); fireEvent.click(screen.getByRole("button", { name: "Antenne" }))
+    expect(screen.getByText("Cette conférence est enregistrée : une personne ne monte à l'antenne qu'après avoir accepté l'enregistrement.")).toBeInTheDocument()
   })
 })

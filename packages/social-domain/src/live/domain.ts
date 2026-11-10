@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/modules/direct/domain.ts @ ad2e7fdc2 — adaptations : module PUR sorti du backend vers le domaine (importable par le front sans `convex/`) ; plafonds de la salle (`DIRECT_MAX_SPEAKERS`, `DIRECT_DEFAULT_MAX_VIEWERS`, `DIRECT_MAX_VIEWERS_CAP`) posés ICI — le domaine n'importe rien du backend — et réexportés par `convex/modules/live/grants.ts` ; audience « organisation » → `followers`, les abonnés et signataires vivants de la PAGE qui signe la conférence (V40) : même verrou de rediffusion (aucune autre visibilité, on n'y entre pas par la copie) ; vocabulaires posés en listes `as const`, source unique des validateurs du backend (audiences, statuts, bail et état de l'hôte, fins, conversation, disposition, rôles, invitations, commentaires, rediffusion) et décision de l'hôte sur l'enregistrement listée ; phrases de refus remplacées par `DomainViolation` (codes `LIVE_*` et bornes, texte dans les locales de l'écran) — `DirectViolation`, `tooManyInviteesMessage` et `tooManySpeakerInviteesMessage` retirés ; invités désignés par une PERSONNE (`personId`) ; commentaires rapportés au moteur (tables `live*`, compteurs hors de la session).
+// Dupliqué de socle/convex/modules/direct/domain.ts @ ad2e7fdc2 — adaptations : module PUR sorti du backend vers le domaine (importable par le front sans `convex/`) ; plafonds de la salle (`DIRECT_MAX_SPEAKERS`, `DIRECT_DEFAULT_MAX_VIEWERS`, `DIRECT_MAX_VIEWERS_CAP`) posés ICI — le domaine n'importe rien du backend — et réexportés par `convex/modules/live/grants.ts` ; audience « organisation » → `followers`, les abonnés et signataires vivants de la PAGE qui signe la conférence (V40) : même verrou de rediffusion (aucune autre visibilité, on n'y entre pas par la copie) ; vocabulaires posés en listes `as const`, source unique des validateurs du backend (audiences, statuts, bail et état de l'hôte, fins, conversation, disposition, rôles, invitations, commentaires, rediffusion) et décision de l'hôte sur l'enregistrement listée ; phrases de refus remplacées par `DomainViolation` (codes `LIVE_*` et bornes, texte dans les locales de l'écran) — `DirectViolation`, `tooManyInviteesMessage` et `tooManySpeakerInviteesMessage` retirés ; invités désignés par une PERSONNE (`personId`) ; commentaires rapportés au moteur (tables `live*`, compteurs hors de la session) ; DL-02 : durée de conservation des rediffusions posée ICI en jours (`DIRECT_REPLAY_RETENTION_DAYS`, annoncée par l'écran du consentement) et dérivée par `convex/modules/live/retention.ts`.
 /**
  * Le DOMAINE du direct — règles PURES, sans I/O, sans Convex.
  *
@@ -41,6 +41,13 @@ export const DIRECT_SCHEDULED_MAX_AGE_MS = 24 * 60 * 60_000
  * est le miroir.
  */
 export const DIRECT_LIVE_MAX_DURATION_MS = 4 * 60 * 60_000
+/**
+ * Conservation d'une rediffusion, en JOURS (DL-02) — posée ici parce que
+ * l'écran l'ANNONCE à qui accepte d'être enregistré ; le backend en dérive
+ * son échéance (`convex/modules/live/retention.ts`). Une seule valeur, sans
+ * quoi la promesse affichée et la purge réelle divergeraient.
+ */
+export const DIRECT_REPLAY_RETENTION_DAYS = 90
 
 /**
  * Cycle de vie d'une session :

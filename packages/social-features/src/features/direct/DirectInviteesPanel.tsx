@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/direct/DirectInviteesPanel.tsx @ ad2e7fdc2 — adaptations : API moteur, réseau, sélection nominative par personne, canManage relu et fail-closed, rôle proposé distinct de l’antenne réelle et i18n.
+// Dupliqué de socle/packages/agent-features/src/features/direct/DirectInviteesPanel.tsx @ ad2e7fdc2 — adaptations : API moteur, réseau, sélection nominative par personne, canManage relu et fail-closed, rôle proposé distinct de l’antenne réelle et i18n ; DL-02 : rappel qu’un intervenant proposé ne monte, dans un direct enregistré, qu’après avoir accepté l’enregistrement.
 "use client"
 
 import { api } from "@antsia/api/engine"
@@ -33,6 +33,8 @@ export function DirectInviteesPanel({ session }: { session: DirectSession }) {
   const speakersFull = guests.filter((guest) => guest.stageRole === "speaker").length >= DIRECT_MAX_SPEAKER_INVITEES
   return <div className="flex flex-col gap-4">
     <p>{t("guests.description")}</p>
+    {/* DL-02 — un intervenant proposé reste « hors antenne » tant qu'il n'a pas accepté l'enregistrement. */}
+    {session.recording.requested ? <p className="text-sm text-muted-foreground">{t("recordingConsent.hostNotice")}</p> : null}
     <p className="text-sm text-muted-foreground">{t("guests.capacity", { count: guests.length, max: DIRECT_MAX_INVITEES })}</p>
     <label className="flex flex-col gap-2">{t("guests.search")}<input value={search} maxLength={80} onChange={(event) => setSearch(event.target.value)} className="min-h-11 rounded-[var(--esp-input-radius,0.5rem)] border border-input bg-background px-3" /></label>
     <label className="flex flex-col gap-2">{t("guests.role")}<select value={role} onChange={(event) => setRole(event.target.value === "speaker" ? "speaker" : "viewer")} className="min-h-11 rounded-[var(--esp-input-radius,0.5rem)] border border-input bg-background px-3"><option value="viewer">{t("guests.viewer")}</option><option value="speaker">{t("guests.speaker")}</option></select></label>

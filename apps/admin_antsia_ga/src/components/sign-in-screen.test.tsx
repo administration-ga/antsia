@@ -71,7 +71,7 @@ describe("console PA7 — IDN seule", () => {
     expect(pending.hasAttribute("disabled")).toBe(true)
     await userEvent.click(pending)
     expect(mocks.signIn).toHaveBeenCalledTimes(1)
-    expect(mocks.signIn).toHaveBeenCalledWith({ providerId: "idn", callbackURL: "/", fetchOptions: { throw: false, signal: expect.any(AbortSignal) } })
+    expect(mocks.signIn).toHaveBeenCalledWith({ providerId: "idn", callbackURL: "/", errorCallbackURL: "/entrer", fetchOptions: { throw: false, signal: expect.any(AbortSignal) } })
     await act(async () => resolve({ data: { url: "https://identity.example/authorize", redirect: true }, error: null }))
   })
   it("traduit une erreur du fournisseur sans exposer ses détails, puis permet un nouvel essai", async () => {
@@ -94,5 +94,29 @@ describe("console PA7 — IDN seule", () => {
     mount(<ConsoleSignInScreen />)
     expect(screen.getByRole("button", { name: "Me connecter avec IDN" })).toBeDefined()
     expect(screen.queryByText("Vérification de la session…")).toBeNull()
+  })
+})
+
+describe("console — retour d'un refus IDN (issue 122, EA-02)", () => {
+  it("le refus ramené par le moteur se dit en phrase connue, sans la valeur reçue, puis l'adresse est nettoyée", async () => {
+    window.history.replaceState({}, "", "/entrer?error=access_denied&error_description=Private%20detail")
+    mount(<ConsoleSignInScreen />)
+    expect((await screen.findByRole("alert")).textContent).toBe("Vous n’avez pas autorisé la connexion avec IDN. Vous pouvez recommencer quand vous le souhaitez.")
+    expect(document.body.textContent).not.toMatch(/Private|access_denied/)
+    expect(`${window.location.pathname}${window.location.search}`).toBe("/entrer")
+    expect(screen.getByRole("button", { name: "Me connecter avec IDN" }).hasAttribute("disabled")).toBe(false)
+  })
+  it("un code inconnu ou porteur d'injection devient la phrase générique", async () => {
+    window.history.replaceState({}, "", `/entrer?error=${encodeURIComponent("<img src=x onerror=alert(1)>")}`)
+    mount(<ConsoleSignInScreen />)
+    expect((await screen.findByRole("alert")).textContent).toBe("La connexion avec IDN n’a pas abouti. Vous pouvez recommencer.")
+    expect(document.body.innerHTML).not.toContain("onerror")
+  })
+  it("sans retour d'échec, aucune alerte et la déconnexion incomplète reste lue", async () => {
+    window.history.replaceState({}, "", "/entrer?deconnexion=incomplete")
+    mount(<ConsoleSignInScreen />)
+    expect((await screen.findByRole("alert")).textContent).toContain("déconnexion complète")
+    expect(screen.getAllByRole("alert")).toHaveLength(1)
+    expect(window.location.search).toBe("?deconnexion=incomplete")
   })
 })
