@@ -202,7 +202,20 @@
       "professionalProfile": "Signaler ce profil professionnel",
       "professionalCollaboration": "Signaler cette demande de collaboration",
       "editorialVersion": "Signaler cet article",
-      "editorialMedia": "Signaler ce média"
+      "editorialMedia": "Signaler ce média",
+      "person": "Signaler ce profil",
+      "page": "Signaler cette page",
+      "thematicGroup": "Signaler ce groupe",
+      "event": "Signaler cet évènement",
+      "story": "Signaler cette Story",
+      "live": "Signaler ce direct",
+      "album": "Signaler cet album",
+      "commerceOffer": "Signaler cette offre",
+      "commerceStorefront": "Signaler les conditions de cette boutique",
+      "commerceJob": "Signaler cette offre d’emploi",
+      "serviceReview": "Signaler cet avis",
+      "groupMessage": "Signaler ce message",
+      "personalMessage": "Signaler ce message"
     },
     "description": "La plateforme instruit le signalement. L’auteur ne connaît pas votre identité.",
     "followUp": "Vous recevrez un accusé de réception, puis la décision, dans vos notifications et dans « Mes données et mes recours ».",
@@ -225,7 +238,13 @@
     "noteAriaLabel": "Précision du signalement",
     "cancel": "Annuler",
     "submitting": "Transmission…",
-    "submit": "Transmettre"
+    "submit": "Transmettre",
+    "open": "Signaler",
+    "reported": "Signalé",
+    "acknowledgement": {
+      "sent": "Signalement transmis. Ce contenu est masqué pour vous ; l’accusé de réception arrive dans vos notifications.",
+      "already": "Vous aviez déjà signalé ce contenu. Son suivi est dans « Mes données et mes recours »."
+    }
   },
   "postReactionControl": {
     "trigger": "{{label}}. Appui long ou flèche pour choisir une réaction.",
