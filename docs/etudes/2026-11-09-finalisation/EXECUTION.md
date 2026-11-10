@@ -92,7 +92,7 @@ Plan : [`03_STORIES_CLIPS_DECOUVERTE_RECHERCHE.md`](03_STORIES_CLIPS_DECOUVERTE_
 | Lot | Titre | Priorité | Taille | Session | Porte | État |
 |---|---|---|---|---|---|---|
 | SD-01 | Signaler une Story | P0 | S | S1 | aucune. | à faire |
-| SD-02 | Photos nettoyées et allégées avant envoi | P0 | M | S1 | aucune. | à faire |
+| SD-02 | Photos nettoyées et allégées avant envoi | P0 | M | S1 | aucune. | fusionné |
 | SD-03 | Vidéos lisibles partout et bornées | P0 | M | S1 | aucune. | à faire |
 | SD-04 | Économie de données et lecture automatique | P1 | M | S1 | aucune. | à faire |
 | SD-05 | Affiche des vidéos et compression avant envoi | P1 | M | S1 | aucune. | à faire |

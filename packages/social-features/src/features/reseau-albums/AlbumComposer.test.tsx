@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/reseau-albums/AlbumComposer.test.tsx @ ad2e7fdc2 — adaptations : références TYPÉES du moteur reconnues par leur nom généré (`modules/albums/albums:*`, dépôt `modules/media/media:generateUploadUrl`) ; rendu dans l'enveloppe du moteur (`renderWithEngine` : i18n français, réseau de test) ; chaque appel porte le réseau courant, le dépôt l'usage `album_image` ; refus serveur à la forme du moteur (`error.data` porte une règle et ses bornes, traduite) ; barre de progression rendue sur place (plus de `Progress` à simuler) ; adresses de dépôt neutres ; les 15 cas sont gardés ; cas ajoutés : au-delà de douze photos l'enregistrement part par lots, et un refus à la publication se dit traduit sans publier.
+// Dupliqué de socle/packages/agent-features/src/features/reseau-albums/AlbumComposer.test.tsx @ ad2e7fdc2 — adaptations : références TYPÉES du moteur reconnues par leur nom généré (`modules/albums/albums:*`, dépôt `modules/media/media:generateUploadUrl`) ; rendu dans l'enveloppe du moteur (`renderWithEngine` : i18n français, réseau de test) ; chaque appel porte le réseau courant, le dépôt l'usage `album_image` ; refus serveur à la forme du moteur (`error.data` porte une règle et ses bornes, traduite) ; barre de progression rendue sur place (plus de `Progress` à simuler) ; adresses de dépôt neutres ; les 15 cas sont gardés ; cas ajoutés : au-delà de douze photos l'enregistrement part par lots, et un refus à la publication se dit traduit sans publier ; SD-02 : le ré-encodage par défaut est celui du module partagé (`features/media-upload`) — refus sans canvas, jamais l'original — et, sous le plan d'album, garde son comportement (qualité 0,92, dimensions d'origine, PNG gardé, WebP en JPEG, GIF refusé), sortie sans métadonnées.
 // Adaptations PD4 : lecture et garde propriétaire, reprise sans nouvel upload, sauvegarde vide/métadonnées/ordre/couverture/légendes, publication conditionnelle et concurrence, remise à zéro réseau/personne/album.
 // @vitest-environment jsdom
 
@@ -23,7 +23,11 @@ import { act, cleanup, fireEvent, screen, waitFor } from "@testing-library/react
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from "react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
+import { listImageMetadata } from "@antsia/social-domain/imageMetadata"
+
+import { createAppI18n } from "../../i18n"
 import { renderWithEngine, TEST_NETWORK_ID, TEST_PERSON_ID, TEST_ROUTES } from "../../tests/engine-wrapper"
+import { fakeImageRuntime, TEST_JPEG_WITH_GPS_BYTES, TEST_PNG_BYTES } from "../../tests/image-runtime"
 import type { AlbumDetail, AlbumId, AlbumItemId, DeclaredAlbumItem } from "./albums-api"
 
 const mocks = vi.hoisted(() => ({
@@ -96,7 +100,7 @@ vi.mock("@antsia/ui", () => ({
   TextInput: (props: InputHTMLAttributes<HTMLInputElement>) => <input {...props} />,
 }))
 
-import { AlbumComposer } from "./AlbumComposer"
+import { AlbumComposer, createAlbumReencode } from "./AlbumComposer"
 
 const ALBUMS = "modules/albums/albums"
 const DEPOT = "modules/media/media:generateUploadUrl"
@@ -316,6 +320,49 @@ describe("AlbumComposer — les métadonnées partent AVANT l'octet", () => {
     // Rien n'est entré dans le brouillon, donc rien ne peut partir.
     expect(screen.getByText(/Aucune photo —/)).toBeTruthy()
     expect(global.fetch).not.toHaveBeenCalled()
+  })
+})
+
+describe("AlbumComposer — le ré-encodage est celui du module partagé (SD-02)", () => {
+  const t = createAppI18n({ locale: "fr", appResources: { fr: {}, en: {} }, defaultNS: "albums" }).getFixedT("fr")
+  const source = (bytes: Uint8Array, name: string, type: string) => new File([bytes as Uint8Array<ArrayBuffer>], name, { type })
+
+  it("sans injection, une photo que ce navigateur ne sait pas préparer (jsdom, sans décodeur) est REFUSÉE — jamais l'original", async () => {
+    renderWithEngine(<AlbumComposer handle="awa" />)
+    ouvrirEtapePhotos()
+    const input = screen.getByLabelText("Choisir des photos") as HTMLInputElement
+    Object.defineProperty(input, "files", { value: [photo("a.jpg")], configurable: true })
+    fireEvent.change(input)
+
+    await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("n'a pas été envoyée"))
+    expect(screen.getByText(/Aucune photo —/)).toBeTruthy()
+    expect(global.fetch).not.toHaveBeenCalled()
+  })
+
+  it("sous le plan d'album, comme avant : qualité 0,92, dimensions d'origine, et plus aucune métadonnée", async () => {
+    const runtime = fakeImageRuntime({ width: 6000, height: 4000, output: { bytes: TEST_JPEG_WITH_GPS_BYTES, type: "image/jpeg" } })
+    const result = await createAlbumReencode(runtime)(source(TEST_JPEG_WITH_GPS_BYTES, "terrain.jpg", "image/jpeg"), t)
+    expect(result.ok).toBe(true)
+    expect(runtime.canvases).toEqual([{ width: 6000, height: 4000 }])
+    expect(runtime.encodings).toEqual([{ type: "image/jpeg", quality: 0.92 }])
+    if (result.ok) expect(listImageMetadata(new Uint8Array(await result.file.arrayBuffer()), "image/jpeg")).toEqual([])
+  })
+
+  it("PNG reste PNG, WebP part en JPEG, le GIF est refusé en le disant, un échec dit la phrase de l'album", async () => {
+    const png = fakeImageRuntime({ width: 10, height: 10 })
+    expect(await createAlbumReencode(png)(source(TEST_PNG_BYTES, "a.png", "image/png"), t)).toMatchObject({ ok: true })
+    expect(png.encodings[0]?.type).toBe("image/png")
+
+    const webp = fakeImageRuntime({ width: 10, height: 10 })
+    expect(await createAlbumReencode(webp)(source(TEST_PNG_BYTES, "a.webp", "image/webp"), t)).toMatchObject({ ok: true })
+    expect(webp.encodings[0]?.type).toBe("image/jpeg")
+
+    const gif = await createAlbumReencode(fakeImageRuntime())(source(TEST_PNG_BYTES, "a.gif", "image/gif"), t)
+    expect(gif.ok).toBe(false)
+    expect(!gif.ok && gif.reason).toBe(t("albums:albumModel.reencode.gifRefused"))
+
+    const failed = await createAlbumReencode(fakeImageRuntime({ decodeFails: true }))(source(TEST_PNG_BYTES, "b.jpg", "image/jpeg"), t)
+    expect(failed).toEqual({ ok: false, reason: t("albums:albumModel.reencode.failed", { name: "b.jpg" }) })
   })
 })
 

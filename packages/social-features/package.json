@@ -15,6 +15,7 @@
     "./stories": "./src/features/stories/index.ts",
     "./reseau-personnel": "./src/features/reseau-personnel/index.ts",
     "./albums": "./src/features/reseau-albums/index.ts",
+    "./media-upload": "./src/features/media-upload/index.ts",
     "./notifications": "./src/features/notifications/index.ts",
     "./identity": "./src/features/identity/index.ts",
     "./*": "./src/*.ts",
