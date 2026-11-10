@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/modules/reseauPersonnel/evenements.ts @ ad2e7fdc2 — adaptations : évènement et participation PAR RÉSEAU (un évènement d'un autre réseau est introuvable ; une clé de création rejouée ailleurs est refusée) ; adhésion par le constructeur sur chaque fonction (D15 : absente au socle) ; « comptes publics » sans objet ; invitation d'une personne en relation acceptée DANS le réseau ; `participantCount` et `acceptedCount` dans l'agrégat `engineCounters` (D02) ; `eventStartAt` obligatoire, chemin hérité de l'agenda supprimé ; agenda borné qui DIT sa lacune (`truncated`, D19) ; fuseau de l'évènement, ou à défaut celui de la personne (jamais un fuseau imposé) ; fiche sans participants, ceux-ci paginés à part (`getEvent` ne rend plus de première page) ; annonce par `writePost` (portée, pays, visibilité du réseau comme une publication ordinaire) ; cloche `event_invite` par la porte du moteur, résolue à la réponse et, à l'annulation, par un job paginé gardé tel quel ; export iCal (`eventIcalUrl`, `getPersonalEventForIcal`) DIFFÉRÉ (décision par défaut de l'owner map) ; refus à code (`notFound` indistinct, `eventOrganizerRequired`, règle `EVENT_CANCELLED`) ; débit.
+// Dupliqué de socle/convex/modules/reseauPersonnel/evenements.ts @ ad2e7fdc2 — adaptations : évènement et participation PAR RÉSEAU (un évènement d'un autre réseau est introuvable ; une clé de création rejouée ailleurs est refusée) ; adhésion par le constructeur sur chaque fonction (D15 : absente au socle) ; « comptes publics » sans objet ; invitation d'une personne en relation acceptée DANS le réseau ; `participantCount` et `acceptedCount` dans l'agrégat `engineCounters` (D02) ; `eventStartAt` obligatoire, chemin hérité de l'agenda supprimé ; agenda borné qui DIT sa lacune (`truncated`, D19) ; fuseau de l'évènement, ou à défaut celui de la personne (jamais un fuseau imposé) ; fiche sans participants, ceux-ci paginés à part (`getEvent` ne rend plus de première page) ; annonce par `writePost` (portée, pays, visibilité du réseau comme une publication ordinaire) ; cloche `event_invite` par la porte du moteur, résolue à la réponse et, à l'annulation, par un job paginé gardé tel quel ; export iCal (`eventIcalUrl`, `getPersonalEventForIcal`) DIFFÉRÉ (décision par défaut de l'owner map) ; refus à code (`notFound` indistinct, `eventOrganizerRequired`, règle `EVENT_CANCELLED`) ; débit ; annonce soumise à la règle de placement de la tranche qui gouverne le réseau (HB-03, issue antsia#96).
 /**
  * ÉVÈNEMENTS PERSONNELS d'un réseau — l'agenda d'une PERSONNE, jamais d'une
  * organisation.
@@ -41,6 +41,7 @@ import { counterpartOf } from "../messaging/participation"
 import { notifyPerson, resolveNotifications } from "../notifications/notify"
 import { findPublishedPersonByHandle, miniProfileCache } from "../people/miniProfile"
 import { engineCounters } from "../posts/counters"
+import { assertPostPlacement, placementOf } from "../posts/placement"
 import { writePost } from "../posts/postWrite"
 import { pageEventAccess } from "./pageEventAccess"
 import { readableGalleryEvent } from "./pageEventGalleryAccess"
@@ -300,7 +301,8 @@ export const resolveInvitationsOnCancel = internalMutation({
 /**
  * Annoncer MON évènement dans le fil — une SEULE fois (`announcePostId` est
  * l'idempotence), par le point d'écriture commun des publications. Sans corps,
- * le TITRE porte l'annonce. Un évènement annulé ne s'annonce pas.
+ * le TITRE porte l'annonce. Un évènement annulé ne s'annonce pas. Dans un
+ * réseau gouverné, le placement passe la règle de sa tranche (HB-03).
  */
 export const announce = networkMutation({
   minStatus: "declaree",
@@ -324,6 +326,8 @@ export const announce = networkMutation({
     const placed = checked(() =>
       assertPostReach({ ...(args.reach !== undefined ? { reach: args.reach } : {}), ...(args.country !== undefined ? { country: args.country } : {}), reachValues: ctx.network.reachValues }),
     )
+    // Dans un réseau gouverné, la RÈGLE DE PLACEMENT de sa tranche, avant toute écriture (HB-03).
+    await assertPostPlacement(ctx, { network: ctx.network, authorPersonId: ctx.person._id, page: null, ...placementOf(placed) })
     const visibility = effectiveVisibility({
       networkKind: ctx.network.kind,
       audienceIsPublic: args.audience === "public",
