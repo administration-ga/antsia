@@ -53,7 +53,8 @@ export interface IcomMobileTabBarProps {
 export function IcomMobileTabBar({ active, badges }: IcomMobileTabBarProps) {
   const { t } = useTranslation("messagerie")
   const routes = useRoutes()
-  const destinations = useNetwork().navigation === "destinations"
+  const { navigation, navigationLayout } = useNetwork()
+  const destinations = navigation === "destinations"
   const bases = { home: routes.home(), messages: routes.messages() }
   const subtabsRef = useRef<HTMLDivElement>(null)
   const menu = icomMobileTabText(ICOM_MOBILE_MENU_TAB.id, t)
@@ -65,6 +66,10 @@ export function IcomMobileTabBar({ active, badges }: IcomMobileTabBarProps) {
       ?.querySelector<HTMLElement>('[aria-current="page"]')
       ?.scrollIntoView({ block: "nearest", inline: "nearest" })
   }, [active])
+
+  // U02 : l'application fournit la navigation globale et les vues iCom
+  // restent en tête de liste. Deux barres fixes se recouvriraient.
+  if (destinations && navigationLayout === "adaptive") return null
 
   return (
     <nav

@@ -257,8 +257,9 @@ export const decidePageClaim = networkMutation({
       if (page.trust === "official") return failRule("PAGE_NOT_CLAIMABLE")
       if (!(await isActiveMember(ctx, page.networkId, claim.claimantPersonId))) return fail("conflict")
       const row = await signatoryRowOf(ctx, page._id, claim.claimantPersonId)
-      if (row) await ctx.db.patch(row._id, { role: "admin", acceptedAt: row.acceptedAt ?? now, updatedAt: now })
-      else await ctx.db.insert("pageSignatories", { networkId: page.networkId, pageId: page._id, personId: claim.claimantPersonId, role: "admin", acceptedAt: now, createdAt: now, updatedAt: now })
+      if (row) await ctx.db.patch(row._id, { role: "admin", acceptedAt: row.acceptedAt ?? now,
+        ...(row.role !== "admin" || row.acceptedAt === undefined ? { authorityRevision: (row.authorityRevision ?? 0) + 1 } : {}), updatedAt: now })
+      else await ctx.db.insert("pageSignatories", { networkId: page.networkId, pageId: page._id, personId: claim.claimantPersonId, role: "admin", authorityRevision: 0, acceptedAt: now, createdAt: now, updatedAt: now })
       if (page.trust === "community") {
         trust = "verified"
         await ctx.db.patch(page._id, { trust, trustRank: pageTrustRank(trust), updatedAt: now })

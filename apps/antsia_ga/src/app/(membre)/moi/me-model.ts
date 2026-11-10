@@ -78,3 +78,8 @@ export function meEntries(handle: string | null): MeEntry[] {
 export function meEntriesIn(section: MeSection, handle: string | null): MeEntry[] {
   return meEntries(handle).filter((entry) => entry.section === section)
 }
+
+/** U05 : le profil visible a sa carte en tête ; l'activité reste privée et sans doublon. */
+export function meActivityEntries(handle: string | null): MeEntry[] {
+  return meEntriesIn("activity", handle).filter((entry) => entry.id !== "profile")
+}

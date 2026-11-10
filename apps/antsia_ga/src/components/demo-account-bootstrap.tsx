@@ -13,12 +13,12 @@ import { forgetDemoAccount, pendingDemoAccount } from "@/lib/demo-accounts"
 const DEMO_TIME_ZONE = "Africa/Libreville"
 
 /**
- * Développement local : après une connexion de démonstration (`DemoAccountsPanel`),
+ * Développement local ou démonstration déclarée : après une connexion de démonstration (`DemoAccountsPanel`),
  * rejoue l'ACCUEIL RÉEL — consentement, préférences, profil publié, par les
  * mêmes mutations que l'écran d'accueil — puis équipe le compte en son acteur
  * (`equipMyDemoAccount` : entrée dans la racine, identité, page, vitrine, rôle).
  * Sans compte de démonstration en attente dans cet onglet, il ne fait rien ;
- * le serveur refuse l'équipement hors du développement local.
+ * le serveur refuse l'équipement hors du développement local et de la démonstration déclarée.
  */
 export function DemoAccountBootstrap() {
   const session = useSessionState()

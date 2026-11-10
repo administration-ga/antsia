@@ -4,7 +4,7 @@
  * du réseau du contenu les reçoit. La modération à l'échelle (équipes, sanctions,
  * recours, relecture) arrive en PA5 sur cette table.
  */
-import { CONTENT_REPORT_REASONS, CONTENT_REPORT_STATUSES } from "@antsia/social-domain/moderation"
+import { CONTENT_REPORT_REASONS, CONTENT_REPORT_STATUSES, REPORT_LEGAL_BASES } from "@antsia/social-domain/moderation"
 import { MODERATION_SURFACES, SANCTION_KINDS } from "@antsia/social-domain/moderationPolicy"
 import { defineTable } from "convex/server"
 import { v } from "convex/values"
@@ -13,12 +13,17 @@ import { literals } from "../../lib/validators"
 
 export const contentReportReasonValidator = literals(CONTENT_REPORT_REASONS)
 export const contentReportStatusValidator = literals(CONTENT_REPORT_STATUSES)
+export const reportLegalBasisValidator = literals(REPORT_LEGAL_BASES)
 export const moderationSurfaceValidator = literals(MODERATION_SURFACES)
 export const sanctionKindValidator = literals(SANCTION_KINDS)
 export const moderationTargetValidator = v.union(
   v.object({ kind: v.literal("commercialMessage"), id: v.id("commercialMessages") }),
   // CC-2b (ADR-0025) : surface UNIQUE des messages contextuels ; la nature du fil est dérivée côté serveur.
   v.object({ kind: v.literal("contextualMessage"), id: v.id("contextualMessages") }),
+  v.object({ kind: v.literal("professionalProfile"), id: v.id("professionalProfiles") }),
+  v.object({ kind: v.literal("professionalCollaboration"), id: v.id("professionalCollaborations") }),
+  v.object({ kind: v.literal("editorialVersion"), id: v.id("editorialVersions") }),
+  v.object({ kind: v.literal("editorialMedia"), id: v.id("editorialMedia") }),
   v.object({ kind: v.literal("post"), id: v.id("posts") }),
   v.object({ kind: v.literal("comment"), id: v.id("postComments") }),
   v.object({ kind: v.literal("groupMessage"), id: v.id("groupMessages") }),
@@ -31,6 +36,7 @@ export const moderationTargetValidator = v.union(
   v.object({ kind: v.literal("serviceReview"), id: v.id("serviceReviews") }),
   v.object({ kind: v.literal("serviceReviewReply"), id: v.id("serviceReviewReplies") }),
   v.object({ kind: v.literal("commerceOffer"), id: v.id("commerceCatalogHeads") }),
+  v.object({ kind: v.literal("commerceStorefront"), id: v.id("commerceCatalogHeads") }),
   // P15 : offre d'emploi reflétée, contenu public de la page (jamais une candidature).
   v.object({ kind: v.literal("commerceJob"), id: v.id("commerceJobHeads") }),
   // Vague H DIASPORALE (G9, ajout délégué) : contenus de l'entraide, du mentorat, du kit d'arrivée et de l'emploi.
@@ -53,9 +59,20 @@ export const moderationTables = {
     teamId: v.optional(v.id("moderationTeams")), level: v.union(v.literal("team"), v.literal("network"), v.literal("platform")),
     status: contentReportStatusValidator, removedTarget: v.optional(v.boolean()), createdAt: v.number(), updatedAt: v.number(),
     reviewedAt: v.optional(v.number()), reviewedByPersonId: v.optional(v.id("persons")), decisionReason: v.optional(v.string()),
+    // SU01d (ordonnance n° 0011/PR/2026, art. 24, 32, 33) : le délai légal posé à la transmission, absent hors délai légal ;
+    // le réseau où le DÉCLARANT a signalé (sa cloche), distinct du réseau du contenu ; les dates de ses deux avis.
+    legalBasis: v.optional(reportLegalBasisValidator), dueAt: v.optional(v.number()), reporterNetworkId: v.optional(v.id("networks")),
+    acknowledgedAt: v.optional(v.number()), reporterNotifiedAt: v.optional(v.number()),
   }).index("by_reporter_target", ["reporterPersonId", "targetKind", "targetId"])
     .index("by_network_status_createdAt", ["networkId", "status", "createdAt"])
     .index("by_team_status_createdAt", ["teamId", "status", "createdAt"])
+    // SU01d : la file des délais légaux, l'échéance la plus proche d'abord ; `dueAt` absent = file ordinaire.
+    .index("by_network_status_dueAt", ["networkId", "status", "dueAt"])
+    .index("by_team_status_dueAt", ["teamId", "status", "dueAt"])
+    // SU01d : les échéances tombées pendant une période, tous statuts mêlés, pour la transparence publiée.
+    .index("by_network_dueAt", ["networkId", "dueAt"])
+    // SU01d : « Mes signalements », le plus récent d'abord.
+    .index("by_reporter_createdAt", ["reporterPersonId", "createdAt"])
     .index("by_owner_createdAt", ["ownerPersonId", "createdAt"])
     .index("by_createdAt", ["createdAt"])
     .index("by_target_status", ["targetKind", "targetId", "status"])
@@ -94,7 +111,10 @@ export const moderationTables = {
     .index("by_network_status_updatedAt", ["networkId", "status", "updatedAt"])
     .index("by_network_owner_updatedAt", ["networkId", "ownerPersonId", "updatedAt"])
     .index("by_network_page_updatedAt", ["networkId", "ownerPageId", "updatedAt"]),
-  moderationTransparency: defineTable({ networkId: v.id("networks"), periodStart: v.number(), periodEnd: v.number(), cases: v.number(), distinctAuthors: v.number(), actioned: v.number(), dismissed: v.number(), generatedAt: v.number() })
+  moderationTransparency: defineTable({ networkId: v.id("networks"), periodStart: v.number(), periodEnd: v.number(), cases: v.number(), distinctAuthors: v.number(), actioned: v.number(), dismissed: v.number(), generatedAt: v.number(),
+    // SU01d : les échéances légales TOMBÉES pendant la période, tenues ou manquées, et la borne inférieure de
+    // leurs auteurs distincts ; absentes d'une période mesurée avant SU01d.
+    legalMet: v.optional(v.number()), legalMissed: v.optional(v.number()), legalAuthors: v.optional(v.number()) })
     .index("by_network_period", ["networkId", "periodStart"]),
   contentReports: defineTable({
     networkId: v.id("networks"),

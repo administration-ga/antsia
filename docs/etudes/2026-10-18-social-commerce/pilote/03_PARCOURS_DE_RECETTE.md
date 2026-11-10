@@ -1,5 +1,44 @@
 # 03 — Parcours de recette à jouer, par version
 
+> **20 octobre 2026 — tous parcours toujours non joués dans cette reprise.** La base source
+> `c4d36f3` n’est pas gelée. Les mentions « jouable après gel » du tableau historique ne valent
+> ni autorisation d’exécution ni ouverture de capacité. Les nouvelles admissions de paiement,
+> services et candidatures restent fermées par P16, y compris après simple configuration.
+
+## Compléments de recette issus des reprises (non exécutés)
+
+Ces compléments prolongent les parcours existants ; ils n’en créent pas une seconde procédure.
+Ils sont préparés pour le futur créneau autorisé et une candidate identifiée. Le registre P16
+réellement fermé doit être observé comme fermé ; aucun contournement runtime n’est proposé.
+
+| Parcours existant | Complément requis | État / dépendance |
+|---|---|---|
+| A-1, A-6 | Vraie session révoquée/recréée, réponse d’un ancien acteur, panne et recharge ; ancien contenu masqué pendant relecture fraîche | Non joué ; versions actuelles des gardes à vérifier |
+| C-8 à C-10 | Intention retrouvée avant nouvelle demande, absence distante corrélée et clôture de clé sans effet ; devis courant au-delà de cinquante versions ; expiration de retenue refusée au geste avant cron ; ancien rendez-vous conservé en échec | Non joué ; nouveaux engagements P14 fermés par P16 |
+| C-8, C-10 | Statut employé « accepté » distinct de l’accord client version/total/date ; tentative de paiement manuel ou par facture descendante d’un service ANTSIA refusée sans nouvelle écriture | Non joué ; aucun paiement de service ou acompte |
+| C-11, C-14 | Perte du seul mandat de publication d’emploi ; recruteur/session révoqués pendant lecture du PDF ; changement d’acteur avant réponse UI ; unicité après anciennes candidatures et fenêtre saturée | Non joué ; candidature/copie nouvelle fermées par P16 |
+| C-11, C-12 | Retrait d’une pièce au-delà de cinquante candidatures, suppression distante échouée puis reprise ; accès fermé immédiatement, référence de purge gardée jusqu’à absence observée | Non joué ; ne pas annoncer de suppression distante sur `remoteUnconfirmed` |
+| C-11, C-12, C-14 | Interrompre un transfert entre stockage et rattachement ; retrouver uniquement le marqueur exact de la tentative durable. Éprouver bail actif, expiration, retrait, stockage tardif, doublon et suppression échouée ; conserver les références incertaines. Un fichier étranger ou ancien sans marqueur reste intact | Préparé pour le correctif P19 ; non joué ; conservation du MIME par le backend à prouver, gate CV fermée |
+| A-10, C-7, C-11, C-14 | Région d'annonce stable sur achat détaillé, liste et fiche de candidature : silence initial et liste d'achats compacte, annonce d'une transition métier, silence sur date/historique/poll identique ; passage à suivi périmé annoncé une fois | Scénarios K-12/AC03 écrits seulement ; lecture d'écran FR/EN non effectuée |
+| C-15 | Signal DP-39 par profil/destination privés explicites ; refus d'un profil PUBLIC, mauvaise source/réseau/sujet/structure/demande, référence contradictoire, doublon ou conflit de révision. Avis neutre non lu, sans contenu privé ; ouverture puis actualisation sous vraie session ; aucune mise à jour du snapshot par le signal | Non joué ; nouveaux contrat/profil non configurés. Éprouver expiration des mandats, réponse perdue, avis ancien/supplanté, effacement et absence de corps privé en lettre morte |
+| C-7, C-12, C-14 | Registres fermés sans disparition des résultats déjà décidés ; statut, libération, annulation, retrait et résolution d’obligations selon leurs portes historiques ; aucune preuve fraîche fabriquée par un job | Non joué ; conservation/export général PRO.GA encore dépendance |
+| A-2, A-5, A-10 et D-R | Sept chartes clair/sombre, taille de texte, focus et annonces natifs, réduction du mouvement et vidéo unique ; mesurer les corrections P18 au rendu | Non joué ; corrections en source, aucun seuil ou conformité acquis |
+| D-R | Utiliser le [dossier P17d](../../../recette/antsia-native-p17d/README.md) pour le protocole/parité et les preuves physiques iOS/Android ; l’application et les appels P17b/c existent désormais en source | Non exécuté ; installation/compatibilité, binaires et configuration propriétaire manquants |
+
+Pour D-R, distinguer rapport système natif, réponse autorisée et média effectif : écran verrouillé,
+arrière-plan, démarrage à froid, expiration/refus/fin distante, réponse ailleurs, rotation de
+liaison, déconnexion, permissions refusées, Bluetooth et changement de réseau. Vérifier l’arrêt
+réel du micro/caméra. SecureStore reste `WHEN_UNLOCKED_THIS_DEVICE_ONLY` : aucune réponse
+authentifiée avant déverrouillage ni réveil après arrêt forcé n’est promis. Android utilise
+notification/actions sans promesse de plein écran. Un push admis chez le fournisseur ne prouve
+pas sa réception. Aucune de ces observations n’a été faite dans cette reprise.
+
+Références : [P14](../rapports/P14_REPRISE_2026-10-20.md),
+[P15](../rapports/P15_REPRISE_2026-10-20.md), [P16](../rapports/P16_REPRISE_2026-10-20.md),
+[P17c](../rapports/P17C_REPRISE_2026-10-20.md).
+
+## Parcours historiques du 19 octobre (conservés)
+
 19 octobre 2026, lot P19. **Aucun de ces parcours n'a été joué.** Chaque fiche porte l'état
 « non joué ». Les parcours reprennent la matrice de [10 §1–§2](../10_RECETTE_MESURES_ET_RISQUES.md),
 les recettes demandées par chaque prompt et les points ouverts des rapports. Ils ne se jouent

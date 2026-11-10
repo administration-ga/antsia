@@ -10,6 +10,49 @@ function request(path: string, init: { method?: string; headers?: Record<string,
 }
 
 describe("proxy Better Auth du moteur", () => {
+  it("retire uniquement le préfixe public configuré et conserve la query", async () => {
+    const fetchImpl = vi.fn(async () => new Response("null", { status: 200 }))
+    const response = await proxyToConvex(
+      request("/demo/api/auth/get-session?callbackURL=%2Fdemo%2Ffil&x=1"),
+      { convexSiteUrl: SITE, isDev: false, publicBasePath: "/demo", fetchImpl: fetchImpl as unknown as typeof fetch },
+    )
+    expect(response.status).toBe(200)
+    expect(fetchImpl).toHaveBeenCalledExactlyOnceWith(`${SITE}/api/auth/get-session?callbackURL=%2Fdemo%2Ffil&x=1`, expect.objectContaining({ method: "GET", redirect: "manual" }))
+  })
+
+  it("admet la fin exacte /api/auth et un préfixe canonique à plusieurs segments", async () => {
+    const fetchImpl = vi.fn(async () => new Response("null", { status: 200 }))
+    const response = await proxyToConvex(request("/app/demo/api/auth"), { convexSiteUrl: SITE, isDev: false, publicBasePath: "/app/demo", fetchImpl: fetchImpl as unknown as typeof fetch })
+    expect(response.status).toBe(200)
+    expect(fetchImpl).toHaveBeenCalledExactlyOnceWith(`${SITE}/api/auth`, expect.any(Object))
+  })
+
+  it.each([
+    "/democratic/api/auth/get-session", "/demo2/api/auth/get-session", "/demo/api/authentication",
+    "/demo/api/auth%2Fget-session", "/api/auth/get-session", "/prefix/demo/api/auth/get-session",
+  ])("refuse une confusion de préfixe sans requête distante : %s", async (path) => {
+    const fetchImpl = vi.fn()
+    const response = await proxyToConvex(request(path), { convexSiteUrl: SITE, isDev: false, publicBasePath: "/demo", fetchImpl: fetchImpl as unknown as typeof fetch })
+    expect(response.status).toBe(403)
+    expect(fetchImpl).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    "demo", "/", "//demo", "/demo/", "/demo//nested", "/demo/../other", "/demo?next=other", "/demo#part",
+    " /demo", "/demo ", "/de%6do", "/démo", "/demo\\nested",
+  ])("refuse une base publique non canonique sans requête distante : %s", async (publicBasePath) => {
+    const fetchImpl = vi.fn()
+    const response = await proxyToConvex(request("/demo/api/auth/get-session"), { convexSiteUrl: SITE, isDev: false, publicBasePath, fetchImpl: fetchImpl as unknown as typeof fetch })
+    expect(response.status).toBe(403)
+    expect(fetchImpl).not.toHaveBeenCalled()
+  })
+
+  it("un préfixe explicitement vide conserve le chemin historique", async () => {
+    const fetchImpl = vi.fn(async () => new Response("null", { status: 200 }))
+    await proxyToConvex(request("/api/auth/get-session?x=1"), { convexSiteUrl: SITE, isDev: false, publicBasePath: "", fetchImpl: fetchImpl as unknown as typeof fetch })
+    expect(fetchImpl).toHaveBeenCalledExactlyOnceWith(`${SITE}/api/auth/get-session?x=1`, expect.any(Object))
+  })
+
   it("relaie vers les actions HTTP Convex sans les en-têtes de CE saut (x-forwarded-*)", async () => {
     const fetchImpl = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
       const headers = init?.headers as Record<string, string>
@@ -30,6 +73,26 @@ describe("proxy Better Auth du moteur", () => {
     expect(fetchImpl).toHaveBeenCalledWith(`${SITE}/api/auth/email-otp/send?x=1`, expect.objectContaining({ method: "POST", redirect: "manual" }))
     expect(response.status).toBe(200)
     expect(await response.json()).toEqual({ ok: true })
+  })
+
+  it("relaie tels quels l'origine et la langue de la requête : le moteur en tire la marque et la langue du code", async () => {
+    const fetchImpl = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
+      const headers = init?.headers as Record<string, string>
+      expect(headers.origin).toBe("http://localhost:3031")
+      expect(headers["accept-language"]).toBe("en")
+      expect(headers.cookie).toBe("diasporale-langue=en")
+      return new Response('{"success":true}', { status: 200, headers: { "content-type": "application/json" } })
+    })
+    const response = await proxyToConvex(
+      request("/api/auth/email-otp/send-verification-otp", {
+        method: "POST",
+        headers: { "content-type": "application/json", origin: "http://localhost:3031", "accept-language": "en", cookie: "diasporale-langue=en" },
+        body: '{"email":"ada@example.test","type":"sign-in"}',
+      }),
+      { convexSiteUrl: SITE, isDev: true, fetchImpl: fetchImpl as unknown as typeof fetch },
+    )
+    expect(fetchImpl).toHaveBeenCalledOnce()
+    expect(response.status).toBe(200)
   })
 
   it("réécrit les cookies en développement seulement", async () => {

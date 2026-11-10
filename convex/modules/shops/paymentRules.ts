@@ -32,8 +32,8 @@ export function paymentActionAllowed(action: Infer<typeof paymentActionValidator
   if (!action || action.kind !== "provider_redirect") return true
   try {
     const url = new URL(action.url)
-    const origins = (process.env.ANTSIA_COMMERCE_PAYMENT_REDIRECT_ORIGINS ?? "").split(",").map((value) => value.trim()).filter(Boolean)
-    return url.protocol === "https:" && !url.username && !url.password && !url.hash && origins.some((value) => value === url.origin)
+    const origins = (process.env.ANTSIA_COMMERCE_PAYMENT_REDIRECT_ORIGINS ?? "").split(",").map((value: string) => value.trim()).filter(Boolean)
+    return url.protocol === "https:" && !url.username && !url.password && !url.hash && origins.some((value: string) => value === url.origin)
   } catch { return false }
 }
 

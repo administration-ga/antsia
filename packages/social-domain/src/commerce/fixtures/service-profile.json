@@ -1,0 +1,1557 @@
+{
+  "description": "MP06 : profil public explicite de service ; aucun champ de contact dédié, aucun filtrage sémantique PII garanti.",
+  "cases": [
+    {
+      "name": "profil complet explicite",
+      "mediaCount": 2,
+      "input": {
+        "version": 1,
+        "commercialModes": [
+          "quote",
+          "booking",
+          "fixed_order"
+        ],
+        "languageCodes": [
+          "fr",
+          "en",
+          "fr-GA"
+        ],
+        "zones": [
+          {
+            "countryCode": "GA",
+            "locality": "Libreville"
+          }
+        ],
+        "deliverables": [
+          "Rapport final"
+        ],
+        "inclusions": [
+          "Une révision"
+        ],
+        "exclusions": [
+          "Impression"
+        ],
+        "portfolio": [
+          {
+            "title": "Identité visuelle",
+            "description": "Une réalisation de démonstration.",
+            "mediaIndexes": [
+              0,
+              1
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "version": 1,
+        "commercialModes": [
+          "quote",
+          "booking",
+          "fixed_order"
+        ],
+        "languageCodes": [
+          "fr",
+          "en",
+          "fr-GA"
+        ],
+        "zones": [
+          {
+            "countryCode": "GA",
+            "locality": "Libreville"
+          }
+        ],
+        "deliverables": [
+          "Rapport final"
+        ],
+        "inclusions": [
+          "Une révision"
+        ],
+        "exclusions": [
+          "Impression"
+        ],
+        "portfolio": [
+          {
+            "title": "Identité visuelle",
+            "description": "Une réalisation de démonstration.",
+            "mediaIndexes": [
+              0,
+              1
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "modes absents",
+      "mediaCount": 2,
+      "input": {
+        "version": 1,
+        "commercialModes": [],
+        "languageCodes": [
+          "fr",
+          "en",
+          "fr-GA"
+        ],
+        "zones": [
+          {
+            "countryCode": "GA",
+            "locality": "Libreville"
+          }
+        ],
+        "deliverables": [
+          "Rapport final"
+        ],
+        "inclusions": [
+          "Une révision"
+        ],
+        "exclusions": [
+          "Impression"
+        ],
+        "portfolio": [
+          {
+            "title": "Identité visuelle",
+            "description": "Une réalisation de démonstration.",
+            "mediaIndexes": [
+              0,
+              1
+            ]
+          }
+        ]
+      },
+      "expect": null
+    },
+    {
+      "name": "mode doublé",
+      "mediaCount": 2,
+      "input": {
+        "version": 1,
+        "commercialModes": [
+          "quote",
+          "quote"
+        ],
+        "languageCodes": [
+          "fr",
+          "en",
+          "fr-GA"
+        ],
+        "zones": [
+          {
+            "countryCode": "GA",
+            "locality": "Libreville"
+          }
+        ],
+        "deliverables": [
+          "Rapport final"
+        ],
+        "inclusions": [
+          "Une révision"
+        ],
+        "exclusions": [
+          "Impression"
+        ],
+        "portfolio": [
+          {
+            "title": "Identité visuelle",
+            "description": "Une réalisation de démonstration.",
+            "mediaIndexes": [
+              0,
+              1
+            ]
+          }
+        ]
+      },
+      "expect": null
+    },
+    {
+      "name": "mode inconnu",
+      "mediaCount": 2,
+      "input": {
+        "version": 1,
+        "commercialModes": [
+          "pay"
+        ],
+        "languageCodes": [
+          "fr",
+          "en",
+          "fr-GA"
+        ],
+        "zones": [
+          {
+            "countryCode": "GA",
+            "locality": "Libreville"
+          }
+        ],
+        "deliverables": [
+          "Rapport final"
+        ],
+        "inclusions": [
+          "Une révision"
+        ],
+        "exclusions": [
+          "Impression"
+        ],
+        "portfolio": [
+          {
+            "title": "Identité visuelle",
+            "description": "Une réalisation de démonstration.",
+            "mediaIndexes": [
+              0,
+              1
+            ]
+          }
+        ]
+      },
+      "expect": null
+    },
+    {
+      "name": "langue non canonique",
+      "mediaCount": 2,
+      "input": {
+        "version": 1,
+        "commercialModes": [
+          "quote",
+          "booking",
+          "fixed_order"
+        ],
+        "languageCodes": [
+          "fr-ga"
+        ],
+        "zones": [
+          {
+            "countryCode": "GA",
+            "locality": "Libreville"
+          }
+        ],
+        "deliverables": [
+          "Rapport final"
+        ],
+        "inclusions": [
+          "Une révision"
+        ],
+        "exclusions": [
+          "Impression"
+        ],
+        "portfolio": [
+          {
+            "title": "Identité visuelle",
+            "description": "Une réalisation de démonstration.",
+            "mediaIndexes": [
+              0,
+              1
+            ]
+          }
+        ]
+      },
+      "expect": null
+    },
+    {
+      "name": "langue syntaxiquement invalide",
+      "mediaCount": 2,
+      "input": {
+        "version": 1,
+        "commercialModes": [
+          "quote",
+          "booking",
+          "fixed_order"
+        ],
+        "languageCodes": [
+          "fr_GA"
+        ],
+        "zones": [
+          {
+            "countryCode": "GA",
+            "locality": "Libreville"
+          }
+        ],
+        "deliverables": [
+          "Rapport final"
+        ],
+        "inclusions": [
+          "Une révision"
+        ],
+        "exclusions": [
+          "Impression"
+        ],
+        "portfolio": [
+          {
+            "title": "Identité visuelle",
+            "description": "Une réalisation de démonstration.",
+            "mediaIndexes": [
+              0,
+              1
+            ]
+          }
+        ]
+      },
+      "expect": null
+    },
+    {
+      "name": "langues trop nombreuses",
+      "mediaCount": 2,
+      "input": {
+        "version": 1,
+        "commercialModes": [
+          "quote",
+          "booking",
+          "fixed_order"
+        ],
+        "languageCodes": [
+          "fr",
+          "en",
+          "es",
+          "de",
+          "it",
+          "pt",
+          "ar"
+        ],
+        "zones": [
+          {
+            "countryCode": "GA",
+            "locality": "Libreville"
+          }
+        ],
+        "deliverables": [
+          "Rapport final"
+        ],
+        "inclusions": [
+          "Une révision"
+        ],
+        "exclusions": [
+          "Impression"
+        ],
+        "portfolio": [
+          {
+            "title": "Identité visuelle",
+            "description": "Une réalisation de démonstration.",
+            "mediaIndexes": [
+              0,
+              1
+            ]
+          }
+        ]
+      },
+      "expect": null
+    },
+    {
+      "name": "langue doublée",
+      "mediaCount": 2,
+      "input": {
+        "version": 1,
+        "commercialModes": [
+          "quote",
+          "booking",
+          "fixed_order"
+        ],
+        "languageCodes": [
+          "fr",
+          "fr"
+        ],
+        "zones": [
+          {
+            "countryCode": "GA",
+            "locality": "Libreville"
+          }
+        ],
+        "deliverables": [
+          "Rapport final"
+        ],
+        "inclusions": [
+          "Une révision"
+        ],
+        "exclusions": [
+          "Impression"
+        ],
+        "portfolio": [
+          {
+            "title": "Identité visuelle",
+            "description": "Une réalisation de démonstration.",
+            "mediaIndexes": [
+              0,
+              1
+            ]
+          }
+        ]
+      },
+      "expect": null
+    },
+    {
+      "name": "zone hors Gabon",
+      "mediaCount": 2,
+      "input": {
+        "version": 1,
+        "commercialModes": [
+          "quote",
+          "booking",
+          "fixed_order"
+        ],
+        "languageCodes": [
+          "fr",
+          "en",
+          "fr-GA"
+        ],
+        "zones": [
+          {
+            "countryCode": "FR",
+            "locality": "Paris"
+          }
+        ],
+        "deliverables": [
+          "Rapport final"
+        ],
+        "inclusions": [
+          "Une révision"
+        ],
+        "exclusions": [
+          "Impression"
+        ],
+        "portfolio": [
+          {
+            "title": "Identité visuelle",
+            "description": "Une réalisation de démonstration.",
+            "mediaIndexes": [
+              0,
+              1
+            ]
+          }
+        ]
+      },
+      "expect": null
+    },
+    {
+      "name": "zones identiques après normalisation",
+      "mediaCount": 2,
+      "input": {
+        "version": 1,
+        "commercialModes": [
+          "quote",
+          "booking",
+          "fixed_order"
+        ],
+        "languageCodes": [
+          "fr",
+          "en",
+          "fr-GA"
+        ],
+        "zones": [
+          {
+            "countryCode": "GA",
+            "locality": "Port  Gentil"
+          },
+          {
+            "countryCode": "GA",
+            "locality": "port gentil"
+          }
+        ],
+        "deliverables": [
+          "Rapport final"
+        ],
+        "inclusions": [
+          "Une révision"
+        ],
+        "exclusions": [
+          "Impression"
+        ],
+        "portfolio": [
+          {
+            "title": "Identité visuelle",
+            "description": "Une réalisation de démonstration.",
+            "mediaIndexes": [
+              0,
+              1
+            ]
+          }
+        ]
+      },
+      "expect": null
+    },
+    {
+      "name": "zones trop nombreuses",
+      "mediaCount": 2,
+      "input": {
+        "version": 1,
+        "commercialModes": [
+          "quote",
+          "booking",
+          "fixed_order"
+        ],
+        "languageCodes": [
+          "fr",
+          "en",
+          "fr-GA"
+        ],
+        "zones": [
+          {
+            "countryCode": "GA",
+            "locality": "0"
+          },
+          {
+            "countryCode": "GA",
+            "locality": "1"
+          },
+          {
+            "countryCode": "GA",
+            "locality": "2"
+          },
+          {
+            "countryCode": "GA",
+            "locality": "3"
+          },
+          {
+            "countryCode": "GA",
+            "locality": "4"
+          },
+          {
+            "countryCode": "GA",
+            "locality": "5"
+          },
+          {
+            "countryCode": "GA",
+            "locality": "6"
+          },
+          {
+            "countryCode": "GA",
+            "locality": "7"
+          },
+          {
+            "countryCode": "GA",
+            "locality": "8"
+          }
+        ],
+        "deliverables": [
+          "Rapport final"
+        ],
+        "inclusions": [
+          "Une révision"
+        ],
+        "exclusions": [
+          "Impression"
+        ],
+        "portfolio": [
+          {
+            "title": "Identité visuelle",
+            "description": "Une réalisation de démonstration.",
+            "mediaIndexes": [
+              0,
+              1
+            ]
+          }
+        ]
+      },
+      "expect": null
+    },
+    {
+      "name": "localité trop longue",
+      "mediaCount": 2,
+      "input": {
+        "version": 1,
+        "commercialModes": [
+          "quote",
+          "booking",
+          "fixed_order"
+        ],
+        "languageCodes": [
+          "fr",
+          "en",
+          "fr-GA"
+        ],
+        "zones": [
+          {
+            "countryCode": "GA",
+            "locality": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          }
+        ],
+        "deliverables": [
+          "Rapport final"
+        ],
+        "inclusions": [
+          "Une révision"
+        ],
+        "exclusions": [
+          "Impression"
+        ],
+        "portfolio": [
+          {
+            "title": "Identité visuelle",
+            "description": "Une réalisation de démonstration.",
+            "mediaIndexes": [
+              0,
+              1
+            ]
+          }
+        ]
+      },
+      "expect": null
+    },
+    {
+      "name": "forfait sans livrable",
+      "mediaCount": 2,
+      "input": {
+        "version": 1,
+        "commercialModes": [
+          "quote",
+          "booking",
+          "fixed_order"
+        ],
+        "languageCodes": [
+          "fr",
+          "en",
+          "fr-GA"
+        ],
+        "zones": [
+          {
+            "countryCode": "GA",
+            "locality": "Libreville"
+          }
+        ],
+        "deliverables": [],
+        "inclusions": [
+          "Une révision"
+        ],
+        "exclusions": [
+          "Impression"
+        ],
+        "portfolio": [
+          {
+            "title": "Identité visuelle",
+            "description": "Une réalisation de démonstration.",
+            "mediaIndexes": [
+              0,
+              1
+            ]
+          }
+        ]
+      },
+      "expect": null
+    },
+    {
+      "name": "trop de livrables",
+      "mediaCount": 2,
+      "input": {
+        "version": 1,
+        "commercialModes": [
+          "quote",
+          "booking",
+          "fixed_order"
+        ],
+        "languageCodes": [
+          "fr",
+          "en",
+          "fr-GA"
+        ],
+        "zones": [
+          {
+            "countryCode": "GA",
+            "locality": "Libreville"
+          }
+        ],
+        "deliverables": [
+          "0",
+          "1",
+          "2",
+          "3",
+          "4",
+          "5",
+          "6",
+          "7",
+          "8"
+        ],
+        "inclusions": [
+          "Une révision"
+        ],
+        "exclusions": [
+          "Impression"
+        ],
+        "portfolio": [
+          {
+            "title": "Identité visuelle",
+            "description": "Une réalisation de démonstration.",
+            "mediaIndexes": [
+              0,
+              1
+            ]
+          }
+        ]
+      },
+      "expect": null
+    },
+    {
+      "name": "livrable trop long",
+      "mediaCount": 2,
+      "input": {
+        "version": 1,
+        "commercialModes": [
+          "quote",
+          "booking",
+          "fixed_order"
+        ],
+        "languageCodes": [
+          "fr",
+          "en",
+          "fr-GA"
+        ],
+        "zones": [
+          {
+            "countryCode": "GA",
+            "locality": "Libreville"
+          }
+        ],
+        "deliverables": [
+          "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        ],
+        "inclusions": [
+          "Une révision"
+        ],
+        "exclusions": [
+          "Impression"
+        ],
+        "portfolio": [
+          {
+            "title": "Identité visuelle",
+            "description": "Une réalisation de démonstration.",
+            "mediaIndexes": [
+              0,
+              1
+            ]
+          }
+        ]
+      },
+      "expect": null
+    },
+    {
+      "name": "HTML refusé",
+      "mediaCount": 2,
+      "input": {
+        "version": 1,
+        "commercialModes": [
+          "quote",
+          "booking",
+          "fixed_order"
+        ],
+        "languageCodes": [
+          "fr",
+          "en",
+          "fr-GA"
+        ],
+        "zones": [
+          {
+            "countryCode": "GA",
+            "locality": "Libreville"
+          }
+        ],
+        "deliverables": [
+          "Rapport final"
+        ],
+        "inclusions": [
+          "<b>Support</b>"
+        ],
+        "exclusions": [
+          "Impression"
+        ],
+        "portfolio": [
+          {
+            "title": "Identité visuelle",
+            "description": "Une réalisation de démonstration.",
+            "mediaIndexes": [
+              0,
+              1
+            ]
+          }
+        ]
+      },
+      "expect": null
+    },
+    {
+      "name": "URL refusée",
+      "mediaCount": 2,
+      "input": {
+        "version": 1,
+        "commercialModes": [
+          "quote",
+          "booking",
+          "fixed_order"
+        ],
+        "languageCodes": [
+          "fr",
+          "en",
+          "fr-GA"
+        ],
+        "zones": [
+          {
+            "countryCode": "GA",
+            "locality": "Libreville"
+          }
+        ],
+        "deliverables": [
+          "Rapport final"
+        ],
+        "inclusions": [
+          "Une révision"
+        ],
+        "exclusions": [
+          "https://example.test"
+        ],
+        "portfolio": [
+          {
+            "title": "Identité visuelle",
+            "description": "Une réalisation de démonstration.",
+            "mediaIndexes": [
+              0,
+              1
+            ]
+          }
+        ]
+      },
+      "expect": null
+    },
+    {
+      "name": "contrôle refusé",
+      "mediaCount": 2,
+      "input": {
+        "version": 1,
+        "commercialModes": [
+          "quote",
+          "booking",
+          "fixed_order"
+        ],
+        "languageCodes": [
+          "fr",
+          "en",
+          "fr-GA"
+        ],
+        "zones": [
+          {
+            "countryCode": "GA",
+            "locality": "Libreville"
+          }
+        ],
+        "deliverables": [
+          "Rapport\u0000secret"
+        ],
+        "inclusions": [
+          "Une révision"
+        ],
+        "exclusions": [
+          "Impression"
+        ],
+        "portfolio": [
+          {
+            "title": "Identité visuelle",
+            "description": "Une réalisation de démonstration.",
+            "mediaIndexes": [
+              0,
+              1
+            ]
+          }
+        ]
+      },
+      "expect": null
+    },
+    {
+      "name": "texte NFC exigé",
+      "mediaCount": 2,
+      "input": {
+        "version": 1,
+        "commercialModes": [
+          "quote",
+          "booking",
+          "fixed_order"
+        ],
+        "languageCodes": [
+          "fr",
+          "en",
+          "fr-GA"
+        ],
+        "zones": [
+          {
+            "countryCode": "GA",
+            "locality": "Libreville"
+          }
+        ],
+        "deliverables": [
+          "Résultat"
+        ],
+        "inclusions": [
+          "Une révision"
+        ],
+        "exclusions": [
+          "Impression"
+        ],
+        "portfolio": [
+          {
+            "title": "Identité visuelle",
+            "description": "Une réalisation de démonstration.",
+            "mediaIndexes": [
+              0,
+              1
+            ]
+          }
+        ]
+      },
+      "expect": null
+    },
+    {
+      "name": "portfolio trop long",
+      "mediaCount": 2,
+      "input": {
+        "version": 1,
+        "commercialModes": [
+          "quote",
+          "booking",
+          "fixed_order"
+        ],
+        "languageCodes": [
+          "fr",
+          "en",
+          "fr-GA"
+        ],
+        "zones": [
+          {
+            "countryCode": "GA",
+            "locality": "Libreville"
+          }
+        ],
+        "deliverables": [
+          "Rapport final"
+        ],
+        "inclusions": [
+          "Une révision"
+        ],
+        "exclusions": [
+          "Impression"
+        ],
+        "portfolio": [
+          {
+            "title": "0",
+            "description": "",
+            "mediaIndexes": []
+          },
+          {
+            "title": "1",
+            "description": "",
+            "mediaIndexes": []
+          },
+          {
+            "title": "2",
+            "description": "",
+            "mediaIndexes": []
+          },
+          {
+            "title": "3",
+            "description": "",
+            "mediaIndexes": []
+          },
+          {
+            "title": "4",
+            "description": "",
+            "mediaIndexes": []
+          },
+          {
+            "title": "5",
+            "description": "",
+            "mediaIndexes": []
+          },
+          {
+            "title": "6",
+            "description": "",
+            "mediaIndexes": []
+          }
+        ]
+      },
+      "expect": null
+    },
+    {
+      "name": "titre portfolio requis",
+      "mediaCount": 2,
+      "input": {
+        "version": 1,
+        "commercialModes": [
+          "quote",
+          "booking",
+          "fixed_order"
+        ],
+        "languageCodes": [
+          "fr",
+          "en",
+          "fr-GA"
+        ],
+        "zones": [
+          {
+            "countryCode": "GA",
+            "locality": "Libreville"
+          }
+        ],
+        "deliverables": [
+          "Rapport final"
+        ],
+        "inclusions": [
+          "Une révision"
+        ],
+        "exclusions": [
+          "Impression"
+        ],
+        "portfolio": [
+          {
+            "title": "",
+            "description": "Une réalisation de démonstration.",
+            "mediaIndexes": [
+              0,
+              1
+            ]
+          }
+        ]
+      },
+      "expect": null
+    },
+    {
+      "name": "description portfolio trop longue",
+      "mediaCount": 2,
+      "input": {
+        "version": 1,
+        "commercialModes": [
+          "quote",
+          "booking",
+          "fixed_order"
+        ],
+        "languageCodes": [
+          "fr",
+          "en",
+          "fr-GA"
+        ],
+        "zones": [
+          {
+            "countryCode": "GA",
+            "locality": "Libreville"
+          }
+        ],
+        "deliverables": [
+          "Rapport final"
+        ],
+        "inclusions": [
+          "Une révision"
+        ],
+        "exclusions": [
+          "Impression"
+        ],
+        "portfolio": [
+          {
+            "title": "Identité visuelle",
+            "description": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "mediaIndexes": [
+              0,
+              1
+            ]
+          }
+        ]
+      },
+      "expect": null
+    },
+    {
+      "name": "trois photos maximum",
+      "mediaCount": 4,
+      "input": {
+        "version": 1,
+        "commercialModes": [
+          "quote",
+          "booking",
+          "fixed_order"
+        ],
+        "languageCodes": [
+          "fr",
+          "en",
+          "fr-GA"
+        ],
+        "zones": [
+          {
+            "countryCode": "GA",
+            "locality": "Libreville"
+          }
+        ],
+        "deliverables": [
+          "Rapport final"
+        ],
+        "inclusions": [
+          "Une révision"
+        ],
+        "exclusions": [
+          "Impression"
+        ],
+        "portfolio": [
+          {
+            "title": "Identité visuelle",
+            "description": "Une réalisation de démonstration.",
+            "mediaIndexes": [
+              0,
+              1,
+              2,
+              3
+            ]
+          }
+        ]
+      },
+      "expect": null
+    },
+    {
+      "name": "photo doublée",
+      "mediaCount": 2,
+      "input": {
+        "version": 1,
+        "commercialModes": [
+          "quote",
+          "booking",
+          "fixed_order"
+        ],
+        "languageCodes": [
+          "fr",
+          "en",
+          "fr-GA"
+        ],
+        "zones": [
+          {
+            "countryCode": "GA",
+            "locality": "Libreville"
+          }
+        ],
+        "deliverables": [
+          "Rapport final"
+        ],
+        "inclusions": [
+          "Une révision"
+        ],
+        "exclusions": [
+          "Impression"
+        ],
+        "portfolio": [
+          {
+            "title": "Identité visuelle",
+            "description": "Une réalisation de démonstration.",
+            "mediaIndexes": [
+              0,
+              0
+            ]
+          }
+        ]
+      },
+      "expect": null
+    },
+    {
+      "name": "photo hors manifeste publié",
+      "mediaCount": 2,
+      "input": {
+        "version": 1,
+        "commercialModes": [
+          "quote",
+          "booking",
+          "fixed_order"
+        ],
+        "languageCodes": [
+          "fr",
+          "en",
+          "fr-GA"
+        ],
+        "zones": [
+          {
+            "countryCode": "GA",
+            "locality": "Libreville"
+          }
+        ],
+        "deliverables": [
+          "Rapport final"
+        ],
+        "inclusions": [
+          "Une révision"
+        ],
+        "exclusions": [
+          "Impression"
+        ],
+        "portfolio": [
+          {
+            "title": "Identité visuelle",
+            "description": "Une réalisation de démonstration.",
+            "mediaIndexes": [
+              2
+            ]
+          }
+        ]
+      },
+      "expect": null
+    },
+    {
+      "name": "photo fractionnaire",
+      "mediaCount": 2,
+      "input": {
+        "version": 1,
+        "commercialModes": [
+          "quote",
+          "booking",
+          "fixed_order"
+        ],
+        "languageCodes": [
+          "fr",
+          "en",
+          "fr-GA"
+        ],
+        "zones": [
+          {
+            "countryCode": "GA",
+            "locality": "Libreville"
+          }
+        ],
+        "deliverables": [
+          "Rapport final"
+        ],
+        "inclusions": [
+          "Une révision"
+        ],
+        "exclusions": [
+          "Impression"
+        ],
+        "portfolio": [
+          {
+            "title": "Identité visuelle",
+            "description": "Une réalisation de démonstration.",
+            "mediaIndexes": [
+              0.5
+            ]
+          }
+        ]
+      },
+      "expect": null
+    },
+    {
+      "name": "photo négative",
+      "mediaCount": 2,
+      "input": {
+        "version": 1,
+        "commercialModes": [
+          "quote",
+          "booking",
+          "fixed_order"
+        ],
+        "languageCodes": [
+          "fr",
+          "en",
+          "fr-GA"
+        ],
+        "zones": [
+          {
+            "countryCode": "GA",
+            "locality": "Libreville"
+          }
+        ],
+        "deliverables": [
+          "Rapport final"
+        ],
+        "inclusions": [
+          "Une révision"
+        ],
+        "exclusions": [
+          "Impression"
+        ],
+        "portfolio": [
+          {
+            "title": "Identité visuelle",
+            "description": "Une réalisation de démonstration.",
+            "mediaIndexes": [
+              -1
+            ]
+          }
+        ]
+      },
+      "expect": null
+    },
+    {
+      "name": "compte manifeste invalide",
+      "mediaCount": 11,
+      "input": {
+        "version": 1,
+        "commercialModes": [
+          "quote",
+          "booking",
+          "fixed_order"
+        ],
+        "languageCodes": [
+          "fr",
+          "en",
+          "fr-GA"
+        ],
+        "zones": [
+          {
+            "countryCode": "GA",
+            "locality": "Libreville"
+          }
+        ],
+        "deliverables": [
+          "Rapport final"
+        ],
+        "inclusions": [
+          "Une révision"
+        ],
+        "exclusions": [
+          "Impression"
+        ],
+        "portfolio": [
+          {
+            "title": "Identité visuelle",
+            "description": "Une réalisation de démonstration.",
+            "mediaIndexes": [
+              0,
+              1
+            ]
+          }
+        ]
+      },
+      "expect": null
+    },
+    {
+      "name": "champ privé interdit",
+      "mediaCount": 2,
+      "input": {
+        "version": 1,
+        "commercialModes": [
+          "quote",
+          "booking",
+          "fixed_order"
+        ],
+        "languageCodes": [
+          "fr",
+          "en",
+          "fr-GA"
+        ],
+        "zones": [
+          {
+            "countryCode": "GA",
+            "locality": "Libreville"
+          }
+        ],
+        "deliverables": [
+          "Rapport final"
+        ],
+        "inclusions": [
+          "Une révision"
+        ],
+        "exclusions": [
+          "Impression"
+        ],
+        "portfolio": [
+          {
+            "title": "Identité visuelle",
+            "description": "Une réalisation de démonstration.",
+            "mediaIndexes": [
+              0,
+              1
+            ]
+          }
+        ],
+        "privatePlan": "document interne"
+      },
+      "expect": null
+    },
+    {
+      "name": "client privé interdit",
+      "mediaCount": 2,
+      "input": {
+        "version": 1,
+        "commercialModes": [
+          "quote",
+          "booking",
+          "fixed_order"
+        ],
+        "languageCodes": [
+          "fr",
+          "en",
+          "fr-GA"
+        ],
+        "zones": [
+          {
+            "countryCode": "GA",
+            "locality": "Libreville"
+          }
+        ],
+        "deliverables": [
+          "Rapport final"
+        ],
+        "inclusions": [
+          "Une révision"
+        ],
+        "exclusions": [
+          "Impression"
+        ],
+        "portfolio": [
+          {
+            "title": "Identité visuelle",
+            "description": "Une réalisation de démonstration.",
+            "mediaIndexes": [
+              0,
+              1
+            ],
+            "clientName": "Une personne"
+          }
+        ]
+      },
+      "expect": null
+    },
+    {
+      "name": "profil dépasse 16 KiB",
+      "mediaCount": 2,
+      "input": {
+        "version": 1,
+        "commercialModes": [
+          "quote",
+          "booking",
+          "fixed_order"
+        ],
+        "languageCodes": [
+          "fr",
+          "en",
+          "fr-GA"
+        ],
+        "zones": [
+          {
+            "countryCode": "GA",
+            "locality": "Libreville"
+          }
+        ],
+        "deliverables": [
+          "0界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界",
+          "1界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界",
+          "2界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界",
+          "3界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界",
+          "4界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界",
+          "5界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界",
+          "6界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界",
+          "7界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界"
+        ],
+        "inclusions": [
+          "0界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界",
+          "1界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界",
+          "2界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界",
+          "3界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界",
+          "4界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界",
+          "5界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界",
+          "6界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界",
+          "7界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界"
+        ],
+        "exclusions": [
+          "0界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界",
+          "1界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界",
+          "2界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界",
+          "3界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界",
+          "4界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界",
+          "5界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界",
+          "6界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界",
+          "7界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界"
+        ],
+        "portfolio": [
+          {
+            "title": "0",
+            "description": "界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界",
+            "mediaIndexes": []
+          },
+          {
+            "title": "1",
+            "description": "界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界",
+            "mediaIndexes": []
+          },
+          {
+            "title": "2",
+            "description": "界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界",
+            "mediaIndexes": []
+          },
+          {
+            "title": "3",
+            "description": "界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界",
+            "mediaIndexes": []
+          },
+          {
+            "title": "4",
+            "description": "界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界",
+            "mediaIndexes": []
+          },
+          {
+            "title": "5",
+            "description": "界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界",
+            "mediaIndexes": []
+          }
+        ]
+      },
+      "expect": null
+    },
+    {
+      "name": "profil devis sans autres précisions",
+      "mediaCount": 0,
+      "input": {
+        "version": 1,
+        "commercialModes": [
+          "quote"
+        ],
+        "languageCodes": [],
+        "zones": [],
+        "deliverables": [],
+        "inclusions": [],
+        "exclusions": [],
+        "portfolio": []
+      },
+      "expect": {
+        "version": 1,
+        "commercialModes": [
+          "quote"
+        ],
+        "languageCodes": [],
+        "zones": [],
+        "deliverables": [],
+        "inclusions": [],
+        "exclusions": [],
+        "portfolio": []
+      }
+    }
+  ],
+  "languages": [
+    {
+      "name": "langue canonique",
+      "input": "fr-GA",
+      "expect": "fr-GA"
+    },
+    {
+      "name": "casse canonique",
+      "input": " FR-ga ",
+      "expect": "fr-GA"
+    },
+    {
+      "name": "alias BCP47",
+      "input": "iw",
+      "expect": "he"
+    },
+    {
+      "name": "syntaxe invalide",
+      "input": "fr_GA",
+      "expect": null
+    },
+    {
+      "name": "limite langue",
+      "input": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "expect": null
+    }
+  ],
+  "zones": [
+    {
+      "name": "clé zone commune",
+      "input": "  Port   Gentil  ",
+      "expect": "port gentil"
+    },
+    {
+      "name": "clé sans accents",
+      "input": "Lébamba",
+      "expect": "lebamba"
+    },
+    {
+      "name": "zone vide",
+      "input": " ",
+      "expect": null
+    },
+    {
+      "name": "zone URL refusée",
+      "input": "https://example.test",
+      "expect": null
+    }
+  ]
+}

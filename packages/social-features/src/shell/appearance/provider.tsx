@@ -28,6 +28,12 @@ interface AppearanceContextValue {
   /** Le motif choisi, `null` pour un fond uni (le choix par défaut). */
   motif: string | null
   setMotif: (motif: string | null) => void
+  /**
+   * Le nom d'un thème dans la langue de la personne, fourni par l'application pour
+   * le sélecteur du rail (`AppearanceControl`) ; `null` quand elle n'en fournit pas :
+   * le rail ne propose alors aucun thème.
+   */
+  themeName: ((id: string) => string) | null
 }
 
 const AppearanceContext = createContext<AppearanceContextValue | null>(null)
@@ -86,11 +92,17 @@ export interface AppearanceProviderProps {
    * reste uni par défaut ; absent : aucun motif, `data-motif` n'est jamais touché.
    */
   motifs?: readonly string[]
+  /**
+   * Le nom d'un thème, dans la langue de la personne, pour le sélecteur du rail
+   * (`AppearanceControl`). Absent : le rail ne propose pas de thème ; le choix reste
+   * offert là où l'application le rend elle-même (Préférences > Thème).
+   */
+  themeName?: (id: string) => string
   children: ReactNode
 }
 
 /** Une seule préférence à la racine : changer d'habit ne remonte aucune salle. */
-export function AppearanceProvider({ storagePrefix, themes = NO_THEMES, motifs = NO_MOTIFS, children }: AppearanceProviderProps) {
+export function AppearanceProvider({ storagePrefix, themes = NO_THEMES, motifs = NO_MOTIFS, themeName, children }: AppearanceProviderProps) {
   // Valeurs stables au serveur et au premier rendu client ; le navigateur est
   // consulté après le montage, comme dans le patron du socle.
   const [mode, setModeState] = useState<AppearanceMode>("system")
@@ -200,8 +212,8 @@ export function AppearanceProvider({ storagePrefix, themes = NO_THEMES, motifs =
   }, [motifKey, motifs])
 
   const value = useMemo(
-    () => ({ mode, resolvedAppearance, setMode, themes, theme, charte, setTheme, motifs, motif, setMotif }),
-    [mode, resolvedAppearance, setMode, themes, theme, charte, setTheme, motifs, motif, setMotif],
+    () => ({ mode, resolvedAppearance, setMode, themes, theme, charte, setTheme, motifs, motif, setMotif, themeName: themeName ?? null }),
+    [mode, resolvedAppearance, setMode, themes, theme, charte, setTheme, motifs, motif, setMotif, themeName],
   )
   return <AppearanceContext.Provider value={value}>{children}</AppearanceContext.Provider>
 }

@@ -43,6 +43,7 @@ import {
   requireCallParticipant,
 } from "./access"
 import { photographedGroupCallCapacity } from "./capacity"
+import { activeCallSession } from "./deviceOwnership"
 import { isConversationCall } from "./conversation"
 import { evaluateCallAdmission } from "./evaluate"
 import { scheduleIncomingCallPush } from "./push"
@@ -88,7 +89,7 @@ async function placeGroupCall(
     if (!admission.decision.admitted) refusals.set(inviteeId, admission.decision.reason)
   }
 
-  const roomName = callRoomName("group", args.now)
+  const roomName = callRoomName("group", args.now), ownerSessionId = await activeCallSession(ctx)
   const callId = await ctx.db.insert("calls", {
     networkId: args.networkId,
     kind: "group",
@@ -98,11 +99,12 @@ async function placeGroupCall(
     roomName,
     createdByPersonId: args.callerId,
     mediaType: args.mediaType,
+    systemCallUuid: crypto.randomUUID(),
     maxParticipants: GROUP_CALL_MAX_PARTICIPANTS,
     startedAt: args.now,
     ...(args.groupThreadId !== undefined ? { groupThreadId: args.groupThreadId } : {}),
   })
-  await ctx.db.insert("callParticipants", { networkId: args.networkId, callId, personId: args.callerId, role: "host", joinedAt: args.now })
+  await ctx.db.insert("callParticipants", { networkId: args.networkId, callId, personId: args.callerId, role: "host", joinedAt: args.now, ownerSessionId })
 
   const unavailable: Unavailable[] = []
   for (const inviteeId of args.inviteeIds) {
@@ -253,6 +255,7 @@ export const addInvitee = networkMutation({
     await enforceRateLimit(ctx, "call.invite", me)
     // Refus UNIQUE : appel inconnu, terminé, ou dont je ne suis pas dans la salle — même réponse.
     const { call, participation } = await requireCallParticipant(ctx, ctx.networkId, args.callId, me)
+    if (participation.ownerSessionId !== await activeCallSession(ctx)) return notFound()
     // Une conversation (contact commercial P10, conversation contextuelle CC-4) reste un tête-à-tête : ni invitation ni promotion.
     if (isConversationCall(call)) return notFound()
     if (call.status !== "active" || isTerminalCallStatus(call.callStatus) || !isPresent(participation)) return notFound()

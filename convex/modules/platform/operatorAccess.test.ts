@@ -1,6 +1,7 @@
 // @vitest-environment edge-runtime
 /** PA7 : autorité serveur réelle, audit préalable et archivage à deux personnes. */
 import { engineErrorCode } from "@antsia/social-contracts/errors"
+import { CONSOLE_MIN_LOA } from "@antsia/social-domain/badges"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { api, components, internal } from "../../_generated/api"
@@ -29,7 +30,7 @@ async function actor(t: T, { loa = 2, sealed = true, logged = true, role = "plat
   const personId = await as.mutation(api.modules.people.persons.ensureMyPerson, {})
   const operatorId = role ? await t.run(async (ctx) => await ctx.db.insert("operators", { personId, role, grantedAt: now })) : null
   if (sealed) await t.mutation(internal.modules.platform.operatorAccess.recordIdnSession, { sessionId, authUserId, idnSubject, loa })
-  if (logged && sealed && role && loa >= 2) await as.mutation(api.modules.platform.operatorAccess.recordAccess, {})
+  if (logged && sealed && role && loa >= CONSOLE_MIN_LOA) await as.mutation(api.modules.platform.operatorAccess.recordAccess, {})
   return { as, personId, authUserId, idnSubject, sessionId, operatorId }
 }
 
@@ -65,10 +66,17 @@ describe("console : session IDN forte et habilitation actuelle", () => {
     expect(await t.run(async (ctx) => ctx.db.query("networks").take(1))).toEqual([])
   })
 
-  it("loa 1 est refusé même avec session scellée et rôle administrateur", async () => {
-    const t = testConvex({ automaticSessions: false }), weak = await actor(t, { loa: 1 })
-    expect(await code(weak.as.query(api.modules.platform.operatorAccess.myOperator, {}))).toBe("operatorRequired")
-    expect(await t.run(async (ctx) => ctx.db.query("engineAudit").take(1))).toEqual([])
+  it("ADR-0039 : le niveau 1 ouvre la console avec session scellée et habilitation vivante, sans le badge Vérifié", async () => {
+    expect(CONSOLE_MIN_LOA).toBe(1)
+    const t = testConvex({ automaticSessions: false }), low = await actor(t, { loa: 1, logged: false })
+    expect((await low.as.query(api.modules.platform.operatorAccess.myOperator, {})).role).toBe("platform_admin")
+    await low.as.mutation(api.modules.platform.operatorAccess.recordAccess, {})
+    expect(await low.as.query(api.modules.networks.networks.listForConsole, {})).toEqual([])
+    // Le badge Vérifié et les agents publics gardent le niveau 2.
+    expect((await low.as.query(api.modules.people.persons.getMyPerson, {}))?.badges ?? []).not.toContain("verified")
+    // Le même niveau, sans habilitation, ne donne rien.
+    const plain = await actor(t, { loa: 1, role: null })
+    expect(await code(plain.as.query(api.modules.platform.operatorAccess.myOperator, {}))).toBe("operatorRequired")
   })
 
   it("l'accès doit être journalisé avant toute donnée et le journal est idempotent par session", async () => {
@@ -94,8 +102,9 @@ describe("console : session IDN forte et habilitation actuelle", () => {
         if (row) await ctx.db.patch(row._id, { revokedAt: Date.now() })
       }
       if (kind === "loa") {
+        // Une preuve IDN qui perd son niveau ne garde aucune autorité, même au seuil de 1 (ADR-0039).
         const row = await ctx.db.query("idnProofs").withIndex("by_subject", (q) => q.eq("subject", op.idnSubject)).unique()
-        if (row) await ctx.db.patch(row._id, { loa: 1 })
+        if (row) await ctx.db.patch(row._id, { loa: undefined })
       }
       if (kind === "proof") {
         const row = await ctx.db.query("operatorSessionProofs").withIndex("by_session", (q) => q.eq("sessionId", op.sessionId)).unique()

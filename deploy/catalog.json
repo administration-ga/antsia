@@ -1,19 +1,21 @@
 {
-  "//": "Catalogue des applications du moteur ANTSIA. Une entrée par application servie : service d'hébergement (identifiant stable, jamais renommé), Dockerfile construit en contexte ECOSYSTEMES (le dossier qui contient ANTSIA et DIASPORALE), origine publique, port de développement, variables NEXT_PUBLIC_* inscrites au build (chacune doit être déclarée en ARG dans le Dockerfile : c'est le deuxième des « quatre câblages invisibles »), variables d'exécution. Les domaines sont des hypothèses du cahier (arbitrage A1) ; l'hébergement (Cloud Run ou Vercel) est l'arbitrage A5, non tranché : aucune publication sans décision du propriétaire. Une application EXTERNE (DIASPORALE) a son chemin relatif à ANTSIA (`../DIASPORALE/apps/…`) et son Dockerfile dans son dépôt ; elle se construit dans le même contexte, avec l'installation d'ANTSIA. Fichier partagé avec la session DIASPORALE : modifié par la session ANTSIA seulement.",
+  "//": "Catalogue exhaustif des applications du moteur ANTSIA. Les entrées web déclarent service, Dockerfile construit en contexte ECOSYSTEMES, origine, port, arguments publics de build et variables d'exécution. Chaque NEXT_PUBLIC_* doit être un ARG Docker et une substitution Cloud Build. Les entrées expo-native déclarent plateformes, configuration, point d'entrée, variables EXPO_PUBLIC_* du binaire et variables privées de configuration : aucune URL, identité de distribution, port ou chaîne de publication n'est inventé. Leur présence ne prouve aucune compilation ni distribution. Les domaines web sont des hypothèses du cahier ; aucune publication sans décision du propriétaire. Une application EXTERNE (DIASPORALE) a son chemin relatif à ANTSIA et se construit avec son Dockerfile dans le même contexte. Fichier partagé avec DIASPORALE : modifié par la session ANTSIA seulement.",
   "contextDir": "ECOSYSTEMES",
   "applications": {
     "antsia_ga": {
+      "platform": "web",
       "package": "antsia-ga",
       "path": "apps/antsia_ga",
       "service": "antsia-ga",
       "dockerfile": "ANTSIA/apps/antsia_ga/Dockerfile",
       "site_url": "https://antsia.ga",
       "dev_port": 3030,
-      "build_args": ["NEXT_PUBLIC_CONVEX_URL", "NEXT_PUBLIC_SITE_URL", "NEXT_PUBLIC_BUILD_SHA", "NEXT_PUBLIC_POSTHOG_KEY", "NEXT_PUBLIC_POSTHOG_HOST", "NEXT_PUBLIC_POSTHOG_EU_RELAY_ORIGIN"],
-      "optional_build_args": ["NEXT_PUBLIC_POSTHOG_KEY", "NEXT_PUBLIC_POSTHOG_HOST", "NEXT_PUBLIC_POSTHOG_EU_RELAY_ORIGIN"],
+      "build_args": ["NEXT_PUBLIC_CONVEX_URL", "NEXT_PUBLIC_SITE_URL", "NEXT_PUBLIC_BUILD_SHA", "NEXT_PUBLIC_POSTHOG_KEY", "NEXT_PUBLIC_POSTHOG_HOST", "NEXT_PUBLIC_POSTHOG_EU_RELAY_ORIGIN", "NEXT_PUBLIC_DEMO_ENTRY_ENABLED", "NEXT_PUBLIC_APP_BASE_PATH"],
+      "optional_build_args": ["NEXT_PUBLIC_POSTHOG_KEY", "NEXT_PUBLIC_POSTHOG_HOST", "NEXT_PUBLIC_POSTHOG_EU_RELAY_ORIGIN", "NEXT_PUBLIC_DEMO_ENTRY_ENABLED", "NEXT_PUBLIC_APP_BASE_PATH"],
       "runtime_env": ["CONVEX_SITE_URL"]
     },
     "admin_antsia_ga": {
+      "platform": "web",
       "package": "admin-antsia-ga",
       "path": "apps/admin_antsia_ga",
       "service": "admin-antsia-ga",
@@ -24,6 +26,7 @@
       "runtime_env": ["CONVEX_SITE_URL"]
     },
     "diasporale_com": {
+      "platform": "web",
       "package": "diasporale-com",
       "path": "../DIASPORALE/apps/diasporale_com",
       "service": "diasporale-com",
@@ -32,6 +35,16 @@
       "dev_port": 3031,
       "build_args": ["NEXT_PUBLIC_CONVEX_URL", "NEXT_PUBLIC_SITE_URL", "NEXT_PUBLIC_BUILD_SHA", "NEXT_PUBLIC_DIASPORALE_DATA_SOURCE", "NEXT_PUBLIC_IDN_PORTAL_URL", "NEXT_PUBLIC_CONSULATE_URL"],
       "runtime_env": ["CONVEX_SITE_URL"]
+    },
+    "antsia_mobile": {
+      "platform": "expo-native",
+      "package": "antsia-mobile",
+      "path": "apps/antsia_mobile",
+      "platforms": ["ios", "android"],
+      "config": "app.config.ts",
+      "entry": "index.ts",
+      "public_env": ["EXPO_PUBLIC_CONVEX_URL", "EXPO_PUBLIC_CONVEX_SITE_URL", "EXPO_PUBLIC_SITE_URL", "EXPO_PUBLIC_DEMO_CONVEX_URL", "EXPO_PUBLIC_DEMO_CONVEX_SITE_URL", "EXPO_PUBLIC_DEMO_SITE_URL", "EXPO_PUBLIC_NATIVE_SCHEME", "EXPO_PUBLIC_ALLOW_LOCAL_HTTP", "EXPO_PUBLIC_NATIVE_NOTIFICATION_APPLICATION_ID"],
+      "config_env": ["NATIVE_IOS_BUNDLE_ID", "NATIVE_ANDROID_PACKAGE", "NATIVE_EXPO_OWNER", "NATIVE_EXPO_PROJECT_ID", "NATIVE_RELEASE_BUILD", "NATIVE_CALLS_ENABLED", "APNS_ENVIRONMENT", "NATIVE_FIREBASE_CONFIG_PATH"]
     }
   }
 }

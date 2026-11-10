@@ -12,7 +12,13 @@
     "showLess": "Show less",
     "myProfile": "My profile",
     "settings": "Settings",
-    "shortcuts": "Your shortcuts"
+    "shortcuts": "Your shortcuts",
+    "socialSection": "Social network",
+    "activitySection": "Activity",
+    "pageSection": "Page",
+    "createActivity": "Create an activity",
+    "myPages": "My pages",
+    "createPage": "Create a page"
   },
   "reseauDesktopIcomLink": {
     "label": "iCom",
@@ -34,7 +40,11 @@
     "seeRequests": "See requests",
     "postUnavailable": "This post is no longer available.",
     "searchEmpty": "No post matches this search.",
-    "loadMore": "See more posts"
+    "loadMore": "See more posts",
+    "composerLabel": "Post to the feed",
+    "composerPrompt": "What's on your mind, {{name}}?",
+    "composerPromptAnonymous": "What's on your mind?",
+    "composerPhoto": "Photo"
   },
   "reseauMobileHeader": {
     "wordmark": "Network",

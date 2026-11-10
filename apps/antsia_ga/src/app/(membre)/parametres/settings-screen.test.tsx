@@ -81,7 +81,7 @@ afterEach(async () => {
 describe("Paramètres", () => {
   it("un volet nommé : l'affichage avec les sept thèmes, la langue et le fuseau, puis les réglages voisins", async () => {
     await mount("fr")
-    expect(container.querySelector("h1")?.textContent).toBe("Paramètres")
+    expect(container.querySelector("h1")?.textContent).toBe("Réglages")
     expect([...container.querySelectorAll("h2")].map((heading) => heading.textContent)).toEqual(["Affichage", "Langue et fuseau horaire", "Autres réglages"])
     expect(container.querySelector("select option[value='dark']")).not.toBeNull()
     expect(legends()).toEqual(["Thème", "Motif de fond"])

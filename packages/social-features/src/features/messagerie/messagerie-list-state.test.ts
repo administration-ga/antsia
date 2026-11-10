@@ -8,7 +8,7 @@ describe("mémoire volatile du retour dans Messages", () => {
 		activateListSession(JSON.stringify(["antsia", "person-a"]))
 		const phone = messagerieListScope("antsia", "person-a", "phone")
 		writeListState(phone, { query: "atelier", filter: "non_lues", scrollTop: 320, view: "contacts" })
-		expect(readListState(phone)).toEqual({ query: "atelier", filter: "non_lues", scrollTop: 320, view: "contacts", loadedThreadCount: 0 })
+		expect(readListState(phone)).toEqual({ query: "atelier", filter: "non_lues", scrollTop: 320, view: "contacts", loadedThreadCount: 0, returnFocusKey: null })
 		expect(readListState(messagerieListScope("antsia", "person-a", "desktop")).query).toBe("")
 		expect(readListState(messagerieListScope("diaspora", "person-a", "phone")).query).toBe("")
 		expect(readListState(messagerieListScope("antsia", "person-b", "phone")).query).toBe("")

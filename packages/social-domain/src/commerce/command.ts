@@ -790,7 +790,7 @@ export const COMMERCE_COMMAND_REJECTIONS: Readonly<Record<CommerceOperation, rea
   "link.confirm": ["access_denied", "consent_invalid", "link_code_invalid", "quota_exceeded", "request_expired"],
   "order.cancel.request": ["access_denied", "not_cancellable", "request_expired", "stale_revision"],
   "payment.start": ["access_denied", "capability_disabled", "checkout_expired", "consent_invalid", "payment_in_progress", "request_expired", "total_mismatch"],
-  "quote.accept": ["access_denied", "consent_invalid", "quote_not_acceptable", "request_expired"],
+  "quote.accept": ["access_denied", "capability_disabled", "consent_invalid", "quote_not_acceptable", "request_expired"],
   "request.status": ["access_denied", "request_expired"],
 };
 

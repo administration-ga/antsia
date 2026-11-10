@@ -1,0 +1,166 @@
+{
+  "direct": {
+    "failed": "Ce direct est indisponible. Réessayez dans quelques instants.",
+    "loading": "Chargement des directs…",
+    "start": "Lancer le direct",
+    "end": "Terminer le direct",
+    "cancel": "Annuler le direct",
+    "endConfirm": "Confirmer la fin de ce direct pour tous les participants ?",
+    "keep": "Continuer le direct",
+    "waiting": "Le direct n'a pas encore commencé.",
+    "anotherRoom": "Vous avez déjà un direct en cours. Quittez-le avant de rejoindre une autre salle.",
+    "returnToRoom": "Revenir au direct",
+    "ongoing": "Direct en cours",
+    "stage": "Scène du direct",
+    "recording": "Ce direct est enregistré. L'hôte décidera ensuite de la publication du replay.",
+    "status": { "live": "En live", "ended": "Terminé" },
+    "create": {
+      "title": "Préparer un direct",
+      "description": "Préparez votre direct ; vous le lancerez après avoir vérifié votre matériel.",
+      "networkOnly": "Ce direct reste dans ce réseau, même avec l'audience « Tout le réseau ».",
+      "record": "Enregistrer ce direct",
+      "recordDescription": "L'enregistrement est annoncé aux participants. Il restera privé tant que vous ne déciderez pas de le publier après le direct.",
+      "submit": "Préparer un direct",
+      "guestsDescription": "Choisissez des invités et leur rôle proposé. Leur accès sera vérifié de nouveau à la création et au démarrage. Au maximum 200 invités, dont sept intervenants.",
+      "guestsChanged": "Certains invités ne sont plus éligibles. Retirez-les avant de préparer le direct.",
+      "noPageAnnouncement": "Un direct de page limité à vos relations ne peut pas publier une annonce au nom de la page."
+    },
+    "directory": {
+      "title": "Direct",
+      "filters": "Afficher les directs",
+      "live": "En live",
+      "replays": "Replays",
+      "mine": "Mes directs",
+      "empty": {
+        "live": "Aucun direct accessible en ce moment.",
+        "replays": "Aucun replay publié accessible pour le moment.",
+        "mine": "Vous n'avez pas encore préparé de direct."
+      }
+    },
+    "preflight": { "ready": "Votre matériel a répondu. Vous pouvez lancer le direct." },
+    "replay": {
+      "none": "Ce direct n'a pas de replay disponible.",
+      "ready": "Replay prêt",
+      "expired": "La conservation de ce replay est terminée.",
+      "player": "Lire le replay",
+      "publish": "Publier le replay",
+      "publication": {
+        "published": "Le replay est publié pour l'audience autorisée.",
+        "private": "Le replay est gardé pour vous."
+      },
+      "management": "Replay et conservation",
+      "egress": {
+        "processing": "Replay en préparation",
+        "ready": "Replay disponible",
+        "failed": "Replay non produit",
+        "expired": "Replay retiré ou conservation écoulée"
+      },
+      "playbackFailed": "Le replay n’a pas pu être lu. Réessayez.",
+      "published": "Replay publié pour son audience autorisée.",
+      "keptPrivate": "Replay gardé pour vous.",
+      "visibility": "Audience du replay",
+      "fixedAudience": "Le replay reste réservé à : {{audience}}."
+    },
+    "management": { "title": "Studio et gestion du direct", "panels": "Volets du direct" },
+    "participants": { "exclude": "Exclure du direct", "keep": "Garder dans le direct" },
+    "delegations": { "flags": { "canEndOrTransfer": "Terminer le direct" } },
+    "guests": { "description": "Les invités désignés auront accès selon l’audience du direct. Un intervenant proposé devra entrer lui-même dans la salle pour publier." },
+    "floating": {
+      "label": "Direct : {{title}} — fenêtre",
+      "move": "Déplacer le direct avec les flèches ; Maj pour accélérer, Origine et Fin pour les coins, double-clic pour réinitialiser",
+      "preview": "Aperçu du direct",
+      "leaveTitle": "Quitter le direct ?",
+      "hostLeaveDescription": "Terminer ferme le direct pour tous. Quitter sans terminer coupe votre micro et votre caméra ; votre absence peut ensuite interrompre le direct.",
+      "speakerLeaveDescription": "Votre micro et votre caméra seront coupés, et vous quitterez l’antenne. Le direct continue."
+    },
+    "rail": {
+      "title": "En live",
+      "since": "En live depuis {{minutes}} min",
+      "emptyWindow": "Aucun direct accessible dans cette fenêtre. Poursuivez avec « Voir plus »."
+    },
+    "replayFailure": { "ended_before_start": "Le direct s’est terminé avant le démarrage de l’enregistrement." }
+  },
+  "stories": {
+    "storiesTray": {
+      "tile": {
+        "own": "Votre story",
+        "author": "Stories de {{name}}",
+        "storyCount_one": "{{count}} story",
+        "storyCount_other": "{{count}} stories"
+      },
+      "label": "Stories",
+      "create": "Publier une story",
+      "createShort": "Créer une story"
+    },
+    "storiesViewer": { "label": { "direct": "Direct de {{host}} : {{title}}", "stories": "Stories de {{name}}" } },
+    "storyProgressBar": { "segmentLabel": "Story {{position}} sur {{total}}" },
+    "storyOverlay": { "close": "Fermer les stories" },
+    "liveDirectSlide": { "live": "En live", "resumeMine": "Reprendre mon direct", "close": "Fermer les stories" },
+    "storyViewer": {
+      "unavailable": { "title": "Stories indisponibles", "text": "Cette personne n'a pas publié de profil de réseau : ses stories ne peuvent pas être ouvertes." },
+      "loadFailed": { "text": "Le réseau n'a pas répondu. Glissez vers l'écran suivant, ou revenez à l'accueil." },
+      "nothingLeft": { "text": "Ces stories ont expiré ou ont été retirées." },
+      "backToFeed": "Revenir à l'accueil",
+      "imageAlt": "Story de {{name}}",
+      "removed": "Story retirée."
+    },
+    "storiesViewerPage": {
+      "error": { "text": "Le réseau n'a pas répondu. Réessayez, ou revenez à l'accueil." },
+      "backToFeed": "Revenir à l'accueil",
+      "empty": { "title": "Aucune story pour l'instant", "text": "Les stories de vos relations apparaissent ici pendant vingt-quatre heures, et les directs en cours passent devant. Publiez la première." },
+      "publish": "Publier une story",
+      "pagerLabel": "Stories et directs",
+      "pagerLabelWithItem": "Stories et directs — {{item}}"
+    },
+    "storyCreateSheet": { "title": "Publier une story", "publish": "Publier la story", "published": "Story publiée — visible pendant vingt-quatre heures." }
+  },
+  "reseau": {
+    "profilPersonnePage": { "connection": { "connect": "Ajouter à mon réseau" } },
+    "shared": {
+      "notification": {
+        "liveStarted": "{{actor}} a lancé un direct.",
+        "liveInvite": "{{actor}} vous invite à un direct.",
+        "liveAntennaInvite": "{{actor}} vous invite à prendre la parole dans un direct.",
+        "liveReplayPublished": "{{actor}} a publié le replay d'un direct."
+      },
+      "resolution": { "liveEnded": "Ce direct est terminé." }
+    },
+    "reseauAgentNav": {
+      "tabs": {
+        "fil": { "label": "Accueil", "shortLabel": "Accueil" },
+        "relations": { "label": "Mon réseau", "shortLabel": "Mon réseau" },
+        "conferences": { "label": "Direct", "shortLabel": "Direct", "description": "Les directs en cours et les replays de ce que vous avez manqué." },
+        "enregistrements": { "label": "Enregistrés", "shortLabel": "Enregistrés" }
+      }
+    },
+    "reseauLayout": { "returnToFeed": "Revenir à l'accueil" },
+    "reseauMobileTabs": { "menu": { "stories": "Stories" } },
+    "reseauDestinations": { "fil": "Accueil", "decouvrir": "Explorer" },
+    "creationController": { "entries": { "actu": { "label": "Story" }, "conference": { "label": "Direct", "description": "Préparer un direct dans ce réseau." } } },
+    "postOverflow": { "bookmark": { "removeLabel": "Retirer des publications enregistrées", "addHint": "Pour la retrouver dans « Enregistrés »." } },
+    "postOverflowMenu": { "toast": { "unbookmarked": "Retirée de vos publications enregistrées." } },
+    "contactsRail": { "empty": "Vos connexions apparaîtront ici. Trouvez des personnes depuis le volet Mon réseau." },
+    "emptyStates": {
+      "text": { "conferencesEnDirect": "Personne n'est en live pour le moment.", "conferencesEnDirectAvecRediffusions": "Aucun direct en cours ; les replays sont plus bas.", "rediffusions": "Aucun replay disponible pour le moment." },
+      "action": { "openFeed": "Ouvrir l'accueil" }
+    }
+  },
+  "iappel": {
+    "conferenceHint": {
+      "launch": "Préparer un direct",
+      "t1": { "body": "Un appel de groupe réunit {{capacity}} personnes au plus, vous compris. Choisissez jusqu'à {{others}} correspondants, ou réunissez {{audience}} dans un direct." },
+      "t2": { "body": "Pour parler à plus de monde en même temps, le direct accueille {{audience}}." },
+      "t3": { "body": "Pour réunir plus de monde, préparez un direct." }
+    },
+    "conferenceLaunchStore": { "refusal": { "personalElsewhere": "Le direct se prépare depuis votre réseau." } }
+  },
+  "messagerie": {
+    "icomViews": { "backToFeed": "Retour à l'accueil" },
+    "icomDock": { "tabs": { "actus": { "description": "Les stories de votre réseau", "label": "Stories" }, "icontact": { "label": "Mon réseau" } } },
+    "icomMobileTabs": { "unseenStatuses_one": "{{count}} story non vue", "unseenStatuses_other": "{{count}} stories non vues" },
+    "messagerieComposeView": { "noRelations": "Vous n'avez encore aucune relation. Envoyez une demande depuis « Mon réseau » pour pouvoir commencer une conversation." },
+    "groupCallInviteePicker": { "convoke": "Préparer un direct" },
+    "icomActusPanel": { "title": "Stories", "bodyLabel": "Stories — les stories de vos relations", "caption": "Les stories de vos relations restent visibles vingt-quatre heures, comme dans l'accueil." },
+    "icomRelationsPanel": { "titleContact": "Mon réseau", "contactRelations": "Mon réseau", "relationsEmpty": "Vous n'avez encore aucune relation. Le volet « Mon réseau » permet d'envoyer une demande." }
+  }
+}

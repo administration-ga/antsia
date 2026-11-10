@@ -59,6 +59,8 @@ import {
 } from "lucide-react"
 import { useEffect, useRef, useState, type RefObject } from "react"
 import { createPortal } from "react-dom"
+import { icomProHref } from "./icom-space"
+import { IcomDockSpaceTitle } from "./IcomSpaceSwitch"
 import { useTranslation } from "react-i18next"
 import { callStore } from "../../stores/call-store"
 import { useSurfaceDrag } from "../../shell/floating-surface/use-surface-drag"
@@ -162,7 +164,7 @@ const DOCK_NAV: MessagerieNav = Object.freeze({
 
 export function MessagerieDock() {
 	const { t } = useTranslation("messagerie")
-	const { charte, storagePrefix, networkId, personId, navigation } = useNetwork()
+	const { charte, storagePrefix, networkId, personId, navigation, icomPro } = useNetwork()
 	const messagesBase = useRoutes().messages()
 	// ⚠️ `null` au rendu serveur ET au premier passage client : on ne rend RIEN
 	// tant que la largeur n'est pas connue. Rendre la carte « par défaut »
@@ -368,7 +370,8 @@ export function MessagerieDock() {
 				<div className="icom-surface-bar">
 					<div className="icom-surface-heading">
 						<Grip aria-hidden="true" size={18} />
-						<span className="icom-surface-title">{t("messagerieDock.title")}</span>
+						{/* ADR-0036 : la carte est iCom ; la pilule mène à iCom Pro quand une activité pro existe. */}
+							{icomPro ? <IcomDockSpaceTitle title={t("messagerieDock.title")} proHref={icomProHref(messagesBase)} /> : <span className="icom-surface-title">{t("messagerieDock.title")}</span>}
 					</div>
 					<div className="icom-surface-actions">
 						<button
@@ -443,7 +446,7 @@ export function MessagerieDock() {
 					onCreateGroup={() => dockStore.openComposeGroupe()}
 					showDockControls={false}
 					journal={(viewControls) => (
-						<IcomAppelJournal leadingControls={viewControls} />
+						<IcomAppelJournal leadingControls={viewControls} family={icomPro ? "personnel" : undefined} />
 					)}
 				/>
 			) : icomDockBody(activeTab, dock.view.kind) === "actus" ? (

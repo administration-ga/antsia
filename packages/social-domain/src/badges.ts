@@ -19,6 +19,14 @@ export type IdentityProvider = (typeof IDENTITY_PROVIDERS)[number]
 /** Garde minimale du niveau de garantie IDN pour le badge Vérifié (`loa ≥ 2`). */
 export const VERIFIED_MIN_LOA = 2
 
+/**
+ * Garde minimale du niveau de garantie IDN pour entrer dans la console d'exploitation (ADR-0039,
+ * décision du propriétaire du 22/10/2026). L'habilitation d'opérateur, la session IDN scellée par le
+ * callback et sa fraîcheur restent exigées ; le badge Vérifié et les agents publics gardent
+ * `VERIFIED_MIN_LOA`.
+ */
+export const CONSOLE_MIN_LOA = 1
+
 export type IdentityLinkFacts = {
   provider: IdentityProvider
   /** Niveau de garantie IDN (1 à 3), pour `idn` seulement. */

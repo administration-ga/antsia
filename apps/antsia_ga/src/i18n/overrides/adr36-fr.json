@@ -1,0 +1,25 @@
+{
+  "messagerie": {
+    "icomViews": {
+      "title": "iCom"
+    },
+    "messagerieDock": {
+      "title": "iCom",
+      "floatingLabel": "iCom — fenêtre détachée"
+    },
+    "messagerieListPage": {
+      "title": "iCom"
+    },
+    "icomPublicReminders": {
+      "intro": "Vos échanges restent privés dans iCom. Ces publications publiques s'ouvrent et se consultent dans le réseau."
+    }
+  },
+  "reseau": {
+    "reseauDesktopIcomLink": {
+      "label": "iCom"
+    },
+    "reseauDestinations": {
+      "messages": "iCom"
+    }
+  }
+}

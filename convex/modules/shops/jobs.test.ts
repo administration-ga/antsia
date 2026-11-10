@@ -239,3 +239,10 @@ describe("P15 — `job.*` de PUBLIC-V1 normalisé", () => {
     expect(await f.t.query(publicJob, f.jobArgs)).toMatchObject({ skills: [], location: null, closesOn: null, salary: { currency: "XAF", minAmount: 200_000, maxAmount: 250_000, period: null } })
   })
 })
+
+// P16 : validation fictive EN TEST pour préserver les scénarios historiques.
+// Aucun contournement d'environnement ni activation en source applicative.
+vi.mock("./commerceActivation", async (importOriginal) => ({
+  ...await importOriginal<typeof import("./commerceActivation")>(),
+  commerceActivationReady: () => true,
+}))

@@ -1,9 +1,10 @@
 "use client"
 
 import { AlbumPage } from "@antsia/social-features/albums"
-import { ProfilPagePage, ProfilPersonnePage } from "@antsia/social-features/reseau-personnel"
+import { ProfilPersonnePage } from "@antsia/social-features/reseau-personnel"
 
 import { MemberPage } from "@/components/member-chrome"
+import { PageWithCommerce } from "@/components/shops/page-commerce"
 
 /** Le profil d'une personne du réseau (le mien compris : sa gestion s'y ouvre). */
 export function ProfileScreen({ handle }: { handle: string }) {
@@ -14,11 +15,11 @@ export function ProfileScreen({ handle }: { handle: string }) {
   )
 }
 
-/** La fiche d'une page (identité propre : institution, association, média…). */
+/** La fiche d'une page (identité propre : institution, association, média…), et de sa boutique si elle vend. */
 export function PageProfileScreen({ handle }: { handle: string }) {
   return (
     <MemberPage>
-      <ProfilPagePage handle={handle} />
+      <PageWithCommerce handle={handle} />
     </MemberPage>
   )
 }

@@ -10,7 +10,7 @@ import { getRootNetwork, isActiveMember } from "../../lib/access"
 import { notFound } from "../../lib/errors"
 import { canReadCommercialMessage } from "../commercialMessaging/access"
 import { canReadContextualMessage, contextualThreadAccess } from "../contextualMessaging/access"
-import { onContextualMessageReleased } from "../contextualMessaging/hooks"
+import { onContextualMessageReleased, syncContextualConversation } from "../contextualMessaging/hooks"
 import { canSeeAlbum } from "../albums/access"
 import { requireEventAccess } from "../events/events"
 import { schedulePageEventSeatFill } from "../events/pageEventRegistrations"
@@ -25,12 +25,16 @@ import { recomputeAggregates } from "../live/reap"
 import { previewColumns } from "../messaging/threads"
 import { enqueueFanout } from "../notifications/fanout"
 import { notifyPerson } from "../notifications/notify"
-import { readablePageOrNull } from "../pages/access"
+import { liveSignatoryRole, readablePageOrNull } from "../pages/access"
+import { editorialAccessOrNull } from "../editorial/access"
+import { readableEditorialMedia, readableEditorialVersion } from "../editorial/read"
 import { headBelongsToCurrentCatalog, readableCatalogMapping } from "../shops/catalogAccess"
 import { jobHeadBelongsToCurrent, readableJobMapping } from "../shops/jobAccess"
 import { readableServiceReviewOrNull } from "../diaspora/serviceReviews"
 import { removeDiasporaTarget, resolveDiasporaTarget, restoreDiasporaTarget } from "../diaspora/moderationTargets"
 import { isPublishedPerson } from "../people/miniProfile"
+import { readableProfessionalCollaboration, readableProfessionalProfile } from "../professionals/read"
+import { syncProfessionalProfileConversations } from "../professionals/profiles"
 import { assertVisiblePost } from "../posts/access"
 import { markCommentRemoved, markPostRemoved } from "../posts/contentRemoval"
 import { recordComment, recordPagePost, recordShare } from "../posts/counters"
@@ -38,6 +42,7 @@ import { schedulePostFeed } from "../posts/feedMaterialization"
 import { notifyMentions } from "../posts/postWrite"
 import { canReadModeratedContent, contentState, setContentModerationStatus } from "./policy"
 import type { moderationTargetValidator } from "./tables"
+import { editorialMediaReviewSource, editorialReviewSource } from "./editorialReviewSource"
 
 export type ModerationTarget = Infer<typeof moderationTargetValidator>
 export type ResolvedTarget = { target: ModerationTarget; networkId: Id<"networks">; ownerPersonId?: Id<"persons"> }
@@ -63,6 +68,32 @@ export async function resolveVisibleTarget(ctx: MutationCtx, network: Doc<"netwo
         return base
       }
       return message.authorPersonId !== undefined ? { ...base, ownerPersonId: message.authorPersonId } : notFound()
+    }
+    case "editorialMedia": {
+      const live = await readableEditorialMedia(ctx, network._id, target.id, personId)
+      if (!live || live.media.createdByPersonId === personId || await liveSignatoryRole(ctx, live.page, personId) !== null ||
+        await editorialAccessOrNull(ctx, { networkId: network._id, personId }, live.page._id)) return notFound()
+      return base
+    }
+    case "editorialVersion": {
+      const live = await readableEditorialVersion(ctx, network._id, target.id, personId)
+      if (!live || live.article.publicationState !== "published" || live.article.publishedVersionId !== target.id) return notFound()
+      // La rédaction retire ou corrige son propre article ; elle ne s'auto-signale pas.
+      if (live.version.authorPersonId === personId || await liveSignatoryRole(ctx, live.page, personId) !== null ||
+        await editorialAccessOrNull(ctx, { networkId: network._id, personId }, live.page._id)) return notFound()
+      // L'article appartient à la page, aucun auteur ne reçoit de sanction personnelle par ce contenu collectif.
+      return base
+    }
+    case "professionalProfile": {
+      const row = await ctx.db.get(target.id)
+      const live = row?.networkId === network._id ? await readableProfessionalProfile(ctx, network._id, row.personId, personId) : null
+      if (!live || live.profile._id !== target.id) return notFound()
+      return { ...base, ownerPersonId: live.profile.personId }
+    }
+    case "professionalCollaboration": {
+      const row = await ctx.db.get(target.id)
+      if (!row || row.networkId !== network._id || !await readableProfessionalCollaboration(ctx, row, personId)) return notFound()
+      return { ...base, ownerPersonId: row.fromPersonId }
     }
     case "post": {
       const post = await assertVisiblePost(ctx, { personId, network }, target.id)
@@ -126,6 +157,13 @@ export async function resolveVisibleTarget(ctx: MutationCtx, network: Doc<"netwo
       // La réponse appartient à la page ; un signataire n'en devient pas propriétaire.
       return base
     }
+    case "commerceStorefront": {
+      const head = await ctx.db.get(target.id)
+      if (!head || head.objectKind !== "shop" || head.sequence !== "catalog" || head.state !== "active") return notFound()
+      const live = await readableCatalogMapping(ctx, network, head.shopId, personId)
+      if (!live || live.parentHead._id !== head._id || !live.parent.storefrontTerms) return notFound()
+      return { ...base, networkId: head.networkId }
+    }
     case "commerceOffer": {
       const head = await ctx.db.get(target.id)
       if (!head || head.objectKind !== "offer" || head.sequence !== "catalog" || head.state !== "active") return notFound()
@@ -158,10 +196,21 @@ export async function resolveVisibleTarget(ctx: MutationCtx, network: Doc<"netwo
   }
 }
 
+/** Relit le nouvel état de modération ; restaurer ne change aucun statut métier ni consentement. */
+async function syncProfessionalTarget(ctx: MutationCtx, target: ResolvedTarget): Promise<void> {
+  if (target.target.kind === "professionalCollaboration") {
+    await syncContextualConversation(ctx, { kind: "professionalCollaboration", id: target.target.id })
+  } else if (target.target.kind === "professionalProfile") {
+    const row = await ctx.db.get(target.target.id)
+    if (row?.networkId === target.networkId) await syncProfessionalProfileConversations(ctx, { networkId: target.networkId, personId: row.personId })
+  }
+}
+
 export async function removeTarget(ctx: MutationCtx, target: ResolvedTarget): Promise<void> {
   // Vague H DIASPORALE (G9) : effets de la tranche jugés sur l'état AVANT retrait (idempotents) ; sans effet pour les autres natures.
   await removeDiasporaTarget(ctx, target.target)
   await setContentModerationStatus(ctx, { networkId: target.networkId, kind: target.target.kind, id: target.target.id, ownerPersonId: target.ownerPersonId }, "removed")
+  await syncProfessionalTarget(ctx, target)
   if (target.target.kind === "post") {
     const post = await ctx.db.get(target.target.id)
     if (post) await markPostRemoved(ctx, post, Date.now())
@@ -192,7 +241,15 @@ export async function removeTarget(ctx: MutationCtx, target: ResolvedTarget): Pr
 
 /** Rétablir l'accès ne redémarre jamais une salle ni une capture. */
 export async function restoreTarget(ctx: MutationCtx, target: ResolvedTarget): Promise<void> {
+  if (target.target.kind === "editorialMedia" && !await editorialMediaReviewSource(ctx, target.networkId, target.target.id)) return notFound()
+  if (target.target.kind === "editorialVersion" && !await editorialReviewSource(ctx, target.networkId, target.target.id)) return notFound()
   if ((target.target.kind === "post" || target.target.kind === "page") && !(await isFederatedContentAvailable(ctx, target.target.kind === "post" ? "posts" : "pages", target.target.id))) return notFound()
+  if (target.target.kind === "commerceStorefront") {
+    const head = await ctx.db.get(target.target.id)
+    const root = await getRootNetwork(ctx)
+    const live = head && root ? await readableCatalogMapping(ctx, root, head.shopId) : null
+    if (!head || !live || live.parentHead._id !== head._id || !live.parent.storefrontTerms) return notFound()
+  }
   if (target.target.kind === "commerceOffer") {
     const head = await ctx.db.get(target.target.id)
     const root = await getRootNetwork(ctx)
@@ -210,6 +267,7 @@ export async function restoreTarget(ctx: MutationCtx, target: ResolvedTarget): P
   // Vague H DIASPORALE (G9) : seule une cible RETIRÉE recompte ; ne lève jamais, ne rouvre rien.
   await restoreDiasporaTarget(ctx, target.target, previous?.status ?? null)
   await setContentModerationStatus(ctx, { networkId: target.networkId, kind: target.target.kind, id: target.target.id, ownerPersonId: target.ownerPersonId }, "published")
+  await syncProfessionalTarget(ctx, target)
   if (target.target.kind === "post") {
     const post = await ctx.db.get(target.target.id)
     if (post?.status === "removed") {

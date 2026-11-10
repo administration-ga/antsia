@@ -121,7 +121,20 @@ describe("catalogue des suggestions — filtres", () => {
     const me = await enter(t, root, "moi")
     await enter(t, root, "autre")
     const [item] = await catalog(me, root)
-    expect(Object.keys(item!).sort()).toEqual(["avatarUrl", "dismissed", "displayName", "handle", "headline", "personId", "relationState"])
+    expect(Object.keys(item!).sort()).toEqual(["avatarUrl", "dismissed", "displayName", "followsYou", "handle", "headline", "personId", "relationState"])
+  })
+
+  it("une personne qui me suit se dit `followsYou` — jamais l'inverse, jamais une autre (ADR-0037)", async () => {
+    const t = testConvex()
+    const { root } = await seed(t)
+    const me = await enter(t, root, "moi")
+    const fan = await enter(t, root, "fan")
+    await enter(t, root, "inconnu")
+    await fan.as.mutation(api.modules.graph.follows.follow, { networkId: root, handle: "moi" })
+    const items = await catalog(me, root)
+    expect(items.map((item) => [item.handle, (item as { followsYou?: boolean }).followsYou]).sort()).toEqual([["fan", true], ["inconnu", false]])
+    // Côté de celle qui suit : la personne suivie quitte son catalogue ; l'inconnue ne la suit pas.
+    expect(await catalog(fan, root)).toMatchObject([{ handle: "inconnu", followsYou: false }])
   })
 
   it("un réseau gouverné par une tranche sert ses propres suggestions : le catalogue générique est refusé", async () => {

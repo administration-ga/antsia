@@ -23,7 +23,8 @@
  * (§2). Module PUR : aucun React, aucun appel au moteur — testé en environnement `node`.
  */
 import { engineErrorAppRule, engineErrorCode, type AppRuleParams } from "@antsia/social-contracts/errors"
-import type { ContextualKind, ContextualRefusal, ContextualSide, ContextualVoice } from "@antsia/social-domain/contextualMessaging"
+import type { MediaWithheld } from "@antsia/social-contracts/media"
+import { CONTEXTUAL_LEGACY_V1_KINDS, type ContextualKind, type ContextualLegacyV1Kind, type ContextualRefusal, type ContextualSide, type ContextualVoice } from "@antsia/social-domain/contextualMessaging"
 import type { TFunction } from "i18next"
 import type { ReactNode } from "react"
 
@@ -70,16 +71,31 @@ export interface ContextualPageCardView {
   logoUrl: string | null
 }
 
-/** L'objet ouvrant : sa nature et son identifiant, rien de son contenu. */
+/**
+ * L'objet ouvrant du contrat V1 : sa nature parmi les trois natures V1 et son identifiant, rien
+ * de son contenu. Type stable des tranches historiques (DIASPORALE), qui rouvrent ces trois natures.
+ */
 export interface ContextualObjectRefView {
+  kind: ContextualLegacyV1Kind
+  id: string
+}
+
+/** L'objet ouvrant de toute nature du moteur, collaboration professionnelle (MP09) comprise. */
+export interface ContextualAnyObjectRefView {
   kind: ContextualKind
   id: string
+}
+
+/** La projection V1 d'un objet (nature et identifiant) ; `null` pour une nature postérieure à V1. */
+export function legacyContextualObjectRef(object: ContextualAnyObjectRefView): ContextualObjectRefView | null {
+  const kind = CONTEXTUAL_LEGACY_V1_KINDS.find((legacy) => legacy === object.kind)
+  return kind === undefined ? null : { kind, id: object.id }
 }
 
 export interface ContextualThreadView {
   threadId: string
   kind: ContextualKind
-  object: ContextualObjectRefView | null
+  object: ContextualAnyObjectRefView | null
   viewer: { side: ContextualSide; voice: ContextualVoice }
   counterpart:
     | { kind: "person"; label: ContextualLabelView }
@@ -114,7 +130,7 @@ export interface ContextualMessageView {
     sizeBytes: number
     durationMs: number | null
     url: string | null
-    withheld: "fileScanPending" | "fileQuarantined" | null
+    withheld: MediaWithheld | null
   }[]
   createdAt: number
 }

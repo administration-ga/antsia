@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/PeoplePanel.tsx @ ad2e7fdc2 — adaptations : fonctions du moteur, réseau courant par `useNetwork()` — recherche dans l'annuaire du réseau (`people.directory.searchPeople`), demandes par identifiant (`graph.connections.requestConnection({ handle, message? })`), réponses (`graph.connections.respondToConnection`), suivis (`graph.follows.{follow, unfollow, paginateMyFollows, myFollowerCount}`), catalogue de suggestions (`suggestions.suggestions.{paginate, dismiss, restore, paginateDismissed, paginateSentInvitations}`) ; listes paginées nativement par une chaîne de pages à curseur (invitations envoyées, suivis — la pagination numérotée des suivis devient « Voir plus » —, catalogue), décomptes PLANCHERS marqués « + » quand une page reste ; ligne « fonction » réduite au titre publié (poste et administration retirés) ; personnes au DTO du moteur (`otherPersonId`, nom nullable rendu par le libellé neutre) ; appel d'une relation par `useRingRelation` de la brique d'appel (`features/iappel`, `calls.direct.callMember({ target: { personId } })`) ; adresses par la table de routes injectée (`useRoutes()` : profil, messagerie, page réseau) ; textes par l'i18n (espace `reseau`, clés `peoplePanel.*`) et refus du moteur dits par leur code ; « Agents à découvrir » devient « Personnes à découvrir » ; feuille du volet sortie du JSX dans une constante de module (`PEOPLE_PANEL_CSS`) — un littéral enfant de `<style>` passerait pour une chaîne d'interface —, règles inchangées ; primitives de `@antsia/ui` et kit d'espace de `@antsia/ui/espace-kit` (onglets « chemise », état vide ; la pagination numérotée n'est plus employée), surfaces de la coque ; Suivre, Se connecter et Accepter en variante `social`, couleur des relations (ADR-0027), Se connecter neutre une fois la demande envoyée ou reçue ; « Écrire » d'une carte de relation à la couleur des messages (`.rp-person-action--message`, `--role-message-*`), lien d'origine en repli.
+// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/PeoplePanel.tsx @ ad2e7fdc2 — adaptations : fonctions du moteur, réseau courant par `useNetwork()` — recherche dans l'annuaire du réseau (`people.directory.searchPeople`), demandes par identifiant (`graph.connections.requestConnection({ handle, message? })`), réponses (`graph.connections.respondToConnection`), suivis (`graph.follows.{follow, unfollow, paginateMyFollows, myFollowerCount}`), catalogue de suggestions (`suggestions.suggestions.{paginate, dismiss, restore, paginateDismissed, paginateSentInvitations}`) ; listes paginées nativement par une chaîne de pages à curseur (invitations envoyées, suivis — la pagination numérotée des suivis devient « Voir plus » —, catalogue), décomptes PLANCHERS marqués « + » quand une page reste ; ligne « fonction » réduite au titre publié (poste et administration retirés) ; personnes au DTO du moteur (`otherPersonId`, nom nullable rendu par le libellé neutre) ; appel d'une relation par `useRingRelation` de la brique d'appel (`features/iappel`, `calls.direct.callMember({ target: { personId } })`) ; adresses par la table de routes injectée (`useRoutes()` : profil, messagerie, page réseau) ; textes par l'i18n (espace `reseau`, clés `peoplePanel.*`) et refus du moteur dits par leur code ; « Agents à découvrir » devient « Personnes à découvrir » ; feuille du volet sortie du JSX dans une constante de module (`PEOPLE_PANEL_CSS`) — un littéral enfant de `<style>` passerait pour une chaîne d'interface —, règles inchangées ; primitives de `@antsia/ui` et kit d'espace de `@antsia/ui/espace-kit` (onglets « chemise », état vide ; la pagination numérotée n'est plus employée), surfaces de la coque ; Suivre, Se connecter et Accepter en variante `social`, couleur des relations (ADR-0027), Se connecter neutre une fois la demande envoyée ou reçue ; « Écrire » d'une carte de relation à la couleur des messages (`.rp-person-action--message`, `--role-message-*`), lien d'origine en repli ; étude du 22/10/2026 (ADR-0037) : le catalogue des suggestions offre aussi « Suivre » (ou « Suivre en retour »), au-dessus d'Ajouter et Masquer.
 "use client"
 
 /**
@@ -15,6 +15,7 @@ import { api, type Id } from "@antsia/api/engine"
 import { useAuthenticatedConvexQuery } from "@antsia/api/hooks"
 import { useNetwork, useRoutes } from "@antsia/api/network"
 import { Link, useTabQueryState } from "@antsia/api/routing"
+import { useViewerTimeZone } from "@antsia/api/viewer-preferences"
 import { Badge, Button, Card, Field, TextInput } from "@antsia/ui"
 import { EspaceDossierTabs, EspaceEmptyState, EspaceKitStyles } from "@antsia/ui/espace-kit"
 import { useMutation } from "convex/react"
@@ -28,10 +29,13 @@ import { etatDeQuery, montreElements, montreEtatVide, montreSquelette } from "..
 import { RESEAU_AGENT_VUE_PARAM } from "../../shell/reseau-agent-nav"
 import { ReseauQueryError } from "../../shell/ReseauQueryError"
 import { useRingRelation, type RingRelation } from "../iappel/useRingRelation"
+import { COMPACT_SOCIAL_ACTION_STYLE } from "../social-action-style"
 import { PresenceDot, useConnectionsPresence, type PresenceState } from "../iappel/presence-dot"
 import { draftKey } from "../messagerie/messagerie-dock"
 import { conversationHref } from "../messagerie/messagerie-routes"
 import { personHref } from "./author-link"
+import { useConnectionRequest } from "./use-connection-request"
+import { SuggestionFollowButton } from "./SuggestionRelationActions"
 import { Avatar } from "./Avatar"
 import {
   appendCursorPage,
@@ -254,8 +258,32 @@ const PEOPLE_PANEL_CSS = `
       }
       .rp-person-tiles {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+        grid-template-columns: minmax(0, 1fr);
         gap: 12px;
+      }
+      .rp-invitation-list {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 16px;
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+      .rp-invitation-row {
+        min-width: 0;
+        padding-bottom: 16px;
+        border-bottom: 1px solid var(--esp-primitive-surface-border, var(--ink-200));
+      }
+      .rp-person-action-pair {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+        margin-top: 8px;
+      }
+      .rp-person-action-pair > * { width: 100%; min-width: 0; }
+      @container rp-people (min-width: 560px) {
+        .rp-person-tiles { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+        .rp-invitation-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       }
       .rp-person-tile {
         display: flex;
@@ -458,14 +486,14 @@ function SearchCard({ compact = false }: { compact?: boolean }) {
   // Sans saisie la query est DÉSACTIVÉE : ni attente, ni vide, ni panne (IC-07).
   const resultsEtat = etatDeQuery(results, found.length, query.length > 0)
 
-  const requestConnection = useMutation(api.modules.graph.connections.requestConnection)
+  const connectionRequest = useConnectionRequest()
   const follow = useMutation(api.modules.graph.follows.follow)
 
   const run = async (handle: string, action: () => Promise<unknown>, doneKey: string) => {
     setBusyHandle(handle)
     try {
-      await action()
-      toast.success(t(doneKey))
+      const result = await action()
+      if (result !== false) toast.success(t(doneKey))
     } catch (error) {
       toast.error(relationErrorText(error, "reseau:peoplePanel.search.actionFailed", t))
     } finally {
@@ -583,14 +611,13 @@ function SearchCard({ compact = false }: { compact?: boolean }) {
                       icon="userPlus"
                       // Se connecter : couleur des relations (ADR-0027).
                       variant="social"
-                      disabled={busyHandle === person.handle}
+                      disabled={busyHandle === person.handle || connectionRequest.disabled}
                       style={RESEAU_PILL_ACTION_STYLE}
                       onClick={() =>
                         void run(
                           person.handle,
                           () =>
-                            requestConnection({
-                              networkId,
+                            connectionRequest.send({
                               handle: person.handle,
                               ...(message.trim().length > 0 ? { message: message.trim() } : {}),
                             }),
@@ -599,7 +626,7 @@ function SearchCard({ compact = false }: { compact?: boolean }) {
                       }
                     >
                       {/* Même libellé que les cartes de suggestion : une seule source. */}
-                      {t("suggestionsActions.connect")}
+                      {connectionRequest.waitLabel ?? t("suggestionsActions.connect")}
                     </Button>
                     <Button
                       size="sm"
@@ -631,10 +658,13 @@ function PendingRequestsCard({ pending }: { pending: ReturnType<typeof usePerson
   const { t } = useTranslation("reseau")
   const { networkId } = useNetwork()
   const respond = useMutation(api.modules.graph.connections.respondToConnection)
-  const [busy, setBusy] = useState<Id<"connections"> | null>(null)
+  const responding = useRef(new Set<Id<"connections">>())
+  const [busy, setBusy] = useState<ReadonlySet<Id<"connections">>>(new Set())
 
   const decide = async (connectionId: Id<"connections">, accept: boolean) => {
-    setBusy(connectionId)
+    if (responding.current.has(connectionId)) return
+    responding.current.add(connectionId)
+    setBusy(new Set(responding.current))
     try {
       await respond({ networkId, connectionId, accept })
       pending.remove(connectionId)
@@ -642,7 +672,8 @@ function PendingRequestsCard({ pending }: { pending: ReturnType<typeof usePerson
     } catch (error) {
       toast.error(relationErrorText(error, "reseau:peoplePanel.pending.respondFailed", t))
     } finally {
-      setBusy(null)
+      responding.current.delete(connectionId)
+      setBusy(new Set(responding.current))
     }
   }
 
@@ -657,24 +688,17 @@ function PendingRequestsCard({ pending }: { pending: ReturnType<typeof usePerson
         <ReseauEmptyCard id="relations-invitations-recues" />
       ) : (
         <>
-          <ul
-            style={{
-              listStyle: "none",
-              margin: 0,
-              padding: 0,
-              display: "flex",
-              flexDirection: "column",
-              gap: 14,
-            }}
-          >
+          <ul className="rp-invitation-list">
             {items.map((request) => (
-              <li key={request.connectionId}>
+              <li key={request.connectionId} className="rp-invitation-row" aria-busy={busy.has(request.connectionId)}>
                 <PersonLine
                   kind="invitation"
                   displayName={request.displayName}
                   handle={request.handle}
                   headline={request.headline}
                   avatarUrl={request.avatarUrl}
+                  avatarSize={64}
+                  requestedAt={request.at}
                 />
                 {request.message ? (
                   <p
@@ -689,26 +713,25 @@ function PendingRequestsCard({ pending }: { pending: ReturnType<typeof usePerson
                     {t("peoplePanel.pending.quotedMessage", { message: request.message })}
                   </p>
                 ) : null}
-                <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                <div className="rp-person-action-pair">
                   <Button
                     size="sm"
                     icon="check"
-                    // Accepter : couleur des relations (ADR-0027).
                     variant="social"
-                    disabled={busy === request.connectionId}
-                    style={RESEAU_PILL_ACTION_STYLE}
+                    disabled={busy.has(request.connectionId)}
+                    style={COMPACT_SOCIAL_ACTION_STYLE}
                     onClick={() => void decide(request.connectionId, true)}
                   >
-                    {t("peoplePanel.pending.accept")}
+                    {t("peopleActions.confirm")}
                   </Button>
                   <Button
                     size="sm"
-                    variant="ghost"
-                    disabled={busy === request.connectionId}
-                    style={RESEAU_PILL_ACTION_STYLE}
+                    variant="outline"
+                    disabled={busy.has(request.connectionId)}
+                    style={COMPACT_SOCIAL_ACTION_STYLE}
                     onClick={() => void decide(request.connectionId, false)}
                   >
-                    {t("peoplePanel.pending.decline")}
+                    {t("peopleActions.decline")}
                   </Button>
                 </div>
               </li>
@@ -850,6 +873,8 @@ function SentInvitationsPages({ discover }: SentInvitationsSectionProps) {
                     handle={request.handle}
                     headline={request.headline}
                     avatarUrl={request.avatarUrl}
+                    avatarSize={48}
+                    requestedAt={request.at}
                   />
                   <p
                     style={{
@@ -864,7 +889,7 @@ function SentInvitationsPages({ discover }: SentInvitationsSectionProps) {
                     <Button
                       variant="ghost"
                       size="sm"
-                      style={RESEAU_PILL_ACTION_STYLE}
+                      style={COMPACT_SOCIAL_ACTION_STYLE}
                       disabled={busyRequests.has(request.connectionId)}
                       aria-busy={busyRequests.has(request.connectionId)}
                       aria-label={t("peoplePanel.sent.cancelLabel", { name: request.displayName ?? t("peoplePanel.unnamed") })}
@@ -911,7 +936,7 @@ function SuggestionsCatalogCard() {
     networkId,
     paginationOpts: { numItems: DISMISSED_COUNT_WINDOW, cursor: null },
   })
-  const requestConnection = useMutation(api.modules.graph.connections.requestConnection)
+  const connectionRequest = useConnectionRequest()
   const dismiss = useMutation(api.modules.suggestions.suggestions.dismiss)
   const restore = useMutation(api.modules.suggestions.suggestions.restore)
 
@@ -932,8 +957,7 @@ function SuggestionsCatalogCard() {
   const connect = async (handle: string) => {
     setBusyHandle(handle)
     try {
-      await requestConnection({ networkId, handle })
-      toast.success(t("peoplePanel.search.connectionSent"))
+      if (await connectionRequest.send({ handle })) toast.success(t("peoplePanel.search.connectionSent"))
     } catch (error) {
       toast.error(relationErrorText(error, "reseau:peoplePanel.search.actionFailed", t))
     } finally {
@@ -1000,33 +1024,28 @@ function SuggestionsCatalogCard() {
                       handle={person.handle}
                       headline={person.headline}
                       avatarUrl={person.avatarUrl}
+                      avatarSize={48}
                     />
-                    <div className="rp-person-actions">
-                      <Link href={personHref(person.handle, routes.profile)} className="rp-person-action">
-                        {t("peoplePanel.profile")}
-                      </Link>
+                    {/* Deux formules (ADR-0037) : suivre sans être ami, ou demander à l'être. */}
+                    <SuggestionFollowButton person={person} width="100%" />
+                    <div className="rp-person-action-pair">
                       <Button
                         size="sm"
                         icon="userPlus"
                         // Se connecter : couleur des relations tant que la demande est possible (ADR-0027).
                         variant={person.relationState === "none" ? "social" : "secondary"}
-                        disabled={relationActionDisabled(person.relationState, busy)}
-                        style={{ ...RESEAU_PILL_ACTION_STYLE, minHeight: 44 }}
+                        disabled={relationActionDisabled(person.relationState, busy) || connectionRequest.disabled}
+                        style={COMPACT_SOCIAL_ACTION_STYLE}
                         onClick={() => void connect(person.handle)}
                       >
-                        {relationActionLabel(person.relationState, busy, t)}
+                        {(person.relationState === "none" && connectionRequest.waitLabel) || (person.relationState === "none" && !busy ? t("peopleActions.add") : relationActionLabel(person.relationState, busy, t))}
                       </Button>
-                      {offersInvitationAnswer(person.relationState) ? (
-                        <Link href={peopleViewHref("invitations", routes.home())} className="rp-person-action">
-                          {t("peoplePanel.catalogue.answer")}
-                        </Link>
-                      ) : null}
                       {person.dismissed ? (
                         <Button
                           size="sm"
                           variant="ghost"
                           disabled={busy}
-                          style={{ ...RESEAU_PILL_ACTION_STYLE, minHeight: 44 }}
+                          style={COMPACT_SOCIAL_ACTION_STYLE}
                           onClick={() => void unhide(person)}
                         >
                           {t("peoplePanel.catalogue.restore")}
@@ -1036,13 +1055,23 @@ function SuggestionsCatalogCard() {
                           size="sm"
                           variant="ghost"
                           disabled={busy}
-                          style={{ ...RESEAU_PILL_ACTION_STYLE, minHeight: 44 }}
+                          style={COMPACT_SOCIAL_ACTION_STYLE}
                           aria-label={t("peoplePanel.catalogue.dismissLabel", { name: person.displayName })}
                           onClick={() => void hide(person.handle)}
                         >
                           {t("peoplePanel.catalogue.dismiss")}
                         </Button>
                       )}
+                    </div>
+                    <div className="rp-person-actions">
+                      <Link href={personHref(person.handle, routes.profile)} className="rp-person-action" style={COMPACT_SOCIAL_ACTION_STYLE}>
+                        {t("peoplePanel.profile")}
+                      </Link>
+                      {offersInvitationAnswer(person.relationState) ? (
+                        <Link href={peopleViewHref("invitations", routes.home())} className="rp-person-action" style={COMPACT_SOCIAL_ACTION_STYLE}>
+                          {t("peoplePanel.catalogue.answer")}
+                        </Link>
+                      ) : null}
                     </div>
                   </li>
                 )
@@ -1294,6 +1323,8 @@ function PersonLine({
   avatarUrl,
   otherPersonId = null,
   presence = null,
+  avatarSize = 32,
+  requestedAt,
 }: {
   /** D'où vient la personne — décide notamment la pastille de présence. */
   kind: PeoplePersonKind
@@ -1307,8 +1338,11 @@ function PersonLine({
   otherPersonId?: string | null
   /** Pastille de présence — seules les sections qui la CONNAISSENT la passent. */
   presence?: PresenceState
+  avatarSize?: number
+  requestedAt?: number
 }) {
-  const { t } = useTranslation("reseau")
+  const { t, i18n } = useTranslation("reseau")
+  const timeZone = useViewerTimeZone()
   const routes = useRoutes()
   const titleLine = personTitleLine({ headline })
   const presenceState = showPresence(kind, otherPersonId) ? presence : null
@@ -1322,10 +1356,10 @@ function PersonLine({
     <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
       {href ? (
         <Link href={href} aria-label={t("peoplePanel.profileOf", { name })} style={{ display: "inline-flex", flexShrink: 0 }}>
-          <Avatar displayName={name} avatarUrl={avatarUrl} size={32} hasIdentity={hasIdentity} />
+          <Avatar displayName={name} avatarUrl={avatarUrl} size={avatarSize} hasIdentity={hasIdentity} />
         </Link>
       ) : (
-        <Avatar displayName={name} avatarUrl={avatarUrl} size={32} hasIdentity={hasIdentity} />
+        <Avatar displayName={name} avatarUrl={avatarUrl} size={avatarSize} hasIdentity={hasIdentity} />
       )}
       {/* Le NOM tient sur DEUX lignes (R-04) : l'ellipse d'une seule ligne
           tronquait les patronymes composés au prénom dans une tuile de
@@ -1374,6 +1408,11 @@ function PersonLine({
         >
           {handle ? `@${handle}` : t("peoplePanel.unpublished")}
         </p>
+        {requestedAt !== undefined ? (
+          <time dateTime={new Date(requestedAt).toISOString()} style={{ display: "block", marginTop: 4, fontSize: 12, color: "var(--ink-500)" }}>
+            {t("peopleActions.requestedAt", { date: new Intl.DateTimeFormat(i18n.resolvedLanguage ?? i18n.language, { dateStyle: "medium", timeZone }).format(requestedAt) })}
+          </time>
+        ) : null}
         {/* La ligne de présentation : le titre publié par la personne. Rien
             n'est inventé quand il manque — la ligne disparaît. */}
         {titleLine ? (

@@ -28,7 +28,7 @@ import { usePathname, useRouter } from "@antsia/api/routing"
 import type { ContextualKind } from "@antsia/social-domain/contextualMessaging"
 import { useMemo } from "react"
 
-import type { ContextualAppRuleDescriber, ContextualMessagesInjection, ContextualObjectRefView, ContextualThreadView } from "./contextual-conversation-model"
+import type { ContextualAnyObjectRefView, ContextualAppRuleDescriber, ContextualMessagesInjection, ContextualObjectRefView, ContextualThreadView } from "./contextual-conversation-model"
 import { ContextualConversationList } from "./ContextualConversationList"
 import { ContextualConversationView } from "./ContextualConversationView"
 import { contextualConversationKey } from "./messagerie-dock"
@@ -43,8 +43,10 @@ export interface ContextualMessagesOptions {
   describeAppRule?: ContextualAppRuleDescriber
   /** Où en est l'objet, dans les mots de l'application ; `null` quand elle ne le sait pas. */
   describeObject?: (thread: ContextualThreadView) => string | null
-  /** Ouvrir l'écran de l'objet depuis la conversation. */
+  /** Ouvrir l'écran de l'objet depuis la conversation (contrat V1 : trois natures). */
   onOpenObject?: (object: ContextualObjectRefView) => void
+  /** Ouvrir un objet de toute nature, collaboration professionnelle comprise ; prioritaire sur `onOpenObject`. */
+  onOpenContextualObject?: (object: ContextualAnyObjectRefView) => void
 }
 
 export function useContextualMessages(options: ContextualMessagesOptions = {}): ContextualMessagesInjection {
@@ -52,7 +54,7 @@ export function useContextualMessages(options: ContextualMessagesOptions = {}): 
   const pathname = usePathname()
   const base = useRoutes().messages()
   const activeThreadId = contextualThreadIdFromPath(pathname, base)
-  const { pageId = null, kind, describeAppRule, describeObject, onOpenObject } = options
+  const { pageId = null, kind, describeAppRule, describeObject, onOpenObject, onOpenContextualObject } = options
   return useMemo<ContextualMessagesInjection>(() => ({
     renderList: (query) => (
       <ContextualConversationList
@@ -70,7 +72,8 @@ export function useContextualMessages(options: ContextualMessagesOptions = {}): 
         describeAppRule={describeAppRule}
         describeObject={describeObject}
         onOpenObject={onOpenObject}
+        onOpenContextualObject={onOpenContextualObject}
       />
     ),
-  }), [router, base, activeThreadId, pageId, kind, describeAppRule, describeObject, onOpenObject])
+  }), [router, base, activeThreadId, pageId, kind, describeAppRule, describeObject, onOpenObject, onOpenContextualObject])
 }

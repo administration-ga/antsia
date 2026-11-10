@@ -98,8 +98,8 @@ export const getMyPerson = query({
       private: person.privateAt !== undefined,
       ...(person.locale ? { locale: person.locale } : {}),
       ...(person.timeZone ? { timeZone: person.timeZone } : {}),
-      // Un ancien identifiant (ADR-0027) n'est pas un thème courant : rien n'est rendu, et
-      // l'interface applique le thème par défaut.
+      // Un ancien identifiant (ADR-0027) rend Gaboma explicitement : une absence
+      // laisserait à tort la préférence déjà gardée sur cet appareil.
       ...(memberThemeOf(person.theme) ? { theme: memberThemeOf(person.theme) } : {}),
       badges: await badgesOf(ctx, person._id),
       consentsInForce: purposes,

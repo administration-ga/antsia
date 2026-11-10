@@ -4,6 +4,7 @@ import { PAGE_DESCRIPTION_MAX_LENGTH, PAGE_NAME_MAX_LENGTH } from "@antsia/socia
 import type { FunctionReturnType } from "convex/server"
 import type { TFunction } from "i18next"
 import { z } from "zod"
+import { activityConfigurationSchema } from "@/lib/activity-configuration-schema"
 
 export type ShopEditorData = NonNullable<FunctionReturnType<typeof api.modules.shops.shops.getMyShop>>
 export type StorefrontData = NonNullable<FunctionReturnType<typeof api.modules.shops.shops.storefront>>
@@ -18,7 +19,7 @@ const text = (raw: string) => raw.normalize("NFC").replace(/\r\n?/g, "\n").repla
 const field = (max: number, t: TFunction, multiline = false) => z.string().refine((raw) => !invalidControls(raw), t("errors.shop_text_invalid")).transform(multiline ? text : line).refine((value) => value.length <= max, t("validation.max", { max }))
 
 export function startShopSchema(t: TFunction) {
-  return z.object({ model: z.enum(SHOP_MODELS), name: field(SHOP_FORM_LIMITS.nameMax, t), pageId: z.string() }).superRefine((value, context) => {
+  return z.object({ model: z.enum(SHOP_MODELS), activityConfiguration: activityConfigurationSchema.optional(), name: field(SHOP_FORM_LIMITS.nameMax, t), pageId: z.string() }).superRefine((value, context) => {
     if (!value.pageId && value.name.length < SHOP_FORM_LIMITS.nameMin) context.addIssue({ code: "custom", path: ["name"], message: t("errors.shop_name_length", { min: SHOP_FORM_LIMITS.nameMin, max: SHOP_FORM_LIMITS.nameMax }) })
   })
 }

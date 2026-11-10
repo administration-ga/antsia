@@ -1,0 +1,20 @@
+{
+  "title": "Profil professionnel",
+  "lead": "Compétences, réalisations et activités partagées volontairement dans ANTSIA.",
+  "voluntary": "Cette personne choisit les informations présentées ici. Ce profil est distinct des rencontres personnelles.",
+  "collaborate": "Proposer une collaboration",
+  "about": "Présentation",
+  "skills": "Compétences déclarées",
+  "declared": "Compétences déclarées par la personne. Consultez ses réalisations et échangez sur votre projet.",
+  "languages": "Langues",
+  "zone": "Zone d’activité",
+  "availability": "Disponibilité",
+  "availabilities": {
+    "available": "Ouvert aux propositions",
+    "limited": "Disponibilité limitée",
+    "unavailable": "Indisponible actuellement"
+  },
+  "portfolio": "Réalisations",
+  "activities": "Activités liées",
+  "mandates": "Seules les activités publiques dont le mandat de gestion est toujours valide sont présentées."
+}

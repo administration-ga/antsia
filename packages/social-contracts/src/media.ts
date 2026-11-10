@@ -5,9 +5,10 @@
  * l'écriture, il ne regarde pas les autres lecteurs).
  *
  * `url` est `null` tant que la garde des fichiers retient le média : l'écran
- * dit pourquoi (`withheld` : analyse en cours, ou bloqué) au lieu d'un lien mort.
+ * dit pourquoi (`withheld` : analyse en cours, analyse impossible, ou bloqué)
+ * au lieu d'un lien mort.
  */
-export type MediaWithheld = "fileScanPending" | "fileQuarantined"
+export type MediaWithheld = "fileScanPending" | "fileScanUnavailable" | "fileQuarantined"
 
 export type PostMediaDto = {
   url: string | null

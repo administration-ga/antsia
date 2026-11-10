@@ -54,7 +54,8 @@ export interface MessageAttachmentData {
  * L'état de service d'une pièce retenue, au vocabulaire de la politique de
  * fichiers du domaine : la garde du moteur rend `fileScanPending` pour un
  * fichier en analyse (ou inconnu d'elle) et `fileQuarantined` pour un fichier
- * bloqué (suspect, infecté, en échec d'analyse).
+ * bloqué (suspect ou infecté). `fileScanUnavailable` signale séparément un
+ * échec de l'analyse, sans affirmer que le fichier est dangereux.
  */
 function retenueDe(withheld: MediaWithheld | null | undefined): Exclude<ServiceState, "servable"> | null {
 	if (withheld === "fileScanPending") return "pending"
@@ -75,7 +76,7 @@ export function MessageAttachment({
 	// vide affiche l'icône de rupture du navigateur, qui ressemble à un bug de
 	// l'application. On tombe sur la ligne de fichier, qui dit au moins le nom —
 	// et POURQUOI l'URL manque quand la garde des fichiers le sait.
-	if (url === null) {
+	if (url === null || attachment.withheld != null) {
 		const retenue = retenueDe(attachment.withheld)
 		return (
 			<span className="msg-file" data-withheld={attachment.withheld ?? "none"}>
@@ -88,7 +89,9 @@ export function MessageAttachment({
 				)}
 				<span className="msg-pending-name">{filename}</span>
 				<span className="msg-file-meta">
-					{retenue === "blocked"
+					{attachment.withheld === "fileScanUnavailable"
+						? t("errors:fileScanUnavailable")
+						: retenue === "blocked"
 						? t("messageAttachment.blocked")
 						: retenue === "pending"
 							? t("messageAttachment.scanPending")

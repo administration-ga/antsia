@@ -176,3 +176,16 @@ export function groupCallJournal(rows: readonly CallHistoryRow[]): {
 		lastMissedAt: missed[0]?.at ?? null,
 	}
 }
+
+/** ADR-0036 : la famille d'une ligne — un appel de boutique ou de mise en relation est pro. */
+export type CallJournalFamily = "personnel" | "pro"
+
+export function callJournalFamilyOf(entry: Pick<JournalEntry, "commercialThreadId" | "contextualThreadId">): CallJournalFamily {
+	return entry.commercialThreadId !== undefined || entry.contextualThreadId !== undefined ? "pro" : "personnel"
+}
+
+/** Les lignes d'une famille ; sans famille demandée, le journal entier (messagerie unique). */
+export function journalOfFamily<E extends Pick<JournalEntry, "commercialThreadId" | "contextualThreadId">>(entries: readonly E[], family: CallJournalFamily | undefined): readonly E[] {
+	return family === undefined ? entries : entries.filter((entry) => callJournalFamilyOf(entry) === family)
+}
+

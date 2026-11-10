@@ -25,11 +25,13 @@ export {
   type ContextualThreadId,
 } from "./contextual-messaging-source"
 export type {
+  ContextualAnyObjectRefView,
   ContextualAppRuleDescriber,
   ContextualMessagesInjection,
   ContextualObjectRefView,
   ContextualThreadView,
 } from "./contextual-conversation-model"
+export { legacyContextualObjectRef } from "./contextual-conversation-model"
 export { contextualConversationKey, parseContextualConversationKey } from "./messagerie-dock"
 export { CONTEXTUAL_ROUTE_KIND, contextualThreadIdFromPath, conversationHref } from "./messagerie-routes"
 export { CONTEXTUAL_CONVERSATION_FILTER } from "./icom-views"

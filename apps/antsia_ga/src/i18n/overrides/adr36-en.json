@@ -1,0 +1,25 @@
+{
+  "messagerie": {
+    "icomViews": {
+      "title": "iCom"
+    },
+    "messagerieDock": {
+      "title": "iCom",
+      "floatingLabel": "iCom — detached window"
+    },
+    "messagerieListPage": {
+      "title": "iCom"
+    },
+    "icomPublicReminders": {
+      "intro": "Your chats stay private in iCom. These public posts open and are read on the network."
+    }
+  },
+  "reseau": {
+    "reseauDesktopIcomLink": {
+      "label": "iCom"
+    },
+    "reseauDestinations": {
+      "messages": "iCom"
+    }
+  }
+}

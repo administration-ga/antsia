@@ -25,6 +25,11 @@ steps:
       - NEXT_PUBLIC_POSTHOG_HOST=${_NEXT_PUBLIC_POSTHOG_HOST}
       - --build-arg
       - NEXT_PUBLIC_POSTHOG_EU_RELAY_ORIGIN=${_NEXT_PUBLIC_POSTHOG_EU_RELAY_ORIGIN}
+      # Origines facultatives de l’espace démo intégré d’ANTSIA.
+      - --build-arg
+      - NEXT_PUBLIC_DEMO_ENTRY_ENABLED=${_NEXT_PUBLIC_DEMO_ENTRY_ENABLED}
+      - --build-arg
+      - NEXT_PUBLIC_APP_BASE_PATH=${_NEXT_PUBLIC_APP_BASE_PATH}
       # Variables propres à diasporale_com : vides pour les autres applications
       # (le plan les passe toutes ; un ARG absent du Dockerfile est ignoré).
       - --build-arg

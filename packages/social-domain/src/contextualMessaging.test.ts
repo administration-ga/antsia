@@ -9,6 +9,8 @@ import { commercialIdempotencyKey, commercialText } from "./commercialContact"
 import {
   CONTEXTUAL_ATTACHMENTS_MAX,
   CONTEXTUAL_KINDS,
+  CONTEXTUAL_LEGACY_V1_KINDS,
+  CONTEXTUAL_SUPPORTED_KINDS,
   CONTEXTUAL_MODERATION_SURFACE,
   CONTEXTUAL_NOTIFICATION_KINDS,
   CONTEXTUAL_NOTIFICATION_SUBJECT,
@@ -67,12 +69,14 @@ const OPEN_SERVICE_SENT: ContextualCapabilityInput = {
 }
 
 describe("CC-1 — natures fermées et noms réservés", () => {
-  it("trois natures V1, ni plus ni moins, chacune avec sa colonne, sa table et son côté répondant", () => {
-    expect(CONTEXTUAL_KINDS).toEqual(["diasporaServiceRequest", "diasporaMentoring", "diasporaJobApplication"])
-    expect(CONTEXTUAL_REFERENCE_FIELDS).toEqual({ diasporaServiceRequest: "serviceRequestId", diasporaMentoring: "mentoringRequestId", diasporaJobApplication: "jobApplicationId" })
-    expect(CONTEXTUAL_REFERENCE_TABLES).toEqual({ diasporaServiceRequest: "serviceRequests", diasporaMentoring: "mentoringRequests", diasporaJobApplication: "jobApplications" })
-    expect(CONTEXTUAL_RESPONDER_KINDS).toEqual({ diasporaServiceRequest: "page", diasporaMentoring: "person", diasporaJobApplication: "page" })
-    expect(CONTEXTUAL_REFERENCE_FIELD_LIST).toEqual(["serviceRequestId", "mentoringRequestId", "jobApplicationId"])
+  it("préserve les trois natures V1 et ajoute la collaboration professionnelle dans chaque registre fermé", () => {
+    expect(CONTEXTUAL_LEGACY_V1_KINDS).toEqual(["diasporaServiceRequest", "diasporaMentoring", "diasporaJobApplication"])
+    expect(CONTEXTUAL_KINDS).toEqual(CONTEXTUAL_LEGACY_V1_KINDS)
+    expect(CONTEXTUAL_SUPPORTED_KINDS).toEqual([...CONTEXTUAL_LEGACY_V1_KINDS, "professionalCollaboration"])
+    expect(CONTEXTUAL_REFERENCE_FIELDS).toEqual({ diasporaServiceRequest: "serviceRequestId", diasporaMentoring: "mentoringRequestId", diasporaJobApplication: "jobApplicationId", professionalCollaboration: "professionalCollaborationId" })
+    expect(CONTEXTUAL_REFERENCE_TABLES).toEqual({ diasporaServiceRequest: "serviceRequests", diasporaMentoring: "mentoringRequests", diasporaJobApplication: "jobApplications", professionalCollaboration: "professionalCollaborations" })
+    expect(CONTEXTUAL_RESPONDER_KINDS).toEqual({ diasporaServiceRequest: "page", diasporaMentoring: "person", diasporaJobApplication: "page", professionalCollaboration: "person" })
+    expect(CONTEXTUAL_REFERENCE_FIELD_LIST).toEqual(["serviceRequestId", "mentoringRequestId", "jobApplicationId", "professionalCollaborationId"])
   })
 
   it("une nature réservée ou inconnue n'est jamais une nature V1 (N03)", () => {
@@ -83,7 +87,7 @@ describe("CC-1 — natures fermées et noms réservés", () => {
       expect(contextualKey(reserved, "abc123"), reserved).toBeNull()
     }
     for (const value of ["", "diaspora", "DiasporaMentoring", "toString", "__proto__", 42, null, undefined]) expect(isContextualKind(value), String(value)).toBe(false)
-    for (const kind of CONTEXTUAL_KINDS) expect(isContextualKind(kind)).toBe(true)
+    for (const kind of CONTEXTUAL_SUPPORTED_KINDS) expect(isContextualKind(kind)).toBe(true)
   })
 
   it("un fil porte EXACTEMENT la référence de sa nature", () => {
@@ -92,6 +96,9 @@ describe("CC-1 — natures fermées et noms réservés", () => {
     expect(contextualReferencesConsistent("diasporaServiceRequest", { serviceRequestId: "r1", jobApplicationId: "a1" })).toBe(false)
     expect(contextualReferencesConsistent("diasporaMentoring", { serviceRequestId: "r1" })).toBe(false)
     expect(contextualReferencesConsistent("diasporaJobApplication", { jobApplicationId: "" })).toBe(false)
+    expect(contextualReferencesConsistent("professionalCollaboration", { professionalCollaborationId: "c1" })).toBe(true)
+    expect(contextualReferencesConsistent("professionalCollaboration", { professionalCollaborationId: "c1", mentoringRequestId: "m1" })).toBe(false)
+    expect(contextualReferencesConsistent("diasporaMentoring", { mentoringRequestId: "m1", professionalCollaborationId: "c1" })).toBe(false)
   })
 
   it("la clé de contexte est « nature:identifiant », relue sans ambiguïté", () => {

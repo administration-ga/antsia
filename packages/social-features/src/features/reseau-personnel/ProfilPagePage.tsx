@@ -1,4 +1,4 @@
-// Réécrit d'après socle/packages/agent-features/src/features/reseau-personnel/ProfilPagePage.tsx @ ad2e7fdc2 — ce qui change : la fiche d'une page à IDENTITÉ PROPRE du moteur (nom, sigle, logo, bannière, description, nature, pays) lue par `pages.pages.getPage` dans le réseau courant, au lieu d'une page d'administration dérivée de son organisation ; badge CALCULÉ par le serveur (Officiel, Vérifié, Communauté) ; suivi par `follow`/`unfollow` du moteur, refus lu dans son CODE ; publier au nom de la page réservé au RÔLE VIVANT du lecteur (`viewer.role`) — le composeur partagé reçoit `asPage` ; mur par `pagePosts` (fenêtres chaînées, curseur composite du moteur, éléments rendus par `PostCard`) ; adresses par la table des routes injectée (retour au volet par `reseauAgentHref("pages", routes.home())`, mots-clés par `reseauAgentTagHref`, mentions vers le PROFIL d'une personne, jamais vers une page) ; panne de la fiche et du mur dite avec Réessayer ; textes traduits (clés `profilPagePage.…`, décisions dans `profil-page.ts`) ; ajouts : invitation à signer (accepter, décliner), revendication ou demande de vérification pièces à l'appui (`pages.claims.*`), gestion pour un administrateur vivant — identité (`pages.identity.updatePageIdentity`), logo et bannière par la garde des fichiers (`generatePageImageUploadUrl`, `setPageImage`), signataires (`pages.signatories.*`) ; props inchangés (`handle`). ; PA6 : dates et jours civils dans le fuseau personnel du lecteur (repli appareil). ; couleurs par fonction (ADR-0027) : « Suivre » et l'acceptation d'une invitation en variante `social`, Suivre neutre une fois la page suivie.
+// Réécrit d'après socle/packages/agent-features/src/features/reseau-personnel/ProfilPagePage.tsx @ ad2e7fdc2 — ce qui change : la fiche d'une page à IDENTITÉ PROPRE du moteur (nom, sigle, logo, bannière, description, nature, pays) lue par `pages.pages.getPage` dans le réseau courant, au lieu d'une page d'administration dérivée de son organisation ; badge CALCULÉ par le serveur (Officiel, Vérifié, Communauté) ; suivi par `follow`/`unfollow` du moteur, refus lu dans son CODE ; publier au nom de la page réservé au RÔLE VIVANT du lecteur (`viewer.role`) — le composeur partagé reçoit `asPage` ; mur par `pagePosts` (fenêtres chaînées, curseur composite du moteur, éléments rendus par `PostCard`) ; adresses par la table des routes injectée (retour au volet par `reseauAgentHref("pages", routes.home())`, mots-clés par `reseauAgentTagHref`, mentions vers le PROFIL d'une personne, jamais vers une page) ; panne de la fiche et du mur dite avec Réessayer ; textes traduits (clés `profilPagePage.…`, décisions dans `profil-page.ts`) ; ajouts : invitation à signer (accepter, décliner), revendication ou demande de vérification pièces à l'appui (`pages.claims.*`), gestion pour un administrateur vivant — identité (`pages.identity.updatePageIdentity`), logo et bannière par la garde des fichiers (`generatePageImageUploadUrl`, `setPageImage`), signataires (`pages.signatories.*`) ; props inchangés (`handle`). ; PA6 : dates et jours civils dans le fuseau personnel du lecteur (repli appareil). ; couleurs par fonction (ADR-0027) : « Suivre » et l'acceptation d'une invitation en variante `social`, Suivre neutre une fois la page suivie. ; prop facultative `commerce` (décision du propriétaire du 22/10/2026) : la présentation marchande que l'application pose sur la page qui vend — en-tête de boutique à la place de l'identité, offres en tête, rappels toutes les trois publications —, gestes de la page inchangés.
 "use client"
 
 /**
@@ -50,7 +50,7 @@ import {
 import { Alert, Badge, Button, Card, Field, Select, SkeletonCard, TextArea, TextInput } from "@antsia/ui"
 import { useMutation } from "convex/react"
 import type { FunctionReturnType } from "convex/server"
-import { useCallback, useEffect, useId, useState, type ChangeEvent, type CSSProperties, type FormEvent, type ReactNode } from "react"
+import { Fragment, useCallback, useEffect, useId, useState, type ChangeEvent, type CSSProperties, type FormEvent, type ReactNode } from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
@@ -120,13 +120,34 @@ const MUTED_TEXT_STYLE = { margin: 0, color: "var(--ink-600)", fontSize: 13, lin
 const STACK_STYLE = { display: "flex", flexDirection: "column", gap: 12 } as const
 const ACTIONS_STYLE = { display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" } as const
 
-export interface ProfilPagePageProps {
-  handle: string
+/**
+ * Ce qu'une application ajoute à la fiche d'une page qui VEND (ANTSIA : sa boutique, décision du propriétaire du
+ * 22/10/2026). Le moteur ne connaît pas la boutique : il pose ce que l'application lui donne, sans rien retirer
+ * des gestes de la page (gérer, revendiquer, accepter une invitation, publier en son nom, lire son mur).
+ *  - `shop` : la page se PRÉSENTE comme sa boutique. L'en-tête de l'application (`hero`) remplace l'identité ; il
+ *    porte le `h1` et l'abonnement. Les outils de la page (gérer, revendiquer) restent juste dessous ;
+ *  - `products` : l'identité de la page reste, ses produits viennent en tête.
+ * `lead` vient avant le mur ; `interleave(rang)` après chaque troisième publication du mur (rang 1, 2…).
+ */
+export interface PageCommerce {
+  presentation: "shop" | "products"
+  hero?: ReactNode
+  lead?: ReactNode
+  interleave?: (rank: number) => ReactNode
 }
 
-export function ProfilPagePage({ handle }: ProfilPagePageProps) {
+/** Publications du mur entre deux insertions de l'application (`PageCommerce.interleave`). */
+const WALL_INTERLEAVE_EVERY = 3
+
+export interface ProfilPagePageProps {
+  handle: string
+  /** Facultatif : la présentation marchande d'une page qui vend ; sans elle, la fiche est celle d'une page. */
+  commerce?: PageCommerce
+}
+
+export function ProfilPagePage({ handle, commerce }: ProfilPagePageProps) {
   const { t } = useTranslation("reseau")
-  const { networkId } = useNetwork()
+  const { networkId, personId } = useNetwork()
   const routes = useRoutes()
   const router = useRouter()
   const page = useAuthenticatedConvexQuery(api.modules.pages.pages.getPage, { networkId, handle })
@@ -179,11 +200,11 @@ export function ProfilPagePage({ handle }: ProfilPagePageProps) {
   }
 
   // Une autre page ⇒ un autre mur, un autre formulaire : tout l'état repart de zéro.
-  return <PageProfile key={page.data.pageId} page={page.data} />
+  return <PageProfile key={`${networkId}:${personId}:${page.data.pageId}`} page={page.data} commerce={commerce} />
 }
 
-/** La fiche chargée : identité, gestes, gestion, revendication, mur. */
-function PageProfile({ page }: { page: PageDto }) {
+/** La fiche chargée : identité (ou l'en-tête de boutique de l'application), gestes, gestion, revendication, mur. */
+function PageProfile({ page, commerce }: { page: PageDto; commerce?: PageCommerce }) {
   const { t, i18n } = useTranslation("reseau")
   const { networkId, liveAvailable } = useNetwork()
   const [conference, setConference] = useState(false)
@@ -205,6 +226,30 @@ function PageProfile({ page }: { page: PageDto }) {
   const badge = pageBadgeView(page.badge)
   const meta = [ownerKindLabel(page.ownerKind, t), ...(page.country === null ? [] : [countryName(page.country, i18n.language)])].join(" · ")
 
+  const shopHero = commerce?.presentation === "shop" && commerce.hero ? commerce.hero : null
+  // Gérer et revendiquer : sous l'identité de la page, ou sous l'en-tête de sa boutique.
+  const pageTools = (
+    <>
+      {canManage ? (
+        <Button
+          variant="secondary"
+          icon="settings"
+          aria-expanded={managing}
+          aria-controls={manageId}
+          style={RESEAU_SECONDARY_ACTION_STYLE}
+          onClick={() => setManaging((open) => !open)}
+        >
+          {t(managing ? "profilPagePage.manage.close" : "profilPagePage.manage.open")}
+        </Button>
+      ) : null}
+      {claimAction === "claim" ? (
+        <Button variant="ghost" icon="flag" aria-expanded={claiming} aria-controls={claimId} onClick={() => setClaiming((open) => !open)}>
+          {pageClaimTitle("claim", t)}
+        </Button>
+      ) : null}
+    </>
+  )
+
   const handleFollowToggle = async () => {
     setFollowPending(true)
     try {
@@ -224,6 +269,17 @@ function PageProfile({ page }: { page: PageDto }) {
 
   return (
     <ProfilFrame>
+      {shopHero ? (
+        <>
+          {shopHero}
+          {canManage || claimAction === "claim" || roleNote !== null ? (
+            <div style={STACK_STYLE}>
+              <div style={ACTIONS_STYLE}>{pageTools}</div>
+              {roleNote === null ? null : <p className="pp-self-note">{roleNote}</p>}
+            </div>
+          ) : null}
+        </>
+      ) : (
       <section className="pp-identity" aria-labelledby={nameId}>
         <div aria-hidden="true" className="pp-banner" style={bannerStyle(page.bannerUrl)} />
         <div className="pp-identity-body">
@@ -275,27 +331,12 @@ function PageProfile({ page }: { page: PageDto }) {
             >
               {pageFollowButtonLabel(following, t)}
             </Button>
-            {canManage ? (
-              <Button
-                variant="secondary"
-                icon="settings"
-                aria-expanded={managing}
-                aria-controls={manageId}
-                style={RESEAU_SECONDARY_ACTION_STYLE}
-                onClick={() => setManaging((open) => !open)}
-              >
-                {t(managing ? "profilPagePage.manage.close" : "profilPagePage.manage.open")}
-              </Button>
-            ) : null}
-            {claimAction === "claim" ? (
-              <Button variant="ghost" icon="flag" aria-expanded={claiming} aria-controls={claimId} onClick={() => setClaiming((open) => !open)}>
-                {pageClaimTitle("claim", t)}
-              </Button>
-            ) : null}
+            {pageTools}
           </div>
           {roleNote === null ? null : <p className="pp-self-note">{roleNote}</p>}
         </div>
       </section>
+      )}
 
       {/* Une invitation à signer ne concerne que qui n'a pas encore de rôle vivant ici. */}
       {role === null ? <PageInvitationBanner pageId={page.pageId} /> : null}
@@ -313,6 +354,9 @@ function PageProfile({ page }: { page: PageDto }) {
         </Card>
       ) : null}
 
+      {/* La présentation marchande de l'application (vitrine, ou « nos produits »), avant le mur. */}
+      {commerce?.lead ?? null}
+
       {/* En tête du mur, réservé à qui tient un rôle VIVANT sur la page — la
           QUESTION est relue ici pour l'affichage, la GARDE est refaite à
           l'écriture par `publishAsPage`. */}
@@ -320,7 +364,7 @@ function PageProfile({ page }: { page: PageDto }) {
       {conference && canPublish && liveAvailable && page.networkId === networkId ? <CreateDirectDialog key={`${networkId}:${page.pageId}`} asPage={{ pageId: page.pageId, name: page.name }} onClose={() => setConference(false)} /> : null}
       {canPublish ? <PostComposer asPage={{ pageId: page.pageId, displayName: page.name, avatarUrl: page.logoUrl }} /> : null}
 
-      <PageWall page={page} canPublish={canPublish} />
+      <PageWall page={page} canPublish={canPublish} interleave={commerce?.interleave} />
     </ProfilFrame>
   )
 }
@@ -342,7 +386,7 @@ function bannerStyle(url: string | null): CSSProperties {
  * `reseau-feed-pages.ts` pour ce qu'on a écarté (limite gonflée, défilement
  * infini) et pourquoi.
  */
-function PageWall({ page, canPublish }: { page: PageDto; canPublish: boolean }) {
+function PageWall({ page, canPublish, interleave }: { page: PageDto; canPublish: boolean; interleave?: (rank: number) => ReactNode }) {
   const { t } = useTranslation("reseau")
   const routes = useRoutes()
   const router = useRouter()
@@ -397,6 +441,7 @@ function PageWall({ page, canPublish }: { page: PageDto; canPublish: boolean }) 
           onTail={reportTail}
           onBoundaryShift={rebaseAfterPage}
           emptyFallback={<EmptyPageWall text={pageWallEmptyText(canPublish, t)} />}
+          interleave={interleave}
         />
       ))}
 
@@ -460,6 +505,7 @@ function PageWallWindow({
   onTail,
   onBoundaryShift,
   emptyFallback,
+  interleave,
 }: {
   handle: string
   cursor: PageWallCursor | null
@@ -472,6 +518,8 @@ function PageWallWindow({
   onTail: (pageKey: string, cursor: PageWallCursor | null) => void
   onBoundaryShift: (pageIndex: number, cursor: PageWallCursor | null) => void
   emptyFallback: ReactNode
+  /** Après chaque troisième publication de la fenêtre ; le rang continue d'une fenêtre à l'autre. */
+  interleave?: (rank: number) => ReactNode
 }) {
   const { t } = useTranslation("reseau")
   const { networkId } = useNetwork()
@@ -511,10 +559,14 @@ function PageWallWindow({
   if (wall.data === undefined) return <SkeletonCard />
   if (items.length === 0) return isFirst ? <>{emptyFallback}</> : null
 
+  const ranksBefore = pageIndex * Math.floor(PAGE_WALL_PAGE_SIZE / WALL_INTERLEAVE_EVERY)
   return (
     <>
-      {items.map((post) => (
-        <PostCard key={post._id} post={post} now={now} onTag={onTag} onMention={onMention} />
+      {items.map((post, index) => (
+        <Fragment key={post._id}>
+          <PostCard post={post} now={now} onTag={onTag} onMention={onMention} />
+          {interleave && (index + 1) % WALL_INTERLEAVE_EVERY === 0 ? interleave(ranksBefore + (index + 1) / WALL_INTERLEAVE_EVERY) : null}
+        </Fragment>
       ))}
     </>
   )

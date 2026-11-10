@@ -1,4 +1,14 @@
 {
+  "recovery": {
+    "offline": "You are offline. Your entries remain on this screen; nothing is sent.",
+    "reviewRequired": "Review conditions or availability before giving new consent.",
+    "review": "Review conditions",
+    "uncertain": "An intention has already been submitted. Look up its result before starting again; no private content is kept in the recovery index.",
+    "lookup": "Look up the submitted request",
+    "stopHint": "No matching request was found. First close this key on the server. An existing request will be opened, never cancelled by this choice.",
+    "stop": "Close this intention before starting again",
+    "storageUnavailable": "The recovery key cannot be saved in this tab. No new request can be sent. Open My requests."
+  },
   "common": {
     "loading": "Loading…",
     "unavailable": "This service is not available right now. Nothing was sent on your behalf.",
@@ -100,7 +110,17 @@
     "refused": "This order cannot be sent. The price or the offer may have changed.",
     "panel": "Order",
     "noOrder": "No order has been opened for this request yet.",
-    "priceChanged": "The price has changed: {{amount}} per unit. Review it and give a new agreement to order."
+    "priceChanged": "The price has changed: {{amount}} per unit. Review it and give a new agreement to order.",
+    "publishedConditions": "Published package conditions",
+    "conditionsLoading": "Reading published conditions…",
+    "publicRevision": "Public version {{version}}",
+    "rereadConditions": "Read package conditions again",
+    "conditions": {
+      "unavailable": "The published offer or its arrangements are unavailable. Read the conditions again before confirming.",
+      "unqualified": "This offer does not yet publish a qualified package with deliverables. The provider must complete legacy profiles before an order can be placed from this screen.",
+      "mismatch": "The published version, price or lead time differs from the proposed arrangements. Read them again to confirm the same version."
+    },
+    "noPublishedLeadTime": "This version does not specify a lead time."
   },
   "contact": {
     "legend": "Name given to the professional (optional)",
@@ -114,7 +134,8 @@
     "booking": "I request this time slot from this professional. It may be held for a limited time while awaiting confirmation. No payment is triggered.",
     "bookingChange": "I request a different time slot. My current appointment is kept if the new slot cannot be obtained.",
     "bookingCancel": "I cancel this appointment. The slot is released for other clients.",
-    "serviceOrder": "I order this service at the price shown. The professional confirms my order; no payment is triggered."
+    "serviceOrder": "I order this service at the price shown. The professional confirms my order; no payment is triggered.",
+    "quoteRejection": "I confirm that I decline this quote in the displayed version. The provider will receive this decision; no order will be created."
   },
   "slots": {
     "title": "Free time slots",
@@ -185,7 +206,14 @@
     "orderOpened": "An order has been opened with the professional.",
     "noOrderYet": "No order has been opened by this acceptance yet.",
     "expired": "This quote has expired: ask the professional for a new proposal.",
-    "notAcceptable": "This version cannot be accepted online."
+    "notAcceptable": "This version cannot be accepted online.",
+    "reloadDetail": "Read this version again",
+    "rejectTitle": "Decline the quote",
+    "rejectRecap": "You are declining quote {{reference}}, version {{version}}.",
+    "reject": "Decline this version",
+    "rejectRefused": "This quote cannot be declined: it may have expired, been withdrawn, revised or already decided. Read it again before trying a new decision.",
+    "rejectedNow": "The provider has recorded your decision to decline the quote.",
+    "rejectedProof": "Declined by you: version {{version}}, on {{date}}."
   },
   "requests": {
     "title": "My requests",
@@ -254,7 +282,8 @@
     "booking": "appointment request",
     "reschedule": "time slot change",
     "cancel": "cancellation",
-    "order": "service order"
+    "order": "service order",
+    "quote_reject": "quote declined by you"
   },
   "commandStates": {
     "unknown": "Result still unknown.",
@@ -329,7 +358,8 @@
     "abandoned": "The request received no follow-up and was closed.",
     "inactive": "The request, without news for a long time, was closed.",
     "erasure_requested": "Interrupted by your data erasure request.",
-    "other": "The professional refused this action."
+    "other": "The professional refused this action.",
+    "not_rejectable": "This quote cannot be declined in its current state. Refresh it before deciding."
   },
   "validation": {
     "text": "This text contains an unsupported character.",

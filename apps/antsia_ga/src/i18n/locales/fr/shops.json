@@ -1,4 +1,21 @@
 {
+  "variantSelection": {
+    "price": "Prix de cette sélection",
+    "unavailableOption": "indisponible pour ce choix",
+    "indicative": "Disponibilité indicative, à confirmer lors de la préparation avec la boutique.",
+    "states": {
+      "incomplete": "Choisissez toutes les options pour connaître le prix exact.",
+      "unavailable": "Cette sélection n’est plus disponible. Choisissez une autre option.",
+      "ambiguous": "Cette combinaison ne permet pas d’identifier une variante unique.",
+      "notPurchasable": "Cette offre ne peut pas être ajoutée au panier avec ses options actuelles."
+    }
+  },
+  "publicActions": {
+    "chooseOptions": "Choisir mes options",
+    "signInNotice": "La connexion conserve votre sélection. Aucun article n’est ajouté et aucune commande n’est envoyée automatiquement.",
+    "memberNotice": "Retrouvez votre sélection dans l’espace membre, puis décidez de l’ajouter au panier.",
+    "demoNotice": "Offre fictive de démonstration : consultation et partage uniquement, sans panier ni achat."
+  },
   "contact": {
     "ask": "Poser une question",
     "person": "Membre ANTSIA",
@@ -30,10 +47,10 @@
     "reportRecorded": "Le signalement a été transmis à la modération.",
     "states": {
       "requested": "Demande en attente",
-      "accepted": "Conversation acceptée",
+      "accepted": "Discussion acceptée",
       "declined": "Demande refusée",
       "blocked": "Échanges bloqués",
-      "closed": "Conversation close"
+      "closed": "Discussion close"
     },
     "stateHelp": {
       "requested": "Votre premier texte constitue une demande. Les échanges, pièces jointes et appels restent fermés jusqu’à son acceptation par la boutique.",
@@ -77,7 +94,7 @@
       "myRequests": "Mes demandes"
     },
     "calls": {
-      "origin": "Conversation avec une boutique",
+      "origin": "Discussion avec une boutique",
       "consent": "J’accepte les appels audio et vidéo dans cette conversation.",
       "help": "Cet accord est personnel et révocable. L’autre partie doit aussi accepter ; sa disponibilité et ses préférences sont vérifiées au démarrage.",
       "respondent": "Personne à appeler dans la boutique",
@@ -162,6 +179,8 @@
     "backToCatalog": "Revenir au catalogue",
     "openOffer": "Consulter l’offre",
     "openOfferNamed": "Consulter {{title}}",
+    "offerPhotos": "Photos de l’offre",
+    "openOfferPhoto": "Consulter {{title}}, photo {{index}}",
     "soldBy": "Proposé par @{{handle}}",
     "attachedOffer": "Offre associée à cette publication",
     "search": "Rechercher dans le catalogue",
@@ -240,7 +259,206 @@
       "nextOffers": "Offres suivantes",
       "previousPosts": "Publications précédentes",
       "nextPosts": "Publications suivantes"
-    }
+    },
+    "facets": {
+      "title": "Détails de l’offre",
+      "categories": {
+        "fashion": {
+          "label": "Mode",
+          "women": {
+            "label": "Femmes",
+            "clothing": {
+              "label": "Vêtements"
+            },
+            "shoes": {
+              "label": "Chaussures"
+            },
+            "bags": {
+              "label": "Sacs"
+            }
+          },
+          "men": {
+            "label": "Hommes",
+            "clothing": {
+              "label": "Vêtements"
+            },
+            "shoes": {
+              "label": "Chaussures"
+            },
+            "bags": {
+              "label": "Sacs"
+            }
+          },
+          "kids": {
+            "label": "Enfants",
+            "clothing": {
+              "label": "Vêtements"
+            },
+            "shoes": {
+              "label": "Chaussures"
+            },
+            "bags": {
+              "label": "Sacs"
+            }
+          },
+          "accessories": {
+            "label": "Accessoires",
+            "bags": {
+              "label": "Sacs"
+            },
+            "jewelry": {
+              "label": "Bijoux"
+            }
+          }
+        },
+        "food": {
+          "label": "Alimentation",
+          "groceries": {
+            "label": "Épicerie"
+          },
+          "beverages": {
+            "label": "Boissons"
+          },
+          "prepared": {
+            "label": "Plats préparés"
+          }
+        },
+        "craft": {
+          "label": "Artisanat",
+          "home": {
+            "label": "Maison"
+          },
+          "bags": {
+            "label": "Sacs"
+          },
+          "accessories": {
+            "label": "Accessoires"
+          }
+        },
+        "electronics": {
+          "label": "Électronique",
+          "computers": {
+            "label": "Ordinateurs"
+          },
+          "phones": {
+            "label": "Téléphones"
+          },
+          "accessories": {
+            "label": "Accessoires"
+          }
+        },
+        "beauty": {
+          "label": "Beauté",
+          "care": {
+            "label": "Soins"
+          },
+          "fragrance": {
+            "label": "Parfums"
+          }
+        },
+        "home": {
+          "label": "Maison",
+          "decor": {
+            "label": "Décoration"
+          },
+          "equipment": {
+            "label": "Équipement"
+          }
+        },
+        "services": {
+          "label": "Services",
+          "digital": {
+            "label": "Informatique et numérique"
+          },
+          "creative": {
+            "label": "Création et image"
+          },
+          "home": {
+            "label": "Services à domicile"
+          },
+          "wellness": {
+            "label": "Bien-être"
+          },
+          "events": {
+            "label": "Événementiel"
+          },
+          "consulting": {
+            "label": "Conseil et expertise"
+          }
+        }
+      },
+      "attributes": {
+        "brand": "Marque",
+        "material": "Matière",
+        "color": "Couleur",
+        "audience": "Pour qui",
+        "serviceMode": "Mode de prestation",
+        "durationMinutes": "Durée",
+        "ecoLabel": "Mention écologique déclarée"
+      },
+      "choices": {
+        "audience": {
+          "women": "Femmes",
+          "men": "Hommes",
+          "kids": "Enfants",
+          "unisex": "Mixte"
+        },
+        "serviceMode": {
+          "onsite": "Sur place",
+          "remote": "À distance",
+          "hybrid": "Sur place ou à distance"
+        }
+      },
+      "declaredYes": "Oui, déclaré par le vendeur",
+      "declaredNo": "Non, déclaré par le vendeur",
+      "minutes": "{{count}} min"
+    },
+    "filters": {
+      "title": "Filtrer et trier",
+      "open": "Rechercher et filtrer",
+      "active": "Filtres actifs",
+      "query": "Que cherchez-vous ?",
+      "queryHint": "120 caractères et 16 mots au maximum.",
+      "categories": "Rayons et catégories",
+      "brand": "Marques",
+      "material": "Matières",
+      "color": "Couleurs",
+      "audience": "Pour qui",
+      "serviceMode": "Mode de prestation",
+      "add": "Ajouter",
+      "addValue": "Ajouter une valeur à {{facet}}",
+      "remove": "Retirer {{value}}",
+      "multipleHint": "Jusqu’à 6 valeurs par filtre. Un résultat peut correspondre à l’une de ces valeurs.",
+      "minPrice": "Prix minimum (XAF)",
+      "maxPrice": "Prix maximum (XAF)",
+      "priceHint": "Prix affichés indicatifs ; les offres sur devis restent qualifiées.",
+      "sort": "Trier",
+      "apply": "Voir les résultats",
+      "reset": "Tout réinitialiser",
+      "invalid": "Vérifiez les filtres : catégories, prix et valeurs doivent être compatibles.",
+      "queryInvalid": "Saisissez une recherche de 120 caractères et 16 mots au maximum.",
+      "facetInvalid": "Ajoutez jusqu’à 6 valeurs distinctes de 80 caractères maximum.",
+      "priceInvalid": "Saisissez un montant entier positif ou nul."
+    },
+    "sorts": {
+      "newest": "Nouveautés",
+      "price_asc": "Prix croissant",
+      "price_desc": "Prix décroissant",
+      "relevance": "Pertinence"
+    },
+    "indexBuilding": "Le catalogue est en cours d’indexation. Les offres héritées restent consultables sans filtre ; les filtres seront disponibles après cette mise à jour.",
+    "card": {
+      "outOfStock": "Indisponible pour le moment"
+    },
+    "layout": {
+      "label": "Présentation des offres",
+      "grid": "Afficher en grille",
+      "list": "Afficher en lignes"
+    },
+    "seeCollection": "Voir la collection",
+    "sameShop": "Dans la même boutique",
+    "choosePhoto": "Choisir une photo",
+    "showPhoto": "Afficher la photo {{index}}"
   },
   "link": {
     "title": "Mon activité PRO.GA",
@@ -305,7 +523,9 @@
     "empty": "Vous n’avez pas encore préparé de boutique.",
     "untitled": "Activité en préparation",
     "manage": "Préparer et gérer",
-    "truncated": "Cette liste peut être incomplète. Certaines activités que vous gérez peuvent ne pas apparaître."
+    "truncated": "Cette liste peut être incomplète. Certaines activités que vous gérez peuvent ne pas apparaître.",
+    "viewPage": "Voir ma page",
+    "clients": "Mes clients"
   },
   "start": {
     "title": "Préparer une boutique",
@@ -362,6 +582,23 @@
     "serviceArea": "Zone de service",
     "hours": "Horaires"
   },
+  "images": {
+    "guideTitle": "Préparer des images carrées",
+    "guideLead": "Les photos remplissent leur cadre par recadrage, sans déformation ni bandes ajoutées. Vérifiez que le sujet reste visible au centre.",
+    "guideSquare": "Préparez une image carrée, idéalement 1 200 × 1 200 pixels ou plus, nette et bien éclairée.",
+    "guideSubject": "Gardez le produit ou le logo au centre, avec un peu de recul pour ne pas couper ses détails.",
+    "guideEdges": "Évitez les bandes noires, les cadres et les textes au bord du fichier. Préférez la photo originale à une capture d’écran.",
+    "productSource": "Pour vos produits, préparez ces photos dans PRO.GA avant de publier ou de synchroniser le catalogue. Le cadrage d’affichage ne modifie pas les fichiers de votre catalogue.",
+    "cropTitle": "Cadrer mon logo",
+    "cropHint": "Le carré montre le résultat qui sera enregistré. Déplacez l’image ou zoomez pour garder l’essentiel ; le recadrage se fait sur votre appareil.",
+    "horizontal": "Position horizontale",
+    "vertical": "Position verticale",
+    "zoom": "Zoom",
+    "reset": "Recentrer l’image",
+    "invalid": "Cette image ne peut pas être préparée. Choisissez une photo JPEG, PNG ou WebP lisible, de 40 mégapixels maximum.",
+    "previewAlt": "Aperçu carré du logo choisi",
+    "cancel": "Annuler le choix"
+  },
   "presentation": {
     "lead": "Décrivez votre activité à votre rythme. Votre nom commercial garde sa propre écriture.",
     "pageIdentity": "Le nom, la description et le logo sont aussi ceux de votre page sociale.",
@@ -380,7 +617,10 @@
     "draft": "Cet aperçu montre les champs du brouillon, y compris vos modifications non enregistrées. Le logo est celui actuellement enregistré. Il ne publie rien.",
     "width": "Largeur de l’aperçu",
     "phone": "Téléphone",
-    "desktop": "Ordinateur"
+    "desktop": "Ordinateur",
+    "tablet": "Tablette",
+    "blocks": "Ordre des blocs",
+    "blocksHint": "Les blocs commerciaux apparaissent avec des offres accessibles reçues de PRO.GA."
   },
   "offers": {
     "products": "Présentez les produits publiés depuis votre activité dans PRO.GA.",
@@ -434,7 +674,10 @@
     "request": "Demander la publication",
     "cancelRequest": "Annuler ma demande",
     "withdraw": "Retirer la vitrine",
-    "withdrawConfirm": "Retirer cette vitrine de la découverte et de la lecture publique ? Votre présentation sera conservée."
+    "withdrawConfirm": "Retirer cette vitrine de la découverte et de la lecture publique ? Votre présentation sera conservée.",
+    "newConsent": "Cette case donne un nouvel accord pour la version et la portée affichées. L’accord déjà enregistré reste indiqué ci-dessous. Enregistrer sans nouvel accord ferme l’accès sans compte.",
+    "consentChanged": "La version ou la portée a changé. Relisez les informations et cochez à nouveau la case pour donner un nouvel accord.",
+    "withdrawPublicConsent": "Retirer l’accord de diffusion publique"
   },
   "directory": {
     "title": "Les boutiques",
@@ -460,7 +703,9 @@
     "manage": "Gérer mes boutiques",
     "publicVersion": "Voir la version sans compte",
     "publicationsHint": "Retrouvez les publications réelles de cette activité sur sa page sociale.",
-    "socialPage": "Ouvrir la page sociale"
+    "socialPage": "Ouvrir la page sociale",
+    "viewNamed": "Ouvrir la boutique {{name}}",
+    "facts": "Ce que la boutique déclare"
   },
   "badges": {
     "official": "Officiel",
@@ -494,5 +739,74 @@
     "shop_consent_outdated": "Le texte de consentement a changé. Relisez-le avant de confirmer votre choix.",
     "shop_owner_inactive": "La gestion de cette boutique n’est plus disponible avec votre accès.",
     "shop_handle_unavailable": "L’adresse commerciale n’a pas pu être attribuée. Réessayez plus tard."
+  },
+  "pageShop": {
+    "products": "Nos produits",
+    "offers": "Nos offres",
+    "seeShop": "Voir la boutique",
+    "inShop": "Dans la boutique"
+  },
+  "storefrontTerms": {
+    "title": "Conditions de la boutique",
+    "declared": "Informations déclarées par le vendeur. Les conditions applicables et les frais seront confirmés avant tout accord.",
+    "pickup": "Retrait",
+    "delivery": "Livraison",
+    "fees": "Autres frais",
+    "returns": "Retours",
+    "warranty": "Garantie",
+    "unknown": "Non renseigné",
+    "leadTime_one": "Délai indicatif : {{count}} jour",
+    "leadTime_other": "Délai indicatif : {{count}} jours",
+    "updated": "Conditions publiées le {{date}}"
+  },
+  "postFormula": {
+    "actions": {
+      "book": "Réserver",
+      "quote": "Obtenir un devis",
+      "order": "Commander",
+      "orderProduct": "Commander",
+      "buy": "Acheter",
+      "view": "Voir l’offre"
+    },
+    "models": "Modèles de {{title}}",
+    "actionLabel": "{{action}} : {{title}}"
+  },
+  "nav": {
+    "myShop": "Ma boutique"
+  },
+  "food": {
+    "namedMenu": "Le menu de {{name}}",
+    "backToMenu": "Revenir au menu",
+    "menu": "Menu",
+    "seeMenu": "Voir le menu",
+    "hours": "Horaires",
+    "todaysSpecial": "Plat du jour"
+  },
+  "dailySpecial": {
+    "title": "Plat du jour",
+    "story": {
+      "title": "Le partager dans les Stories",
+      "lead": "Publiez ce plat dans vos Stories de ce réseau, avec un lien vers sa fiche. Il disparaît à minuit à Libreville, ou si vous retirez le plat du jour.",
+      "share": "Partager dans les Stories",
+      "shareNamed": "Partager le plat « {{title}} » dans les Stories",
+      "open": "Ouvrir les Stories",
+      "created": "Story publiée jusqu’à minuit à Libreville.",
+      "existing": "Ce plat est déjà présent dans vos Stories pour cette désignation.",
+      "unavailable": "Le plat et une photo doivent être visibles dans le menu pour pouvoir le partager."
+    },
+    "lead": "Choisissez un produit de votre menu : il est annoncé aujourd’hui sur votre vitrine et dans l’univers « Alimentation et restauration », jusqu’à minuit.",
+    "label": "Produit du menu",
+    "choose": "Choisir un produit du menu",
+    "set": "Annoncer aujourd’hui",
+    "clear": "Retirer le plat du jour",
+    "current": "Aujourd’hui : {{title}}",
+    "currentUnavailable": "Le plat annoncé aujourd’hui n’est plus lisible dans votre menu.",
+    "none": "Aucun plat du jour n’est annoncé aujourd’hui.",
+    "emptyMenu": "Votre menu n’a pas encore de produit : il arrive par la liaison avec PRO.GA.",
+    "saved": "Plat du jour annoncé.",
+    "cleared": "Plat du jour retiré.",
+    "pages": "Pages du menu",
+    "previous": "Produits précédents",
+    "next": "Produits suivants"
   }
 }

@@ -33,6 +33,24 @@ function openDialog(onSubmit: (reason: ReportReason, note: string) => Promise<vo
 }
 
 describe("ReportContentDialog (P18b, A03)", () => {
+  it.each(["professionalProfile", "professionalCollaboration"] as const)("signale %s sans demander une précision absente du port", async kind => {
+    const onSubmit = vi.fn().mockResolvedValue(undefined)
+    renderWithEngine(<ReportContentDialog kind={kind} allowNote={false} onClose={() => {}} onSubmit={onSubmit} />)
+    expect(screen.queryByRole("textbox")).toBeNull()
+    expect(screen.getByRole("dialog")).toHaveAccessibleName(kind === "professionalProfile" ? "Signaler ce profil professionnel" : "Signaler cette demande de collaboration")
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Transmettre" })) })
+    expect(onSubmit).toHaveBeenCalledWith("harassment", "")
+  })
+
+  it.each(["editorialVersion", "editorialMedia"] as const)("signale %s sans demander de précision non transmise", async kind => {
+    const onSubmit = vi.fn().mockResolvedValue(undefined)
+    renderWithEngine(<ReportContentDialog kind={kind} allowNote={false} onClose={() => {}} onSubmit={onSubmit} />)
+    expect(screen.getByRole("dialog")).toHaveAccessibleName(kind === "editorialVersion" ? "Signaler cet article" : "Signaler ce média")
+    expect(screen.queryByRole("textbox")).toBeNull()
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Transmettre" })) })
+    expect(onSubmit).toHaveBeenCalledWith("harassment", "")
+  })
+
   it("porte le focus sur le motif, rend la page inerte, puis Échap ferme et rend le focus au déclencheur", () => {
     const { trigger, dialog } = openDialog()
 

@@ -96,6 +96,12 @@ const PRESENTATION_CSS = `
         background: var(--ink-150);
         color: var(--ink-600);
       }
+      /* Présentation « charte » (ADR-0028) : le média est POSÉ dans la carte,
+         à l'angle des photos du système (16 px), plus petit que celui de la
+         carte (24 px). */
+      .rpm-m[data-inset] .rpm-m-frame {
+        border-radius: var(--esp-media-radius, var(--radius-lg));
+      }
       .rpm-m-frame[data-kind="video"] {
         background: var(--esp-immersive-ink);
         color: var(--esp-immersive-on-ink);
@@ -353,21 +359,35 @@ function MediaImage({ item, onRatio, onFailed, className = "rpm-m-media" }: { it
   )
 }
 
-export function PostMediaPresentation({ media, bleed }: { media: readonly PostMediaDto[]; bleed: MediaBleed | null }) {
+/**
+ * `primary` : les médias de la publication ELLE-MÊME (coordination vidéo,
+ * mémoire de la galerie), jamais ceux d'une publication citée — par défaut,
+ * ceux qui traversent la carte bord à bord. `inset` : posés dans la carte, à
+ * l'angle des photos (présentation « charte », ADR-0028).
+ */
+export interface MediaPlacement {
+  bleed: MediaBleed | null
+  primary: boolean
+  inset: boolean
+}
+
+export function PostMediaPresentation({ media, bleed, primary = bleed !== null, inset = false }: { media: readonly PostMediaDto[]; bleed: MediaBleed | null; primary?: boolean; inset?: boolean }) {
+  const placement: MediaPlacement = { bleed, primary, inset }
   // Le DTO n'expose pas d'identifiant de stockage. Son contenu suffit à
   // délimiter l'état de présentation : index, erreurs et visionneuse ne
   // passent jamais d'une série de médias à une autre de même longueur.
   const mediaKey = JSON.stringify(media)
   const video = media.find((item) => item.kind === "video")
-  if (video) return <MediaVideo key={mediaKey} item={video} bleed={bleed} />
+  if (video) return <MediaVideo key={mediaKey} item={video} placement={placement} />
   const images = media.filter((item) => item.kind === "image")
   if (images.length === 0) return null
-  if (images.length === 1) return <MediaSingleImage key={mediaKey} item={images[0]!} bleed={bleed} />
-  return <MediaGallery key={mediaKey} images={images} bleed={bleed} />
+  if (images.length === 1) return <MediaSingleImage key={mediaKey} item={images[0]!} placement={placement} />
+  return <MediaGallery key={mediaKey} images={images} placement={placement} />
 }
 
 /** Une vidéo seule (règle du domaine) : en ligne, commandes natives, jamais lue d'elle-même. */
-function MediaVideo({ item, bleed }: { item: PostMediaDto; bleed: MediaBleed | null }) {
+function MediaVideo({ item, placement }: { item: PostMediaDto; placement: MediaPlacement }) {
+  const { bleed } = placement
   const { t } = useTranslation("reseau")
   const [measured, setMeasured] = useState<number | null>(null)
   const [failed, setFailed] = useState(false)
@@ -382,10 +402,10 @@ function MediaVideo({ item, bleed }: { item: PostMediaDto; bleed: MediaBleed | n
   }, [item.url])
   const ratio = frameRatioFor("video", measured ?? declaredRatio(item))
   // P04 : `null` sans coordinateur monté — alors rien ne change ci-dessous.
-  // `primary` : la vidéo de la publication (bord à bord), jamais celle d'une citation.
-  const playback = useCoordinatedVideo(ref, { enabled: servable, primary: bleed !== null })
+  // `primary` : la vidéo de la publication (bord à bord ou posée), jamais celle d'une citation.
+  const playback = useCoordinatedVideo(ref, { enabled: servable, primary: placement.primary })
   return (
-    <div className="rpm-m" style={bleed ?? undefined}>
+    <div className="rpm-m" style={bleed ?? undefined} data-inset={placement.inset ? "" : undefined}>
       <PresentationStyles />
       <MediaFrame kind="video" ratio={ratio} square={bleed !== null}>
         {servable ? (
@@ -413,14 +433,15 @@ function MediaVideo({ item, bleed }: { item: PostMediaDto; bleed: MediaBleed | n
 }
 
 /** Une photo seule : son cadre, et l'original entier dans la visionneuse. */
-function MediaSingleImage({ item, bleed }: { item: PostMediaDto; bleed: MediaBleed | null }) {
+function MediaSingleImage({ item, placement }: { item: PostMediaDto; placement: MediaPlacement }) {
+  const { bleed } = placement
   const { t } = useTranslation("reseau")
   const [measured, setMeasured] = useState<number | null>(null)
   const [failed, setFailed] = useState(false)
   const [viewerOpen, setViewerOpen] = useState(false)
   const ratio = frameRatioFor("image", measured ?? declaredRatio(item))
   return (
-    <div className="rpm-m" style={bleed ?? undefined}>
+    <div className="rpm-m" style={bleed ?? undefined} data-inset={placement.inset ? "" : undefined}>
       <PresentationStyles />
       <MediaFrame kind="image" ratio={ratio} square={bleed !== null}>
         {!isServable(item) ? (
@@ -442,13 +463,14 @@ function MediaSingleImage({ item, bleed }: { item: PostMediaDto; bleed: MediaBle
 }
 
 /** Deux à quatre photos : une à la fois, index, flèches, points, clavier, visionneuse. */
-function MediaGallery({ images, bleed }: { images: readonly PostMediaDto[]; bleed: MediaBleed | null }) {
+function MediaGallery({ images, placement }: { images: readonly PostMediaDto[]; placement: MediaPlacement }) {
+  const { bleed } = placement
   const { t } = useTranslation("reseau")
   const trackRef = useRef<HTMLDivElement>(null)
   // P04 : la mémoire de retour de la publication — seulement pour ses propres
-  // médias (bord à bord), jamais pour la galerie d'une publication citée.
+  // médias (bord à bord ou posés), jamais pour la galerie d'une publication citée.
   const postMemory = useOptionalFeedPostMemory()
-  const memory = bleed !== null ? postMemory : null
+  const memory = placement.primary ? postMemory : null
   const [activeIndex, setActiveIndex] = useState(() => memory?.initialGalleryIndex ?? 0)
   const [measuredFirst, setMeasuredFirst] = useState<number | null>(null)
   const [failed, setFailed] = useState<ReadonlySet<number>>(() => new Set())
@@ -509,7 +531,7 @@ function MediaGallery({ images, bleed }: { images: readonly PostMediaDto[]; blee
   const ratio = galleryFrameRatio(images, measuredFirst)
 
   return (
-    <div className="rpm-m" style={bleed ?? undefined}>
+    <div className="rpm-m" style={bleed ?? undefined} data-inset={placement.inset ? "" : undefined}>
       <PresentationStyles />
       <MediaFrame kind="image" ratio={ratio} square={bleed !== null}>
         <div

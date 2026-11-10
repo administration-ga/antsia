@@ -6,8 +6,25 @@
       "scheduled": "Évènement prévu",
       "cancelled": "Évènement annulé",
       "timeZone": "Heures affichées dans votre fuseau : {{timeZone}}",
-      "participation": "Votre réponse enregistrée : {{response}}"
+      "participation": "Votre réponse enregistrée : {{response}}",
+      "participate": "Participer",
+      "participateLabel": "Participer : {{title}}",
+      "later": "Plus tard",
+      "laterLabel": "Plus tard : {{title}}",
+      "laterNote": "Vous pourrez répondre depuis votre agenda.",
+      "participated": "Vous participez à {{title}}.",
+      "participateFailed": "Votre réponse n'a pas pu être enregistrée."
     }
+  },
+  "feedSuggestion": {
+    "label": "Personne à découvrir : {{name}}",
+    "profileOf": "Profil de {{name}}",
+    "follow": "Suivre",
+    "followLabel": "Suivre {{name}}",
+    "write": "Écrire",
+    "writeLabel": "Écrire à {{name}}",
+    "followed": "Vous suivez {{name}}.",
+    "followFailed": "Le suivi n'a pas pu être enregistré."
   },
   "feedPages": {
     "errorTitle": "Fil indisponible",
@@ -118,6 +135,10 @@
       "conference": {
         "label": "Conférence",
         "description": "Préparer un direct dans ce réseau."
+      },
+      "activite": {
+        "label": "Mon activité",
+        "description": "Créer ou gérer votre boutique et vos prestations."
       }
     }
   },
@@ -137,15 +158,26 @@
   "reportContentDialog": {
     "title": {
       "publication": "Signaler cette publication",
-      "commentaire": "Signaler ce commentaire"
+      "commentaire": "Signaler ce commentaire",
+      "professionalProfile": "Signaler ce profil professionnel",
+      "professionalCollaboration": "Signaler cette demande de collaboration",
+      "editorialVersion": "Signaler cet article",
+      "editorialMedia": "Signaler ce média"
     },
     "description": "La plateforme instruit le signalement. L’auteur ne connaît pas votre identité.",
+    "followUp": "Vous recevrez un accusé de réception, puis la décision, dans vos notifications et dans « Mes données et mes recours ».",
     "reasonLabel": "Motif",
     "reasons": {
-      "harassment": "Harcèlement ou intimidation",
+      "harassment": "Harcèlement, cyberharcèlement ou intimidation",
+      "minor_harm": "Contenu préjudiciable impliquant un mineur",
       "hate": "Haine ou discrimination",
       "violence": "Violence ou menace",
       "sexual_content": "Contenu sexuel inapproprié",
+      "deepfake_of_me": "Hypertrucage qui me représente sans mon accord",
+      "prohibited_ai_content": "Contenu d'IA interdit (hypertrucage sexuel, faux propos…)",
+      "institution_impersonation": "Imitation d'une institution de l'État",
+      "impersonation": "Usurpation d'identité",
+      "privacy_or_honor": "Atteinte à la vie privée ou à l'honneur",
       "misinformation": "Information trompeuse",
       "other": "Autre motif"
     },
@@ -221,7 +253,8 @@
       "withdrawn": "La publication a été retirée de la lecture sans compte.",
       "withdrawFailed": "Le retrait de la lecture publique n’a pas pu être enregistré.",
       "availableOnRoot": "Lisible aussi dans {{brand}}."
-    }
+    },
+    "pageKind": "Page"
   },
   "sharePostDialog": {
     "title": "Partager la publication de {{name}}",
@@ -286,7 +319,8 @@
       "publishFailed": "Le commentaire n'a pas pu être publié.",
       "removeFailed": "Le retrait n'a pas pu être enregistré.",
       "editFailed": "La modification n'a pas pu être enregistrée."
-    }
+    },
+    "closed": "Les nouveaux commentaires sont fermés. Les échanges déjà publiés restent consultables."
   },
   "postOverflowMenu": {
     "trigger": "Autres actions sur cette publication",
@@ -339,5 +373,11 @@
     "back": "Revenir",
     "discard": "Abandonner le brouillon",
     "close": "Fermer"
+  },
+  "feedClips": {
+    "title": "Clips du fil",
+    "hide": "Masquer les aperçus de clips",
+    "open": "Voir la vidéo de {{name}}",
+    "seeAll": "Voir tous les clips"
   }
 }

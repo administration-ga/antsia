@@ -39,7 +39,7 @@ export async function PublicJobScreen(props: Props) {
   if (!result.data) notFound()
   const job = result.data
   const applyHref = result.viewer === "authenticated" ? routes.shopJob(job.shopHandle, job.jobRef) : routes.signIn()
-  return <PublicShell viewer={result.viewer}><div className="mx-auto grid w-full max-w-3xl gap-5">
+  return <PublicShell viewer={result.viewer}><div className="antsia-page antsia-copy mx-auto w-full max-w-5xl">
     <Link href={routes.publicStorefront(job.shopHandle)} prefetch={false} className={`${PUBLIC_LINK} justify-self-start`}>{t("jobs:shop.backToShop")}</Link>
     <JobDetails job={job} locale={locale} t={(key, options) => t(`jobs:${key}`, options)} employerHref={routes.publicStorefront(job.shopHandle)}
       actionSlot={job.status === "open" ? <Link href={applyHref} prefetch={false} className={`${PUBLIC_CTA} justify-self-start`}>{t(result.viewer === "authenticated" ? "jobs:details.apply" : "jobs:details.signInToApply")}</Link> : undefined} />

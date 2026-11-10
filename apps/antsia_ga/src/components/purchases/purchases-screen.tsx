@@ -14,6 +14,7 @@ import { useCartConnectivity } from "@/components/cart/use-cart-draft"
 import { useCheckoutClock } from "@/components/checkout/use-checkout-clock"
 import { paymentDate } from "@/components/payment/payment-model"
 import { Button, Card, Field, TextArea } from "@/components/shared/controls"
+import { SCREEN_SECTIONS } from "@/components/shared/screen-layout"
 import { SHOP_SELECT_CLASS, ShopFrame, ShopLink, useShopAction } from "@/components/shops/shop-ui"
 import { routes } from "@/lib/routes"
 import { PurchaseCard } from "./purchase-card"
@@ -33,7 +34,7 @@ function PurchasesWindow() {
   const query = useAuthenticatedConvexQuery(api.modules.shops.purchases.listMy, { networkId, paginationOpts: { cursor: cursors.at(-1) ?? null, numItems: 10 } })
   if (query.isError) return <PurchaseFailure />
   if (query.isPending || !query.data) return <p role="status">{t("loading")}</p>
-  return <div className="grid gap-4"><p className="text-sm text-muted-foreground">{t("scope", { count: 10 })}</p>{query.data.page.length ? <ul className="grid gap-4">{query.data.page.map((purchase) => <li key={purchase.purchaseId}><PurchaseCard purchase={purchase} compact /></li>)}</ul> : <Card><p>{t("empty")}</p></Card>}<nav aria-label={t("pagination")} className="flex flex-wrap gap-3">{cursors.length > 1 ? <Button variant="outline" onClick={() => setCursors((items) => items.slice(0, -1))}>{t("previous")}</Button> : null}{!query.data.isDone ? <Button variant="outline" onClick={() => setCursors((items) => [...items, query.data!.continueCursor])}>{t("next")}</Button> : null}</nav></div>
+  return <div className="grid gap-4"><p className="text-sm text-muted-foreground">{t("scope", { count: 10 })}</p>{query.data.page.length ? <ul className={`${SCREEN_SECTIONS} gap-y-4`}>{query.data.page.map((purchase) => <li key={purchase.purchaseId}><PurchaseCard purchase={purchase} compact /></li>)}</ul> : <Card><p>{t("empty")}</p></Card>}<nav aria-label={t("pagination")} className="flex flex-wrap gap-3">{cursors.length > 1 ? <Button variant="outline" onClick={() => setCursors((items) => items.slice(0, -1))}>{t("previous")}</Button> : null}{!query.data.isDone ? <Button variant="outline" onClick={() => setCursors((items) => [...items, query.data!.continueCursor])}>{t("next")}</Button> : null}</nav></div>
 }
 export function PurchaseScreen({ purchaseId }: { purchaseId: string }) {
   const { networkId, personId } = useNetwork()
@@ -47,7 +48,7 @@ function PurchaseReader({ purchaseId }: { purchaseId: string }) {
   const [closed, setClosed] = useState(false)
   if (closed || query.isError || query.data === null) return <PurchaseFailure />
   if (query.isPending || query.data === undefined) return <p role="status">{t("loading")}</p>
-  return <div className="grid gap-5"><PurchaseCard purchase={query.data} /><PurchaseOperations purchase={query.data} close={() => setClosed(true)} refetch={() => { void query.refetch() }} /></div>
+  return <div className={`${SCREEN_SECTIONS} gap-y-5`}><PurchaseCard purchase={query.data} /><PurchaseOperations purchase={query.data} close={() => setClosed(true)} refetch={() => { void query.refetch() }} /></div>
 }
 type PurchaseIntent = { operation: PurchaseCommand; actionId: string; expectedRevision: number; reason: string; text: string; consentTextVersion: string }
 function PurchaseOperations({ purchase, close, refetch }: { purchase: Purchase; close: () => void; refetch: () => void }) {

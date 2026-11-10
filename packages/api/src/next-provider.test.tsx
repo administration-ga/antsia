@@ -2,6 +2,7 @@ import type { EffectCallback, ReactNode, RefObject, SetStateAction } from "react
 import { renderToStaticMarkup } from "react-dom/server"
 import { makeFunctionReference } from "convex/server"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import type { CrossDomainStorage } from "./cross-domain-session-bootstrap"
 
 const state = vi.hoisted(() => ({
   authenticated: false,
@@ -18,6 +19,7 @@ const state = vi.hoisted(() => ({
   useMutation: vi.fn(),
   connections: [] as Array<{ url: string; query: unknown }>,
   providerClients: [] as unknown[],
+  stable: vi.fn(),
 }))
 
 // Le rendu serveur vérifie les surfaces réellement montées. Ce harnais retient
@@ -68,7 +70,7 @@ vi.mock("@tanstack/react-query", () => ({
   },
 }))
 vi.mock("./stable-convex-better-auth-provider", () => ({
-  StableConvexBetterAuthProvider: ({ children }: { children: ReactNode }) => children,
+  StableConvexBetterAuthProvider: (props: { children: ReactNode }) => { state.stable(props); return props.children },
 }))
 vi.mock("./sign-out-everywhere", () => ({
   isSigningOutEverywhere: () => state.signingOut,
@@ -87,12 +89,12 @@ const authClient = {
 const reload = vi.fn()
 const labels = { loading: "Vérification de la session", failed: "Échec", retry: "Réessayer" }
 
-function render(withSessionGate = true, convexUrl = "https://engine.example"): string {
+function render(withSessionGate = true, convexUrl = "https://engine.example", storage?: CrossDomainStorage): string {
   state.effects = []
   state.stateIndex = 0
   state.refIndex = 0
   return renderToStaticMarkup(
-    <EngineConvexProvider convexUrl={convexUrl} authClient={authClient} ensurePerson={ensurePerson} isSessionActive={withSessionGate ? sessionQuery : undefined} labels={labels}>
+    <EngineConvexProvider convexUrl={convexUrl} authClient={authClient} ensurePerson={ensurePerson} isSessionActive={withSessionGate ? sessionQuery : undefined} labels={labels} storage={storage}>
       <div>Contenu personnel</div>
     </EngineConvexProvider>,
   )
@@ -131,6 +133,12 @@ afterEach(() => {
 })
 
 describe("EngineConvexProvider — garde réactive de session", () => {
+  it("transmet la vue optionnelle au fournisseur d'amorçage sans la remplacer", () => {
+    const storage = { getItem: vi.fn(() => null), setItem: vi.fn() }
+    render(false, "https://engine.example", storage)
+    expect(state.stable).toHaveBeenCalledWith(expect.objectContaining({ authClient, storage }))
+  })
+
   it("un remontage rend le même cache que celui auquel Convex est connecté", () => {
     const url = "https://remount.example"
     render(false, url)

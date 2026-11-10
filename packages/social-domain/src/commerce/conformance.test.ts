@@ -45,8 +45,8 @@ describe("PRO-COMMERCE — fichiers jumeaux et manifeste", () => {
     expect(sharedFilesOnDisk(HERE)).toEqual(Object.keys(manifest.files).sort())
   })
 
-  it("le manifeste couvre les deux contrats et toutes les fixtures du banc", () => {
-    expect(Object.keys(manifest.contracts).sort()).toEqual(["PRO-COMMERCE-COMMAND-V1", "PRO-COMMERCE-PUBLIC-V1"])
+  it("le manifeste couvre les contrats versionnés et toutes les fixtures du banc", () => {
+    expect(Object.keys(manifest.contracts).sort()).toEqual(["PRO-COMMERCE-COMMAND-V1", "PRO-COMMERCE-PUBLIC-V1", "PRO-COMMERCE-PUBLIC-V2"])
     for (const file of COMMERCE_FIXTURE_FILES) expect(manifest.files[`fixtures/${file}`]).toMatch(/^[a-f0-9]{64}$/)
   })
 

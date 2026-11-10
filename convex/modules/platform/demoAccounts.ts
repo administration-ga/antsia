@@ -1,5 +1,5 @@
 /**
- * Comptes de DÉMONSTRATION — développement local seulement.
+ * Comptes de DÉMONSTRATION — développement local et déploiement de démonstration.
  *
  * Un compte par acteur du réseau, sur une adresse réservée
  * (`<acteur>@demo.antsia.test` : le domaine `.test` n'est jamais routable). La
@@ -24,9 +24,11 @@
  *   les nouvelles demandes passant par l'examen — pour que la vitrine se lise ;
  *   une politique déjà décidée n'est jamais touchée.
  *
- * Double garde : `devToolsAllowed` (variable `ANTSIA_DEV_TOOLS` ET backend
- * local). Ailleurs, le catalogue est vide et la mutation refuse : aucune
- * production ne peut s'en servir.
+ * Garde : `demoAccountsAllowed` — la double garde du développement local
+ * (variable `ANTSIA_DEV_TOOLS` ET backend local), ou le déploiement de
+ * démonstration déclaré (`ANTSIA_DEMO_DEPLOYMENT` égal au nom du déploiement,
+ * jamais la production). Ailleurs, le catalogue est vide et la mutation refuse :
+ * aucune production ne peut s'en servir.
  */
 import { normalizeFamilyName, normalizeGivenNames } from "@antsia/social-domain/civilName"
 import { missingConsentsToJoin } from "@antsia/social-domain/consent"
@@ -38,7 +40,7 @@ import { components } from "../../_generated/api"
 import type { Doc, Id } from "../../_generated/dataModel"
 import { type MutationCtx, query } from "../../_generated/server"
 import { getMembership, getRootNetwork } from "../../lib/access"
-import { devToolsAllowed } from "../../lib/devTools"
+import { DEMO_EMAIL_DOMAIN, demoAccountsAllowed } from "../../lib/devTools"
 import { checked, fail } from "../../lib/errors"
 import { personMutation } from "../../lib/functions"
 import { literals, membershipRoleValidator, membershipStatusValidator } from "../../lib/validators"
@@ -48,9 +50,9 @@ import { admitToNetwork, setMembershipStatus } from "../people/admission"
 import { syncIdentityForPerson } from "../people/identity"
 import { hasStrongIdentityFor } from "../people/persons"
 import { refreshReaderContexts } from "../posts/feedMaterialization"
+import { DEMO_FIGURANTS, demoFigurantEmailOf, demoFigurantOf } from "../../seeds/demoFigurants"
 
-/** Le domaine réservé des comptes de démonstration (RFC 2606 : jamais routable). */
-export const DEMO_EMAIL_DOMAIN = "demo.antsia.test"
+export { DEMO_EMAIL_DOMAIN }
 
 /** Les acteurs, dans l'ordre de l'écran de connexion. */
 export const DEMO_ACTORS = ["membre", "verifie", "nouveau", "presse", "commercant", "association", "administration", "moderateur"] as const
@@ -137,15 +139,15 @@ const demoEntryValidator = v.object({
 })
 
 /**
- * @publicProjection Outil de développement local seulement : le catalogue des
- * comptes de démonstration (adresse réservée et profil fictif), vide partout
- * ailleurs (production comprise).
+ * @publicProjection Développement local et démonstration déclarée seulement : le
+ * catalogue des comptes de démonstration (adresse réservée et profil fictif),
+ * vide partout ailleurs (production comprise).
  */
 export const catalogue = query({
   args: {},
   returns: v.array(demoEntryValidator),
   handler: async () => {
-    if (!devToolsAllowed()) return []
+    if (!demoAccountsAllowed()) return []
     return DEMO_ACTORS.map((actor) => {
       const profile = DEMO_ACTOR_SPECS[actor].profile
       return {
@@ -260,7 +262,7 @@ async function ensureDemoShop(ctx: MutationCtx, root: Doc<"networks">, person: D
 }
 
 /**
- * @selfScoped Développement local seulement : équipe le compte de la SESSION en
+ * @selfScoped Développement local et démonstration déclarée seulement : équipe le compte de la SESSION en
  * l'acteur demandé, si son adresse vérifiée est celle de cet acteur. Exige le
  * profil publié et le consentement d'accueil (posés par les vraies mutations) ;
  * idempotente — un second appel ne recrée rien.
@@ -269,7 +271,7 @@ export const equipMyDemoAccount = personMutation({
   args: { actor: demoActorValidator },
   returns: v.object({ actor: demoActorValidator, status: membershipStatusValidator, role: membershipRoleValidator }),
   handler: async (ctx, { actor }) => {
-    if (!devToolsAllowed()) return fail("policyRefused")
+    if (!demoAccountsAllowed()) return fail("policyRefused")
     const person = ctx.person
     if ((await sessionEmail(ctx, person.authUserId)) !== demoEmailOf(actor)) return fail("policyRefused")
     const spec = DEMO_ACTOR_SPECS[actor]
@@ -306,5 +308,63 @@ export const equipMyDemoAccount = personMutation({
       if (spec.shop) await ensureDemoShop(ctx, root, person, pageId, spec.shop.model)
     }
     return { actor, status: membership.status, role: membership.role }
+  },
+})
+
+const figurantEntryValidator = v.object({
+  slot: v.number(),
+  email: v.string(),
+  profile: v.object({ handle: v.string(), displayName: v.string(), headline: v.string() }),
+})
+
+/**
+ * @publicProjection Développement local et démonstration déclarée seulement : les
+ * figurants fictifs (adresse réservée et profil), vide partout ailleurs. L'écran de
+ * connexion ne les lit pas : ils animent le fil, les suggestions et les demandes.
+ */
+export const figurantCatalogue = query({
+  args: {},
+  returns: v.array(figurantEntryValidator),
+  handler: async () => {
+    if (!demoAccountsAllowed()) return []
+    return DEMO_FIGURANTS.map((figurant) => ({
+      slot: figurant.slot,
+      email: demoFigurantEmailOf(figurant.slot),
+      profile: { handle: figurant.handle, displayName: displayNameOf(figurant), headline: figurant.headline },
+    }))
+  },
+})
+
+/**
+ * @selfScoped Développement local et démonstration déclarée seulement : fait entrer le
+ * figurant de la SESSION dans la racine par la vraie règle d'admission, si son adresse
+ * vérifiée est celle du figurant demandé et son profil publié sous l'identifiant attendu.
+ * Ni identité, ni rôle, ni page : un membre déclaré ordinaire. Idempotente.
+ */
+export const equipMyDemoFigurant = personMutation({
+  args: { slot: v.number() },
+  returns: v.object({ slot: v.number(), status: membershipStatusValidator }),
+  handler: async (ctx, { slot }) => {
+    if (!demoAccountsAllowed()) return fail("policyRefused")
+    const figurant = demoFigurantOf(slot)
+    if (!figurant) return fail("policyRefused")
+    const person = ctx.person
+    if ((await sessionEmail(ctx, person.authUserId)) !== demoFigurantEmailOf(slot)) return fail("policyRefused")
+    if (person.handle !== figurant.handle || person.displayName !== displayNameOf(figurant) || person.publishedAt === undefined) return fail("profileRequired")
+    const consents = await ctx.db.query("consents").withIndex("by_person_and_purpose", (q) => q.eq("personId", person._id)).take(100)
+    if (missingConsentsToJoin(consents).length > 0) return fail("consentRequired")
+    const root = await getRootNetwork(ctx)
+    if (!root) return fail("notFound")
+    let membership = await getMembership(ctx, root._id, person._id)
+    if (!membership || membership.status === "partie") {
+      const evidence = { strongIdentity: await hasStrongIdentityFor(ctx, person._id), externalVerification: false, sponsored: false }
+      const entry = entryStatusFor(root.membershipPolicy, evidence)
+      if (entry === null) return fail("policyRefused")
+      await admitToNetwork(ctx, { personId: person._id, network: root, root, entry, evidence })
+      await refreshReaderContexts(ctx, root._id, person._id)
+      membership = await getMembership(ctx, root._id, person._id)
+    }
+    if (!membership) return fail("notFound")
+    return { slot, status: membership.status }
   },
 })

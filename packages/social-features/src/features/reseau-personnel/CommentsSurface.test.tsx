@@ -317,6 +317,36 @@ describe("CommentsSurface", () => {
     await waitFor(() => expect(mocks.remove).toHaveBeenCalledWith({ networkId: TEST_NETWORK_ID, commentId: COMMENT_ID }))
   })
 
+  it("garde les commentaires lisibles et retirables lorsque la rédaction ferme les ajouts", async () => {
+    mocks.comments.results = [rootComment({ isMine: true })]
+    renderSurface({ readOnly: true })
+    await screen.findByText("Une réponse utile")
+    expect(screen.getByText(/Les nouveaux commentaires sont fermés/)).toBeTruthy()
+    expect(screen.queryByRole("textbox")).toBeNull()
+    expect(screen.queryByRole("button", { name: "Répondre" })).toBeNull()
+    expect(screen.queryByRole("button", { name: "Modifier" })).toBeNull()
+    fireEvent.click(screen.getByRole("button", { name: "Retirer" }))
+    await waitFor(() => expect(mocks.remove).toHaveBeenCalled())
+    expect(mocks.comment).not.toHaveBeenCalled()
+    expect(mocks.edit).not.toHaveBeenCalled()
+  })
+
+  it("referme le composeur et une édition déjà ouverte après fermeture de la discussion", async () => {
+    mocks.comments.results = [rootComment({ isMine: true })]
+    const props = { postId: POST_ID, now: 1_700_000_060_000, onClose: vi.fn(), onReportComment: vi.fn() }
+    const view = renderWithEngine(<CommentsSurface {...props} />)
+    await screen.findByText("Une réponse utile")
+    fireEvent.click(screen.getByRole("button", { name: "Modifier" }))
+    fireEvent.change(screen.getByRole("textbox", { name: "Modifier le commentaire" }), { target: { value: "Saisie privée non envoyée" } })
+    view.rerender(<CommentsSurface {...props} readOnly />)
+    await screen.findByText(/Les nouveaux commentaires sont fermés/)
+    expect(screen.queryByRole("textbox")).toBeNull()
+    expect(screen.queryByText("Saisie privée non envoyée")).toBeNull()
+    expect(screen.getByText("Une réponse utile")).toBeTruthy()
+    expect(mocks.edit).not.toHaveBeenCalled()
+    expect(mocks.comment).not.toHaveBeenCalled()
+  })
+
   it("nomme NEUTREMENT l'auteur d'un profil non publié", async () => {
     mocks.comments.results = [
       rootComment({ author: { personId: "persons_x", displayName: null, handle: null, avatarUrl: null } }),

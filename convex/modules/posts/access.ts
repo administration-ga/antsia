@@ -24,6 +24,7 @@ import { isFollowingPage } from "../pages/follows"
 import { canAccessAssociationGroupPost, isLiveThematicGroupMember } from "../thematicGroups/access"
 import { hasNativePostAuthor } from "./nativeAuthor"
 import { canReadPageEventGalleryPost } from "../events/pageEventGalleryAccess"
+import { readablePublishedArticle } from "../editorial/read"
 
 type ReadCtx = Pick<QueryCtx, "db">
 
@@ -48,6 +49,13 @@ export async function canSeePostDoc(ctx: ReadCtx, reader: ReaderContext, post: D
   if (!isInReadingContext(post, reader.network)) return false
   const origin = await ctx.db.get(post.networkId)
   if (!origin || origin.status !== "active") return false
+  // MP13 : le contenu éditorial précède toute exception de page, d'auteur ou de modérateur.
+  if (post.editorialArticleId !== undefined) {
+    if (post.pageId === undefined || post.status !== "published" || post.body !== "" || post.visibility !== "network" || post.federationSource !== undefined || post.sharedPostId !== undefined || post.groupId !== undefined || post.eventId !== undefined || post.liveSessionId !== undefined || post.pageEventGalleryId !== undefined || post.commerceOffer !== undefined || post.media?.length || post.audience !== "public") return false
+    const live = await readablePublishedArticle(ctx, { networkId: post.networkId, readerPersonId: reader.personId }, post.editorialArticleId)
+    const link = await ctx.db.query("editorialSocialLinks").withIndex("by_article", q => q.eq("articleId", post.editorialArticleId!)).unique()
+    if (!live || live.page._id !== post.pageId || !link || link.postId !== post._id || link.networkId !== post.networkId || link.pageId !== post.pageId) return false
+  }
   // DG-023 : le lien événementiel précède toute exception auteur, page ou modérateur.
   if (!(await canReadPageEventGalleryPost(ctx, post, reader.personId, reader.network._id))) return false
   // DG-010 : la fermeture associative précède toute exception auteur/page/modérateur.
@@ -125,3 +133,19 @@ export async function canSeePost(ctx: ReadCtx, reader: ReaderContext, postId: Id
   const post = await ctx.db.get(postId)
   return post !== null && (await canSeePostDoc(ctx, reader, post))
 }
+
+/** null : post ordinaire ; booléen : règle éditoriale. Un partage ne crée jamais un second fil d'article. */
+export async function editorialDiscussionOpen(ctx: ReadCtx, post: Doc<"posts">): Promise<boolean | null> {
+  if (post.editorialArticleId !== undefined) {
+    const link = await ctx.db.query("editorialSocialLinks").withIndex("by_article", q => q.eq("articleId", post.editorialArticleId!)).unique()
+    return !!link && link.postId === post._id && link.networkId === post.networkId && link.pageId === post.pageId && link.commentsEnabled
+  }
+  if (post.sharedPostId !== undefined) {
+    const original = await ctx.db.get(post.sharedPostId)
+    if (original?.editorialArticleId !== undefined) return false
+    // Le lien survit à la suppression du post : celle-ci ne doit pas rouvrir une discussion de partage.
+    if (await ctx.db.query("editorialSocialLinks").withIndex("by_post", q => q.eq("postId", post.sharedPostId!)).unique()) return false
+  }
+  return null
+}
+export async function assertPostDiscussionOpen(ctx: ReadCtx, post: Doc<"posts">): Promise<void> { if (await editorialDiscussionOpen(ctx, post) === false) return notFound() }

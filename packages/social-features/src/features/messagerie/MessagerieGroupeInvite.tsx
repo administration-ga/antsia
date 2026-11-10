@@ -252,9 +252,9 @@ const MSG_GROUPE_INVITE_CSS = `
 				flex-direction: column;
 				align-items: center;
 				width: min(100%, 420px);
-				padding: 24px 18px;
-				border: 1px solid var(--ink-200);
-				border-radius: 16px;
+				padding: var(--esp-card-padding, 24px 18px);
+				border: 1px solid var(--esp-primitive-surface-border, var(--ink-200));
+				border-radius: var(--esp-primitive-card-radius, 16px);
 				background: var(--esp-surface-card, var(--ink-0));
 				text-align: center;
 			}
@@ -284,7 +284,7 @@ const MSG_GROUPE_INVITE_CSS = `
 				width: 100%;
 				margin: 14px 0 0;
 				padding: 8px 10px;
-				border-radius: 10px;
+				border-radius: var(--esp-primitive-chip-radius, 10px);
 				background: var(--danger-50, var(--ink-100));
 				color: var(--danger-700, var(--ink-900));
 				font-size: 12.5px;

@@ -1,5 +1,42 @@
 # Procédures de support du pilote
 
+## Addendum support du 20 octobre 2026 — non éprouvé
+
+Le [NO GO par capacité](../01_VERSIONS_CANDIDATES.md#actualisation-du-20-octobre-2026) reste
+la décision préparée. Aucun support avec participants, incident réel ou exercice n’est conduit.
+Les procédures du 19 octobre qui suivent sont historiques ; les corrections ci-dessous priment
+sur leurs mentions « sans porte », « retiré donc effacé » ou « aucun client natif ».
+
+| Situation | Consigne actuelle à éprouver avant usage | Ne pas conclure |
+|---|---|---|
+| Capacité indisponible malgré un ancien flag actif | Garder les registres P16 fermés ; orienter vers le suivi historique existant selon les droits | Ni panne à corriger par contournement ni autorisation d’ouverture |
+| Réponse inconnue sur un service ou une candidature | Rechercher l’intention exacte sous le bon acteur/réseau ; absence prouvée et clôture de clé avant nouvel accord ; ne jamais interpréter une erreur de consultation comme absence | Ni échec métier certain, ni droit de recréer une demande |
+| Lettre morte PRO.GA | Les finitions ont raccordé une relance explicite auditée dans l’administration PRO.GA, en source seulement ; corriger la cause et suivre la procédure autorisée, sans transformer ce dossier en ordre de rejeu | `received`/`sent`/HTTP 202 ne signifie pas `applied` ; une relance ne donne pas de stock frais |
+| Retrait de CV / suppression échouée | Accès fermé dès retrait ; conserver les références `pending/failed` de la file PRO.GA jusqu’à absence observée et la trace d’attente distante ANTSIA | Ni suppression physique ni accusé distant sur `remoteUnconfirmed` ; pas de suppression manuelle de la file |
+| Interruption de copie CV avant rattachement | Le correctif P19 raccorde en source une réservation durable et un marqueur opaque de tentative ; sa reprise ne vise que les marqueurs connus. Conserver réservations, références de purge et progression ; escalader sans manipulation de données | Ni récupération rétroactive des anciens blobs non marqués, ni autorisation de purge générale, ni preuve de conservation du MIME ou de suppression physique |
+| Mandat emploi seul retiré | P16 réévalue les emplois avec les gardes de publication actuelles, sans retirer une boutique autrement valide ; cadence bornée existante, propagation non mesurée | Pas de garantie instantanée de retrait des reflets |
+| Fermeture boutique / politiques | Préserver reçus, tombes, anti-rejeux et engagements ; suivre/libérer/annuler/retirer/rembourser via les portes privées normales et leur preuve | Pas de purge pour revenir en arrière, pas de remboursement annoncé comme effectué sans preuve |
+| Appel natif absent, verrouillé ou interrompu | Classer non éprouvé ; relever seulement plateforme/version, référence technique utile, état et moment approximatif ; utiliser le [dossier P17d](../../../../recette/antsia-native-p17d/README.md) pour la future recette | Aucun réveil après arrêt forcé, média effectif ou réponse avant déverrouillage garanti |
+
+Pour un appel natif, ne demander ni bearer, jeton média, jeton push, fichier de service Firebase,
+clé APNs, capture d’un contact ou contenu de conversation. Un événement système ou un ACK
+fournisseur n’est pas une preuve de réception/média/fin des captures. La fermeture doit distinguer
+OS, salle média et révocation serveur ; un échec distant ne devient pas une réussite locale.
+
+P16 protège les lectures privées par une session réelle et maintient les portes historiques,
+mais ne résout pas la voie générale des membres suspendus, le réveil asynchrone des services,
+la conservation juridique ni l’export/effacement général PRO.GA. Une file de purge ne vaut pas
+certificat d’effacement. Les octets déjà délivrés ne sont pas récupérables par révocation.
+Les cadences/délais historiques et objectifs P18 sont des paramètres ou cibles, sans mesure de
+cette reprise ; aucun niveau de service ni astreinte nominative n’est inventé.
+
+Références : [P14](../../rapports/P14_REPRISE_2026-10-20.md),
+[P15](../../rapports/P15_REPRISE_2026-10-20.md), [P16](../../rapports/P16_REPRISE_2026-10-20.md),
+[P17c](../../rapports/P17C_REPRISE_2026-10-20.md),
+[finitions](../../rapports/FINITIONS_TECHNIQUES.md).
+
+## Procédures historiques du 19 octobre (conservées)
+
 19 octobre 2026, lot P19. Document interne. **Ces procédures n'ont jamais été éprouvées** : elles
 s'appuient sur des sources raccordées mais non vérifiées. Chacune est à rejouer pendant la recette
 ([03](../03_PARCOURS_DE_RECETTE.md)) avant d'être utilisée avec des participants. Les procédures

@@ -15,6 +15,8 @@ import { createTestSession, testConvex } from "../../test.setup"
 import { directlyOwned, exportableRecord, type DataRecord } from "../people/dataInventory"
 import { readCommerceLinkConfig } from "../shops/commerceLinkConfig"
 import { sha256Hex } from "../shops/commerceLinkCrypto"
+import type { CrmJob as Job } from "./crmTransport"
+import { revokeCommercialCrmForPerson } from "./crm"
 
 type T = ReturnType<typeof testConvex>
 type State = "queued" | "submitting" | "submitted" | "withdrawal_pending" | "withdrawn" | "failed"
@@ -22,14 +24,14 @@ type Scope = { networkId: Id<"networks">; transferId: Id<"commercialCrmTransfers
 type ThreadScope = { networkId: Id<"networks">; threadId: Id<"commercialThreads"> }
 // Booléen volontairement plus large pour exercer le refus du validateur literal(true).
 type SubmitArgs = ThreadScope & { selectedText: string; displayName?: string; consent: boolean; textVersion: string; idempotencyKey: string }
-type Job = { generation: number; attempt: number; kind: "submit" | "status" | "withdraw"; rawBody: string; originalBody?: string; requestSha256: string; fingerprint: string }
-type Delivery = { outcome: "submitted"; inquiryRef: string; submittedAt: number } | { outcome: "withdrawn" | "unavailable" | "rejected" | "expired" }
+type Delivery = { outcome: "submitted"; inquiryRef: string; submittedAt: number } | { outcome: "withdrawn" | "unavailable" | "rejected" | "expired" | "unknown" }
 const submit = makeFunctionReference<"mutation", SubmitArgs, { state: State; transferId: Id<"commercialCrmTransfers"> }>("modules/commercialMessaging/crm:submitToCrm")
 const get = makeFunctionReference<"query", ThreadScope, { state: State | "none"; textVersion: string; selectedText?: string; displayName?: string; consentedAt?: number; revokedAt?: number }>("modules/commercialMessaging/crm:getMyTransfer")
 const withdraw = makeFunctionReference<"mutation", ThreadScope, { state: State }>("modules/commercialMessaging/crm:withdrawCrmConsent")
 const retry = makeFunctionReference<"mutation", ThreadScope, { state: State }>("modules/commercialMessaging/crm:retryTransfer")
 const claim = makeFunctionReference<"mutation", Scope, Job | null>("modules/commercialMessaging/crmTransport:claim")
-const finish = makeFunctionReference<"mutation", Scope & { generation: number; attempt: number; delivery: Delivery }, null>("modules/commercialMessaging/crmTransport:finish")
+const finish = makeFunctionReference<"mutation", Scope & { generation: number; attempt: number; job: Job; delivery: Delivery }, null>("modules/commercialMessaging/crmTransport:finish")
+const authorize = makeFunctionReference<"mutation", Scope & { job: Job; fingerprint: string }, boolean>("modules/commercialMessaging/crmTransport:authorize")
 const deliver = makeFunctionReference<"action", Scope, null>("modules/commercialMessaging/crmTransport:deliver")
 const NOW = Date.UTC(2026, 9, 18, 12)
 const SELECTED = "Voici le seul texte que je choisis pour PRO.GA."
@@ -158,7 +160,7 @@ describe("P10 — consentement au texte choisi", () => {
     if (!saved) throw new Error("Transfert absent")
     const exported = exportableRecord("commercialCrmTransfers", saved as DataRecord, f.buyer.personId)
     expect(exported).toMatchObject({ state: "queued", selectedText: SELECTED, displayName: "Alias choisi", textVersion: COMMERCE_INQUIRY_CONSENT_VERSION, consentedAt: NOW })
-    for (const key of ["sessionId", "rawBody", "withdrawalBody", "requestId", "requestSha256", "subjectRef", "configFingerprint", "intentionSha256", "idempotencyKey"]) expect(exported).not.toHaveProperty(key)
+    for (const key of ["sessionId", "authorizationAuthUserId", "authorizedAt", "authorizationUntil", "leaseSessionId", "originLinkRef", "originShopRef", "rawBody", "withdrawalBody", "requestId", "requestSha256", "subjectRef", "configFingerprint", "intentionSha256", "idempotencyKey"]) expect(exported).not.toHaveProperty(key)
     expect(JSON.stringify(exported)).not.toContain(PRIVATE_MESSAGE)
     expect(exportableRecord("commercialCrmTransfers", saved as DataRecord, f.seller.personId)).toBeNull()
     expect(directlyOwned("commercialCrmTransfers", saved as DataRecord, f.buyer.personId)).toBe(true)
@@ -200,8 +202,9 @@ describe("P10 — retrait et livraison tardive", () => {
     const f = await fixture(), scope = await created(f), first = await f.t.mutation(claim, scope)
     if (!first) throw new Error("Bail de dépôt absent")
     expect(first.kind).toBe("submit")
+    expect(await f.t.mutation(authorize, { ...scope, job: first, fingerprint: first.fingerprint })).toBe(true)
     expect(await f.buyer.as.mutation(withdraw, f.args)).toEqual({ state: "withdrawal_pending" })
-    await f.t.mutation(finish, { ...scope, generation: first.generation, attempt: first.attempt, delivery: { outcome: "submitted", inquiryRef: PRO_INQUIRY, submittedAt: NOW } })
+    await f.t.mutation(finish, { ...scope, generation: first.generation, attempt: first.attempt, job: first, delivery: { outcome: "submitted", inquiryRef: PRO_INQUIRY, submittedAt: NOW } })
     const pending = await row(f)
     expect(pending).toMatchObject({ state: "withdrawal_pending", generation: first.generation + 1 })
     expect(pending?.inquiryRef).toBeUndefined(); expect(pending?.selectedText).toBeUndefined()
@@ -213,18 +216,18 @@ describe("P10 — retrait et livraison tardive", () => {
     const revoking = await row(f)
     if (!revoking?.withdrawalBody) throw new Error("Corps de retrait absent")
     expect(exportableRecord("commercialCrmTransfers", revoking as DataRecord, f.buyer.personId)).not.toHaveProperty("withdrawalBody")
-    await f.t.mutation(finish, { ...scope, generation: withdrawal.generation, attempt: withdrawal.attempt, delivery: { outcome: "withdrawn" } })
+    await f.t.mutation(finish, { ...scope, generation: withdrawal.generation, attempt: withdrawal.attempt, job: withdrawal, delivery: { outcome: "withdrawn" } })
     expect(await row(f)).toMatchObject({ state: "withdrawn", generation: 2 })
-    await f.t.mutation(finish, { ...scope, generation: first.generation, attempt: first.attempt, delivery: { outcome: "submitted", inquiryRef: PRO_INQUIRY, submittedAt: NOW } })
+    await f.t.mutation(finish, { ...scope, generation: first.generation, attempt: first.attempt, job: first, delivery: { outcome: "submitted", inquiryRef: PRO_INQUIRY, submittedAt: NOW } })
     expect((await row(f))?.state).toBe("withdrawn")
   })
 
-  it("une session supprimée avant dispatch retire la copie au lieu d'émettre", async () => {
+  it("une session supprimée avant dispatch suspend l'envoi sans inventer une révocation du consentement", async () => {
     const f = await fixture(), scope = await created(f)
     await f.t.mutation(components.betterAuth.adapter.deleteOne, { input: { model: "session", where: [{ field: "_id", value: f.buyer.sessionId }] } })
     expect(await f.t.mutation(claim, scope)).toBeNull()
-    expect(await row(f)).toMatchObject({ state: "withdrawn", generation: 2 })
-    expect((await row(f))?.rawBody).toBeUndefined(); expect(vi.mocked(fetch)).not.toHaveBeenCalled()
+    expect(await row(f)).toMatchObject({ state: "failed", generation: 1, authorizationRequired: true })
+    expect((await row(f))?.rawBody).toBeDefined(); expect((await row(f))?.revokedAt).toBeUndefined(); expect(vi.mocked(fetch)).not.toHaveBeenCalled()
   })
 
   it("après délai réseau puis expiration, consulte request.status sans fabriquer un nouveau dépôt", async () => {
@@ -246,6 +249,7 @@ describe("P10 — retrait et livraison tardive", () => {
     await f.t.action(deliver, scope)
     expect(await row(f)).toMatchObject({ state: "queued", requestId: original.requestId, requestSha256: original.requestSha256, rawBody: original.rawBody })
     vi.setSystemTime(original.requestExpiresAt + 1)
+    expect(await f.buyer.as.mutation(retry, f.args)).toEqual({ state: "queued" })
     await f.t.action(deliver, scope)
     expect(commands.map(request => request.command)).toEqual(["inquiry.submit", "request.status"])
     const status = commands[1]
@@ -253,5 +257,144 @@ describe("P10 — retrait et livraison tardive", () => {
     expect(status.payload).toEqual({ targetCommand: "inquiry.submit", targetRequestId: original.requestId, targetRequestSha256: original.requestSha256 })
     expect(await row(f)).toMatchObject({ state: "submitted", inquiryRef: PRO_INQUIRY, submittedAt: NOW, requestId: original.requestId })
     expect((await row(f))?.sessionId).toBeUndefined(); expect((await row(f))?.rawBody).toBeUndefined()
+  })
+})
+
+describe("P16 — preuve réelle, origine et reprise privée du CRM", () => {
+  it("expire la preuve du geste sans l'actualiser par cron ; une nouvelle session reprend les mêmes octets", async () => {
+    const f = await fixture(), scope = await created(f), original = await row(f)
+    vi.setSystemTime(NOW + 300_001)
+    expect(await f.t.mutation(claim, scope)).toBeNull()
+    expect(await row(f)).toMatchObject({ state: "failed", authorizationRequired: true, authorizedAt: NOW })
+    const sessionId = await createTestSession(f.t, f.buyer.authUserId)
+    const resumed = f.t.withIdentity({ subject: f.buyer.authUserId, sessionId })
+    await resumed.mutation(retry, f.args)
+    const renewed = await row(f)
+    expect(renewed).toMatchObject({ sessionId, authorizedAt: Date.now(), requestId: original?.requestId, requestSha256: original?.requestSha256, rawBody: original?.rawBody })
+    expect(renewed?.requestExpiresAt).toBe(original?.requestExpiresAt)
+    const job = await f.t.mutation(claim, scope)
+    if (!job) throw new Error("Bail renouvelé absent")
+    // Le geste renouvelle le bail, jamais la preuve signée ni la date du consentement original.
+    expect(JSON.parse(job.rawBody).subject.authVerifiedAt).toBe(NOW)
+    expect(job.sessionId).toBe(sessionId)
+    expect(await f.t.mutation(authorize, { ...scope, job, fingerprint: job.fingerprint })).toBe(true)
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled()
+  })
+
+  it.each(["before", "after"] as const)("une session révoquée %s I/O ferme le bail et n'applique pas de succès tardif", async stage => {
+    const f = await fixture(), scope = await created(f), job = await f.t.mutation(claim, scope)
+    if (!job) throw new Error("Bail absent")
+    if (stage === "after") expect(await f.t.mutation(authorize, { ...scope, job, fingerprint: job.fingerprint })).toBe(true)
+    await f.t.mutation(components.betterAuth.adapter.deleteOne, { input: { model: "session", where: [{ field: "_id", value: f.buyer.sessionId }] } })
+    if (stage === "before") expect(await f.t.mutation(authorize, { ...scope, job, fingerprint: job.fingerprint })).toBe(false)
+    else await f.t.mutation(finish, { ...scope, generation: job.generation, attempt: job.attempt, job, delivery: { outcome: "submitted", inquiryRef: PRO_INQUIRY, submittedAt: NOW } })
+    expect(await row(f)).toMatchObject({ state: "failed", authorizationRequired: true })
+    expect((await row(f))?.inquiryRef).toBeUndefined()
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled()
+  })
+
+  it.each(["linkRef", "shopRef"] as const)("une nouvelle incarnation %s n'hérite pas de l'ancien consentement", async field => {
+    const f = await fixture(), scope = await created(f), job = await f.t.mutation(claim, scope)
+    if (!job) throw new Error("Bail absent")
+    await f.t.run(ctx => ctx.db.patch(f.linkId, field === "linkRef" ? { linkRef: `pro.ga:commerce_link:${"9".repeat(26)}` } : { shopRef: `pro.ga:structure:${"9".repeat(26)}` }))
+    expect(await f.t.mutation(authorize, { ...scope, job, fingerprint: job.fingerprint })).toBe(false)
+    expect(await row(f)).toMatchObject({ state: "failed", authorizationRequired: true })
+    await f.buyer.as.mutation(retry, f.args)
+    expect(await f.t.mutation(claim, scope)).toBeNull()
+    expect((await row(f))?.dispatchedAt).toBeUndefined()
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled()
+  })
+
+  it("un changement de liaison pendant I/O ferme le succès tardif ; seule la décision d'origine reste consultable", async () => {
+    const f = await fixture(), scope = await created(f), job = await f.t.mutation(claim, scope)
+    if (!job) throw new Error("Bail absent")
+    expect(await f.t.mutation(authorize, { ...scope, job, fingerprint: job.fingerprint })).toBe(true)
+    await f.t.run(ctx => ctx.db.patch(f.linkId, { state: "revoked", revokedAt: NOW }))
+    await f.t.mutation(finish, { ...scope, generation: job.generation, attempt: job.attempt, job, delivery: { outcome: "submitted", inquiryRef: PRO_INQUIRY, submittedAt: NOW } })
+    expect(await row(f)).toMatchObject({ state: "failed", authorizationRequired: true })
+    expect((await row(f))?.inquiryRef).toBeUndefined()
+    await f.buyer.as.mutation(retry, f.args)
+    expect((await f.t.mutation(claim, scope))?.kind).toBe("status")
+  })
+
+  it("une ligne historique sans preuve d'origine ne peut que consulter sa décision après un geste propriétaire", async () => {
+    const f = await fixture(), scope = await created(f), original = await row(f)
+    await f.t.run(ctx => ctx.db.patch(scope.transferId, { originLinkRef: undefined, originShopRef: undefined, authorizationAuthUserId: undefined, authorizedAt: undefined, authorizationUntil: undefined }))
+    expect(await f.t.mutation(claim, scope)).toBeNull()
+    await f.buyer.as.mutation(retry, f.args)
+    const lookup = await f.t.mutation(claim, scope)
+    if (!lookup) throw new Error("Consultation historique absente")
+    expect(lookup.kind).toBe("status")
+    const request = parseCommerceCommandRequest(lookup.rawBody, { source: "antsia", environment: "sandbox", nowMs: NOW })
+    expect(request).toMatchObject({ ok: true, value: { command: "request.status", subject: { ref: original?.subjectRef, authVerifiedAt: NOW }, payload: { targetRequestId: original?.requestId, targetRequestSha256: original?.requestSha256 } } })
+    await f.t.mutation(finish, { ...scope, generation: lookup.generation, attempt: lookup.attempt, job: lookup, delivery: { outcome: "unknown" } })
+    const saved = await row(f)
+    if (!saved) throw new Error("Transfert absent")
+    vi.setSystemTime(saved.nextAttemptAt)
+    expect((await f.t.mutation(claim, scope))?.kind).toBe("status")
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled()
+  })
+
+  it("consomme l'absence corrélée avant un renvoi ; un nouveau timeout exige un autre lookup", async () => {
+    const f = await fixture(), scope = await created(f), first = await f.t.mutation(claim, scope)
+    if (!first) throw new Error("Premier bail absent")
+    await f.t.mutation(authorize, { ...scope, job: first, fingerprint: first.fingerprint })
+    await f.t.mutation(finish, { ...scope, generation: first.generation, attempt: first.attempt, job: first, delivery: { outcome: "unavailable" } })
+    await f.buyer.as.mutation(retry, f.args)
+    const lookup = await f.t.mutation(claim, scope)
+    if (!lookup) throw new Error("Lookup absent")
+    expect(lookup.kind).toBe("status")
+    await f.t.mutation(finish, { ...scope, generation: lookup.generation, attempt: lookup.attempt, job: lookup, delivery: { outcome: "unknown" } })
+    expect((await row(f))?.unknownRequestSha256).toBeDefined()
+    const resend = await f.t.mutation(claim, scope)
+    if (!resend) throw new Error("Renvoi identique absent")
+    expect(resend.kind).toBe("submit"); expect(resend.rawBody).toBe(first.rawBody)
+    await f.t.mutation(authorize, { ...scope, job: resend, fingerprint: resend.fingerprint })
+    expect((await row(f))?.unknownConfirmedAt).toBeUndefined()
+    expect((await row(f))?.unknownRequestSha256).toBeUndefined()
+    await f.t.mutation(finish, { ...scope, generation: resend.generation, attempt: resend.attempt, job: resend, delivery: { outcome: "unavailable" } })
+    await f.buyer.as.mutation(retry, f.args)
+    expect((await f.t.mutation(claim, scope))?.kind).toBe("status")
+  })
+
+  it("après huit échecs, le retrait reste dû et l'effacement attend un véritable ACK, même sans session ni liaison", async () => {
+    const f = await fixture(), scope = await created(f), first = await f.t.mutation(claim, scope)
+    if (!first) throw new Error("Bail absent")
+    await f.t.mutation(authorize, { ...scope, job: first, fingerprint: first.fingerprint })
+    await f.buyer.as.mutation(withdraw, f.args)
+    await f.t.run(async ctx => {
+      await ctx.db.patch(f.linkId, { state: "revoked", revokedAt: NOW })
+      await ctx.db.patch(scope.transferId, { attempts: 7 })
+    })
+    await f.t.mutation(components.betterAuth.adapter.deleteOne, { input: { model: "session", where: [{ field: "_id", value: f.buyer.sessionId }] } })
+    const last = await f.t.mutation(claim, scope)
+    if (!last) throw new Error("Retrait privé absent")
+    expect(last.kind).toBe("withdraw"); expect(last.attempt).toBe(8)
+    expect(await f.t.mutation(authorize, { ...scope, job: last, fingerprint: last.fingerprint })).toBe(true)
+    await f.t.mutation(finish, { ...scope, generation: last.generation, attempt: last.attempt, job: last, delivery: { outcome: "unavailable" } })
+    const pending = await row(f)
+    expect(pending).toMatchObject({ state: "withdrawal_pending", withdrawalNeedsAttention: true, attempts: 0, withdrawalFailures: 1 })
+    expect(pending?.requestId).toBeDefined(); expect(pending?.requestSha256).toBeDefined(); expect(pending?.subjectRef).toBeDefined()
+    expect(pending?.nextAttemptAt).toBeGreaterThan(NOW)
+    expect(pending?.nextAttemptAt).toBeLessThan(Number.MAX_SAFE_INTEGER)
+    expect(await f.t.run(ctx => revokeCommercialCrmForPerson(ctx, f.buyer.personId))).toBe(false)
+    if (!pending) throw new Error("Retrait absent")
+    vi.setSystemTime(pending.nextAttemptAt)
+    const resumed = await f.t.mutation(claim, scope)
+    if (!resumed) throw new Error("Retrait non repris")
+    expect(resumed.kind).toBe("withdraw")
+    await f.t.mutation(finish, { ...scope, generation: resumed.generation, attempt: resumed.attempt, job: resumed, delivery: { outcome: "withdrawn" } })
+    expect((await row(f))?.state).toBe("withdrawn")
+    expect(await f.t.run(ctx => revokeCommercialCrmForPerson(ctx, f.buyer.personId))).toBe(true)
+    const saved = await row(f)
+    for (const key of ["sessionId", "authorizationAuthUserId", "authorizedAt", "authorizationUntil", "leaseSessionId", "originLinkRef", "originShopRef", "rawBody", "selectedText", "withdrawalBody"]) expect(saved).not.toHaveProperty(key)
+  })
+
+  it("une ancienne révocation bloquée à IDLE est remise en attente, sans prétendre l'avoir confirmée", async () => {
+    const f = await fixture(), scope = await created(f)
+    await f.t.run(ctx => ctx.db.patch(scope.transferId, { state: "failed", revokedAt: NOW, dispatchedAt: NOW, attempts: 8, nextAttemptAt: Number.MAX_SAFE_INTEGER }))
+    expect(await f.buyer.as.mutation(withdraw, f.args)).toEqual({ state: "withdrawal_pending" })
+    expect(await row(f)).toMatchObject({ state: "withdrawal_pending", withdrawalNeedsAttention: true, attempts: 0, nextAttemptAt: NOW })
+    expect((await f.t.mutation(claim, scope))?.kind).toBe("withdraw")
   })
 })

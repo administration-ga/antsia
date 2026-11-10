@@ -1,5 +1,7 @@
 import { MEMBER_THEME_IDS } from "@antsia/social-contracts/appearance"
 
+import { demoStorageNamespace } from "./demo-storage"
+
 /**
  * Les motifs de fond que le membre peut activer (Préférences > Motif de fond),
  * dessinés par `@antsia/ui` (`communication.css`, `[data-motif]`). Aucun par défaut :
@@ -21,7 +23,7 @@ export type AppearanceMotif = (typeof APPEARANCE_MOTIFS)[number]
  * `appearance-boot-script.test.tsx` vérifie que la liste reste `ANTSIA_THEMES`.
  */
 export const APPEARANCE = {
-  storagePrefix: "antsia:antsia:",
+  storagePrefix: `${demoStorageNamespace()}antsia:antsia:`,
   // Gaboma, premier thème et thème par défaut, est la charte du réseau (`antsia`) ; ADR-0027.
   themes: MEMBER_THEME_IDS.map((id) => ({ id, charte: id === "gaboma" ? "antsia" : `antsia-${id}` })),
   motifs: APPEARANCE_MOTIFS,

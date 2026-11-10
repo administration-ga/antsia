@@ -480,3 +480,31 @@ describe("ProfilPagePage — gérer la page (administrateur vivant)", () => {
     expect(toast.success).toHaveBeenCalledWith("Vous ne signez plus pour cette page.")
   })
 })
+
+describe("ProfilPagePage — la présentation marchande que l'application lui donne", () => {
+  it("présentée comme sa boutique : l'en-tête de l'application remplace l'identité, gérer reste, la vitrine précède le mur", () => {
+    mocks.getPage.data = pageDto({ ownerKind: "company" }, { role: "admin" })
+    mocks.wall.set("first", mocks.query({ items: [post("p1", "Arrivage du jour")], nextCursor: null }))
+    renderWithEngine(<ProfilPagePage handle="ambassade-ga" commerce={{ presentation: "shop", hero: <h1>Boutique des rives</h1>, lead: <section data-testid="vitrine" /> }} />)
+
+    expect(screen.getAllByRole("heading", { level: 1 }).map((node) => node.textContent)).toEqual(["Boutique des rives"])
+    // L'abonnement est celui de l'en-tête de la boutique : la fiche n'en ajoute pas un second.
+    expect(screen.queryByRole("button", { name: "Suivre" })).toBeNull()
+    fireEvent.click(screen.getByRole("button", { name: "Gérer la page" }))
+    expect(screen.getByRole("button", { name: "Fermer la gestion" })).toBeTruthy()
+    expect(screen.getByTestId("vitrine").compareDocumentPosition(screen.getByTestId("post")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it("ses produits en tête : l'identité de la page reste, l'application s'insère toutes les trois publications", () => {
+    mocks.wall.set("first", mocks.query({ items: ["1", "2", "3", "4", "5", "6", "7"].map((id) => post(`p${id}`, `Publication ${id}`)), nextCursor: null }))
+    renderWithEngine(<ProfilPagePage handle="ambassade-ga" commerce={{ presentation: "products", lead: <section data-testid="produits" />, interleave: (rank) => <aside data-testid="insertion" data-rank={rank} /> }} />)
+
+    expect(screen.getAllByRole("heading", { level: 1 }).map((node) => node.textContent)).toEqual(["Ambassade du Gabon"])
+    expect(screen.getByRole("button", { name: "Suivre" })).toBeTruthy()
+    expect(screen.getByTestId("produits").compareDocumentPosition(screen.getAllByTestId("post")[0]!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    const insertions = screen.getAllByTestId("insertion")
+    expect(insertions.map((node) => node.getAttribute("data-rank"))).toEqual(["1", "2"])
+    // Chaque insertion suit la troisième publication de son groupe.
+    expect(insertions.map((node) => node.previousElementSibling?.getAttribute("data-post-id"))).toEqual(["p3", "p6"])
+  })
+})

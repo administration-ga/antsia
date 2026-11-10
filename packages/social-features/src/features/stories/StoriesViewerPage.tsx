@@ -27,6 +27,11 @@
  * Au TÉLÉPHONE, la page occupe déjà l'écran entier : la coque classe la route
  * des actus en régime immersif, sans barre ni réserve en bas.
  *
+ * En navigation ADAPTATIVE, ce même portail reste monté à toutes les tailles :
+ * il donne une hauteur visible définie au lecteur, et une bascule de format
+ * ne démonte ni le média ni sa pause volontaire. La page en place historique
+ * reste réservée au téléphone des applications sans cet opt-in.
+ *
  * Sur le BUREAU, ce classement ne suffit pas : le rail latéral reste là. La
  * même pile est donc rendue dans un `ImmersiveOverlay`, qui PORTAILLE vers
  * `<body>` et couvre tout, dans un cadre 9:16 centré — un média vertical
@@ -83,9 +88,10 @@ export function StoriesViewerPage({
 	openCreate = false,
 	canCreate = true,
 }: StoriesViewerPageProps = {}) {
+	const { networkId, personId } = useNetwork()
 	return (
 		<Suspense fallback={null}>
-			<StoriesViewerInner openCreate={openCreate} canCreate={canCreate} />
+			<StoriesViewerInner key={`${networkId}:${personId}`} openCreate={openCreate} canCreate={canCreate} />
 		</Suspense>
 	)
 }
@@ -97,7 +103,8 @@ function StoriesViewerInner({ openCreate, canCreate }: { openCreate: boolean; ca
 	const pathname = usePathname()
 	const searchParams = useSearchParams()
 	const mobile = useIsReseauMobile()
-	const { networkId, liveAvailable } = useNetwork()
+	const { networkId, liveAvailable, navigation, navigationLayout } = useNetwork()
+	const adaptive = navigation === "destinations" && navigationLayout === "adaptive"
 
 	const [now, setNow] = useState(() => Date.now())
 	// L'instant des lectures, FIGÉ au montage (cf. l'en-tête).
@@ -303,7 +310,7 @@ function StoriesViewerInner({ openCreate, canCreate }: { openCreate: boolean; ca
 	// téléphone, puis le refermerait.
 	if (mobile === null) return <StoriesStyles />
 
-	if (mobile) {
+	if (mobile && !adaptive) {
 		return (
 			<div
 				className="st-viewer"

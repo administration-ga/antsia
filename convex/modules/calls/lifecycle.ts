@@ -12,11 +12,13 @@ import { isLiveCallStatus, isRingingCallStatus, isTerminalCallStatus } from "@an
 import { v } from "convex/values"
 
 import type { Doc, Id } from "../../_generated/dataModel"
+import type { MutationCtx } from "../../_generated/server"
 import { failRule, notFound } from "../../lib/errors"
 import { networkMutation, networkQuery } from "../../lib/functions"
 import { enforceRateLimit } from "../../lib/rateLimit"
 import { isLiveMemberOfThreadCall, loadGroupParticipants, participationOf, participationsOf, requireCallParticipant } from "./access"
 import { photographedGroupCallCapacity } from "./capacity"
+import { activeCallSession, claimWebParticipant, isWebOwner } from "./deviceOwnership"
 import { conversationFieldsOfCall } from "./conversation"
 import { scheduleIncomingCallPush } from "./push"
 import { declineGroupInvite, endGroupCallIfDeserted, finishCall, markGroupInviteJoined } from "./state"
@@ -46,6 +48,8 @@ export const setCallRinging = networkMutation({
     const me = ctx.person._id
     await enforceRateLimit(ctx, "call.respond", me)
     const { call } = await requireCallParticipant(ctx, ctx.networkId, args.callId, me)
+    const participation = await participationOf(ctx, call._id, me)
+    if (!participation || participation.ownerSessionId !== await activeCallSession(ctx)) return notFound()
     if (call.createdByPersonId !== me) return notFound()
     if (call.status !== "active" || call.callStatus !== "initiating") return null
     await ctx.db.patch(call._id, { callStatus: "ringing" })
@@ -68,6 +72,13 @@ export const join = networkMutation({
     const me = ctx.person._id
     await enforceRateLimit(ctx, "call.respond", me)
     const { call, participation } = await requireCallParticipant(ctx, ctx.networkId, args.callId, me)
+    await claimWebParticipant(ctx, participation)
+    return await joinParticipant(ctx, call, participation, me)
+  },
+})
+
+/** Le même effet métier pour le Web et le gagnant natif, dans la transaction du geste. */
+export async function joinParticipant(ctx: MutationCtx, call: Doc<"calls">, participation: Doc<"callParticipants">, me: Id<"persons">) {
     if (call.status !== "active" || isTerminalCallStatus(call.callStatus)) return failRule("CALL_ENDED")
 
     if (call.kind === "group") {
@@ -80,7 +91,7 @@ export const join = networkMutation({
     }
 
     const now = Date.now()
-    await ctx.db.patch(participation._id, { joinedAt: now, leftAt: undefined })
+    await ctx.db.patch(participation._id, { joinedAt: participation.leftAt === undefined ? participation.joinedAt ?? now : now, leftAt: undefined })
 
     let callStatus: Doc<"calls">["callStatus"] = call.callStatus
     if (call.createdByPersonId !== me && isRingingCallStatus(call.callStatus)) {
@@ -94,8 +105,18 @@ export const join = networkMutation({
     }
     if (call.kind === "group") await markGroupInviteJoined(ctx, call._id, me, now)
     return { roomName: call.roomName, mediaType: call.mediaType, callStatus }
-  },
-})
+}
+
+/** Une sortie native validée appelle le même noyau, sans emprunter la porte Web. */
+export async function leaveParticipant(ctx: MutationCtx, call: Doc<"calls">, participation: Doc<"callParticipants">, intentional: boolean): Promise<void> {
+  const now = Date.now()
+  if (participation.leftAt === undefined) await ctx.db.patch(participation._id, { leftAt: now })
+  if (call.status !== "active") return
+  if (call.kind === "group") { await endGroupCallIfDeserted(ctx, call._id); return }
+  if (now - call._creationTime < LEAVE_FRESH_PROTECTION_MS && !intentional) return
+  if (isLiveCallStatus(call.callStatus)) await finishCall(ctx, call, { callStatus: "ended", endReason: "normal" }, now)
+  else if (isRingingCallStatus(call.callStatus)) await finishCall(ctx, call, { callStatus: "ended", endReason: "cancelled" }, now)
+}
 
 /**
  * RACCROCHER. Un tête-à-tête finit dès que quiconque part (il ne reste plus
@@ -113,19 +134,8 @@ export const leave = networkMutation({
     if (!call || call.networkId !== ctx.networkId) return null
     const participation = await participationOf(ctx, call._id, me)
     if (!participation) return null
-
-    const now = Date.now()
-    if (participation.leftAt === undefined) await ctx.db.patch(participation._id, { leftAt: now })
-    if (call.status !== "active") return null
-
-    if (call.kind === "group") {
-      await endGroupCallIfDeserted(ctx, call._id)
-      return null
-    }
-    if (now - call._creationTime < LEAVE_FRESH_PROTECTION_MS && args.intentional !== true) return null
-    // Parqué compte comme ÉTABLI : quitter pendant l'attente termine normalement.
-    if (isLiveCallStatus(call.callStatus)) await finishCall(ctx, call, { callStatus: "ended", endReason: "normal" }, now)
-    else if (isRingingCallStatus(call.callStatus)) await finishCall(ctx, call, { callStatus: "ended", endReason: "cancelled" }, now)
+    if (!isWebOwner(participation, await activeCallSession(ctx), true)) return null
+    await leaveParticipant(ctx, call, participation, args.intentional === true)
     return null
   },
 })
@@ -142,7 +152,8 @@ export const declineCall = networkMutation({
   handler: async (ctx, args) => {
     const me = ctx.person._id
     await enforceRateLimit(ctx, "call.respond", me)
-    const { call } = await requireCallParticipant(ctx, ctx.networkId, args.callId, me)
+    const { call, participation } = await requireCallParticipant(ctx, ctx.networkId, args.callId, me)
+    if (!isWebOwner(participation, await activeCallSession(ctx), true)) return notFound()
     if (call.status !== "active") return { ended: false }
     if (call.kind === "group") return await declineGroupInvite(ctx, call._id, me, Date.now())
     if (!isRingingCallStatus(call.callStatus)) return { ended: false }

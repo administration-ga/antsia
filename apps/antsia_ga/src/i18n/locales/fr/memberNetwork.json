@@ -3,17 +3,17 @@
     "myShop": "Ma boutique",
     "myShopLead": "Préparez votre présentation et gérez les vitrines de vos activités.",
     "shops": "Boutiques",
-    "shopsLead": "Découvrez les vitrines admises dans ce réseau, sans catalogue ni achat encore activé.",
-    "all": "Tout découvrir",
+    "shopsLead": "Explorez les boutiques et leurs offres accessibles sur ANTSIA.",
+    "all": "Tout explorer",
     "sections": "Rubriques de découverte"
   },
   "nav": {
     "national": "National",
-    "discover": "Découvrir",
+    "discover": "Explorer",
     "moderation": "Modération"
   },
   "common": {
-    "failed": "Cette lecture ou cette action est indisponible. Réessayez ou revenez au fil.",
+    "failed": "Cette lecture ou cette action est indisponible. Réessayez ou revenez à l'accueil.",
     "retry": "Réessayer",
     "loading": "Chargement…",
     "firstPage": "Revenir à la première page",
@@ -29,7 +29,7 @@
     "provinceLabel": "Province de la publication",
     "allProvinces": "Toutes les provinces",
     "provinceApply": "Afficher",
-    "publicDiscover": "Découvrir les contenus accessibles sans compte",
+    "publicDiscover": "Explorer les contenus accessibles sans compte",
     "empty": "Aucune publication ne correspond à ce filtre.",
     "emptyWindow": "Cette page ne contient aucun contenu admissible. La page suivante peut en contenir.",
     "pagination": "Pages du fil national",
@@ -37,7 +37,7 @@
     "invalidFilter": "La portée, la province ou la continuation demandée n’est pas valable. Choisissez un filtre disponible."
   },
   "discoverHub": {
-    "lead": "Explorez le réseau au-delà de votre fil : contenus nationaux, provinces, mots-clés, communautés et évènements.",
+    "lead": "Explorez le réseau au-delà de votre fil : contenus nationaux, provinces, mots-clés, communautés et événements.",
     "contentTitle": "Publications du réseau",
     "nationalLead": "Les publications ouvertes à tout le réseau, des plus récentes aux plus anciennes.",
     "provincesTitle": "Par province",
@@ -48,7 +48,19 @@
     "tagSubmit": "Voir les publications",
     "networkTitle": "Dans le réseau",
     "publicTitle": "Vue publique",
-    "publicLead": "Ce qu’une personne sans compte peut lire. Cette vue s’ouvre hors de votre espace de membre."
+    "publicLead": "Ce qu’une personne sans compte peut lire. Cette vue s’ouvre hors de votre espace de membre.",
+    "pillars": {
+      "label": "Les piliers d'ANTSIA",
+      "business": "Business",
+      "publicLife": "Vie publique",
+      "entertainment": "Divertissement"
+    },
+    "universes": {
+      "shops": "Boutiques",
+      "services": "Services et artisans",
+      "food": "Alimentation et restauration",
+      "clips": "Clips"
+    }
   },
   "moderation": {
     "title": "Modération nationale",
@@ -92,17 +104,18 @@
       "post": "Publication",
       "comment": "Commentaire",
       "groupMessage": "Message de groupe",
-      "event": "Évènement",
+      "event": "Événement",
       "page": "Page",
       "person": "Profil",
       "live": "Direct",
-      "story": "Statut",
+      "story": "Story",
       "album": "Album",
       "commercialMessage": "Message commercial",
       "commerceJob": "Offre d’emploi",
       "serviceReview": "Avis de prestation",
       "serviceReviewReply": "Réponse à un avis de prestation",
       "commerceOffer": "Offre de boutique",
+      "commerceStorefront": "Conditions de la boutique",
       "contextualMessage": "Message de mise en relation",
       "diasporaAidQuestion": "Question d’entraide DIASPORALE",
       "diasporaAidAnswer": "Réponse d’entraide DIASPORALE",
@@ -112,7 +125,11 @@
       "diasporaKitResource": "Ressource du kit d’arrivée DIASPORALE",
       "diasporaJobOffer": "Offre d’emploi DIASPORALE",
       "diasporaTalentProfile": "Profil de talent DIASPORALE",
-      "diasporaJobApplication": "Candidature DIASPORALE"
+      "diasporaJobApplication": "Candidature DIASPORALE",
+      "professionalProfile": "Profil professionnel",
+      "professionalCollaboration": "Demande de collaboration",
+      "editorialVersion": "Version d’article",
+      "editorialMedia": "Présentation du média"
     },
     "preview": "Extrait du contenu à relire",
     "previewBounded": "Extrait limité, accessible dans votre périmètre actuel.",
@@ -155,6 +172,29 @@
       "mute": "Restriction de publication",
       "suspension": "Suspension temporaire",
       "exclusion": "Exclusion"
+    },
+    "deadlines": {
+      "title": "Délais légaux",
+      "lead": "Signalements soumis aux délais de l’ordonnance n° 0011/PR/2026, l’échéance la plus proche d’abord.",
+      "empty": "Aucun signalement à délai légal en attente.",
+      "truncated": "Seules les 50 échéances les plus proches sont affichées.",
+      "summary_one": "{{count}} signalement à délai légal",
+      "summary_other": "{{count}} signalements à délai légal",
+      "overdueCount_one": "dont {{count}} en retard",
+      "overdueCount_other": "dont {{count}} en retard",
+      "basis": {
+        "art24": "Art. 24 : décision notifiée sous 72 h",
+        "art32": "Art. 32 : contenu d’IA interdit, retrait sous 24 h",
+        "art33": "Art. 33 : retrait sous 24 h"
+      },
+      "remaining": "Reste {{duration}}",
+      "overdue": "En retard de {{duration}}",
+      "hoursMinutes": "{{hours}} h {{minutes}} min",
+      "minutes": "{{minutes}} min",
+      "dueAt": "Échéance : {{date}}",
+      "acknowledged": "Accusé de réception envoyé le {{date}}",
+      "notAcknowledged": "Accusé de réception non remis",
+      "ordinaryTitle": "Autres signalements"
     }
   }
 }

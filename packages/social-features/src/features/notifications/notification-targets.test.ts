@@ -464,7 +464,7 @@ describe("connectionInviteOutcome — relire avant d'agir", () => {
 
 describe("notificationRowSentence — ce que dit la ligne, pour TOUS les genres du moteur", () => {
 	const OTHER = "Nouvelle activité dans le réseau."
-	const SYSTEM_KINDS: readonly NotificationKind[] = ["membership_changed", "badge_changed", "moderation_decision", "page_post", "file_withheld", "attestation_verified", "attestation_not_confirmed", "association_event_reminder"]
+	const SYSTEM_KINDS: readonly NotificationKind[] = ["membership_changed", "badge_changed", "moderation_decision", "report_received", "report_decided", "page_post", "file_withheld", "attestation_verified", "attestation_not_confirmed", "association_event_reminder"]
 
 	it("chaque genre du domaine a sa phrase — jamais une clé brute, jamais la phrase générique", () => {
 		for (const kind of NOTIFICATION_KINDS) {
@@ -585,6 +585,7 @@ describe("P14B — destinations typées et avis commerce", () => {
 		jobApplication: (applicationId) => `/mes-candidatures/${applicationId}`,
 		pageModerationDecisions: (pageId) => `/mes-donnees#decisions-page-${pageId}`,
 		personalDecisions: () => "/mes-donnees",
+		personalReports: () => "/mes-donnees#mes-signalements",
 	}
 
 	it("la destination typée l'emporte sur le sujet commun et se compose sur les adresses injectées", () => {
@@ -598,6 +599,17 @@ describe("P14B — destinations typées et avis commerce", () => {
 			.toEqual({ kind: "decisions", id: "page-1", href: "/mes-donnees#decisions-page-page-1", label: "Voir les décisions" })
 		expect(notificationTarget(item({ kind: "moderation_decision", subject: subject("report", "r1"), target: { kind: "personalDecisions" } }), TYPED, t))
 			.toEqual({ kind: "decisions", id: "personal", href: "/mes-donnees", label: "Voir les décisions" })
+		// SU01d : l'accusé de réception et la décision au déclarant ouvrent « Mes signalements ».
+		for (const kind of ["report_received", "report_decided"] as const) {
+			expect(notificationTarget(item({ kind, subject: subject("report", "r1"), target: { kind: "personalReports" } }), TYPED, t))
+				.toEqual({ kind: "reports", id: "personal", href: "/mes-donnees#mes-signalements", label: "Voir mes signalements" })
+			expect(notificationTarget(item({ kind, subject: subject("report", "r1"), target: { kind: "personalReports" } }), ROUTES, t)).toBeNull()
+		}
+	})
+
+	it("SU01d : l'accusé de réception et la décision se disent sans acteur, sans contenu ni sanction", () => {
+		expect(notificationRowSentence({ kind: "report_received", actor: null }, t)).toBe("Votre signalement a bien été reçu. Vous serez informé de la décision.")
+		expect(notificationRowSentence({ kind: "report_decided", actor: { displayName: "Awa" } }, t)).toBe("Une décision a été prise sur votre signalement.")
 	})
 
 	it("une application qui ne sert pas la nature n'invente aucune adresse ; la mise en relation DIASPORALE ne se route pas ici", () => {

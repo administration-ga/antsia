@@ -1,0 +1,141 @@
+{
+  "title": "Marketplace",
+  "lead": "Des produits, des boutiques et des services à découvrir dans votre réseau.",
+  "manageActivity": "Créer ou gérer mon activité",
+  "carts": "Mes paniers",
+  "views": {
+    "label": "Explorer la marketplace",
+    "products": "Produits",
+    "shops": "Boutiques",
+    "services": "Services"
+  },
+  "filters": {
+    "title": "Filtres et recherche",
+    "open": "Rechercher et filtrer",
+    "active": "Filtres actifs",
+    "query": "Que cherchez-vous ?",
+    "queryHint": "120 caractères et 16 mots au maximum.",
+    "categories": "Rayons et catégories",
+    "brand": "Marques",
+    "material": "Matières",
+    "color": "Couleurs",
+    "audience": "Pour qui",
+    "serviceMode": "Mode de prestation",
+    "add": "Ajouter",
+    "addValue": "Ajouter une valeur à {{facet}}",
+    "remove": "Retirer {{value}}",
+    "multipleHint": "Jusqu’à 6 valeurs par filtre. Un résultat peut correspondre à l’une de ces valeurs.",
+    "minPrice": "Prix minimum (XAF)",
+    "maxPrice": "Prix maximum (XAF)",
+    "priceHint": "Prix affichés indicatifs ; les offres sur devis restent qualifiées.",
+    "sort": "Trier",
+    "apply": "Voir les résultats",
+    "reset": "Tout réinitialiser",
+    "invalid": "Vérifiez les filtres : catégories, prix et valeurs doivent être compatibles.",
+    "queryInvalid": "Saisissez une recherche de 120 caractères et 16 mots au maximum.",
+    "facetInvalid": "Ajoutez jusqu’à 6 valeurs distinctes et valides. Langues : par exemple fr ou en ; localités : 120 caractères maximum.",
+    "priceInvalid": "Saisissez un montant entier positif ou nul.",
+    "commercialMode": "Modalités de la prestation",
+    "languageCode": "Langues",
+    "serviceZone": "Localités au Gabon",
+    "minDurationMinutes": "Durée minimum (minutes)",
+    "maxDurationMinutes": "Durée maximum (minutes)",
+    "durationHint": "De 1 à 43 200 minutes, selon la durée publiée.",
+    "durationInvalid": "Saisissez une durée entière de 1 à 43 200 minutes.",
+    "chooseLanguage": "Choisir une langue",
+    "otherLanguageHint": "Autre langue ou variante régionale : saisissez son code, par exemple fr, en ou fr-GA."
+  },
+  "sorts": {
+    "newest": "Nouveautés",
+    "price_asc": "Prix croissant",
+    "price_desc": "Prix décroissant",
+    "relevance": "Pertinence"
+  },
+  "results": {
+    "title": "Résultats",
+    "loading": "Recherche en cours…",
+    "refreshing": "Actualisation des résultats…",
+    "building": "Le catalogue se prépare. Revenez dans un instant.",
+    "empty": "Aucun résultat pour ces filtres. Vous pouvez modifier votre recherche.",
+    "window": "Cette page ne contient aucun résultat admissible. La suivante peut en contenir.",
+    "filtered": "Cette page affiche uniquement les résultats actuellement accessibles. Aucun total global n’est annoncé.",
+    "failed": "La marketplace ne peut pas être chargée pour le moment.",
+    "retry": "Réessayer",
+    "invalid": "Ce lien de recherche n’est pas valide.",
+    "restart": "Recommencer la recherche",
+    "pagination": "Pages de la marketplace",
+    "first": "Première page",
+    "next": "Page suivante"
+  },
+  "demo": {
+    "title": "Sélection de démonstration",
+    "notice": "Offres fictives pour découvrir l’interface. Cette sélection limitée n’est pas le catalogue général et ne permet aucun achat.",
+    "unavailable": "La sélection de démonstration ne peut pas être chargée.",
+    "loading": "Chargement de la sélection de démonstration…"
+  },
+  "commercialModes": {
+    "quote": "Sur devis",
+    "booking": "Sur rendez-vous",
+    "fixed_order": "Prestation à commander"
+  },
+  "languageNames": {
+    "fr": "Français",
+    "en": "Anglais",
+    "es": "Espagnol",
+    "pt": "Portugais",
+    "ar": "Arabe",
+    "zh": "Chinois"
+  },
+  "home": {
+    "greeting": "Bonjour {{name}}",
+    "cart_one": "Mes paniers : {{count}} ligne",
+    "cart_other": "Mes paniers : {{count}} lignes",
+    "searchLabel": "Rechercher des produits dans la marketplace",
+    "searchSuggestion": "Je cherche « {{term}} »",
+    "pills": {
+      "label": "Rayons de la marketplace",
+      "home": "Accueil"
+    },
+    "filter": "Filtrer",
+    "filterCount": "Filtrer ({{count}})",
+    "close": "Fermer",
+    "backToTop": "Revenir en haut de la page",
+    "seeAll": "Voir tout",
+    "sections": {
+      "shops": "Boutiques",
+      "providers": "Prestataires de services",
+      "newOffers": "Nouveautés",
+      "services": "Services",
+      "demoProducts": "Produits de démonstration",
+      "demoServices": "Services de démonstration"
+    },
+    "noShops": "Aucune vitrine n’est encore publiée dans votre réseau.",
+    "sectionFailed": "Cette section ne peut pas être chargée pour le moment.",
+    "sellerLead": "Vous proposez des produits ou des services ?"
+  },
+  "food": {
+    "title": "Alimentation et restauration",
+    "lead": "Restaurants, traiteurs et épiceries du réseau. Commandez auprès d'une adresse, puis réglez à la remise.",
+    "allMarketplace": "Toute la marketplace",
+    "retry": "Réessayer",
+    "empty": "Aucune adresse d'alimentation ou de restauration n'est encore ouverte dans ce réseau.",
+    "openActivity": "Ouvrir mon activité",
+    "shops": "Les adresses",
+    "offers": "À commander",
+    "demoOffers": "Exemples de boutiques — démonstration",
+    "specials": "Plats du jour",
+    "categories": {
+      "label": "Catégories alimentaires",
+      "all": "Tous les produits",
+      "lead": "Parcourez les catégories publiées par les activités dans PRO.GA."
+    },
+    "catalog": {
+      "empty": "Aucun produit diffusé n’est disponible dans cette catégorie.",
+      "failed": "Les produits alimentaires ne peuvent pas être chargés pour le moment.",
+      "building": "L’index des produits alimentaires est en cours de préparation.",
+      "pagination": "Pages des produits alimentaires",
+      "invalid": "Ce lien vers les catégories alimentaires n’est pas valide.",
+      "restart": "Voir tous les produits alimentaires"
+    }
+  }
+}

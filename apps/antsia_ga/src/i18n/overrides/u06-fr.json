@@ -1,0 +1,13 @@
+{
+  "messagerie": {
+    "icomViews": {
+      "loadedWindow": "Recherche et filtres parmi les conversations chargées. Chargez la suite pour les échanges individuels plus anciens. Pour les groupes, la lecture est limitée aux 50 premiers renvoyés par le serveur.",
+      "loadedGroupsWindow": "Recherche et filtres parmi les conversations chargées. Les groupes sont limités aux 50 premiers renvoyés par le serveur ; cette fenêtre n'est pas un annuaire complet.",
+      "chooseConversation": "Choisissez une conversation",
+      "chooseConversationBody": "Ouvrez une conversation, consultez vos appels ou retrouvez vos contacts. Chaque échange conserve son propre accès."
+    },
+    "messagerieListView": {
+      "searchAll": "Rechercher parmi les conversations chargées"
+    }
+  }
+}

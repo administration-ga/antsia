@@ -68,6 +68,10 @@ export const NOTIFICATION_KINDS = [
   "membership_changed",
   "badge_changed",
   "moderation_decision",
+  /** SU01d : l'accusé de réception d'un signalement, au DÉCLARANT seul (ordonnance 0011, art. 24). Sans acteur ; le sujet est le dossier. */
+  "report_received",
+  /** SU01d : une décision a été prise sur son signalement, au DÉCLARANT seul. Sans acteur ; l'effet se lit dans « Mes signalements ». */
+  "report_decided",
 ] as const
 
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number]

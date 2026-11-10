@@ -1,5 +1,41 @@
 # 01 — Versions candidates A, B, C, D : capacités, état réel et bloquants
 
+## Actualisation du 20 octobre 2026
+
+**Décision préparée : NO GO pour admettre une candidate issue de cette reprise.** Ce constat
+documentaire ne prend aucune décision à la place du propriétaire. Le repère ANTSIA `c4d36f3`
+ne fige pas les modifications non commitées ; aucun identifiant de binaire ni de déploiement
+servi n’est attesté. Les tableaux du 19 octobre qui suivent sont historiques. La production
+éventuellement publiée ailleurs n’est pas observée : aucun appel n’y a été fait, et la fermeture
+des registres en source ne décrit pas sa configuration courante.
+
+| Capacité candidate | État courant connu par les sources / rapports | Décision préparée et condition manquante |
+|---|---|---|
+| A — UI Web, fil, publications, iCom | Sources raccordées ; les reprises et corrections postérieures ne sont pas validées par les preuves du 18/10 | **NO GO** : gel coordonné, vérification et recette actuelle, accessibilité/performance à constater |
+| B — Vitrines en revue, liaison, catalogue, contact | Sources et consoles de finitions décrites ; aucune nouvelle recette croisée ; admission automatique fermée par P16 | **NO GO** : décisions d’admission/secteurs, configuration propriétaire et recette ; ne pas rouvrir l’automatique via une ancienne politique |
+| C — Préparation sans paiement | Réservation et voies historiques en source ; pas de nouvelle preuve d’exécution | **NO GO** : configuration vendeur/versionnée, autorité, concurrence et libération à éprouver |
+| C — Paiement, achat payé, remboursement nouveau | Registre d’activation P16 fermé ; aucun fournisseur admis ou prouvé par cette reprise | **NO GO** : décisions financières, connecteur/configuration sandbox et preuves serveur ; aucune transaction réelle autorisée |
+| C — Nouveaux services, devis acceptés et rendez-vous | Reprise P14 en source, nouveaux effets fermés par P16 dans les deux produits | **NO GO** : dépendances de conservation et recette P14 résolues, décision documentée puis évolution du registre ; une bascule de console seule ne suffit pas |
+| C — Nouvelles candidatures et copies de CV | Reprise P15 en source, candidatures et nouvelles copies fermées par P16 ; fenêtre crash stockage/rattachement encore ouverte | **NO GO** : conservation et admission durable des CV, recette P15, décision puis évolution du registre |
+| D — Client et appels natifs | P17b/c raccordés, Expo 57 déclaré ; P17d physique non effectué ; P18 natif raccordé sans mesures | **NO GO** : installation/compatibilité, contrôles et binaires, identités/configuration détenues, [recette iOS/Android](../../../recette/antsia-native-p17d/README.md) |
+| Toutes versions — pilote utilisateur | Protocole seulement ; aucun consentement, participant, séance ou résultat de cette reprise | **NO GO** : périmètre candidat admis, consentement et conservation des notes décidés, recrutement effectif |
+
+Les libérations, suivis, annulations, retraits et résolutions financières déjà engagés restent
+distincts de ces nouvelles admissions. Aucun résultat historique n’est effacé pour fermer une
+capacité. Aucun versement n’est déduit d’une réception acheteur.
+
+Preuves de cette actualisation : [P14](../rapports/P14_REPRISE_2026-10-20.md),
+[P15](../rapports/P15_REPRISE_2026-10-20.md), [P16](../rapports/P16_REPRISE_2026-10-20.md),
+[P17b](../rapports/P17B_REPRISE_2026-10-20.md), [P17c](../rapports/P17C_REPRISE_2026-10-20.md)
+et [plan P17d/P18/P19](../rapports/P17D_P18_P19_PLAN_REPRISE_2026-10-20.md), complétés par
+[P17d](../rapports/P17D_REPRISE_2026-10-20.md) et [P18](../rapports/P18_REPRISE_2026-10-20.md).
+Les registres [ANTSIA](../../../../convex/modules/shops/commerceActivation.ts) et
+[PRO.GA](../../../../../PRO_GA/convex/modules/integrations/commerceActivation.ts) ont été lus,
+sans les exécuter. Les hypothèses « aucun client natif », « P17b/c non lancées » et « ouvrir les
+services/emplois après simple configuration » du texte historique sont dépassées.
+
+## Relevé historique du 19 octobre (conservé)
+
 19 octobre 2026, lot P19 (version documentaire). Références : [00 §4](../00_VISION_ET_DECISIONS.md),
 [09 §4](../09_FEUILLE_DE_ROUTE.md), [10 §7](../10_RECETTE_MESURES_ET_RISQUES.md),
 [EXECUTION.md](../EXECUTION.md), rapports du dossier [`rapports/`](../rapports/).

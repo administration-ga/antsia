@@ -1,4 +1,5 @@
-/** Passages PA5 bornés : échéances, restauration de réponses et transparence agrégée. */
+/** Passages PA5 bornés : échéances, restauration de réponses et transparence agrégée (délais légaux SU01d compris). */
+import { isTerminalReportStatus, reportDeadlineOutcome } from "@antsia/social-domain/moderation"
 import { TRANSPARENCY_MIN_CASES } from "@antsia/social-domain/moderationPolicy"
 import { v } from "convex/values"
 
@@ -77,6 +78,37 @@ export const aggregateNetwork = internalMutation({
     const reportId = existing?._id ?? await ctx.db.insert("moderationTransparency", data)
     if (existing) await ctx.db.patch(existing._id, data)
     await appendAudit(ctx, { action: "moderation.transparency_compute", capacity: "system", networkId: args.networkId, subject: { table: "moderationTransparency", id: reportId }, details: { periodStart: args.periodStart, periodEnd: args.periodEnd } })
+    await ctx.scheduler.runAfter(0, internal.modules.moderation.maintenance.aggregateNetworkDeadlines, { networkId: args.networkId, periodStart: args.periodStart, periodEnd: args.periodEnd, cursor: null, met: 0, missed: 0, authors: 0 })
+    return null
+  },
+})
+
+/**
+ * SU01d — second passage : les échéances légales TOMBÉES pendant la période (`dueAt`), tenues ou
+ * manquées (`reportDeadlineOutcome`). Le passage quotidien mesure la veille : à son heure, toutes
+ * ses échéances sont passées et chaque issue est définitive. Mêmes bornes que le premier passage :
+ * cent dossiers par mutation, tous statuts mêlés, aucune identité transmise entre lots.
+ */
+export const aggregateNetworkDeadlines = internalMutation({
+  args: { networkId: v.id("networks"), periodStart: v.number(), periodEnd: v.number(), cursor: v.union(v.string(), v.null()), met: v.number(), missed: v.number(), authors: v.number() }, returns: v.null(),
+  handler: async (ctx, args): Promise<null> => {
+    const now = Date.now()
+    const result = await ctx.db.query("reports").withIndex("by_network_dueAt", (q) => q.eq("networkId", args.networkId).gte("dueAt", args.periodStart).lt("dueAt", args.periodEnd)).paginate({ cursor: args.cursor, numItems: 100 })
+    let { met, missed } = args
+    for (const row of result.page) {
+      if (row.dueAt === undefined) continue
+      const outcome = reportDeadlineOutcome({ status: row.status, dueAt: row.dueAt, decidedAt: isTerminalReportStatus(row.status) ? row.reviewedAt ?? row.updatedAt : null }, now)
+      if (outcome === "met") met++
+      else if (outcome === "missed") missed++
+    }
+    // Borne inférieure prudente, comme le premier passage : pas de liste d'identités entre lots.
+    const authors = Math.max(args.authors, Math.min(TRANSPARENCY_MIN_CASES, new Set(result.page.flatMap((row) => row.ownerPersonId ? [row.ownerPersonId] : [])).size))
+    if (!result.isDone) {
+      await ctx.scheduler.runAfter(0, internal.modules.moderation.maintenance.aggregateNetworkDeadlines, { ...args, cursor: result.continueCursor, met, missed, authors })
+      return null
+    }
+    const row = await ctx.db.query("moderationTransparency").withIndex("by_network_period", (q) => q.eq("networkId", args.networkId).eq("periodStart", args.periodStart)).unique()
+    if (row) await ctx.db.patch(row._id, { legalMet: met, legalMissed: missed, legalAuthors: authors })
     return null
   },
 })

@@ -11,6 +11,7 @@ import { useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 
 import { Button, Card, Field } from "@/components/shared/controls"
+import { SCREEN_SECTIONS } from "@/components/shared/screen-layout"
 import { SHOP_SELECT_CLASS, ShopFrame, ShopLink, useShopAction } from "@/components/shops/shop-ui"
 import { routes } from "@/lib/routes"
 import { PAYMENT_REFUND_REASONS, paymentRefundSchema, type PaymentRefundReason, type PaymentRefundValues } from "./payment-model"
@@ -39,7 +40,7 @@ function PaymentAttemptReader({ paymentAttemptId }: { paymentAttemptId: string }
   if (closed || query.data === null) return <PaymentFailure />
   if (query.isError) return <PaymentFailure retry={() => { void query.refetch() }} />
   if (query.isPending || query.data === undefined) return <p role="status">{t("loading")}</p>
-  return <div className="grid gap-4"><PaymentStatusCard attempt={query.data} /><PaymentOperations attempt={query.data} refetch={() => { void query.refetch() }} close={() => setClosed(true)} /></div>
+  return <div className={`${SCREEN_SECTIONS} gap-y-4`}><PaymentStatusCard attempt={query.data} /><PaymentOperations attempt={query.data} refetch={() => { void query.refetch() }} close={() => setClosed(true)} /></div>
 }
 
 function PaymentOperations({ attempt, refetch, close }: { attempt: PaymentAttempt; refetch: () => void; close: () => void }) {
@@ -103,7 +104,7 @@ function PaymentRefundForm({ pending, submit }: { pending: boolean; submit: (rea
   const form = useForm<PaymentRefundValues>({ resolver: zodResolver(paymentRefundSchema(t)), defaultValues: { accepted: false } })
   const accepted = form.watch("accepted")
   return <form className="grid gap-4 border-t border-border pt-4" onSubmit={form.handleSubmit((values) => { if (!pending && values.accepted) submit(values.reason) })}>
-    <h3 className="text-lg font-semibold">{t("refundTitle")}</h3><p>{t("refundLead")}</p>
+    <h3 className="font-display text-base font-bold leading-snug">{t("refundTitle")}</h3><p>{t("refundLead")}</p>
     <Field id="payment-refund-reason" label={t("refundReason")} error={form.formState.errors.reason?.message}><select id="payment-refund-reason" className={SHOP_SELECT_CLASS} disabled={pending} {...form.register("reason")}><option value="">{t("validationRefundReason")}</option>{PAYMENT_REFUND_REASONS.map((reason) => <option key={reason} value={reason}>{t(`refundReasons.${reason}`)}</option>)}</select></Field>
     <label className="flex min-h-11 items-start gap-3 text-sm"><input type="checkbox" className="mt-1 size-5 shrink-0 accent-primary" disabled={pending} {...form.register("accepted")} />{t("refundConsent")}</label>{form.formState.errors.accepted ? <p role="alert" className="text-sm text-destructive">{form.formState.errors.accepted.message}</p> : null}
     <Button type="submit" pending={pending} disabled={!accepted}>{t("requestRefund")}</Button><p className="text-sm text-muted-foreground">{t("refundNoGuarantee")}</p>
@@ -123,5 +124,5 @@ function PaymentListReader() {
   const query = useAuthenticatedConvexQuery(api.modules.shops.payment.listMy, { networkId, paginationOpts: { cursor, numItems: PAGE_SIZE } })
   if (query.isError) return <PaymentFailure retry={() => { void query.refetch() }} />
   if (query.isPending || !query.data) return <p role="status">{t("loading")}</p>
-  return <div className="grid gap-4"><p className="text-sm text-muted-foreground">{t("pageScope", { count: PAGE_SIZE })}</p>{query.data.page.length ? <ul className="grid gap-4">{query.data.page.map((attempt) => <li key={attempt.paymentAttemptId}><PaymentStatusCard attempt={attempt} compact /></li>)}</ul> : <Card><p>{t("empty")}</p></Card>}<nav aria-label={t("pagination")} className="flex flex-wrap gap-3">{cursors.length > 1 ? <Button variant="outline" onClick={() => setCursors((previous) => previous.slice(0, -1))}>{t("previous")}</Button> : null}{!query.data.isDone && query.data.continueCursor ? <Button variant="outline" onClick={() => setCursors((previous) => [...previous, query.data!.continueCursor])}>{t("next")}</Button> : null}</nav></div>
+  return <div className="grid gap-4"><p className="text-sm text-muted-foreground">{t("pageScope", { count: PAGE_SIZE })}</p>{query.data.page.length ? <ul className={`${SCREEN_SECTIONS} gap-y-4`}>{query.data.page.map((attempt) => <li key={attempt.paymentAttemptId}><PaymentStatusCard attempt={attempt} compact /></li>)}</ul> : <Card><p>{t("empty")}</p></Card>}<nav aria-label={t("pagination")} className="flex flex-wrap gap-3">{cursors.length > 1 ? <Button variant="outline" onClick={() => setCursors((previous) => previous.slice(0, -1))}>{t("previous")}</Button> : null}{!query.data.isDone && query.data.continueCursor ? <Button variant="outline" onClick={() => setCursors((previous) => [...previous, query.data!.continueCursor])}>{t("next")}</Button> : null}</nav></div>
 }

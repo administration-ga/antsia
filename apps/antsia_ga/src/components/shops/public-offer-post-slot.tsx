@@ -14,5 +14,5 @@ export async function PublicOfferPostSlot({ postId, locale }: { postId: string; 
   const result = await loadPublicPostOffer(postId)
   if (result.status !== "ready" || !result.data) return null
   const { t } = getAppT(locale)
-  return <aside aria-label={t("shops:catalog.attachedOffer")} className="px-4 pb-4"><PublicCatalogOfferCard offer={result.data} locale={locale} compact /></aside>
+  return <aside aria-label={t("shops:catalog.attachedOffer")} className="grid min-w-0 gap-2 px-3 pb-3 sm:px-4 sm:pb-4"><p className="text-xs font-semibold text-muted-foreground">{t("shops:catalog.attachedOffer")}</p><PublicCatalogOfferCard offer={result.data} locale={locale} compact /></aside>
 }

@@ -1,6 +1,7 @@
 // Dupliqué de socle/packages/agent-features/src/features/direct/DirectPage.tsx @ ad2e7fdc2 — adaptations : DTO moteur, préflight avant démarrage, studio consommant la salle persistante et gestion d’antenne par permissions serveur, i18n et routes injectées ; couleurs par fonction (ADR-0027) : « Rejoindre la salle » en participation (variante `commerce`, aplat d’identité en repli).
 "use client"
 
+import { themedActionStyle } from "../themed-action-style"
 import { api, type Id } from "@antsia/api/engine"
 import { useAuthenticatedConvexQuery } from "@antsia/api/hooks"
 import { useNetwork, useRoutes } from "@antsia/api/network"
@@ -131,10 +132,10 @@ function DirectSessionView({ session }: { session: DirectSession }) {
     void leaveViewer({ networkId, sessionId: session.sessionId }).catch(() => undefined)
   }
   return (
-    <section className="flex min-w-0 flex-col gap-5" aria-label={session.title}>
+    <section className="flex min-w-0 flex-col gap-5" style={{ fontSize: "var(--esp-content-font-size, inherit)", lineHeight: "var(--esp-content-line-height, inherit)" }} aria-label={session.title}>
       <Link href={routes.home()} className="inline-flex min-h-11 items-center text-sm">{t("back")}</Link>
       <header className="flex flex-wrap items-center justify-between gap-3">
-        <div><p className="text-sm text-muted-foreground">{t(`status.${session.status}`)}</p><h1 className="text-2xl font-semibold">{session.title}</h1><p className="text-sm text-muted-foreground">{session.host.displayName ?? t("person")}</p>{session.page ? <Link href={routes.page(session.page.handle)} className="text-sm">{t("create.signedPage", { name: session.page.name })}</Link> : null}</div>
+        <div><p className="text-sm text-muted-foreground">{t(`status.${session.status}`)}</p><h1 className="text-2xl font-semibold" style={{ fontFamily: "var(--esp-heading-font-family, inherit)", fontSize: "var(--esp-page-title-size, 1.5rem)", fontWeight: "var(--esp-heading-font-weight, 600)", lineHeight: "var(--esp-page-title-leading, 2rem)", letterSpacing: "var(--esp-page-title-tracking, normal)" }}>{session.title}</h1><p className="text-sm text-muted-foreground">{session.host.displayName ?? t("person")}</p>{session.page ? <Link href={routes.page(session.page.handle)} className="text-sm">{t("create.signedPage", { name: session.page.name })}</Link> : null}</div>
         <span className="rounded-full border border-border px-3 py-1 text-sm">{t(`audience.${session.audience}`)}</span>
       </header>
       {anotherRoom ? <p role="alert">{t("anotherRoom")} <Link href={routes.conference(state.sessionId!)}>{t("returnToRoom")}</Link></p> : null}
@@ -142,10 +143,10 @@ function DirectSessionView({ session }: { session: DirectSession }) {
       {held && state.error && state.error !== error ? <p role="alert" className="text-sm text-destructive">{state.error}</p> : null}
       <div className="grid min-w-0 items-start gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(18rem,22rem)]">
       <div className="flex min-w-0 flex-col gap-4">
-      {session.status === "scheduled" && session.viewerRole === "host" ? <div className="flex flex-col gap-4 rounded-xl border border-border bg-card p-5">
+      {session.status === "scheduled" && session.viewerRole === "host" ? <div className="flex flex-col gap-4 rounded-[var(--esp-primitive-card-radius,0.75rem)] border border-[var(--esp-primitive-surface-border,var(--border))] bg-card p-[var(--esp-card-padding,1.25rem)]">
         <p>{t("preflight.description")}</p>
         <label className="flex min-h-11 items-center gap-3"><input type="checkbox" checked={state.intent.audioOnly} disabled={pending} onChange={(event) => { preflightVersion.current += 1; directSessionStore.setIntent({ audioOnly: event.target.checked }); setChecked(false); setLocalTracks([]) }} />{t("preflight.audioOnly")}</label>
-        {localTracks.some((track) => track.kind === Track.Kind.Video) ? <video ref={preview} autoPlay muted playsInline aria-label={t("preflight.preview")} className="aspect-video w-full max-w-xl rounded-lg bg-muted" /> : null}
+        {localTracks.some((track) => track.kind === Track.Kind.Video) ? <video ref={preview} autoPlay muted playsInline aria-label={t("preflight.preview")} className="aspect-video w-full max-w-xl rounded-[var(--esp-primitive-media-radius,0.5rem)] bg-muted" /> : null}
         <div className="flex flex-wrap gap-3"><Button variant="ghost" disabled={pending || anotherRoom} onClick={preflight}>{t("preflight.check")}</Button><Button disabled={!checked || pending || anotherRoom} style={{ opacity: !checked || pending || anotherRoom ? 0.45 : 1 }} onClick={start}>{pending ? t("pending") : t("start")}</Button></div>
         {checked ? <p role="status">{t("preflight.ready")}</p> : null}
       </div> : null}
@@ -154,7 +155,7 @@ function DirectSessionView({ session }: { session: DirectSession }) {
         {held && room ? (
           <RoomContext.Provider value={room}><DirectStudio session={session} onLeave={() => session.viewerRole === "viewer" || state.phase !== "connected" ? quit() : setLeaving(true)} onEnd={session.permissions.endOrTransfer ? () => setExit(true) : undefined} /></RoomContext.Provider>
         ) : (
-          <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-6">
+          <div className="flex flex-col gap-[var(--esp-card-gap,0.75rem)] rounded-[var(--esp-primitive-card-radius,0.75rem)] border border-[var(--esp-primitive-surface-border,var(--border))] bg-card p-[var(--esp-card-padding,1.5rem)]">
             <p>{t(session.viewerRole === "viewer" ? "joinDescription" : "joinPublisherDescription")}</p>
             {session.viewerRole !== "viewer" ? <>
               <label className="flex min-h-11 items-center gap-3"><input type="checkbox" checked={state.intent.micEnabled} disabled={pending || anotherRoom} onChange={(event) => directSessionStore.setIntent({ micEnabled: event.target.checked })} />{t("microphoneOn")}</label>
@@ -176,8 +177,8 @@ function DirectSessionView({ session }: { session: DirectSession }) {
       {session.status === "ended" ? <DirectReplay session={session} /> : null}
       {leaving && session.status !== "ended" ? <DirectExitDialog session={session} onCancel={() => setLeaving(false)} onLeave={() => { quit(); setLeaving(false) }} /> : null}
       {session.status !== "ended" && session.permissions.endOrTransfer ? <>
-        <Button variant="ghost" disabled={pending} onClick={() => setExit(true)}>{t(session.status === "scheduled" ? "cancel" : "end")}</Button>
-        {exit ? <div role="group" aria-label={t("endConfirm")} className="flex flex-col gap-3 rounded-xl border border-border p-4"><p>{t("endConfirm")}</p><div className="flex gap-3"><Button disabled={pending} onClick={() => void attempt(async () => { await end({ networkId, sessionId: session.sessionId }); quit(); setExit(false) })}>{t("confirm")}</Button><Button variant="ghost" onClick={() => setExit(false)}>{t("keep")}</Button></div></div> : null}
+        <Button style={themedActionStyle("danger", "ghost")} variant="danger" disabled={pending} onClick={() => setExit(true)}>{t(session.status === "scheduled" ? "cancel" : "end")}</Button>
+        {exit ? <div role="group" aria-label={t("endConfirm")} className="flex flex-col gap-[var(--esp-card-gap,0.75rem)] rounded-[var(--esp-primitive-card-radius,0.75rem)] border border-border p-4"><p>{t("endConfirm")}</p><div className="flex gap-3"><Button style={themedActionStyle("danger", "primary")} variant="danger" disabled={pending} onClick={() => void attempt(async () => { await end({ networkId, sessionId: session.sessionId }); quit(); setExit(false) })}>{t("confirm")}</Button><Button style={themedActionStyle("cancel", "ghost")} variant="outline" onClick={() => setExit(false)}>{t("keep")}</Button></div></div> : null}
       </> : null}
     </section>
   )

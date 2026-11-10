@@ -1,10 +1,10 @@
 // Dupliqué de socle/packages/agent-features/src/features/notifications/NotificationsCenter.test.tsx @ ad2e7fdc2 — adaptations : RÉÉCRIT pour l'onglet Réseau SEUL, monté dans l'enveloppe du moteur (`renderWithEngine`) avec `notifications.bell.*` et `graph.connections.*` simulées par référence et des lignes au DTO du moteur (sujet `{ kind, id }`, acteur par mini-profil) ; retirés avec l'onglet « Administration » et sa table centrale : l'onglet ouvert d'emblée et son figement (7 cas), les onglets et leurs pastilles (3), les lignes administratives (9) et les états de la liste administrative (4) ; portés : « Tout marquer lu » (3 cas, une seule mutation désormais, refus dit par son code) et la ligne Réseau qui ferme la carte avant de naviguer (adresse de profil injectée) ; les quatre états de liste (chargement, page suivante, chargement de la suite, panne distincte du vide) et les gestes « Marquer lu » / ligne lue sans geste sont portés sur la liste du RÉSEAU ; ajoutés : réseau courant passé aux requêtes, liste vide, publication ouverte sur la page réseau, genres du moteur et nom neutre, statut vivant d'un fichier retenu, et la décision d'une invitation (relecture puis réponse, déjà traitée, conflit, refus de débit qui garde les boutons) ; cas neuf (lot F2) : la page d'un `page_post` est nommée avec son badge calculé.
 // @vitest-environment jsdom
 
-import { fireEvent, screen, waitFor } from "@testing-library/react"
+import { fireEvent, screen, waitFor, within } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
-import { renderWithEngine, TEST_NETWORK_ID, TEST_ROUTES } from "../../tests/engine-wrapper"
+import { memoryRouter, renderWithEngine, TEST_NETWORK_ID, TEST_ROUTES } from "../../tests/engine-wrapper"
 
 type PaginationStatus =
 	| "LoadingFirstPage"
@@ -115,6 +115,10 @@ function notification(id: string, overrides: Record<string, unknown> = {}) {
 		page: null,
 		...overrides,
 	}
+}
+
+function renderedSentence(text: string) {
+	return screen.getByText((_content, element) => element?.classList.contains("ntf-sentence") === true && element.textContent === text)
 }
 
 function renderCenter() {
@@ -246,7 +250,7 @@ describe("NotificationsCenter — les lignes du réseau", () => {
 		]
 		renderCenter()
 
-		expect(screen.getByText("Awa a réagi à votre publication.")).toBeInTheDocument()
+		expect(renderedSentence("Awa a réagi à votre publication.")).toBeInTheDocument()
 		expect(screen.getByText("il y a 1 min")).toBeInTheDocument()
 		expect(
 			screen.getByRole("link", { name: "Ouvrir" }).getAttribute("href"),
@@ -273,7 +277,7 @@ describe("NotificationsCenter — les lignes du réseau", () => {
 		]
 		renderCenter()
 
-		expect(screen.getByText("Awa a cherché à vous joindre.")).toBeInTheDocument()
+		expect(renderedSentence("Awa a cherché à vous joindre.")).toBeInTheDocument()
 		expect(
 			screen.getByRole("link", { name: "Ouvrir" }).getAttribute("href"),
 		).toBe(`${TEST_ROUTES.messages()}?brique=iappel`)
@@ -308,7 +312,7 @@ describe("NotificationsCenter — les lignes du réseau", () => {
 		]
 		renderCenter()
 
-		expect(screen.getByText("Direction des Impôts a publié.")).toBeInTheDocument()
+		expect(renderedSentence("Direction des Impôts a publié.")).toBeInTheDocument()
 		expect(screen.getByText("Communauté")).toBeInTheDocument()
 		expect(screen.queryByText("Officiel")).toBeNull()
 	})
@@ -383,10 +387,12 @@ describe("NotificationsCenter — une invitation de relation se décide sur plac
 
 	it("relit l'état AVANT de répondre, et dit le résultat sans marquage de plus", async () => {
 		mocks.results = [invitation()]
-		renderCenter()
+		const router = memoryRouter()
+		const onOpenConnection = vi.fn()
+		renderWithEngine(<NotificationsCenter now={NOW} targets={{ onOpenConnection }} />, { router: router.implementation })
 
-		expect(screen.getByText("Awa souhaite se connecter avec vous.")).toBeInTheDocument()
-		fireEvent.click(screen.getByRole("button", { name: "Accepter" }))
+		expect(renderedSentence("Awa souhaite se connecter avec vous.")).toBeInTheDocument()
+		fireEvent.click(screen.getByRole("button", { name: "Confirmer" }))
 
 		expect(await screen.findByText("Connexion acceptée.")).toBeInTheDocument()
 		expect(mocks.convexQuery).toHaveBeenCalledWith("pendingState", {
@@ -404,6 +410,10 @@ describe("NotificationsCenter — une invitation de relation se décide sur plac
 		expect(toast.success).toHaveBeenCalledWith("Connexion acceptée.")
 		// La transaction qui tranche résout et marque la ligne : rien à ajouter.
 		expect(mocks.markRead).not.toHaveBeenCalled()
+		expect(router.calls).toEqual([])
+		expect(onOpenConnection).not.toHaveBeenCalled()
+		expect(readNotificationCenter().open).toBe(true)
+		expect(screen.queryByRole("link")).toBeNull()
 	})
 
 	it("refuser dit « Invitation déclinée. »", async () => {
@@ -425,7 +435,7 @@ describe("NotificationsCenter — une invitation de relation se décide sur plac
 		mocks.convexQuery.mockResolvedValueOnce({ status: "accepted", iAmRecipient: true })
 		renderCenter()
 
-		fireEvent.click(screen.getByRole("button", { name: "Accepter" }))
+		fireEvent.click(screen.getByRole("button", { name: "Confirmer" }))
 
 		expect(await screen.findByText("Invitation déjà traitée.")).toBeInTheDocument()
 		expect(mocks.respond).not.toHaveBeenCalled()
@@ -440,7 +450,7 @@ describe("NotificationsCenter — une invitation de relation se décide sur plac
 		mocks.respond.mockRejectedValueOnce({ data: { code: "conflict" } })
 		renderCenter()
 
-		fireEvent.click(screen.getByRole("button", { name: "Accepter" }))
+		fireEvent.click(screen.getByRole("button", { name: "Confirmer" }))
 
 		expect(await screen.findByText("Invitation déjà traitée.")).toBeInTheDocument()
 		expect(mocks.markRead).toHaveBeenCalledTimes(1)
@@ -451,16 +461,30 @@ describe("NotificationsCenter — une invitation de relation se décide sur plac
 		mocks.respond.mockRejectedValueOnce({ data: { code: "rateLimited" } })
 		renderCenter()
 
-		fireEvent.click(screen.getByRole("button", { name: "Accepter" }))
+		fireEvent.click(screen.getByRole("button", { name: "Confirmer" }))
 
 		await waitFor(() =>
 			expect(toast.error).toHaveBeenCalledWith(
 				"Trop de tentatives. Réessayez dans quelques instants.",
 			),
 		)
-		expect(screen.getByRole("button", { name: "Accepter" })).not.toBeDisabled()
+		expect(screen.getByRole("button", { name: "Confirmer" })).not.toBeDisabled()
 		expect(screen.queryByText("Invitation déjà traitée.")).toBeNull()
 		expect(mocks.markRead).not.toHaveBeenCalled()
+	})
+
+	it.each(["pendingState", "respond"])("une panne technique de %s conserve les deux décisions et la carte", async (step) => {
+		mocks.results = [invitation()]
+		if (step === "pendingState") mocks.convexQuery.mockRejectedValueOnce(new Error("network timeout"))
+		else mocks.respond.mockRejectedValueOnce(new Error("network timeout"))
+		renderCenter()
+		fireEvent.click(screen.getByRole("button", { name: "Confirmer" }))
+		await waitFor(() => expect(toast.error).toHaveBeenCalledWith("La réponse n’a pas pu être enregistrée. Réessayez."))
+		expect(screen.getByRole("button", { name: "Confirmer" })).not.toBeDisabled()
+		expect(screen.getByRole("button", { name: "Refuser" })).not.toBeDisabled()
+		expect(screen.queryByText("Invitation déjà traitée.")).toBeNull()
+		expect(mocks.markRead).not.toHaveBeenCalled()
+		expect(readNotificationCenter().open).toBe(true)
 	})
 
 	it("une invitation déjà tranchée ne propose plus rien, et dit son résultat", () => {
@@ -475,7 +499,7 @@ describe("NotificationsCenter — une invitation de relation se décide sur plac
 		renderCenter()
 
 		expect(screen.getByText("Invitation déclinée.")).toBeInTheDocument()
-		expect(screen.queryByRole("button", { name: "Accepter" })).toBeNull()
+		expect(screen.queryByRole("button", { name: "Confirmer" })).toBeNull()
 		expect(screen.queryByRole("button", { name: "Marquer lu" })).toBeNull()
 	})
 })
@@ -519,5 +543,55 @@ describe("NotificationsCenter — états de la liste", () => {
 		expect(alert.textContent).toContain("Activité indisponible")
 		expect(screen.queryByText(EMPTY)).toBeNull()
 		consoleError.mockRestore()
+	})
+})
+
+
+describe("NotificationsCenter — présentation sociale et notifications chargées", () => {
+	it("montre le portrait public et met le nom de l'acteur en évidence", () => {
+		mocks.results = [notification("portrait", {
+			subject: { kind: "post", id: "post-portrait" },
+			actor: { personId: "persons_awa", displayName: "Awa MBA", handle: "awa.mba", avatarUrl: "/medias/awa.webp", badges: [] },
+		})]
+		const { container } = renderCenter()
+		expect(container.querySelector(".ntf-avatar img")?.getAttribute("src")).toBe("/medias/awa.webp")
+		expect(container.querySelector(".ntf-sentence strong")?.textContent).toBe("Awa MBA")
+		expect(container.querySelector(".ntf-kind svg")).not.toBeNull()
+		expect(container.querySelector("a button")).toBeNull()
+	})
+
+	it("ne transforme pas l'acteur d'un avis système en auteur affiché", () => {
+		mocks.results = [notification("system", {
+			kind: "moderation_decision",
+			actor: { personId: "persons_awa", displayName: "Awa MBA", handle: "awa.mba", avatarUrl: "/medias/awa.webp", badges: [] },
+		})]
+		const { container } = renderCenter()
+		expect(container.querySelector(".ntf-avatar img")).toBeNull()
+		expect(screen.queryByText("Awa MBA")).toBeNull()
+		expect(screen.getByText(/Une décision de modération vous concerne/)).toBeInTheDocument()
+	})
+
+	it("distingue les lignes non lues et groupe les dates réelles sans inventer de contenu", () => {
+		mocks.results = [notification("recent"), notification("older", { createdAt: NOW - 3 * 24 * 60 * 60 * 1000, readAt: NOW - 1_000 })]
+		const { container } = renderCenter()
+		expect(screen.getByRole("heading", { name: "Nouveau" })).toBeInTheDocument()
+		expect(screen.getByRole("heading", { name: "Plus tôt" })).toBeInTheDocument()
+		expect(within(screen.getByRole("region", { name: "Nouveau" })).getByText("il y a 1 min")).toBeInTheDocument()
+		expect(container.querySelectorAll("li.ntf-row[data-unread]")).toHaveLength(1)
+		expect(screen.getByText("Notification non lue.")).toBeInTheDocument()
+	})
+
+	it("filtre les non-lues chargées et garde la pagination d'une page filtrée vide", () => {
+		mocks.results = [notification("read", { readAt: NOW - 1_000 })]
+		mocks.status = "CanLoadMore"
+		renderCenter()
+		fireEvent.click(screen.getByRole("button", { name: "Non lues" }))
+		expect(screen.getByRole("button", { name: "Non lues" }).getAttribute("aria-pressed")).toBe("true")
+		expect(screen.getByText("Aucune notification non lue parmi celles chargées.")).toBeInTheDocument()
+		expect(screen.getByText(/Le filtre porte sur les notifications chargées/)).toBeInTheDocument()
+		fireEvent.click(screen.getByRole("button", { name: "Voir plus d'activité" }))
+		expect(mocks.loadMore).toHaveBeenCalledWith(20)
+		fireEvent.click(screen.getByRole("button", { name: "Toutes" }))
+		expect(renderedSentence("Awa a réagi à votre publication.")).toBeInTheDocument()
 	})
 })

@@ -25,7 +25,7 @@ function ReconcileAction({ shopId, dirty }: { shopId: Id<"shops">; dirty: boolea
   const [cursor, setCursor] = useState<string | null>(null)
   const [queued, setQueued] = useState<number | null>(null)
   const [refused, setRefused] = useState(false)
-  return <section className="grid gap-3 rounded-xl border border-border bg-background p-4"><h3 className="font-semibold">{t("catalog.sync.title")}</h3><p className="text-sm text-muted-foreground">{t("catalog.sync.lead")}</p><Button type="button" variant="outline" pending={action.pending} disabled={dirty || refused} className="justify-self-start" onClick={() => {
+  return <section className="grid gap-3 rounded-[var(--ui2-card-radius)] border border-[color:var(--esp-surface-border)] bg-background p-[var(--esp-card-padding,16px)]"><h3 className="font-display text-base font-bold leading-snug">{t("catalog.sync.title")}</h3><p className="text-sm text-muted-foreground">{t("catalog.sync.lead")}</p><Button type="button" variant="outline" pending={action.pending} disabled={dirty || refused} className="w-full sm:w-auto sm:justify-self-start" onClick={() => {
     if (dirty || refused) return
     void action.run(() => reconcile({ networkId, shopId, cursor }), (result) => {
       if (result.outcome !== "queued") { setCursor(null); setQueued(null); setRefused(true); return }

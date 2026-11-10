@@ -426,3 +426,10 @@ describe("P12 — intention privée de paiement, baux et preuve de statut", () =
     expect(await f.t.run(ctx => ctx.db.query("shopPaymentRequests").withIndex("by_client", q => q.eq("personId", f.personId).eq("networkId", f.root).eq("kind", "refund_request").eq("clientRequestId", args.clientRequestId)).take(2))).toHaveLength(1)
   })
 })
+
+// P16 : validation fictive EN TEST pour préserver les scénarios historiques.
+// Aucun contournement d'environnement ni activation en source applicative.
+vi.mock("./commerceActivation", async (importOriginal) => ({
+  ...await importOriginal<typeof import("./commerceActivation")>(),
+  commerceActivationReady: () => true,
+}))

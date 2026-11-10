@@ -1,5 +1,29 @@
 # 04 — Pilote utilisateur proposé (non conduit)
 
+> **20 octobre 2026 — pilote toujours non conduit.** Aucun recrutement, consentement signé,
+> séance, mesure ou résultat n’est acquis par cette reprise. Le protocole du 19 octobre est
+> conservé comme proposition ; ses douze profils et objectifs ne sont ni une liste de personnes
+> recrutées ni des seuils atteints. Aucun responsable nominatif, durée ou calendrier n’est ajouté.
+
+### Conditions actuelles avant recrutement
+
+La [décision préparée est NO GO par capacité](01_VERSIONS_CANDIDATES.md#actualisation-du-20-octobre-2026).
+La candidate doit être gelée, vérifiée et recettée sur son périmètre avant toute séance. Les
+tâches services et candidature/CV ne deviennent pas disponibles par une bascule de console :
+leurs registres P16 restent fermés jusqu’aux décisions et corrections requises. Le natif exige
+les preuves [P17d sur appareils](../../../recette/antsia-native-p17d/README.md) ; P18 n’a encore
+fourni aucune mesure de cette reprise. Aucune séance de paiement, acompte ou argent réel n’est
+autorisée par ce dossier.
+
+Avant toute collecte, le propriétaire doit valider un consentement propre au périmètre réellement
+disponible : but, tâches, risques/limites annoncés, caractère volontaire, arrêt/retrait des notes,
+personnes habilitées à les lire, lieu et durée décidés de conservation. Une permission OS de
+notifications/micro n’est pas le consentement à l’étude ; aucune donnée privée d’un autre compte
+ne doit être recueillie. La règle « remise à zéro » du protocole décrit une préparation technique
+future, pas une autorisation de supprimer des engagements ou preuves financières.
+
+### Protocole historique proposé (19 octobre)
+
 19 octobre 2026, lot P19. **Ce pilote n'a pas été conduit.** Aucun participant n'a été recruté,
 aucune séance n'a eu lieu, aucune note n'existe. Les chiffres ci-dessous sont un recrutement et des
 objectifs proposés (10 §1, §4), pas des résultats. Recruter les participants est un prérequis du

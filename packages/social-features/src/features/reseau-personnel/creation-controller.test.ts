@@ -77,6 +77,17 @@ describe("creationEntries — ce que « Créer » propose", () => {
     expect(t(creationEntry("album").labelKey)).toBe("Album")
   })
 
+  it("« Mon activité » ferme la liste quand l'application sert la gestion des activités, et y mène", () => {
+    expect(creationEntries({ mobile: true, activity: true }).map((e) => e.kind)).toEqual(["publication", "actu", "evenement", "conference", "activite"])
+    expect(creationEntries({ mobile: true }).map((e) => e.kind)).not.toContain("activite")
+    expect(t(creationEntry("activite").labelKey)).toBe("Mon activité")
+    const home = () => "/reseau-test"
+    const profile = (handle: string) => `/personne/${handle}`
+    expect(creationLaunchFor("activite", {}, { home, profile, myActivity: () => "/mes-activites-test" })).toEqual({ action: "navigate", href: "/mes-activites-test" })
+    // Sans espace de gestion servi, le geste ne mène jamais à une adresse inventée.
+    expect(creationLaunchFor("activite", {}, { home, profile })).toEqual({ action: "navigate", href: "/reseau-test" })
+  })
+
   it("décrit et illustre chaque entrée — un choix ne se devine pas", () => {
     for (const entry of creationEntries({ mobile: true, ...AVEC_HANDLE })) {
       const label = t(entry.labelKey)

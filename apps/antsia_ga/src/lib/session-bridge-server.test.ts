@@ -16,6 +16,26 @@ beforeEach(() => vi.stubEnv("NEXT_PUBLIC_CONVEX_URL", "http://localhost:3210"))
 afterEach(() => { vi.useRealTimers(); vi.unstubAllEnvs() })
 
 describe("broker ANTSIA : pas de session étrangère ni de bypass JWT", () => {
+  it("le transport démo privé garde le contrôle d'origine et un reçu distinct du compte réel", async () => {
+    vi.stubEnv("NEXT_PUBLIC_APP_BASE_PATH", "/demo")
+    vi.stubEnv("NEXT_PUBLIC_CONVEX_URL", "https://vivid-hedgehog-655.convex.cloud")
+    vi.stubEnv("ANTSIA_DEMO_PROXY_TOKEN", "p".repeat(48))
+    const demoNames = bridgeCookieNames(true)
+    const canonical = "https://antsia.vercel.app"
+    const make = (admitted: boolean) => new Request("https://runtime.example.test/demo/api/session-bridge", { method: "DELETE", headers: { Origin: canonical, "Content-Type": "application/json", Cookie: `${demoNames.generation}=${A}`, ...(admitted ? { "x-antsia-demo-proxy": "p".repeat(48) } : {}) }, body: JSON.stringify({ generation: A, anonymous: true }) })
+    expect((await handleSessionBridge(make(false), { origin: canonical })).status).toBe(403)
+    const response = await handleSessionBridge(make(true), { origin: canonical })
+    expect(response.status).toBe(204)
+    expect(response.cookies.get(demoNames.receipt)).toBeDefined()
+    expect(demoNames.receipt).toBe("__Host-antsia_demo_receipt")
+    expect(response.headers.get("set-cookie")).toContain("SameSite=lax")
+    expect(response.headers.get("set-cookie")).not.toContain("Partitioned")
+    const foreign = make(true)
+    foreign.headers.set("origin", "https://foreign.example.test")
+    expect((await handleSessionBridge(foreign, { origin: canonical })).status).toBe(403)
+    vi.stubEnv("NEXT_PUBLIC_CONVEX_URL", "https://diligent-avocet-585.convex.cloud")
+    expect((await handleSessionBridge(make(true), { origin: canonical })).status).toBe(403)
+  })
   it("n'envoie que le SID signé SDK et borne le reçu par l'expiration réelle", async () => {
     const authFetch = vi.fn<(path: string, cookie: string) => Promise<Response>>(async () => upstream())
     const response = await handleSessionBridge(request("POST"), { origin, authFetch, sessionActive: async () => true })

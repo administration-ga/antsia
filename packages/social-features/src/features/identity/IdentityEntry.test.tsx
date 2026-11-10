@@ -123,6 +123,24 @@ describe("IdentityEntry — codes et retours utilisateur", () => {
     expect(authClient.emailOtp.sendVerificationOtp).toHaveBeenCalledWith(expect.objectContaining({ email: "awa@example.ga", type: "sign-in" }))
   })
 
+  it("la demande de code porte la langue affichée : le moteur compose le code dans cette langue", async () => {
+    const french = mount()
+    await enterEmail()
+    expect(french.authClient.emailOtp.sendVerificationOtp).toHaveBeenCalledWith(expect.objectContaining({ fetchOptions: expect.objectContaining({ headers: { "Accept-Language": "fr" } }) }))
+    french.unmount()
+    const english = mount({}, "en")
+    fireEvent.change(screen.getByLabelText("Email address"), { target: { value: "awa@example.ga" } })
+    fireEvent.click(screen.getByRole("button", { name: "Receive a code" }))
+    await screen.findByLabelText("Six-digit code")
+    expect(english.authClient.emailOtp.sendVerificationOtp).toHaveBeenCalledWith(expect.objectContaining({ email: "awa@example.ga", fetchOptions: expect.objectContaining({ headers: { "Accept-Language": "en" } }) }))
+    english.unmount()
+    const sms = mount({ configuration: { ...configuration, emailOtp: false } }, "en")
+    fireEvent.change(screen.getByLabelText("Phone number"), { target: { value: "+24177123456" } })
+    fireEvent.click(screen.getByRole("button", { name: "Receive a code" }))
+    await screen.findByLabelText("Six-digit code")
+    expect(sms.authClient.phoneNumber.sendOtp).toHaveBeenCalledWith(expect.objectContaining({ phoneNumber: "+24177123456", fetchOptions: expect.objectContaining({ headers: { "Accept-Language": "en" } }) }))
+  })
+
   it("une panne d'envoi est visible et conserve le champ pour réessayer", async () => {
     const authClient = client()
     authClient.emailOtp.sendVerificationOtp.mockRejectedValueOnce(new TypeError("Failed to fetch"))

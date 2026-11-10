@@ -22,6 +22,14 @@ describe("défauts", () => {
     expect(defaultFeedMode("desktop", true)).toBe("list")
   })
 
+  it("l'écran des chartes (ADR-0028) ouvre le téléphone en Liste ; un choix explicite l'emporte encore", () => {
+    expect(defaultFeedMode("phone", false, "list")).toBe("list")
+    expect(defaultFeedMode("desktop", false, "list")).toBe("list")
+    expect(resolveFeedMode({ pose: "phone", stored: {}, reducedMotion: false, viewportHeight: 800, phoneDefault: "list" })).toEqual({ preferred: "list", effective: "list", fallback: null, explicit: false })
+    const chosen = withStoredFeedMode({}, "phone", "immersive")
+    expect(resolveFeedMode({ pose: "phone", stored: chosen, reducedMotion: false, viewportHeight: 800, phoneDefault: "list" }).effective).toBe("immersive")
+  })
+
   it("un choix explicite l'emporte, y compris l'Immersion malgré la réduction des mouvements", () => {
     const stored = withStoredFeedMode({}, "phone", "immersive")
     expect(resolveFeedMode({ pose: "phone", stored, reducedMotion: true, viewportHeight: 800 })).toEqual({ preferred: "immersive", effective: "immersive", fallback: null, explicit: true })

@@ -3,8 +3,9 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import { ArrowRight, Hash } from "lucide-react"
 import Link from "next/link"
+import { SCREEN_SECTIONS } from "@/components/shared/screen-layout"
 import { useRouter } from "next/navigation"
-import { useId } from "react"
+import { Suspense, useId } from "react"
 import { useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 
@@ -14,6 +15,8 @@ import { MemberServiceDirectory, useServicesDiscoverable } from "@/components/se
 import { MemberShopDirectory } from "@/components/shops/member-shop-directory"
 import { Button, Field, TextInput } from "@/components/shared/controls"
 import { routes } from "@/lib/routes"
+import { useFoodStorefronts } from "@/components/universes/food-universe-screen"
+import { MediaDiscoveryScreen } from "./media-discovery-screen"
 import {
   discoverContentEntries,
   discoverJobEntry,
@@ -34,6 +37,35 @@ const ENTRY_LINK =
 
 const CHIP_LINK =
   "inline-flex min-h-11 items-center rounded-full border border-border bg-card px-4 text-sm font-medium text-card-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+
+/**
+ * Découvrir rangé par piliers (étude des sept univers, § 4 et § 12, lot SU02) : le Business et ses univers OUVERTS
+ * seulement, la Vie publique, puis le Divertissement. Un univers sans adresse ni offre réelle n'a pas de tuile
+ * (aucune entrée vide, ADR-0034) : les services attendent une offre publiée, l'alimentation une adresse ouverte.
+ */
+function DiscoverPillars({ services }: { services: boolean }) {
+  const { t } = useTranslation("memberNetwork")
+  const food = useFoodStorefronts().storefronts.length > 0
+  const pillars: { id: string; label: string; entries: { href: string; label: string }[] }[] = [
+    { id: "business", label: t("discoverHub.pillars.business"), entries: [
+      { href: routes.marketplaceHome(), label: t("discoverHub.universes.shops") },
+      ...(services ? [{ href: routes.marketplace({ view: "services" }), label: t("discoverHub.universes.services") }] : []),
+      ...(food ? [{ href: routes.foodUniverse(), label: t("discoverHub.universes.food") }] : []),
+      { href: routes.professionals(), label: t("specializedSpaces:professionalSpace") },
+    ] },
+    { id: "public", label: t("discoverHub.pillars.publicLife"), entries: [{ href: routes.press(), label: t("specializedSpaces:editorialSpace") }] },
+    { id: "entertainment", label: t("discoverHub.pillars.entertainment"), entries: [
+      { href: routes.clips(), label: t("discoverHub.universes.clips") },
+      { href: routes.personalMeetings(), label: t("personalMeetings:entryLabel") },
+    ] },
+  ]
+  return <nav aria-label={t("discoverHub.pillars.label")} className="grid min-w-0 gap-4">
+    {pillars.map(pillar => <section key={pillar.id} aria-label={pillar.label} className="grid min-w-0 gap-2" data-discover-pillar={pillar.id}>
+      <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">{pillar.label}</h2>
+      <ul className="flex min-w-0 flex-wrap gap-2">{pillar.entries.map(entry => <li key={entry.href}><Link href={entry.href} className={CHIP_LINK}><span>{entry.label}</span><ArrowRight aria-hidden="true" className="ml-3 size-4" /></Link></li>)}</ul>
+    </section>)}
+  </nav>
+}
 
 /** Une entrée de Découvrir : un lien d'une seule pièce, libellé puis phrase. */
 function EntryLink({ entry }: { entry: DiscoverEntry }) {
@@ -109,12 +141,16 @@ export function MemberDiscoverScreen() {
 
   return (
     <MemberPage>
-      <div className="mx-auto flex w-full max-w-3xl min-w-0 flex-col gap-8">
+      <div className="flex w-full min-w-0 flex-col gap-8">
         <header className="flex flex-col gap-2">
           <h1 className="text-2xl font-semibold tracking-tight">{t("nav.discover")}</h1>
           <p className="text-base text-muted-foreground">{t("discoverHub.lead")}</p>
           <p className="text-sm text-muted-foreground">{t("discovery.memberScope")}</p>
         </header>
+
+        <DiscoverPillars services={discoverData.services} />
+
+        <Suspense fallback={<p role="status">{t("socialExperience:loading")}</p>}><MediaDiscoveryScreen mode="explore" /></Suspense>
 
         {showsDiscoverTabs(discoverData) ? <nav aria-label={t("commerce.sections")} className="flex flex-wrap gap-2">
           {servedDiscoverTabs(discoverData).map((tab) => {
@@ -125,7 +161,7 @@ export function MemberDiscoverScreen() {
 
         <section aria-labelledby={contentTitle} className="flex flex-col gap-4">
           <h2 id={contentTitle} className="text-lg font-semibold">{t("discoverHub.contentTitle")}</h2>
-          <ul className="grid gap-3">
+          <ul className={`${SCREEN_SECTIONS} gap-y-3`}>
             {discoverContentEntries().map((entry) => (
               <li key={entry.id}>
                 <EntryLink entry={entry} />

@@ -21,7 +21,8 @@ import { components, internal } from "../_generated/api"
 import type { DataModel } from "../_generated/dataModel"
 import authConfig from "../auth.config"
 import { devToolsAllowed } from "../lib/devTools"
-import { deliverOtp } from "./delivery"
+import { deliverOtp, type OtpRequest } from "./delivery"
+import { isNativeIdnOAuth, nativeIdn } from "./nativeIdn"
 import { authenticationConfiguration, idnConfiguration, idnProfileProof, isE164Phone, trustedOrigins } from "./settings"
 
 export { parseOriginList, trustedOrigins } from "./settings"
@@ -85,6 +86,11 @@ function isPasswordRequest(hookCtx: { path?: string; body?: unknown }): boolean 
   const path = hookCtx.path ?? ""
   if (PASSWORD_PATHS.has(path) || path.startsWith("/reset-password/")) return true
   return path === "/email-otp/send-verification-otp" && typeof hookCtx.body === "object" && hookCtx.body !== null && "type" in hookCtx.body && hookCtx.body.type === "forget-password"
+}
+
+/** L'origine et la langue de la requête qui demande un code ; l'origine de `createAuth` à défaut d'en-têtes. */
+function otpRequestOf(endpoint: { headers?: Headers | null } | undefined, requestOrigin: string | null | undefined): OtpRequest {
+  return { origin: endpoint?.headers?.get("origin") ?? requestOrigin, acceptLanguage: endpoint?.headers?.get("accept-language") }
 }
 
 type DeliveryState = { attempted: boolean; delivered: boolean }
@@ -188,12 +194,30 @@ export const createAuth = (ctx: GenericCtx<DataModel>, requestOrigin?: string | 
   const allowedOrigins = trustedOrigins()
   const isLocalDev = devToolsAllowed()
   const idnOptions = idnConfiguration()
+  const browserSession = crossDomain({ siteUrl: resolveSiteUrl(requestOrigin, allowedOrigins, siteUrl) })
+  const skipBrowserAfter = createAuthMiddleware(async () => {})
+  // Le retour natif délivre son propre code S256. Ne jamais lui ajouter l'OTT Web.
+  browserSession.hooks.after = browserSession.hooks.after.map((hook) => ({
+    ...hook,
+    // Le handler est déjà un middleware Better Call : conserver son enveloppe
+    // { response, headers }. L'envelopper une seconde fois remplace le corps
+    // OAuth/OTP par cet objet d'en-têtes dans le transport crossDomain.
+    handler: async (hookCtx) => {
+      // Les champs de route sont fournis par le répartiteur Better Auth, mais
+      // absents du type générique des entrées de middleware Better Call.
+      const route = hookCtx as typeof hookCtx & { path?: string; params?: { providerId?: string } }
+      if ((route.path === "/oauth2/callback/idn" || route.path === "/oauth2/callback/:providerId" && route.params?.providerId === "idn") && await isNativeIdnOAuth()) return skipBrowserAfter(hookCtx)
+      return hook.handler(hookCtx)
+    },
+  }))
   // Propre à CETTE requête : seul le profil du callback OIDC peut sceller
   // la nouvelle session. Un lien de compte ou un OTP ne le peuvent pas.
   let idnLoginProof: ReturnType<typeof idnProfileProof> | null = null
   type OAuthConfig = Parameters<typeof genericOAuth>[0]["config"][number]
   const idnProvider: OAuthConfig[] = idnOptions ? [{
     ...idn({ ...idnOptions, scopes: ["openid", "profile", "email"] }),
+    // Une nouvelle entrée doit permettre une autre identité, même si IDN garde son SSO.
+    prompt: "login",
     // Callback central stable, aussi pendant l'échange sans en-tête Origin.
     redirectURI: `${siteUrl}/api/auth/oauth2/callback/idn`,
     mapProfileToUser: async (profile: Record<string, unknown>) => {
@@ -252,7 +276,8 @@ export const createAuth = (ctx: GenericCtx<DataModel>, requestOrigin?: string | 
         }] },
       },
       convex({ authConfig, jwt: { expirationSeconds: 60 * 30 } }) as unknown as BetterAuthPlugin,
-      crossDomain({ siteUrl: resolveSiteUrl(requestOrigin, allowedOrigins, siteUrl) }),
+      browserSession,
+      nativeIdn({ redirectUri: process.env.NATIVE_AUTH_REDIRECT_URI, siteUrl }),
       oneTimeToken({ expiresIn: 3, storeToken: "plain" }),
       bearer(),
       ...(idnProvider.length ? [genericOAuth({ config: idnProvider })] : []),
@@ -266,7 +291,7 @@ export const createAuth = (ctx: GenericCtx<DataModel>, requestOrigin?: string | 
           const state = deliveryState(endpoint?.context)
           if (state) state.attempted = true
           try {
-            await deliverOtp(ctx, "email", email, otp)
+            await deliverOtp(ctx, "email", email, otp, otpRequestOf(endpoint, requestOrigin))
             if (state) state.delivered = true
           } catch (error) {
             if (!state) throw error
@@ -279,7 +304,7 @@ export const createAuth = (ctx: GenericCtx<DataModel>, requestOrigin?: string | 
         allowedAttempts: 3,
         requireVerification: true,
         phoneNumberValidator: isE164Phone,
-        sendOTP: async ({ phoneNumber: phone, code }) => deliverOtp(ctx, "phone", phone, code),
+        sendOTP: async ({ phoneNumber: phone, code }, endpoint) => deliverOtp(ctx, "phone", phone, code, otpRequestOf(endpoint, requestOrigin)),
         signUpOnVerification: {
           getTempEmail: (phone) => `${phone.replace(/\D/g, "")}@phone.antsia.invalid`,
           getTempName: () => BRAND_NAME,

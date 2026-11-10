@@ -30,6 +30,7 @@
  * `position: fixed` sur la grille au lieu du viewport.
  */
 
+import { themedActionStyle } from "../themed-action-style"
 import { api } from "@antsia/api/engine"
 import { useNetwork } from "@antsia/api/network"
 import { Button, Card, Field, Select, TextArea, useModalA11y } from "@antsia/ui"
@@ -155,7 +156,7 @@ function AnnounceEventDialogContent({ event, onClose, onAnnounced }: AnnounceEve
             </p>
 
             <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-              <Button variant="ghost" onClick={onClose} disabled={sending}>
+              <Button style={themedActionStyle("cancel", "ghost")} variant="outline" onClick={onClose} disabled={sending}>
                 {t("announceEventDialog.cancel")}
               </Button>
               <Button icon="share" disabled={sending} onClick={() => void handleAnnounce()}>

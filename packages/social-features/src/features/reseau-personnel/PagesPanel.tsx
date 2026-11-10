@@ -1,4 +1,4 @@
-// Réécrit d'après socle/packages/agent-features/src/features/reseau-personnel/PagesPanel.tsx @ ad2e7fdc2 — ce qui change : pages du moteur à identité propre, dans le réseau courant (`useNetwork`) : pages suivies par la première page de `pages.pages.paginateMyPageFollows` (catalogue chargé une fois, 50 au plus, troncature DITE), découverte PAGINÉE par `paginateDiscover` (recherche serveur ET filtre par pays, codes ISO nommés dans la langue courante) ; badge CALCULÉ par le serveur au lieu d'un « Page officielle » posé sur toute page, nature et pays sur chaque ligne ; kit d'espace lu à son point d'entrée (`@antsia/ui/espace-kit` : `EspaceEmptyState`, `EspacePagination` — phrases traduites par `useEspacePaginationLabels` —, `clampPage`, `pageSlice`, et sa feuille `EspaceKitStyles` montée par le volet lui-même, présent aussi sur téléphone) ; adresses par la table des routes injectée (`pageHref(handle, routes.page)`) ; textes traduits (clés `pagesPanel.…`) ; ajouts sur la vue par défaut : invitations à signer (`pages.signatories.myPageInvitations`, `respondToPageInvitation`), « Mes pages » (`myPages`, avec le rôle), et création d'une page (`createPage`, brouillon jugé par les règles du domaine, puis ouverture de la page créée) ; props inchangés (aucun). ; couleurs par fonction (ADR-0027) : l'acceptation d'une invitation en variante `social`.
+// Réécrit d'après socle/packages/agent-features/src/features/reseau-personnel/PagesPanel.tsx @ ad2e7fdc2 — ce qui change : pages du moteur à identité propre, dans le réseau courant (`useNetwork`) : pages suivies par la première page de `pages.pages.paginateMyPageFollows` (catalogue chargé une fois, 50 au plus, troncature DITE), découverte PAGINÉE par `paginateDiscover` (recherche serveur ET filtre par pays, codes ISO nommés dans la langue courante) ; badge CALCULÉ par le serveur au lieu d'un « Page officielle » posé sur toute page, nature et pays sur chaque ligne ; kit d'espace lu à son point d'entrée (`@antsia/ui/espace-kit` : `EspaceEmptyState`, `EspacePagination` — phrases traduites par `useEspacePaginationLabels` —, `clampPage`, `pageSlice`, et sa feuille `EspaceKitStyles` montée par le volet lui-même, présent aussi sur téléphone) ; adresses par la table des routes injectée (`pageHref(handle, routes.page)`) ; textes traduits (clés `pagesPanel.…`) ; ajouts sur la vue par défaut : invitations à signer (`pages.signatories.myPageInvitations`, `respondToPageInvitation`), « Mes pages » (`myPages`, avec le rôle), et création d'une page (`createPage`, brouillon jugé par les règles du domaine, puis ouverture de la page créée) ; props inchangés (aucun). ; couleurs par fonction (ADR-0027) : l'acceptation d'une invitation en validation opt-in (relations en repli).
 "use client"
 
 /**
@@ -29,6 +29,7 @@
  * Charte : aucune couleur littérale — jetons `var(--…)` uniquement.
  */
 
+import { themedActionStyle } from "../themed-action-style"
 import { api } from "@antsia/api/engine"
 import { useAuthenticatedConvexQuery, useAuthenticatedPaginatedQuery } from "@antsia/api/hooks"
 import { useNetwork, useRoutes } from "@antsia/api/network"
@@ -470,10 +471,10 @@ function InvitationRow({ invitation }: { invitation: PageInvitation }) {
           <p style={{ ...MUTED_TEXT_STYLE, marginTop: 4 }}>{pageInvitationText(invitation.role, t)}</p>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <Button size="sm" variant="social" disabled={busy} onClick={() => void answer(true)}>
+          <Button style={themedActionStyle("success", "social")} size="sm" variant="success" disabled={busy} onClick={() => void answer(true)}>
             {t("pagesPanel.invitation.accept")}
           </Button>
-          <Button size="sm" variant="secondary" disabled={busy} onClick={() => void answer(false)}>
+          <Button style={themedActionStyle("danger", "secondary")} size="sm" variant="danger" disabled={busy} onClick={() => void answer(false)}>
             {t("pagesPanel.invitation.decline")}
           </Button>
         </div>
@@ -585,7 +586,7 @@ function CreatePageCard({ onClose }: { onClose: () => void }) {
           <Button type="submit" variant="primary" disabled={pending}>
             {pending ? t("pagesPanel.create.pending") : t("pagesPanel.create.submit")}
           </Button>
-          <Button type="button" variant="secondary" disabled={pending} onClick={onClose} style={RESEAU_SECONDARY_ACTION_STYLE}>
+          <Button type="button" variant="outline" disabled={pending} onClick={onClose} style={themedActionStyle("cancel", "secondary", RESEAU_SECONDARY_ACTION_STYLE)}>
             {t("pagesPanel.create.cancel")}
           </Button>
         </div>

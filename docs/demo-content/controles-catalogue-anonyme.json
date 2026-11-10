@@ -1,0 +1,50 @@
+[
+  {
+    "target": "local",
+    "anonymousCatalog": [
+      {
+        "handle": "epicerie-moussavou-demo",
+        "offers": 4,
+        "images": true,
+        "commandsClosed": true
+      },
+      {
+        "handle": "studio-objectif-demo",
+        "offers": 2,
+        "images": true,
+        "commandsClosed": true
+      },
+      {
+        "handle": "atelier-tech-demo",
+        "offers": 2,
+        "images": true,
+        "commandsClosed": true
+      }
+    ],
+    "staticImagesVerified": 8
+  },
+  {
+    "target": "demo",
+    "anonymousCatalog": [
+      {
+        "handle": "epicerie-moussavou-demo",
+        "offers": 4,
+        "images": true,
+        "commandsClosed": true
+      },
+      {
+        "handle": "studio-objectif-demo",
+        "offers": 2,
+        "images": true,
+        "commandsClosed": true
+      },
+      {
+        "handle": "atelier-tech-demo",
+        "offers": 2,
+        "images": true,
+        "commandsClosed": true
+      }
+    ],
+    "staticImagesVerified": 8
+  }
+]

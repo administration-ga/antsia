@@ -1,0 +1,1231 @@
+{
+  "description": "MP05 — conditions déclarées du vendeur, sans ouverture du checkout.",
+  "cases": [
+    {
+      "name": "conditions publiques déclarées complètes",
+      "input": {
+        "version": 1,
+        "publishedAt": 1792281600000,
+        "pickup": {
+          "points": [
+            {
+              "establishmentRef": "pro.ga:establishment:01JA00000000000000000000E1",
+              "label": "Boutique centre"
+            }
+          ]
+        },
+        "delivery": {
+          "country": "GA",
+          "localities": [
+            "Libreville",
+            "Owendo"
+          ],
+          "label": "Livraison locale",
+          "fee": {
+            "amount": 1500,
+            "currency": "XAF"
+          },
+          "leadTimeDays": 2
+        },
+        "fees": [
+          {
+            "kind": "packaging",
+            "label": "Emballage cadeau",
+            "amount": {
+              "amount": 500,
+              "currency": "XAF"
+            }
+          }
+        ],
+        "returns": {
+          "summary": "Contactez la boutique avant tout retour."
+        },
+        "warranty": {
+          "summary": "Garantie commerciale précisée sur la facture."
+        }
+      },
+      "expect": {
+        "version": 1,
+        "publishedAt": 1792281600000,
+        "pickup": {
+          "points": [
+            {
+              "establishmentRef": "pro.ga:establishment:01JA00000000000000000000E1",
+              "label": "Boutique centre"
+            }
+          ]
+        },
+        "delivery": {
+          "country": "GA",
+          "localities": [
+            "Libreville",
+            "Owendo"
+          ],
+          "label": "Livraison locale",
+          "fee": {
+            "amount": 1500,
+            "currency": "XAF"
+          },
+          "leadTimeDays": 2
+        },
+        "fees": [
+          {
+            "kind": "packaging",
+            "label": "Emballage cadeau",
+            "amount": {
+              "amount": 500,
+              "currency": "XAF"
+            }
+          }
+        ],
+        "returns": {
+          "summary": "Contactez la boutique avant tout retour."
+        },
+        "warranty": {
+          "summary": "Garantie commerciale précisée sur la facture."
+        }
+      }
+    },
+    {
+      "name": "version inconnue",
+      "input": {
+        "version": 2,
+        "publishedAt": 1792281600000,
+        "pickup": {
+          "points": [
+            {
+              "establishmentRef": "pro.ga:establishment:01JA00000000000000000000E1",
+              "label": "Boutique centre"
+            }
+          ]
+        },
+        "delivery": {
+          "country": "GA",
+          "localities": [
+            "Libreville",
+            "Owendo"
+          ],
+          "label": "Livraison locale",
+          "fee": {
+            "amount": 1500,
+            "currency": "XAF"
+          },
+          "leadTimeDays": 2
+        },
+        "fees": [
+          {
+            "kind": "packaging",
+            "label": "Emballage cadeau",
+            "amount": {
+              "amount": 500,
+              "currency": "XAF"
+            }
+          }
+        ],
+        "returns": {
+          "summary": "Contactez la boutique avant tout retour."
+        },
+        "warranty": {
+          "summary": "Garantie commerciale précisée sur la facture."
+        }
+      },
+      "expect": null
+    },
+    {
+      "name": "horodatage absent",
+      "input": {
+        "version": 1,
+        "pickup": {
+          "points": [
+            {
+              "establishmentRef": "pro.ga:establishment:01JA00000000000000000000E1",
+              "label": "Boutique centre"
+            }
+          ]
+        },
+        "delivery": {
+          "country": "GA",
+          "localities": [
+            "Libreville",
+            "Owendo"
+          ],
+          "label": "Livraison locale",
+          "fee": {
+            "amount": 1500,
+            "currency": "XAF"
+          },
+          "leadTimeDays": 2
+        },
+        "fees": [
+          {
+            "kind": "packaging",
+            "label": "Emballage cadeau",
+            "amount": {
+              "amount": 500,
+              "currency": "XAF"
+            }
+          }
+        ],
+        "returns": {
+          "summary": "Contactez la boutique avant tout retour."
+        },
+        "warranty": {
+          "summary": "Garantie commerciale précisée sur la facture."
+        }
+      },
+      "expect": null
+    },
+    {
+      "name": "point privé",
+      "input": {
+        "version": 1,
+        "publishedAt": 1792281600000,
+        "pickup": {
+          "points": [
+            {
+              "establishmentRef": "pro.ga:establishment:01JA00000000000000000000E1",
+              "label": "Boutique centre",
+              "establishmentId": "private-id"
+            }
+          ]
+        },
+        "delivery": {
+          "country": "GA",
+          "localities": [
+            "Libreville",
+            "Owendo"
+          ],
+          "label": "Livraison locale",
+          "fee": {
+            "amount": 1500,
+            "currency": "XAF"
+          },
+          "leadTimeDays": 2
+        },
+        "fees": [
+          {
+            "kind": "packaging",
+            "label": "Emballage cadeau",
+            "amount": {
+              "amount": 500,
+              "currency": "XAF"
+            }
+          }
+        ],
+        "returns": {
+          "summary": "Contactez la boutique avant tout retour."
+        },
+        "warranty": {
+          "summary": "Garantie commerciale précisée sur la facture."
+        }
+      },
+      "expect": null
+    },
+    {
+      "name": "mauvais type de référence",
+      "input": {
+        "version": 1,
+        "publishedAt": 1792281600000,
+        "pickup": {
+          "points": [
+            {
+              "establishmentRef": "pro.ga:offer:01JA00000000000000000000E1",
+              "label": "Boutique centre"
+            }
+          ]
+        },
+        "delivery": {
+          "country": "GA",
+          "localities": [
+            "Libreville",
+            "Owendo"
+          ],
+          "label": "Livraison locale",
+          "fee": {
+            "amount": 1500,
+            "currency": "XAF"
+          },
+          "leadTimeDays": 2
+        },
+        "fees": [
+          {
+            "kind": "packaging",
+            "label": "Emballage cadeau",
+            "amount": {
+              "amount": 500,
+              "currency": "XAF"
+            }
+          }
+        ],
+        "returns": {
+          "summary": "Contactez la boutique avant tout retour."
+        },
+        "warranty": {
+          "summary": "Garantie commerciale précisée sur la facture."
+        }
+      },
+      "expect": null
+    },
+    {
+      "name": "point dupliqué",
+      "input": {
+        "version": 1,
+        "publishedAt": 1792281600000,
+        "pickup": {
+          "points": [
+            {
+              "establishmentRef": "pro.ga:establishment:01JA00000000000000000000E1",
+              "label": "Boutique centre"
+            },
+            {
+              "establishmentRef": "pro.ga:establishment:01JA00000000000000000000E1",
+              "label": "Boutique centre"
+            }
+          ]
+        },
+        "delivery": {
+          "country": "GA",
+          "localities": [
+            "Libreville",
+            "Owendo"
+          ],
+          "label": "Livraison locale",
+          "fee": {
+            "amount": 1500,
+            "currency": "XAF"
+          },
+          "leadTimeDays": 2
+        },
+        "fees": [
+          {
+            "kind": "packaging",
+            "label": "Emballage cadeau",
+            "amount": {
+              "amount": 500,
+              "currency": "XAF"
+            }
+          }
+        ],
+        "returns": {
+          "summary": "Contactez la boutique avant tout retour."
+        },
+        "warranty": {
+          "summary": "Garantie commerciale précisée sur la facture."
+        }
+      },
+      "expect": null
+    },
+    {
+      "name": "vingt-et-un points",
+      "input": {
+        "version": 1,
+        "publishedAt": 1792281600000,
+        "pickup": {
+          "points": [
+            {
+              "establishmentRef": "pro.ga:establishment:00000000000000000000000000",
+              "label": "Point"
+            },
+            {
+              "establishmentRef": "pro.ga:establishment:00000000000000000000000001",
+              "label": "Point"
+            },
+            {
+              "establishmentRef": "pro.ga:establishment:00000000000000000000000002",
+              "label": "Point"
+            },
+            {
+              "establishmentRef": "pro.ga:establishment:00000000000000000000000003",
+              "label": "Point"
+            },
+            {
+              "establishmentRef": "pro.ga:establishment:00000000000000000000000004",
+              "label": "Point"
+            },
+            {
+              "establishmentRef": "pro.ga:establishment:00000000000000000000000005",
+              "label": "Point"
+            },
+            {
+              "establishmentRef": "pro.ga:establishment:00000000000000000000000006",
+              "label": "Point"
+            },
+            {
+              "establishmentRef": "pro.ga:establishment:00000000000000000000000007",
+              "label": "Point"
+            },
+            {
+              "establishmentRef": "pro.ga:establishment:00000000000000000000000008",
+              "label": "Point"
+            },
+            {
+              "establishmentRef": "pro.ga:establishment:00000000000000000000000009",
+              "label": "Point"
+            },
+            {
+              "establishmentRef": "pro.ga:establishment:0000000000000000000000000A",
+              "label": "Point"
+            },
+            {
+              "establishmentRef": "pro.ga:establishment:0000000000000000000000000B",
+              "label": "Point"
+            },
+            {
+              "establishmentRef": "pro.ga:establishment:0000000000000000000000000C",
+              "label": "Point"
+            },
+            {
+              "establishmentRef": "pro.ga:establishment:0000000000000000000000000D",
+              "label": "Point"
+            },
+            {
+              "establishmentRef": "pro.ga:establishment:0000000000000000000000000E",
+              "label": "Point"
+            },
+            {
+              "establishmentRef": "pro.ga:establishment:0000000000000000000000000F",
+              "label": "Point"
+            },
+            {
+              "establishmentRef": "pro.ga:establishment:00000000000000000000000010",
+              "label": "Point"
+            },
+            {
+              "establishmentRef": "pro.ga:establishment:00000000000000000000000011",
+              "label": "Point"
+            },
+            {
+              "establishmentRef": "pro.ga:establishment:00000000000000000000000012",
+              "label": "Point"
+            },
+            {
+              "establishmentRef": "pro.ga:establishment:00000000000000000000000013",
+              "label": "Point"
+            },
+            {
+              "establishmentRef": "pro.ga:establishment:00000000000000000000000014",
+              "label": "Point"
+            }
+          ]
+        },
+        "delivery": {
+          "country": "GA",
+          "localities": [
+            "Libreville",
+            "Owendo"
+          ],
+          "label": "Livraison locale",
+          "fee": {
+            "amount": 1500,
+            "currency": "XAF"
+          },
+          "leadTimeDays": 2
+        },
+        "fees": [
+          {
+            "kind": "packaging",
+            "label": "Emballage cadeau",
+            "amount": {
+              "amount": 500,
+              "currency": "XAF"
+            }
+          }
+        ],
+        "returns": {
+          "summary": "Contactez la boutique avant tout retour."
+        },
+        "warranty": {
+          "summary": "Garantie commerciale précisée sur la facture."
+        }
+      },
+      "expect": null
+    },
+    {
+      "name": "pays livraison hors périmètre",
+      "input": {
+        "version": 1,
+        "publishedAt": 1792281600000,
+        "pickup": {
+          "points": [
+            {
+              "establishmentRef": "pro.ga:establishment:01JA00000000000000000000E1",
+              "label": "Boutique centre"
+            }
+          ]
+        },
+        "delivery": {
+          "country": "CM",
+          "localities": [
+            "Libreville",
+            "Owendo"
+          ],
+          "label": "Livraison locale",
+          "fee": {
+            "amount": 1500,
+            "currency": "XAF"
+          },
+          "leadTimeDays": 2
+        },
+        "fees": [
+          {
+            "kind": "packaging",
+            "label": "Emballage cadeau",
+            "amount": {
+              "amount": 500,
+              "currency": "XAF"
+            }
+          }
+        ],
+        "returns": {
+          "summary": "Contactez la boutique avant tout retour."
+        },
+        "warranty": {
+          "summary": "Garantie commerciale précisée sur la facture."
+        }
+      },
+      "expect": null
+    },
+    {
+      "name": "vingt-et-une localités",
+      "input": {
+        "version": 1,
+        "publishedAt": 1792281600000,
+        "pickup": {
+          "points": [
+            {
+              "establishmentRef": "pro.ga:establishment:01JA00000000000000000000E1",
+              "label": "Boutique centre"
+            }
+          ]
+        },
+        "delivery": {
+          "country": "GA",
+          "localities": [
+            "Ville 0",
+            "Ville 1",
+            "Ville 2",
+            "Ville 3",
+            "Ville 4",
+            "Ville 5",
+            "Ville 6",
+            "Ville 7",
+            "Ville 8",
+            "Ville 9",
+            "Ville 10",
+            "Ville 11",
+            "Ville 12",
+            "Ville 13",
+            "Ville 14",
+            "Ville 15",
+            "Ville 16",
+            "Ville 17",
+            "Ville 18",
+            "Ville 19",
+            "Ville 20"
+          ],
+          "label": "Livraison locale",
+          "fee": {
+            "amount": 1500,
+            "currency": "XAF"
+          },
+          "leadTimeDays": 2
+        },
+        "fees": [
+          {
+            "kind": "packaging",
+            "label": "Emballage cadeau",
+            "amount": {
+              "amount": 500,
+              "currency": "XAF"
+            }
+          }
+        ],
+        "returns": {
+          "summary": "Contactez la boutique avant tout retour."
+        },
+        "warranty": {
+          "summary": "Garantie commerciale précisée sur la facture."
+        }
+      },
+      "expect": null
+    },
+    {
+      "name": "montant fractionnaire",
+      "input": {
+        "version": 1,
+        "publishedAt": 1792281600000,
+        "pickup": {
+          "points": [
+            {
+              "establishmentRef": "pro.ga:establishment:01JA00000000000000000000E1",
+              "label": "Boutique centre"
+            }
+          ]
+        },
+        "delivery": {
+          "country": "GA",
+          "localities": [
+            "Libreville",
+            "Owendo"
+          ],
+          "label": "Livraison locale",
+          "fee": {
+            "amount": 1.5,
+            "currency": "XAF"
+          },
+          "leadTimeDays": 2
+        },
+        "fees": [
+          {
+            "kind": "packaging",
+            "label": "Emballage cadeau",
+            "amount": {
+              "amount": 500,
+              "currency": "XAF"
+            }
+          }
+        ],
+        "returns": {
+          "summary": "Contactez la boutique avant tout retour."
+        },
+        "warranty": {
+          "summary": "Garantie commerciale précisée sur la facture."
+        }
+      },
+      "expect": null
+    },
+    {
+      "name": "montant hors plafond",
+      "input": {
+        "version": 1,
+        "publishedAt": 1792281600000,
+        "pickup": {
+          "points": [
+            {
+              "establishmentRef": "pro.ga:establishment:01JA00000000000000000000E1",
+              "label": "Boutique centre"
+            }
+          ]
+        },
+        "delivery": {
+          "country": "GA",
+          "localities": [
+            "Libreville",
+            "Owendo"
+          ],
+          "label": "Livraison locale",
+          "fee": {
+            "amount": 10000000001,
+            "currency": "XAF"
+          },
+          "leadTimeDays": 2
+        },
+        "fees": [
+          {
+            "kind": "packaging",
+            "label": "Emballage cadeau",
+            "amount": {
+              "amount": 500,
+              "currency": "XAF"
+            }
+          }
+        ],
+        "returns": {
+          "summary": "Contactez la boutique avant tout retour."
+        },
+        "warranty": {
+          "summary": "Garantie commerciale précisée sur la facture."
+        }
+      },
+      "expect": null
+    },
+    {
+      "name": "devise autre",
+      "input": {
+        "version": 1,
+        "publishedAt": 1792281600000,
+        "pickup": {
+          "points": [
+            {
+              "establishmentRef": "pro.ga:establishment:01JA00000000000000000000E1",
+              "label": "Boutique centre"
+            }
+          ]
+        },
+        "delivery": {
+          "country": "GA",
+          "localities": [
+            "Libreville",
+            "Owendo"
+          ],
+          "label": "Livraison locale",
+          "fee": {
+            "amount": 1500,
+            "currency": "EUR"
+          },
+          "leadTimeDays": 2
+        },
+        "fees": [
+          {
+            "kind": "packaging",
+            "label": "Emballage cadeau",
+            "amount": {
+              "amount": 500,
+              "currency": "XAF"
+            }
+          }
+        ],
+        "returns": {
+          "summary": "Contactez la boutique avant tout retour."
+        },
+        "warranty": {
+          "summary": "Garantie commerciale précisée sur la facture."
+        }
+      },
+      "expect": null
+    },
+    {
+      "name": "délai hors borne",
+      "input": {
+        "version": 1,
+        "publishedAt": 1792281600000,
+        "pickup": {
+          "points": [
+            {
+              "establishmentRef": "pro.ga:establishment:01JA00000000000000000000E1",
+              "label": "Boutique centre"
+            }
+          ]
+        },
+        "delivery": {
+          "country": "GA",
+          "localities": [
+            "Libreville",
+            "Owendo"
+          ],
+          "label": "Livraison locale",
+          "fee": {
+            "amount": 1500,
+            "currency": "XAF"
+          },
+          "leadTimeDays": 366
+        },
+        "fees": [
+          {
+            "kind": "packaging",
+            "label": "Emballage cadeau",
+            "amount": {
+              "amount": 500,
+              "currency": "XAF"
+            }
+          }
+        ],
+        "returns": {
+          "summary": "Contactez la boutique avant tout retour."
+        },
+        "warranty": {
+          "summary": "Garantie commerciale précisée sur la facture."
+        }
+      },
+      "expect": null
+    },
+    {
+      "name": "cinq frais",
+      "input": {
+        "version": 1,
+        "publishedAt": 1792281600000,
+        "pickup": {
+          "points": [
+            {
+              "establishmentRef": "pro.ga:establishment:01JA00000000000000000000E1",
+              "label": "Boutique centre"
+            }
+          ]
+        },
+        "delivery": {
+          "country": "GA",
+          "localities": [
+            "Libreville",
+            "Owendo"
+          ],
+          "label": "Livraison locale",
+          "fee": {
+            "amount": 1500,
+            "currency": "XAF"
+          },
+          "leadTimeDays": 2
+        },
+        "fees": [
+          {
+            "kind": "packaging",
+            "label": "Emballage cadeau",
+            "amount": {
+              "amount": 500,
+              "currency": "XAF"
+            }
+          },
+          {
+            "kind": "packaging",
+            "label": "Emballage cadeau",
+            "amount": {
+              "amount": 500,
+              "currency": "XAF"
+            }
+          },
+          {
+            "kind": "packaging",
+            "label": "Emballage cadeau",
+            "amount": {
+              "amount": 500,
+              "currency": "XAF"
+            }
+          },
+          {
+            "kind": "packaging",
+            "label": "Emballage cadeau",
+            "amount": {
+              "amount": 500,
+              "currency": "XAF"
+            }
+          },
+          {
+            "kind": "packaging",
+            "label": "Emballage cadeau",
+            "amount": {
+              "amount": 500,
+              "currency": "XAF"
+            }
+          }
+        ],
+        "returns": {
+          "summary": "Contactez la boutique avant tout retour."
+        },
+        "warranty": {
+          "summary": "Garantie commerciale précisée sur la facture."
+        }
+      },
+      "expect": null
+    },
+    {
+      "name": "résumé trop long",
+      "input": {
+        "version": 1,
+        "publishedAt": 1792281600000,
+        "pickup": {
+          "points": [
+            {
+              "establishmentRef": "pro.ga:establishment:01JA00000000000000000000E1",
+              "label": "Boutique centre"
+            }
+          ]
+        },
+        "delivery": {
+          "country": "GA",
+          "localities": [
+            "Libreville",
+            "Owendo"
+          ],
+          "label": "Livraison locale",
+          "fee": {
+            "amount": 1500,
+            "currency": "XAF"
+          },
+          "leadTimeDays": 2
+        },
+        "fees": [
+          {
+            "kind": "packaging",
+            "label": "Emballage cadeau",
+            "amount": {
+              "amount": 500,
+              "currency": "XAF"
+            }
+          }
+        ],
+        "returns": {
+          "summary": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        },
+        "warranty": {
+          "summary": "Garantie commerciale précisée sur la facture."
+        }
+      },
+      "expect": null
+    },
+    {
+      "name": "résumé HTML",
+      "input": {
+        "version": 1,
+        "publishedAt": 1792281600000,
+        "pickup": {
+          "points": [
+            {
+              "establishmentRef": "pro.ga:establishment:01JA00000000000000000000E1",
+              "label": "Boutique centre"
+            }
+          ]
+        },
+        "delivery": {
+          "country": "GA",
+          "localities": [
+            "Libreville",
+            "Owendo"
+          ],
+          "label": "Livraison locale",
+          "fee": {
+            "amount": 1500,
+            "currency": "XAF"
+          },
+          "leadTimeDays": 2
+        },
+        "fees": [
+          {
+            "kind": "packaging",
+            "label": "Emballage cadeau",
+            "amount": {
+              "amount": 500,
+              "currency": "XAF"
+            }
+          }
+        ],
+        "returns": {
+          "summary": "<strong>Retours</strong>"
+        },
+        "warranty": {
+          "summary": "Garantie commerciale précisée sur la facture."
+        }
+      },
+      "expect": null
+    },
+    {
+      "name": "lien interdit",
+      "input": {
+        "version": 1,
+        "publishedAt": 1792281600000,
+        "pickup": {
+          "points": [
+            {
+              "establishmentRef": "pro.ga:establishment:01JA00000000000000000000E1",
+              "label": "Boutique centre"
+            }
+          ]
+        },
+        "delivery": {
+          "country": "GA",
+          "localities": [
+            "Libreville",
+            "Owendo"
+          ],
+          "label": "Livraison locale",
+          "fee": {
+            "amount": 1500,
+            "currency": "XAF"
+          },
+          "leadTimeDays": 2
+        },
+        "fees": [
+          {
+            "kind": "packaging",
+            "label": "Emballage cadeau",
+            "amount": {
+              "amount": 500,
+              "currency": "XAF"
+            }
+          }
+        ],
+        "returns": {
+          "summary": "Contactez la boutique avant tout retour."
+        },
+        "warranty": {
+          "summary": "Voir https://example.test/garantie"
+        }
+      },
+      "expect": null
+    },
+    {
+      "name": "NFC obligatoire",
+      "input": {
+        "version": 1,
+        "publishedAt": 1792281600000,
+        "pickup": {
+          "points": [
+            {
+              "establishmentRef": "pro.ga:establishment:01JA00000000000000000000E1",
+              "label": "Boutique centre"
+            }
+          ]
+        },
+        "delivery": {
+          "country": "GA",
+          "localities": [
+            "Libreville",
+            "Owendo"
+          ],
+          "label": "Livraison locale",
+          "fee": {
+            "amount": 1500,
+            "currency": "XAF"
+          },
+          "leadTimeDays": 2
+        },
+        "fees": [
+          {
+            "kind": "packaging",
+            "label": "Emballage cadeau",
+            "amount": {
+              "amount": 500,
+              "currency": "XAF"
+            }
+          }
+        ],
+        "returns": {
+          "summary": "Contactez la boutique avant tout retour."
+        },
+        "warranty": {
+          "summary": "Garantie déclarée"
+        }
+      },
+      "expect": null
+    },
+    {
+      "name": "contrôle interdit",
+      "input": {
+        "version": 1,
+        "publishedAt": 1792281600000,
+        "pickup": {
+          "points": [
+            {
+              "establishmentRef": "pro.ga:establishment:01JA00000000000000000000E1",
+              "label": "Boutique centre"
+            }
+          ]
+        },
+        "delivery": {
+          "country": "GA",
+          "localities": [
+            "Libreville",
+            "Owendo"
+          ],
+          "label": "Livraison locale",
+          "fee": {
+            "amount": 1500,
+            "currency": "XAF"
+          },
+          "leadTimeDays": 2
+        },
+        "fees": [
+          {
+            "kind": "packaging",
+            "label": "Emballage cadeau",
+            "amount": {
+              "amount": 500,
+              "currency": "XAF"
+            }
+          }
+        ],
+        "returns": {
+          "summary": "Texte\u0000caché"
+        },
+        "warranty": {
+          "summary": "Garantie commerciale précisée sur la facture."
+        }
+      },
+      "expect": null
+    },
+    {
+      "name": "adresse interdite",
+      "input": {
+        "version": 1,
+        "publishedAt": 1792281600000,
+        "pickup": {
+          "points": [
+            {
+              "establishmentRef": "pro.ga:establishment:01JA00000000000000000000E1",
+              "label": "Boutique centre"
+            }
+          ]
+        },
+        "delivery": {
+          "country": "GA",
+          "localities": [
+            "Libreville",
+            "Owendo"
+          ],
+          "label": "Livraison locale",
+          "fee": {
+            "amount": 1500,
+            "currency": "XAF"
+          },
+          "leadTimeDays": 2
+        },
+        "fees": [
+          {
+            "kind": "packaging",
+            "label": "Emballage cadeau",
+            "amount": {
+              "amount": 500,
+              "currency": "XAF"
+            }
+          }
+        ],
+        "returns": {
+          "summary": "Contactez la boutique avant tout retour."
+        },
+        "warranty": {
+          "summary": "Garantie commerciale précisée sur la facture."
+        },
+        "address": "Adresse privée"
+      },
+      "expect": null
+    },
+    {
+      "name": "enveloppe supérieure à huit Kio",
+      "input": {
+        "version": 1,
+        "publishedAt": 1792281600000,
+        "pickup": {
+          "points": [
+            {
+              "establishmentRef": "pro.ga:establishment:00000000000000000000000000",
+              "label": "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé"
+            },
+            {
+              "establishmentRef": "pro.ga:establishment:00000000000000000000000001",
+              "label": "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé"
+            },
+            {
+              "establishmentRef": "pro.ga:establishment:00000000000000000000000002",
+              "label": "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé"
+            },
+            {
+              "establishmentRef": "pro.ga:establishment:00000000000000000000000003",
+              "label": "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé"
+            },
+            {
+              "establishmentRef": "pro.ga:establishment:00000000000000000000000004",
+              "label": "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé"
+            },
+            {
+              "establishmentRef": "pro.ga:establishment:00000000000000000000000005",
+              "label": "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé"
+            },
+            {
+              "establishmentRef": "pro.ga:establishment:00000000000000000000000006",
+              "label": "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé"
+            },
+            {
+              "establishmentRef": "pro.ga:establishment:00000000000000000000000007",
+              "label": "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé"
+            },
+            {
+              "establishmentRef": "pro.ga:establishment:00000000000000000000000008",
+              "label": "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé"
+            },
+            {
+              "establishmentRef": "pro.ga:establishment:00000000000000000000000009",
+              "label": "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé"
+            },
+            {
+              "establishmentRef": "pro.ga:establishment:0000000000000000000000000A",
+              "label": "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé"
+            },
+            {
+              "establishmentRef": "pro.ga:establishment:0000000000000000000000000B",
+              "label": "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé"
+            },
+            {
+              "establishmentRef": "pro.ga:establishment:0000000000000000000000000C",
+              "label": "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé"
+            },
+            {
+              "establishmentRef": "pro.ga:establishment:0000000000000000000000000D",
+              "label": "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé"
+            },
+            {
+              "establishmentRef": "pro.ga:establishment:0000000000000000000000000E",
+              "label": "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé"
+            },
+            {
+              "establishmentRef": "pro.ga:establishment:0000000000000000000000000F",
+              "label": "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé"
+            },
+            {
+              "establishmentRef": "pro.ga:establishment:00000000000000000000000010",
+              "label": "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé"
+            },
+            {
+              "establishmentRef": "pro.ga:establishment:00000000000000000000000011",
+              "label": "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé"
+            },
+            {
+              "establishmentRef": "pro.ga:establishment:00000000000000000000000012",
+              "label": "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé"
+            },
+            {
+              "establishmentRef": "pro.ga:establishment:00000000000000000000000013",
+              "label": "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé"
+            }
+          ]
+        },
+        "delivery": {
+          "country": "GA",
+          "localities": [
+            "0ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
+            "1ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
+            "2ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
+            "3ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
+            "4ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
+            "5ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
+            "6ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
+            "7ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
+            "8ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
+            "9ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
+            "10ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
+            "11ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
+            "12ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
+            "13ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
+            "14ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
+            "15ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
+            "16ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
+            "17ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
+            "18ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
+            "19ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé"
+          ],
+          "label": "Livraison locale",
+          "fee": {
+            "amount": 1500,
+            "currency": "XAF"
+          },
+          "leadTimeDays": 2
+        },
+        "fees": [
+          {
+            "kind": "packaging",
+            "label": "Emballage cadeau",
+            "amount": {
+              "amount": 500,
+              "currency": "XAF"
+            }
+          }
+        ],
+        "returns": {
+          "summary": "Contactez la boutique avant tout retour."
+        },
+        "warranty": {
+          "summary": "Garantie commerciale précisée sur la facture."
+        }
+      },
+      "expect": null
+    },
+    {
+      "name": "date supérieure au domaine Date Intl",
+      "input": {
+        "version": 1,
+        "publishedAt": 8640000000000001,
+        "returns": {
+          "summary": "Retour selon accord."
+        }
+      },
+      "expect": null
+    }
+  ]
+}

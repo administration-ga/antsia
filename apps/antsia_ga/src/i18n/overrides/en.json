@@ -1,0 +1,166 @@
+{
+  "direct": {
+    "failed": "This live stream is unavailable. Try again shortly.",
+    "loading": "Loading live streams…",
+    "start": "Start the live stream",
+    "end": "End the live stream",
+    "cancel": "Cancel the live stream",
+    "endConfirm": "End this live stream for all participants?",
+    "keep": "Continue the live stream",
+    "waiting": "The live stream has not started yet.",
+    "anotherRoom": "You already have an ongoing live stream. Leave it before joining another room.",
+    "returnToRoom": "Return to the live stream",
+    "ongoing": "Live stream in progress",
+    "stage": "Live stage",
+    "recording": "This live stream is being recorded. The host will decide whether to publish the replay afterwards.",
+    "status": { "live": "Live", "ended": "Ended" },
+    "create": {
+      "title": "Prepare a live stream",
+      "description": "Prepare your live stream; you will start it after checking your equipment.",
+      "networkOnly": "This live stream stays in this network, even with the “Whole network” audience.",
+      "record": "Record this live stream",
+      "recordDescription": "Participants are informed about recording. It will remain private until you decide to publish it after the live stream.",
+      "submit": "Prepare a live stream",
+      "guestsDescription": "Choose guests and their proposed roles. Access is checked again when creating and starting the live stream. Up to 200 guests, including seven speakers.",
+      "guestsChanged": "Some guests are no longer eligible. Remove them before preparing the live stream.",
+      "noPageAnnouncement": "A page live stream limited to your connections cannot post an announcement as the page."
+    },
+    "directory": {
+      "title": "Live",
+      "filters": "Show live streams",
+      "live": "Live",
+      "replays": "Replays",
+      "mine": "My live streams",
+      "empty": {
+        "live": "No accessible live stream at the moment.",
+        "replays": "No accessible published replays at the moment.",
+        "mine": "You have not prepared a live stream yet."
+      }
+    },
+    "preflight": { "ready": "Your equipment responded. You can start the live stream." },
+    "replay": {
+      "none": "No replay is available for this live stream.",
+      "ready": "Replay ready",
+      "expired": "This replay has reached the end of its retention period.",
+      "player": "Play the replay",
+      "publish": "Publish the replay",
+      "publication": {
+        "published": "The replay is published for the authorised audience.",
+        "private": "The replay is kept for you."
+      },
+      "management": "Replay and retention",
+      "egress": {
+        "processing": "Replay being prepared",
+        "ready": "Replay available",
+        "failed": "Replay not produced",
+        "expired": "Replay withdrawn or retention ended"
+      },
+      "playbackFailed": "The replay could not be played. Try again.",
+      "published": "Replay published for its permitted audience.",
+      "keptPrivate": "Replay kept for you.",
+      "visibility": "Replay audience",
+      "fixedAudience": "The replay remains restricted to: {{audience}}."
+    },
+    "management": { "title": "Live studio and management", "panels": "Live panels" },
+    "participants": { "exclude": "Exclude from the live stream", "keep": "Keep in the live stream" },
+    "delegations": { "flags": { "canEndOrTransfer": "End the live stream" } },
+    "guests": { "description": "Named invitees gain access within the live stream audience. Proposed speakers must join the room themselves to publish." },
+    "floating": {
+      "label": "Live: {{title}} — window",
+      "move": "Move the live stream with arrow keys; Shift for larger steps, Home and End for corners, double-click to reset",
+      "preview": "Live preview",
+      "leaveTitle": "Leave the live stream?",
+      "hostLeaveDescription": "Ending closes the live stream for everyone. Leaving without ending turns off your microphone and camera; your absence may then interrupt the live stream.",
+      "speakerLeaveDescription": "Your microphone and camera will turn off and you will leave the stage. The live stream continues."
+    },
+    "rail": {
+      "title": "Live",
+      "since": "Live for {{minutes}} min",
+      "emptyWindow": "No accessible live stream in this window. Continue with “Show more”."
+    },
+    "replayFailure": { "ended_before_start": "The live stream ended before recording started." }
+  },
+  "stories": {
+    "storiesTray": {
+      "tile": {
+        "own": "Your story",
+        "author": "Stories by {{name}}",
+        "storyCount_one": "{{count}} story",
+        "storyCount_other": "{{count}} stories"
+      },
+      "label": "Stories",
+      "create": "Post a story",
+      "createShort": "Create a story"
+    },
+    "storiesViewer": { "label": { "direct": "Live stream by {{host}}: {{title}}", "stories": "Stories by {{name}}" } },
+    "storyProgressBar": { "segmentLabel": "Story {{position}} of {{total}}" },
+    "storyOverlay": { "close": "Close stories" },
+    "liveDirectSlide": { "live": "Live", "resumeMine": "Resume my live stream", "close": "Close stories" },
+    "storyViewer": {
+      "unavailable": { "title": "Stories unavailable", "text": "This person has not published a network profile: their stories cannot be opened." },
+      "loadFailed": { "text": "The network did not respond. Swipe to the next screen, or return home." },
+      "nothingLeft": { "text": "These stories have expired or been removed." },
+      "backToFeed": "Back home",
+      "imageAlt": "Story by {{name}}",
+      "removed": "Story removed."
+    },
+    "storiesViewerPage": {
+      "error": { "text": "The network did not respond. Try again, or return home." },
+      "backToFeed": "Back home",
+      "empty": { "title": "No stories for now", "text": "Stories from your connections appear here for twenty-four hours, and ongoing live streams come first. Post the first one." },
+      "publish": "Post a story",
+      "pagerLabel": "Stories and live streams",
+      "pagerLabelWithItem": "Stories and live streams — {{item}}"
+    },
+    "storyCreateSheet": { "title": "Post a story", "publish": "Post the story", "published": "Story published — visible for twenty-four hours." }
+  },
+  "reseau": {
+    "profilPersonnePage": { "connection": { "connect": "Add to my network" } },
+    "shared": {
+      "notification": {
+        "liveStarted": "{{actor}} started a live stream.",
+        "liveInvite": "{{actor}} invites you to a live stream.",
+        "liveAntennaInvite": "{{actor}} invites you to speak in a live stream.",
+        "liveReplayPublished": "{{actor}} published the replay of a live stream."
+      },
+      "resolution": { "liveEnded": "This live stream has ended." }
+    },
+    "reseauAgentNav": {
+      "tabs": {
+        "fil": { "label": "Home", "shortLabel": "Home" },
+        "relations": { "label": "My network", "shortLabel": "My network" },
+        "conferences": { "label": "Live", "shortLabel": "Live", "description": "Ongoing live streams, and replays of what you missed." },
+        "enregistrements": { "label": "Saved", "shortLabel": "Saved" }
+      }
+    },
+    "reseauLayout": { "returnToFeed": "Back home" },
+    "reseauMobileTabs": { "menu": { "stories": "Stories" } },
+    "reseauDestinations": { "fil": "Home", "decouvrir": "Explore" },
+    "creationController": { "entries": { "actu": { "label": "Story" }, "conference": { "label": "Live", "description": "Prepare a live stream in this network." } } },
+    "postOverflow": { "bookmark": { "removeLabel": "Remove from saved posts", "addHint": "Find it again in Saved." } },
+    "postOverflowMenu": { "toast": { "unbookmarked": "Removed from your saved posts." } },
+    "contactsRail": { "empty": "Your connections will appear here. Find people from the My network panel." },
+    "emptyStates": {
+      "text": { "conferencesEnDirect": "No one is live right now.", "conferencesEnDirectAvecRediffusions": "No ongoing live stream; replays are further down.", "rediffusions": "No replay available for now." },
+      "action": { "openFeed": "Open Home" }
+    }
+  },
+  "iappel": {
+    "conferenceHint": {
+      "launch": "Prepare a live stream",
+      "t1": { "body": "A group call brings together at most {{capacity}} people, you included. Choose up to {{others}} people, or bring {{audience}} together in a live stream." },
+      "t2": { "body": "To talk to more people at once, the live stream welcomes {{audience}}." },
+      "t3": { "body": "To bring more people together, prepare a live stream." }
+    },
+    "conferenceLaunchStore": { "refusal": { "personalElsewhere": "Live streams are prepared from your network." } }
+  },
+  "messagerie": {
+    "icomViews": { "backToFeed": "Back home" },
+    "icomDock": { "tabs": { "actus": { "description": "Stories from your network", "label": "Stories" }, "icontact": { "label": "My network" } } },
+    "icomMobileTabs": { "unseenStatuses_one": "{{count}} unseen story", "unseenStatuses_other": "{{count}} unseen stories" },
+    "messagerieComposeView": { "noRelations": "You don't have any connections yet. Send a request from My network to start a conversation." },
+    "groupCallInviteePicker": { "convoke": "Prepare a live stream" },
+    "icomActusPanel": { "title": "Stories", "bodyLabel": "Stories — your connections' stories", "caption": "Your connections' stories stay visible for twenty-four hours, just like on Home." },
+    "icomRelationsPanel": { "titleContact": "My network", "contactRelations": "My network", "relationsEmpty": "You don't have any connections yet. The My network panel lets you request one." }
+  }
+}

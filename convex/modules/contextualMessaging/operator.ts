@@ -7,7 +7,7 @@
  * politique est aussi le retour arrière.
  */
 import { assertDecisionReason } from "@antsia/social-domain/audit"
-import { CONTEXTUAL_KINDS, CONTEXTUAL_POLICY_REASON_MIN } from "@antsia/social-domain/contextualMessaging"
+import { CONTEXTUAL_SUPPORTED_KINDS, CONTEXTUAL_POLICY_REASON_MIN } from "@antsia/social-domain/contextualMessaging"
 import { makeFunctionReference } from "convex/server"
 import { v } from "convex/values"
 
@@ -29,7 +29,7 @@ export const policies = operatorQuery({
   returns: v.array(policyStateValidator),
   handler: async (ctx, args) => {
     const states = []
-    for (const kind of CONTEXTUAL_KINDS) {
+    for (const kind of CONTEXTUAL_SUPPORTED_KINDS) {
       const row = await ctx.db.query("contextualPolicies").withIndex("by_network_kind", (q) => q.eq("networkId", args.networkId).eq("kind", kind)).first()
       states.push({ kind, enabled: row?.enabled === true, updatedAt: row?.updatedAt ?? null })
     }

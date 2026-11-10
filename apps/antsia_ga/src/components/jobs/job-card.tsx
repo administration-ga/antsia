@@ -2,6 +2,7 @@ import { BriefcaseBusiness, CalendarClock, MapPin, Users } from "lucide-react"
 import Link from "next/link"
 import type { ReactNode } from "react"
 
+import { SCREEN_SECTIONS } from "@/components/shared/screen-layout"
 import { routes } from "@/lib/routes"
 import { jobDateText, jobSalaryText, jobStatusNoticeKey, type JobDto, type JobTranslate } from "./job-model"
 
@@ -23,7 +24,7 @@ export function JobCard({ job, audience, locale, t }: { job: JobDto; audience: J
 }
 
 export function JobCards({ jobs, audience, locale, t }: { jobs: readonly JobDto[]; audience: JobAudience; locale: string; t: JobTranslate }) {
-  return <ul className="grid gap-3">{jobs.map((job) => <li key={`${job.shopHandle}:${job.jobRef}`}><JobCard job={job} audience={audience} locale={locale} t={t} /></li>)}</ul>
+  return <ul className={`${SCREEN_SECTIONS} gap-y-3`}>{jobs.map((job) => <li key={`${job.shopHandle}:${job.jobRef}`}><JobCard job={job} audience={audience} locale={locale} t={t} /></li>)}</ul>
 }
 
 /** La fiche : allowlist publique seulement, clôture affichée, aucun frais, aucun classement. */

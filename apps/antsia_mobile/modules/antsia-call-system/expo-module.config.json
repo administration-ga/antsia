@@ -1,0 +1,8 @@
+{
+  "platforms": ["apple", "android"],
+  "apple": {
+    "modules": ["AntsiaCallSystemModule"],
+    "appDelegateSubscribers": ["AntsiaCallsAppDelegateSubscriber"]
+  },
+  "android": { "modules": ["expo.modules.antsiacalls.AntsiaCallSystemModule"] }
+}

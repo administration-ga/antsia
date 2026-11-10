@@ -1,0 +1,17 @@
+{
+  "antsia": {
+    "me": {
+      "title": "Mon espace",
+      "profile": "Voir mon profil",
+      "lead": "Votre activité personnelle, vos réglages et vos démarches. Votre profil visible par le réseau s’ouvre séparément.",
+      "profileHint": "Votre présentation et les contenus accessibles aux membres, selon leur audience.",
+      "activityTitle": "Mes activités"
+    }
+  },
+  "reseau": {
+    "profilPersonnePage": {
+      "tabs": { "photos": "Photos des albums" },
+      "identity": { "selfNote": "Votre profil visible dans ce réseau. Vos messages, achats et réglages restent dans votre espace personnel." }
+    }
+  }
+}

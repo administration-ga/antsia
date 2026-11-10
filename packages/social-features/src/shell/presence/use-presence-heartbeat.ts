@@ -3,6 +3,7 @@
 
 import { api, type Id } from "@antsia/api/engine"
 import { useNetwork } from "@antsia/api/network"
+import { isSigningOutEverywhere } from "@antsia/api/sign-out-everywhere"
 import { PRESENCE_HEARTBEAT_INTERVAL_MS } from "@antsia/social-contracts/calls"
 import { useMutation } from "convex/react"
 import { useEffect, useRef } from "react"
@@ -57,11 +58,14 @@ export function usePresenceHeartbeat(): void {
       pendingOffline.delete(key)
     }
     const beat = () => {
+      if (isSigningOutEverywhere()) return
       lastBeatAt.set(key, Date.now())
       heartbeatRef.current({ networkId: key }).catch(() => undefined)
     }
     const goOffline = () => {
       lastBeatAt.delete(key)
+      // La sortie ferme la session ; le nettoyage local reste nécessaire.
+      if (isSigningOutEverywhere()) return
       setOfflineRef.current({ networkId: key }).catch(() => undefined)
     }
     if (shouldBeat(Date.now(), lastBeatAt.get(key))) beat()

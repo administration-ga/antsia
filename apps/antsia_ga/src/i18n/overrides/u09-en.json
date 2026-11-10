@@ -1,0 +1,179 @@
+{
+  "messagerie": {
+    "forwardTargets": {
+      "fallbackConversation": "Chat"
+    },
+    "messagerieConversationView": {
+      "systemEvent": "Chat event",
+      "conversationFallbackTitle": "Chat"
+    },
+    "icomViews": {
+      "conversations": "Chats"
+    },
+    "icomBrickHeader": {
+      "detach": "Detach Messages into a window"
+    },
+    "icomDock": {
+      "tabs": {
+        "iappel": {
+          "label": "Calls"
+        },
+        "ichat": {
+          "label": "Chats"
+        }
+      }
+    },
+    "icomMobileTabBar": {
+      "navLabel": "Messages navigation",
+      "subtabsLabel": "Messages sections"
+    },
+    "messagerieDesktopPage": {
+      "opening": "Opening Messages…"
+    },
+    "messagerieDock": {
+      "collapse": "Collapse Messages",
+      "detach": "Detach Messages into a window",
+      "expand": "Expand Messages",
+      "floatingLabel": "Messages — detached window",
+      "moveWindow": "Move the Messages window",
+      "reattach": "Dock Messages back into the column",
+      "title": "Messages"
+    },
+    "messagerieListPage": {
+      "title": "Messages"
+    },
+    "messagerieListView": {
+      "errorTitle": "Chats unavailable",
+      "filterDirectsLabel": "One-to-one chats",
+      "filterDirectsUnread_one": "One-to-one chats, {{count}} unread message",
+      "filterDirectsUnread_other": "One-to-one chats, {{count}} unread messages",
+      "filterGroupsLabel": "Group chats",
+      "filterGroupsUnread_one": "Group chats, {{count}} unread message",
+      "filterGroupsUnread_other": "Group chats, {{count}} unread messages",
+      "partialErrorTitle": "Chats partly up to date",
+      "titleCompact": "Chats"
+    },
+    "icomPublicReminders": {
+      "intro": "Your chats stay private in Messages. These public posts open and are read on the network."
+    },
+    "icomRelationsPanel": {
+      "titleCall": "Calls",
+      "viewSwitch": "Calls view"
+    },
+    "contextualConversation": {
+      "state": {
+        "open": "Chat open.",
+        "closed": "Chat closed: its history remains readable.",
+        "unavailable": "Chat unavailable for now: its history remains readable."
+      },
+      "close": {
+        "done": "Chat closed."
+      }
+    }
+  },
+  "iappel": {
+    "callErrors": {
+      "mediaServerNotConfigured": "Calls and lives are not configured on this deployment. Contact the platform administrator."
+    }
+  },
+  "reseau": {
+    "reseauAgentNav": {
+      "tabs": {
+        "evenements": {
+          "label": "Events",
+          "shortLabel": "Events"
+        }
+      }
+    },
+    "reseauMobileTabs": {
+      "menu": {
+        "settings": "Settings"
+      }
+    },
+    "post": {
+      "event": {
+        "label": "Announced event",
+        "scheduled": "Scheduled event",
+        "cancelled": "Cancelled event"
+      }
+    },
+    "creationController": {
+      "entries": {
+        "evenement": {
+          "label": "Event"
+        }
+      }
+    },
+    "peoplePanel": {
+      "follows": {
+        "title": "Following",
+        "errorTitle": "Following unavailable"
+      }
+    },
+    "suggestionsActions": {
+      "connect": "Add"
+    },
+    "evenementsPanel": {
+      "toast": {
+        "cancelled": "Event cancelled.",
+        "created": "Event created."
+      }
+    },
+    "evenementsRail": {
+      "title": "Events"
+    },
+    "announceEventDialog": {
+      "toast": {
+        "announced": "Event announced in your feed."
+      }
+    },
+    "reseauMenuRail": {
+      "settings": "Settings"
+    },
+    "reseauDesktopIcomLink": {
+      "label": "Messages",
+      "open": "Open Messages",
+      "openWithUnread_one": "Open Messages — {{count}} unread chat",
+      "openWithUnread_many": "Open Messages — {{count}} unread chats",
+      "openWithUnread_other": "Open Messages — {{count}} unread chats"
+    },
+    "reseauMobileHeader": {
+      "icomOpen": "Open Messages",
+      "icomOpenWithUnread_one": "Open Messages — {{count}} unread chat",
+      "icomOpenWithUnread_many": "Open Messages — {{count}} unread chats",
+      "icomOpenWithUnread_other": "Open Messages — {{count}} unread chats"
+    },
+    "reseauAgentPage": {
+      "railEndLabel": "Network discovery"
+    }
+  },
+  "errors": {
+    "liveRoleRequired": "Your role in this live does not allow this action."
+  },
+  "rules": {
+    "LIVE_TITLE_REQUIRED": "A live must have a title.",
+    "LIVE_TITLE_TOO_LONG": "A live title is limited to {{max}} characters.",
+    "LIVE_FOLLOWERS_REQUIRES_PAGE": "A live reserved for followers is held on behalf of a page.",
+    "LIVE_INVITEES_NOT_ANNOUNCED": "A live reserved for its guests is not announced in the feed.",
+    "LIVE_ENDED": "This live has ended.",
+    "LIVE_NOT_LIVE": "This live is not in progress.",
+    "LIVE_FULL": "This live is full.",
+    "LIVE_EXCLUDED": "You have been removed from this live.",
+    "LIVE_INVITEES_TOO_MANY": "A live has at most {{max}} guests.",
+    "LIVE_JOIN_AS_VIEWER_FIRST": "Join this live as a viewer first.",
+    "LIVE_HOST_STAYS_ON_STAGE": "The host does not leave the stage: they end the live.",
+    "LIVE_TARGET_EXCLUDED": "This person has been removed from this live.",
+    "LIVE_CHAT_CLOSED": "The chat of this live is closed.",
+    "LIVE_SELF_EXCLUDE": "You cannot remove yourself from your own live.",
+    "LIVE_HOST_NOT_MODERATABLE": "The live host cannot be moderated.",
+    "LIVE_REPLAY_VISIBILITY_WIDENS": "A replay's visibility can only restrict that of the live.",
+    "LIVE_REPLAY_VISIBILITY_FOLLOWERS": "A replay's visibility is not set to a page's followers: it follows that of the live.",
+    "LIVE_REPLAY_VISIBILITY_INVITEES": "A replay's visibility is not set to guests: it follows that of the live.",
+    "LIVE_REPLAY_DECISION_AFTER_END": "What happens to the recording is decided once the live has ended.",
+    "LIVE_NO_RECORDING": "This live has no recording.",
+    "LIVE_REPLAY_WITHDRAWN": "This replay was withdrawn: there is nothing left to publish.",
+    "LIVE_REPLAY_RETRY_AFTER_END": "The live must have ended to retry its replay.",
+    "LIVE_REPLAY_NOTHING_TO_RETRY": "There is no replay to retry for this live.",
+    "LIVE_REPLAY_UNAVAILABLE": "This live has no replay available."
+  }
+}

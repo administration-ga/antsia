@@ -5,7 +5,7 @@ import { cn } from "@antsia/ui/lib/cn"
  * une page SERVEUR (catalogue public) peut ainsi habiller un lien en bouton.
  * `controls.tsx` la réexporte ; aucune couleur littérale, seulement des jetons.
  */
-export type ButtonVariant = "primary" | "commerce" | "message" | "send" | "ghost" | "outline"
+export type ButtonVariant = "primary" | "commerce" | "message" | "send" | "success" | "danger" | "ghost" | "outline"
 
 /** La facture d'un bouton, aussi pour un LIEN qui mène à une page (une destination reste un lien). */
 export function buttonClassName(variant: ButtonVariant = "primary", className?: string): string {
@@ -23,6 +23,8 @@ export function buttonClassName(variant: ButtonVariant = "primary", className?: 
     // Envoyer un message ou une demande : aplat des messages, comme le bouton d'envoi d'iCom ;
     // l'aplat d'identité en repli.
     variant === "send" && "bg-[var(--role-message-fill,var(--primary-fill))] text-[color:var(--role-message-on,var(--primary-fill-on,var(--primary-foreground)))] hover:brightness-[0.95]",
+    variant === "success" && "bg-[var(--role-success-fill,var(--success-fill))] text-[color:var(--role-success-on,var(--on-fill))] hover:brightness-[0.95]",
+    variant === "danger" && "bg-[var(--role-danger-fill,var(--danger-fill))] text-[color:var(--role-danger-on,var(--on-fill))] hover:brightness-[0.95]",
     // Le neutre (Annuler, Plus tard) : gris, sans filet dans les thèmes ANTSIA.
     variant === "outline" && "border border-[color:var(--ui2-button-outline-border,var(--border))] bg-[var(--ui2-button-outline-bg,var(--card))] text-foreground hover:brightness-[0.97]",
     variant === "ghost" && "text-foreground hover:bg-muted",

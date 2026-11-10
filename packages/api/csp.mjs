@@ -74,11 +74,34 @@ export function livekitOrigins(livekitUrl) {
 }
 
 /**
- * @param {{ convexUrl?: string, livekitUrl?: string, isDev: boolean, extraConnect?: string[] }} options
+ * Une permission d'iframe exige une origine HTTPS canonique exacte. Ne jamais
+ * normaliser une entrée : cela admettrait notamment un chemin ou un port 443
+ * explicite supprimé par URL.origin. Sans entrée admise, aucune permission.
+ * @param {readonly string[] | undefined} origins
+ * @returns {string[]}
+ */
+function exactHttpsFrameOrigins(origins) {
+  if (!Array.isArray(origins)) return []
+  const admitted = origins.filter((value) => {
+    if (typeof value !== "string") return false
+    try {
+      const url = new URL(value)
+      const hostname = /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*$/u.test(url.hostname)
+        || /^\[[0-9a-f:]+\]$/u.test(url.hostname)
+      return hostname && url.protocol === "https:" && value === url.origin && !url.port && !url.username && !url.password
+    } catch { return false }
+  })
+  return [...new Set(admitted)]
+}
+
+/**
+ * @param {{ convexUrl?: string, livekitUrl?: string, isDev: boolean, extraConnect?: string[], iframeSources?: readonly string[], frameAncestors?: readonly string[] }} options
  * @returns {string}
  */
 export function buildContentSecurityPolicy(options) {
   const backend = convexOrigins(options.convexUrl)
+  const iframeSources = exactHttpsFrameOrigins(options.iframeSources)
+  const frameAncestors = exactHttpsFrameOrigins(options.frameAncestors)
   const connect = [
     "'self'",
     ...backend,
@@ -96,7 +119,8 @@ export function buildContentSecurityPolicy(options) {
     // Messages vocaux et messagerie vocale : servis par le stockage du déploiement.
     `media-src 'self' blob: ${backend.filter((o) => o.startsWith("http")).join(" ")}`.trim(),
     "worker-src 'self' blob:",
-    "frame-ancestors 'none'",
+    ...(iframeSources.length ? [`frame-src ${iframeSources.join(" ")}`] : []),
+    `frame-ancestors ${frameAncestors.length ? frameAncestors.join(" ") : "'none'"}`,
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",
@@ -106,14 +130,14 @@ export function buildContentSecurityPolicy(options) {
 
 /**
  * En-têtes de sécurité statiques communs aux applications du moteur.
- * @param {{ convexUrl?: string, livekitUrl?: string, isDev: boolean, extraConnect?: string[] }} options
+ * @param {{ convexUrl?: string, livekitUrl?: string, isDev: boolean, extraConnect?: string[], iframeSources?: readonly string[], frameAncestors?: readonly string[] }} options
  * @returns {{ key: string, value: string }[]}
  */
 export function securityHeaders(options) {
   return [
     { key: "Content-Security-Policy", value: buildContentSecurityPolicy(options) },
     { key: "X-Content-Type-Options", value: "nosniff" },
-    { key: "X-Frame-Options", value: "DENY" },
+    ...(exactHttpsFrameOrigins(options.frameAncestors).length ? [] : [{ key: "X-Frame-Options", value: "DENY" }]),
     { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
     { key: "Permissions-Policy", value: "camera=(self), microphone=(self), geolocation=()" },
     ...(options.isDev ? [] : [{ key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" }]),

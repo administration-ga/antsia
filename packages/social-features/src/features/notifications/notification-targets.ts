@@ -57,6 +57,8 @@ export type NotificationTargetKind =
 	| "jobApplication"
 	/** P14B : des décisions de modération — celles d'une page représentée, ou les siennes. */
 	| "decisions"
+	/** SU01d : ses signalements, leur échéance et leur issue. */
+	| "reports"
 
 export interface NotificationTargetRef {
 	kind: NotificationTargetKind
@@ -88,6 +90,8 @@ export interface NotificationRoutes {
 	jobApplication?: (applicationId: string) => string
 	pageModerationDecisions?: (pageId: string) => string
 	personalDecisions?: () => string
+	/** SU01d : « Mes signalements ». */
+	personalReports?: () => string
 }
 
 /**
@@ -150,6 +154,8 @@ const UNKNOWN_ACTOR = "notifications:notificationTargets.unknownActor"
 const OTHER_SENTENCE = "notifications:notificationTargets.sentence.other"
 /** P14B : le geste vers des décisions de modération (d'une page représentée, ou les siennes). */
 const DECISIONS_LABEL = "notifications:notificationTargets.viewDecisions"
+/** SU01d : le geste vers « Mes signalements » (accusé de réception, décision). */
+const REPORTS_LABEL = "notifications:notificationTargets.viewReports"
 
 /**
  * Les genres RELATIONNELS qui mènent à une PERSONNE : le profil de l'acteur.
@@ -222,6 +228,10 @@ function typedTarget(target: NotificationOpenTarget, routes: NotificationRoutes,
 		case "personalDecisions": {
 			const href = routes.personalDecisions?.() ?? null
 			return href === null ? null : { kind: "decisions", id: "personal", href, label: t(DECISIONS_LABEL) }
+		}
+		case "personalReports": {
+			const href = routes.personalReports?.() ?? null
+			return href === null ? null : { kind: "reports", id: "personal", href, label: t(REPORTS_LABEL) }
 		}
 		case "diasporaServiceNotice":
 		case "diasporaCommunityNotice":
@@ -352,6 +362,7 @@ export function targetCallback(kind: NotificationTargetKind, targets: Notificati
 		case "serviceRequest":
 		case "jobApplication":
 		case "decisions":
+		case "reports":
 			return undefined
 	}
 }
@@ -459,6 +470,9 @@ const ENGINE_ONLY_SENTENCES: Readonly<Record<EngineOnlyKind, { actor: string | n
 		membership_changed: { actor: null, system: "notifications:notificationTargets.sentence.membershipChanged" },
 		badge_changed: { actor: null, system: "notifications:notificationTargets.sentence.badgeChanged" },
 		moderation_decision: { actor: null, system: "notifications:notificationTargets.sentence.moderationDecision" },
+		// SU01d : avis au seul déclarant, sans acteur (le modérateur ne se nomme pas), sans contenu ni sanction.
+		report_received: { actor: null, system: "notifications:notificationTargets.sentence.reportReceived" },
+		report_decided: { actor: null, system: "notifications:notificationTargets.sentence.reportDecided" },
 	// C'est la PAGE qui parle : aucun acteur, la publication est le sujet.
 	page_post: { actor: null, system: "notifications:notificationTargets.sentence.pagePost" },
 	album_published: { actor: "notifications:notificationTargets.sentence.albumPublished", system: null },
@@ -492,6 +506,7 @@ const ENGINE_ONLY_SENTENCES: Readonly<Record<EngineOnlyKind, { actor: string | n
  * boutique. Un genre commerce ajouté sans phrase ici ne compile pas.
  */
 const COMMERCE_SENTENCES: Readonly<Record<CommerceNotificationKind, string>> = Object.freeze({
+	commerce_service_followup_updated: "notifications:notificationTargets.sentence.commerce.followupUpdated",
 	commerce_service_quote_received: "notifications:notificationTargets.sentence.commerce.quoteReceived",
 	commerce_service_quote_revised: "notifications:notificationTargets.sentence.commerce.quoteRevised",
 	commerce_service_booking_confirmed: "notifications:notificationTargets.sentence.commerce.bookingConfirmed",

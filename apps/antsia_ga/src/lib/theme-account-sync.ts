@@ -25,6 +25,8 @@ export interface ThemeAccountSync<Theme extends string> {
   accountChanged: (theme: Theme | undefined) => void
   /** Le membre choisit un thème. */
   choose: (theme: Theme) => void
+  /** La session ou le composant se termine : ferme les réponses et choix en attente. */
+  dispose: () => void
 }
 
 export function createThemeAccountSync<Theme extends string>({ apply, save, onSaveFailed }: ThemeAccountSyncOptions<Theme>): ThemeAccountSync<Theme> {
@@ -35,18 +37,20 @@ export function createThemeAccountSync<Theme extends string>({ apply, save, onSa
   let sending = false
   /** L'enregistrement de `pending` est accepté : le prochain changement du compte fait foi. */
   let accepted = false
+  let active = true
 
   const send = (theme: Theme) => {
     sending = true
     accepted = false
     // Une erreur levée avant toute promesse suit le même chemin qu'un refus du serveur.
-    Promise.resolve().then(() => save(theme)).then(
+    Promise.resolve().then(() => active ? save(theme) : undefined).then(
       () => settle(theme, false, undefined),
       (error: unknown) => settle(theme, true, error),
     )
   }
 
   const settle = (theme: Theme, failed: boolean, error: unknown) => {
+    if (!active) return
     sending = false
     // Un choix plus récent attendait : c'est lui qui part, ce résultat est dépassé.
     if (pending !== null && pending !== theme) return send(pending)
@@ -63,6 +67,7 @@ export function createThemeAccountSync<Theme extends string>({ apply, save, onSa
 
   return {
     accountChanged(theme) {
+      if (!active) return
       account = theme
       if (theme === undefined) return
       if (pending !== null) {
@@ -73,10 +78,15 @@ export function createThemeAccountSync<Theme extends string>({ apply, save, onSa
       apply(theme)
     },
     choose(theme) {
+      if (!active) return
       apply(theme)
       pending = theme
       accepted = false
       if (!sending) send(theme)
+    },
+    dispose() {
+      active = false
+      pending = null
     },
   }
 }

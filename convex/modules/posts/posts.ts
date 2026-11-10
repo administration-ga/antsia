@@ -78,7 +78,7 @@ import { type BoundedPageIds, followedPageIds, isFollowingPage } from "../pages/
 import { type PageCard, pageCardValidator } from "../pages/validators"
 import { findPublishedPersonByHandle, miniProfileCache, resolveMentionedPersonIds } from "../people/miniProfile"
 import { canAccessAssociationGroupPost, requireLiveThematicGroupMembership } from "../thematicGroups/access"
-import { assertVisiblePost, canSeePostDoc, isInReadingContext, type ReaderContext } from "./access"
+import { assertVisiblePost, canSeePostDoc, editorialDiscussionOpen, isInReadingContext, type ReaderContext } from "./access"
 import { markPostRemoved } from "./contentRemoval"
 import { countComments, countShares, summarizeReactions } from "./counters"
 import { notifyMentions, withdrawPostRootVisibility, writePost } from "./postWrite"
@@ -138,6 +138,7 @@ const sharedPostValidator = v.union(
     body: v.string(),
     media: v.array(postMediaDtoValidator),
     publishedAt: v.number(),
+    hasEditorialArticle: v.optional(v.boolean()),
   }),
 )
 
@@ -189,6 +190,11 @@ export const feedItemValidator = v.object({
   province: v.optional(v.union(literals(PROVINCE_SLUGS), v.null())),
   /** Seul l'indicateur est publié ; les données de l'offre restent derrière leur porte propre. */
   hasCommerceOffer: v.optional(v.boolean()),
+  hasEditorialArticle: v.optional(v.boolean()),
+  /** MP13 : fermeture de la saisie, sans effacer ni masquer les commentaires existants. */
+  commentsOpen: v.optional(v.boolean()),
+  /** La discussion unique d'un article, uniquement quand sa référence est actuellement lisible. */
+  canonicalDiscussionPostId: v.optional(v.id("posts")),
   origin: originValidator,
   /** Pourquoi cette ligne est là — l'écran le dit, il ne le devine pas. */
   reason: literals(FEED_REASONS),
@@ -245,6 +251,7 @@ async function resolveShareProjection(ctx: QueryCtx, post: Doc<"posts">, reader:
     body: original.body,
     media: await resolvePostMediaDtos(ctx, original.media, original.federationMedia),
     publishedAt: original.publishedAt,
+    ...(original.editorialArticleId === undefined ? {} : { hasEditorialArticle: true }),
   }
 }
 
@@ -277,6 +284,8 @@ export async function toFeedItem(ctx: QueryCtx, post: Doc<"posts">, reader: Read
   ])
   // Une publication de page ne retombe JAMAIS sur l'identité de son signataire : page retirée, contenu indisponible.
   if (post.pageId !== undefined && page === null) return notFound()
+  const commentsOpen = await editorialDiscussionOpen(ctx, post)
+  const canonicalDiscussionPostId = post.editorialArticleId !== undefined ? post._id : share?.available && share.hasEditorialArticle ? share.postId : undefined
   return {
     _id: post._id,
     ...(post.pageEventGalleryId === undefined ? {} : { eventGalleryId: post.pageEventGalleryId }),
@@ -309,6 +318,9 @@ export async function toFeedItem(ctx: QueryCtx, post: Doc<"posts">, reader: Read
     country: post.country ?? null,
     province: post.province ?? null,
     ...(post.commerceOffer === undefined ? {} : { hasCommerceOffer: true }),
+    ...(post.editorialArticleId === undefined ? {} : { hasEditorialArticle: true }),
+    ...(commentsOpen === null ? {} : { commentsOpen }),
+    ...(canonicalDiscussionPostId === undefined ? {} : { canonicalDiscussionPostId }),
     origin,
     reason,
     viewer: { bookmarked: enrich.marks.bookmarked.has(post._id), notifying: enrich.marks.notifying.has(post._id) },
@@ -701,6 +713,7 @@ export const edit = networkMutation({
     await enforceRateLimit(ctx, "post.edit", ctx.person._id)
     const post = await myPostFrom(ctx, readerOf(ctx), args.postId)
     if (post.status !== "published") return notFound()
+    if (post.editorialArticleId !== undefined) return notFound()
     const body = checked(() => assertPostContent({ body: args.body, mediaCount: post.media?.length ?? 0, isShare: post.sharedPostId !== undefined }))
     const now = Date.now()
     const tags = extractHashtags(body)

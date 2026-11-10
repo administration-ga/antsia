@@ -640,7 +640,8 @@ export const MESSAGERIE_STYLES_CSS = `
           flex: 0 0 auto;
           margin: 8px 8px 0;
           padding: 7px 11px;
-          border-radius: 999px;
+          /* L'angle des champs du système épuré (ADR-0030) ; la pastille d'origine en repli. */
+          border-radius: var(--esp-field-radius, 999px);
           background: var(--ink-100);
           color: var(--ink-600);
         }
@@ -1421,6 +1422,15 @@ export const MESSAGERIE_STYLES_CSS = `
         .icom-page-navigation a { display: flex; flex: 1; align-items: center; justify-content: center; min-height: 44px; padding: 4px 8px; border-radius: var(--radius-lg); font-size: 14px; color: var(--muted-foreground); }
         .icom-page-navigation a[aria-current="page"] { background: var(--esp-tab-active-bg, var(--accent)); color: var(--esp-tab-active-fg, var(--accent-foreground)); font-weight: 700; }
         .icom-page-navigation a:focus-visible, .icom-page-heading a:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
+        /* ADR-0036 : la pilule interrupteur iCom | iCom Pro, aux jetons des chartes. */
+        .icom-space-switch { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 2px; padding: 3px; border: 1px solid var(--border); border-radius: 999px; background: var(--muted); }
+        .icom-space-switch > a, .icom-space-switch > span { display: inline-flex; align-items: center; justify-content: center; min-height: 38px; padding: 0 14px; border-radius: 999px; font-size: 14px; font-weight: 600; line-height: 1; white-space: nowrap; color: var(--muted-foreground); text-decoration: none; transition: background-color 160ms ease, color 160ms ease; }
+        .icom-space-switch > [aria-current="page"] { background: var(--primary-fill, var(--primary)); color: var(--primary-fill-on, var(--primary-foreground)); }
+        .icom-space-switch > a:hover { color: var(--foreground); }
+        .icom-space-switch > a:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+        .icom-space-switch[data-compact="true"] > a, .icom-space-switch[data-compact="true"] > span { min-height: 32px; padding: 0 11px; font-size: 13px; }
+        .icom-page-heading .icom-space-switch a { min-height: 38px; color: var(--muted-foreground); }
+        @media (prefers-reduced-motion: reduce) { .icom-space-switch > a, .icom-space-switch > span { transition: none; } }
         .icom-messages-page .msg-panel[data-variant="page"][data-open="true"] { flex: 1 1 auto; min-height: 0; height: auto; padding-top: 0; }
         .icom-messages-page .msg-body { min-height: 0; overflow-y: auto; }
         .icom-messages-page .icom-page-detail { min-width: 0; }

@@ -23,6 +23,7 @@ import type { Doc, Id } from "../../_generated/dataModel"
 import type { MutationCtx } from "../../_generated/server"
 import { failRule, notFound } from "../../lib/errors"
 import { networkMutation, networkQuery } from "../../lib/functions"
+import { activeCallSession } from "./deviceOwnership"
 import { enforceRateLimit } from "../../lib/rateLimit"
 import { counterpartOf } from "../messaging/participation"
 import { miniProfileCache } from "../people/miniProfile"
@@ -127,7 +128,7 @@ export const listRinging = networkQuery({
 async function requireJoinedDirectCall(ctx: MutationCtx, networkId: Id<"networks">, callId: Id<"calls">, me: Id<"persons">): Promise<Doc<"calls">> {
   const { call, participation } = await requireCallParticipant(ctx, networkId, callId, me)
   if (call.kind === "group") return failRule("CALL_GROUP_NO_HOLD")
-  if (!isPresent(participation)) return notFound()
+  if (!isPresent(participation) || participation.ownerSessionId !== await activeCallSession(ctx)) return notFound()
   return call
 }
 

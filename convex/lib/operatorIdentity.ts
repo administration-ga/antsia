@@ -1,4 +1,9 @@
-/** PA7 : l'autorité de console appartient à une session IDN, pas à un ancien lien de profil. */
+/**
+ * PA7 : l'autorité de console appartient à une session IDN, pas à un ancien lien de profil.
+ * ADR-0039 : le niveau de garantie exigé est `CONSOLE_MIN_LOA` (1), non plus 2.
+ */
+import { CONSOLE_MIN_LOA } from "@antsia/social-domain/badges"
+
 import { components } from "../_generated/api"
 import type { Doc } from "../_generated/dataModel"
 import type { MutationCtx, QueryCtx } from "../_generated/server"
@@ -14,11 +19,12 @@ export function requirePlatformAdmin(actor: { operator: Doc<"operators"> }): voi
 export async function hasCurrentIdnLink(ctx: Pick<QueryCtx, "db">, person: Doc<"persons">, subject: string): Promise<boolean> {
   const link = await ctx.db.query("identityLinks").withIndex("by_person_and_provider", (q) => q.eq("personId", person._id).eq("provider", "idn")).unique()
   const proof = await ctx.db.query("idnProofs").withIndex("by_subject", (q) => q.eq("subject", subject)).unique()
-  return Boolean(link && link.revokedAt === undefined && link.subject === subject && (link.loa ?? 0) >= 2 && (proof?.loa ?? 0) >= 2)
+  // Un lien ou une preuve sans niveau reste refusé : `0` n'atteint jamais le seuil.
+  return Boolean(link && link.revokedAt === undefined && link.subject === subject && (link.loa ?? 0) >= CONSOLE_MIN_LOA && (proof?.loa ?? 0) >= CONSOLE_MIN_LOA)
 }
 
 export async function isLiveOperatorSession(ctx: IdentityCtx, person: Doc<"persons">, proof: Doc<"operatorSessionProofs"> | null): Promise<boolean> {
-  if (!proof || proof.authUserId !== person.authUserId || proof.loa < 2 || proof.expiresAt <= Date.now() || !await hasCurrentIdnLink(ctx, person, proof.idnSubject)) return false
+  if (!proof || proof.authUserId !== person.authUserId || proof.loa < CONSOLE_MIN_LOA || proof.expiresAt <= Date.now() || !await hasCurrentIdnLink(ctx, person, proof.idnSubject)) return false
   const root = await ctx.db.query("networks").withIndex("by_kind_and_status", (q) => q.eq("kind", "root").eq("status", "active")).unique()
   const membership = root ? await ctx.db.query("networkMemberships").withIndex("by_network_and_person", (q) => q.eq("networkId", root._id).eq("personId", person._id)).unique() : null
   if (membership?.status === "suspendue" || membership?.status === "partie") return false

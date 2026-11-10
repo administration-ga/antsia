@@ -3,13 +3,13 @@ import { act, StrictMode } from "react"
 import { createRoot } from "react-dom/client"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
-const mocks = vi.hoisted(() => ({ token: vi.fn(), cookie: vi.fn(), request: vi.fn(), generation: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" }))
-vi.mock("convex/react", () => ({ useConvexAuth: () => ({ isAuthenticated: true, isLoading: false }) }))
+const mocks = vi.hoisted(() => ({ token: vi.fn(), cookie: vi.fn(), request: vi.fn(), fence: vi.fn(), lock: vi.fn(), signingOut: false, authenticated: true, anonymous: true, generation: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" }))
+vi.mock("convex/react", () => ({ useConvexAuth: () => ({ isAuthenticated: mocks.authenticated, isLoading: false }) }))
 vi.mock("react-i18next", () => ({ useTranslation: () => ({ t: (key: string) => key }) }))
 vi.mock("@/lib/auth-client", () => ({ authClient: { getCookie: mocks.cookie, convex: { token: mocks.token } } }))
-vi.mock("@/lib/session-bridge-client", () => ({ clearLocalSessionForAnonymousBridge: () => true, currentSessionBridgeGeneration: () => mocks.generation, requestSessionBridge: mocks.request, rotateSessionBridgeFence: () => mocks.generation }))
-vi.mock("@antsia/api/sign-out-everywhere", () => ({ isSigningOutEverywhere: () => false }))
-import { SessionBridge } from "./session-bridge"
+vi.mock("@/lib/session-bridge-client", () => ({ clearLocalSessionForAnonymousBridge: () => mocks.anonymous, currentSessionBridgeGeneration: () => mocks.generation, requestSessionBridge: mocks.request, rotateSessionBridgeFence: mocks.fence, withSessionBridgeLock: mocks.lock }))
+vi.mock("@antsia/api/sign-out-everywhere", () => ({ isSigningOutEverywhere: () => mocks.signingOut }))
+import { SessionBridge, SessionBridgePreflight } from "./session-bridge"
 import { BRIDGE_CLIENT_TIMEOUT_MS, BRIDGE_TIMEOUT_MS } from "@/lib/session-bridge"
 
 const sid = "abcdefghijklmnopqrstuv.signature1234567890="
@@ -17,11 +17,93 @@ const sessionCookie = `better-auth.session_token=${encodeURIComponent(sid)}`
 beforeEach(() => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true)
   mocks.generation = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+  mocks.signingOut = false
+  mocks.authenticated = true
+  mocks.anonymous = true
+  mocks.lock.mockImplementation(async (work: () => Promise<unknown>) => work())
+  mocks.fence.mockReturnValue(mocks.generation)
   mocks.cookie.mockReturnValue(sessionCookie)
   mocks.request.mockResolvedValue(true)
 })
-afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); mocks.token.mockReset(); mocks.cookie.mockReset(); mocks.request.mockReset() })
+afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); mocks.token.mockReset(); mocks.cookie.mockReset(); mocks.request.mockReset(); mocks.fence.mockReset(); mocks.lock.mockReset() })
+describe("préparation du pont pendant la sortie", () => {
+  it("attend le verrou d'origine avant toute rotation ou purge", async () => {
+    let acquire: () => void = () => undefined
+    mocks.lock.mockImplementation((work: () => Promise<unknown>) => new Promise((resolve) => { acquire = () => resolve(work()) }))
+    const host = document.createElement("div"), root = createRoot(host)
+    try {
+      await act(async () => { root.render(<SessionBridgePreflight><p>session-provider</p></SessionBridgePreflight>) })
+      expect(mocks.fence).not.toHaveBeenCalled()
+      expect(mocks.request).not.toHaveBeenCalled()
+      await act(async () => { acquire() })
+      expect(mocks.fence).toHaveBeenCalledOnce()
+      expect(mocks.request).toHaveBeenCalledWith("DELETE", { generation: mocks.generation, anonymous: false })
+      expect(host.textContent).toBe("session-provider")
+    } finally { await act(async () => root.unmount()) }
+  })
+
+  it("un verrou indisponible reste fermé sans tourner ni purger de génération", async () => {
+    mocks.lock.mockRejectedValue(new Error("denied"))
+    const host = document.createElement("div"), root = createRoot(host)
+    try {
+      await act(async () => { root.render(<SessionBridgePreflight><p>session-provider</p></SessionBridgePreflight>) })
+      expect(mocks.fence).not.toHaveBeenCalled()
+      expect(mocks.request).not.toHaveBeenCalled()
+      expect(host.textContent).toContain("session.unavailable")
+    } finally { await act(async () => root.unmount()) }
+  })
+
+  it("un remontage ne remplace ni la génération ni la purge possédées par la sortie", async () => {
+    mocks.signingOut = true
+    const host = document.createElement("div"), root = createRoot(host)
+    try {
+      await act(async () => { root.render(<StrictMode><SessionBridgePreflight><p>session-provider</p></SessionBridgePreflight></StrictMode>) })
+      expect(mocks.fence).not.toHaveBeenCalled()
+      expect(mocks.request).not.toHaveBeenCalled()
+      expect(host.textContent).toBe("session.preparing")
+    } finally { await act(async () => root.unmount()) }
+  })
+  it("une préparation antérieure résolue pendant la sortie ne monte aucun fournisseur", async () => {
+    let finish: (cleared: boolean) => void = () => undefined
+    mocks.request.mockImplementation(() => new Promise<boolean>((resolve) => { finish = resolve }))
+    const host = document.createElement("div"), root = createRoot(host)
+    try {
+      await act(async () => { root.render(<SessionBridgePreflight><p>session-provider</p></SessionBridgePreflight>) })
+      mocks.signingOut = true
+      await act(async () => { finish(true) })
+      expect(host.textContent).toBe("session.preparing")
+      expect(mocks.fence).toHaveBeenCalledTimes(1)
+    } finally { await act(async () => root.unmount()) }
+  })
+})
 describe("confirmation de session bornée", () => {
+  it("relit la génération après acquisition du verrou et ne demande aucun jeton avant", async () => {
+    let acquire: () => void = () => undefined
+    mocks.lock.mockImplementation((work: () => Promise<unknown>) => new Promise((resolve) => { acquire = () => resolve(work()) }))
+    mocks.token.mockResolvedValue({ data: { token: "jwt" } })
+    const host = document.createElement("div"), root = createRoot(host)
+    try {
+      await act(async () => { root.render(<SessionBridge><p>private-content</p></SessionBridge>) })
+      expect(mocks.token).not.toHaveBeenCalled()
+      mocks.generation = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
+      await act(async () => { acquire() })
+      expect(mocks.request.mock.calls[0]?.[1]).toMatchObject({ generation: mocks.generation })
+      expect(host.textContent).toBe("private-content")
+    } finally { await act(async () => root.unmount()) }
+  })
+
+  it("une ancienne branche anonyme ne purge aucun nouveau compte apparu pendant l'attente", async () => {
+    mocks.authenticated = false
+    mocks.anonymous = false
+    const host = document.createElement("div"), root = createRoot(host)
+    try {
+      await act(async () => { root.render(<SessionBridge><p>private-content</p></SessionBridge>) })
+      expect(mocks.token).not.toHaveBeenCalled()
+      expect(mocks.request).not.toHaveBeenCalled()
+      expect(host.textContent).toContain("session.unavailable")
+    } finally { await act(async () => root.unmount()) }
+  })
+
   it("laisse le premier jeton finir de se préparer au-delà du délai de vérification serveur", async () => {
     vi.useFakeTimers()
     mocks.token.mockImplementation(() => new Promise((resolve) => {

@@ -1,60 +1,134 @@
 /*
- * Thème DIASPORALE (`DIASPORALE/apps/diasporale_com`, `data-charte="diasporale"`) —
- * charte « Sable de la diaspora », arbitrage A7 pris par défaut (famille
- * Consulaire / Sable sur le squelette de l'espace agent). Référence :
- * DIASPORALE/docs/03_CHARTE_DIASPORALE.md. Fichier écrit par la session DIASPORALE.
+ * Thème « Sable » de DIASPORALE (`data-charte="diasporale"`) — la charte de DIASPORALE et
+ * son thème par défaut. Fichier écrit par la session DIASPORALE. Référence :
+ * DIASPORALE/docs/03_CHARTE_DIASPORALE.md.
  *
- * Règles (cliquet `theme-contract`) : uniquement des jetons du contrat de la
- * charte de base, uniquement sous [data-charte="diasporale"]. Les rôles propres à
- * DIASPORALE (étiquette pays, badges, bandeaux) vivent dans
- * `@diasporale/features/styles/extras.css` et ne lisent QUE des jetons d'ici.
+ * Version 4 (20/10/2026, demande du propriétaire) : la maquette « ANTSIA — sept thèmes, toutes
+ * les pages » (19/10/2026, thème n° 7) devient la charte de DIASPORALE. Bleu Gabon #0167A8
+ * pour publier et écrire, sarcelle #238090 pour suivre, sable doré #D7AD63 pour réagir,
+ * participer et acheter ; valider en vert, supprimer en rouge, annuler en gris. Fond papier et
+ * sable en clair, nuit brune en sombre. Système épuré, commun aux sept thèmes : un angle par
+ * élément (pilule, badge 6, puce 10, page 12, champ 14, média 16, Créer 18, carte 24, barre
+ * d'onglets 28), un contour seulement à couleur égale, seul ce qui flotte porte une ombre ;
+ * titres en Familjen Grotesk, texte en Inter (chargées par `@antsia/ui/styles.css`).
  *
- * Deux blocs :
- *   1. clair — les primitives du contrat réaccordées à la palette Sable (bleu
- *      Gabon #0072B9, grès chauds, encre brune), puis tous les rôles ;
- *   2. sombre « nuit brune » — redéclare CHAQUE rôle que le bloc sombre de la
- *      base déclare : à spécificité 0,2,0, ce bloc l'emporterait sinon sur le
- *      bloc clair de ce thème (0,1,0) et le bleu du moteur réapparaîtrait.
- * Version 2 (15/10/2026, demande du propriétaire) : élévation par la clarté dans
- * les deux thèmes — le fond est la couche la plus basse (sable en clair, nuit en
- * sombre), chaque surface qui monte s'éclaircit (carte, puis ce qui flotte), sans
- * filet. Rayons resserrés (contrôles 6 px, cartes 8 px), pilules inchangées
- * (`--esp-r-chrome` de la base).
- * Version 3 (même jour, « plus agréable pour les yeux ») : une seule teinte chaude
- * par thème, chroma basse et graduée (OKLCH), plus de beige saturé ni de brun
- * olive ; contraste du texte principal ramené dans la zone de confort (15,7:1 en
- * clair, 15:1 en sombre au lieu de 18,6 et 17,2), papier légèrement adouci ;
- * bleu et tons du sombre moins saturés.
- * Version 3.2 (même jour, décision du propriétaire) : bleu Gabon légèrement foncé
- * (#0072B9 → #0167A8, même teinte : le lien tient 5,2:1 sur le sable au lieu de
- * 4,57) ; sable un cran plus posé (la carte s'en détache à 1,13:1 au lieu de
- * 1,10) ; textes secondaires plus fermes dans les deux thèmes ; nuit requantifiée
- * à teinte constante. Une sélection ne porte plus jamais de contour ni de bleu
- * nuit : en sombre, sa teinte se LÈVE au-dessus de la carte (`--primary-50`,
- * `--esp-accent-soft`), comme toute surface qui monte.
- * Les contrastes (texte ≥ 4,5:1, contours et focus ≥ 3:1) sont recalculés dans les
- * deux thèmes, à travers la cascade complète base + thème, par le cliquet
- * `engine-theme-contrast.test.ts` de DIASPORALE.
- * Version 3.3 (17/10/2026, correction du propriétaire sur le fil clair) :
- * inversion des surfaces claires — fond papier, cartes sable. Les rôles du
- * moteur et d'iCom suivent la même hiérarchie ; le sombre reste inchangé.
- * Thèmes au choix (19/10/2026, demande du propriétaire) : cette charte est le thème
- * « Sable », celui par défaut. Le membre peut lui préférer « Gaboma »
- * (`diasporale-gaboma.css`, `data-charte="diasporale-gaboma"`) : la même structure,
- * recopiée jeton pour jeton, sur les couleurs du réseau ANTSIA. Toute modification
- * d'un rôle ou d'une mesure ici se reporte là-bas : le cliquet
- * `engine-theme-contrast.test.ts` de DIASPORALE compare les deux structures.
+ * Construction : les trois blocs d'`antsia-sable.css` (la même maquette, générée et contrôlée
+ * par le moteur, ADR-0027), recopiés valeur pour valeur sur le nœud de DIASPORALE, puis ses
+ * jetons propres (étiquette pays, tons de statut, avatars, bannière) dans les blocs clair et
+ * sombre. Les versions 1 à 3.3 (IBM Plex, rayons de 6 et 8 px, une seule couleur d'action) sont
+ * remplacées ; leur palette Sable (papier #fdfdfb, sable #f1efeb, encre #25211e, nuit #151311)
+ * reste celle de la maquette.
+ *
+ * Règles (cliquet `theme-contract` du moteur) : uniquement des jetons du contrat de la charte de
+ * base, uniquement sous [data-charte="diasporale"]. Le troisième bloc, commun aux deux modes
+ * (spécificité 0,2,0 en sombre), passe après le bloc sombre de la base : rien du bleu du moteur
+ * ne reparaît. Les contrastes (texte ≥ 4,5:1, contours et focus ≥ 3:1, texte sur chaque aplat)
+ * sont recalculés à travers la cascade complète par `engine-theme-contrast.test.ts` de
+ * DIASPORALE, qui vérifie aussi que Gaboma (`diasporale-gaboma.css`) garde cette structure.
  */
 
 [data-charte="diasporale"] {
   color-scheme: light;
 
-  /* ── 1. Primitives du contrat, réaccordées ── */
+  /* ── 1. Primitives du contrat, réaccordées au thème ── */
+  --esp-neutral-900: #25211e; /* texte principal clair */
+  --esp-neutral-600: #595550; /* texte secondaire clair */
+  --esp-neutral-rule: #dddad4; /* séparateur décoratif */
+  --esp-neutral-field: #84817b; /* contour de contrôle clair, ≥ 3:1 sur la carte et le creux */
+  --esp-night-bg: #151311;
+  --esp-night-card: #24221f;
+  --esp-night-chip: #302e2a;
+  --esp-night-border: #3c3935;
+  --esp-night-input: #7c7872;
+  --esp-night-soft: #b8b4ac;
 
-  /* Bleu Gabon — le barreau 500 est le bleu d'action, comme dans la base. v3.2 :
-     légèrement foncé à teinte égale (OKLCH h 246,6, L 53,6 → 49,9 %), sur décision
-     du propriétaire : 5,21:1 sur le sable, 5,88:1 sur le papier, 4,98:1 sur le
-     creux (4,57, 5,02 et 4,33 avant). Survol 600 un cran plus bas, lui aussi. */
+  /* ── 2. Identité (encre), succès, danger — thème clair ── */
+  --primary-50: #d4dee2;
+  --primary-100: #c1d2db;
+  --primary-200: #a4c1d2;
+  --primary-300: #3983b2;
+  --primary-400: #1a70a6;
+  --primary-500: #01609c;
+  --primary-600: #015489;
+  --primary-700: #014977;
+  --primary-800: #013c61;
+  --success-50: #dbe3da;
+  --success-100: #c5d8c8;
+  --success-500: #14743a;
+  --success-600: #0f5f2f;
+  --danger-50: #ebdbd7;
+  --danger-100: #e5c7c2;
+  --danger-500: #b3261e;
+  --danger-600: #b3261e;
+  --danger-700: #8f1e18;
+
+  /* ── 3. Rôles du thème clair ── */
+  --background: #fdfdfb;
+  --foreground: var(--esp-neutral-900);
+  --card: #f1efeb;
+  --popover: #ffffff;
+  --muted: #e7e4de; /* creux : bouton neutre, puce, champ, survol */
+  --muted-foreground: var(--esp-neutral-600);
+  --border: var(--esp-neutral-rule);
+  --input: var(--esp-neutral-field);
+  --on-fill: #ffffff; /* texte blanc sur l'accent, le succès et le danger */
+  --role-social-fill: #238090;
+  --role-social-on: #ffffff;
+  --role-social-ink: #1b6874;
+  --role-message-fill: #0167a8;
+  --role-message-on: #ffffff;
+  --role-message-ink: #01619e;
+  --role-react-fill: #d7ad63;
+  --role-react-on: #25211e;
+  --role-react-ink: #a1782d;
+  --role-commerce-fill: #d7ad63;
+  --role-commerce-on: #25211e;
+  --role-commerce-ink: #7a5a22;
+  /* Valider et Supprimer, chacun ses trois couleurs comme dans les chartes : aplat, texte sur l'aplat, encre en texte. */
+  --role-success-fill: #14743a;
+  --role-success-on: #ffffff;
+  --role-success-ink: #0f5f2f;
+  --role-danger-fill: #b3261e;
+  --role-danger-on: #ffffff;
+  --role-danger-ink: #b3261e;
+  --role-message-soft: #cddbe1; /* fond tonal du bouton Écrire */
+  --role-react-soft: color-mix(in srgb, var(--role-react-fill) 18%, var(--card)); /* fond de l'action réagie */
+  --primary-fill: #0167a8; /* aplat d'identité : bouton Publier, Créer, interrupteur */
+  --primary-fill-hover: #015d97;
+  --primary-fill-on: #ffffff; /* texte posé sur l'aplat d'identité */
+  --ui2-button-secondary-bg: #cddbe1; /* bouton secondaire tonal, sans filet */
+  --ui2-button-secondary-fg: #01609c;
+  --esp-mobilebar-bg: rgb(241 239 235 / 0.88); /* barre flottante, translucide au-dessus du fil */
+  --esp-fab-shadow: 0 10px 20px -8px color-mix(in srgb, var(--primary-fill) 75%, transparent);
+  --esp-tab-active-bg: #cbd9e0; /* onglet actif : pastille tonale */
+  --esp-tab-active-fg: #01609c;
+
+  /* Géométrie et typographie, valables dans les deux thèmes. */
+  --radius-xl: 12px;
+  --rp-surface-radius: 24px; /* cartes du fil et surfaces de premier niveau */
+  --esp-inline-link-decoration: underline;
+  --esp-sticky-header-inset: 4rem; /* barre de membre collante (P18b, A13) */
+  --body-font-size: 15px;
+  --font-sans: "Inter Variable", "Inter", system-ui, sans-serif; /* Inter embarquée (`styles.css`) */
+  --font-display: var(--font-familjen-grotesk, "Familjen Grotesk Variable"), "Inter", system-ui, sans-serif;
+
+  /* Ombres teintées de l'encre du thème. */
+  --shadow-xs: 0 1px 2px rgb(37 33 30 / 0.05);
+  --shadow-sm: 0 1px 3px rgb(37 33 30 / 0.08), 0 1px 2px rgb(37 33 30 / 0.04);
+  --shadow-md: 0 4px 12px rgb(37 33 30 / 0.08), 0 2px 4px rgb(37 33 30 / 0.04);
+  --shadow-lg: 0 12px 32px rgb(37 33 30 / 0.12), 0 4px 12px rgb(37 33 30 / 0.06);
+  --shadow-xl: 0 20px 40px rgb(37 33 30 / 0.16), 0 8px 16px rgb(37 33 30 / 0.08);
+  --icom-float-drag-shadow: 0 18px 54px rgb(37 33 30 / 0.3);
+
+  /* Profondeur (maquette) : la carte n'a pas d'ombre ; seuls la barre d'onglets, le bouton Créer et
+     les cartes flottantes en portent une. */
+  --esp-shadow-card: 0 0 0 0 transparent;
+  --esp-shadow-card-hover: 0 0 0 0 transparent;
+  --esp-shadow-float: 0 14px 30px -12px rgb(0 0 0 / 0.25), 0 2px 6px rgb(0 0 0 / 0.06);
+  --esp-mobilebar-shadow: 0 14px 30px -12px rgb(0 0 0 / 0.25), 0 2px 6px rgb(0 0 0 / 0.06);
+
+  /* ── 4. Jetons propres à DIASPORALE : bleu, neutres et nuit de sa palette, tons de statut, avatars
+     (une personne garde sa couleur d'un thème à l'autre), segments, bannière, alerte. ── */
   --esp-blue-50: #eef7ff;
   --esp-blue-100: #d7ecff;
   --esp-blue-200: #b4dbff;
@@ -66,17 +140,7 @@
   --esp-blue-800: #003458;
   --esp-blue-900: #17293f;
   --esp-blue-950: #001d35;
-  /* Encre posée sur le bleu éclairci du thème sombre (7,02:1). */
   --esp-on-blue: #151311;
-
-  /* Sable, papier, grès, encre : une seule teinte chaude (OKLCH h 85), chroma
-     basse et graduée — le creux, la puce et le filet ne virent pas au beige.
-     Papier adouci (#fdfdfb, pas de blanc pur). v3.2 : sable un cran plus posé
-     (L 96,2 → 95,3 %) — la carte s'en détache à 1,13:1 (1,10 avant), la puce à
-     1,25:1 sur le papier ; creux, puce et filet suivent d'un même pas. Encre
-     #25211e : 15,68:1 sur le papier, 13,91:1 sur le sable. Grès 6,44:1 sur le sable
-     (7,26 sur le papier), discret 4,89:1 (4,67 sur le creux, qui échouait à 4,48).
-     400 et le champ sont non textuels (3,08:1 sur le sable). */
   --esp-neutral-0: #fdfdfb;
   --esp-neutral-50: #f9f8f5;
   --esp-neutral-100: #f1efeb;
@@ -85,43 +149,16 @@
   --esp-neutral-300: #cdcac4;
   --esp-neutral-400: #8b8882;
   --esp-neutral-500: #6b6761;
-  --esp-neutral-600: #595550;
   --esp-neutral-700: #3f3b37;
   --esp-neutral-800: #312d29;
-  --esp-neutral-900: #25211e;
-  --esp-neutral-rule: #dddad4;
-  --esp-neutral-field: #8b8882;
-  --esp-neutral-chip: #e7e4de;
-  --esp-neutral-hover: #eceae5;
   --esp-neutral-mute: #6b6761;
   --esp-neutral-faint: #8b8882;
-
-  /* Nuit chaude, en couches — une seule teinte (OKLCH h 75), chroma basse : plus
-     de brun olive. Du plus sombre au plus clair : fond < carte < aplats (survol,
-     étiquettes, squelettes : ils éclaircissent au lieu de creuser) < puce et carte
-     flottante < survol fort. v3.2 : couches requantifiées à teinte constante (la
-     carte virait au rouge, h 56), marches un peu plus nettes — carte 1,17:1 sur le
-     fond, flottant 1,17:1 sur la carte. Texte #e9e7e1 : 14,99:1 sur le fond, 12,83:1
-     sur la carte (sans halo) ; grès clair 7,68:1 sur la carte, discret 5,47:1 sur la
-     carte et 4,67:1 sur ce qui flotte (4,45 avant : sous le seuil). La sélection
-     (`accent-soft`) est une ardoise bleutée LEVÉE au-dessus de la carte (1,31:1), plus
-     jamais un bleu nuit qui creuse. */
-  --esp-night-bg: #151311;
   --esp-night-sidebar: #151311;
   --esp-night-section: #2b2926;
-  --esp-night-card: #24221f;
-  --esp-night-chip: #302e2a;
   --esp-night-hover: #3b3834;
-  --esp-night-border: #3c3935;
-  --esp-night-input: #78746e;
   --esp-night-faint: #9c9790;
-  --esp-night-soft: #b8b4ac;
   --esp-night-accent-soft: #243849;
   --esp-night-accent-deep: #b4dbff;
-
-  /* Tons — paires texte / fond mesurées. Teintes harmonisées (v3.1) : même clarté et
-     même chroma par thème (OKLCH L 95,8 % C 0,030 en clair ; L 29,5 % C 0,045 en
-     sombre, au-dessus de la carte : plus de pastille rose fondue). */
   --esp-blue: #004c7d;
   --esp-blue-bg: #e1f4ff;
   --esp-blue-dark: #7ec2ff;
@@ -140,13 +177,6 @@
   --esp-green-bg: #e3f7e7;
   --esp-green-dark: #6ebe85;
   --esp-green-bg-dark: #1a3321;
-  --esp-green-strong: #157a3d;
-
-  /* Avatars — mêmes familles et même ordre que la base (une personne garde sa couleur
-     d'un réseau à l'autre). v3.1, réglés au validateur de palette (Machado 2009,
-     toutes paires) : pire paire en vision normale ΔE 12,5 (9,2 avant), en daltonisme
-     6,3 (2,2 avant : bleu et violet se confondaient), blanc ≥ 4,6:1 sous les
-     initiales. Le sarcelle plafonne à C 0,08 : limite du gamut sRGB à cette clarté. */
   --esp-on-avatar: #ffffff;
   --esp-ava-1: #2971d5;
   --esp-ava-2: #01793d;
@@ -154,162 +184,28 @@
   --esp-ava-4: #804dae;
   --esp-ava-5: #c94050;
   --esp-ava-6: #238090;
-
-  /* Navigation active, segments, reliefs teintés d'encre. La pilule choisie (filtre)
-     est l'encre inversée, sans contour : 15,04:1 en clair, 14,99:1 en sombre. */
-  --esp-accent-soft: #eef7ff;
-  --esp-accent-deep: #004c7d;
   --esp-seg-on: #25211e;
   --esp-seg-on-fg: #f9f8f5;
   --esp-night-seg-on: #e9e7e1;
   --esp-night-seg-on-fg: #151311;
-  /* Reliefs : presque rien. La carte se détache par la clarté (sable sur
-     papier en clair, carte éclaircie sur nuit en sombre), sans filet ; l'ombre n'est qu'un souffle, à peine
-     plus marqué pour ce qui passe DEVANT la page (carte flottante, barre basse). */
   --esp-shadow: 0 1px 2px rgb(20 19 15 / 0.05);
   --esp-night-shadow: 0 1px 1px rgb(0 0 0 / 0.25);
-  --esp-shadow-float: 0 1px 2px rgb(20 19 15 / 0.04), 0 4px 14px -4px rgb(20 19 15 / 0.08);
-  --esp-night-shadow-float: 0 1px 2px rgb(0 0 0 / 0.3), 0 4px 14px -4px rgb(0 0 0 / 0.35);
-  --esp-shadow-card-hover: 0 1px 2px rgb(20 19 15 / 0.05), 0 4px 12px -4px rgb(20 19 15 / 0.08);
-
-  /* ── 2. Rôles — thème clair ── */
-
-  --background: var(--esp-neutral-0);
-  --background-dashboard: var(--esp-neutral-0);
-  --foreground: var(--esp-neutral-900);
-  --card: var(--esp-neutral-100);
-  --card-foreground: var(--esp-neutral-900);
-  --popover: var(--esp-neutral-100);
-  --popover-foreground: var(--esp-neutral-900);
-  --primary: var(--esp-blue-500);
-  --primary-foreground: var(--esp-neutral-0);
-  --primary-light: var(--esp-blue-50);
-  --secondary: var(--esp-neutral-100);
-  --secondary-foreground: var(--esp-neutral-600);
-  --esp-surface-card: var(--esp-neutral-100);
-  --muted: var(--esp-neutral-150);
-  --muted-foreground: var(--esp-neutral-600);
-  --accent: var(--esp-neutral-200);
-  --accent-foreground: var(--esp-neutral-900);
   --accent-orange: var(--esp-amber);
   --accent-blue: var(--esp-blue-500);
-  --accent-purple: var(--esp-blue-700);
   --accent-yellow: var(--esp-amber);
-  --success: var(--esp-green-strong);
-  --success-light: var(--esp-green-bg);
   --warning: var(--esp-amber);
   --warning-light: var(--esp-amber-bg);
-  --destructive: var(--esp-rose);
-  --destructive-light: var(--esp-rose-bg);
-  --border: var(--esp-neutral-rule);
   --border-light: var(--esp-neutral-200);
-  --input: var(--esp-neutral-field);
-  --ring: var(--esp-blue-500);
-  --chart-1: var(--esp-blue-500);
   --chart-2: var(--esp-blue-300);
   --chart-3: var(--esp-amber-point);
   --chart-4: var(--esp-rose);
   --chart-5: var(--esp-neutral-500);
-  --sidebar: var(--esp-neutral-0);
-  --sidebar-foreground: var(--esp-neutral-900);
-  --sidebar-primary: var(--esp-blue-500);
-  --sidebar-primary-foreground: var(--esp-neutral-0);
-  --sidebar-accent: var(--esp-accent-soft);
-  --sidebar-accent-foreground: var(--esp-accent-deep);
-  --sidebar-border: var(--esp-neutral-rule);
-  --sidebar-ring: var(--esp-blue-500);
-  --sidebar-muted: var(--esp-neutral-500);
-  /* Focus (v3) : un liseré de fond puis un anneau bleu PLEIN — 5,02:1 sur la carte en
-     clair, 6,06:1 en sombre (le halo à 35 % / 50 % ne tenait que 1,67 et 2,53:1). */
-  --shadow-focus: 0 0 0 2px var(--background), 0 0 0 4px var(--ring);
-
-  --primary-50: var(--esp-blue-50);
-  --primary-100: var(--esp-blue-100);
-  --primary-200: var(--esp-blue-200);
-  --primary-300: var(--esp-blue-300);
-  --primary-400: var(--esp-blue-400);
-  --primary-500: var(--esp-blue-500);
-  --primary-600: var(--esp-blue-600);
-  --primary-700: var(--esp-blue-700);
-  --primary-800: var(--esp-blue-800);
-  --primary-fill: var(--esp-blue-500);
-  --primary-fill-hover: var(--esp-blue-600);
-  --on-fill: var(--esp-neutral-0);
-  --ink-0: var(--card);
-  --ink-50: var(--esp-neutral-50);
-  --ink-100: var(--background);
-  --ink-150: var(--esp-neutral-150);
-  --ink-200: var(--esp-neutral-rule);
-  --ink-300: var(--esp-neutral-300);
-  --ink-400: var(--esp-neutral-400);
-  --ink-500: var(--esp-neutral-500);
-  --ink-600: var(--esp-neutral-600);
-  --ink-700: var(--esp-neutral-700);
-  --ink-800: var(--esp-neutral-800);
-  --ink-900: var(--esp-neutral-900);
-  /* L'information prend la teinte de statut bleue (v3.2) : même clarté et même
-     chroma que l'ambre, le vert et le rose de ses voisines. */
-  --info-50: var(--esp-blue-bg);
-  --info-100: var(--esp-blue-100);
-  --info-500: var(--esp-blue-500);
-  --info-600: var(--esp-blue-700);
-  --status-active: var(--esp-blue-500);
-  --status-active-bg: var(--esp-blue-50);
-  /* Familles sémantiques d'ui-v2 (danger, succès, alerte, statuts) sur les tons de
-     DIASPORALE, mêmes rôles que la base : fond 50, liseré 100, point et contour 500,
-     texte 600 (alerte, badge) ; en clair, l'aplat du bouton suit 500 et son survol
-     600 (alias de la base), sous l'encre claire. Paliers sans ton propre, dérivés en
-     OKLCH à la teinte de leur famille : liseré 100 à la clarté du liseré ambre
-     (L 90,6 %, chroma 0,05) ; rose 600 puis 700 au pas du vert 500 → 600 (L −8,2
-     points chaque fois, chroma à proportion). Statuts : neutres chauds, pas l'ardoise
-     bleutée du socle. */
-  --success-50: var(--esp-green-bg);
-  --success-100: #c9ead0;
-  --success-500: var(--esp-green-strong);
-  --success-600: var(--esp-green);
   --warning-50: var(--esp-amber-bg);
   --warning-100: var(--esp-amber-border);
   --warning-500: var(--esp-amber-point);
   --warning-600: var(--esp-amber);
-  --danger-50: var(--esp-rose-bg);
-  --danger-100: #ffd5cf;
-  --danger-500: var(--esp-rose);
-  --danger-600: #8c1c15;
-  --danger-700: #67120d;
-  --status-semi: var(--esp-neutral-500);
-  --status-semi-bg: var(--esp-neutral-150);
-  --status-inactive: var(--esp-neutral-400);
-  --status-inactive-bg: var(--esp-neutral-50);
-  --status-archived: var(--esp-green-strong);
-  --status-archived-bg: var(--esp-green-bg);
   --status-destruct: var(--esp-amber-point);
   --status-destruct-bg: var(--esp-amber-bg);
-  --status-error: var(--esp-rose);
-  --status-error-bg: var(--esp-rose-bg);
-
-  /* Géométrie v2 — rayons resserrés : 4 px pour les badges et l'étiquette, 6 px
-     pour les contrôles (bouton, champ, option), 8 px pour les cartes et les
-     cartes flottantes, 12 px pour les panneaux et les feuilles. La pilule
-     (onglets, filtres, sélecteurs, interrupteur) reste `--esp-r-chrome`. */
-  --radius: 6px;
-  --radius-xs: 4px;
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 6px;
-  --radius-xl: 8px;
-  --radius-2xl: 12px;
-  --radius-3xl: 16px;
-  --radius-4xl: 20px;
-
-  /* IBM Plex en trois largeurs — polices importées par l'application (fontsource). */
-  --font-sans: "IBM Plex Sans Variable", "IBM Plex Sans", "Inter", system-ui, -apple-system, sans-serif;
-  --font-display: "IBM Plex Sans Condensed", "IBM Plex Sans Variable", system-ui, sans-serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
-
-  --esp-shadow-card: var(--esp-shadow);
-  --esp-mobilebar-bg: color-mix(in srgb, var(--card) 94%, transparent);
-  --esp-mobilebar-border: var(--esp-neutral-rule);
-  --esp-mobilebar-shadow: var(--esp-shadow-float);
   --esp-segment-on: var(--esp-seg-on);
   --esp-segment-on-fg: var(--esp-seg-on-fg);
   --esp-tone-blue: var(--esp-blue);
@@ -323,149 +219,97 @@
   --esp-banner: linear-gradient(135deg, var(--esp-blue-700) 0%, var(--esp-blue-800) 100%);
   --esp-on-banner: var(--esp-neutral-0);
   --esp-on-banner-muted: var(--esp-blue-100);
-
-  /* L'aperçu du thème (Réglages > Langue et apparence) : la sarcelle (sixième famille
-     des avatars), le sable doré (l'ambre du sombre) et le bleu Gabon — lisibles sur le
-     papier comme sur la nuit, dans les deux modes. */
-  --esp-theme-swatch-1: #238090;
-  --esp-theme-swatch-2: #d7ad63;
-  --esp-theme-swatch-3: #0167a8;
 }
 
 .dark[data-charte="diasporale"],
 .dark [data-charte="diasporale"] {
   color-scheme: dark;
 
-  /* Le fond est la couche la plus sombre ; la carte se lève au-dessus, ce qui
-     flotte (carte flottante, menu) se lève encore. */
+  /* ── Identité (encre), succès, danger — thème sombre ── */
+  --primary-50: #384550;
+  --primary-100: #3f5262;
+  --primary-200: #486279;
+  --primary-300: #6a9fce;
+  --primary-400: #75b2e9;
+  --primary-500: #7ec2ff;
+  --primary-600: #95cdff;
+  --primary-700: #aad7ff;
+  --primary-800: #bfe1ff;
+  --success-50: #334133;
+  --success-100: #394e3c;
+  --success-500: #6ebe85;
+  --success-600: #6ebe85;
+  --danger-50: #4a3733;
+  --danger-100: #59403c;
+  --danger-500: #e18c85;
+  --danger-600: #f39d95; /* badge de danger : l'encre des chartes (#e18c85) n'y tient que 4,4:1 sur --danger-50 */
+  --danger-700: #f7bab5;
+
+  /* ── Rôles du thème sombre ── */
   --background: var(--esp-night-bg);
-  --background-dashboard: var(--esp-night-bg);
-  --foreground: var(--esp-neutral-200);
+  --foreground: #e7e4de;
   --card: var(--esp-night-card);
-  --card-foreground: var(--esp-neutral-200);
   --popover: var(--esp-night-chip);
-  --popover-foreground: var(--esp-neutral-200);
-  /* Le bleu s'éclaircit et l'encre se pose dessus : jamais de blanc sur le bleu. */
-  --primary: var(--esp-blue-400);
-  --primary-foreground: var(--esp-on-blue);
-  --primary-light: var(--esp-blue-900);
-  --secondary: var(--esp-night-card);
-  --secondary-foreground: var(--esp-night-soft);
-  --esp-surface-card: var(--esp-night-card);
-  --muted: var(--esp-night-section);
+  --muted: var(--esp-night-chip); /* se lève au-dessus de la carte */
   --muted-foreground: var(--esp-night-soft);
-  --accent: var(--esp-night-chip);
-  --accent-foreground: var(--esp-neutral-200);
+  --border: var(--esp-night-border);
+  --input: var(--esp-night-input);
+  --on-fill: #151311; /* encre sombre sur les aplats éclaircis */
+  --role-social-fill: #4fb3c2;
+  --role-social-on: #151311;
+  --role-social-ink: #6cc6d3;
+  --role-message-fill: #5ba5e5;
+  --role-message-on: #151311;
+  --role-message-ink: #7ec2ff;
+  --role-react-fill: #d7ad63;
+  --role-react-on: #151311;
+  --role-react-ink: #d7ad63;
+  --role-commerce-fill: #d7ad63;
+  --role-commerce-on: #151311;
+  --role-commerce-ink: #d7ad63;
+  /* Valider et Supprimer, chacun ses trois couleurs comme dans les chartes : aplat, texte sur l'aplat, encre en texte. */
+  --role-success-fill: #6ebe85;
+  --role-success-on: #151311;
+  --role-success-ink: #6ebe85;
+  --role-danger-fill: #e18c85;
+  --role-danger-on: #151311;
+  --role-danger-ink: #e18c85;
+  --role-message-soft: #2c363d; /* fond tonal du bouton Écrire */
+  --role-react-soft: color-mix(in srgb, var(--role-react-fill) 18%, var(--card)); /* fond de l'action réagie */
+  --primary-fill: #5ba5e5; /* aplat d'identité : bouton Publier, Créer, interrupteur */
+  --primary-fill-hover: #6fb0e8;
+  --primary-fill-on: #151311; /* texte posé sur l'aplat d'identité */
+  --ui2-button-secondary-bg: #2c363d; /* bouton secondaire tonal, sans filet */
+  --ui2-button-secondary-fg: #7ec2ff;
+  --esp-mobilebar-bg: rgb(36 34 31 / 0.88); /* barre flottante, translucide au-dessus du fil */
+  --esp-fab-shadow: 0 10px 20px -8px color-mix(in srgb, var(--primary-fill) 75%, transparent);
+  --esp-tab-active-bg: #2d373f; /* onglet actif : pastille tonale */
+  --esp-tab-active-fg: #7ec2ff;
+
+  --esp-shadow-card: 0 0 0 0 transparent;
+  --esp-shadow-card-hover: 0 0 0 0 transparent;
+  --esp-shadow-float: 0 14px 30px -10px rgb(0 0 0 / 0.8), 0 2px 6px rgb(0 0 0 / 0.45);
+  --esp-mobilebar-shadow: 0 14px 30px -10px rgb(0 0 0 / 0.8), 0 2px 6px rgb(0 0 0 / 0.45);
+
+  /* ── Jetons propres à DIASPORALE — thème sombre ── */
   --accent-orange: var(--esp-amber-dark);
   --accent-blue: var(--esp-blue-400);
-  --accent-purple: var(--esp-blue-300);
   --accent-yellow: var(--esp-amber-dark);
-  --success: var(--esp-green-dark);
-  --success-light: var(--esp-green-bg-dark);
   --warning: var(--esp-amber-dark);
   --warning-light: var(--esp-amber-bg-dark);
-  --destructive: var(--esp-rose-dark);
-  --destructive-light: var(--esp-rose-bg-dark);
-  --border: var(--esp-night-border);
   --border-light: var(--esp-night-hover);
-  --input: var(--esp-night-input);
-  --ring: var(--esp-blue-400);
-  --chart-1: var(--esp-blue-400);
   --chart-2: var(--esp-blue-300);
   --chart-3: var(--esp-amber-dark);
   --chart-4: var(--esp-rose-dark);
   --chart-5: var(--esp-night-faint);
-  /* Le rail se fond dans la page, comme en clair (sable sur sable). */
-  --sidebar: var(--esp-night-bg);
-  --sidebar-foreground: var(--esp-neutral-200);
-  --sidebar-primary: var(--esp-blue-400);
-  --sidebar-primary-foreground: var(--esp-on-blue);
-  --sidebar-accent: var(--esp-night-accent-soft);
-  --sidebar-accent-foreground: var(--esp-night-accent-deep);
-  --sidebar-border: var(--esp-night-border);
-  --sidebar-ring: var(--esp-blue-400);
-  --sidebar-muted: var(--esp-night-faint);
-  /* Focus (v3) : un liseré de fond puis un anneau bleu PLEIN — 5,02:1 sur la carte en
-     clair, 6,06:1 en sombre (le halo à 35 % / 50 % ne tenait que 1,67 et 2,53:1). */
-  --shadow-focus: 0 0 0 2px var(--background), 0 0 0 4px var(--ring);
-
-  /* La teinte de sélection (puce de pays choisie, option choisie, ligne non lue) se
-     lève au-dessus de la carte et de ce qui flotte : plus de bleu 950 qui creusait. */
-  --primary-50: var(--esp-night-accent-soft);
-  --primary-100: var(--esp-blue-900);
-  --primary-200: var(--esp-blue-800);
-  --primary-300: var(--esp-blue-700);
-  --primary-400: var(--esp-blue-500);
-  --primary-500: var(--esp-blue-400);
-  --primary-600: var(--esp-blue-300);
-  --primary-700: var(--esp-blue-200);
-  --primary-800: var(--esp-blue-100);
-  --primary-fill: var(--esp-blue-400);
-  --primary-fill-hover: var(--esp-blue-300);
-  --on-fill: var(--esp-on-blue);
-  --ink-0: var(--esp-night-card);
-  --ink-50: var(--esp-night-chip);
-  --ink-100: var(--esp-night-bg);
-  --ink-150: var(--esp-night-chip);
-  --ink-200: var(--esp-night-border);
-  --ink-300: var(--esp-night-border);
-  --ink-400: var(--esp-night-input);
-  --ink-500: var(--esp-night-faint);
-  --ink-600: var(--esp-night-soft);
-  --ink-700: var(--esp-neutral-300);
-  --ink-800: var(--esp-neutral-300);
-  --ink-900: var(--esp-neutral-200);
-  --info-50: var(--esp-blue-bg-dark);
-  --info-100: var(--esp-blue-900);
-  --info-500: var(--esp-blue-400);
-  --info-600: var(--esp-blue-300);
-  --status-active: var(--esp-blue-300);
-  --status-active-bg: var(--esp-blue-900);
-  /* Familles sémantiques d'ui-v2 en sombre : les tons sombres de DIASPORALE, levés
-     au-dessus de la carte. L'aplat du bouton est CLAIR et l'encre se pose dessus,
-     comme sur le bleu (jamais de blanc) ; son survol s'éclaircit au pas de survol de
-     la base (L +5,3 points). Palier 100 au pas de la base : L +6,6 points au-dessus du
-     fond teinté, même teinte, même chroma. */
-  --danger-fill: var(--esp-rose-dark);
-  --danger-fill-hover: #f39d95;
-  --success-fill: var(--esp-green-dark);
-  --success-fill-hover: #7fcf95;
-  --success-50: var(--esp-green-bg-dark);
-  --success-100: #2b4431;
-  --success-500: var(--esp-green-dark);
-  --success-600: var(--esp-green-dark);
   --warning-50: var(--esp-amber-bg-dark);
   --warning-100: #4a3b21;
   --warning-500: var(--esp-amber-dark);
   --warning-600: var(--esp-amber-dark);
-  --danger-50: var(--esp-rose-bg-dark);
-  --danger-100: #523431;
-  --danger-500: var(--esp-rose-dark);
-  --danger-600: var(--esp-rose-dark);
-  --danger-700: #f39d95;
-  --status-semi: var(--esp-night-soft);
-  --status-semi-bg: var(--esp-night-chip);
-  --status-inactive: var(--esp-night-faint);
-  --status-inactive-bg: var(--esp-night-section);
-  --status-archived: var(--esp-green-dark);
-  --status-archived-bg: var(--esp-green-bg-dark);
   --status-destruct: var(--esp-amber-dark);
   --status-destruct-bg: var(--esp-amber-bg-dark);
-  --status-error: var(--esp-rose-dark);
-  --status-error-bg: var(--esp-rose-bg-dark);
-  /* La navigation active lit `--esp-accent-*` directement : en sombre, l'ardoise
-     levée et le bleu clair (la pastille claire du thème clair éblouissait, et son
-     bleu profond tombait à 1,8:1 sur la barre basse). */
-  --esp-accent-soft: var(--esp-night-accent-soft);
-  --esp-accent-deep: var(--esp-night-accent-deep);
-
-  --esp-shadow-card: var(--esp-night-shadow);
   --esp-segment-on: var(--esp-night-seg-on);
   --esp-segment-on-fg: var(--esp-night-seg-on-fg);
-  /* Opaque en sombre : un libellé de 10 px ne se lit pas sur un fil qui défile dessous. */
-  --esp-mobilebar-bg: var(--esp-night-card);
-  --esp-mobilebar-border: var(--esp-night-border);
-  --esp-mobilebar-shadow: var(--esp-night-shadow-float);
   --esp-tone-blue: var(--esp-blue-dark);
   --esp-tone-blue-bg: var(--esp-blue-bg-dark);
   --esp-tone-amber: var(--esp-amber-dark);
@@ -474,9 +318,112 @@
   --esp-tone-rose-bg: var(--esp-rose-bg-dark);
   --esp-tone-green: var(--esp-green-dark);
   --esp-tone-green-bg: var(--esp-green-bg-dark);
-  --esp-neutral-chip: var(--esp-night-chip);
-  --esp-neutral-hover: var(--esp-night-hover);
   --esp-banner: linear-gradient(135deg, var(--esp-blue-800) 0%, var(--esp-blue-950) 100%);
   --esp-on-banner: var(--esp-neutral-100);
   --esp-on-banner-muted: var(--esp-blue-200);
+}
+
+[data-charte="diasporale"],
+.dark[data-charte="diasporale"],
+.dark [data-charte="diasporale"] {
+  /* ── Surfaces : la même paire fond/carte partout ── */
+  --background-dashboard: var(--background);
+  --card-foreground: var(--foreground);
+  --popover-foreground: var(--foreground);
+  --secondary: var(--card);
+  --secondary-foreground: var(--muted-foreground);
+  --esp-surface-card: var(--card);
+  --esp-surface-raised: var(--popover);
+  --esp-surface-border: transparent; /* la carte se distingue du fond : aucun contour */
+  --esp-story-ring-fill: conic-gradient(from 200deg, var(--esp-theme-swatch-1), var(--esp-theme-swatch-2), var(--esp-theme-swatch-3), var(--esp-theme-swatch-1)); /* l'anneau « à voir » des actus : les trois couleurs du thème, celles du sélecteur */
+  --esp-neutral-chip: var(--muted);
+  --esp-neutral-hover: var(--muted);
+  --esp-mobilebar-border: transparent;
+  --sidebar: var(--card);
+  --sidebar-foreground: var(--foreground);
+  --sidebar-border: var(--border);
+  --sidebar-muted: var(--muted-foreground);
+  --ui2-scrim: rgb(37 33 30 / 0.55);
+
+  /* ── Identité : encre en texte, aplat dans les blocs clair et sombre ── */
+  --primary: var(--primary-500);
+  --esp-identity-fill: var(--primary-fill); /* aplat d'identité aux sites qui peignaient l'encre en fond */
+  --esp-identity-fill-hover: var(--primary-fill-hover);
+  --primary-foreground: var(--on-fill);
+  --primary-light: var(--primary-100);
+  --accent: var(--primary-500);
+  --accent-foreground: var(--on-fill);
+  --accent-purple: var(--primary-500);
+  --chart-1: var(--primary-500);
+  --sidebar-primary: var(--primary-500);
+  --sidebar-primary-foreground: var(--on-fill);
+  --sidebar-accent: var(--primary-50);
+  --sidebar-accent-foreground: var(--primary-700);
+  --esp-accent-soft: var(--primary-50);
+  --esp-accent-deep: var(--primary-700);
+  --info-50: var(--primary-50);
+  --info-100: var(--primary-100);
+  --info-500: var(--primary-500);
+  --info-600: var(--primary-600);
+  --status-active: var(--primary-500);
+  --status-active-bg: var(--primary-50);
+  --ring: var(--primary-500);
+  --sidebar-ring: var(--ring);
+  --shadow-focus: 0 0 0 2px var(--background), 0 0 0 4px var(--ring);
+  --outline-ring: var(--ring);
+
+  /* ── Succès et danger : icône + texte, jamais la couleur seule ── */
+  --success: var(--role-success-ink); /* encre en texte, distincte de l'aplat (chartes) */
+  --success-light: var(--success-50);
+  --success-fill: var(--role-success-fill);
+  --success-fill-hover: var(--success-600);
+  --esp-green-strong: var(--success-500);
+  --status-archived: var(--success-500);
+  --status-archived-bg: var(--success-50);
+  --destructive: var(--role-danger-ink); /* encre en texte, distincte de l'aplat (chartes) */
+  --destructive-light: var(--danger-50);
+  --danger-fill: var(--role-danger-fill);
+  --danger-fill-hover: var(--danger-600);
+  --status-error: var(--danger-500);
+  --status-error-bg: var(--danger-50);
+  --status-semi: var(--muted-foreground);
+  --status-semi-bg: var(--muted);
+  --status-inactive: var(--input);
+  --status-inactive-bg: var(--muted);
+
+  /* ── Échelle d'encre d'ui-v2, attribuée rôle par rôle ── */
+  --ink-900: var(--foreground);
+  --ink-800: var(--foreground);
+  --ink-700: var(--foreground);
+  --ink-600: var(--muted-foreground);
+  --ink-500: var(--muted-foreground);
+  --ink-400: var(--muted-foreground);
+  --ink-300: var(--input);
+  --ink-200: var(--border);
+  --ink-150: var(--muted);
+  --ink-100: var(--background);
+  --ink-50: var(--popover);
+  --ink-0: var(--card);
+
+  /* ── Système épuré : un angle par élément, contour seulement à couleur égale ── */
+  --ui2-button-radius: 999px; /* boutons d'action en pilule */
+  --ui2-badge-radius: 6px;
+  --ui2-card-radius: 24px; /* cartes d'ui-v2, comme les surfaces du réseau */
+  --esp-chip-radius: 10px;
+  --esp-avatar-page-radius: 12px; /* les pages en carré arrondi, les personnes en rond */
+  --esp-field-radius: 14px;
+  --esp-media-radius: 16px; /* un média dans une carte : plus petit que la carte */
+  --esp-fab-radius: 18px;
+  --esp-mobilebar-radius: 28px;
+  --ui2-button-outline-bg: var(--muted); /* bouton neutre (Annuler) : gris, sans filet */
+  --ui2-button-outline-border: transparent;
+  --ui2-button-secondary-border: transparent;
+  --esp-chip-bg: var(--muted);
+  --esp-chip-border: transparent;
+  --esp-header-icon-bg: var(--muted); /* icônes de l'en-tête dans des ronds gris */
+  --esp-header-icon-radius: 999px;
+  --role-react-label: var(--foreground); /* libellé de l'action réagie : encre de texte */
+  --esp-theme-swatch-1: #238090; /* Sarcelle */
+  --esp-theme-swatch-2: #d7ad63; /* Sable */
+  --esp-theme-swatch-3: #0167a8; /* Bleu Gabon */
 }

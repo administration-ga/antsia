@@ -197,6 +197,19 @@ describe("une page parle d'une seule voix (D3)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Voir la demande" }))
     expect(onOpenObject).toHaveBeenCalledWith({ kind: "diasporaServiceRequest", id: "request-1" })
   })
+
+  it("MP09 : une collaboration professionnelle s'ouvre par le seul geste explicite, jamais par le rappel V1", () => {
+    state.thread = contextThread({ threadId: "thread-pro", kind: "professionalCollaboration", object: { kind: "professionalCollaboration", id: "collaboration-1" } })
+    const onOpenObject = vi.fn()
+    const legacy = renderWithEngine(view("thread-pro", { onOpenObject }))
+    expect(screen.queryByRole("button", { name: "Voir la collaboration" })).toBeNull()
+    legacy.unmount()
+    const onOpenContextualObject = vi.fn()
+    renderWithEngine(view("thread-pro", { onOpenObject, onOpenContextualObject }))
+    fireEvent.click(screen.getByRole("button", { name: "Voir la collaboration" }))
+    expect(onOpenContextualObject).toHaveBeenCalledWith({ kind: "professionalCollaboration", id: "collaboration-1" })
+    expect(onOpenObject).not.toHaveBeenCalled()
+  })
 })
 
 // ── Envoi idempotent ──────────────────────────────────────────────────────────

@@ -1,10 +1,11 @@
 import { notFound } from "next/navigation"
+import { effectiveActivityConfiguration } from "@antsia/social-domain/activityConfiguration"
 
 import { PublicShell } from "@/components/public/public-shell"
 import { PublicStatus } from "@/components/public/public-status"
 import { getAppT } from "@/i18n/server"
 import { publicMetadata, publicSearch } from "@/lib/public-data"
-import { loadPublicStorefront } from "@/lib/public-shops-data"
+import { loadPublicDailySpecial, loadPublicStorefront } from "@/lib/public-shops-data"
 import { loadPublicCatalog } from "@/lib/public-catalog-data"
 import { decodeRouteSegment } from "@/lib/route-params"
 import { routes } from "@/lib/routes"
@@ -42,7 +43,12 @@ export async function PublicStorefrontScreen(props: PublicStorefrontProps) {
   const result = await loadPublicStorefront(handle, handoff)
   if (result.status !== "ready") return <PublicShell viewer={result.status}><PublicStatus status={result.status} locale={locale} /></PublicShell>
   if (!result.data) notFound()
-  const catalog = result.data.blocks.some((block) => block === "catalog" || block === "services") ? await loadPublicCatalog(handle, {}, null, handoff) : null
+  const food = effectiveActivityConfiguration(result.data.activityConfiguration, result.data.model).template === "food"
+  const [catalog, special] = await Promise.all([
+    result.data.blocks.some((block) => block === "catalog" || block === "services") ? loadPublicCatalog(handle, {}, null, handoff) : null,
+    food ? loadPublicDailySpecial(handle, handoff) : null,
+  ])
   if (catalog && catalog.status !== "ready") return <PublicShell viewer={catalog.status}><PublicStatus status={catalog.status} locale={locale} /></PublicShell>
-  return <PublicShell viewer={result.viewer}><PublicStorefrontCard storefront={result.data} locale={locale} catalog={catalog?.status === "ready" ? <PublicCatalogPreview page={catalog.data} handle={handle} locale={locale} /> : undefined} /></PublicShell>
+  if (special?.status === "refused" || special?.status === "handoff") return <PublicShell viewer={special.status}><PublicStatus status={special.status} locale={locale} /></PublicShell>
+  return <PublicShell viewer={result.viewer} specialized={{ kind: "storefront", handle }} food={food}><PublicStorefrontCard storefront={result.data} locale={locale} dailySpecial={special?.status === "ready" ? special.data : null} catalog={catalog?.status === "ready" ? <PublicCatalogPreview page={catalog.data} handle={handle} locale={locale} food={food} /> : undefined} /></PublicShell>
 }

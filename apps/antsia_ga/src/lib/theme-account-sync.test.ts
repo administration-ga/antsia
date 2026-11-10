@@ -1,5 +1,6 @@
 // ADR-0026 : le thème du compte fait foi en session ; le choix du membre s'applique tout de suite, s'enregistre une fois, et ne clignote pas.
 import { describe, expect, it, vi } from "vitest"
+import { memberThemeOf } from "@antsia/social-contracts/appearance"
 
 import { createThemeAccountSync } from "./theme-account-sync"
 
@@ -20,6 +21,15 @@ function harness() {
 }
 
 describe("thème du compte et de l'appareil", () => {
+  it("un ancien thème du compte remplace explicitement Sable mémorisé sur l'appareil par Gaboma", () => {
+    let shown = "sable"
+    const save = vi.fn()
+    const sync = createThemeAccountSync<string>({ apply: (theme) => { shown = theme }, save, onSaveFailed: vi.fn() })
+    sync.accountChanged(memberThemeOf("indigo"))
+    expect(shown).toBe("gaboma")
+    expect(save).not.toHaveBeenCalled()
+  })
+
   it("la valeur du compte s'applique dès qu'elle est connue et à chaque choix fait ailleurs", () => {
     const { sync, applied } = harness()
     sync.accountChanged(undefined)
@@ -153,5 +163,32 @@ describe("thème du compte et de l'appareil", () => {
     await new Promise((resolve) => setTimeout(resolve, 0))
     expect(onSaveFailed).toHaveBeenCalledTimes(1)
     expect(applied.at(-1)).toBe("antsia")
+  })
+
+  it("fermer la session avant l'envoi empêche toute écriture différée ou nouveau choix", async () => {
+    const { sync, saves, applied, flush } = harness()
+    sync.accountChanged("antsia")
+    sync.choose("foret")
+    sync.dispose()
+    sync.choose("lagon")
+    sync.accountChanged("encre")
+    await flush()
+    expect(saves).toEqual([])
+    expect(applied).toEqual(["antsia", "foret"])
+  })
+
+  it.each([false, true])("une réponse après démontage (refus : %s) ne relance pas le choix en attente ni le rendu", async (failed) => {
+    const { sync, saves, failures, applied, flush } = harness()
+    sync.accountChanged("antsia")
+    sync.choose("foret")
+    await flush()
+    sync.choose("lagon")
+    sync.dispose()
+    if (failed) saves[0]?.reject(new Error("ancienne session"))
+    else saves[0]?.resolve()
+    await flush()
+    expect(saves.map((save) => save.theme)).toEqual(["foret"])
+    expect(applied).toEqual(["antsia", "foret", "lagon"])
+    expect(failures).toEqual([])
   })
 })

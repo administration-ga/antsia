@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 const state = vi.hoisted(() => ({ mobile: false as boolean | null, navigation: "destinations", networkId: "antsia", personId: "person-a" }))
 vi.mock("@antsia/ui/overlay", () => ({ useIsReseauMobile: () => state.mobile }))
-vi.mock("@antsia/api/network", () => ({ useNetwork: () => state }))
+vi.mock("@antsia/api/network", () => ({ useNetwork: () => state, useNetworkNavigationLayout: () => ({ adaptive: true, mobile: state.mobile }) }))
 vi.mock("react-i18next", () => ({ useTranslation: () => ({ t: (key: string) => key }) }))
 vi.mock("./IcomMessagesPage", () => ({ IcomMessagesPage: ({ isMobile, conversationKey, compose }: { isMobile: boolean; conversationKey: string | null; compose?: string }) => <div data-testid="destination" data-mobile={String(isMobile)} data-conversation={conversationKey ?? ""} data-compose={compose ?? ""} /> }))
 vi.mock("./MessagerieListPage", () => ({ MessagerieListPage: () => <div data-testid="legacy-list" /> }))

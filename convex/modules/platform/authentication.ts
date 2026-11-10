@@ -7,7 +7,7 @@ import { getActiveIdentity } from "../../lib/session"
 export const configuration = query({
   args: {},
   returns: v.object({
-    idn: v.boolean(), emailOtp: v.boolean(), smsOtp: v.boolean(), localCodes: v.boolean(),
+    idn: v.boolean(), emailOtp: v.boolean(), smsOtp: v.boolean(), localCodes: v.boolean(), demoAccounts: v.boolean(),
     trustedOrigins: v.array(v.string()),
     applications: v.array(v.object({ key: v.string(), origin: v.string() })),
   }),

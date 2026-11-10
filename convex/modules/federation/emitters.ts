@@ -8,7 +8,7 @@ import { checked, fail, notFound } from "../../lib/errors"
 import { operatorMutation, operatorQuery } from "../../lib/functions"
 import { enforceRateLimit } from "../../lib/rateLimit"
 import { appendAudit, operatorCapacity } from "../platform/audit"
-import { requireFederationAdmin } from "./access"
+import { isLocalCatalogEmitter, requireCatalogAdmin, requireFederationAdmin } from "./access"
 import { federationEnvironmentValidator } from "./tables"
 
 /** La clé est une référence d'environnement, jamais une valeur stockée. */
@@ -16,13 +16,16 @@ export const configure = operatorMutation({
   args: { networkId: v.id("networks"), slug: v.string(), environment: federationEnvironmentValidator, enabled: v.boolean(), keyEnvName: v.string(), allowedContracts: v.array(v.string()), reason: v.string() },
   returns: v.id("federationEmitters"),
   handler: async (ctx, args) => {
-    await requireFederationAdmin(ctx, ctx)
+    let admission: "strong" | "local" = "strong"
+    if (isLocalCatalogEmitter(args)) admission = await requireCatalogAdmin(ctx, ctx, args.networkId)
+    else await requireFederationAdmin(ctx, ctx)
     await enforceRateLimit(ctx, "operator.network", ctx.person._id)
     const reason = checked(() => assertDecisionReason(args.reason, 10))
     if (!validFederationEmitter(args.slug) || !validFederationKeyEnvName(args.keyEnvName) || args.allowedContracts.length > FEDERATION_CONTRACTS_MAX || !args.allowedContracts.every(validFederationContract) || new Set(args.allowedContracts).size !== args.allowedContracts.length) return fail("invalidArgument", { field: "emitter" })
     const network = await ctx.db.get(args.networkId)
     if (!network || network.status !== "active") return notFound()
     const existing = await ctx.db.query("federationEmitters").withIndex("by_slug_environment", (q) => q.eq("slug", args.slug).eq("environment", args.environment)).unique()
+    if (admission === "local" && existing && !isLocalCatalogEmitter(existing)) return notFound()
     // Le message signé contient l'environnement, pas le slug. Réutiliser une
     // variable de clé pour deux émetteurs permettrait un déplacement de corps
     // signé entre leurs réseaux. La référence de clé est donc réservée.

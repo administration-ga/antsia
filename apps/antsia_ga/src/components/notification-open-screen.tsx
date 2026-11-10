@@ -47,7 +47,7 @@ function NotificationOpenContent({ reference }: { reference?: string }) {
       <h1 className="text-xl font-semibold">{t("notificationOpen.title")}</h1>
       <p>{t(query.isError ? "notificationOpen.error" : "notificationOpen.unavailable")}</p>
       {query.isError ? <Button variant="outline" onClick={() => setOpeningToken(crypto.randomUUID())}>{t("session.retry")}</Button> : null}
-      <Link href={routes.notificationCenter()} className="inline-flex min-h-11 items-center self-start rounded-lg px-3 text-primary underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{t("notificationOpen.fallback")}</Link>
+      <Link href={routes.notificationCenter()} className="inline-flex min-h-11 items-center self-start rounded-[var(--ui2-button-radius)] px-3 text-primary underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{t("notificationOpen.fallback")}</Link>
     </Card>}
   </MemberPage>
 }

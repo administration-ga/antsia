@@ -279,4 +279,24 @@ describe("PA8 — pages officielles, identité de la page et transparence", () =
     expect(result.threshold).toBe(5)
     expect(new Set(Object.keys(result.periods[2]!))).toEqual(new Set(["periodStart", "periodEnd", "cases"]))
   })
+
+  it("SU01d : échéances légales des seules périodes closes et mesurées, sans base ; la projection historique garde sa forme", async () => {
+    const f = await fixture()
+    const cutoff = Math.floor(Date.now() / 86_400_000) * 86_400_000
+    await f.t.run(async (ctx) => {
+      const day = (n: number) => ({ networkId: f.root, periodStart: cutoff - n * 86_400_000, periodEnd: cutoff - (n - 1) * 86_400_000, cases: 10, distinctAuthors: 5, actioned: 5, dismissed: 5 })
+      // Mesurée avant SU01d : aucune échéance.
+      await ctx.db.insert("moderationTransparency", { ...day(1), generatedAt: Date.now() })
+      await ctx.db.insert("moderationTransparency", { ...day(2), generatedAt: Date.now(), legalMet: 8, legalMissed: 0, legalAuthors: 5 })
+      // Calculée avant la fin de sa période : une échéance pouvait encore venir.
+      await ctx.db.insert("moderationTransparency", { ...day(3), generatedAt: cutoff - 3 * 86_400_000 + 1, legalMet: 8, legalMissed: 0, legalAuthors: 5 })
+    })
+    const result = await f.t.query(PUBLIC.transparencyDeadlines, { networkId: f.root })
+    expect(result.threshold).toBe(5)
+    expect(result.periods).toHaveLength(12)
+    expect(result.periods.slice(0, 3).map((period) => period.legal)).toEqual([null, { met: 8, missed: null }, null])
+    expect(new Set(Object.keys(result.periods[1]!))).toEqual(new Set(["periodStart", "periodEnd", "legal"]))
+    // Les écrans déjà publiés lisent `transparency` strictement : sa forme ne change pas.
+    expect(new Set(Object.keys((await f.t.query(PUBLIC.transparency, { networkId: f.root })).periods[1]!))).toEqual(new Set(["periodStart", "periodEnd", "cases"]))
+  })
 })

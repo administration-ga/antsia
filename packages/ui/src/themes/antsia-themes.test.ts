@@ -130,9 +130,10 @@ const INHERITED_IN_DARK = new Set([
 
 /** Un angle par élément (ADR-0027). */
 const ANGLES: Record<string, string> = {
-  "--ui2-button-radius": "999px", "--ui2-badge-radius": "6px", "--ui2-card-radius": "24px", "--esp-chip-radius": "10px",
-  "--esp-avatar-page-radius": "12px", "--esp-field-radius": "14px", "--esp-media-radius": "16px", "--esp-fab-radius": "18px",
-  "--rp-surface-radius": "24px", "--esp-mobilebar-radius": "28px", "--esp-header-icon-radius": "999px",
+  "--esp-social-action-radius": "6px",
+  "--ui2-button-radius": "999px", "--ui2-badge-radius": "6px", "--ui2-card-radius": "16px", "--esp-chip-radius": "10px",
+  "--esp-avatar-page-radius": "12px", "--esp-field-radius": "14px", "--esp-media-radius": "12px", "--esp-fab-radius": "14px",
+  "--rp-surface-radius": "16px", "--esp-mobilebar-radius": "26px", "--esp-header-icon-radius": "999px",
 }
 
 /**
@@ -295,8 +296,9 @@ describe("les sept thèmes d'antsia.ga (ADR-0027)", () => {
           }
           const card = paint("var(--card)")
           const messageFill = cascade.resolve(node, "--role-message-fill")
-          // antsia.ga déclare l'aplat des messages ; DIASPORALE et la console le laissent à `initial`.
-          expect(messageFill === undefined, label).toBe(!antsia.includes(charte))
+          // DIASPORALE définit désormais aussi ses rôles ; seule la console reste au repli.
+          // Une définition ne dispense jamais des contrôles de contraste ci-dessous.
+          expect(messageFill === undefined, label).toBe(charte === "admin-antsia")
           if (messageFill !== undefined) expect(cascade.resolveValue(node, declaration(MESSAGE, "background")), label).toBe(messageFill)
           for (const selector of [NEUTRAL, MESSAGE]) {
             const icon = paint(declaration(selector, "color"))

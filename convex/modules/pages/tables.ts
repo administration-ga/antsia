@@ -105,6 +105,8 @@ export const pagesTables = {
     pageId: v.id("pages"),
     personId: v.id("persons"),
     role: pageRoleValidator,
+    /** Autorité éditoriale : version du rôle/acceptation ; les lignes historiques valent zéro. */
+    authorityRevision: v.optional(v.number()),
     /** Qui a habilité ; absent pour le créateur, une revendication validée ou un acte de console. */
     grantedByPersonId: v.optional(v.id("persons")),
     /** L'acceptation de l'habilitation ; absente, l'invitation attend et ne donne aucun droit. */

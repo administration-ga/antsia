@@ -1,5 +1,5 @@
 /** P09 : toute lecture rejuge source, politique, boutique et mandat du lien ; fermé par défaut. */
-import { COMMERCE_PUBLIC_CONTRACT } from "@antsia/social-domain/commerce/primitives"
+import { isCommercePublicContract } from "@antsia/social-domain/commerce/primitives"
 import { parseCommercePublicBody } from "@antsia/social-domain/commerce/projection"
 import { federationEnvironment } from "@antsia/social-domain/federationProtocol"
 
@@ -22,12 +22,12 @@ export async function liveCatalogMapping(ctx: ReadCtx, networkId: Id<"networks">
   if (!link || link.environment !== mapping.environment || link.shopRef !== mapping.shopRef || link.linkRef !== mapping.linkRef || !link.permissions.includes("publish_catalog")) return null
   const emitter = await ctx.db.get(mapping.emitterId)
   const network = await ctx.db.get(networkId)
-  if (!network || network.status !== "active" || !emitter?.enabled || emitter.environment !== mapping.environment || emitter.networkId !== networkId || !emitter.allowedContracts.includes(COMMERCE_PUBLIC_CONTRACT)) return null
+  if (!network || network.status !== "active" || !emitter?.enabled || emitter.environment !== mapping.environment || emitter.networkId !== networkId || !emitter.allowedContracts.some(isCommercePublicContract)) return null
   const shop = await ctx.db.get(shopId)
   const page = shop?.pageId ? await ctx.db.get(shop.pageId) : null
   if (!shop || !page || page._id !== link.pageId) return null
   const parentHead = await ctx.db.query("commerceCatalogHeads").withIndex("by_emitter_object_sequence", (q) => q.eq("emitterId", emitter._id).eq("objectRef", mapping.shopRef).eq("sequence", "catalog")).unique()
-  return { mapping, link, shop, page, parentHead }
+  return { mapping, link, shop, page, parentHead, emitter }
 }
 
 /** PUBLIC et membre partagent exactement les règles de diffusion explicite de la vitrine. */
@@ -39,7 +39,7 @@ export async function readableCatalogMapping(ctx: ReadCtx, root: Doc<"networks">
   const head = live.parentHead
   if (!head || head.mappingId !== live.mapping._id || head.mappingGeneration !== live.mapping.generation || head.state !== "active") return null
   const parsed = parseCommercePublicBody(head.body, Date.now())
-  if (!parsed.ok || (parsed.value.payload.type !== "shop.published" && parsed.value.payload.type !== "shop.updated") || parsed.value.payload.linkRef !== live.link.linkRef || !parsed.value.payload.capabilities.includes("catalog")) return null
+  if (!parsed.ok || !live.emitter.allowedContracts.includes(parsed.value.contract) || (parsed.value.payload.type !== "shop.published" && parsed.value.payload.type !== "shop.updated") || parsed.value.payload.linkRef !== live.link.linkRef || !parsed.value.payload.capabilities.includes("catalog")) return null
   return { ...live, parentHead: head, parent: parsed.value.payload }
 }
 

@@ -1,6 +1,7 @@
 "use client"
 
 /** Protections personnelles : deux sources natives, aucune identité projetée. */
+import { themedActionStyle } from "../themed-action-style"
 import { api, type Id } from "@antsia/api/engine"
 import { useAuthenticatedConvexQuery } from "@antsia/api/hooks"
 import { useViewerTimeZone } from "@antsia/api/viewer-preferences"
@@ -185,7 +186,7 @@ function BlockedPeoplePages() {
       {confirming !== null ? (
         <EspaceDialog title={t("peoplePanel.blocks.confirmTitle")} description={t("peoplePanel.blocks.confirmBody")} closeLabel={t("peoplePanel.blocks.close")} onClose={closeConfirmation} footer={(
           <>
-            <Button variant="secondary" disabled={busy} onClick={closeConfirmation}>{t("peoplePanel.blocks.cancel")}</Button>
+            <Button style={themedActionStyle("cancel", "secondary")} variant="outline" disabled={busy} onClick={closeConfirmation}>{t("peoplePanel.blocks.cancel")}</Button>
             <Button disabled={busy} aria-busy={busy} onClick={() => void confirmUnblock()}>{t("peoplePanel.blocks.unblock")}</Button>
           </>
         )}>

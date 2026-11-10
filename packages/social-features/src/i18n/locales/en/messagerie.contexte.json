@@ -4,7 +4,8 @@
     "kinds": {
       "diasporaServiceRequest": "Service request",
       "diasporaMentoring": "Mentoring",
-      "diasporaJobApplication": "Job application"
+      "diasporaJobApplication": "Job application",
+      "professionalCollaboration": "Professional collaboration"
     },
     "roles": {
       "diasporaServiceRequest": {
@@ -18,12 +19,17 @@
       "diasporaJobApplication": {
         "requester": "Candidate",
         "responder": "Employer"
+      },
+      "professionalCollaboration": {
+        "requester": "Initiator",
+        "responder": "Partner"
       }
     },
     "openObject": {
       "diasporaServiceRequest": "View the request",
       "diasporaMentoring": "View the mentoring",
-      "diasporaJobApplication": "View the application"
+      "diasporaJobApplication": "View the application",
+      "professionalCollaboration": "View collaboration"
     },
     "counterpart": {
       "person": "Member whose profile was withdrawn",
@@ -125,7 +131,7 @@
       "title": "Request conversations",
       "search": "Search request conversations",
       "scope": "Search covers the request conversations already loaded.",
-      "empty": "No request conversations yet. They open with a service request, an accepted mentoring or a shortlisted application.",
+      "empty": "No request conversations yet. They open with a service request, accepted mentoring, shortlisted application or accepted professional collaboration.",
       "noMatch": "No loaded request conversation matches “{{term}}”.",
       "loadMore": "Show more request conversations",
       "loading": "Loading…",

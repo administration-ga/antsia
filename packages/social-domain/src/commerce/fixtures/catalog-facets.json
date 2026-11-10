@@ -1,0 +1,925 @@
+{
+  "taxonomyVersion": 1,
+  "cases": [
+    {
+      "name": "mode compl\u00e8te",
+      "input": {
+        "taxonomyVersion": 1,
+        "categoryPath": [
+          "fashion",
+          "fashion.women",
+          "fashion.women.clothing"
+        ],
+        "attributes": [
+          {
+            "key": "brand",
+            "type": "text",
+            "value": "Atelier D\u00e9mo"
+          },
+          {
+            "key": "color",
+            "type": "text",
+            "value": "Bleu nuit"
+          },
+          {
+            "key": "audience",
+            "type": "choice",
+            "value": "women"
+          }
+        ]
+      },
+      "expect": {
+        "taxonomyVersion": 1,
+        "categoryPath": [
+          "fashion",
+          "fashion.women",
+          "fashion.women.clothing"
+        ],
+        "attributes": [
+          {
+            "key": "brand",
+            "type": "text",
+            "value": "Atelier D\u00e9mo"
+          },
+          {
+            "key": "color",
+            "type": "text",
+            "value": "Bleu nuit"
+          },
+          {
+            "key": "audience",
+            "type": "choice",
+            "value": "women"
+          }
+        ]
+      }
+    },
+    {
+      "name": "service num\u00e9rique",
+      "input": {
+        "taxonomyVersion": 1,
+        "categoryPath": [
+          "services",
+          "services.digital"
+        ],
+        "attributes": [
+          {
+            "key": "serviceMode",
+            "type": "choice",
+            "value": "hybrid"
+          },
+          {
+            "key": "durationMinutes",
+            "type": "number",
+            "value": 60
+          }
+        ]
+      },
+      "expect": {
+        "taxonomyVersion": 1,
+        "categoryPath": [
+          "services",
+          "services.digital"
+        ],
+        "attributes": [
+          {
+            "key": "serviceMode",
+            "type": "choice",
+            "value": "hybrid"
+          },
+          {
+            "key": "durationMinutes",
+            "type": "number",
+            "value": 60
+          }
+        ]
+      }
+    },
+    {
+      "name": "d\u00e9clarations typ\u00e9es",
+      "input": {
+        "taxonomyVersion": 1,
+        "categoryPath": [
+          "craft",
+          "craft.home"
+        ],
+        "attributes": [
+          {
+            "key": "brand",
+            "type": "text",
+            "value": "Cr\u00e9ation Gabon"
+          },
+          {
+            "key": "material",
+            "type": "text",
+            "value": "Raphia naturel"
+          },
+          {
+            "key": "color",
+            "type": "text",
+            "value": "Bleu"
+          },
+          {
+            "key": "audience",
+            "type": "choice",
+            "value": "unisex"
+          },
+          {
+            "key": "serviceMode",
+            "type": "choice",
+            "value": "onsite"
+          },
+          {
+            "key": "durationMinutes",
+            "type": "number",
+            "value": 43200
+          },
+          {
+            "key": "ecoLabel",
+            "type": "boolean",
+            "value": true
+          }
+        ]
+      },
+      "expect": {
+        "taxonomyVersion": 1,
+        "categoryPath": [
+          "craft",
+          "craft.home"
+        ],
+        "attributes": [
+          {
+            "key": "brand",
+            "type": "text",
+            "value": "Cr\u00e9ation Gabon"
+          },
+          {
+            "key": "material",
+            "type": "text",
+            "value": "Raphia naturel"
+          },
+          {
+            "key": "color",
+            "type": "text",
+            "value": "Bleu"
+          },
+          {
+            "key": "audience",
+            "type": "choice",
+            "value": "unisex"
+          },
+          {
+            "key": "serviceMode",
+            "type": "choice",
+            "value": "onsite"
+          },
+          {
+            "key": "durationMinutes",
+            "type": "number",
+            "value": 43200
+          },
+          {
+            "key": "ecoLabel",
+            "type": "boolean",
+            "value": true
+          }
+        ]
+      }
+    },
+    {
+      "name": "racine sans attribut",
+      "input": {
+        "taxonomyVersion": 1,
+        "categoryPath": [
+          "food"
+        ],
+        "attributes": []
+      },
+      "expect": {
+        "taxonomyVersion": 1,
+        "categoryPath": [
+          "food"
+        ],
+        "attributes": []
+      }
+    },
+    {
+      "name": "null",
+      "input": null,
+      "expect": null
+    },
+    {
+      "name": "tableau",
+      "input": [],
+      "expect": null
+    },
+    {
+      "name": "vide",
+      "input": {},
+      "expect": null
+    },
+    {
+      "name": "version inconnue",
+      "input": {
+        "taxonomyVersion": 2,
+        "categoryPath": [
+          "fashion",
+          "fashion.women",
+          "fashion.women.clothing"
+        ],
+        "attributes": [
+          {
+            "key": "brand",
+            "type": "text",
+            "value": "Atelier D\u00e9mo"
+          },
+          {
+            "key": "color",
+            "type": "text",
+            "value": "Bleu nuit"
+          },
+          {
+            "key": "audience",
+            "type": "choice",
+            "value": "women"
+          }
+        ]
+      },
+      "expect": null
+    },
+    {
+      "name": "cat\u00e9gorie \u00e9trang\u00e8re",
+      "input": {
+        "taxonomyVersion": 1,
+        "categoryPath": [
+          "foreign"
+        ],
+        "attributes": [
+          {
+            "key": "brand",
+            "type": "text",
+            "value": "Atelier D\u00e9mo"
+          },
+          {
+            "key": "color",
+            "type": "text",
+            "value": "Bleu nuit"
+          },
+          {
+            "key": "audience",
+            "type": "choice",
+            "value": "women"
+          }
+        ]
+      },
+      "expect": null
+    },
+    {
+      "name": "racine absente",
+      "input": {
+        "taxonomyVersion": 1,
+        "categoryPath": [
+          "fashion.women"
+        ],
+        "attributes": [
+          {
+            "key": "brand",
+            "type": "text",
+            "value": "Atelier D\u00e9mo"
+          },
+          {
+            "key": "color",
+            "type": "text",
+            "value": "Bleu nuit"
+          },
+          {
+            "key": "audience",
+            "type": "choice",
+            "value": "women"
+          }
+        ]
+      },
+      "expect": null
+    },
+    {
+      "name": "branche \u00e9trang\u00e8re",
+      "input": {
+        "taxonomyVersion": 1,
+        "categoryPath": [
+          "fashion",
+          "craft.bags"
+        ],
+        "attributes": [
+          {
+            "key": "brand",
+            "type": "text",
+            "value": "Atelier D\u00e9mo"
+          },
+          {
+            "key": "color",
+            "type": "text",
+            "value": "Bleu nuit"
+          },
+          {
+            "key": "audience",
+            "type": "choice",
+            "value": "women"
+          }
+        ]
+      },
+      "expect": null
+    },
+    {
+      "name": "chemin vide",
+      "input": {
+        "taxonomyVersion": 1,
+        "categoryPath": [],
+        "attributes": [
+          {
+            "key": "brand",
+            "type": "text",
+            "value": "Atelier D\u00e9mo"
+          },
+          {
+            "key": "color",
+            "type": "text",
+            "value": "Bleu nuit"
+          },
+          {
+            "key": "audience",
+            "type": "choice",
+            "value": "women"
+          }
+        ]
+      },
+      "expect": null
+    },
+    {
+      "name": "chemin trop profond",
+      "input": {
+        "taxonomyVersion": 1,
+        "categoryPath": [
+          "fashion",
+          "fashion.women",
+          "fashion.women.bags",
+          "foreign"
+        ],
+        "attributes": [
+          {
+            "key": "brand",
+            "type": "text",
+            "value": "Atelier D\u00e9mo"
+          },
+          {
+            "key": "color",
+            "type": "text",
+            "value": "Bleu nuit"
+          },
+          {
+            "key": "audience",
+            "type": "choice",
+            "value": "women"
+          }
+        ]
+      },
+      "expect": null
+    },
+    {
+      "name": "attribut dupliqu\u00e9",
+      "input": {
+        "taxonomyVersion": 1,
+        "categoryPath": [
+          "fashion",
+          "fashion.women",
+          "fashion.women.clothing"
+        ],
+        "attributes": [
+          {
+            "key": "color",
+            "type": "text",
+            "value": "Bleu"
+          },
+          {
+            "key": "color",
+            "type": "text",
+            "value": "Bleu"
+          }
+        ]
+      },
+      "expect": null
+    },
+    {
+      "name": "trop d'attributs",
+      "input": {
+        "taxonomyVersion": 1,
+        "categoryPath": [
+          "fashion",
+          "fashion.women",
+          "fashion.women.clothing"
+        ],
+        "attributes": [
+          {
+            "key": "color",
+            "type": "text",
+            "value": "Bleu"
+          },
+          {
+            "key": "color",
+            "type": "text",
+            "value": "Bleu"
+          },
+          {
+            "key": "color",
+            "type": "text",
+            "value": "Bleu"
+          },
+          {
+            "key": "color",
+            "type": "text",
+            "value": "Bleu"
+          },
+          {
+            "key": "color",
+            "type": "text",
+            "value": "Bleu"
+          },
+          {
+            "key": "color",
+            "type": "text",
+            "value": "Bleu"
+          },
+          {
+            "key": "color",
+            "type": "text",
+            "value": "Bleu"
+          },
+          {
+            "key": "color",
+            "type": "text",
+            "value": "Bleu"
+          },
+          {
+            "key": "color",
+            "type": "text",
+            "value": "Bleu"
+          }
+        ]
+      },
+      "expect": null
+    },
+    {
+      "name": "champ \u00e9tranger",
+      "input": {
+        "taxonomyVersion": 1,
+        "categoryPath": [
+          "fashion",
+          "fashion.women",
+          "fashion.women.clothing"
+        ],
+        "attributes": [
+          {
+            "key": "brand",
+            "type": "text",
+            "value": "Atelier D\u00e9mo"
+          },
+          {
+            "key": "color",
+            "type": "text",
+            "value": "Bleu nuit"
+          },
+          {
+            "key": "audience",
+            "type": "choice",
+            "value": "women"
+          }
+        ],
+        "price": 10
+      },
+      "expect": null
+    },
+    {
+      "name": "attribut inconnu",
+      "input": {
+        "taxonomyVersion": 1,
+        "categoryPath": [
+          "fashion",
+          "fashion.women",
+          "fashion.women.clothing"
+        ],
+        "attributes": [
+          {
+            "key": "sku",
+            "type": "text",
+            "value": "A1"
+          }
+        ]
+      },
+      "expect": null
+    },
+    {
+      "name": "type erron\u00e9",
+      "input": {
+        "taxonomyVersion": 1,
+        "categoryPath": [
+          "fashion",
+          "fashion.women",
+          "fashion.women.clothing"
+        ],
+        "attributes": [
+          {
+            "key": "brand",
+            "type": "number",
+            "value": 1
+          }
+        ]
+      },
+      "expect": null
+    },
+    {
+      "name": "champ attribut \u00e9tranger",
+      "input": {
+        "taxonomyVersion": 1,
+        "categoryPath": [
+          "fashion",
+          "fashion.women",
+          "fashion.women.clothing"
+        ],
+        "attributes": [
+          {
+            "key": "brand",
+            "type": "text",
+            "value": "Marque",
+            "private": true
+          }
+        ]
+      },
+      "expect": null
+    },
+    {
+      "name": "dur\u00e9e z\u00e9ro",
+      "input": {
+        "taxonomyVersion": 1,
+        "categoryPath": [
+          "fashion",
+          "fashion.women",
+          "fashion.women.clothing"
+        ],
+        "attributes": [
+          {
+            "key": "durationMinutes",
+            "type": "number",
+            "value": 0
+          }
+        ]
+      },
+      "expect": null
+    },
+    {
+      "name": "dur\u00e9e hors borne",
+      "input": {
+        "taxonomyVersion": 1,
+        "categoryPath": [
+          "fashion",
+          "fashion.women",
+          "fashion.women.clothing"
+        ],
+        "attributes": [
+          {
+            "key": "durationMinutes",
+            "type": "number",
+            "value": 43201
+          }
+        ]
+      },
+      "expect": null
+    },
+    {
+      "name": "bool\u00e9en num\u00e9rique",
+      "input": {
+        "taxonomyVersion": 1,
+        "categoryPath": [
+          "fashion",
+          "fashion.women",
+          "fashion.women.clothing"
+        ],
+        "attributes": [
+          {
+            "key": "ecoLabel",
+            "type": "boolean",
+            "value": 1
+          }
+        ]
+      },
+      "expect": null
+    },
+    {
+      "name": "texte vide",
+      "input": {
+        "taxonomyVersion": 1,
+        "categoryPath": [
+          "fashion",
+          "fashion.women",
+          "fashion.women.clothing"
+        ],
+        "attributes": [
+          {
+            "key": "color",
+            "type": "text",
+            "value": ""
+          }
+        ]
+      },
+      "expect": null
+    },
+    {
+      "name": "texte trop long",
+      "input": {
+        "taxonomyVersion": 1,
+        "categoryPath": [
+          "fashion",
+          "fashion.women",
+          "fashion.women.clothing"
+        ],
+        "attributes": [
+          {
+            "key": "color",
+            "type": "text",
+            "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ]
+      },
+      "expect": null
+    },
+    {
+      "name": "espace en bord",
+      "input": {
+        "taxonomyVersion": 1,
+        "categoryPath": [
+          "fashion",
+          "fashion.women",
+          "fashion.women.clothing"
+        ],
+        "attributes": [
+          {
+            "key": "color",
+            "type": "text",
+            "value": " Bleu"
+          }
+        ]
+      },
+      "expect": null
+    },
+    {
+      "name": "espaces doubl\u00e9s",
+      "input": {
+        "taxonomyVersion": 1,
+        "categoryPath": [
+          "fashion",
+          "fashion.women",
+          "fashion.women.clothing"
+        ],
+        "attributes": [
+          {
+            "key": "color",
+            "type": "text",
+            "value": "Bleu  nuit"
+          }
+        ]
+      },
+      "expect": null
+    },
+    {
+      "name": "NFD",
+      "input": {
+        "taxonomyVersion": 1,
+        "categoryPath": [
+          "fashion",
+          "fashion.women",
+          "fashion.women.clothing"
+        ],
+        "attributes": [
+          {
+            "key": "color",
+            "type": "text",
+            "value": "e\u0301cru"
+          }
+        ]
+      },
+      "expect": null
+    },
+    {
+      "name": "contr\u00f4le C1",
+      "input": {
+        "taxonomyVersion": 1,
+        "categoryPath": [
+          "fashion",
+          "fashion.women",
+          "fashion.women.clothing"
+        ],
+        "attributes": [
+          {
+            "key": "color",
+            "type": "text",
+            "value": "\u0085"
+          }
+        ]
+      },
+      "expect": null
+    },
+    {
+      "name": "surrogate",
+      "input": {
+        "taxonomyVersion": 1,
+        "categoryPath": [
+          "fashion",
+          "fashion.women",
+          "fashion.women.clothing"
+        ],
+        "attributes": [
+          {
+            "key": "color",
+            "type": "text",
+            "value": "\ud800"
+          }
+        ]
+      },
+      "expect": null
+    },
+    {
+      "name": "texte borne80",
+      "input": {
+        "taxonomyVersion": 1,
+        "categoryPath": [
+          "fashion",
+          "fashion.women",
+          "fashion.women.clothing"
+        ],
+        "attributes": [
+          {
+            "key": "brand",
+            "type": "text",
+            "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ]
+      },
+      "expect": {
+        "taxonomyVersion": 1,
+        "categoryPath": [
+          "fashion",
+          "fashion.women",
+          "fashion.women.clothing"
+        ],
+        "attributes": [
+          {
+            "key": "brand",
+            "type": "text",
+            "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ]
+      }
+    },
+    {
+      "name": "emoji Unicode valide",
+      "input": {
+        "taxonomyVersion": 1,
+        "categoryPath": [
+          "fashion",
+          "fashion.women",
+          "fashion.women.clothing"
+        ],
+        "attributes": [
+          {
+            "key": "brand",
+            "type": "text",
+            "value": "Atelier \ud83c\udf3f"
+          }
+        ]
+      },
+      "expect": {
+        "taxonomyVersion": 1,
+        "categoryPath": [
+          "fashion",
+          "fashion.women",
+          "fashion.women.clothing"
+        ],
+        "attributes": [
+          {
+            "key": "brand",
+            "type": "text",
+            "value": "Atelier \ud83c\udf3f"
+          }
+        ]
+      }
+    }
+  ],
+  "kind": [
+    {
+      "name": "produit mode",
+      "input": {
+        "taxonomyVersion": 1,
+        "categoryPath": [
+          "fashion",
+          "fashion.women",
+          "fashion.women.clothing"
+        ],
+        "attributes": [
+          {
+            "key": "brand",
+            "type": "text",
+            "value": "Atelier D\u00e9mo"
+          },
+          {
+            "key": "color",
+            "type": "text",
+            "value": "Bleu nuit"
+          },
+          {
+            "key": "audience",
+            "type": "choice",
+            "value": "women"
+          }
+        ]
+      },
+      "kind": "product",
+      "expect": true
+    },
+    {
+      "name": "service num\u00e9rique",
+      "input": {
+        "taxonomyVersion": 1,
+        "categoryPath": [
+          "services",
+          "services.digital"
+        ],
+        "attributes": [
+          {
+            "key": "serviceMode",
+            "type": "choice",
+            "value": "hybrid"
+          },
+          {
+            "key": "durationMinutes",
+            "type": "number",
+            "value": 60
+          }
+        ]
+      },
+      "kind": "service",
+      "expect": true
+    },
+    {
+      "name": "produit refuse service",
+      "input": {
+        "taxonomyVersion": 1,
+        "categoryPath": [
+          "fashion",
+          "fashion.women",
+          "fashion.women.clothing"
+        ],
+        "attributes": [
+          {
+            "key": "brand",
+            "type": "text",
+            "value": "Atelier D\u00e9mo"
+          },
+          {
+            "key": "color",
+            "type": "text",
+            "value": "Bleu nuit"
+          },
+          {
+            "key": "audience",
+            "type": "choice",
+            "value": "women"
+          }
+        ]
+      },
+      "kind": "service",
+      "expect": false
+    },
+    {
+      "name": "service refuse produit",
+      "input": {
+        "taxonomyVersion": 1,
+        "categoryPath": [
+          "services",
+          "services.digital"
+        ],
+        "attributes": [
+          {
+            "key": "serviceMode",
+            "type": "choice",
+            "value": "hybrid"
+          },
+          {
+            "key": "durationMinutes",
+            "type": "number",
+            "value": 60
+          }
+        ]
+      },
+      "kind": "product",
+      "expect": false
+    }
+  ]
+}

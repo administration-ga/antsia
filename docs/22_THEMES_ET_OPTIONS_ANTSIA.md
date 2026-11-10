@@ -7,7 +7,10 @@
 >   document en sont extraites automatiquement. Contrastes vérifiés par
 >   `packages/ui/src/themes/antsia-themes.test.ts` (niveau AA).
 > - Décisions : [ADR-0027](adr/0027-six-themes-trois-couleurs-et-systeme-epure.md) (thèmes, système
->   épuré, motifs) ; ADR-0026 (thème du compte, apparence posée avant l'affichage).
+>   épuré, motifs) ; [ADR-0028](adr/0028-ecran-des-chartes-a-la-lettre.md) (composants de l'écran des
+>   chartes : publication, actions, cartes du fil, en-tête du téléphone) ;
+>   [ADR-0030](adr/0030-bureau-au-systeme-des-chartes-et-theme-au-rail.md) (chrome du bureau, thème
+>   au rail) ; ADR-0026 (thème du compte, apparence posée avant l'affichage).
 > - Maquettes : artifact privé « Chartes ANTSIA », version 7
 >   (<https://claude.ai/artifact/Arc4fsUDikm3DRHuZNr35u>). Depuis le 19/10/2026 au soir, le code
 >   reprend ses valeurs EXACTES partout où le contrôle AA les accepte : 385 couleurs sur 392 ; les
@@ -31,7 +34,7 @@ choix sont immédiats, sans bouton d'enregistrement.
 | Option | Valeurs | Par défaut | Où le choix est gardé |
 |---|---|---|---|
 | **Apparence** | Système, Clair, Sombre | Système | Sur l'appareil, pour ce réseau (préfixe `antsia:antsia:`), partagé entre onglets |
-| **Thème** | Les sept thèmes ci-dessous | Gaboma | Sur le **compte** pour un membre connecté (`persons.theme`) : il le retrouve sur ses autres appareils ; sur l'appareil sinon |
+| **Thème** | Les sept thèmes ci-dessous (Paramètres > Affichage, et le rail du fil au bureau) | Gaboma | Sur le **compte** pour un membre connecté (`persons.theme`) : il le retrouve sur ses autres appareils ; sur l'appareil sinon |
 | **Motif de fond** | Aucun, Points, Quadrillage, Grain, Projecteur | Aucun (fond uni) | Sur l'appareil, comme le mode sombre |
 
 ### Apparence
@@ -122,6 +125,51 @@ embarquées (`@fontsource-variable`, importées par `packages/ui/src/styles.css`
 **Retours visuels.** Succès et danger s'affichent toujours avec une icône et un texte, jamais la
 couleur seule. Les toasts (sonner) suivent les jetons du thème
 (`apps/antsia_ga/src/app/globals.css`).
+
+## Les composants de l'écran des chartes (ADR-0028)
+
+Depuis le 19/10/2026 au soir, antsia.ga déclare `postPresentation="charte"` : le fil reprend
+**à la lettre** l'écran du téléphone des chartes, dans les sept thèmes.
+
+| Composant | Rendu | Couleurs et angles |
+|---|---|---|
+| En-tête du téléphone | Marque ANTSIA et son point, puis recherche, cloche, messages | Ronds `--esp-header-icon-*` (cible 44 px) ; pastilles `--role-react-*` cerclées du fond ; aucun filet |
+| Actus | Médaillons dans leur anneau, « Vous » et son « + » en tête, juste sous l'en-tête | Anneau `--esp-theme-swatch-*` |
+| Carte de suggestion | Une personne, `@identifiant · titre`, « Suivre » et « Écrire » de même largeur | Suivre `--role-social-fill` ; Écrire tonal `--role-message-soft` / `-ink` ; carte 24 px |
+| Publication | Auteur (coche Vérifié, étiquettes Officiel et Agent public), texte, média posé dans la carte, rangée d'icônes | Média `--esp-media-radius` (16 px) ; coche `--role-social-ink` ; Officiel en encre pleine |
+| Rangée d'actions | Cœur, commentaire, partage avec leurs décomptes ; Enregistrer à droite | Cœur plein `--role-react-ink` une fois posé ; décomptes en encre atténuée |
+| Évènement annoncé | Titre et dates en une phrase ; Participer et Plus tard pour un invité | Participer `--role-commerce-fill` ; Plus tard gris (`outline`) |
+
+Le fil du téléphone s'ouvre **en liste** (l'Immersion reste offerte) et la publication passe par le
+bouton « + » de la barre. Retour arrière : `postPresentation="media"` dans `network-shell.tsx`.
+
+## Le bureau au même système (ADR-0030)
+
+Depuis le 20/10/2026, le chrome du bureau d'antsia.ga reprend le système des chartes, par les
+jetons de l'ADR-0027 et leurs replis d'origine (DIASPORALE et la console inchangées) :
+
+| Élément du bureau | Rendu | Jetons |
+|---|---|---|
+| Marque de la barre du haut | Familjen Grotesk, 22 px, encre du texte, point à l'aplat d'identité | `--font-display`, `--primary-fill` |
+| Icônes de l'en-tête (clair/sombre, cloche, identité) | Ronds gris, sans filet | `--esp-header-icon-bg`, `--esp-header-icon-radius` |
+| Se déconnecter | Bouton neutre gris (pilule sans filet) | `--ui2-button-outline-*`, `--ui2-button-radius` |
+| Recherche du fil | Champ à 14 px, contour de contrôle à 3:1 | `--esp-field-radius`, `--input` |
+| Recherche d'iCom, sélecteurs du rail | Champ à 14 px | `--esp-field-radius` |
+| Sélecteur de portée « Pour vous » | Puce : 10 px, gris du creux, sans filet | `--esp-chip-radius`, `--esp-chip-bg`, `--esp-chip-border` |
+| « Voir mon profil » | Action en texte, soulignée | `--esp-inline-link-decoration` |
+| Rail, sous « Apparence » | Sélecteur **Thème** : les sept thèmes, sous leurs noms | `AppearanceProvider themeName`, `useThemeChoice` |
+
+Le sélecteur du rail enregistre le thème sur le compte en session (même contexte que
+Préférences > Thème, `useThemeChoice`, désormais dans le moteur) et sur l'appareil sinon.
+
+**Recette.** Le rendu se vérifie dans l'application réelle, pas dans un banc : backend local
+anonyme (`CONVEX_AGENT_MODE=anonymous bun run dev:convex`, variables et graine du README),
+`bun run dev:antsia` avec `NEXT_PUBLIC_CONVEX_URL` et `CONVEX_SITE_URL` exportés quand le
+dossier du moteur ne s'appelle pas `ANTSIA`, connexion par un compte de démonstration, une
+publication avec photo, puis une capture par thème et par mode en posant
+`antsia:antsia:theme` et `antsia:antsia:appearance` dans `localStorage` avant de recharger
+(Playwright, 1 440 × 900 et 390 × 844). Le 20/10/2026 : 28 captures, sept thèmes × clair et
+sombre × bureau et téléphone, conformes aux planches de la maquette.
 
 ## Écarts retenus par rapport aux chartes
 

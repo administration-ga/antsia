@@ -2,10 +2,12 @@
   "nav": {
     "label": "Public navigation",
     "footer": "Information and rights",
-    "discover": "Discover",
+    "discover": "Explore",
+    "provinces": "Provinces",
+    "createAccount": "Create an account",
     "transparency": "Transparency",
     "enter": "Sign in",
-    "myFeed": "My feed",
+    "myFeed": "Home",
     "about": "About",
     "legal": "Legal notice",
     "privacy": "Privacy",
@@ -42,7 +44,7 @@
     "next": "Next page"
   },
   "discover": {
-    "title": "Discover the network",
+    "title": "Explore the network",
     "lead": "Explore a province or topic and read contributions their authors chose to make public.",
     "member": "Open the member view",
     "trends": "Measured topics",
@@ -123,11 +125,18 @@
     "suppressed": "Total not published",
     "cases_one": "{{count}} case",
     "cases_other": "{{count}} cases",
-    "empty": "No aggregated period is available yet."
+    "empty": "No aggregated period is available yet.",
+    "legalLead": "Legal deadlines (ordinance No. {{ordinance}}): a decision within {{decisionHours}} h for harassment or content harmful to a minor, removal within {{removalHours}} h for a deepfake or prohibited AI content. Each period counts the deadlines that fell on that day; it publishes them only from {{count}} deadlines and {{count}} distinct authors, and a number below {{count}} is not given.",
+    "legalLine": "Legal deadlines: {{met}} · {{missed}}",
+    "legalMet": "{{value}} met",
+    "legalMetFew": "fewer than {{threshold}} met",
+    "legalMissed": "{{value}} missed",
+    "legalMissedFew": "fewer than {{threshold}} missed"
   },
   "legal": {
     "eyebrow": "Understanding {{brand}}",
-    "draft": "Working version. Legal information and service terms require validation before public release.",
+    "draft": "Service information — updated on 21 October 2026.",
+    "contents": "On this page",
     "sources": "Reference texts",
     "apdpvp": "APDPVP: texts and decisions",
     "journal": "Official Journal: Law No. 025/2023 of 12 July 2023",
@@ -150,10 +159,10 @@
     },
     "legal": {
       "title": "Legal notice",
-      "lead": "Information identifying the publisher and the service terms is being validated.",
+      "lead": "Publisher details, contact and information about responsibilities for the ANTSIA service.",
       "publisher": {
         "title": "Publisher and responsibilities",
-        "body": "NTSAGUI Digital leads this project. Its full legal name, contact details and publication responsibility must be completed and validated before publication. The technical provider and processing locations remain undecided."
+        "body": "ANTSIA is published by NTSAGUI DIGITAL, SARL, with share capital of XAF 5,000,000. Registered office: Batterie IV, rue des Résidences — BP 638, Libreville, Gabon. RCCM: GA-LBV-01-2025-B12-01029; NIF: 2025 0102 2429 R. Service and data contact: admin@ntsagui.com."
       },
       "law": {
         "title": "Data protection",
@@ -161,7 +170,7 @@
       },
       "publication": {
         "title": "Validation status",
-        "body": "These texts are not a declaration of compliance, an APDPVP approval or evidence of data location. Release remains subject to validation of the texts and operating conditions."
+        "body": "Each author is responsible for the content they share and the audience they choose. Reports and appeals use the service controls; the publisher contact remains available for requests that cannot be handled in your account. This information is not an APDPVP approval or official validation of data location."
       }
     },
     "privacy": {
@@ -177,7 +186,27 @@
       },
       "rights": {
         "title": "Your data controls",
-        "body": "My data provides preferences, consents, notifications, export and erasure requests, and appeals. It remains available if network participation is suspended. Controller contact details, legal bases, retention periods and response procedures must be completed during legal validation."
+        "body": "My data provides access to preferences, consent records, notifications, export and erasure requests, and appeals. It remains accessible if the network suspends you. You can edit profile information, withdraw optional consent or write to admin@ntsagui.com to request access, rectification, objection, restriction or erasure. Describe the request and account concerned; information necessary to verify that you are the account holder may be requested. You may also contact the competent data protection authority."
+      },
+      "controller": {
+        "title": "Service operator and contact",
+        "body": "ANTSIA is published by NTSAGUI DIGITAL, SARL, the operator responsible for the service and the processing described here. Registered office: Batterie IV, rue des Résidences — BP 638, Libreville, Gabon.\nFor a request about your data, write to admin@ntsagui.com and include “ANTSIA” and your account handle. Do not send a password or sign-in code."
+      },
+      "data": {
+        "title": "Data used and its purpose",
+        "body": "The service uses your sign-in identifier, the profile information you provide, memberships, preferences and consent records. When you choose Identité.ga, ANTSIA receives the information authorised during sign-in; your Identité.ga password is entered with that provider.\nYour posts, media, comments, reactions, connections, messages and service requests are processed when you use the corresponding features. They support your account and interactions. Technical session information and security records protect access, limit abuse and support the handling of reports."
+      },
+      "recipients": {
+        "title": "Who may receive your data",
+        "body": "The recipients of your content depend on the audience and context you choose: public, network, group or conversation. Authorised operations and moderation staff access the information necessary for their duties.\nVercel hosts the web application; Convex provides the backend, application authentication and storage. Identité.ga is involved when you choose that sign-in method. Code and notification delivery services are involved according to the channel used and your preferences. These cloud services may process data outside Gabon. Sharing a publisher with another application does not give that application access to your data."
+      },
+      "retention": {
+        "title": "Retention and erasure",
+        "body": "Account information and durable content remain necessary while you keep your account or the relevant content. You can edit your profile, withdraw your content and request account erasure in My data.\nAn erasure request has a 30-day grace period during which it can be cancelled, followed by staged processing of the relevant personal data and files. Completion is shown in the request status; erasure is not instantaneous when you click.\nA personal export is available for 24 hours. Read notifications become eligible for purging 180 days after they are read; unread notifications after 365 days from creation. Scheduled jobs perform these purges in batches. Any retention obligations and disputes are assessed for the data concerned; special retention must be justified."
+      },
+      "device": {
+        "title": "On iPhone and Android",
+        "body": "Identité.ga sign-in opens in the system browser and then returns to ANTSIA. The application keeps session information in the phone’s secure storage. Signing out closes the application session.\nAccess to photos, the camera or microphone depends on the features used and the phone permissions you grant. You can change these permissions in system settings. Refusing a permission limits the feature that needs it."
       }
     }
   }

@@ -40,7 +40,6 @@ import { useReseauFeedState, type ReseauFeedState } from "../../features/reseau-
 import { StoryCreateSheet } from "../../features/stories/StoryCreateSheet"
 import { mainPanelFor, RESEAU_AGENT_TAB_PARAM, reseauAgentTabById, type ReseauAgentMainPanel } from "../reseau-agent-nav"
 import { servedReseauTab } from "../reseau-menu"
-import { PostComposerSheet } from "./PostComposerSheet"
 import { activeReseauTab, shouldShowTabBar } from "./reseau-mobile-tabs"
 import { ReseauMobileFeed } from "./ReseauMobileFeed"
 import { ReseauMobileHeader } from "./ReseauMobileHeader"
@@ -156,7 +155,6 @@ export function ReseauMobilePage() {
       {/* Les surfaces de création, montées UNE fois pour toute la coquille —
           donc atteignables depuis n'importe quel volet, ce que l'arbre mobile
           ne permettait pas (R-02). */}
-      <PostComposerSheet open={creation.open === "publication"} onClose={creation.close} />
       <StoryCreateSheet open={creation.open === "actu"} onClose={creation.close} onPublished={creation.close} />
 
     </ReseauMobileShell>

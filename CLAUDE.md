@@ -100,7 +100,9 @@ Cliquets en place (`tests/ratchets/`) : `no-cross-product-imports`, `no-any-vali
 internes contrôlés également pour les extensions PA5), `sign-out-everywhere` (PA4 : sorties SDK uniquement par la porte partagée, purge
 nominale et navigation complète), `rate-limited-writes` (PA5 : admission de débit des
 écritures publiques vérifiée par AST), `notification-payload-content` (PA5 : aucune copie
-de contenu social ni contact dans les jobs et transports). La couverture de l'inventaire
+de contenu social ni contact dans les jobs et transports), `member-screens-full-width` (22/10 :
+aucun écran de membre ne se borne puis se centre ; colonnes responsives de
+`components/shared/screen-layout.ts`, exceptions nommées). La couverture de l'inventaire
 d'effacement dérivé du schéma est vérifiée par `convex/modules/people/erasure.test.ts`.
 
 ## Pièges déjà payés
@@ -168,9 +170,20 @@ d'effacement dérivé du schéma est vérifiée par `convex/modules/people/erasu
   balayer AUCUN fichier — mesuré au lot F1 (aucune classe des paquets dans la feuille). Chemins EXPLICITES par
   paquet dans le `globals.css` de chaque application. Et dans un commentaire CSS, `*/` (« packages/*/src »)
   ferme le commentaire : la feuille entière casse.
+- **Tailwind 4, `sm:` contre `min-[…px]:`** : les seuils nommés (en rem) sont émis APRÈS les seuils arbitraires
+  en px. Sur une même propriété, `sm:px-6` l'emporte donc sur `min-[768px]:px-…` à toutes les largeurs (le
+  `min-[1200px]:px-8` des espaces spécialisés n'a jamais pris effet, constaté le 22/10). Borner la variante
+  nommée (`sm:max-[768px]:`) ou rester en px.
 - **Frontière serveur/client de Next** : une page serveur n'appelle aucune fonction exportée d'un module
   `"use client"` (« Attempted to call … from the server ») ; un analyseur d'adresse vit dans un module pur
   (`apps/antsia_ga/src/lib/messages-route.ts`).
+- **Projections publiques en schéma strict** : antsia.ga lit chaque DTO public avec un schéma Zod `.strict()`
+  (`apps/antsia_ga/src/lib/public-data.ts`). Ajouter un champ à une projection publique existante casse donc les
+  fronts déjà en ligne dès le déploiement du backend : publier une projection À PART (SU01d : `transparencyDeadlines`
+  à côté de `transparency`), que le nouveau front lit et dont l'absence ne casse pas la page.
+- **Borne des auteurs distincts par lot** (transparence) : elle se calcule lot par lot, sans identité transmise entre
+  lots. Un parcours statut par statut la sous-estime (six auteurs répartis sur trois statuts donnent 3). Parcourir un
+  index sans le statut (`reports.by_network_dueAt`, `by_network_createdAt`).
 - **Coque des pages de membre** : montée UNE fois dans le gabarit `(membre)` d'antsia.ga ; remontée à chaque
   page, elle coupait un appel en cours et faisait déborder le seau de présence (8 par minute).
 - **Tests du moteur** : toujours avec `--config convex/vitest.config.ts` (depuis la racine :

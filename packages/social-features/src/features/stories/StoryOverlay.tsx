@@ -36,6 +36,8 @@ export interface StoryOverlayProps {
 	onClose: () => void
 	/** Commandes du bas (son, « Vu par », retrait) — composées par l'appelant. */
 	actions?: ReactNode
+	/** Carte facultative relue par le moteur, par exemple le plat du jour de la boutique. */
+	content?: ReactNode
 }
 
 export function StoryOverlay({
@@ -46,6 +48,7 @@ export function StoryOverlay({
 	caption,
 	onClose,
 	actions,
+	content,
 }: StoryOverlayProps) {
 	const { t } = useTranslation("stories")
 	const routes = useRoutes()
@@ -114,6 +117,7 @@ export function StoryOverlay({
 			</div>
 
 			<div className="st-overlay st-overlay-bottom" {...stopBubbling}>
+				{content}
 				{caption !== undefined && caption !== null && caption.length > 0 ? (
 					<p className="st-caption">{caption}</p>
 				) : null}

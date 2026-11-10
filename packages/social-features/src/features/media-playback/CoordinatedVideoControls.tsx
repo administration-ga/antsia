@@ -82,10 +82,10 @@ export const MEDIA_PLAYBACK_CSS = `
         max-width: calc(100% - 72px);
         margin: 0;
         padding: 4px var(--sp-2);
-        border-radius: var(--radius-lg);
+        border-radius: var(--esp-primitive-chip-radius, var(--radius-lg));
         background: var(--popover);
         color: var(--popover-foreground);
-        box-shadow: var(--shadow-sm);
+        box-shadow: var(--esp-surface-shadow, var(--shadow-sm));
         font-size: 13px;
         font-weight: 600;
         line-height: 1.35;

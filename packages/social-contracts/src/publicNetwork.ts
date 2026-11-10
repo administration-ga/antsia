@@ -73,4 +73,13 @@ export type PublicTransparency = {
   periods: { periodStart: number; periodEnd: number; cases: number | null }[]
   threshold: number
 }
+/**
+ * SU01d — les échéances légales tombées pendant chaque période close : tenues, manquées, chacune
+ * `null` sous le seuil (« moins de »), jamais leur base ; `legal: null` quand rien n'est publié.
+ */
+export type PublicLegalDeadlines = { met: number | null; missed: number | null }
+export type PublicTransparencyDeadlines = {
+  periods: { periodStart: number; periodEnd: number; legal: PublicLegalDeadlines | null }[]
+  threshold: number
+}
 export type PublicPagination<T> = { page: T[]; isDone: boolean; continueCursor: string }

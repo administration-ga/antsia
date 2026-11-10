@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest"
 
 import catalog from "../../deploy/catalog.json"
-import { authenticationConfiguration, idnConfiguration, idnProfileProof, isE164Phone, parseOriginList, smsConfiguration, trustedOrigins } from "./settings"
+import { applicationOfOrigin, authenticationConfiguration, idnConfiguration, idnProfileProof, isE164Phone, parseOriginList, smsConfiguration, trustedOrigins } from "./settings"
+
+// L'inventaire reste exhaustif ; seules les entrées web déclarent une origine HTTP.
+const webApplications = Object.entries(catalog.applications).flatMap(([key, app]) =>
+  app.platform === "web" && "site_url" in app && "dev_port" in app ? [{ ...app, key }] : [],
+)
 
 const idnEnv = {
   IDN_CLIENT_ID: "sandbox-client-fixture",
@@ -47,21 +52,41 @@ describe("configuration des portes PA4", () => {
       BETTER_AUTH_SECRET: "fictional-session-secret-which-is-not-returned",
     })
     expect(config).toMatchObject({ idn: true, emailOtp: true, smsOtp: true, localCodes: false })
-    expect(Object.keys(config).sort()).toEqual(["applications", "emailOtp", "idn", "localCodes", "smsOtp", "trustedOrigins"])
+    expect(Object.keys(config).sort()).toEqual(["applications", "demoAccounts", "emailOtp", "idn", "localCodes", "smsOtp", "trustedOrigins"])
     const serialized = JSON.stringify(config)
     for (const secret of [idnEnv.IDN_CLIENT_SECRET, "fictional-mail-key", "fictional-sms-key", "fictional-session-secret-which-is-not-returned"]) expect(serialized).not.toContain(secret)
     expect(serialized).not.toContain("https://sms.example.test/send")
-    expect(config.applications).toEqual(Object.entries(catalog.applications).map(([key, app]) => ({ key, origin: new URL(app.site_url).origin })))
+    expect(config.applications).toEqual(webApplications.map((app) => ({ key: app.key, origin: new URL(app.site_url).origin })))
+  })
+
+  it("une entrée native n'ajoute aucune origine ou porte HTTP implicite", () => {
+    expect(catalog.applications.antsia_mobile.platform).toBe("expo-native")
+    const config = authenticationConfiguration({})
+    expect(config.applications.map((app) => app.key)).toEqual(webApplications.map((app) => app.key))
+    expect(config.applications.some((app) => String(app.key) === "antsia_mobile")).toBe(false)
+    expect(trustedOrigins({})).toEqual(webApplications.map((app) => new URL(app.site_url).origin))
+    expect(applicationOfOrigin("antsia-mobile://auth", {})).toBeNull()
+    expect(applicationOfOrigin("exp://localhost:8081", {})).toBeNull()
+    expect(trustedOrigins({ ANTSIA_DEV_TOOLS: "true", CONVEX_CLOUD_URL: "http://127.0.0.1:3210" })).not.toContain("http://localhost:8081")
   })
 
   it("des portes non configurées restent annoncées fermées hors développement local", () => {
     expect(authenticationConfiguration({})).toMatchObject({ idn: false, emailOtp: false, smsOtp: false, localCodes: false })
   })
 
+  it("la démonstration déclarée annonce ses comptes et le code e-mail, sans codes locaux ni ports locaux", () => {
+    const demo = { CONVEX_CLOUD_URL: "https://demo-antsia-123.convex.cloud", ANTSIA_DEMO_DEPLOYMENT: "demo-antsia-123", ANTSIA_DEV_TOOLS: "true" }
+    expect(authenticationConfiguration(demo)).toMatchObject({ demoAccounts: true, emailOtp: true, smsOtp: false, localCodes: false })
+    expect(trustedOrigins(demo).some((origin) => origin.includes("localhost") || origin.includes("127.0.0.1"))).toBe(false)
+    const copied = { ...demo, CONVEX_CLOUD_URL: "https://production-antsia-456.convex.cloud" }
+    expect(authenticationConfiguration(copied)).toMatchObject({ demoAccounts: false, emailOtp: false, localCodes: false })
+    expect(authenticationConfiguration({})).toMatchObject({ demoAccounts: false })
+  })
+
   it("les codes et les ports locaux exigent ensemble le backend local et la variable explicite", () => {
     const local = { ANTSIA_DEV_TOOLS: "true", CONVEX_CLOUD_URL: "http://127.0.0.1:3210" }
     expect(authenticationConfiguration(local)).toMatchObject({ localCodes: true, emailOtp: true, smsOtp: true })
-    for (const app of Object.values(catalog.applications)) expect(trustedOrigins(local)).toContain(`http://localhost:${app.dev_port}`)
+    for (const app of webApplications) expect(trustedOrigins(local)).toContain(`http://localhost:${app.dev_port}`)
     const cloud = { ...local, CONVEX_CLOUD_URL: "https://backend.example.test" }
     expect(authenticationConfiguration(cloud).localCodes).toBe(false)
     expect(trustedOrigins(cloud).some((origin) => origin.includes("localhost") || origin.includes("127.0.0.1"))).toBe(false)
@@ -73,8 +98,32 @@ describe("configuration des portes PA4", () => {
     const result = trustedOrigins({ SITE_URL: "https://entry.example.test/path", TRUSTED_ORIGINS: "https://peer.example.test, https://entry.example.test" })
     expect(result).toContain("https://entry.example.test")
     expect(result).toContain("https://peer.example.test")
-    for (const app of Object.values(catalog.applications)) expect(result).toContain(new URL(app.site_url).origin)
+    for (const app of webApplications) expect(result).toContain(new URL(app.site_url).origin)
     expect(new Set(result).size).toBe(result.length)
+  })
+})
+
+describe("application du catalogue servie à une origine", () => {
+  const local = { ANTSIA_DEV_TOOLS: "true", CONVEX_CLOUD_URL: "http://127.0.0.1:3210" }
+
+  it("reconnaît l'adresse publique de chaque application, chemin ignoré", () => {
+    for (const app of webApplications) {
+      expect(applicationOfOrigin(new URL(app.site_url).origin, {})).toBe(app.key)
+      expect(applicationOfOrigin(`${new URL(app.site_url).origin}/entrer`, {})).toBe(app.key)
+    }
+  })
+
+  it("ne reconnaît les ports locaux qu'avec les outils de développement d'un backend local", () => {
+    for (const app of webApplications) {
+      expect(applicationOfOrigin(`http://localhost:${app.dev_port}`, local)).toBe(app.key)
+      expect(applicationOfOrigin(`http://127.0.0.1:${app.dev_port}`, local)).toBe(app.key)
+      expect(applicationOfOrigin(`http://localhost:${app.dev_port}`, { ...local, CONVEX_CLOUD_URL: "https://backend.example.test" })).toBeNull()
+      expect(applicationOfOrigin(`http://localhost:${app.dev_port}`, {})).toBeNull()
+    }
+  })
+
+  it.each([null, undefined, "", "null", "not-a-url", "https://foreign.example.test", "https://user:pass@diasporale.com"])("aucune application pour l'origine %s", (origin) => {
+    expect(applicationOfOrigin(origin, local)).toBeNull()
   })
 })
 

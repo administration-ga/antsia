@@ -19,6 +19,9 @@
  * (le DTO ne porte que le genre, l'acteur et une référence).
  */
 
+import { COMPACT_SOCIAL_ACTION_STYLE } from "../social-action-style"
+import { Avatar } from "../reseau-personnel/Avatar"
+import { BadgeCheck, Bell, Calendar, Heart, Image, MessageCircle, Phone, ShieldCheck, ShoppingBag, UserPlus, Users, Video, type LucideIcon } from "lucide-react"
 import { useViewerTimeZone } from "@antsia/api/viewer-preferences"
 import { api } from "@antsia/api/engine"
 import type { Id } from "@antsia/api/engine"
@@ -28,7 +31,7 @@ import { engineErrorCode } from "@antsia/social-contracts/errors"
 import { Badge, Button } from "@antsia/ui"
 import { useConvex, useMutation } from "convex/react"
 import type { FunctionReturnType } from "convex/server"
-import { useState } from "react"
+import { useRef, useState, type ReactNode } from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 import { pageBadgeView } from "../reseau-personnel/pages-panel"
@@ -74,6 +77,23 @@ function NotificationPageBadge({ badge }: { badge: Parameters<typeof pageBadgeVi
 	)
 }
 
+function notificationMarker(kind: string): { icon: LucideIcon; background: string; color: string } {
+	if (kind === "post_reaction") return { icon: Heart, background: "var(--role-react-fill, var(--primary-fill))", color: "var(--role-react-on, var(--on-fill))" }
+	if (kind.includes("comment") || kind.includes("mention") || kind.startsWith("contextual_")) return { icon: MessageCircle, background: "var(--role-message-fill, var(--primary-fill))", color: "var(--role-message-on, var(--on-fill))" }
+	if (kind.startsWith("connection_") || kind === "new_follower" || kind.startsWith("sponsorship_")) return { icon: UserPlus, background: "var(--role-social-fill, var(--primary-fill))", color: "var(--role-social-on, var(--on-fill))" }
+	if (kind.includes("group")) return { icon: Users, background: "var(--role-social-fill, var(--primary-fill))", color: "var(--role-social-on, var(--on-fill))" }
+	if (kind.includes("event")) return { icon: Calendar, background: "var(--role-commerce-fill, var(--primary-fill))", color: "var(--role-commerce-on, var(--on-fill))" }
+	if (kind.startsWith("live_")) return { icon: Video, background: "var(--primary-fill)", color: "var(--primary-fill-on, var(--on-fill))" }
+	if (kind === "file_withheld" || kind === "moderation_decision" || kind === "attestation_not_confirmed") return { icon: ShieldCheck, background: "var(--role-danger-fill, var(--danger-fill))", color: "var(--role-danger-on, var(--on-fill))" }
+	// SU01d : l'accusé de réception et la décision au déclarant informent, ils n'alertent pas.
+	if (kind === "report_received" || kind === "report_decided") return { icon: ShieldCheck, background: "var(--primary-fill)", color: "var(--primary-fill-on, var(--on-fill))" }
+	if (kind.startsWith("commerce_") || kind === "commercial_contact") return { icon: ShoppingBag, background: "var(--role-commerce-fill, var(--primary-fill))", color: "var(--role-commerce-on, var(--on-fill))" }
+	if (kind === "call_missed" || kind === "voicemail_left") return { icon: Phone, background: "var(--role-message-fill, var(--primary-fill))", color: "var(--role-message-on, var(--on-fill))" }
+	if (kind === "album_published" || kind === "page_post") return { icon: Image, background: "var(--primary-fill)", color: "var(--primary-fill-on, var(--on-fill))" }
+	if (kind === "badge_changed" || kind === "attestation_verified") return { icon: BadgeCheck, background: "var(--role-success-fill, var(--success-fill))", color: "var(--role-success-on, var(--on-fill))" }
+	return { icon: Bell, background: "var(--muted)", color: "var(--foreground)" }
+}
+
 export function NotificationRow({
 	item,
 	now,
@@ -107,93 +127,48 @@ export function NotificationRow({
 		(action.mode === "none" || action.mode === "resolved") &&
 		item.readAt === null
 
+	const unread = item.readAt === null
+	const sentence = notificationRowSentence(item, t)
+	// A system notice must not turn a projected actor into its apparent
+	// author. In particular, page posts keep the page voice, and moderation
+	// notices never acquire a moderator portrait from an incidental actor.
+	const systemVoice = ["page_post", "moderation_decision", "report_received", "report_decided", "membership_changed", "badge_changed", "file_withheld", "association_event_reminder", "attestation_verified", "attestation_not_confirmed"].includes(item.kind) || item.kind.startsWith("commerce_")
+	const actorName = item.actor?.displayName?.trim() || ""
+	const displayName = item.page?.name.trim() || (!systemVoice && actorName && sentence.includes(actorName) ? actorName : "")
+	const nameAt = displayName.length > 0 ? sentence.indexOf(displayName) : -1
+	const emphasizedSentence: ReactNode = nameAt < 0 ? sentence : <>
+		{sentence.slice(0, nameAt)}<strong>{displayName}</strong>{sentence.slice(nameAt + displayName.length)}
+	</>
+	const marker = notificationMarker(item.kind)
+	const Marker = marker.icon
+	const content = <>
+		<span className="ntf-avatar" aria-hidden="true">
+			<Avatar displayName={displayName} avatarUrl={item.page ? item.page.logoUrl : displayName ? item.actor?.avatarUrl : null} hasIdentity={displayName.length > 0} size={compact ? 40 : 48} shape={item.page ? "square" : "round"} />
+			<span className="ntf-kind" style={{ background: marker.background, color: marker.color }}><Marker size={12} strokeWidth={2.5} /></span>
+		</span>
+		<span className="ntf-details">
+			<span className="ntf-sentence">{emphasizedSentence}</span>
+			{item.page ? <NotificationPageBadge badge={item.page.badge} /> : null}
+			<span className="ntf-date">
+				<time dateTime={new Date(item.createdAt).toISOString()}>{formatRelativeDate(item.createdAt, now, t, timeZone)}</time>
+				{unread ? <span className="ntf-sr-only">{t("reseauNotificationRow.unread")}</span> : null}
+			</span>
+			{resultText !== null ? <span className="ntf-result">{resultText}</span> : null}
+		</span>
+	</>
+
 	return (
-		<li
-			style={{
-				display: "flex",
-				gap: 8,
-				alignItems: "flex-start",
-				paddingLeft: 11,
-				borderLeft: `${compact ? 2 : 3}px solid ${
-					compact
-						? "var(--ink-200)"
-						: item.readAt === null
-							? "var(--primary-500)"
-							: "transparent"
-				}`,
-			}}
-		>
-			<div style={{ minWidth: 0, flex: 1 }}>
-				<p
-					style={{
-						margin: 0,
-						fontSize: compact ? 12.5 : 13,
-						lineHeight: 1.5,
-						color: "var(--ink-800)",
-						overflowWrap: "anywhere",
-					}}
-				>
-					{notificationRowSentence(item, t)}
-				</p>
-				{/* La page qui publie porte son badge CALCULÉ : face à une page qui
-				    emprunterait le nom d'une institution, l'absence d'« Officiel » ne
-				    suffit pas, il faut voir ce qu'elle est. */}
-				{item.page ? <NotificationPageBadge badge={item.page.badge} /> : null}
-				<p
-					style={{
-						margin: 0,
-						color: compact ? "var(--ink-400)" : "var(--ink-600)",
-						fontFamily: compact ? "var(--font-mono)" : "inherit",
-						fontSize: compact ? 11 : 12,
-					}}
-				>
-					<time dateTime={new Date(item.createdAt).toISOString()}>
-						{formatRelativeDate(item.createdAt, now, t, timeZone)}
-					</time>
-				</p>
-				{resultText !== null ? (
-					<p
-						style={{
-							margin: "6px 0 0",
-							fontSize: 12.5,
-							color: "var(--ink-600)",
-						}}
-					>
-						{resultText}
-					</p>
-				) : null}
-				{!compact && action.mode === "connection" ? (
-					<ConnectionInviteActions
-						connectionId={action.connectionId}
-						onSettled={() => onMarkRead(item.notificationId)}
-					/>
-				) : null}
-			</div>
-			{compact ? null : action.mode === "callback" ? (
-				<Button variant="link" size="sm" onClick={open}>
-					{action.label}
-				</Button>
-			) : action.mode === "link" ? (
-				<Link
-					href={action.href}
-					onClick={() => {
-						// Fermer la carte AVANT que le lien ne navigue : la page
-						// d'arrivée ne doit pas s'ouvrir inerte sous elle.
-						closeNotificationCenter()
-						onMarkRead(item.notificationId)
-					}}
-					style={{ fontSize: 13, color: "var(--primary-700)" }}
-				>
-					{action.label}
-				</Link>
-			) : offersMarkRead ? (
-				<Button
-					variant="link"
-					size="sm"
-					onClick={() => onMarkReadExplicitly(item.notificationId)}
-				>
-					{t("reseauNotificationRow.markRead")}
-				</Button>
+		<li className="ntf-row" data-unread={unread ? "" : undefined} data-compact={compact ? "" : undefined}>
+			{!compact && action.mode === "link" ? (
+				<Link href={action.href} aria-label={action.label} className="ntf-open" onClick={open}>{content}</Link>
+			) : !compact && action.mode === "callback" ? (
+				<button type="button" aria-label={action.label} className="ntf-open" onClick={open}>{content}</button>
+			) : <div className="ntf-open">{content}</div>}
+			{unread ? <span className="ntf-unread-dot" aria-hidden="true" /> : null}
+			{!compact && action.mode === "connection" ? (
+				<div className="ntf-row-actions"><ConnectionInviteActions connectionId={action.connectionId} onSettled={() => onMarkRead(item.notificationId)} /></div>
+			) : !compact && offersMarkRead ? (
+				<div className="ntf-row-actions"><Button variant="link" size="sm" style={COMPACT_SOCIAL_ACTION_STYLE} onClick={() => onMarkReadExplicitly(item.notificationId)}>{t("reseauNotificationRow.markRead")}</Button></div>
 			) : null}
 		</li>
 	)
@@ -224,9 +199,12 @@ export function ConnectionInviteActions({
 	const convex = useConvex()
 	const respond = useMutation(api.modules.graph.connections.respondToConnection)
 	const [busy, setBusy] = useState(false)
+	const deciding = useRef(false)
 	const [notice, setNotice] = useState<string | null>(null)
 
 	const decide = async (accept: boolean) => {
+		if (deciding.current) return
+		deciding.current = true
 		setBusy(true)
 		// Le sujet générique du moteur porte l'identifiant en chaîne ; le
 		// serveur le revalide (`v.id("connections")`) et refuse une référence
@@ -258,13 +236,14 @@ export function ConnectionInviteActions({
 			// RIEN de l'invitation (débit, adhésion) se dit par son code, et les
 			// boutons restent : la demande attend toujours une réponse.
 			const code = engineErrorCode(error)
-			if (code !== null && code !== "conflict" && code !== "notFound") {
-				toast.error(t(`errors:${code}`))
+			if (code !== "conflict" && code !== "notFound") {
+				toast.error(code === null ? t("reseauNotificationRow.decisionFailed") : t(`errors:${code}`))
 				return
 			}
 			setNotice(t("reseauNotificationRow.alreadyHandled"))
 			onSettled()
 		} finally {
+			deciding.current = false
 			setBusy(false)
 		}
 	}
@@ -272,6 +251,7 @@ export function ConnectionInviteActions({
 	if (notice !== null) {
 		return (
 			<p
+				role="status"
 				style={{
 					margin: "6px 0 0",
 					fontSize: 12.5,
@@ -284,9 +264,9 @@ export function ConnectionInviteActions({
 	}
 
 	return (
-		<div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+		<div className="ntf-invite-actions" aria-busy={busy}>
 			{/* Accepter : couleur des relations (ADR-0027). */}
-			<Button
+			<Button style={{ ...COMPACT_SOCIAL_ACTION_STYLE, flex: "1 1 0", minWidth: 0 }}
 				size="sm"
 				variant="social"
 				disabled={busy}
@@ -294,9 +274,9 @@ export function ConnectionInviteActions({
 			>
 				{t("reseauNotificationRow.accept")}
 			</Button>
-			<Button
+			<Button style={{ ...COMPACT_SOCIAL_ACTION_STYLE, flex: "1 1 0", minWidth: 0 }}
 				size="sm"
-				variant="secondary"
+				variant="outline"
 				disabled={busy}
 				onClick={() => void decide(false)}
 			>

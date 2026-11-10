@@ -136,7 +136,7 @@ export function MemberDiscoveryFeed({ filter }: { filter: Extract<MemberFeedFilt
     // Une publication par hauteur disponible ; la fenêtre suivante reste un
     // geste explicite (« Suivant »), jamais un changement d'adresse automatique.
     return <MemberPage>
-      <div className="mx-auto flex w-full max-w-3xl flex-col pb-[env(safe-area-inset-bottom)]">
+      <div className="flex w-full flex-col pb-[env(safe-area-inset-bottom)]">
         <FeedSurfaceMemoryProvider value={immersion.surfaceMemory}>
           <ImmersiveFeedReader
             key={feedId}
@@ -167,7 +167,7 @@ export function MemberDiscoveryFeed({ filter }: { filter: Extract<MemberFeedFilt
   </> : null
 
   return <MemberPage>
-    <div className="mx-auto flex max-w-3xl flex-col gap-5 pb-[env(safe-area-inset-bottom)]">
+    <div className="flex w-full flex-col gap-5 pb-[env(safe-area-inset-bottom)]">
       {header}
       {/* P04 : la bascule Liste/Immersion, toujours visible et nommée — absente sans déclaration de l'application. */}
       {immersion !== null ? <div className="fil-mode-row"><FeedModeToggle state={immersion.mode} onChange={immersion.changeMode} /></div> : null}

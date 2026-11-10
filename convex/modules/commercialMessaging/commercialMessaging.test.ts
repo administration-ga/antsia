@@ -78,6 +78,13 @@ async function accepted(f: Fixture) {
 }
 
 describe("P10 — canal autonome et autorité actuelle", () => {
+  it("refuse les références démo même lorsque le canal de contact est ouvert", async () => {
+    const f = await fixture()
+    const error = await caught(f.buyer.as.mutation(request, { networkId: f.root, shopHandle: "contact-shop", offerRef: "demo:offer:epicerie-produits", text: "Une question sur cette illustration.", idempotencyKey: "demo_contact_refused_0001" }))
+    expect(engineErrorCode(error)).toBe("notFound")
+    expect(await f.t.run(async (ctx) => (await ctx.db.query("commercialThreads").take(1)).length)).toBe(0)
+    expect(await f.t.run(async (ctx) => (await ctx.db.query("commercialMessages").take(1)).length)).toBe(0)
+  })
   it("reste fermé sans politique et ne crée ni fil personnel ni adhésion implicite", async () => {
     const f = await fixture(false)
     expect(engineErrorCode(await caught(requested(f)))).toBe("notFound")
@@ -210,9 +217,14 @@ describe("P10 — canal autonome et autorité actuelle", () => {
     const call = await place()
     expect(call.admitted).toBe(true)
     if (!call.admitted) throw new Error("Fixture d'appel non admise")
+    // Le jeton appartient à l'appareil entré dans la salle ; l'appelé n'a pas encore décroché.
+    expect(await f.manager.as.query(internal.modules.calls.token.authorizeToken, { networkId: f.root, callId: call.callId })).toBeNull()
+    await f.buyer.as.mutation(api.modules.calls.lifecycle.join, { networkId: f.root, callId: call.callId })
     await f.buyer.as.mutation(api.modules.calls.lifecycle.setCallRinging, { networkId: f.root, callId: call.callId })
-    expect(await f.manager.as.query(internal.modules.calls.token.authorizeToken, { networkId: f.root, callId: call.callId })).toMatchObject({ commercialThreadId: scope.threadId })
+    expect(await f.buyer.as.query(internal.modules.calls.token.authorizeToken, { networkId: f.root, callId: call.callId })).toMatchObject({ personId: f.buyer.personId, commercialThreadId: scope.threadId })
+    expect((await f.manager.as.query(api.modules.calls.ringing.listRinging, { networkId: f.root })).calls).toEqual([expect.objectContaining({ callId: call.callId, commercialThreadId: scope.threadId })])
     await f.manager.as.mutation(callConsent, { ...scope, allowed: false })
+    expect(await f.buyer.as.query(internal.modules.calls.token.authorizeToken, { networkId: f.root, callId: call.callId })).toBeNull()
     expect(await f.manager.as.query(internal.modules.calls.token.authorizeToken, { networkId: f.root, callId: call.callId })).toBeNull()
     expect((await f.manager.as.query(api.modules.calls.ringing.listRinging, { networkId: f.root })).calls).toEqual([])
     expect(engineErrorCode(await caught(f.manager.as.mutation(api.modules.calls.lifecycle.join, { networkId: f.root, callId: call.callId })))).toBe("notFound")

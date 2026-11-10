@@ -40,4 +40,7 @@ export const publicSnapshotValidator = v.object({
 export const publicTransparencyValidator = v.object({
   threshold: v.number(), periods: v.array(v.object({ periodStart: v.number(), periodEnd: v.number(), cases: v.union(v.number(), v.null()) })),
 })
+export const publicTransparencyDeadlinesValidator = v.object({
+  threshold: v.number(), periods: v.array(v.object({ periodStart: v.number(), periodEnd: v.number(), legal: v.union(v.null(), v.object({ met: v.union(v.number(), v.null()), missed: v.union(v.number(), v.null()) })) })),
+})
 export const publicPostPageValidator = v.object({ page: v.array(publicPostValidator), isDone: v.boolean(), continueCursor: v.string() })

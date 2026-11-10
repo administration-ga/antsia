@@ -12,10 +12,12 @@ import { clearFederatedMedia, queueFederatedMedia, retryFederatedMedia } from ".
 import { queuePageWithdrawal } from "./withdrawal"
 import { applyAdministrativeAgent } from "./reseauPublicAgents"
 import { applyCommerceTransportProbe } from "./commerceTransport"
-import { COMMERCE_PUBLIC_CONTRACT } from "@antsia/social-domain/commerce/primitives"
+import { isCommercePublicContract } from "@antsia/social-domain/commerce/primitives"
 import { applyCommerceCatalog } from "./commerceCatalog"
 import { COMMERCE_JOBS_CONTRACT } from "@antsia/social-domain/commerce-jobs"
 import { applyCommerceJobsEnvelope } from "./commerceJobs"
+import { COMMERCE_SERVICE_NOTICE_CONTRACT } from "@antsia/social-domain/commerce-service-notices"
+import { applyCommerceServiceNotice } from "./commerceServiceNotices"
 
 export type FederationApplyFailure = "unsupported_contract" | "contract_not_allowed" | "invalid_payload" | "unsupported_event" | "unsupported_media" | "source_conflict" | "consent_required" | "identity_not_linked"
 export type FederationApplyResult = { applied: true } | { applied: false; reason: FederationApplyFailure }
@@ -29,6 +31,8 @@ export async function validImplementedFederationPayload(envelope: FederationEnve
 
 /** Les corps des événements personnels ne deviennent jamais des lettres mortes. */
 export function isPersonalFederationEnvelope(envelope: FederationEnvelope): boolean {
+  // Même après effacement ou défaut de corrélation : aucun corps personnel en DLQ.
+  if (envelope.contract === COMMERCE_SERVICE_NOTICE_CONTRACT) return true
   const payload = envelope.payload
   return envelope.contract === RESEAU_PUBLIC_CONTRACT && payload !== null && typeof payload === "object" && !Array.isArray(payload) && (payload.type === "person.optin" || payload.type === "person.optout")
 }
@@ -39,8 +43,9 @@ export function isPersonalFederationEnvelope(envelope: FederationEnvelope): bool
  */
 export async function applyFederationEnvelope(ctx: MutationCtx, emitter: Doc<"federationEmitters">, envelope: FederationEnvelope, now: number, rawBody?: string): Promise<FederationApplyResult> {
   if (envelope.contract === COMMERCE_TRANSPORT_TEST_CONTRACT) return await applyCommerceTransportProbe(ctx, emitter, rawBody, now)
-  if (envelope.contract === COMMERCE_PUBLIC_CONTRACT) return await applyCommerceCatalog(ctx, emitter, rawBody, now)
+  if (isCommercePublicContract(envelope.contract)) return await applyCommerceCatalog(ctx, emitter, rawBody, now)
   if (envelope.contract === COMMERCE_JOBS_CONTRACT) return await applyCommerceJobsEnvelope(ctx, emitter, rawBody, now)
+  if (envelope.contract === COMMERCE_SERVICE_NOTICE_CONTRACT) return await applyCommerceServiceNotice(ctx, emitter, rawBody, now)
   if (envelope.contract !== RESEAU_PUBLIC_CONTRACT) return { applied: false, reason: "unsupported_contract" }
   const parsed = parseReseauPublicEvent(envelope.payload, envelope.objectRef, now)
   if (!parsed.ok) return { applied: false, reason: parsed.reason }

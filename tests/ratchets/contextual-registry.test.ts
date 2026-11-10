@@ -10,7 +10,7 @@
  * texte des inventaires (données, libellés). Chaque règle a son « test du test » sur une source
  * fabriquée. Écrit le 19/10/2026 sans exécution (décision du propriétaire : « Continuer sans vérifier »).
  */
-import { CONTEXTUAL_KINDS, CONTEXTUAL_REFERENCE_FIELDS, CONTEXTUAL_REFERENCE_TABLES, CONTEXTUAL_RESERVED_KINDS } from "@antsia/social-domain/contextualMessaging"
+import { CONTEXTUAL_SUPPORTED_KINDS, CONTEXTUAL_REFERENCE_FIELDS, CONTEXTUAL_REFERENCE_TABLES, CONTEXTUAL_RESERVED_KINDS } from "@antsia/social-domain/contextualMessaging"
 import ts from "typescript"
 import { describe, expect, it } from "vitest"
 
@@ -21,7 +21,7 @@ const MODULE = "convex/modules/contextualMessaging"
 const REGISTRY = `${MODULE}/registry.ts`
 const CONTRACT = `${MODULE}/contract.ts`
 const TABLES = `${MODULE}/tables.ts`
-const SLICE_RESOLVERS = "../diaspora/conversationContexts"
+const SLICE_RESOLVERS = new Set(["../diaspora/conversationContexts", "../professionals/conversationContexts"])
 
 /** Les natures admises par le validateur d'objet ouvrant, avec la table de leur identifiant. */
 export function contextValidatorKinds(file: string, text: string): { kind: string; table: string }[] {
@@ -50,9 +50,9 @@ export function contextValidatorKinds(file: string, text: string): { kind: strin
 export function detectSliceImports(file: string, text: string): Finding[] {
   const source = parseSource(file, text)
   return moduleSpecifiers(source).flatMap(({ specifier, line }) => {
-    const slice = /(^|\/)diaspora(\/|$)/u.test(specifier) || specifier.startsWith("@diasporale/")
+    const slice = /(^|\/)(diaspora|professionals)(\/|$)/u.test(specifier) || specifier.startsWith("@diasporale/")
     if (!slice) return []
-    if (file === REGISTRY && specifier === SLICE_RESOLVERS) return []
+    if (file === REGISTRY && SLICE_RESOLVERS.has(specifier)) return []
     return [{ file, line, message: `import de tranche « ${specifier} » hors de registry.ts (ou autre que les résolveurs)` }]
   })
 }
@@ -79,7 +79,7 @@ export function detectRuntimeContract(file: string, text: string): Finding[] {
 describe("contextual-registry — natures fermées, registre unique, contrat sans valeur", () => {
   it("le registre porte EXACTEMENT une entrée par nature V1, chacune résolveur ou repli `null`", () => {
     const entries = registryEntries(REGISTRY, readRepoFile(REGISTRY))
-    expect(entries.map((entry) => entry.kind).sort()).toEqual([...CONTEXTUAL_KINDS].sort())
+    expect(entries.map((entry) => entry.kind).sort()).toEqual([...CONTEXTUAL_SUPPORTED_KINDS].sort())
     expect(entries.filter((entry) => entry.value === "other")).toEqual([])
   })
 
@@ -91,16 +91,16 @@ describe("contextual-registry — natures fermées, registre unique, contrat san
   })
 
   it("aucune nature réservée ni inconnue : domaine, validateur et registre disent la même liste", () => {
-    for (const reserved of CONTEXTUAL_RESERVED_KINDS) expect((CONTEXTUAL_KINDS as readonly string[]).includes(reserved), reserved).toBe(false)
+    for (const reserved of CONTEXTUAL_RESERVED_KINDS) expect((CONTEXTUAL_SUPPORTED_KINDS as readonly string[]).includes(reserved), reserved).toBe(false)
     const validator = contextValidatorKinds(TABLES, readRepoFile(TABLES))
-    expect(validator.map((entry) => entry.kind).sort()).toEqual([...CONTEXTUAL_KINDS].sort())
+    expect(validator.map((entry) => entry.kind).sort()).toEqual([...CONTEXTUAL_SUPPORTED_KINDS].sort())
     // L'identifiant de chaque nature vise SA table : un identifiant d'une autre nature est refusé par le validateur.
     for (const entry of validator) expect(entry.table, entry.kind).toBe(CONTEXTUAL_REFERENCE_TABLES[entry.kind as keyof typeof CONTEXTUAL_REFERENCE_TABLES])
   })
 
   it("chaque nature a sa colonne typée et son index dans les tables", () => {
     const tables = readRepoFile(TABLES)
-    for (const kind of CONTEXTUAL_KINDS) {
+    for (const kind of CONTEXTUAL_SUPPORTED_KINDS) {
       const field = CONTEXTUAL_REFERENCE_FIELDS[kind]
       const table = CONTEXTUAL_REFERENCE_TABLES[kind]
       expect(tables, `${kind} : colonne`).toContain(`${field}: v.optional(v.id("${table}"))`)
@@ -113,7 +113,7 @@ describe("contextual-registry — natures fermées, registre unique, contrat san
     const thread = /contextualThreads:\s*\{owners:\s*\[\],\s*parents:\s*\[([^\]]*)\]\}/u.exec(policies)
     expect(thread, "contextualThreads : owners vides et parents déclarés").not.toBeNull()
     const parents = (thread?.[1] ?? "").split(",").map((part) => part.trim().replace(/["']/g, "")).filter(Boolean)
-    expect(parents.sort()).toEqual(CONTEXTUAL_KINDS.map((kind) => CONTEXTUAL_REFERENCE_FIELDS[kind]).sort())
+    expect(parents.sort()).toEqual(CONTEXTUAL_SUPPORTED_KINDS.map((kind) => CONTEXTUAL_REFERENCE_FIELDS[kind]).sort())
     for (const table of ["contextualMessages", "contextualPersonStates", "contextualPolicies"]) expect(policies, table).toMatch(new RegExp(`\\b${table}:\\s*\\{`, "u"))
   })
 
@@ -121,7 +121,7 @@ describe("contextual-registry — natures fermées, registre unique, contrat san
     for (const locale of ["fr", "en"] as const) {
       const messages = JSON.parse(readRepoFile(`apps/admin_antsia_ga/src/i18n/locales/${locale}/operations.json`)) as Record<string, unknown>
       const block = messages.contextualPolicy as { kinds?: Record<string, unknown> } | undefined
-      for (const kind of CONTEXTUAL_KINDS) expect(typeof block?.kinds?.[kind], `${locale} : ${kind}`).toBe("string")
+      for (const kind of CONTEXTUAL_SUPPORTED_KINDS) expect(typeof block?.kinds?.[kind], `${locale} : ${kind}`).toBe("string")
       const surfaces = messages.surfaces as Record<string, unknown> | undefined
       expect(typeof surfaces?.contextualMessage, `${locale} : surface`).toBe("string")
     }
@@ -159,15 +159,24 @@ describe("contextual-registry — natures fermées, registre unique, contrat san
       "}",
     ].join("\n")
     const entries = registryEntries(REGISTRY, fabricated)
-    expect(entries.map((entry) => entry.kind).sort()).not.toEqual([...CONTEXTUAL_KINDS].sort())
+    expect(entries.map((entry) => entry.kind).sort()).not.toEqual([...CONTEXTUAL_SUPPORTED_KINDS].sort())
     expect(entries.filter((entry) => entry.value === "other").map((entry) => entry.kind)).toEqual(["diasporaJobApplication"])
     expect(pendingKinds(REGISTRY, fabricated)).toEqual(["diasporaMentoring"])
+  })
+
+  it("MP09 : le nouveau résolveur ne peut être emprunté à la tranche historique, ni inversement", () => {
+    const source = 'export const CONTEXTUAL_REGISTRY = { professionalCollaboration: DIASPORA_CONVERSATION_CONTEXTS.professionalCollaboration, diasporaMentoring: PROFESSIONAL_CONVERSATION_CONTEXTS.diasporaMentoring }'
+    expect(registryEntries(REGISTRY, source).map(entry => entry.value)).toEqual(["other", "other"])
+    const valid = 'export const CONTEXTUAL_REGISTRY = { professionalCollaboration: PROFESSIONAL_CONVERSATION_CONTEXTS.professionalCollaboration }'
+    expect(registryEntries(REGISTRY, valid).map(entry => entry.value)).toEqual(["resolver"])
   })
 
   it("test du test : import de tranche hors registre, contrat porteur de valeur", () => {
     expect(detectSliceImports(`${MODULE}/threads.ts`, 'import { x } from "../diaspora/serviceRequests"')).toHaveLength(1)
     expect(detectSliceImports(`${MODULE}/threads.ts`, 'import { y } from "@diasporale/domain"')).toHaveLength(1)
-    expect(detectSliceImports(REGISTRY, `import { DIASPORA_CONVERSATION_CONTEXTS } from "${SLICE_RESOLVERS}"`)).toEqual([])
+    for (const specifier of SLICE_RESOLVERS) expect(detectSliceImports(REGISTRY, `import { CONTEXTS } from "${specifier}"`)).toEqual([])
+    expect(detectSliceImports(`${MODULE}/threads.ts`, 'import { x } from "../professionals/read"')).toHaveLength(1)
+    expect(detectSliceImports(REGISTRY, 'import { x } from "../professionals/read"')).toHaveLength(1)
     expect(detectSliceImports(REGISTRY, 'import { z } from "../diaspora/serviceRequests"')).toHaveLength(1)
     const contract = ['import type { Id } from "../../_generated/dataModel"', 'import { v } from "convex/values"', "export type A = Id<\"pages\">", "export const B = 1"].join("\n")
     expect(detectRuntimeContract(CONTRACT, contract).map((finding) => finding.line)).toEqual([2, 4])

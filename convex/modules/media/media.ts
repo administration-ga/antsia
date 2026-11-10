@@ -25,7 +25,7 @@ import { guardUploadUrl } from "../../lib/uploadPolicy"
 import { literals } from "../../lib/validators"
 import { admitStoredUpload, assertFreshUpload } from "../files/admission"
 import type { FileScanSource } from "../files/policy"
-import { resolveFileDelivery, withheldCodeOf } from "../files/storageGuard"
+import { resolveFileDelivery, withheldCodeOf, withheldCodeValidator } from "../files/storageGuard"
 
 export const MEDIA_KINDS = ["image", "video"] as const
 
@@ -66,7 +66,7 @@ export type DeclaredMedia = Infer<typeof declaredMediaValidator>
 /** Le DTO d'un média (`PostMediaDto`) : URL par la garde, ou la retenue nommée. */
 export const postMediaDtoValidator = v.object({
   url: v.union(v.string(), v.null()),
-  withheld: v.union(v.literal("fileScanPending"), v.literal("fileQuarantined"), v.null()),
+  withheld: v.union(withheldCodeValidator, v.null()),
   kind: mediaKindValidator,
   mimeType: v.string(),
   width: v.optional(v.number()),

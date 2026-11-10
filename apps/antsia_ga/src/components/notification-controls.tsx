@@ -1,5 +1,8 @@
 "use client"
 
+import { browserAppPath } from "@/lib/app-path"
+import { demoStorageNamespace } from "@/lib/demo-storage"
+
 /** PA5 — les réglages et les consentements sont des gestes ; aucun prompt navigateur au montage. */
 import { api, type Id } from "@antsia/api/engine"
 import { useAuthenticatedConvexQuery } from "@antsia/api/hooks"
@@ -112,17 +115,17 @@ export async function saveNotificationPreferences(values: NotificationPreference
 }
 
 function storedDeviceId(): string | null {
-  try { const value = window.localStorage.getItem("antsia:push-device"); return value && /^[A-Za-z0-9_-]{8,128}$/u.test(value) ? value : null } catch { return null }
+  try { const value = window.localStorage.getItem(`${demoStorageNamespace()}antsia:push-device`); return value && /^[A-Za-z0-9_-]{8,128}$/u.test(value) ? value : null } catch { return null }
 }
 function ensureDeviceId(): string {
   const existing = storedDeviceId()
   if (existing) return existing
   const value = crypto.randomUUID()
-  window.localStorage.setItem("antsia:push-device", value)
+  window.localStorage.setItem(`${demoStorageNamespace()}antsia:push-device`, value)
   return value
 }
 async function activeRegistration(): Promise<ServiceWorkerRegistration> {
-  const registered = await navigator.serviceWorker.register(routes.pushWorker(), { scope: routes.home() })
+  const registered = await navigator.serviceWorker.register(browserAppPath(routes.pushWorker()), { scope: `${browserAppPath(routes.home()).replace(/\/$/u, "")}/` })
   if (registered.active) return registered
   let timer: ReturnType<typeof setTimeout> | undefined
   try {

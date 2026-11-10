@@ -5,6 +5,9 @@ describe("livraison neutre", () => {
   it("classe les genres de réseau sans mélanger appels et messages", () => {
     expect(notificationCategory("membership_changed")).toBe("network")
     expect(notificationCategory("moderation_decision")).toBe("moderation")
+    // SU01d : l'accusé de réception et la décision au déclarant suivent la même catégorie.
+    expect(notificationCategory("report_received")).toBe("moderation")
+    expect(notificationCategory("report_decided")).toBe("moderation")
     expect(notificationCategory("call_incoming")).toBe("calls")
     expect(notificationCategory("group_message")).toBe("messages")
     expect(notificationCategory("post_comment")).toBe("social")

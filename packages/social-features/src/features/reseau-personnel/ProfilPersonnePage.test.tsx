@@ -306,6 +306,60 @@ beforeEach(() => {
 
 afterEach(cleanup)
 
+describe("ProfilPersonnePage — identité dans la coque adaptive ANTSIA", () => {
+  const adaptiveRoutes = { ...TEST_ROUTES, discover: () => "/decouvrir", me: () => "/moi", clips: (handle?: string) => handle ? `/clips?auteur=${handle}` : "/clips" }
+
+  it("affiche les badges calculés et ouvre les vrais Clips de l'auteur seulement si l'hôte les déclare", () => {
+    mocks.queries.getPublicProfile = ok({ ...PERSON, badges: ["verified", "community", "verified"] })
+    mocks.queries.personPosts = ok({ items: [], nextCursor: null })
+    const router = memoryRouter()
+    const view = renderWithEngine(<ProfilPersonnePage handle="awa" />, {
+      router: router.implementation,
+      routes: adaptiveRoutes,
+      navigation: "destinations",
+      navigationLayout: "adaptive",
+      navigationLabels: { clips: "Clips" },
+    })
+    expect(view.container.querySelector(".rp-profile-frame")).toHaveStyle({ height: "auto", overflowY: "visible" })
+    expect(view.container.querySelectorAll(".pp-trust-badges > span")).toHaveLength(1)
+    expect(screen.getByText("Vérifié")).toBeInTheDocument()
+    expect(screen.queryByText("Communauté")).toBeNull()
+    fireEvent.click(screen.getByRole("button", { name: "Clips" }))
+    expect(router.calls).toContainEqual({ method: "push", href: "/clips?auteur=awa" })
+    expect(screen.queryByRole("tab", { name: "Clips" })).toBeNull()
+    expect(screen.queryByRole("tab", { name: "Identifié" })).toBeNull()
+  })
+
+  it("sans label de fonctionnalité branchée, aucun raccourci Clips ni badge visuel inventé", () => {
+    mocks.queries.getPublicProfile = ok(PERSON)
+    mocks.queries.personPosts = ok({ items: [], nextCursor: null })
+    renderWithEngine(<ProfilPersonnePage handle="awa" />, {
+      routes: adaptiveRoutes,
+      navigation: "destinations",
+      navigationLayout: "adaptive",
+    })
+    expect(screen.queryByRole("button", { name: "Clips" })).toBeNull()
+    expect(screen.queryByText("Vérifié")).toBeNull()
+  })
+
+  it("mon mur propose le retour aux outils personnels sans les rendre publics", () => {
+    mocks.queries.getPublicProfile = ok(MOI)
+    mocks.queries.personPosts = ok({ items: [], nextCursor: null })
+    const router = memoryRouter()
+    renderWithEngine(<ProfilPersonnePage handle="awa" />, {
+      router: router.implementation,
+      routes: adaptiveRoutes,
+      navigation: "destinations",
+      navigationLayout: "adaptive",
+    })
+    // Le namespace applicatif ANTSIA est injecté par l'hôte ; ce harnais ne
+    // charge volontairement que les traductions du moteur.
+    fireEvent.click(screen.getByRole("button", { name: "me.title" }))
+    expect(router.calls).toContainEqual({ method: "push", href: "/moi" })
+    expect(screen.queryByRole("link", { name: /Mes achats|Mes données/ })).toBeNull()
+  })
+})
+
 describe("ProfilPersonnePage — panne honnête (R-08)", () => {
   it("le profil en panne : carte + Réessayer, aucun squelette, pas la phrase du refus", () => {
     mocks.queries.getPublicProfile = err()
@@ -868,9 +922,10 @@ describe("ProfilPersonnePage — la relation, réglée depuis la fiche", () => {
   it("sans lien : « Se connecter » demande par l'identifiant, et le dit", async () => {
     mocks.queries.connectionWith = ok({ state: "none" })
     rendre()
-    fireEvent.click(screen.getByRole("button", { name: "Se connecter" }))
+    fireEvent.click(screen.getByRole("button", { name: "Ajouter" }))
     await waitFor(() =>
       expect(mocks.mutations.requestConnection).toHaveBeenCalledWith({
+        returnRateLimit: true,
         networkId: TEST_NETWORK_ID,
         handle: "awa",
       }),
@@ -884,7 +939,7 @@ describe("ProfilPersonnePage — la relation, réglée depuis la fiche", () => {
     mocks.mutation("requestConnection").mockRejectedValueOnce(
       Object.assign(new Error("trace serveur"), { data: { code: "notFound" } }),
     )
-    fireEvent.click(screen.getByRole("button", { name: "Se connecter" }))
+    fireEvent.click(screen.getByRole("button", { name: "Ajouter" }))
     await waitFor(() =>
       expect(mocks.toastError).toHaveBeenCalledWith(
         "Cette ressource est introuvable ou n'est pas accessible.",
@@ -896,7 +951,7 @@ describe("ProfilPersonnePage — la relation, réglée depuis la fiche", () => {
     mocks.queries.connectionWith = ok({ state: "requested_by_them", connectionId: "connections_1" })
     rendre()
     expect(screen.getByRole("button", { name: "Refuser" })).toBeTruthy()
-    fireEvent.click(screen.getByRole("button", { name: "Accepter l'invitation" }))
+    fireEvent.click(screen.getByRole("button", { name: "Confirmer" }))
     await waitFor(() =>
       expect(mocks.mutations.respondToConnection).toHaveBeenCalledWith({
         networkId: TEST_NETWORK_ID,
@@ -912,9 +967,11 @@ describe("ProfilPersonnePage — la relation, réglée depuis la fiche", () => {
   it("une invitation envoyée ne se renvoie pas, un lien établi ne se redemande pas", () => {
     mocks.queries.connectionWith = ok({ state: "requested_by_me", connectionId: "connections_1" })
     const premier = rendre()
-    expect(
-      (screen.getByRole("button", { name: "Invitation envoyée" }) as HTMLButtonElement).disabled,
-    ).toBe(true)
+    const sent = screen.getByRole("button", { name: "Invitation envoyée" })
+    expect(sent).toBeEnabled()
+    fireEvent.click(sent)
+    expect(mocks.mutations.requestConnection).not.toHaveBeenCalled()
+    expect(premier.router.calls).toContainEqual({ method: "push", href: "/fil?tab=relations&vue=invitations" })
     premier.unmount()
 
     mocks.queries.connectionWith = ok({ state: "connected", connectionId: "connections_1", since: 1 })

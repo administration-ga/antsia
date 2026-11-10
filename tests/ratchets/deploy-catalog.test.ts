@@ -5,7 +5,9 @@ import { describe, expect, it } from "vitest"
 
 import { isTestFile, listFiles, REPO_ROOT } from "./lib/source-files"
 
-type Catalog = { applications: Record<string, { path: string; dev_port: number; build_args: string[] }> }
+type WebApplication = { platform: "web"; path: string; dev_port: number; build_args: string[] }
+type NativeApplication = { platform: "expo-native"; path: string; config: string; entry: string; public_env: string[]; config_env: string[] }
+type Catalog = { applications: Record<string, WebApplication | NativeApplication> }
 
 /**
  * Dossiers d'applications des espaces de travail déclarés : celles du moteur
@@ -47,14 +49,20 @@ describe("deploy-catalog — chaque application servie est au catalogue (câblag
   })
 
   it("les ports de développement sont distincts", () => {
-    const ports = Object.values(catalog.applications).map((app) => app.dev_port)
+    const ports = Object.values(catalog.applications).filter((app) => app.platform === "web").map((app) => app.dev_port)
+    expect(ports.every((port) => Number.isInteger(port) && port > 0)).toBe(true)
     expect(new Set(ports).size).toBe(ports.length)
+  })
+
+  it("chaque application déclare une plateforme connue", () => {
+    for (const app of Object.values(catalog.applications)) expect(["web", "expo-native"]).toContain(app.platform)
   })
 
   it("toute variable NEXT_PUBLIC_* lue par une application est déclarée au catalogue", () => {
     const problems: string[] = []
     const shared = readFileSync(join(REPO_ROOT, "packages/api/next-config.mjs"), "utf8")
     for (const app of Object.values(catalog.applications)) {
+      if (app.platform !== "web") continue
       const files = [
         join(app.path, "next.config.ts"),
         ...listFiles([`${app.path}/src`, ...packageDirectoriesOf(app.path)], [".ts", ".tsx"]).filter((file) => !isTestFile(file)),
@@ -62,6 +70,28 @@ describe("deploy-catalog — chaque application servie est au catalogue (câblag
       const sources = [shared, ...files.map((file) => readFileSync(join(REPO_ROOT, file), "utf8"))].join("\n")
       for (const match of sources.matchAll(/process\.env\.(NEXT_PUBLIC_[A-Z0-9_]+)/g)) {
         if (match[1] && !app.build_args.includes(match[1])) problems.push(`${app.path} : ${match[1]}`)
+      }
+    }
+    expect([...new Set(problems)]).toEqual([])
+  })
+
+  it("le natif déclare chaque variable publique du binaire et chaque variable de configuration Expo", () => {
+    const problems: string[] = []
+    for (const app of Object.values(catalog.applications)) {
+      if (app.platform !== "expo-native") continue
+      const files = [
+        join(app.path, app.config), join(app.path, app.entry),
+        ...listFiles([`${app.path}/src`, `${app.path}/plugins`, `${app.path}/modules`, ...packageDirectoriesOf(app.path)], [".ts", ".tsx", ".js", ".cjs", ".mjs"]).filter((file) => !isTestFile(file)),
+      ]
+      const sources = files.map((file) => readFileSync(join(REPO_ROOT, file), "utf8")).join("\n")
+      for (const match of sources.matchAll(/process\.env\.(EXPO_PUBLIC_[A-Z0-9_]+)/g)) {
+        if (match[1] && !app.public_env.includes(match[1])) problems.push(`${app.path} : ${match[1]}`)
+      }
+      const config = readFileSync(join(REPO_ROOT, app.path, app.config), "utf8")
+      // Les identifiants sont lus par identifier(name, pattern), les autres par accès littéral.
+      for (const match of config.matchAll(/process\.env\.((?:EXPO_PUBLIC_|NATIVE_|APNS_)[A-Z0-9_]+)|identifier\("((?:EXPO_PUBLIC_|NATIVE_|APNS_)[A-Z0-9_]+)"/g)) {
+        const name = match[1] ?? match[2]
+        if (name && !(name.startsWith("EXPO_PUBLIC_") ? app.public_env : app.config_env).includes(name)) problems.push(`${app.path} : ${name}`)
       }
     }
     expect([...new Set(problems)]).toEqual([])

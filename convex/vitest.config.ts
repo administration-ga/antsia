@@ -20,6 +20,8 @@ export default defineConfig({
     // Un seul processus : contexte partagé et forte pression de swap sur le Mac 16 Go.
     maxWorkers: 1,
     testTimeout: 30_000,
+    // Le rappel hors TTY reste dans le processus principal pendant les longs scans convex-test.
+    reporters: ["default", fileURLToPath(new URL("../scripts/convex-test-progress-reporter.mjs", import.meta.url))],
     // Les composants montés dans les tests (limiteur de débit) chargent leurs
     // modules par `import.meta.glob` : ils doivent passer par Vite.
     server: { deps: { inline: ["convex-test", "@convex-dev/rate-limiter"] } },

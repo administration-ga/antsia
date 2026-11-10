@@ -1,5 +1,5 @@
 // @vitest-environment edge-runtime
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 import { api, components, internal } from "../../_generated/api"
 import { createTestSession, testConvex } from "../../test.setup"
 import { SEED_CONFIRMATION } from "../../seeds/foundations"
@@ -44,3 +44,10 @@ describe("P12 — activation de paiement tracée", () => {
     await expect(operator.t.query(api.modules.shops.paymentPolicy.getPolicy, { networkId: operator.networkId })).rejects.toThrow()
   })
 })
+
+// P16 : validation fictive EN TEST pour préserver les scénarios historiques.
+// Aucun contournement d'environnement ni activation en source applicative.
+vi.mock("./commerceActivation", async (importOriginal) => ({
+  ...await importOriginal<typeof import("./commerceActivation")>(),
+  commerceActivationReady: () => true,
+}))

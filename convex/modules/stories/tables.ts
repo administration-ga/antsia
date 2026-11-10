@@ -11,6 +11,15 @@ import { v } from "convex/values"
 import { literals } from "../../lib/validators"
 import { storedMediaValidator } from "../media/media"
 
+/** Une référence de catalogue ne possède ni copie du contenu, ni blob. */
+export const dailySpecialMediaValidator = v.object({
+  kind: v.literal("daily_special"),
+  shopId: v.id("shops"),
+  offerRef: v.string(),
+  day: v.string(),
+  revision: v.number(),
+})
+
 export const storiesTables = {
   /**
    * Une story : UN média (métadonnées RÉELLES du stockage), une légende courte,
@@ -20,7 +29,7 @@ export const storiesTables = {
   stories: defineTable({
     networkId: v.id("networks"),
     authorPersonId: v.id("persons"),
-    media: storedMediaValidator,
+    media: v.union(storedMediaValidator, dailySpecialMediaValidator),
     caption: v.optional(v.string()),
     /** `public` ou `connections`, rejugée à CHAQUE lecture : rompre une connexion referme la story. */
     audience: literals(PERSONAL_REACH_AUDIENCES),
@@ -31,6 +40,7 @@ export const storiesTables = {
   })
     // Le plateau : les stories VIVANTES d'un auteur dans un réseau, dans l'index.
     .index("by_network_author_expiresAt", ["networkId", "authorPersonId", "expiresAt"])
+    .index("by_network_daily_special_expiresAt", ["networkId", "media.shopId", "media.revision", "expiresAt"])
     // La fenêtre de la purge, la plus ancienne d'abord.
     .index("by_expiresAt", ["expiresAt"])
     .index("by_author_idempotency", ["authorPersonId", "idempotencyKey"]),

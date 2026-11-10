@@ -5,15 +5,23 @@ import { convexClient, crossDomainClient } from "@convex-dev/better-auth/client/
 import { emailOTPClient, genericOAuthClient, oneTimeTokenClient, phoneNumberClient } from "better-auth/client/plugins"
 import { createAuthClient } from "better-auth/react"
 
+import type { CrossDomainStorage } from "./cross-domain-session-bootstrap"
+
+export type EngineAuthClientOptions = {
+  basePath?: string
+  storage?: CrossDomainStorage
+}
+
 /**
  * Client Better Auth d'une application du moteur. Les requêtes passent par le
  * proxy `/api/auth/*` de l'application elle-même (même origine) → actions HTTP
  * Convex ; le greffon `crossDomain` garde la session par origine.
  */
-function buildClient() {
+function buildClient(options: EngineAuthClientOptions = {}) {
   return createAuthClient({
     baseURL: typeof window !== "undefined" ? window.location.origin : undefined,
-    plugins: [convexClient(), crossDomainClient(), emailOTPClient(), genericOAuthClient(), phoneNumberClient(), oneTimeTokenClient()],
+    ...(options.basePath !== undefined ? { basePath: options.basePath } : {}),
+    plugins: [convexClient(), crossDomainClient(options.storage ? { storage: options.storage } : undefined), emailOTPClient(), genericOAuthClient(), phoneNumberClient(), oneTimeTokenClient()],
   })
 }
 
@@ -30,6 +38,6 @@ export type EngineAuthClient = Omit<Client, "useSession" | "$Infer"> & {
   $Infer: unknown
 }
 
-export function createEngineAuthClient(): EngineAuthClient {
-  return buildClient() as unknown as EngineAuthClient
+export function createEngineAuthClient(options: EngineAuthClientOptions = {}): EngineAuthClient {
+  return buildClient(options) as unknown as EngineAuthClient
 }

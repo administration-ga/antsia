@@ -1,9 +1,10 @@
-// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/PostReactionControl.tsx @ ad2e7fdc2 — adaptations : réactions au format du moteur (`counts` : un décompte par genre, au lieu de la liste `byKind`) ; libellés par l'i18n (nom des réactions par leur clé de `shared.ts`, textes `reseau:postReactionControl.*`, « réaction » accordé au nombre) ; ombre de la palette par le jeton `--shadow-lg` au lieu d'une couleur littérale ; gestes (appui long, clavier, palette) inchangés ; feuille de style sortie du JSX dans une constante de module (`REACTION_CONTROL_CSS`) — un littéral enfant de `<style>` passerait pour une chaîne d'interface — règles inchangées ; P03 (étude social-commerce) : bouton explicite facultatif `choiceButton` qui ouvre la palette d'un simple toucher (aucun appui long obligatoire), focus rendu à son déclencheur ; P18b (A10, A11) : avec le bouton explicite (présentation « media »), la palette ne s'ouvre plus au survol ni au focus mais par un geste explicite (bouton, Entrée, Espace, flèches du bouton, appui long), le déclencheur redevient une simple bascule (`aria-pressed`, sans `aria-haspopup`, libellé `postReactionControl.toggle*`) et l'état « réagi » se dit aussi par l'icône PLEINE ; partout : Échap ferme la palette où que soit le focus, et ses quatre choix ne font qu'un arrêt de tabulation (tabindex itinérant) ; couleur des réactions (ADR-0027) : fond teinté, libellé et icône de l'action réagie lus dans `--role-react-*`, rayon `--ui2-button-radius`, valeurs d'origine en repli.
+// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/PostReactionControl.tsx @ ad2e7fdc2 — adaptations : réactions au format du moteur (`counts` : un décompte par genre, au lieu de la liste `byKind`) ; libellés par l'i18n (nom des réactions par leur clé de `shared.ts`, textes `reseau:postReactionControl.*`, « réaction » accordé au nombre) ; ombre de la palette par le jeton `--shadow-lg` au lieu d'une couleur littérale ; gestes (appui long, clavier, palette) inchangés ; feuille de style sortie du JSX dans une constante de module (`REACTION_CONTROL_CSS`) — un littéral enfant de `<style>` passerait pour une chaîne d'interface — règles inchangées ; P03 (étude social-commerce) : bouton explicite facultatif `choiceButton` qui ouvre la palette d'un simple toucher (aucun appui long obligatoire), focus rendu à son déclencheur ; P18b (A10, A11) : avec le bouton explicite (présentation « media »), la palette ne s'ouvre plus au survol ni au focus mais par un geste explicite (bouton, Entrée, Espace, flèches du bouton, appui long), le déclencheur redevient une simple bascule (`aria-pressed`, sans `aria-haspopup`, libellé `postReactionControl.toggle*`) et l'état « réagi » se dit aussi par l'icône PLEINE ; partout : Échap ferme la palette où que soit le focus, et ses quatre choix ne font qu'un arrêt de tabulation (tabindex itinérant) ; couleur des réactions (ADR-0027) : fond teinté, libellé et icône de l'action réagie lus dans `--role-react-*`, rayon `--ui2-button-radius`, valeurs d'origine en repli ; ADR-0028 : apparence « charte » de la rangée d'icônes (`appearance`) — cœur pour J'aime, aucun libellé visible (le nom reste accessible), décompte en encre atténuée, réaction posée dite par l'icône PLEINE à l'encre des réactions sans fond teinté ; le bouton explicite des quatre réactions reste au clavier, aux lecteurs d'écran et aux pointeurs fins, l'appui long suffit au doigt.
 "use client"
 
 import {
   ChevronUp,
   Handshake,
+  Heart,
   Lightbulb,
   PartyPopper,
   ThumbsUp,
@@ -31,6 +32,15 @@ const REACTION_ICONS: Record<ReactionKind, LucideIcon> = {
   instructif: Lightbulb,
 }
 
+/** Les chartes (ADR-0028) disent J'aime par un cœur ; les trois nuances gardent leur signe. */
+const CHARTE_REACTION_ICONS: Record<ReactionKind, LucideIcon> = {
+  ...REACTION_ICONS,
+  like: Heart,
+}
+
+/** L'habit du contrôle : historique, ou rangée d'icônes de la présentation « charte ». */
+export type ReactionControlAppearance = "default" | "charte"
+
 interface PostReactionControlProps {
   /** Les réactions TELLES QUE le moteur les rend (`FeedItem.reactions`). */
   reactions: {
@@ -48,6 +58,8 @@ interface PostReactionControlProps {
    * historique, inchangé.
    */
   choiceButton?: boolean
+  /** `charte` : la rangée d'icônes de l'écran des chartes (ADR-0028). Absent : inchangé. */
+  appearance?: ReactionControlAppearance
 }
 
 /**
@@ -76,6 +88,27 @@ const REACTION_CONTROL_CSS = `
           .rp-reaction-control button { transition: none; }
           .rp-reaction-palette { animation: none; }
         }
+        /* Charte (ADR-0028) : des icônes posées sur la carte, sans pastille au survol. */
+        .rp-reaction-control[data-appearance="charte"] > button:hover:not(:disabled) {
+          background: transparent !important;
+          color: var(--foreground) !important;
+        }
+        /* Au doigt, l'appui long ouvre les quatre réactions : le bouton explicite
+           quitte l'écran mais reste aux lecteurs d'écran, et reparaît au clavier. */
+        @media (pointer: coarse) {
+          .rp-reaction-control[data-appearance="charte"] .rp-reaction-choice:not(:focus-visible):not([aria-expanded="true"]) {
+            position: absolute !important;
+            width: 1px !important;
+            min-width: 0 !important;
+            height: 1px !important;
+            min-height: 0 !important;
+            margin: -1px !important;
+            padding: 0 !important;
+            overflow: hidden !important;
+            clip-path: inset(50%) !important;
+            white-space: nowrap !important;
+          }
+        }
       `
 
 /**
@@ -90,6 +123,7 @@ export function PostReactionControl({
   pending,
   onReact,
   choiceButton = false,
+  appearance = "default",
 }: PostReactionControlProps) {
   const { t } = useTranslation("reseau")
   /**
@@ -99,8 +133,11 @@ export function PostReactionControl({
    * Sans lui (présentation historique), rien ne change à l'écran.
    */
   const explicitPalette = choiceButton
+  const charte = appearance === "charte"
+  const icons = charte ? CHARTE_REACTION_ICONS : REACTION_ICONS
   /** P18b (A10) : l'état « réagi » se dit aussi par l'icône pleine, pas par la seule teinte. */
-  const filledWhenReacted = useOptionalNetwork()?.postPresentation === "media"
+  const presentation = useOptionalNetwork()?.postPresentation
+  const filledWhenReacted = charte || presentation === "media" || presentation === "charte"
   const [paletteOpen, setPaletteOpen] = useState(false)
   /** L'unique choix tabulable de la palette (tabindex itinérant) ; `null` : le choix courant. */
   const [focusedOption, setFocusedOption] = useState<number | null>(null)
@@ -120,7 +157,7 @@ export function PostReactionControl({
   const pendingFocusIndex = useRef<number | null>(null)
 
   const selectedKind = reactions.mine ?? "like"
-  const SelectedIcon = REACTION_ICONS[selectedKind]
+  const SelectedIcon = icons[selectedKind]
   const likeOption = REACTION_OPTIONS.find((option) => option.kind === "like")
   const likeLabel = likeOption ? t(likeOption.labelKey) : selectedKind
   const selectedOption = REACTION_OPTIONS.find((option) => option.kind === selectedKind)
@@ -295,6 +332,7 @@ export function PostReactionControl({
     <div
       ref={wrapperRef}
       className="rp-reaction-control"
+      data-appearance={charte ? "charte" : undefined}
       style={{ position: "relative", display: "inline-flex", minWidth: 0 }}
       onPointerEnter={(event) => {
         // Palette explicite (A11) : le survol n'ouvre plus rien.
@@ -358,45 +396,70 @@ export function PostReactionControl({
           }
           void onReact("like")
         }}
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 7,
-          minWidth: 44,
-          minHeight: 44,
-          padding: "8px 11px",
-          border: "none",
-          borderRadius: "var(--ui2-button-radius, 10px)",
-          // Couleur des réactions (ADR-0027) : fond teinté et libellé lisible ; l'icône prend l'encre.
-          background:
-            reactions.mine !== null ? "var(--role-react-soft, var(--primary-50))" : "transparent",
-          color:
-            reactions.mine !== null ? "var(--role-react-label, var(--primary-600))" : "var(--ink-600)",
-          fontFamily: "inherit",
-          fontSize: 13,
-          fontWeight: 700,
-          cursor: pending ? "progress" : "pointer",
-          touchAction: "manipulation",
-          userSelect: "none",
-          WebkitUserSelect: "none",
-        }}
+        style={
+          charte
+            ? {
+                // Charte (ADR-0028) : l'icône et son décompte, rien d'autre ;
+                // la cible garde 44 px, l'écart visuel naît du rembourrage.
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6,
+                minWidth: 44,
+                minHeight: 44,
+                padding: "0 7px",
+                border: "none",
+                borderRadius: "var(--ui2-button-radius, 10px)",
+                background: "transparent",
+                color: "var(--muted-foreground)",
+                fontFamily: "inherit",
+                fontSize: 14,
+                fontWeight: 600,
+                cursor: pending ? "progress" : "pointer",
+                touchAction: "manipulation",
+                userSelect: "none",
+                WebkitUserSelect: "none",
+              }
+            : {
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 7,
+                minWidth: 44,
+                minHeight: 44,
+                padding: "8px 11px",
+                border: "none",
+                borderRadius: "var(--ui2-button-radius, 10px)",
+                // Couleur des réactions (ADR-0027) : fond teinté et libellé lisible ; l'icône prend l'encre.
+                background:
+                  reactions.mine !== null ? "var(--role-react-soft, var(--primary-50))" : "transparent",
+                color:
+                  reactions.mine !== null ? "var(--role-react-label, var(--primary-600))" : "var(--ink-600)",
+                fontFamily: "inherit",
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: pending ? "progress" : "pointer",
+                touchAction: "manipulation",
+                userSelect: "none",
+                WebkitUserSelect: "none",
+              }
+        }
       >
         <SelectedIcon
           aria-hidden="true"
-          size={18}
+          size={charte ? 20 : 18}
           strokeWidth={2.2}
           // A10 : réagi = icône PLEINE (la teinte seule ne suffit pas, WCAG 1.4.1).
           fill={filledWhenReacted && reactions.mine !== null ? "currentColor" : "none"}
           data-reacted={reactions.mine !== null ? "true" : "false"}
           style={reactions.mine !== null ? { color: "var(--role-react-ink, currentColor)" } : undefined}
         />
-        <span>{reactions.mine ? selectedLabel : likeLabel}</span>
+        {charte ? null : <span>{reactions.mine ? selectedLabel : likeLabel}</span>}
         {reactions.total > 0 ? (
           <span
             aria-hidden="true"
             style={{
-              color: "var(--ink-500)",
+              color: charte ? "inherit" : "var(--ink-500)",
               fontWeight: 600,
               fontVariantNumeric: "tabular-nums",
             }}
@@ -410,6 +473,7 @@ export function PostReactionControl({
         <button
           ref={choiceRef}
           type="button"
+          className="rp-reaction-choice"
           disabled={pending}
           aria-haspopup="menu"
           aria-expanded={paletteOpen}
@@ -471,7 +535,7 @@ export function PostReactionControl({
           }}
         >
           {REACTION_OPTIONS.map((option, index) => {
-            const ReactionIcon = REACTION_ICONS[option.kind]
+            const ReactionIcon = icons[option.kind]
             const count = reactions.counts[option.kind]
             const label = t(option.labelKey)
             // Tabindex itinérant (A11) : un seul arrêt de tabulation pour les

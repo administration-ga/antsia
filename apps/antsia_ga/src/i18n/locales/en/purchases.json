@@ -1,6 +1,10 @@
 {
   "title": "My purchases", "lead": "Your private commitments with sellers. Order, payment, reservation, fulfillment, receipt and refund remain separate.", "detailTitle": "My purchase status", "loading": "Loading purchase…", "unavailable": "This purchase is currently unavailable.", "empty": "No purchases on this page. A preparation or payment without a confirmed order may still appear in its dedicated status page.",
   "sellerUnknown": "Seller name unavailable",
+  "announcements": {
+    "changed": "Purchase update: {{changes}}.",
+    "receiptConfirmed": "Receipt confirmed"
+  },
   "serviceRequests": { "title": "Services without online payment", "lead": "Fixed-price services and accepted quotes involve no payment here, so they are not listed among your purchases. Their follow-up (status reported by the professional, appointment, order) is in My requests.", "open": "Open My requests" },
   "open": "Open purchase", "back": "My purchases", "cart": "My cart", "preparations": "My preparations", "payment": "Payment status", "reference": "Reference: {{reference}}", "seller": "Seller: {{name}}", "amountUnknown": "Amount not confirmed", "unknown": "Information not provided", "observed": "Status observed on {{date}}", "created": "Order created on {{date}}", "refresh": "Refresh private status", "stale": "Refresh this status before making another decision.", "noSnapshot": "This commitment’s details have not been loaded yet. Explicitly request a refresh.",
   "line": "{{quantity}} × {{unit}} — {{amount}}", "fees": "Accepted fees", "total": "Order total", "fulfillment": "Collection or delivery", "locality": "Locality: {{locality}}", "leadTime": "Reported lead time: {{count}} days", "receipt": "Buyer receipt confirmation", "receiptUnknown": "No receipt confirmation provided", "receiptConfirmed": "Receipt confirmed on {{date}}", "receiptNotice": "Receipt confirmation is separate from payment and does not trigger a payout from this screen.", "settlement": "Payout status reported by the server", "settlementNotice": "These indications do not prove any movement of funds beyond the explicitly reported status. No payout operation is executed here.",

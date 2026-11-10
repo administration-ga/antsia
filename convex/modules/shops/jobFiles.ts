@@ -16,7 +16,7 @@ import { networkMutation, personMutation, personQuery } from "../../lib/function
 import { enforceRateLimit } from "../../lib/rateLimit"
 import { guardUploadUrl } from "../../lib/uploadPolicy"
 import { admitStoredUpload, assertFreshUpload } from "../files/admission"
-import { getScanStatus, withheldCodeOf } from "../files/storageGuard"
+import { getScanForStorage, getScanStatus, isServableStorage, withheldCodeOf } from "../files/storageGuard"
 import { retireApplicationFile } from "./jobApplicationLifecycle"
 import { jobAttachmentKindValidator } from "./jobTables"
 
@@ -43,7 +43,9 @@ function cleanFilename(raw: string | undefined): string | undefined {
 /** État lisible par le candidat : saine (analyse complète), en analyse, ou bloquée. */
 export async function jobFileScanOf(ctx: Pick<QueryCtx, "db">, storageId: Id<"_storage">): Promise<"clean" | "pending" | "blocked"> {
   const status = await getScanStatus(ctx, storageId)
-  if (status === "clean") return "clean"
+  const scan = await getScanForStorage(ctx, storageId)
+  if (status === "clean" && scan?.requiresFullScan === true && scan.av?.verdict === "clean" && await isServableStorage(ctx, storageId)) return "clean"
+  if (status === "clean") return "blocked"
   return withheldCodeOf(status) === "fileScanPending" ? "pending" : "blocked"
 }
 

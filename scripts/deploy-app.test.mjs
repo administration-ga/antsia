@@ -22,7 +22,7 @@ describe("catalogue réel du moteur", () => {
     const substitutions = plan.build[plan.build.indexOf("--substitutions") + 1]
     expect(substitutions).toContain("_NEXT_PUBLIC_CONVEX_URL=u")
     expect(substitutions).toContain("_NEXT_PUBLIC_DIASPORALE_DATA_SOURCE=,")
-    expect(substitutions.split(",").filter((entry) => entry.startsWith("_NEXT_PUBLIC_")).length).toBe(9)
+    expect(substitutions.split(",").filter((entry) => entry.startsWith("_NEXT_PUBLIC_")).length).toBe(11)
   })
 
   test("la mesure facultative absente reste vide, sans imposer sa configuration ni inscrire un marqueur", () => {
@@ -42,6 +42,35 @@ describe("catalogue réel du moteur", () => {
     expect(checkCatalog(catalog)).toContain("antsia_ga : variable facultative non admise NEXT_PUBLIC_CONVEX_URL")
   })
 
+  test("les options démo et chemin de base absentes restent vides dans les deux plans de build", () => {
+    const plan = buildPlan(readCatalog(), "antsia_ga", {})
+    const substitutions = plan.build[plan.build.indexOf("--substitutions") + 1].split(",")
+    for (const name of ["NEXT_PUBLIC_DEMO_ENTRY_ENABLED", "NEXT_PUBLIC_APP_BASE_PATH"]) {
+      expect(plan.dockerLocal).toContain(`${name}=`)
+      expect(substitutions).toContain(`_${name}=`)
+      expect(requiredBuildArgs(plan.app)).not.toContain(name)
+    }
+  })
+
+  test("les options démo et chemin de base fournies sont conservées dans les deux plans de build", () => {
+    const env = { NEXT_PUBLIC_DEMO_ENTRY_ENABLED: "true", NEXT_PUBLIC_APP_BASE_PATH: "/demo" }
+    const plan = buildPlan(readCatalog(), "antsia_ga", env)
+    const substitutions = plan.build[plan.build.indexOf("--substitutions") + 1].split(",")
+    for (const [name, value] of Object.entries(env)) {
+      expect(plan.dockerLocal).toContain(`${name}=${value}`)
+      expect(substitutions).toContain(`_${name}=${value}`)
+    }
+  })
+
+  test("une option inconnue reste obligatoire même déclarée facultative dans le catalogue", () => {
+    const name = "NEXT_PUBLIC_UNKNOWN_OPTION"
+    expect(requiredBuildArgs({ build_args: [name], optional_build_args: [name] })).toEqual([name])
+    const catalog = readCatalog()
+    catalog.applications.antsia_ga.build_args.push(name)
+    catalog.applications.antsia_ga.optional_build_args.push(name)
+    expect(checkCatalog(catalog)).toContain(`antsia_ga : variable facultative non admise ${name}`)
+  })
+
   test("une application externe (DIASPORALE) a son plan, avec ses propres variables", () => {
     const plan = buildPlan(readCatalog(), "diasporale_com", {})
     expect(plan.dockerLocal).toContain("DIASPORALE/apps/diasporale_com/Dockerfile")
@@ -55,9 +84,48 @@ describe("catalogue réel du moteur", () => {
   test("refuse une application inconnue", () => {
     expect(() => buildPlan(readCatalog(), "inconnue", {})).toThrow("inconnue")
   })
+
+  test("le natif possède un contrat Expo réel et refuse tout plan Cloud Run", () => {
+    const catalog = readCatalog()
+    const native = catalog.applications.antsia_mobile
+    expect(native.platform).toBe("expo-native")
+    expect(native.platforms).toEqual(["ios", "android"])
+    expect(native.config).toBe("app.config.ts")
+    expect(native.entry).toBe("index.ts")
+    expect(native.public_env).toContain("EXPO_PUBLIC_CONVEX_URL")
+    expect(native.config_env).toContain("NATIVE_IOS_BUNDLE_ID")
+    for (const field of ["service", "dockerfile", "site_url", "dev_port", "build_args"]) expect(native[field]).toBeUndefined()
+    expect(() => buildPlan(catalog, "antsia_mobile", {})).toThrow("Publication native non raccordée")
+  })
+
+  test("une plateforme inconnue ne contourne ni le contrôle ni le plan web", () => {
+    const catalog = readCatalog()
+    catalog.applications.antsia_ga.platform = "inconnue"
+    expect(checkCatalog(catalog)).toContain("antsia_ga : plateforme inconnue inconnue")
+    expect(() => buildPlan(catalog, "antsia_ga", {})).toThrow("Plateforme inconnue")
+  })
 })
 
 describe("contrôle d'un catalogue", () => {
+  test("détecte un contrat natif incomplet ou déguisé en service web", () => {
+    const catalog = readCatalog()
+    const native = catalog.applications.antsia_mobile
+    native.platforms = ["web"]
+    native.config = "absent.config.ts"
+    native.entry = "absent.ts"
+    native.public_env.push("NATIVE_PRIVATE_VALUE")
+    native.config_env.push("EXPO_PUBLIC_PRIVATE_VALUE")
+    native.dockerfile = "ANTSIA/apps/antsia_ga/Dockerfile"
+    const problems = checkCatalog(catalog)
+    expect(problems).toContain("antsia_mobile : plateformes natives attendues : ios et android")
+    expect(problems).toContain("antsia_mobile : config natif introuvable")
+    expect(problems).toContain("antsia_mobile : entry natif introuvable")
+    expect(problems).toContain("antsia_mobile : le point d'entrée ne correspond pas au manifeste")
+    expect(problems).toContain("antsia_mobile : public_env natif invalide")
+    expect(problems).toContain("antsia_mobile : config_env natif invalide")
+    expect(problems).toContain("antsia_mobile : champ web « dockerfile » interdit au natif")
+  })
+
   test("détecte un ARG manquant, un port faux et une liste blanche absente", () => {
     const ecosystems = mkdtempSync(join(tmpdir(), "catalogue-"))
     const root = join(ecosystems, "ANTSIA")

@@ -4,6 +4,21 @@
     "description": "{{brand}} réunit les réseaux de l'écosystème numérique gabonais dans un réseau public où chacun sait à qui il parle."
   },
   "skipToContent": "Aller au contenu",
+  "demoIntegration": {
+    "title": "Mode démo",
+    "lead": "Comptes et contenus fictifs, partagés entre les visiteurs. Votre compte ANTSIA reste séparé.",
+    "entry": "Comptes démo",
+    "back": "Retour à la connexion",
+    "dismiss": "Fermer l’information de démo",
+    "signOut": "Se déconnecter",
+    "signingOut": "Déconnexion…",
+    "signOutFailed": "La déconnexion n’a pas abouti. Réessayez.",
+    "frameTitle": "ANTSIA — comptes et réseau de démonstration isolés",
+    "loading": "Chargement de la démo…",
+    "delayed": "La démo met plus de temps à répondre. Vous pouvez patienter ou réessayer.",
+    "retry": "Réessayer",
+    "unavailable": "La démo est momentanément indisponible. Vous pouvez revenir à la connexion."
+  },
   "home": {
     "eyebrow": "En construction",
     "title": "{{brand}}, le réseau social public gabonais",
@@ -17,7 +32,7 @@
     "status": "Le service ouvrira par étapes. Cette version de développement permet déjà d'entrer, de choisir son identifiant, de publier et de réagir.",
     "healthLink": "État du service",
     "enter": "Entrer",
-    "goToFeed": "Aller au fil"
+    "goToFeed": "Aller à l'accueil"
   },
   "health": {
     "title": "État du service",
@@ -36,10 +51,10 @@
     "checking": "Vérification de votre session…"
   },
   "nav": {
-    "feed": "Fil",
+    "feed": "Accueil",
     "signOut": "Se déconnecter",
     "home": "Accueil",
-    "messages": "Messages",
+    "messages": "iCom",
     "myProfile": "Mon profil",
     "label": "Navigation du réseau",
     "sessionTools": "Notifications, identité et session"
@@ -52,7 +67,7 @@
     "accountTitle": "Compte et données",
     "profile": "Voir mon profil public",
     "profileHint": "Ce que les membres voient de vous : publications, albums et relations.",
-    "storiesHint": "Vos actus et celles de votre réseau, en plein écran.",
+    "storiesHint": "Vos stories et celles de votre réseau, en plein écran.",
     "feedPreferencesHint": "Les publications masquées et les auteurs mis en sourdine, à réafficher quand vous voulez.",
     "settingsHint": "Affichage, thème, motif de fond, langue et fuseau horaire.",
     "moderationHint": "Les files de modération, pour les équipes habilitées.",
@@ -87,6 +102,8 @@
   "welcome": {
     "title": "Bienvenue sur {{brand}}",
     "lead": "Choisissez comment les membres vous verront. Rien n'est publié sans vous.",
+    "previewTitle": "Aperçu du profil",
+    "previewLead": "Vérifiez votre nom affiché et votre identifiant avant de rejoindre le réseau.",
     "displayNameLabel": "Nom affiché",
     "displayNameHint": "Le nom que les membres verront. Il n'est recopié d'aucun registre.",
     "handleLabel": "Identifiant public",
@@ -106,7 +123,7 @@
     "invalidTimeZone": "Saisissez un fuseau horaire valable."
   },
   "feed": {
-    "title": "Le fil"
+    "title": "Accueil"
   },
   "feedPreferences": {
     "title": "Mon fil",
@@ -127,7 +144,7 @@
     "generic": "Une erreur est survenue. Réessayez."
   },
   "messages": {
-    "title": "Messages"
+    "title": "iCom"
   },
   "notificationOpen": {
     "title": "Ouvrir une notification",
@@ -137,7 +154,7 @@
     "fallback": "Voir mes notifications"
   },
   "stories": {
-    "title": "Statuts"
+    "title": "Stories"
   },
   "profile": {
     "title": "Profil de @{{handle}}"
@@ -163,7 +180,7 @@
   "personal": {
     "title": "Mes données et mes recours",
     "lead": "Consultez les décisions qui vous concernent et gardez la main sur vos données.",
-    "home": "Retour au fil",
+    "home": "Retour à l'accueil",
     "exportTitle": "Exporter mes données",
     "exportLead": "Un fichier personnel contient vos informations et contenus. Les clés de connexion et de notification en sont exclues.",
     "export": "Télécharger mon export",
@@ -171,7 +188,7 @@
     "exportDone": "Votre export personnel est prêt.",
     "error": "Cette opération n’a pas abouti. Vous pouvez réessayer.",
     "eraseTitle": "Demander l’effacement de mon compte",
-    "eraseLead": "Vos contenus, relations et fichiers seront effacés après 30 jours. Vous pouvez annuler pendant ce délai. Les citations conservées deviennent anonymes.",
+    "eraseLead": "L’effacement de vos données sociales est programmé après un délai d’annulation de 30 jours. Les citations conservées deviennent anonymes. Les engagements et copies transactionnelles chez les professionnels suivent un traitement distinct.",
     "confirmWord": "SUPPRIMER",
     "confirmLabel": "Saisissez {{word}} pour confirmer",
     "confirmError": "La confirmation ne correspond pas.",
@@ -181,6 +198,19 @@
     "eraseCancelled": "Votre demande a été annulée.",
     "decisionsTitle": "Mes décisions de modération",
     "noDecisions": "Aucune décision vous concernant.",
+    "reportsTitle": "Mes signalements",
+    "reportsLead": "Les signalements que vous avez transmis : accusé de réception, échéance légale et décision. L’auteur ne connaît pas votre identité.",
+    "noReports": "Vous n’avez transmis aucun signalement.",
+    "reportedOn": "Transmis le {{date}}",
+    "reportAcknowledgedOn": "Accusé de réception le {{date}}",
+    "reportDueBy": "Échéance légale : {{date}}",
+    "reportDecidedOn": "Décision le {{date}}",
+    "reportOutcomes": {
+      "pending": "En cours d’examen",
+      "removed": "Contenu retiré",
+      "actioned": "Mesure prise, contenu maintenu",
+      "dismissed": "Aucun manquement retenu"
+    },
     "appeal": "Faire recours",
     "appealLabel": "Motif de votre recours",
     "appealHint": "Expliquez votre demande en 10 à 500 caractères.",
@@ -225,12 +255,17 @@
     "eraseBookingsMany": "Vous avez au moins {{count}} rendez-vous à venir chez des professionnels. L’effacement de votre compte ne les annule pas chez eux ; annulez-les d’abord depuis Mes demandes.",
     "eraseBookingsLink": "Ouvrir Mes demandes",
     "pageDecisionsTitle": "Décisions visant mes pages",
-    "pageDecisionsLead": "Un contenu porté par une page que vous représentez (offre, poste, réponse, évènement) peut être retiré par la modération. Un signataire actif de la page peut faire recours en son nom.",
+    "pageDecisionsLead": "Un contenu porté par une page que vous représentez (offre, poste, réponse, événement) peut être retiré par la modération. Un signataire actif de la page peut faire recours en son nom.",
     "pageDecisionsEmpty": "Aucune décision ne vise cette page.",
-    "pageDecisionsUnavailable": "Les décisions de cette page ne sont pas accessibles pour le moment."
+    "pageDecisionsUnavailable": "Les décisions de cette page ne sont pas accessibles pour le moment.",
+    "eraseCommerce": "L’effacement ANTSIA n’annule ni ne rembourse vos rendez-vous, commandes ou paiements. Il ne confirme pas l’effacement des copies chez PRO.GA ou les professionnels. La conservation des factures, preuves et autres données transactionnelles suit un traitement distinct, dont les règles restent à valider.",
+    "eraseBookingsUnknown": "Le nombre de rendez-vous à venir n’est pas établi. Une lecture indisponible ne signifie pas qu’il n’en existe aucun. Consultez vos demandes et engagements avant de décider.",
+    "eraseBookingsNone": "Aucun rendez-vous à venir n’a été identifié dans les demandes consultées. Ce décompte ne couvre pas vos commandes ni vos paiements.",
+    "eraseBookingsEmptyWindow": "Aucun rendez-vous à venir n’a été identifié dans la fenêtre consultée. D’autres demandes peuvent ne pas être couvertes.",
+    "erasePurchasesLink": "Ouvrir Mes achats"
   },
   "settings": {
-    "title": "Paramètres",
+    "title": "Réglages",
     "lead": "Réglez l’affichage d’{{brand}}, sa langue et votre fuseau horaire.",
     "displayTitle": "Affichage",
     "displayLead": "Votre thème est enregistré sur votre compte et vous suit sur vos autres appareils. L’apparence et le motif de fond restent propres à cet appareil.",
@@ -259,13 +294,34 @@
       "hintDevice": "Chaque thème a trois couleurs, chacune pour une famille d’actions : publier, suivre et écrire, réagir et participer. Les fonds restent clairs ou sombres selon l’apparence. Le changement est immédiat et conservé pour ce réseau sur cet appareil.",
       "saveFailed": "Le thème n’a pas pu être enregistré sur votre compte. {{reason}}",
       "options": {
-        "gaboma": { "name": "Gaboma", "description": "Vert, jaune et bleu du drapeau. Le thème du réseau." },
-        "soleil": { "name": "Soleil", "description": "Mandarine, azur et coquelicot." },
-        "foret": { "name": "Forêt", "description": "Vert forêt, olive et miel." },
-        "corail": { "name": "Corail", "description": "Rose corail, mandarine et lilas." },
-        "lagon": { "name": "Lagon", "description": "Turquoise, corail et jaune de Naples." },
-        "electrique": { "name": "Électrique", "description": "Bleu, rose et citron vert." },
-        "sable": { "name": "Sable", "description": "Bleu Gabon, sarcelle et sable doré. Le thème de DIASPORALE." }
+        "gaboma": {
+          "name": "Gaboma",
+          "description": "Vert, jaune et bleu du drapeau. Le thème du réseau."
+        },
+        "soleil": {
+          "name": "Soleil",
+          "description": "Mandarine, azur et coquelicot."
+        },
+        "foret": {
+          "name": "Forêt",
+          "description": "Vert forêt, olive et miel."
+        },
+        "corail": {
+          "name": "Corail",
+          "description": "Rose corail, mandarine et lilas."
+        },
+        "lagon": {
+          "name": "Lagon",
+          "description": "Turquoise, corail et jaune de Naples."
+        },
+        "electrique": {
+          "name": "Électrique",
+          "description": "Bleu, rose et citron vert."
+        },
+        "sable": {
+          "name": "Sable",
+          "description": "Bleu Gabon, sarcelle et sable doré. Le thème de DIASPORALE."
+        }
       }
     },
     "motif": {
@@ -342,7 +398,7 @@
     "newHere": "Vous découvrez {{brand}} ?",
     "accountPromise": "Votre profil, vos publications, vos communautés.",
     "existingAccount": "J’ai déjà un compte : me connecter",
-    "discover": "Découvrir les publications publiques",
+    "discover": "Explorer les publications publiques",
     "footer": "Informations et langues",
     "about": "À propos",
     "signature": "{{brand}} · Le réseau social public gabonais",
@@ -354,6 +410,7 @@
   "demo": {
     "title": "Comptes de démonstration",
     "lead": "Développement local seulement : chaque compte entre par le vrai code à usage unique, lu ici pour vous, puis l’accueil se remplit tout seul.",
+    "leadShared": "Site de démonstration : comptes et contenus fictifs, partagés par tous les visiteurs. Un appui vous connecte par le vrai code à usage unique, lu ici pour vous, puis l’accueil se remplit tout seul.",
     "signingIn": "Connexion en cours…",
     "ready": "Compte de démonstration prêt : {{name}}.",
     "failed": "La connexion de démonstration n’a pas abouti. Réessayez dans quelques instants.",
@@ -391,5 +448,13 @@
         "description": "Modératrice du réseau."
       }
     }
+  },
+  "account": {
+    "menu": "Mon compte",
+    "appearance": "Apparence"
+  },
+  "carousel": {
+    "previous": "Défiler vers la gauche",
+    "next": "Défiler vers la droite"
   }
 }

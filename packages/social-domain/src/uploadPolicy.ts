@@ -64,6 +64,8 @@ export const UPLOAD_USAGES = {
   page_banner: { mimeTypes: IMAGES, maxBytes: 10 * MO },
   /** Pièce d'une revendication de page (statuts, récépissé, mandat) : document ou photo. */
   page_claim_evidence: { mimeTypes: [...PDF, ...IMAGES], maxBytes: 10 * MO },
+  /** MP12 : illustration éditoriale, sans GIF, SVG ni vidéo. */
+  editorial_image: { mimeTypes: IMAGES, maxBytes: 8 * MO },
   /** Photo d'un album. */
   album_image: { mimeTypes: [...IMAGES, ...GIF, ...PHOTOS_IPHONE], maxBytes: 20 * MO },
   /** Média d'une story : la borne vidéo la plus stricte du socle (50 Mo). */

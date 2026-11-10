@@ -1,4 +1,6 @@
 import { BRAND_NAME } from "@antsia/social-contracts/brand"
+import type { PublicLegalDeadlines } from "@antsia/social-contracts/publicNetwork"
+import { REPORT_DEADLINES_ORDINANCE, reportDecisionDelayHours } from "@antsia/social-domain/moderation"
 import { GABON_PROVINCES, isProvinceSlug } from "@antsia/social-domain/provinces"
 import Image from "next/image"
 import Link from "next/link"
@@ -6,7 +8,7 @@ import { notFound } from "next/navigation"
 
 import { AccessHomeScreen } from "@/components/access-home-screen"
 import { getAppT } from "@/i18n/server"
-import { loadOfficialPage, loadOfficialPagePosts, loadPublicPost, loadPublicPosts, loadPublicProfile, loadPublicSnapshot, loadPublicTransparency, publicMetadata, publicSearch } from "@/lib/public-data"
+import { loadOfficialPage, loadOfficialPagePosts, loadPublicPost, loadPublicPosts, loadPublicProfile, loadPublicSnapshot, loadPublicTransparency, loadPublicTransparencyDeadlines, publicMetadata, publicSearch } from "@/lib/public-data"
 import { decodeRouteSegment } from "@/lib/route-params"
 import { routes } from "@/lib/routes"
 import { getPublicLocale } from "@/lib/server-session"
@@ -114,12 +116,12 @@ export async function ProfileScreen(props: PublicDynamicProps<"publicHandle">) {
   const { t: tApp } = getAppT(locale)
   const affiliation = result.data.publicAgent
   return <PublicShell viewer={result.viewer}>
-    <article className="mx-auto max-w-3xl rounded-2xl border border-border bg-card p-6 sm:p-10">
+    <article className="mx-auto max-w-3xl rounded-[var(--ui2-card-radius)] border border-[color:var(--esp-surface-border)] bg-card p-4">
       <p className="mb-6 text-sm font-medium text-primary">{t("profile.public")}</p>
       <PublicIdentity author={{ kind: "person", handle: result.data.handle, displayName: result.data.displayName, avatarUrl: result.data.avatarUrl, badges: result.data.badges }} locale={locale} />
       <h1 className="mt-6 break-words text-3xl font-semibold">{result.data.displayName}</h1>
       {result.data.headline ? <p className="mt-3 whitespace-pre-wrap break-words text-muted-foreground">{result.data.headline}</p> : null}
-      {affiliation ? <section aria-labelledby="public-agent-title" className="mt-6 rounded-xl border border-border p-4">
+      {affiliation ? <section aria-labelledby="public-agent-title" className="mt-6 rounded-[var(--ui2-card-radius)] border border-border p-4">
         <h2 id="public-agent-title" className="text-lg font-semibold">{tApp("publicAgent.affiliationTitle")}</h2>
         <p className="mt-2 text-sm text-muted-foreground">{tApp("publicAgent.publicExplanation")}</p>
         <dl className="mt-3 grid gap-3 text-sm">
@@ -147,7 +149,7 @@ export async function PageScreen(props: PublicDynamicProps<"handle">) {
   if (result.status !== "ready") return <PublicShell viewer={result.status}><PublicStatus status={result.status} locale={locale} /></PublicShell>
   if (!result.data) notFound()
   const page = result.data, posts = await loadOfficialPagePosts(page.handle, search.cursor, search.handoff)
-  return <PublicShell viewer={result.viewer}><div className="mx-auto max-w-3xl"><header className="mb-7 overflow-hidden rounded-2xl border border-border bg-card">{page.bannerUrl ? <Image unoptimized src={page.bannerUrl} width={1200} height={400} alt="" loading="lazy" className="max-h-60 w-full object-cover" /> : null}<div className="p-6"><PublicIdentity author={{ kind: "page", handle: page.handle, displayName: page.name, avatarUrl: page.logoUrl, badges: [page.badge] }} locale={locale} /><h1 className="mt-5 break-words text-3xl font-semibold">{page.name}</h1>{page.description ? <p className="mt-3 whitespace-pre-wrap break-words text-muted-foreground">{page.description}</p> : null}<p className="mt-4 text-xs text-muted-foreground">{t("post.origin", { name: page.origin.name })}</p><Link href={routes.page(page.handle)} prefetch={false} className={`${PUBLIC_LINK} mt-4`}>{t("page.member")}</Link></div></header><PublicFeed result={posts} locale={locale} base={routes.officialPage(page.handle)} /></div></PublicShell>
+  return <PublicShell viewer={result.viewer}><div className="mx-auto max-w-3xl"><header className="mb-7 overflow-hidden rounded-[var(--ui2-card-radius)] border border-[color:var(--esp-surface-border)] bg-card">{page.bannerUrl ? <div className="p-4 pb-0"><Image unoptimized src={page.bannerUrl} width={1200} height={400} alt="" loading="lazy" className="max-h-60 w-full rounded-[var(--esp-media-radius)] object-cover" /></div> : null}<div className="p-4"><PublicIdentity author={{ kind: "page", handle: page.handle, displayName: page.name, avatarUrl: page.logoUrl, badges: [page.badge] }} locale={locale} /><h1 className="mt-5 break-words text-3xl font-semibold">{page.name}</h1>{page.description ? <p className="mt-3 whitespace-pre-wrap break-words text-muted-foreground">{page.description}</p> : null}<p className="mt-4 text-xs text-muted-foreground">{t("post.origin", { name: page.origin.name })}</p><Link href={routes.page(page.handle)} prefetch={false} className={`${PUBLIC_LINK} mt-4`}>{t("page.member")}</Link></div></header><PublicFeed result={posts} locale={locale} base={routes.officialPage(page.handle)} /></div></PublicShell>
 }
 
 export async function PostMetadata(props: PublicDynamicProps<"id">) {
@@ -171,9 +173,20 @@ export async function TransparencyMetadata(props: PublicPageProps) {
   return publicMetadata(t("transparency.title"), t("transparency.lead"), routes.transparency(), result.status === "ready")
 }
 export async function TransparencyScreen(props: PublicPageProps) {
-  const locale = await getPublicLocale(), t = getPublicT(locale), result = await loadPublicTransparency((await searchOf(props)).handoff)
+  const locale = await getPublicLocale(), t = getPublicT(locale), { handoff } = await searchOf(props)
+  const [result, deadlines] = await Promise.all([loadPublicTransparency(handoff), loadPublicTransparencyDeadlines(handoff)])
   if (result.status === "handoff") return <PublicShell viewer="handoff"><PublicStatus status="handoff" locale={locale} /></PublicShell>
-  return <PublicShell viewer={result.status === "ready" ? result.viewer : result.status}><div className="mx-auto max-w-3xl"><header className="mb-7"><h1 className="text-4xl font-semibold">{t("transparency.title")}</h1><p className="mt-4 leading-relaxed text-muted-foreground">{t("transparency.lead")}</p></header>{result.status !== "ready" ? <PublicStatus status={result.status} locale={locale} headingLevel={2} /> : <><p className="mb-5 rounded-xl bg-muted p-4 text-sm text-muted-foreground">{t("transparency.threshold", { count: result.data.threshold })}</p>{result.data.periods.length ? <ul className="divide-y divide-border rounded-2xl border border-border bg-card px-5">{result.data.periods.map((period) => <li key={period.periodStart} className="flex flex-wrap items-center justify-between gap-4 py-5"><p>{t("transparency.period", { start: publicDate(period.periodStart, locale), end: publicDate(period.periodEnd, locale) })}</p><p className="font-medium tabular-nums">{period.cases === null ? t("transparency.suppressed") : t("transparency.cases", { count: period.cases })}</p></li>)}</ul> : <p role="status" className="rounded-xl border border-dashed border-border p-6 text-muted-foreground">{t("transparency.empty")}</p>}</>}</div></PublicShell>
+  // SU01d : les échéances légales se lisent à part ; indisponibles, la page garde ses totaux.
+  const legal = deadlines.status === "ready" ? deadlines.data : null, legalOf = new Map(legal?.periods.map((period) => [period.periodStart, period.legal]) ?? [])
+  return <PublicShell viewer={result.status === "ready" ? result.viewer : result.status}><div className="mx-auto max-w-3xl"><header className="mb-7"><h1 className="text-4xl font-semibold">{t("transparency.title")}</h1><p className="mt-4 leading-relaxed text-muted-foreground">{t("transparency.lead")}</p></header>{result.status !== "ready" ? <PublicStatus status={result.status} locale={locale} headingLevel={2} /> : <><p className="mb-5 rounded-[var(--ui2-card-radius)] bg-muted p-4 text-sm text-muted-foreground">{t("transparency.threshold", { count: result.data.threshold })}</p>{legal ? <p className="mb-5 rounded-[var(--ui2-card-radius)] bg-muted p-4 text-sm text-muted-foreground">{t("transparency.legalLead", { ordinance: REPORT_DEADLINES_ORDINANCE, decisionHours: reportDecisionDelayHours("art24"), removalHours: reportDecisionDelayHours("art33"), count: legal.threshold })}</p> : null}{result.data.periods.length ? <ul className="divide-y divide-border rounded-[var(--ui2-card-radius)] border border-[color:var(--esp-surface-border)] bg-card p-4 ">{result.data.periods.map((period) => <li key={period.periodStart} className="flex flex-wrap items-center justify-between gap-4 py-5"><p>{t("transparency.period", { start: publicDate(period.periodStart, locale), end: publicDate(period.periodEnd, locale) })}</p><p className="font-medium tabular-nums">{period.cases === null ? t("transparency.suppressed") : t("transparency.cases", { count: period.cases })}</p>{legal ? <TransparencyLegal legal={legalOf.get(period.periodStart) ?? null} threshold={legal.threshold} t={t} /> : null}</li>)}</ul> : <p role="status" className="rounded-[var(--ui2-card-radius)] border border-dashed border-border p-4 text-muted-foreground">{t("transparency.empty")}</p>}</>}</div></PublicShell>
+}
+
+/** SU01d — les échéances légales d'une période : chaque nombre, ou « moins de » sous le seuil ; rien quand la période ne les publie pas. */
+function TransparencyLegal({ legal, threshold, t }: { legal: PublicLegalDeadlines | null; threshold: number; t: ReturnType<typeof getPublicT> }) {
+  if (!legal) return null
+  const met = legal.met === null ? t("transparency.legalMetFew", { threshold }) : t("transparency.legalMet", { value: legal.met })
+  const missed = legal.missed === null ? t("transparency.legalMissedFew", { threshold }) : t("transparency.legalMissed", { value: legal.missed })
+  return <p className="basis-full text-sm text-muted-foreground">{t("transparency.legalLine", { met, missed })}</p>
 }
 
 export function legalMetadata(kind: "about" | "legal" | "privacy", path: string) {

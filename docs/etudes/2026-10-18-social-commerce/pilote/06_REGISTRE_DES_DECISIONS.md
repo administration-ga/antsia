@@ -1,5 +1,42 @@
 # 06 — Registre consolidé des décisions du propriétaire
 
+## Addendum du 20 octobre 2026 — état des décisions, sans nouvel arbitrage
+
+La poursuite P17d/P18/P19 sans vérifications est autorisée dans le
+[plan de reprise](../rapports/P17D_P18_P19_PLAN_REPRISE_2026-10-20.md). Elle n’autorise ni
+activation, ni collecte utilisateur, ni publication. Le total de 39 décisions/7 prérequis
+ci-dessous décrit le registre du 19 octobre, sans recomptage ni fermeture artificielle.
+
+| Référence historique | État ou choix de source désormais documenté | Ce qui n’est toujours pas acquis |
+|---|---|---|
+| DP-01 / DP-02 | L’enchaînement des lots documentaires est autorisé ; la suspension des vérifications reste en vigueur | Gel, tests, recette, choix du périmètre d’un pilote réel et décision GO |
+| DP-04 / DP-05 | P16 ferme l’automatisation ; une ancienne valeur `auto_verified` se lit en revue | Politique de secteurs/admission validée ; aucune ouverture par ancienne configuration |
+| DP-17 / DP-18 | Conservation et export/effacement général PRO.GA toujours dépendances ; les obligations historiques et les purges en attente sont préservées | Pas de durée légale ou protocole interproduits décidé par cette reprise |
+| DP-26 / DP-27 | `apps/antsia_mobile` et paquet `social-native` réalisés en source ; Expo 57.0.17 / RN 0.86.3 / React 19.2.7 déclarés dans P17b | Installation/lockfile, compatibilité et binaires non prouvés ; pas de migration Expo 58 décidée ici |
+| DP-28 | P17b/c écrits à partir des API/contrats et documents officiels, sans duplication native d’un autre produit | Aucune autorisation générale de copier un autre produit ou ses identifiants |
+| DP-29 / DP-33 | Préservation DIASPORALE et identités configurables prévues | Ni priorité de livraison DIASPORALE ni bundle/package/schéma propriétaire fournis ou validés par ce dossier |
+| DP-30 | Chaîne source CallKit avant JS ; Android Core-Telecom/CallStyle/FCM data ; aucune annulation par second push VoIP | Compilation, réception et fin réelle des captures à éprouver dans P17d |
+| DP-31 | Budget social hebdomadaire historique conservé | Plafond d’appels distinct toujours non tranché ; aucun budget mesuré |
+| DP-32 | SecureStore reste `WHEN_UNLOCKED_THIS_DEVICE_ONLY` ; pas de passage à `AFTER_FIRST_UNLOCK` | Réponse authentifiée verrouillée, froid et arrêt forcé non prouvés ; aucune exception de session |
+| DP-34 | Reprises P14/P15/P16 relisent la vraie preuve de session ; les transports relus utilisent leur date d'autorisation, aucun job ne fabrique une authentification récente | Scénarios et transport toujours non exécutés dans cette reprise |
+| DP-39 | La suite P19 choisit un signal privé neutre de relecture, contrat/profil dédiés, corrélé à un engagement existant ; aucun état métier importé | Raccords source décrits dans le [rapport dédié](../rapports/P19_AVIS_SERVICES_2026-10-20.md), pas de configuration ni recette ; réception sur appareil non prouvée |
+| DP-37 / K-19 / K-20 | Consoles et relance auditée de lettre morte décrites par les finitions en source | Ces portes ne sont ni testées ni autorisées à activer un registre P16 fermé |
+| PR-01 à PR-07 | Prérequis repris dans le [bilan actuel](../rapports/P19_REPRISE_2026-10-20.md) | Configuration, appareils, participants, responsabilités et moyens non fournis par cette reprise ; mesures machine anciennes non renouvelées |
+
+Les gates de services, candidatures et copie CV ajoutés par P16 restent fermés. Aucun participant,
+responsable nominatif, fournisseur, taux financier ou seuil de performance n’est choisi ici.
+Le [dossier P17d](../../../recette/antsia-native-p17d/README.md) est la référence de préparation
+physique ; sa présence seule ne clôt aucune décision de cette table.
+
+La demande d'enchaîner les correctifs autorise ce choix technique de signal privé. Elle ne vaut
+ni validation juridique d'une conservation, ni ouverture commerciale, ni autorisation d'exécuter
+la procédure de vérification. K-12/AC03 et K-16/AC08 ont leur correctif source dans le
+[bilan P19 complémentaire](../rapports/P19_CORRECTIFS_AUTOMATIQUES_2026-10-20.md) ; la reprise
+CV ajoute son admission durable en conservant le gate fermé. Les anciennes lignes DP/K restent
+historiques et les décisions qui dépendent de preuves réelles ne sont pas déclarées closes.
+
+## Registre historique du 19 octobre (conservé)
+
 19 octobre 2026, lot P19. Registre dédupliqué à partir de 00 §8, des rapports P00 à P18A et P14B, de
 EXECUTION.md, du contrat CONVERSATION-CONTEXTUELLE-V1, des ADR 0017 à 0025 et des passations PRO.GA
 docs/18 à 26. Quand plusieurs rapports posent la même question, elle n'a qu'une ligne, avec toutes

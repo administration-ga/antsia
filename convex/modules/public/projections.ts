@@ -1,6 +1,6 @@
 /** PA8 : portes anonymes nominatives, projections allowlistées et pagination brute. */
-import type { PublicNetworkSnapshot, PublicPagination, PublicPost, PublicTransparency } from "@antsia/social-contracts/publicNetwork"
-import { TRANSPARENCY_MIN_CASES } from "@antsia/social-domain/moderationPolicy"
+import type { PublicNetworkSnapshot, PublicPagination, PublicPost, PublicTransparency, PublicTransparencyDeadlines } from "@antsia/social-contracts/publicNetwork"
+import { legalDeadlineDisclosure, TRANSPARENCY_MIN_CASES } from "@antsia/social-domain/moderationPolicy"
 import { PROVINCE_SLUGS } from "@antsia/social-domain/provinces"
 import { paginationOptsValidator } from "convex/server"
 import { v } from "convex/values"
@@ -8,7 +8,7 @@ import { v } from "convex/values"
 import { query } from "../../_generated/server"
 import { literals } from "../../lib/validators"
 import { originDto, publicContext, publicPageByHandle, publicPageDto, publicPostDto, publicPostEligible, publicProfileByHandle } from "./access"
-import { publicPageValidator, publicPostPageValidator, publicPostValidator, publicProfileValidator, publicSnapshotValidator, publicTransparencyValidator } from "./validators"
+import { publicPageValidator, publicPostPageValidator, publicPostValidator, publicProfileValidator, publicSnapshotValidator, publicTransparencyDeadlinesValidator, publicTransparencyValidator } from "./validators"
 
 const PUBLIC_PAGE_MAX = 20
 const DAY_MS = 86_400_000
@@ -104,6 +104,26 @@ export const transparency = query({
       const row = await ctx.db.query("moderationTransparency").withIndex("by_network_period", (q) => q.eq("networkId", root._id).eq("periodStart", periodStart)).unique()
       const disclosed = row && row.periodEnd === periodStart + DAY_MS && row.generatedAt <= Date.now() && row.cases >= TRANSPARENCY_MIN_CASES && row.distinctAuthors >= TRANSPARENCY_MIN_CASES
       periods.push({ periodStart, periodEnd: periodStart + DAY_MS, cases: disclosed ? row.cases : null })
+    }
+    return { threshold: TRANSPARENCY_MIN_CASES, periods }
+  },
+})
+
+/**
+ * @publicProjection SU01d : échéances légales tenues ou manquées des douze périodes closes, base et petites cohortes absentes.
+ * Une projection à part : la forme de `transparency` reste celle que lisent les écrans déjà publiés.
+ */
+export const transparencyDeadlines = query({
+  args: { networkId: v.id("networks") }, returns: publicTransparencyDeadlinesValidator,
+  handler: async (ctx, args): Promise<PublicTransparencyDeadlines> => {
+    const { root } = await publicContext(ctx, args.networkId)
+    const cutoff = Math.floor(Date.now() / DAY_MS) * DAY_MS
+    const periods: PublicTransparencyDeadlines["periods"] = []
+    for (let n = 1; n <= RECENT_PERIODS; n++) {
+      const periodStart = cutoff - n * DAY_MS
+      const row = await ctx.db.query("moderationTransparency").withIndex("by_network_period", (q) => q.eq("networkId", root._id).eq("periodStart", periodStart)).unique()
+      const legal = row && row.periodEnd === periodStart + DAY_MS && row.generatedAt <= Date.now() ? legalDeadlineDisclosure(row) : null
+      periods.push({ periodStart, periodEnd: periodStart + DAY_MS, legal })
     }
     return { threshold: TRANSPARENCY_MIN_CASES, periods }
   },

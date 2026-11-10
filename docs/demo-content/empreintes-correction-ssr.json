@@ -1,0 +1,26 @@
+[
+  {
+    "path": "apps/antsia_ga/src/lib/public-catalog-data.ts",
+    "sha256": "97b93f49023189c8c860874b2ddd1868f5453e3700e2e7d1c8a672945eeaf8cf"
+  },
+  {
+    "path": "apps/antsia_ga/src/lib/public-catalog-data.test.ts",
+    "sha256": "0281c6c91072e3c75ef19ef716a0c4bd549a39a58d763a97b888255095d06c4e"
+  },
+  {
+    "path": "apps/antsia_ga/src/lib/catalog-search.ts",
+    "sha256": "ce98508a0c12be6ca4cf6faa987781b03901c6c31df288111190971fbd276d61"
+  },
+  {
+    "path": "apps/antsia_ga/src/lib/catalog-search.test.ts",
+    "sha256": "f794c9d6918e0ac782dc4caa95ed2bbf97932f56b5f50570f2d5d82d45baac38"
+  },
+  {
+    "path": "apps/antsia_ga/src/lib/demo-catalog-projection.ts",
+    "sha256": "1fbef2f9e41d7f94d9a6ae2e9c9a73a5e84d6b7801afee5844d106f0294d285a"
+  },
+  {
+    "path": "apps/antsia_ga/src/lib/demo-catalog-projection.test.ts",
+    "sha256": "4455ce2c8d48d5ba5b4d17433fa801c0cc5187abeafa54f415e93862ee8161d0"
+  }
+]

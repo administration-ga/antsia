@@ -4,6 +4,57 @@ Demande du propriétaire, 18/10/2026 : « Implémente en utilisant des agents si
 coordonnés ». Ce fichier est la **table de réservation** des lots en cours : qui écrit quoi,
 quels fichiers sont interdits, quel est l'état prouvé. Il est tenu par le coordinateur seul.
 
+## Correctifs P19 automatiques — 20 octobre 2026, sources raccordées
+
+Demande : poursuivre les correctifs ouverts, puis leurs suites, sans nouvel accord et sans
+relancer les vérifications. Les écritures restent dans les sources réellement utilisées ;
+aucun gel, contrôle, serveur, recette, installation, activation ou publication n'est autorisé
+par cette reprise. Repères relus : ANTSIA `c4d36f3`, PRO.GA `fa349ea`, arbres partagés non gelés.
+
+| Responsable | Réservation précise | Limites |
+|---|---|---|
+| `etat_boutiques` | K-12/AC03 : `purchase-card.tsx`, `my-applications-screen.tsx`, petit hook d'annonce et scénarios locaux | Pas de garde métier/session modifiée ; aucun contrôle exécuté |
+| `relais_claude` | CV : `commerceApplicationFiles.ts`, `commerceApplications.ts`, `commerceJobTables.ts`, nouveau staging et scénarios dans PRO.GA | Admission durable, récupération des seuls marqueurs connus ; gate CV fermée ; pas de purge réelle |
+| `p03_cartes_connectees` | K-16 : `PRO_GA/docs/api/openapi.yaml` et rapport documentaire dédié | Décrire les routes existantes, sans ajouter de route ni annoncer une conformité testée |
+| Coordinateur | Traductions FR/EN achats/candidatures, raccords partagés strictement nécessaires, dossier P19 et index | Préserver SSO, thèmes, médias, messagerie commerciale et DIASPORALE de l'autre session |
+
+K-06/DP-34 et K-21 sont déjà présents dans les sources relues ; AC04 utilise déjà le rayon
+de portrait selon l'auteur. K-13 conserve ses échéances bornées et ses reprises au focus.
+Ces lectures ne sont pas une nouvelle validation. Les constats et chiffres historiques restent
+datés ; les verdicts de cette reprise demeurent source seulement.
+
+### Suite DP-39 — avis privé de suivi, sources raccordées
+
+La demande d'enchaîner les suites autorise la tranche source suivante. Le choix est un **signal
+neutre de relecture**, par contrat `PRO-COMMERCE-SERVICE-NOTICE-V1` et profil distinct
+`antsia-commerce-service-notice-v1`. Il ne porte ni snapshot, état métier, nom, montant ou
+preuve de session. L'avis ouvre le suivi existant ; seule sa relecture authentifiée fait
+autorité. Aucune destination PUBLIC n'est élargie et aucune configuration réelle n'est créée.
+
+- Coordinateur : nouveau contrat pur jumeau hors manifeste P06, tests contractuels écrits,
+  export PRO.GA, rapport et documentation du pilote.
+- `etat_boutiques` : PRO.GA, producteurs agenda/devis/commandes via leurs `_deps`, nouveau
+  `integrations/commerceServiceNotices.ts`, profil/configuration/outbox/dispatch et ancre
+  `serviceNoticeSource` dans `integrations/tables.ts`. Exclusion du namespace de clé notice
+  dans `commerceConfig.ts`. `commerceServiceTables.ts` pour les seuls index nécessaires.
+- `p03_cartes_connectees` : ANTSIA, admission fédérée privée, corrélation d'une demande
+  existante, déduplication privée, gardes et avis générique, dictionnaires FR/EN et
+  `social-features/.../notifications/notification-targets.ts`. Inventaire/export/effacement
+  de la nouvelle table, sans contenu étranger.
+
+Les fichiers CV PRO.GA restent chez `relais_claude`. Les snapshots métier, horloges de fraîcheur,
+actions, politiques P16, SSO, thèmes, médias, messagerie et DIASPORALE restent hors de cette suite.
+
+**Passation de source :** K-12/AC03, K-16/AC08 et reprise durable CV raccordés, puis DP-39
+enchaîné dans les deux produits. Tous les périmètres de sous-tâches ci-dessus sont libérés.
+Exception ciblée aux horloges PRO.GA : les révisions des seules transitions devis/commande
+touchées deviennent strictement croissantes ; aucune échéance ni fraîcheur ANTSIA ne change.
+Les scénarios sont écrits seulement. Aucun contrôle, configuration réelle, activation ou Git
+write. La preuve MIME/backend, les vérifications, la conservation générale, les décisions
+métier et les preuves physiques restent ouvertes : P19 n'est pas déclaré terminé ou admissible.
+
+Passation : [correctifs automatiques P19](rapports/P19_CORRECTIFS_AUTOMATIQUES_2026-10-20.md).
+
 ## Relais Codex — 18 octobre 2026
 
 Demande du propriétaire : continuer le plan et reprendre la session Claude ANTSIA. Archive
@@ -344,3 +395,70 @@ offres (≈ 5,5 h). Écart à 07 §4.3 : depuis PA9A (non commité), RESEAU-PUBL
 seuls les autres contrats finissent en `dead_letter`.
 
 Lots suivants, ordre et dépendances : voir le rapport P00 (`rapports/P00_CADRAGE.md`).
+
+## Reprise P17c — 20 octobre 2026, sans vérifications
+
+Demande explicite de poursuivre les appels natifs et notifications système en préservant l’autre
+session. [Périmètre et réservations](rapports/P17C_PLAN_REPRISE_2026-10-20.md),
+[bilan source et matrice non exécutée](rapports/P17C_REPRISE_2026-10-20.md).
+
+Les sources réelles ajoutent la chaîne PushKit/CallKit et FCM/Core-Telecom, l’hôte média natif
+persistant, les gestes conversation/réglages, le premier gagnant par session/appareil, l’ouverture
+ciblée et le jeton relu. Export privé et cliquets sont adaptés ; les scénarios sont écrits seulement.
+Le module reste désactivé par défaut. P17a/P17b ci-dessus demeurent des états historiques.
+
+**Aucune installation, génération, vérification, compilation ou recette exécutée.** Aucun
+fournisseur configuré, aucune identité native créée, aucun `.env*`, lockfile, commit, push ou
+déploiement. Les autres travaux Web/DIASPORALE/PRO.GA sont préservés. P17d reste non exécuté.
+
+## P17d puis P18/P19 — continuation autorisée le 20 octobre 2026
+
+La demande humaine autorise l’enchaînement de ces suites sans nouvel accord et maintient
+l’interdiction de relancer les vérifications. Ce cadre particulier est consigné dans
+[le plan de reprise](rapports/P17D_P18_P19_PLAN_REPRISE_2026-10-20.md).
+
+| Lot | Sources de cette reprise | État réel |
+|---|---|---|
+| P17d | Registre `docs/recette/antsia-native-p17d/`, évaluateur pur, commande `native:acceptance` déclarée | Préparé, aucun appel/mesure/appareil/binaire éprouvé ; [bilan](rapports/P17D_REPRISE_2026-10-20.md) |
+| P18 | Corrections natives de commandes/champs, sélection, mouvements, listes et surface d’appel | Sources raccordées, scénarios écrits seulement ; aucun résultat AA/performance ; [bilan](rapports/P18_REPRISE_2026-10-20.md) |
+| P19 | Addenda au dossier pilote existant, guides et décision par capacité | Dossier actualisé, pilote/gel/vérification/activation non exécutés ; [bilan](rapports/P19_REPRISE_2026-10-20.md) |
+
+Base Git `c4d36f3`, arbre partagé non gelé, travaux voisins préservés. Aucune nouvelle dépendance,
+modification du lockfile, session Web, backend partagé ou source PRO.GA/DIASPORALE. Aucun
+`.env*`, secret, serveur, installation, génération, test, typage, lint, build, audit automatisé,
+recette, transaction, participant, commit, push, merge, déploiement ou store lancé/créé par cette
+reprise. Les preuves historiques ou publications d’autres sessions restent distinctes ; elles
+ne valident pas cette candidate native. Le plan s’achève à P19, sans nouvelle activation implicite.
+
+## Expérience sociale responsive — demande du 20 octobre 2026
+
+Demande distincte : analyser les cinq captures et deux vidéos locales, moderniser les noms
+des fonctions et préparer les adaptations téléphone/tablette/ordinateur. Voir le
+[dossier UX et ses huit prompts](../2026-10-20-experience-sociale-responsive/README.md).
+Les lots **U01–U08** complètent les sources P00–P19 sans reprendre leurs contrats.
+
+**U01 raccordé en source** : surcharges i18n propres à ANTSIA, composées immuablement depuis
+les namespaces moteur complets ; Direct/En live, Stories, Replays, Accueil, Explorer, Mon réseau,
+Enregistrés, invitation « Ajouter à mon réseau ». Mon fil conserve masquage/sourdine et annulation.
+Dans le natif, seuls les deux libellés de fil existants deviennent Accueil/Home.
+Périmètre : `apps/antsia_ga/src/i18n/{resources.ts,compose-engine-overrides.ts,overrides/}`, les
+locales propres `{antsia,memberNetwork,publicNetwork}` FR/EN et `apps/antsia_mobile/src/i18n/{fr,en}.json`.
+Scénarios ajoutés dans `apps/antsia_ga/src/i18n/resources.test.ts`, **non exécutés**.
+
+Les lots U02–U08 sont des plans : coque, cartes/stories/création, Explorer/Clips vidéo réel,
+profils/boutiques, messagerie/appels, actions commerciales contextuelles et finition. Ils
+préservent le fond blanc/cartes beige, le sombre existant, DIASPORALE et les capacités P16 fermées.
+Pas de bascule fictive du fil immersif mixte vers Clips, ni de nouvel onglet natif annoncé.
+
+Lecture source et analyse visuelle de médias locaux seulement ; aucune recette applicative,
+commande de vérification, génération, installation, serveur, configuration, activation,
+mutation métier, Git d’écriture ou publication. Rendu U01 non constaté. Les arbres partagés et
+modifications d'autres sessions sont conservés ; leur présence n'est pas une validation de ce lot.
+
+**Suite U02 — sources raccordées sans vérifications.** Le
+[bilan de navigation responsive](../2026-10-20-experience-sociale-responsive/rapports/U02_NAVIGATION_RESPONSIVE_2026-10-20.md)
+décrit l'opt-in ANTSIA sous 768 / 768–1199 / dès 1200 px, le rail commun, le raccourci Boutiques,
+le cadre des pages et de Messages, et le maintien de Créer jusqu'à U04. Hôte d'appel et
+sélecteur de fichier persistants conservés ; seuils historiques et dictionnaires DIASPORALE
+intacts. Les scénarios sont écrits, non exécutés ; aucune recette de navigation, mesure CSS,
+preuve d'appel ou publication n'est revendiquée. Client natif inchangé. Suite source : U03.

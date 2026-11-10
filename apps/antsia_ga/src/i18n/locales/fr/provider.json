@@ -1,0 +1,90 @@
+{
+  "title": "Espace prestataire",
+  "lead": "Découvrez les prestations et les réalisations publiées par cette activité.",
+  "navigation": "Explorer ce prestataire",
+  "sections": {
+    "presentation": "Présentation",
+    "services": "Prestations",
+    "portfolio": "Réalisations",
+    "availability": "Disponibilités",
+    "about": "À propos",
+    "reviews": "Avis"
+  },
+  "actions": {
+    "catalog": "Toutes les prestations",
+    "nextCatalog": "Prestations suivantes",
+    "socialPage": "Page sociale",
+    "signInSocial": "Se connecter pour voir la page sociale",
+    "backSocial": "Retour à ANTSIA",
+    "openOptions": "Voir les modalités",
+    "directory": "Trouver un prestataire",
+    "retry": "Réessayer",
+    "first": "Première page",
+    "previous": "Page précédente"
+  },
+  "status": {
+    "loading": "Chargement du prestataire…",
+    "unavailable": "Ce prestataire n’est pas accessible pour le moment.",
+    "building": "Le catalogue de prestations se prépare.",
+    "refreshing": "Actualisation des prestations…"
+  },
+  "presentation": {
+    "empty": "Ce prestataire n’a pas encore publié de présentation.",
+    "sameActivity": "Cette présentation professionnelle et la page sociale appartiennent à la même activité.",
+    "specialty": "Spécialité",
+    "area": "Zone annoncée",
+    "hours": "Horaires annoncés"
+  },
+  "availability": {
+    "onRequest": "Disponibilités sur demande. Consultez une prestation pour connaître les modalités réellement proposées.",
+    "noCalendar": "Aucun calendrier de rendez-vous n’est publié ici.",
+    "openServices": "Consulter les prestations"
+  },
+  "profile": {
+    "title": "Modalités de la prestation",
+    "declared": "Informations déclarées par le prestataire pour cette offre.",
+    "unknown": "Modalités à confirmer auprès du prestataire.",
+    "commercialModes": "Comment demander cette prestation",
+    "languages": "Langues proposées",
+    "zones": "Localités desservies au Gabon",
+    "deliverables": "Livrables",
+    "inclusions": "Ce qui est inclus",
+    "exclusions": "Ce qui n’est pas inclus",
+    "duration": "Durée annoncée",
+    "minutes": "{{count}} min"
+  },
+  "commercialModes": {
+    "quote": "Sur devis",
+    "booking": "Sur rendez-vous",
+    "fixed_order": "Prestation à commander"
+  },
+  "portfolio": {
+    "title": "Réalisations déclarées",
+    "notice": "Réalisations rattachées aux prestations présentées sur cette page, selon les informations publiées par le prestataire.",
+    "empty": "Aucune réalisation n’est publiée dans les prestations de cette page.",
+    "fromOffer": "Prestation : {{title}}",
+    "mediaWithheld": "Média indisponible",
+    "noMedia": "Aucun média publié pour cette réalisation",
+    "media": "Médias de la réalisation"
+  },
+  "directory": {
+    "title": "Des prestataires à découvrir",
+    "lead": "Parcourez les prestations accessibles dans votre réseau.",
+    "all": "Rechercher et filtrer les services",
+    "demo": "Exemples de prestations",
+    "demoNotice": "Sélection de démonstration séparée : aucun engagement ni paiement."
+  },
+  "reviews": {
+    "unavailable": "Les avis publics ne sont pas encore disponibles pour cette activité.",
+    "requests": "Mes demandes de service"
+  },
+  "catalog": {
+    "title": "Prestations",
+    "namedTitle": "Les prestations de {{name}}",
+    "descriptionMeta": "Découvrez les prestations publiées et leurs modalités.",
+    "backToProvider": "Revenir au prestataire"
+  },
+  "detail": {
+    "title": "Détail de la prestation"
+  }
+}

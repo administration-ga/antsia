@@ -1,4 +1,5 @@
 export { AppearanceProvider, useOptionalAppearance } from "./provider"
 export type { AppearanceProviderProps, AppearanceMode, AppearanceTheme, ResolvedAppearance } from "./provider"
 export { AppearanceControl } from "./AppearanceControl"
+export { ThemeChoiceProvider, useThemeChoice, type ThemeChoice } from "./theme-choice"
 export { AppearanceToggle, type AppearanceToggleProps } from "./AppearanceToggle"

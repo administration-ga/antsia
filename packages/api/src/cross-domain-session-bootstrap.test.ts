@@ -198,6 +198,72 @@ describe("refreshCrossDomainSession", () => {
 		expect(store.map.get(CROSS_DOMAIN_SESSION_DATA_KEY)).toBe("cache-valable");
 		expect(atomValues).toHaveLength(0);
 	});
+
+	test.each([
+		{ label: "sans statut", error: { message: "transport unavailable" } },
+		{ label: "avec statut réseau zéro", error: { status: 0, message: "transport unavailable" } },
+	])("une erreur de session $label épuise les tentatives sans purger le SDK ni l'atome", async ({ error }) => {
+		const store = storage();
+		store.map.set(CROSS_DOMAIN_COOKIE_KEY, "cookie-valable");
+		store.map.set(CROSS_DOMAIN_SESSION_DATA_KEY, "cache-valable");
+		let sessionCalls = 0;
+		let tokenCalls = 0;
+		const { authClient, atomValues } = client({
+			getSession: async () => {
+				sessionCalls += 1;
+				return { data: null, error };
+			},
+			convex: { token: async () => { tokenCalls += 1; return null; } },
+		});
+		await expect(refreshCrossDomainSession(authClient, {
+			storage: store,
+			attempts: 3,
+			retryDelayMs: 1,
+		})).rejects.toEqual(error);
+		expect(sessionCalls).toBe(3);
+		expect(tokenCalls).toBe(0);
+		expect(store.map.get(CROSS_DOMAIN_COOKIE_KEY)).toBe("cookie-valable");
+		expect(store.map.get(CROSS_DOMAIN_SESSION_DATA_KEY)).toBe("cache-valable");
+		expect(atomValues).toHaveLength(0);
+	});
+
+	test.each([
+		{ label: "sans statut", error: { message: "transport unavailable" } },
+		{ label: "avec statut réseau zéro", error: { status: 0, message: "transport unavailable" } },
+	])("retente une erreur de session $label avant de demander un seul JWT", async ({ error }) => {
+		const store = storage();
+		store.map.set(CROSS_DOMAIN_COOKIE_KEY, "cookie-valable");
+		store.map.set(CROSS_DOMAIN_SESSION_DATA_KEY, "cache-valable");
+		const sessionData = { session: { id: "fresh" }, user: { id: "u" } };
+		let sessionCalls = 0;
+		let tokenCalls = 0;
+		const { authClient, atomValues } = client({
+			getSession: async () => {
+				sessionCalls += 1;
+				expect(store.map.get(CROSS_DOMAIN_COOKIE_KEY)).toBe("cookie-valable");
+				expect(store.map.get(CROSS_DOMAIN_SESSION_DATA_KEY)).toBe("cache-valable");
+				expect(atomValues).toHaveLength(0);
+				return sessionCalls === 1
+					? { data: null, error }
+					: { data: sessionData, error: null };
+			},
+			convex: { token: async () => {
+				tokenCalls += 1;
+				return { data: { token: "retry-token" }, error: null };
+			} },
+		});
+		expect(await refreshCrossDomainSession(authClient, {
+			storage: store,
+			attempts: 3,
+			retryDelayMs: 1,
+		})).toEqual({ kind: "ready", token: "retry-token" });
+		expect(sessionCalls).toBe(2);
+		expect(tokenCalls).toBe(1);
+		expect(store.map.get(CROSS_DOMAIN_COOKIE_KEY)).toBe("cookie-valable");
+		expect(store.map.get(CROSS_DOMAIN_SESSION_DATA_KEY)).toBe("cache-valable");
+		expect(atomValues).toHaveLength(1);
+		expect(atomValues[0]).toMatchObject({ data: sessionData, isPending: false });
+	});
 });
 
 // ═══════════════════════════════════════════════════════════════════════════

@@ -10,21 +10,23 @@ import { v } from "convex/values"
 
 import type { Doc, Id } from "../../_generated/dataModel"
 import type { QueryCtx } from "../../_generated/server"
-import { networkQuery } from "../../lib/functions"
+import { fail } from "../../lib/errors"
+import { networkMutation, networkQuery } from "../../lib/functions"
+import { demoContentAllowed } from "../../seeds/demoContentConfig"
 import { commercialThreadAccess } from "../commercialMessaging/access"
 import { isServableStorage } from "../files/storageGuard"
 import { canReadModeratedContent } from "../moderation/policy"
 import { findPageByHandle } from "../pages/access"
-import { isStorefrontInReadingContext, shopOfPage, storefrontPolicyOf } from "./access"
-import { resolveCatalogOffer } from "./catalogRead"
-import { catalogOfferValidator, type CatalogOffer } from "./catalogValidators"
+import { shopOfPage, storefrontPolicyOf } from "./access"
+import { catalogOfferValidator, marketplaceFilterArgs, type CatalogOffer } from "./catalogValidators"
+import { selectDemoMarketplace, searchMarketplace, type MarketplacePage, type MarketplaceSearchArgs } from "./marketplaceRead"
+import { marketplaceFiltersOf } from "./catalogSearchRules"
+import { MARKETPLACE_DISCOVERY_VERSION } from "./marketplaceIndexFields"
+import { sha256Hex } from "./commerceLinkCrypto"
 import { storefrontsOpen } from "./rules"
-import { servicePolicyOpen, validServiceId } from "./serviceAccess"
-import { projectServiceRequest, SERVICE_PAGE_MAX, serviceRequestValidator, type ServiceRequestDto } from "./serviceRules"
+import { ownedServiceRequest, quoteControlContractForRequest, servicePolicyOpen, validServiceId } from "./serviceAccess"
+import { projectServiceRequest, serviceControlContractValidator, SERVICE_PAGE_MAX, serviceIntentLookupValidator, serviceRequestValidator, serviceStopIntentValidator, type ServiceRequestDto } from "./serviceRules"
 
-const DISCOVER_SHOPS_MAX = 8
-const DISCOVER_AVAILABILITY_SHOPS = 40
-const DISCOVER_OFFERS_PER_SHOP = 3
 const THREAD_MESSAGES_SCANNED = 50
 const ATTACHMENT_MESSAGES_MAX = 10
 
@@ -50,6 +52,33 @@ async function project(ctx: QueryCtx, row: RequestRow, cache: PolicyCache, now: 
 function erasing(person: Doc<"persons">): boolean {
   return person.deletionRequestedAt !== undefined || person.erasedAt !== undefined
 }
+
+/** L'absence certaine est distincte d'une erreur de lecture ; aucune consultation de PRO.GA. */
+export const findByClientRequestId = networkQuery({
+  minStatus: "declaree", args: { clientRequestId: v.string() }, returns: serviceIntentLookupValidator,
+  handler: async (ctx, args) => {
+    if (!validServiceId(args.clientRequestId)) return fail("invalidArgument", { field: "clientRequestId" })
+    if (erasing(ctx.person)) return fail("notFound")
+    const command = await ctx.db.query("commerceServiceCommands").withIndex("by_client", (q) => q.eq("personId", ctx.person._id).eq("networkId", ctx.networkId).eq("clientRequestId", args.clientRequestId)).unique()
+    if (command) return { outcome: "request" as const, requestRowId: command.requestRowId }
+    const fence = await ctx.db.query("serviceClientIntentFences").withIndex("by_client", (q) => q.eq("personId", ctx.person._id).eq("networkId", ctx.networkId).eq("clientRequestId", args.clientRequestId)).unique()
+    return fence ? { outcome: "stopped" as const } : { outcome: "absent" as const }
+  },
+})
+
+/** Ferme une clé sans commande. Une commande déjà admise gagne toujours, sans annulation ni nouvel effet. */
+export const stopClientIntent = networkMutation({
+  minStatus: "declaree", writeBucket: "shop.service.intent.stop", args: { clientRequestId: v.string() }, returns: serviceStopIntentValidator,
+  handler: async (ctx, args) => {
+    if (!validServiceId(args.clientRequestId)) return fail("invalidArgument", { field: "clientRequestId" })
+    if (erasing(ctx.person)) return fail("notFound")
+    const command = await ctx.db.query("commerceServiceCommands").withIndex("by_client", (q) => q.eq("personId", ctx.person._id).eq("networkId", ctx.networkId).eq("clientRequestId", args.clientRequestId)).unique()
+    if (command) return { outcome: "request" as const, requestRowId: command.requestRowId }
+    const fence = await ctx.db.query("serviceClientIntentFences").withIndex("by_client", (q) => q.eq("personId", ctx.person._id).eq("networkId", ctx.networkId).eq("clientRequestId", args.clientRequestId)).unique()
+    if (!fence) await ctx.db.insert("serviceClientIntentFences", { personId: ctx.person._id, networkId: ctx.networkId, clientRequestId: args.clientRequestId, stoppedAt: Date.now() })
+    return { outcome: "stopped" as const }
+  },
+})
 
 export const myRequests = networkQuery({
   minStatus: "declaree", args: { paginationOpts: paginationOptsValidator }, returns: paginationResultValidator(serviceRequestValidator),
@@ -122,68 +151,94 @@ export const quoteRequestContext = networkQuery({
   },
 })
 
-async function readingWindowShops(ctx: QueryCtx & { network: Doc<"networks">; networkId: Id<"networks"> }, take: number): Promise<Doc<"shops">[]> {
-  return ctx.network.kind === "root"
-    ? await ctx.db.query("shops").withIndex("by_storefront_publishedAt", (q) => q.eq("storefront", "published")).order("desc").take(take)
-    : await ctx.db.query("shops").withIndex("by_network_storefront_publishedAt", (q) => q.eq("networkId", ctx.networkId).eq("storefront", "published")).order("desc").take(take)
+type ServiceSearchArgs = MarketplaceSearchArgs
+type ServiceDirectoryPage = PaginationResult<CatalogOffer> & { indexStatus?: "building" | "ready"; filteredWindow?: boolean; selection?: "demo" | "catalog" }
+const serviceDirectoryPageValidator = v.object({ page: v.array(catalogOfferValidator), isDone: v.boolean(), continueCursor: v.string(), indexStatus: v.optional(v.union(v.literal("building"), v.literal("ready"))), filteredWindow: v.optional(v.boolean()), selection: v.optional(v.union(v.literal("demo"), v.literal("catalog"))) })
+const serviceSearchPageValidator = v.object({ page: v.array(catalogOfferValidator), isDone: v.boolean(), continueCursor: v.string(), indexStatus: v.union(v.literal("building"), v.literal("ready")), filteredWindow: v.boolean() })
+type DiscoveryCtx = QueryCtx & { networkId: Id<"networks">; network: Doc<"networks">; rootNetwork: Doc<"networks">; person: Doc<"persons"> }
+function serviceFilters(args: ServiceSearchArgs) {
+  if (args.kind !== undefined && args.kind !== "service") return fail("invalidArgument", { field: "kind" })
+  return marketplaceFiltersOf({ ...args, kind: "service" })
+}
+async function searchServices(ctx: DiscoveryCtx, args: ServiceSearchArgs, legacyPolicy = false): Promise<MarketplacePage> {
+  const filters = serviceFilters(args)
+  if (!Number.isSafeInteger(args.paginationOpts.numItems) || args.paginationOpts.numItems < 1) return fail("invalidArgument", { field: "paginationOpts" })
+  const empty: MarketplacePage = { indexStatus: "ready", page: [], isDone: true, continueCursor: "", filteredWindow: false }
+  if (erasing(ctx.person) || !storefrontsOpen(await storefrontPolicyOf(ctx, ctx.networkId)) || legacyPolicy && !await servicePolicyOpen(ctx, ctx.networkId)) return empty
+  const cache: PolicyCache = new Map([[ctx.networkId, true]])
+  return await searchMarketplace(ctx, { root: ctx.rootNetwork, readerPersonId: ctx.person._id, network: ctx.network }, { ...filters, paginationOpts: args.paginationOpts }, { scope: legacyPolicy ? "services-legacy-v2" : "services-v2", admit: async head => !legacyPolicy || await policyOpen(ctx, cache, head.networkId) })
 }
 
-/**
- * L'onglet Services existe-t-il ? Oui seulement si au moins une VRAIE offre de service publiée
- * et consentie est lisible parmi les quarante vitrines publiées les plus récentes du contexte.
- */
+/** MP06 : annuaire réel paginé sur les offres de service, sans commande ni agenda privé. */
+export const search = networkQuery({
+  minStatus: "declaree", args: { ...marketplaceFilterArgs, paginationOpts: paginationOptsValidator }, returns: serviceSearchPageValidator,
+  handler: async (ctx, args) => await searchServices(ctx, args),
+})
+
+/** Compatibilité : confirme une offre réellement admissible dans une fenêtre d'index bornée. */
 export const discoverAvailability = networkQuery({
-  minStatus: "declaree", args: {}, returns: v.object({ available: v.boolean() }),
-  handler: async (ctx) => {
-    if (erasing(ctx.person) || !storefrontsOpen(await storefrontPolicyOf(ctx, ctx.networkId)) || !await servicePolicyOpen(ctx, ctx.networkId)) return { available: false }
-    const cache: PolicyCache = new Map([[ctx.networkId, true]])
-    const context = { root: ctx.rootNetwork, readerPersonId: ctx.person._id, network: ctx.network }
-    for (const shop of await readingWindowShops(ctx, DISCOVER_AVAILABILITY_SHOPS)) {
-      if (!await policyOpen(ctx, cache, shop.networkId) || !await isStorefrontInReadingContext(ctx, shop, ctx.network)) continue
-      // borné : douze dernières offres actives de la vitrine.
-      const heads = await ctx.db.query("commerceCatalogHeads").withIndex("by_network_shop_kind_state_changedAt", (q) => q.eq("networkId", shop.networkId).eq("shopId", shop._id).eq("objectKind", "offer").eq("sequence", "catalog").eq("state", "active")).order("desc").take(12)
-      for (const head of heads) {
-        if (head.kind === "service" && (await resolveCatalogOffer(ctx, context, shop._id, head.objectRef))?.kind === "service") return { available: true }
-      }
+  minStatus: "declaree", args: {}, returns: v.object({ available: v.boolean(), indexStatus: v.optional(v.union(v.literal("building"), v.literal("ready"))), isDone: v.optional(v.boolean()) }),
+  handler: async ctx => {
+    if (erasing(ctx.person) || !storefrontsOpen(await storefrontPolicyOf(ctx, ctx.networkId))) return { available: false }
+    if (demoContentAllowed()) {
+      const demo = await selectDemoMarketplace(ctx, { root: ctx.rootNetwork, readerPersonId: ctx.person._id, network: ctx.network }, { kind: "service" })
+      if (demo.length) return { available: true }
     }
-    return { available: false }
+    if (!await servicePolicyOpen(ctx, ctx.networkId)) return { available: false }
+    const result = await searchServices(ctx, { paginationOpts: { cursor: null, numItems: 24 } }, true)
+    return result.indexStatus === "ready" && result.isDone ? { available: result.page.length > 0 } : { available: result.page.length > 0, indexStatus: result.indexStatus, isDone: result.indexStatus === "ready" && result.isDone }
   },
 })
 
+type DirectoryCursor = { version: 2; scope: string; phase: "demo" | "catalog"; cursor: string | null }
+function directoryCursor(raw: string | null, scope: string, initialPhase: DirectoryCursor["phase"]): DirectoryCursor {
+  if (raw === null) return { version: 2, scope, phase: initialPhase, cursor: initialPhase === "demo" ? "0" : null }
+  if (!raw || raw.length > 8192) return fail("invalidArgument", { field: "cursor" })
+  try {
+    const value: unknown = JSON.parse(raw)
+    if (!value || typeof value !== "object" || Array.isArray(value)) return fail("invalidArgument", { field: "cursor" })
+    const row = value as Record<string, unknown>
+    if (Object.keys(row).length !== 4 || row.version !== 2 || row.scope !== scope || row.phase !== "demo" && row.phase !== "catalog" || row.cursor !== null && typeof row.cursor !== "string") return fail("invalidArgument", { field: "cursor" })
+    return { version: 2, scope, phase: row.phase, cursor: row.cursor }
+  } catch { return fail("invalidArgument", { field: "cursor" }) }
+}
+
 /**
- * Rubrique Services de Découvrir : vitrines publiées du contexte de lecture (fenêtre bornée),
- * puis au plus trois offres de SERVICE publiées et consenties par vitrine (projection P09).
- * Politique « services » fermée : rien n'est montré (aucune offre inventée).
+ * API historique conservée : une page d'offres, désormais indexée avant pagination.
+ * Les illustrations forment une phase fictive séparée et bornée, puis le catalogue réel.
  */
 export const discoverServices = networkQuery({
-  minStatus: "declaree", args: { paginationOpts: paginationOptsValidator }, returns: paginationResultValidator(catalogOfferValidator),
-  handler: async (ctx, args): Promise<PaginationResult<CatalogOffer>> => {
+  minStatus: "declaree", args: { ...marketplaceFilterArgs, paginationOpts: paginationOptsValidator }, returns: serviceDirectoryPageValidator,
+  handler: async (ctx, args): Promise<ServiceDirectoryPage> => {
+    const filters = serviceFilters(args)
+    if (!Number.isSafeInteger(args.paginationOpts.numItems) || args.paginationOpts.numItems < 1) return fail("invalidArgument", { field: "paginationOpts" })
     const empty = { page: [], isDone: true, continueCursor: "" }
-    if (erasing(ctx.person) || !storefrontsOpen(await storefrontPolicyOf(ctx, ctx.networkId)) || !await servicePolicyOpen(ctx, ctx.networkId)) return empty
-    const requested = args.paginationOpts.numItems
-    const opts = {
-      ...args.paginationOpts,
-      numItems: Number.isFinite(requested) ? Math.min(Math.max(Math.trunc(requested), 1), DISCOVER_SHOPS_MAX) : DISCOVER_SHOPS_MAX,
-      maximumRowsRead: DISCOVER_SHOPS_MAX, maximumBytesRead: 1_048_576,
+    if (erasing(ctx.person) || !storefrontsOpen(await storefrontPolicyOf(ctx, ctx.networkId))) return empty
+    const servicesOpen = await servicePolicyOpen(ctx, ctx.networkId)
+    const demo = demoContentAllowed() ? await selectDemoMarketplace(ctx, { root: ctx.rootNetwork, readerPersonId: ctx.person._id, network: ctx.network }, filters) : []
+    if (!servicesOpen && !demo.length) return empty
+    const index = await ctx.db.query("commerceCatalogIndexes").withIndex("by_network", q => q.eq("networkId", ctx.rootNetwork._id)).unique()
+    const scope = await sha256Hex(JSON.stringify(["service-directory-v2", MARKETPLACE_DISCOVERY_VERSION, ctx.rootNetwork._id, ctx.networkId, ctx.person._id, filters, servicesOpen, index?.generation ?? null, index?.version ?? null, demo.map(offer => [offer.offerRef, offer.revision])]))
+    const position = directoryCursor(args.paginationOpts.cursor, scope, demo.length ? "demo" : "catalog")
+    if (position.phase === "demo") {
+      const offset = Number(position.cursor)
+      if (position.cursor === null || !Number.isSafeInteger(offset) || offset < 0 || offset > demo.length || String(offset) !== position.cursor) return fail("invalidArgument", { field: "cursor" })
+      const end = Math.min(demo.length, offset + Math.min(24, args.paginationOpts.numItems))
+      const next = end < demo.length ? { version: 2, scope, phase: "demo", cursor: String(end) } : servicesOpen ? { version: 2, scope, phase: "catalog", cursor: null } : null
+      return { page: demo.slice(offset, end), isDone: next === null, continueCursor: next ? JSON.stringify(next) : "", selection: "demo", filteredWindow: false }
     }
-    const window = ctx.network.kind === "root"
-      ? await ctx.db.query("shops").withIndex("by_storefront_publishedAt", (q) => q.eq("storefront", "published")).order("desc").paginate(opts)
-      : await ctx.db.query("shops").withIndex("by_network_storefront_publishedAt", (q) => q.eq("networkId", ctx.networkId).eq("storefront", "published")).order("desc").paginate(opts)
-    const cache: PolicyCache = new Map([[ctx.networkId, true]])
-    const context = { root: ctx.rootNetwork, readerPersonId: ctx.person._id, network: ctx.network }
-    const page: CatalogOffer[] = []
-    for (const shop of window.page) {
-      if (!await policyOpen(ctx, cache, shop.networkId) || !await isStorefrontInReadingContext(ctx, shop, ctx.network)) continue
-      // borné : douze dernières offres actives de la vitrine, filtrées sur le type « service ».
-      const heads = await ctx.db.query("commerceCatalogHeads").withIndex("by_network_shop_kind_state_changedAt", (q) => q.eq("networkId", shop.networkId).eq("shopId", shop._id).eq("objectKind", "offer").eq("sequence", "catalog").eq("state", "active")).order("desc").take(12)
-      let shown = 0
-      for (const head of heads) {
-        if (shown === DISCOVER_OFFERS_PER_SHOP) break
-        if (head.kind !== "service") continue
-        const offer = await resolveCatalogOffer(ctx, context, shop._id, head.objectRef)
-        if (offer?.kind === "service") { page.push(offer); shown += 1 }
-      }
-    }
-    return { ...window, page }
+    if (!servicesOpen) return empty
+    const result = await searchServices(ctx, { ...filters, paginationOpts: { ...args.paginationOpts, cursor: position.cursor } }, true)
+    return { ...result, selection: "catalog", continueCursor: result.isDone ? "" : JSON.stringify({ version: 2, scope, phase: "catalog", cursor: result.continueCursor }) }
+  },
+})
+
+/** MP06 : sélection de contrat serveur avant toute lecture d'un devis possédé. */
+export const quoteControl = networkQuery({
+  minStatus: "declaree", args: { requestRowId: v.string() }, returns: v.union(v.null(), v.object({ quoteControlContract: serviceControlContractValidator })),
+  handler: async (ctx, args) => {
+    const row = await ownedServiceRequest(ctx, ctx.networkId, args.requestRowId)
+    const contract = row ? await quoteControlContractForRequest(ctx, row) : null
+    return contract ? { quoteControlContract: contract } : null
   },
 })

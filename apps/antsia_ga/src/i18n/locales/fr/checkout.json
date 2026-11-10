@@ -22,6 +22,8 @@
   "fulfillment": "Mode de remise",
   "pickup": "Retrait en établissement",
   "seller_delivery": "Livraison par le vendeur",
+  "pickupPoints_one": "{{count}} établissement de retrait",
+  "pickupPoints_other": "{{count}} établissements de retrait",
   "establishment": "Établissement de retrait",
   "country": "Pays de livraison",
   "gabon": "Gabon",

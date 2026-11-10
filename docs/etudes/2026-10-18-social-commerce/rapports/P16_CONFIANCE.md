@@ -1,5 +1,9 @@
 # P16 — Confiance, modération et cycle des données
 
+> État historique du 19 octobre. La [reprise du 20 octobre](P16_REPRISE_2026-10-20.md)
+> décrit les nouveaux verrous, les corrections ciblées et les ajouts P14/P15 à l’inventaire.
+> Aucun résultat historique ne valide cette reprise ; ses scénarios restent non exécutés.
+
 Date : 19 octobre 2026. Revue transverse P07–P15 demandée par le coordinateur sous la décision du
 propriétaire du 18/10/2026 : **« Continuer sans vérifier »**. Références : [prompt P16](../prompts/P16_CONFIANCE.md),
 [préambule](../prompts/PROMPT_COMMUN.md), [06](../06_BOUTIQUES_SERVICES_EMPLOI.md), [07](../07_AUDIT_PRO_GA.md),

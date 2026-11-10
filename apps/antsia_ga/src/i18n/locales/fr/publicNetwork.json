@@ -2,10 +2,12 @@
   "nav": {
     "label": "Navigation publique",
     "footer": "Informations et droits",
-    "discover": "Découvrir",
+    "discover": "Explorer",
+    "provinces": "Provinces",
+    "createAccount": "Créer un compte",
     "transparency": "Transparence",
     "enter": "Entrer",
-    "myFeed": "Mon fil",
+    "myFeed": "Accueil",
     "about": "À propos",
     "legal": "Mentions légales",
     "privacy": "Confidentialité",
@@ -42,7 +44,7 @@
     "next": "Page suivante"
   },
   "discover": {
-    "title": "Découvrir le réseau",
+    "title": "Explorer le réseau",
     "lead": "Suivre une province ou un sujet, puis lire les contributions que leurs auteurs ont choisies de rendre publiques.",
     "member": "Ouvrir la vue membre",
     "trends": "Sujets mesurés",
@@ -123,11 +125,18 @@
     "suppressed": "Total non publié",
     "cases_one": "{{count}} dossier",
     "cases_other": "{{count}} dossiers",
-    "empty": "Aucune période agrégée disponible pour le moment."
+    "empty": "Aucune période agrégée disponible pour le moment.",
+    "legalLead": "Délais légaux (ordonnance n° {{ordinance}}) : une décision sous {{decisionHours}} h pour un harcèlement ou un contenu préjudiciable à un mineur, un retrait sous {{removalHours}} h pour un hypertrucage ou un contenu d’IA interdit. Chaque période compte les échéances tombées ce jour-là ; elle ne les publie qu’à partir de {{count}} échéances et {{count}} auteurs distincts, et un nombre inférieur à {{count}} n’est pas donné.",
+    "legalLine": "Échéances légales : {{met}} · {{missed}}",
+    "legalMet": "{{value}} dans le délai",
+    "legalMetFew": "moins de {{threshold}} dans le délai",
+    "legalMissed": "{{value}} hors délai",
+    "legalMissedFew": "moins de {{threshold}} hors délai"
   },
   "legal": {
     "eyebrow": "Comprendre {{brand}}",
-    "draft": "Version de travail. Les informations juridiques et les modalités du service restent soumises à validation avant une mise en ligne publique.",
+    "draft": "Informations sur le service — mise à jour le 21 octobre 2026.",
+    "contents": "Sur cette page",
     "sources": "Textes de référence",
     "apdpvp": "APDPVP : textes et décisions",
     "journal": "Journal officiel : loi n° 025/2023 du 12 juillet 2023",
@@ -150,10 +159,10 @@
     },
     "legal": {
       "title": "Mentions légales",
-      "lead": "Les informations nécessaires à l’identification de l’éditeur et aux conditions du service sont en cours de validation.",
+      "lead": "Coordonnées de l’éditeur, contact et informations sur les responsabilités du service ANTSIA.",
       "publisher": {
         "title": "Éditeur et responsabilités",
-        "body": "Le projet est porté par NTSAGUI Digital. La dénomination juridique complète, les coordonnées de contact et la responsabilité de publication doivent être renseignées et validées avant publication. Le prestataire technique et les lieux de traitement restent à définir."
+        "body": "ANTSIA est édité par NTSAGUI DIGITAL, SARL, au capital de 5 000 000 FCFA. Siège : Batterie IV, rue des Résidences — BP 638, Libreville, Gabon. RCCM : GA-LBV-01-2025-B12-01029 ; NIF : 2025 0102 2429 R. Contact pour le service et les données : admin@ntsagui.com."
       },
       "law": {
         "title": "Protection des données",
@@ -161,7 +170,7 @@
       },
       "publication": {
         "title": "État de validation",
-        "body": "Ces textes ne constituent pas une déclaration de conformité, une attestation de l’APDPVP ni une preuve de localisation des données. La mise en ligne reste soumise à la validation des textes et des conditions d’exploitation."
+        "body": "Chaque auteur est responsable du contenu qu’il partage et de l’audience qu’il choisit. Les signalements et recours passent par les commandes du service ; le contact de l’éditeur reste accessible pour les demandes qui ne peuvent pas être traitées dans votre compte. Ces informations ne constituent pas une attestation de l’APDPVP ni une validation officielle de la localisation des données."
       }
     },
     "privacy": {
@@ -177,7 +186,27 @@
       },
       "rights": {
         "title": "Vos commandes de données",
-        "body": "L’espace Mes données donne accès aux préférences, consentements, notifications, demandes d’export, d’effacement et aux recours. Il reste accessible en cas de suspension du réseau. Les coordonnées du responsable, les bases juridiques, durées de conservation et modalités de réponse doivent être complétées lors de la validation juridique."
+        "body": "L’espace Mes données donne accès aux préférences, consentements, notifications, demandes d’export et d’effacement ainsi qu’aux recours. Il reste accessible en cas de suspension du réseau. Vous pouvez modifier les informations de votre profil, retirer un consentement facultatif ou écrire à admin@ntsagui.com pour une demande d’accès, de rectification, d’opposition, de limitation ou d’effacement. Précisez la demande et le compte concerné ; les informations nécessaires à la vérification de votre qualité de titulaire peuvent être demandées. Vous pouvez aussi saisir l’autorité de protection des données compétente."
+      },
+      "controller": {
+        "title": "Responsable du service et contact",
+        "body": "ANTSIA est édité par NTSAGUI DIGITAL, SARL, responsable du service et des traitements décrits ici. Siège : Batterie IV, rue des Résidences — BP 638, Libreville, Gabon.\nPour une demande concernant vos données, écrivez à admin@ntsagui.com en précisant « ANTSIA » et votre identifiant de compte. Ne transmettez pas de mot de passe ni de code de connexion."
+      },
+      "data": {
+        "title": "Les données utilisées et leur utilité",
+        "body": "Le service utilise votre identifiant de connexion, les informations de profil que vous fournissez, vos adhésions, préférences et consentements. Lorsque vous utilisez Identité.ga, ANTSIA reçoit les informations autorisées lors de la connexion ; votre mot de passe Identité.ga est saisi auprès de ce fournisseur.\nVos publications, médias, commentaires, réactions, relations, messages et demandes de services sont traités lorsque vous utilisez les fonctions correspondantes. Ils permettent de faire fonctionner votre compte et vos échanges. Les informations techniques de session et les traces de sécurité servent à protéger les accès, limiter les abus et traiter les signalements."
+      },
+      "recipients": {
+        "title": "Qui peut recevoir vos données",
+        "body": "Les destinataires de vos contenus dépendent de l’audience et du contexte que vous choisissez : public, réseau, groupe ou conversation. Les personnes habilitées à l’exploitation et à la modération accèdent aux informations nécessaires à leur mission.\nVercel fournit l’infrastructure de l’application web ; Convex fournit le backend, l’authentification applicative et le stockage. Identité.ga intervient lorsque vous choisissez cette connexion. Les services d’envoi de codes ou de notifications interviennent selon le canal utilisé et vos préférences. Ces services cloud peuvent traiter des données hors du Gabon. Le partage d’un éditeur avec une autre application ne rend pas vos données accessibles à cette application."
+      },
+      "retention": {
+        "title": "Conservation et effacement",
+        "body": "Les informations de compte et les contenus durables restent nécessaires tant que vous maintenez votre compte ou le contenu concerné. Vous pouvez modifier votre profil, retirer vos contenus et demander l’effacement du compte dans Mes données.\nLa demande d’effacement prévoit un délai de grâce de 30 jours, pendant lequel elle peut être annulée, puis un traitement par étapes des données personnelles et fichiers concernés. La fin du traitement est indiquée dans le suivi de la demande ; elle ne correspond pas à un effacement instantané au clic.\nUn export personnel est accessible pendant 24 heures. Les notifications lues deviennent éligibles à la purge après 180 jours suivant leur lecture ; les notifications non lues après 365 jours suivant leur création. Les traitements périodiques exécutent ces purges par lots. Les éventuelles obligations de conservation et les situations de litige sont examinées selon les données concernées ; une conservation particulière doit être justifiée."
+      },
+      "device": {
+        "title": "Sur iPhone et Android",
+        "body": "La connexion Identité.ga s’ouvre dans le navigateur système, puis revient dans ANTSIA. L’application conserve les informations de session dans le stockage sécurisé du téléphone. La déconnexion ferme la session de l’application.\nL’accès aux photos, à la caméra ou au microphone dépend des fonctions utilisées et des autorisations du téléphone. Vous pouvez modifier ces autorisations dans les réglages du système. Refuser une autorisation limite la fonction qui en dépend."
       }
     }
   }

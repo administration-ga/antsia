@@ -18,7 +18,7 @@ export function DisplayPreferences({ leadingSeparator = true }: { leadingSeparat
   return (
     <>
       <div className={leadingSeparator ? "min-w-0 border-t border-border pt-4" : "min-w-0"}>
-        <AppearanceControl />
+        <AppearanceControl showTheme={false} />
         <p className="mt-1 text-xs text-muted-foreground">{t("preferences.appearanceHint")}</p>
       </div>
       <div className="min-w-0 border-t border-border pt-4">

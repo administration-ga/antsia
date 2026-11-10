@@ -22,6 +22,7 @@ import { canReadModeratedContent, contentState } from "../moderation/policy"
 import { countLiveAdmins, liveSignatoryRole } from "../pages/access"
 import { isShopEligiblePage } from "../pages/shopPages"
 import { publicOriginNetwork } from "../public/access"
+import { COMMERCE_ACTIVATION_DECISIONS, commerceActivationReady } from "./commerceActivation"
 import { DEFAULT_STOREFRONT_POLICY, SHOP_PUBLIC_LISTING_TEXT_VERSION, type StorefrontPolicy, storefrontsOpen } from "./rules"
 
 type ReadCtx = Pick<QueryCtx, "db">
@@ -50,7 +51,11 @@ export async function storefrontPolicyOf(ctx: ReadCtx, networkId: Id<"networks">
     .query("shopNetworkPolicies")
     .withIndex("by_network", (q) => q.eq("networkId", networkId))
     .unique()
-  return row?.storefront ?? DEFAULT_STOREFRONT_POLICY
+  const policy = row?.storefront ?? DEFAULT_STOREFRONT_POLICY
+  // Une ancienne bascule ne vaut pas accord sur une politique automatique future.
+  if (policy === "auto_verified" && (!commerceActivationReady("storefrontAutomatic") ||
+    row?.automaticDecisionVersion !== COMMERCE_ACTIVATION_DECISIONS.storefrontAutomatic.reference)) return "review"
+  return policy
 }
 
 /** La boutique portée par une page (une au plus), ou `null`. */

@@ -14,7 +14,9 @@ import { isFederatedPage } from "../federation/mirrorAccess"
 import { countLiveAdmins } from "../pages/access"
 import { createShopPage, isShopEligiblePage } from "../pages/shopPages"
 import { shopIdentityOf, shopModerationText, storefrontPolicyOf } from "./access"
+import { COMMERCE_ACTIVATION_DECISIONS, commerceActivationReady } from "./commerceActivation"
 import {
+  DEFAULT_STOREFRONT_POLICY,
   presentationGaps,
   SHOP_PAGE_OWNER_KIND,
   shopHandleCandidates,
@@ -31,14 +33,16 @@ export async function applyStorefrontPolicy(
   policy: StorefrontPolicy,
   actorPersonId: Id<"persons"> | undefined,
 ): Promise<{ changed: boolean; previous: StorefrontPolicy }> {
+  if (policy === "auto_verified" && !commerceActivationReady("storefrontAutomatic")) return failAppRule("shop_publication_closed", {}, "policyRefused")
   const row = await ctx.db
     .query("shopNetworkPolicies")
     .withIndex("by_network", (q) => q.eq("networkId", networkId))
     .unique()
-  const previous = await storefrontPolicyOf(ctx, networkId)
-  if (previous === policy) return { changed: false, previous }
+  const previous = row?.storefront ?? DEFAULT_STOREFRONT_POLICY
+  const automaticDecisionVersion = policy === "auto_verified" ? COMMERCE_ACTIVATION_DECISIONS.storefrontAutomatic.reference : undefined
+  if (previous === policy && row?.automaticDecisionVersion === automaticDecisionVersion) return { changed: false, previous }
   const now = Date.now()
-  const write = { storefront: policy, updatedAt: now, updatedByPersonId: actorPersonId }
+  const write = { storefront: policy, automaticDecisionVersion, updatedAt: now, updatedByPersonId: actorPersonId }
   if (row) await ctx.db.patch(row._id, write)
   else await ctx.db.insert("shopNetworkPolicies", { networkId, ...write })
   return { changed: true, previous }

@@ -7,6 +7,7 @@ import { operatorMutation, operatorQuery } from "../../lib/functions"
 import { enforceRateLimit } from "../../lib/rateLimit"
 import { requireFederationAdmin } from "../federation/access"
 import { appendAudit, operatorCapacity } from "../platform/audit"
+import { commerceActivationReady } from "./commerceActivation"
 
 export const getPolicy = operatorQuery({
   args: { networkId: v.id("networks") },
@@ -26,6 +27,7 @@ export const setPolicy = operatorMutation({
     await enforceRateLimit(ctx, "payment.configure", ctx.person._id)
     const reason = checked(() => assertDecisionReason(args.reason, 10))
     if ((await ctx.db.get(args.networkId))?.status !== "active") return notFound()
+    if (args.enabled && !commerceActivationReady("payments")) return notFound()
     const previous = await ctx.db.query("shopPaymentPolicies").withIndex("by_network", q => q.eq("networkId", args.networkId)).unique()
     const fields = { networkId: args.networkId, enabled: args.enabled, updatedAt: Date.now(), updatedByPersonId: ctx.person._id }
     if (previous) await ctx.db.patch(previous._id, fields)

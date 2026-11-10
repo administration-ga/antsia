@@ -76,6 +76,8 @@ export const requestContact = networkMutation({
   returns: v.object({ threadId: v.id("commercialThreads"), messageId: v.id("commercialMessages"), deduplicated: v.boolean() }),
   handler: async (ctx, args) => {
     await enforceRateLimit(ctx, "commercial.request.member", ctx.person._id)
+    // Une illustration fictive ne devient jamais l'objet d'un contact commercial réel.
+    if (args.offerRef?.startsWith("demo:")) return notFound()
     const text = commercialText(args.text)
     if (text === null || !commercialIdempotencyKey(args.idempotencyKey)) return fail("invalidArgument", { field: text === null ? "text" : "idempotencyKey" })
     const page = await findPageByHandle(ctx, args.shopHandle)

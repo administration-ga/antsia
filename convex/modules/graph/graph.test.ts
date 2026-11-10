@@ -1,5 +1,5 @@
 // @vitest-environment edge-runtime
-// Dupliqué de socle/convex/tests/reseauConnections.test.ts (avec reseauPersonnel/connections.test.ts et les cas `follows.*`/`connections.*` de reseauPersonnel.test.ts) @ ad2e7fdc2 — adaptations : personnes et réseaux ; une seule façade ; la fuite du blocage (D12) est désormais AFFIRMÉE fermée (au socle, le test qui devait l'empêcher n'affirmait rien) ; blocage sur toute la paire, tous réseaux ; listes historiques plafonnées remplacées par la pagination (D04) ; cas d'organisation, de poste et de cloche retirés (la cloche arrive avec le module notifications).
+// Dupliqué de socle/convex/tests/reseauConnections.test.ts (avec reseauPersonnel/connections.test.ts et les cas `follows.*`/`connections.*` de reseauPersonnel.test.ts) @ ad2e7fdc2 — adaptations : personnes et réseaux ; une seule façade ; la fuite du blocage (D12) est désormais AFFIRMÉE fermée (au socle, le test qui devait l'empêcher n'affirmait rien) ; blocage sur toute la paire, tous réseaux ; listes historiques plafonnées remplacées par la pagination (D04) ; cas d'organisation, de poste et de cloche retirés (la cloche arrive avec le module notifications) ; cas AJOUTÉS le 25/10/2026 (correctif du socle repris) : les deux côtés de `paginateMine` dans UNE exécution, témoin du harnais, boucle de pagination bornée.
 /**
  * Le graphe : connexions symétriques par réseau, blocage unilatéral et muet
  * sur toute la paire, abonnements unilatéraux comptés par agrégat.
@@ -11,6 +11,7 @@ import { api, internal } from "../../_generated/api"
 import type { Id } from "../../_generated/dataModel"
 import { SEED_CONFIRMATION } from "../../seeds/foundations"
 import { testConvex } from "../../test.setup"
+import { acceptedSidePage } from "./connections"
 
 type T = ReturnType<typeof testConvex>
 type Person = { as: ReturnType<T["withIdentity"]>; personId: Id<"persons"> }
@@ -224,7 +225,9 @@ describe("listes paginées et recherche parmi mes relations", () => {
     const seen: string[] = []
     let low: { cursor: string | null; done: boolean } = { cursor: null, done: false }
     let high: { cursor: string | null; done: boolean } = { cursor: null, done: false }
-    while (!low.done || !high.done) {
+    // Borné : un côté épuisé qui repartirait du début bouclerait sans fin, et
+    // convex-test ne rend jamais la main au minuteur de vitest.
+    for (let round = 0; round < 20 && (!low.done || !high.done); round += 1) {
       const page = await me.as.query(api.modules.graph.connections.paginateMine, {
         networkId: root,
         lowPaginationOpts: { numItems: 1, cursor: low.cursor },
@@ -235,11 +238,67 @@ describe("listes paginées et recherche parmi mes relations", () => {
       low = { cursor: page.low.continueCursor, done: page.low.isDone }
       high = { cursor: page.high.continueCursor, done: page.high.isDone }
     }
+    expect(low.done && high.done).toBe(true)
     expect(new Set(seen).size).toBe(4)
     expect(seen.sort()).toEqual(others.slice(0, 4).map((other) => other.personId).sort())
 
     const pending = await me.as.query(api.modules.graph.connections.paginatePendingForMe, { networkId: root, paginationOpts: { numItems: 10, cursor: null } })
     expect(pending.page.map((row) => [row.otherPersonId, row.message])).toEqual([[others[5]!.personId, "Salut"]])
+  })
+
+  /**
+   * `paginateMine` composait les deux côtés par deux sous-requêtes à pagination
+   * native : une sous-requête `ctx.runQuery` PARTAGE l'exécution — et l'unique
+   * `.paginate()` natif — de la requête qui l'appelle, et le moteur déployé
+   * levait « This query function ran multiple paginated queries ». convex-test
+   * ouvre un contexte neuf par sous-requête : `t.query` passait. On rejoue donc
+   * la contrainte du moteur dans UN contexte : la pagination native consommée
+   * d'entrée, puis les deux côtés. Un seul `.paginate()` natif de plus lève.
+   */
+  it("témoin : le harnais refuse une seconde pagination native dans un même contexte", async () => {
+    const t = testConvex()
+    const consume = async (ctx: Parameters<Parameters<T["run"]>[0]>[0]) => {
+      await ctx.db.query("connections").paginate({ cursor: null, numItems: 1 })
+    }
+    await expect(
+      t.run(async (ctx) => {
+        await consume(ctx)
+        await consume(ctx)
+      }),
+    ).rejects.toThrow(/Only a single paginated query/)
+  })
+
+  it("lit les deux côtés dans UNE exécution ; un côté épuisé, rejoué, ne repart pas du début", async () => {
+    const t = testConvex()
+    const { root } = await seed(t)
+    const me = await enter(t, root, "moi", "Moi Même")
+    const others: Person[] = []
+    for (let i = 0; i < 6; i += 1) others.push(await enter(t, root, `ami${i}`, `Ami Numéro ${i}`))
+    for (const other of others) await connect(root, other, me)
+
+    const read = await t.run(async (ctx) => {
+      await ctx.db.query("connections").paginate({ cursor: null, numItems: 1 })
+      const opts = { cursor: null, numItems: 50 }
+      const [low, high] = await Promise.all([acceptedSidePage(ctx, root, me.personId, "low", opts), acceptedSidePage(ctx, root, me.personId, "high", opts)])
+      // Le client rejoue le curseur d'un côté FINI tant que l'autre continue :
+      // il doit rendre une page vide, pas repartir du début.
+      const replayed = await Promise.all([
+        acceptedSidePage(ctx, root, me.personId, "low", { ...opts, cursor: low.continueCursor }),
+        acceptedSidePage(ctx, root, me.personId, "high", { ...opts, cursor: high.continueCursor }),
+      ])
+      return {
+        seen: [...low.page, ...high.page].map((row) => row.otherPersonId),
+        done: low.isDone && high.isDone,
+        replayed: replayed.map((page) => ({ rows: page.page.length, isDone: page.isDone })),
+      }
+    })
+
+    expect(read.done).toBe(true)
+    expect([...read.seen].sort()).toEqual(others.map((other) => other.personId).sort())
+    expect(read.replayed).toEqual([
+      { rows: 0, isDone: true },
+      { rows: 0, isDone: true },
+    ])
   })
 
   it("searchMine : par le nom (sans accents), par l'identifiant exact, jamais hors relations ; le mode privé ne retire rien", async () => {

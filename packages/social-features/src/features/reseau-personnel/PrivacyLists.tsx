@@ -58,7 +58,7 @@ function PrivacyListsContent({ includeBookmarks }: { includeBookmarks: boolean }
   ) {
     return (
       <Card>
-        <p role="status" style={{ margin: 0, fontSize: 14, color: "var(--ink-600)" }}>{t("privacyLists.loading")}</p>
+        <p role="status" style={{ margin: 0, fontSize: "var(--esp-content-font-size, 14px)", lineHeight: "var(--esp-content-line-height, inherit)", color: "var(--ink-600)" }}>{t("privacyLists.loading")}</p>
       </Card>
     )
   }
@@ -69,7 +69,7 @@ function PrivacyListsContent({ includeBookmarks }: { includeBookmarks: boolean }
   return (
     <Card>
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-        <h2 style={{ margin: 0, fontSize: 16 }}>{t("privacyLists.title")}</h2>
+        <h2 style={{ margin: 0, fontFamily: "var(--esp-heading-font-family, inherit)", fontSize: "var(--esp-section-title-size, 16px)", fontWeight: "var(--esp-heading-font-weight, inherit)", lineHeight: "var(--esp-section-title-leading, inherit)", letterSpacing: "var(--esp-section-title-tracking, normal)" }}>{t("privacyLists.title")}</h2>
         {includeBookmarks ? <List
           title={t("privacyLists.bookmarks.title")}
           emptyText={t("privacyLists.bookmarks.empty")}
@@ -133,7 +133,7 @@ function PrivacyListsContent({ includeBookmarks }: { includeBookmarks: boolean }
           </Button>
         ) : null}
         {(includeBookmarks && bookmarks.status === "LoadingMore") || mutes.status === "LoadingMore" || hidden.status === "LoadingMore" ? (
-          <p role="status" style={{ margin: 0, fontSize: 14, color: "var(--ink-600)" }}>{t("privacyLists.loadingMore")}</p>
+          <p role="status" style={{ margin: 0, fontSize: "var(--esp-content-font-size, 14px)", lineHeight: "var(--esp-content-line-height, inherit)", color: "var(--ink-600)" }}>{t("privacyLists.loadingMore")}</p>
         ) : null}
       </div>
     </Card>
@@ -157,9 +157,9 @@ function List<T>({
 }) {
   return (
     <section>
-      <h3 style={{ margin: "0 0 8px", fontSize: 15 }}>{title}</h3>
+      <h3 style={{ margin: "0 0 8px", fontSize: "var(--esp-subsection-title-size, 15px)", fontWeight: "var(--esp-heading-font-weight, inherit)", lineHeight: "var(--esp-subsection-title-leading, inherit)" }}>{title}</h3>
       {items.length === 0 ? (
-        <p style={{ margin: 0, fontSize: 14, color: "var(--ink-600)" }}>{emptyText}</p>
+        <p style={{ margin: 0, fontSize: "var(--esp-content-font-size, 14px)", lineHeight: "var(--esp-content-line-height, inherit)", color: "var(--ink-600)" }}>{emptyText}</p>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           {items.map((item) => (
@@ -173,7 +173,7 @@ function List<T>({
                 gap: 8,
                 paddingBlock: 8,
                 borderBottom: "1px solid var(--border)",
-                fontSize: 14,
+                fontSize: "var(--esp-content-font-size, 14px)", lineHeight: "var(--esp-content-line-height, inherit)",
               }}
             >
               <span style={{ flex: "1 1 200px", minWidth: 0, overflowWrap: "anywhere" }}>{render(item)}</span>

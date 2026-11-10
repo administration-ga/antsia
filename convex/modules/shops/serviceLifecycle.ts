@@ -6,11 +6,11 @@
  * générique supprime ensuite les lignes (`DATA_TABLE_POLICIES`, propriétaire `personId`).
  * Aucun ordre distant n'est émis ici : un rendez-vous PRO.GA ne s'annule que par son client.
  */
-import { COMMERCE_MAX_SKEW_MS } from "@antsia/social-domain/commerce/primitives"
+import { commerceIsTerminalState } from "@antsia/social-domain/commerce/lifecycle"
 import { makeFunctionReference } from "convex/server"
 import { v } from "convex/values"
 
-import type { Id } from "../../_generated/dataModel"
+import type { Doc, Id } from "../../_generated/dataModel"
 import { internalMutation, type MutationCtx } from "../../_generated/server"
 import { personQuery } from "../../lib/functions"
 import { SERVICE_CLOSED_RETENTION_MS, SERVICE_COMMANDS_PER_REQUEST_MAX, SERVICE_PENDING_MAX_MS } from "./serviceRules"
@@ -27,6 +27,7 @@ export async function revokeServicesForPerson(ctx: MutationCtx, personId: Id<"pe
   for (const row of commands.slice(0, REVOCATION_PAGE)) {
     await ctx.db.patch(row._id, {
       rawBody: undefined, leaseToken: undefined, leaseUntil: undefined, privatePurgedAt: now,
+      leaseSessionDigest: undefined, lookupSessionDigest: undefined, inquiryAttachmentMessageIds: undefined,
       // Une intention encore en vol ne recevra plus d'effet local (réponse tardive refusée).
       ...(row.state === "unknown" ? { cancelledAt: now, reason: "erasure_requested" } : {}), updatedAt: now,
     })
@@ -68,10 +69,31 @@ async function close(ctx: MutationCtx, rowId: Id<"commerceServiceRequests">, req
   await ctx.scheduler.runAt(purgeAt, purgeClosedRef, { requestRowId })
 }
 
+type RequestRow = Doc<"commerceServiceRequests">
+type CommandRow = Doc<"commerceServiceCommands">
+
+/** Seul un état PRO.GA déjà observé permet de conclure à la fin de l'engagement. */
+function terminalObservation(row: RequestRow): boolean {
+  if (row.pendingReplacement) return false
+  if (row.mode === "booking") return !!row.booking && commerceIsTerminalState("booking", row.booking.state)
+  return !!row.order && commerceIsTerminalState("order", row.order.state)
+}
+function hasEngagement(row: RequestRow): boolean {
+  return !!(row.booking || row.pendingReplacement || row.order || row.acceptedQuote || row.inquiryRef)
+}
+function unresolved(commands: CommandRow[]): boolean {
+  return commands.some((command) => command.state === "unknown" && command.cancelledAt === undefined)
+}
+async function commandsFor(ctx: MutationCtx, requestRowId: string): Promise<CommandRow[]> {
+  // borné : vingt commandes par demande ; la ligne supplémentaire ferme une éventuelle dérive.
+  return await ctx.db.query("commerceServiceCommands").withIndex("by_request_row", (q) => q.eq("requestRowId", requestRowId))
+    .order("desc").take(SERVICE_COMMANDS_PER_REQUEST_MAX + 1)
+}
+
 /**
- * Une demande restée SANS effet (aucune réponse, reconfirmation laissée en suspens) se ferme
- * après sept jours ; une demande active sans nouvelle observation depuis la durée technique
- * se ferme aussi. Sinon la vérification est reprogrammée : jamais de ligne oubliée.
+ * Une inactivité locale n'est ni une annulation ni la preuve d'un envoi sans effet. Les
+ * références minimales restent tant que l'engagement n'est pas terminal ou qu'un résultat
+ * demeure inconnu, même après expiration de ses octets. Aucun appel distant de fond.
  */
 export const closeStale = internalMutation({
   args: { requestRowId: v.string() }, returns: v.null(),
@@ -79,15 +101,16 @@ export const closeStale = internalMutation({
     const row = await ctx.db.query("commerceServiceRequests").withIndex("by_request", (q) => q.eq("requestRowId", args.requestRowId)).unique()
     if (!row || row.state === "closed" || row.state === "failed") return null
     const now = Date.now()
-    const last = await ctx.db.query("commerceServiceCommands").withIndex("by_request_row", (q) => q.eq("requestRowId", row.requestRowId)).order("desc").first()
-    // Une intention encore exécutable n'est jamais fermée sous elle.
-    const inFlight = last !== null && last.state === "unknown" && last.cancelledAt === undefined && now <= last.expiresAt + COMMERCE_MAX_SKEW_MS
-    if (!inFlight && row.state === "pending" && now - row.createdAt >= SERVICE_PENDING_MAX_MS) {
-      await close(ctx, row._id, row.requestRowId, "failed", "abandoned", now)
+    const commands = await commandsFor(ctx, row.requestRowId)
+    if (row.cancelledAt !== undefined) return null // L'effacement garde sa voie dédiée.
+    const uncertain = commands.length > SERVICE_COMMANDS_PER_REQUEST_MAX || unresolved(commands)
+    const noEffect = !hasEngagement(row) && !commands.some((command) => command.state === "accepted" || command.resultRef !== undefined)
+    if (!uncertain && terminalObservation(row)) {
+      await close(ctx, row._id, row.requestRowId, "closed", "terminal_observed", now)
       return null
     }
-    if (!inFlight && row.state === "active" && now - row.updatedAt >= SERVICE_CLOSED_RETENTION_MS) {
-      await close(ctx, row._id, row.requestRowId, "closed", "inactive", now)
+    if (!uncertain && noEffect && row.state === "pending" && now - row.createdAt >= SERVICE_PENDING_MAX_MS) {
+      await close(ctx, row._id, row.requestRowId, "failed", "abandoned", now)
       return null
     }
     await ctx.scheduler.runAfter(SERVICE_PENDING_MAX_MS, closeStaleRef, { requestRowId: row.requestRowId })
@@ -103,7 +126,15 @@ export const purgeClosed = internalMutation({
     const now = Date.now()
     if (row && (row.purgeAt === undefined || row.purgeAt > now || (row.state !== "closed" && row.state !== "failed"))) return null
     // borné : SERVICE_COMMANDS_PER_REQUEST_MAX + 1 commandes par passage, puis reprise.
-    const commands = await ctx.db.query("commerceServiceCommands").withIndex("by_request_row", (q) => q.eq("requestRowId", args.requestRowId)).take(SERVICE_COMMANDS_PER_REQUEST_MAX + 1)
+    const commands = await commandsFor(ctx, args.requestRowId)
+    if (row && row.cancelledAt === undefined && (commands.length > SERVICE_COMMANDS_PER_REQUEST_MAX || unresolved(commands) || hasEngagement(row) && !terminalObservation(row))) {
+      // Protège aussi les traces encore présentes que l'ancien traitement avait closes par âge.
+      // On ne réécrit aucun état PRO.GA, aucun observedAt, et on ne restaure aucune donnée effacée.
+      const state = hasEngagement(row) ? "active" as const : "pending" as const
+      await ctx.db.patch(row._id, { state, reason: undefined, purgeAt: undefined, updatedAt: now })
+      await ctx.scheduler.runAfter(SERVICE_PENDING_MAX_MS, closeStaleRef, { requestRowId: row.requestRowId })
+      return null
+    }
     for (const command of commands.slice(0, SERVICE_COMMANDS_PER_REQUEST_MAX)) await ctx.db.delete(command._id)
     if (commands.length > SERVICE_COMMANDS_PER_REQUEST_MAX) {
       await ctx.scheduler.runAfter(0, purgeClosedRef, { requestRowId: args.requestRowId })

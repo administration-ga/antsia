@@ -1,0 +1,19 @@
+{
+  "storefront": {
+    "offers": "View offers",
+    "existingConversation": "Return to my conversation",
+    "manageHint": "Manage your ANTSIA storefront here. Your catalogue and business management remain in PRO.GA, according to your link and permissions."
+  },
+  "contact": {
+    "requesterContext": "Your conversation with this shop",
+    "shopContext": "Shop inbox",
+    "partialEmpty": "No conversation in this window. The next one may contain more.",
+    "teamContext": "Team members reply on behalf of this shop according to their accepted permissions. Their personal account remains separate.",
+    "offline": "Connection interrupted. Your text stays in this form; no new send is started.",
+    "review": "The connection is back. Check availability again before sending your request.",
+    "refresh": "Check availability again",
+    "uncertain": "Your request has not been confirmed as recorded. Look for the conversation first; if it is still absent, retry exactly the same text.",
+    "retrySame": "Retry the same send",
+    "existingState": "Conversation state: {{state}}"
+  }
+}

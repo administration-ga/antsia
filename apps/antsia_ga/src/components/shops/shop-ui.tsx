@@ -7,13 +7,20 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { useTranslation } from "react-i18next"
 import { MemberPage } from "@/components/member-chrome"
 import { Button, buttonClassName, Card, type ButtonVariant } from "@/components/shared/controls"
+import { SCREEN_SUBMIT } from "@/components/shared/screen-layout"
 import { shopErrorText } from "./shop-model"
 
 export const SHOP_LINK_CLASS = "inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-3 text-sm font-medium text-primary underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
 export const SHOP_SELECT_CLASS = "min-h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-base text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
 
-export function ShopFrame({ title, lead, children }: { title: string; lead?: string; children: ReactNode }) {
-  return <MemberPage><div className="mx-auto flex w-full min-w-0 max-w-3xl flex-col gap-5 pb-24 [overflow-wrap:anywhere]"><header className="grid gap-2"><h1 className="text-2xl font-semibold tracking-tight">{title}</h1>{lead ? <p className="text-muted-foreground">{lead}</p> : null}</header>{children}</div></MemberPage>
+/**
+ * Tous les écrans de boutique et de prestataire occupent toute la colonne de leur espace, bords et écarts sur la
+ * gouttière (décisions du propriétaire du 22/10/2026, `shared/screen-layout`) ; dès 768 px, le lien de retour
+ * s'aligne sur le titre (au téléphone, inchangé).
+ */
+export function ShopFrame({ title, lead, header, children }: { title: string; lead?: string; header?: ReactNode; children: ReactNode }) {
+  // `header` remplace l'en-tête simple ; `null` quand l'écran porte lui-même son titre (`h1`), comme la vitrine.
+  return <MemberPage><div className={`flex w-full min-w-0 flex-col gap-5 pb-24 [overflow-wrap:anywhere] min-[768px]:[&>a]:self-start ${SCREEN_SUBMIT}`}>{header === undefined ? <header className="grid gap-2"><h1 className="text-2xl font-semibold tracking-tight">{title}</h1>{lead ? <p className="text-muted-foreground">{lead}</p> : null}</header> : header}{children}</div></MemberPage>
 }
 /** Un lien de boutique ; avec `variant`, il prend la facture d'un bouton (« Poser une question » en tonal des messages, ADR-0027),
  * à sa largeur même dans une grille. */
@@ -26,7 +33,7 @@ export function ShopLogo({ url, name }: { url: string | null; name: string }) {
   const [failedUrl, setFailedUrl] = useState<string | null>(null)
   if (!url || failedUrl === url) return <span aria-hidden="true" className="flex size-16 shrink-0 items-center justify-center rounded-xl bg-muted text-xl font-semibold">{Array.from(name).at(0) ?? ""}</span>
   // eslint-disable-next-line @next/next/no-img-element -- URL fournie par la garde du moteur, pas d'identifiant de stockage client.
-  return <img key={url} src={url} alt="" className="size-16 shrink-0 rounded-xl object-contain" onError={() => setFailedUrl(url)} />
+  return <img key={url} src={url} alt="" className="size-16 shrink-0 rounded-xl object-cover object-center" onError={() => setFailedUrl(url)} />
 }
 
 /** Chaque surface est remontée par réseau/personne/objet. Aucun effet tardif après sortie. */

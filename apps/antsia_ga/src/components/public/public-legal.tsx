@@ -3,7 +3,7 @@ import Link from "next/link"
 import { routes } from "@/lib/routes"
 import { getPublicT } from "./public-copy"
 
-const SECTIONS = { about: ["purpose", "contexts", "trust"], legal: ["publisher", "law", "publication"], privacy: ["profile", "cookies", "rights"] } as const
+const SECTIONS = { about: ["purpose", "contexts", "trust"], legal: ["publisher", "law", "publication"], privacy: ["controller", "data", "profile", "cookies", "recipients", "retention", "device", "rights"] } as const
 
 export function PublicLegalContent({ kind, locale }: { kind: keyof typeof SECTIONS; locale: Locale }) {
   const t = getPublicT(locale)

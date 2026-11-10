@@ -259,6 +259,7 @@ const RATE_LIMITS = {
   "shop.job.file": { kind: "token bucket", rate: 20, period: HOUR, capacity: 5 },
   "shop.job.track": { kind: "token bucket", rate: 60, period: HOUR, capacity: 10 },
   "shop.job.withdraw": { kind: "token bucket", rate: 30, period: HOUR, capacity: 6 },
+  "shop.job.intent.stop": { kind: "token bucket", rate: 30, period: HOUR, capacity: 6 },
   // P14 : services, devis et rendez-vous. Solliciter un professionnel (devis,
   // rendez-vous retenu, prestation commandée) a un budget journalier ; lire
   // créneaux et devis, changer ou annuler, consulter un résultat perdu ont
@@ -271,6 +272,7 @@ const RATE_LIMITS = {
   "shop.service.accept": { kind: "token bucket", rate: 30, period: HOUR, capacity: 6 },
   "shop.service.change": { kind: "token bucket", rate: 20, period: HOUR, capacity: 5 },
   "shop.service.status": { kind: "token bucket", rate: 120, period: HOUR, capacity: 20 },
+  "shop.service.intent.stop": { kind: "token bucket", rate: 30, period: HOUR, capacity: 6 },
   // Conversations contextuelles (CC-2b, ADR-0025, D14) : valeurs de départ, mesurées au pilote.
   // Ouvrir à la demande d'une partie (le crochet de la tranche consomme le seau de son propre
   // geste) ; écrire par personne, avec son renforcé pour un compte léger ; écrire par FIL (clé : le
@@ -281,6 +283,17 @@ const RATE_LIMITS = {
   "contextual.message.reinforced": { kind: "token bucket", rate: 15, period: MINUTE, capacity: 5 },
   "contextual.thread": { kind: "token bucket", rate: 120, period: HOUR, capacity: 30 },
   "contextual.manage": { kind: "token bucket", rate: 120, period: HOUR, capacity: 30 },
+  // MP09 : participation volontaire ; proposer sollicite une personne distincte.
+  "editorial.config.write": { kind: "token bucket", rate: 60, period: HOUR, capacity: 15 },
+  "editorial.grant.write": { kind: "token bucket", rate: 30, period: HOUR, capacity: 10 },
+  "editorial.article.write": { kind: "token bucket", rate: 120, period: HOUR, capacity: 30 },
+  "editorial.publish.write": { kind: "token bucket", rate: 30, period: HOUR, capacity: 10 },
+  "editorial.asset.write": { kind: "token bucket", rate: 60, period: HOUR, capacity: 20 },
+  "professional.profile.write": { kind: "token bucket", rate: 60, period: HOUR, capacity: 15 },
+  "professional.collaboration.propose": { kind: "token bucket", rate: 10, period: DAY, capacity: 3 },
+  "professional.collaboration.propose.reinforced": { kind: "token bucket", rate: 3, period: DAY, capacity: 1 },
+  "professional.collaboration.respond": { kind: "token bucket", rate: 60, period: HOUR, capacity: 15 },
+  "professional.collaboration.cancel": { kind: "token bucket", rate: 60, period: HOUR, capacity: 15 },
 } as const satisfies Record<string, RateLimitConfig>
 
 export type RateLimitBucket = keyof typeof RATE_LIMITS & string
@@ -307,6 +320,7 @@ const REINFORCED_BUCKETS = {
   "diaspora.job.apply": "diaspora.job.apply.reinforced",
   "shop.job.apply": "shop.job.apply.reinforced",
   "contextual.message": "contextual.message.reinforced",
+  "professional.collaboration.propose": "professional.collaboration.propose.reinforced",
 } as const satisfies Partial<Record<RateLimitBucket, RateLimitBucket>>
 
 type NetworkRateContext = {

@@ -69,6 +69,8 @@ import {
   contextualVisibleState,
   contextualVoiceText,
   type ContextualAppRuleDescriber,
+  legacyContextualObjectRef,
+  type ContextualAnyObjectRefView,
   type ContextualMessageAction,
   type ContextualObjectRefView,
   type ContextualThreadView,
@@ -110,8 +112,10 @@ export interface ContextualConversationViewProps {
   threadId: string
   /** Revenir à la liste (Messages, filtre « Mises en relation », ou l'écran de l'objet). */
   onBack: () => void
-  /** Ouvrir l'écran de l'objet (demande, mentorat, candidature) — l'application compose l'adresse. */
+  /** Ouvrir l'écran de l'objet (demande, mentorat, candidature) — l'application compose l'adresse. Contrat V1 : trois natures. */
   onOpenObject?: (object: ContextualObjectRefView) => void
+  /** Ouvrir un objet de toute nature, collaboration professionnelle comprise : geste explicite, prioritaire sur `onOpenObject`. */
+  onOpenContextualObject?: (object: ContextualAnyObjectRefView) => void
   /** Où en est l'objet, dans les mots de l'application (« Proposition à accepter »), quand elle le sait. */
   describeObject?: (thread: ContextualThreadView) => string | null
   /** Traduire un code FERMÉ de la tranche (`appRule`, ex. `context_address_forbidden`) dans l'espace de noms de l'application. */
@@ -128,7 +132,7 @@ export function ContextualConversationView(props: ContextualConversationViewProp
   return <ContextualConversation key={JSON.stringify([networkId, personId, props.threadId, isAuthenticated])} {...props} />
 }
 
-function ContextualConversation({ threadId: rawId, onBack, onOpenObject, describeObject, describeAppRule, source = CONTEXTUAL_MESSAGING_SOURCE }: ContextualConversationViewProps) {
+function ContextualConversation({ threadId: rawId, onBack, onOpenObject, onOpenContextualObject, describeObject, describeAppRule, source = CONTEXTUAL_MESSAGING_SOURCE }: ContextualConversationViewProps) {
   const { t } = useTranslation("messagerie")
   const { networkId, personId } = useNetwork()
   const { isAuthenticated } = useConvexAuth()
@@ -338,6 +342,10 @@ function ContextualConversation({ threadId: rawId, onBack, onOpenObject, describ
   const objectStatus = describeObject?.(thread) ?? null
   const sendBlockKey = contextualSendBlockKey(thread)
   const objectRef = thread.object
+  // Une nature postérieure à V1 ne s'ouvre que par le geste explicite : jamais par le rappel historique.
+  const legacyRef = objectRef === null ? null : legacyContextualObjectRef(objectRef)
+  const openObject = onOpenContextualObject !== undefined && objectRef !== null ? () => onOpenContextualObject(objectRef)
+    : onOpenObject !== undefined && legacyRef !== null ? () => onOpenObject(legacyRef) : null
 
   return (
     <>
@@ -361,8 +369,8 @@ function ContextualConversation({ threadId: rawId, onBack, onOpenObject, describ
         <p className="m-0 text-xs text-muted-foreground">{contextualVoiceText(thread, t)}</p>
         <p className="m-0 text-xs text-muted-foreground">{t("contextualConversation.context.privacy")}</p>
         <div className="flex flex-wrap gap-2 pt-1">
-          {onOpenObject !== undefined && objectRef !== null ? (
-            <button type="button" className="msg-tool-btn" onClick={() => onOpenObject(objectRef)}>
+          {openObject !== null ? (
+            <button type="button" className="msg-tool-btn" onClick={openObject}>
               {t(`contextualConversation.openObject.${thread.kind}`)}
             </button>
           ) : null}

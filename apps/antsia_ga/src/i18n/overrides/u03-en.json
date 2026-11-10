@@ -1,0 +1,17 @@
+{
+  "antsia": {
+    "me": {
+      "title": "My space",
+      "profile": "View my profile",
+      "lead": "Your personal activity, settings and requests. Open your network profile separately.",
+      "profileHint": "Your presentation and content available to members, according to its audience.",
+      "activityTitle": "My activity"
+    }
+  },
+  "reseau": {
+    "profilPersonnePage": {
+      "tabs": { "photos": "Album photos" },
+      "identity": { "selfNote": "Your profile visible in this network. Your messages, purchases and settings stay in your personal space." }
+    }
+  }
+}

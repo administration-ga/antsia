@@ -104,6 +104,21 @@ describe("médias déclarés — la vérité du stockage, sous garde", () => {
     expect(engineErrorCode(await caught(verify(t, lynda.personId, root, declared)))).toBe("conflict")
   })
 
+  it("le DTO distingue l'indisponibilité de l'analyse d'une quarantaine et retient toujours l'URL", async () => {
+    vi.useFakeTimers()
+    const t = testConvex()
+    const { root, enter } = await setup(t)
+    const lynda = await enter("lynda")
+    const storageId = await store(t, PNG, "image/png")
+    const media = await verify(t, lynda.personId, root, [{ storageId, kind: "image", mimeType: "image/png", sizeBytes: PNG.length }])
+    const scanId = await t.run(async (ctx) => (await ctx.db.query("fileScans").withIndex("by_storageId", (q) => q.eq("storageId", storageId)).unique())!._id)
+    for (const status of ["error", "suspicious", "infected"] as const) {
+      await t.run(async (ctx) => ctx.db.patch(scanId, { status }))
+      const [dto] = await t.run(async (ctx) => resolvePostMediaDtos(ctx, media))
+      expect(dto).toEqual({ url: null, withheld: status === "error" ? "fileScanUnavailable" : "fileQuarantined", kind: "image", mimeType: "image/png" })
+    }
+  })
+
   it("une déclaration qui ment ou un type hors politique est refusé, avec sa règle", async () => {
     const t = testConvex()
     const { root, enter } = await setup(t)

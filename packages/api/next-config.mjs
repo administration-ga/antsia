@@ -43,7 +43,7 @@ export function readEnvFile(file) {
  *   d'environnement à recopier par application.
  * - En production, les valeurs arrivent par les ARG du Dockerfile (catalogue).
  *
- * @param {{ appDir: string, engineRoot?: string, transpilePackages?: string[], usageAnalytics?: { host?: string, projectToken?: string, euRelayOrigin?: string } }} options
+ * @param {{ appDir: string, engineRoot?: string, transpilePackages?: string[], developmentCacheGc?: boolean, usageAnalytics?: { host?: string, projectToken?: string, euRelayOrigin?: string }, iframeSources?: readonly string[], frameAncestors?: readonly string[] }} options
  * @returns {import("next").NextConfig}
  */
 export function createEngineNextConfig(options) {
@@ -63,8 +63,18 @@ export function createEngineNextConfig(options) {
 
   return {
     output: "standalone",
+    // Les consignes des agents sont celles du dépôt, sans réécriture par Next.
+    agentRules: false,
     outputFileTracingRoot: ecosystemsRoot,
     turbopack: { root: ecosystemsRoot },
+    experimental: {
+      // Conserver le comportement des builds du moteur avant Next 16.4.
+      turbopackFileSystemCacheForBuild: false,
+      ...(isDev && options.developmentCacheGc ? {
+        turbopackFileSystemCacheForDev: true,
+        turbopackGc: { minProgressMs: 100, rootTtlMs: 30 * 60 * 1000 },
+      } : {}),
+    },
     reactCompiler: false,
     poweredByHeader: false,
     transpilePackages: [
@@ -84,7 +94,7 @@ export function createEngineNextConfig(options) {
       CONVEX_SITE_URL: convexSiteUrl,
     },
     async headers() {
-      return [{ source: "/(.*)", headers: securityHeaders({ convexUrl, livekitUrl, isDev, extraConnect: analyticsOrigin ? [analyticsOrigin] : [] }) }]
+      return [{ source: "/(.*)", headers: securityHeaders({ convexUrl, livekitUrl, isDev, extraConnect: analyticsOrigin ? [analyticsOrigin] : [], iframeSources: options.iframeSources, frameAncestors: options.frameAncestors }) }]
     },
   }
 }

@@ -188,5 +188,16 @@
       "openFeed": "Open the feed",
       "seeSuggestions": "See suggestions"
     }
+  },
+  "suggestionRelation": {
+    "follow": "Follow",
+    "followLabel": "Follow {{name}}",
+    "followBack": "Follow back",
+    "followBackLabel": "Follow {{name}} back",
+    "following": "Following",
+    "followingLabel": "You follow {{name}}: unfollow",
+    "followed": "You follow {{name}}.",
+    "unfollowed": "You no longer follow {{name}}.",
+    "followFailed": "The follow could not be saved."
   }
 }

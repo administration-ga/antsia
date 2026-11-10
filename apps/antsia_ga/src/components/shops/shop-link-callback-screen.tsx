@@ -8,6 +8,7 @@ import { useTranslation } from "react-i18next"
 
 import { Button, Card } from "@/components/shared/controls"
 import { routes } from "@/lib/routes"
+import { browserAppPath } from "@/lib/app-path"
 import { ShopFrame, ShopLink, useShopAction } from "./shop-ui"
 
 export function ShopLinkCallbackScreen({ state, code }: { state: string | null; code: string | null }) {
@@ -35,7 +36,7 @@ function ShopLinkCallback({ state, code }: { state: string | null; code: string 
 
   useEffect(() => {
     // Retire les preuves de la barre d'adresse ; aucune persistance navigateur.
-    window.history.replaceState(window.history.state, "", routes.shopLinkCallback())
+    window.history.replaceState(window.history.state, "", browserAppPath(routes.shopLinkCallback()))
   }, [])
   useEffect(() => {
     if (started.current || !isAuthenticated || !state || !code) return
@@ -47,7 +48,7 @@ function ShopLinkCallback({ state, code }: { state: string | null; code: string 
   return <ShopFrame title={t("link.callbackTitle")}><Card><div className="grid gap-4">
     <p role={invalid || outcome === "refused" || action.error ? "alert" : "status"}>{t(invalid ? "link.callbackInvalid" : `link.callback.${outcome}`)}</p>
     {action.error ? <p role="alert" className="text-sm text-destructive">{action.error}</p> : null}
-    {!invalid && (outcome === "unavailable" || action.error) ? <Button type="button" variant="outline" pending={action.pending} className="justify-self-start" onClick={() => void run()}>{t("common.retry")}</Button> : null}
+    {!invalid && (outcome === "unavailable" || action.error) ? <Button type="button" variant="outline" pending={action.pending} className="w-full sm:w-auto sm:justify-self-start" onClick={() => void run()}>{t("common.retry")}</Button> : null}
     <ShopLink href={shopId ? routes.shopEditor(shopId) : routes.myShops()}>{t(shopId ? "link.returnEditor" : "list.title")}</ShopLink>
   </div></Card></ShopFrame>
 }

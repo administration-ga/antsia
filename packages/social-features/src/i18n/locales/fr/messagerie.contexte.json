@@ -4,7 +4,8 @@
     "kinds": {
       "diasporaServiceRequest": "Demande de service",
       "diasporaMentoring": "Mentorat",
-      "diasporaJobApplication": "Candidature"
+      "diasporaJobApplication": "Candidature",
+      "professionalCollaboration": "Collaboration professionnelle"
     },
     "roles": {
       "diasporaServiceRequest": {
@@ -18,12 +19,17 @@
       "diasporaJobApplication": {
         "requester": "Candidat",
         "responder": "Employeur"
+      },
+      "professionalCollaboration": {
+        "requester": "Initiateur",
+        "responder": "Partenaire"
       }
     },
     "openObject": {
       "diasporaServiceRequest": "Voir la demande",
       "diasporaMentoring": "Voir le mentorat",
-      "diasporaJobApplication": "Voir la candidature"
+      "diasporaJobApplication": "Voir la candidature",
+      "professionalCollaboration": "Voir la collaboration"
     },
     "counterpart": {
       "person": "Membre au profil retiré",
@@ -125,7 +131,7 @@
       "title": "Mises en relation",
       "search": "Rechercher une mise en relation",
       "scope": "Recherche sur les mises en relation déjà chargées.",
-      "empty": "Aucune mise en relation pour l'instant. Elles s'ouvrent avec une demande de service, un mentorat accepté ou une candidature présélectionnée.",
+      "empty": "Aucune mise en relation pour l'instant. Elles s'ouvrent avec une demande de service, un mentorat accepté, une candidature présélectionnée ou une collaboration professionnelle acceptée.",
       "noMatch": "Aucune mise en relation chargée ne correspond à « {{term}} ».",
       "loadMore": "Afficher plus de mises en relation",
       "loading": "Chargement…",

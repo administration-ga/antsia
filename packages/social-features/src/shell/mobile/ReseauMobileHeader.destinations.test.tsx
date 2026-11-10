@@ -1,4 +1,4 @@
-// Écrit pour le moteur (lot P02 de l'étude social-commerce du 18/10/2026) : l'en-tête du téléphone sous la navigation par destinations — la recherche et la cloche restent, la porte d'iCom et la pastille du profil (destinations de la barre) quittent l'en-tête.
+// Écrit pour le moteur (lot P02 de l'étude social-commerce du 18/10/2026) : l'en-tête du téléphone sous la navigation par destinations — la recherche et la cloche restent, la porte d'iCom et la pastille du profil (destinations de la barre) quittent l'en-tête ; ADR-0028 : l'en-tête des chartes (recherche, cloche, messages).
 // @vitest-environment jsdom
 
 import { NetworkProvider, type EngineRoutes } from "@antsia/api/network"
@@ -72,11 +72,52 @@ describe("ReseauMobileHeader — navigation par destinations (P02)", () => {
     expect(view.container.querySelector("h1")).toBeNull()
   })
 
+  it("l'en-tête des chartes (ADR-0028) : recherche, cloche, messages dans cet ordre, sans bascule clair/sombre", () => {
+    const i18n = createAppI18n({ locale: "fr", appResources: { fr: {}, en: {} }, defaultNS: "social" })
+    const view = render(
+      <I18nextProvider i18n={i18n}>
+        <RouterProvider implementation={memoryRouter({ pathname: TEST_ROUTES.home() }).implementation}>
+          <NetworkProvider networkId={TEST_NETWORK_ID} slug="test" personId={TEST_PERSON_ID} charte="antsia" routes={ROUTES} navigation="destinations" postPresentation="charte" wordmark="ANTSIA">
+            <ReseauMobileHeader onSearch={vi.fn()} searchQuery="" profileHref={TEST_ROUTES.profile("awa.ndong")} avatarUrl={null} displayName="Awa Ndong" unreadMessages={2} />
+          </NetworkProvider>
+        </RouterProvider>
+      </I18nextProvider>,
+    )
+    const header = view.container.querySelector("header")!
+    expect(header.getAttribute("data-presentation")).toBe("charte")
+    const search = screen.getByRole("button", { name: "Ouvrir la recherche" })
+    const bell = screen.getByRole("button", { name: BELL.label })
+    // La porte des messages reste, pastille comprise, même sous les destinations.
+    const messages = screen.getByRole("link", { name: "Ouvrir iCom — 2 conversations non lues" })
+    expect(messages).toHaveAttribute("href", TEST_ROUTES.messages())
+    expect(header.querySelectorAll("button, a")).toHaveLength(3)
+    expect(search.compareDocumentPosition(bell) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0)
+    expect(bell.compareDocumentPosition(messages) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0)
+    expect(screen.queryByRole("button", { name: /sombre/i })).toBeNull()
+    expect(screen.queryByRole("link", { name: "Voir mon profil" })).toBeNull()
+  })
+
   it("sans marque déclarée, le libellé neutre du moteur, sans point", () => {
     const view = render(header())
     const wordmark = view.container.querySelector(".rm-wordmark")!
     expect(wordmark.textContent).toBe("Réseau")
     expect(wordmark.hasAttribute("data-brand")).toBe(false)
     expect(wordmark.querySelector(".rm-wordmark-dot")).toBeNull()
+  })
+
+  it("U09 : sous l'opt-in adaptatif, aucune porte Messages, même avec l'en-tête des chartes", () => {
+    const i18n = createAppI18n({ locale: "fr", appResources: { fr: {}, en: {} }, defaultNS: "social" })
+    render(
+      <I18nextProvider i18n={i18n}>
+        <RouterProvider implementation={memoryRouter({ pathname: TEST_ROUTES.home() }).implementation}>
+          <NetworkProvider networkId={TEST_NETWORK_ID} slug="test" personId={TEST_PERSON_ID} charte="antsia" routes={ROUTES} navigation="destinations" navigationLayout="adaptive" postPresentation="charte" wordmark="ANTSIA">
+            <ReseauMobileHeader onSearch={vi.fn()} searchQuery="" profileHref={null} avatarUrl={null} displayName="Awa Ndong" unreadMessages={3} />
+          </NetworkProvider>
+        </RouterProvider>
+      </I18nextProvider>,
+    )
+    expect(screen.queryByRole("link", { name: /Ouvrir iCom/ })).toBeNull()
+    expect(screen.getByRole("button", { name: BELL.label })).toBeTruthy()
+    expect(screen.getByRole("button", { name: "Ouvrir la recherche" })).toBeTruthy()
   })
 })

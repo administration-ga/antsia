@@ -1,0 +1,16 @@
+{
+  "lead": "Composez votre activité : vendez des produits, proposez des services ou préparez votre média.",
+  "capabilities": { "label": "Ce que vous proposez", "hint": "Choisissez une ou plusieurs activités. Vous gardez une seule page sociale.", "products": "Produits", "services": "Services", "media": "Média" },
+  "capabilityHints": { "products": "Catalogue et collections", "services": "Devis, forfaits et rendez-vous", "media": "Préparation de votre espace éditorial" },
+  "template": { "label": "Présentation de l’activité", "hint": "Ce choix adapte la présentation, sans modifier vos droits ni la nature de votre page." },
+  "templates": { "general": "Boutique généraliste", "fashion": "Mode et accessoires", "food": "Alimentation et restauration", "artisan": "Artisanat et créations", "local": "Prestataire local", "expert": "Expert à distance", "media": "Média et rédaction" },
+  "blocks": { "label": "Rubriques de votre espace", "hint": "Organisez les rubriques. Une rubrique apparaît aux visiteurs seulement si elle contient des éléments autorisés.", "moveUp": "Monter {{name}}", "moveDown": "Descendre {{name}}", "hide": "Masquer", "hideNamed": "Masquer {{name}}", "restore": "Rétablir {{name}}" },
+  "blockNames": { "catalog": "Catalogue", "services": "Services", "publications": "Publications", "about": "À propos" },
+  "mediaPreparation": "Préparation du média : la rédaction sera ajoutée dans les lots presse.",
+  "permissionsHint": "Préparer, publier et encaisser restent des étapes distinctes. Les prix, stocks et engagements sont gérés dans PRO.GA.",
+  "invalid": "Vérifiez les activités et les rubriques sélectionnées.",
+  "unsaved": "Vos modifications ne sont pas encore enregistrées.",
+  "saved": "Configuration enregistrée.",
+  "save": "Enregistrer",
+  "saveAndContinue": "Enregistrer et continuer"
+}

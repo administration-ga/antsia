@@ -8,7 +8,9 @@ import { useTranslation } from "react-i18next"
 
 import { SessionProviders } from "@/components/providers"
 import { SignInCard } from "@/components/sign-in-screen"
+import { DemoEntryLink } from "@/components/demo-embed"
 import type { ShopContactContinuation } from "@/lib/shop-contact-continuation"
+import type { SpecializedDestination } from "@/lib/specialized-navigation"
 import { routes } from "@/lib/routes"
 
 const FOOTER_LINK = "inline-flex min-h-11 items-center rounded-md px-2 text-xs text-muted-foreground hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
@@ -19,10 +21,11 @@ export type AccessHomeScreenProps = {
   publicPostId?: string
   notificationReference?: string
   shopContact?: ShopContactContinuation
+  specializedDestination?: SpecializedDestination
 }
 
 /** Une même porte responsive pour l'accueil, la connexion et l'inscription. */
-export function AccessHomeScreen({ intent = "sign-in", signOutIncomplete = false, publicPostId, notificationReference, shopContact }: AccessHomeScreenProps = {}) {
+export function AccessHomeScreen({ intent = "sign-in", signOutIncomplete = false, publicPostId, notificationReference, shopContact, specializedDestination }: AccessHomeScreenProps = {}) {
   const { t, i18n } = useTranslation("antsia")
   const locale = i18n.resolvedLanguage?.startsWith("en") ? "en" : "fr"
 
@@ -49,10 +52,11 @@ export function AccessHomeScreen({ intent = "sign-in", signOutIncomplete = false
         <div className="mx-auto w-full min-w-0 max-w-[420px]">
           <SessionProviders>
             <main id="contenu" tabIndex={-1} className="focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
-              <SignInCard compact intent={intent} signOutIncomplete={signOutIncomplete} publicPostId={publicPostId} notificationReference={notificationReference} shopContact={shopContact} />
+              <SignInCard compact intent={intent} signOutIncomplete={signOutIncomplete} publicPostId={publicPostId} notificationReference={notificationReference} shopContact={shopContact} specializedDestination={specializedDestination} />
             </main>
           </SessionProviders>
           <div className="mt-3 text-center">
+            <DemoEntryLink />
             <Link href={routes.discover()} prefetch={false} className="inline-flex min-h-11 items-center justify-center rounded-lg px-4 text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">{t("access.discover")}</Link>
           </div>
         </div>

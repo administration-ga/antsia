@@ -1,0 +1,220 @@
+{
+  "messagerie": {
+    "forwardTargets": {
+      "fallbackConversation": "Discussion"
+    },
+    "messagerieConversationView": {
+      "systemEvent": "Événement de la discussion",
+      "conversationFallbackTitle": "Discussion"
+    },
+    "icomViews": {
+      "conversations": "Discussions"
+    },
+    "icomBrickHeader": {
+      "detach": "Détacher les messages en fenêtre"
+    },
+    "icomDock": {
+      "tabs": {
+        "iappel": {
+          "label": "Appels"
+        },
+        "ichat": {
+          "label": "Discussions"
+        }
+      }
+    },
+    "icomMobileTabBar": {
+      "navLabel": "Navigation des messages",
+      "subtabsLabel": "Sections des messages"
+    },
+    "messagerieDesktopPage": {
+      "opening": "Ouverture des messages…"
+    },
+    "messagerieDock": {
+      "collapse": "Rétracter les messages",
+      "detach": "Détacher les messages en fenêtre",
+      "expand": "Déployer les messages",
+      "floatingLabel": "Messages — fenêtre détachée",
+      "moveWindow": "Déplacer la fenêtre des messages",
+      "reattach": "Ré-ancrer les messages dans la colonne",
+      "title": "Messages"
+    },
+    "messagerieListPage": {
+      "title": "Messages"
+    },
+    "messagerieListView": {
+      "errorTitle": "Discussions indisponibles",
+      "filterDirectsLabel": "Discussions individuelles",
+      "filterDirectsUnread_one": "Discussions individuelles, {{count}} message non lu",
+      "filterDirectsUnread_other": "Discussions individuelles, {{count}} messages non lus",
+      "filterGroupsLabel": "Discussions de groupe",
+      "filterGroupsUnread_one": "Discussions de groupe, {{count}} message non lu",
+      "filterGroupsUnread_other": "Discussions de groupe, {{count}} messages non lus",
+      "partialErrorTitle": "Discussions partiellement à jour",
+      "titleCompact": "Discussions"
+    },
+    "icomPublicReminders": {
+      "intro": "Vos échanges restent privés dans Messages. Ces publications publiques s'ouvrent et se consultent dans le réseau."
+    },
+    "icomRelationsPanel": {
+      "titleCall": "Appels",
+      "viewSwitch": "Vue des appels"
+    },
+    "contextualConversation": {
+      "state": {
+        "open": "Discussion ouverte.",
+        "closed": "Discussion fermée : l'historique reste lisible.",
+        "unavailable": "Discussion indisponible pour le moment : l'historique reste lisible."
+      },
+      "close": {
+        "done": "Discussion close."
+      }
+    },
+    "messagerieGroupeInfos": {
+      "settingsLabel": "Contenu et réglages du groupe"
+    }
+  },
+  "iappel": {
+    "callErrors": {
+      "mediaServerNotConfigured": "Les appels et les directs ne sont pas configurés sur ce déploiement. Contactez l'administrateur de la plateforme."
+    }
+  },
+  "reseau": {
+    "reseauAgentNav": {
+      "tabs": {
+        "evenements": {
+          "label": "Événements",
+          "shortLabel": "Événements",
+          "description": "Vos invitations et les événements que vous organisez. Répondez, annoncez-les au réseau."
+        }
+      }
+    },
+    "reseauMobileTabs": {
+      "menu": {
+        "settings": "Réglages"
+      }
+    },
+    "post": {
+      "event": {
+        "label": "Événement annoncé",
+        "scheduled": "Événement prévu",
+        "cancelled": "Événement annulé"
+      }
+    },
+    "creationController": {
+      "entries": {
+        "evenement": {
+          "label": "Événement"
+        }
+      }
+    },
+    "peoplePanel": {
+      "follows": {
+        "title": "Abonnements",
+        "errorTitle": "Abonnements indisponibles"
+      }
+    },
+    "suggestionsActions": {
+      "connect": "Ajouter"
+    },
+    "evenementsPanel": {
+      "toast": {
+        "cancelled": "Événement annulé.",
+        "created": "Événement créé.",
+        "cancelFailed": "Impossible d'annuler cet événement.",
+        "createFailed": "L'événement n'a pas pu être créé."
+      },
+      "errorMessage": "Vos événements n'ont pas pu être chargés.",
+      "truncated": "Votre agenda est long : seuls les événements les plus proches sont affichés.",
+      "create": "Créer un événement",
+      "card": {
+        "confirmCancelStatus": "Confirmez l'annulation de l'événement, ou revenez en arrière.",
+        "askCancel": "Annuler l'événement"
+      },
+      "composer": {
+        "form": "Créer un événement",
+        "title": "Nouvel événement",
+        "zone": "Un événement de votre agenda — le fuseau ({{timeZone}}) est fixé à la création.",
+        "missingTiming": "Renseignez la date et les heures de l'événement.",
+        "submit": "Créer l'événement"
+      }
+    },
+    "evenementsRail": {
+      "title": "Événements",
+      "error": "Les événements sont momentanément indisponibles."
+    },
+    "announceEventDialog": {
+      "toast": {
+        "announced": "Événement annoncé dans votre fil.",
+        "failed": "Impossible d'annoncer cet événement."
+      },
+      "bodyPlaceholder": "Pourquoi cet événement compte, ce qu'on y fera…",
+      "audienceHint": "L'annonce est une publication de votre fil. Elle n'invite personne : les invitations, elles, se font depuis l'événement."
+    },
+    "reseauMenuRail": {
+      "settings": "Réglages"
+    },
+    "reseauDesktopIcomLink": {
+      "label": "Messages",
+      "open": "Ouvrir les messages",
+      "openWithUnread_one": "Ouvrir les messages — {{count}} discussion non lue",
+      "openWithUnread_many": "Ouvrir les messages — {{count}} discussions non lues",
+      "openWithUnread_other": "Ouvrir les messages — {{count}} discussions non lues"
+    },
+    "reseauMobileHeader": {
+      "icomOpen": "Ouvrir les messages",
+      "icomOpenWithUnread_one": "Ouvrir les messages — {{count}} discussion non lue",
+      "icomOpenWithUnread_many": "Ouvrir les messages — {{count}} discussions non lues",
+      "icomOpenWithUnread_other": "Ouvrir les messages — {{count}} discussions non lues"
+    },
+    "reseauAgentPage": {
+      "railEndLabel": "Découverte du réseau"
+    },
+    "shared": {
+      "notification": {
+        "eventInvite": "{{actor}} vous invite à un événement."
+      }
+    },
+    "evenementsList": {
+      "emptyAgenda": "Votre agenda personnel est vide. Créez un événement pour inviter vos connexions, ou attendez une invitation.",
+      "titleLength": "Un titre d'événement compte entre {{min}} et {{max}} caractères."
+    }
+  },
+  "errors": {
+    "liveRoleRequired": "Votre rôle dans ce direct ne permet pas ce geste.",
+    "eventOrganizerRequired": "Seul l'organisateur de cet événement peut faire ce geste."
+  },
+  "rules": {
+    "LIVE_TITLE_REQUIRED": "Un direct doit porter un titre.",
+    "LIVE_TITLE_TOO_LONG": "Le titre d'un direct est limité à {{max}} caractères.",
+    "LIVE_FOLLOWERS_REQUIRES_PAGE": "Un direct réservé aux abonnés se tient au nom d'une page.",
+    "LIVE_INVITEES_NOT_ANNOUNCED": "Un direct réservé à ses invités ne s'annonce pas sur le fil.",
+    "LIVE_ENDED": "Ce direct est terminé.",
+    "LIVE_NOT_LIVE": "Ce direct n'est pas en cours.",
+    "LIVE_FULL": "Ce direct est complet.",
+    "LIVE_EXCLUDED": "Vous avez été exclu de ce direct.",
+    "LIVE_INVITEES_TOO_MANY": "Un direct compte au plus {{max}} invités.",
+    "LIVE_JOIN_AS_VIEWER_FIRST": "Rejoignez d'abord ce direct comme spectateur.",
+    "LIVE_HOST_STAYS_ON_STAGE": "L'hôte ne quitte pas l'antenne : il termine le direct.",
+    "LIVE_TARGET_EXCLUDED": "Cette personne a été exclue de ce direct.",
+    "LIVE_CHAT_CLOSED": "La discussion de ce direct est fermée.",
+    "LIVE_SELF_EXCLUDE": "Vous ne pouvez pas vous exclure de votre propre direct.",
+    "LIVE_HOST_NOT_MODERATABLE": "L'hôte du direct ne peut pas être modéré.",
+    "LIVE_REPLAY_VISIBILITY_WIDENS": "La visibilité d'un replay ne peut que restreindre celle du direct.",
+    "LIVE_REPLAY_VISIBILITY_FOLLOWERS": "La visibilité d'un replay ne se règle pas sur les abonnés d'une page : elle suit celle du direct.",
+    "LIVE_REPLAY_VISIBILITY_INVITEES": "La visibilité d'un replay ne se règle pas sur des invités : elle suit celle du direct.",
+    "LIVE_REPLAY_DECISION_AFTER_END": "Le sort de l'enregistrement se décide une fois le direct terminé.",
+    "LIVE_NO_RECORDING": "Ce direct n'a pas d'enregistrement.",
+    "LIVE_REPLAY_WITHDRAWN": "Ce replay a été retiré : il n'y a plus rien à publier.",
+    "LIVE_REPLAY_RETRY_AFTER_END": "Le direct doit être terminé pour relancer son replay.",
+    "LIVE_REPLAY_NOTHING_TO_RETRY": "Il n'y a pas de replay à relancer pour ce direct.",
+    "LIVE_REPLAY_UNAVAILABLE": "Ce direct n'a pas de replay disponible.",
+    "EVENT_TITLE_LENGTH": "Un titre d'événement compte entre {{min}} et {{max}} caractères.",
+    "EVENT_DESCRIPTION_TOO_LONG": "Une description d'événement est limitée à {{max}} caractères.",
+    "EVENT_LOCATION_TOO_LONG": "Un lieu d'événement est limité à {{max}} caractères.",
+    "EVENT_WINDOW_INVALID": "Les dates de l'événement sont invalides : la fin suit strictement le début.",
+    "EVENT_TOO_LONG": "Un événement est limité à {{maxDays}} jours.",
+    "EVENT_TIMEZONE_INVALID": "Le fuseau horaire de l'événement est invalide.",
+    "EVENT_CANCELLED": "Cet événement est annulé."
+  }
+}

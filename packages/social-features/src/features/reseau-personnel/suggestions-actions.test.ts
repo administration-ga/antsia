@@ -1,14 +1,16 @@
-// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/suggestions-actions.test.ts @ ad2e7fdc2 — adaptations : libellés lus dans l'i18n du moteur (`t` français, passé en dernier paramètre ; `busy` explicite pour `relationActionLabel`) ; cas neuf : les mêmes états se disent en anglais avec les mêmes clés ; tous les cas du socle gardés.
+// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/suggestions-actions.test.ts @ ad2e7fdc2 — adaptations : libellés lus dans l'i18n du moteur (`t` français, passé en dernier paramètre ; `busy` explicite pour `relationActionLabel`) ; cas neuf : les mêmes états se disent en anglais avec les mêmes clés ; tous les cas du socle gardés ; ADR-0037 : clé du geste Suivre et cartes retenues après un suivi.
 import { describe, expect, it } from "vitest"
 
 import { createAppI18n } from "../../i18n"
 import {
   connectButtonLabel,
+  followActionKey,
   offersInvitationAnswer,
   relationActionDisabled,
   relationActionLabel,
   suggestionActionState,
   visibleSuggestions,
+  withRetainedSuggestions,
 } from "./suggestions-actions"
 
 const t = createAppI18n({ locale: "fr", appResources: { fr: {}, en: {} }, defaultNS: "reseau" }).getFixedT("fr")
@@ -93,5 +95,24 @@ describe("l'état relationnel vient du SERVEUR (R-05)", () => {
     expect(relationActionDisabled("none", true)).toBe(true)
     // `busy` ne peut pas rendre un état serveur plus permissif.
     expect(relationActionLabel("requested_by_me", true, t)).toBe("Demande envoyée")
+  })
+})
+
+describe("Suivre ou être ami (ADR-0037)", () => {
+  it("Suivre, Suivre en retour quand la personne vous suit, Suivi une fois suivie", () => {
+    expect(followActionKey({ following: false, followsYou: false })).toBe("follow")
+    expect(followActionKey({ following: false, followsYou: true })).toBe("followBack")
+    expect(followActionKey({ following: true, followsYou: true })).toBe("following")
+    expect(followActionKey({ following: true, followsYou: false })).toBe("following")
+  })
+
+  it("une carte suivie reste à sa place quand le catalogue l'écarte, jamais en double", () => {
+    const row = (handle: string) => ({ handle })
+    const served = [row("a"), row("c"), row("d")]
+    expect(withRetainedSuggestions(served, [{ row: row("b"), index: 1 }]).map((item) => item.handle)).toEqual(["a", "b", "c", "d"])
+    // Le serveur la rend de nouveau (suivi retiré) : elle n'est pas doublée.
+    expect(withRetainedSuggestions([row("a"), row("b"), row("c")], [{ row: row("b"), index: 1 }]).map((item) => item.handle)).toEqual(["a", "b", "c"])
+    // Une place au-delà de la liste tombe à la fin ; deux cartes gardent leur ordre.
+    expect(withRetainedSuggestions([row("a")], [{ row: row("z"), index: 9 }, { row: row("y"), index: 0 }]).map((item) => item.handle)).toEqual(["y", "a", "z"])
   })
 })

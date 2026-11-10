@@ -1,5 +1,14 @@
 # P17a — Client natif ANTSIA : briques Expo, contrats et limites Web
 
+> Historique documentaire. Les reprises source [P17b](P17B_REPRISE_2026-10-20.md) et
+> [P17c du 20 octobre](P17C_REPRISE_2026-10-20.md) ajoutent le client et la chaîne d’appel native ;
+> aucune preuve de compilation ou d'appareil n'est acquise. M5 est précisé ci-dessous.
+> Les états « non lancé » ci-dessous décrivent l'audit des 18–19 octobre.
+
+> Suite du 20/10 : [P17d](P17D_REPRISE_2026-10-20.md) prépare la recette sans la jouer.
+> La ligne historique Android « plein écran » de §5.3 ne change pas la capacité P17c
+> `fullScreen:false` ; aucune réception verrouillée ou physique n’est acquise.
+
 18–19 octobre 2026 (la session a franchi minuit, heure de Paris). Lot **P17a seulement**, première
 tranche du [prompt P17](../prompts/P17_MOBILE_NATIF.md). **P17b, P17c et P17d ne sont pas lancées.**
 Références : [02 §5](../02_AUDIT_ANTSIA.md), [04](../04_PARCOURS_FIL_ET_PUBLICATIONS.md),
@@ -224,7 +233,7 @@ gabon-diplomatie ou setrag ; tout accès au backend Convex de PRO.GA.
 | M2 | Jeton VoIP distinct | `apns` = un jeton de 64 hexadécimaux sans nature (`tables.ts:66-70`) ; PushKit délivre ses propres identifiants au délégué `didUpdate` | nature `apns_voip` validée, un abonnement par nature, désinscription à la sortie | P17c |
 | M3 | Transport d'appel | APNs `alert` + `aps.alert` (`transports.ts:93,105`) ; FCM `notification` + `data` (`:75`) ; Expo titre/corps (`:41`) ; 45 s (`:32,41,75,93`) | iOS : type `voip`, sujet `<bundle>.voip`, priorité 10, expiration 0 ou quelques secondes, charge neutre ; Android : FCM **data seule** haute priorité ; jamais de sonnerie d'appel par Expo ; cliquet `notification-payload-content` respecté | P17c |
 | M4 | Ouverture ciblée d'appel | rend `{ channel: "call", ringing }` sans identifiant d'appel ni libellé (`notifications/open.ts:41-52,95-101`) | pour le natif seulement : identifiant d'appel, nature, média et profil **publié** de l'appelant, uniquement si l'appel sonne encore pour la session ; même repli `null` | P17c |
-| M5 | Fin de sonnerie poussée | aucune annulation n'est poussée ; seule la souscription Convex retire l'appel | push d'annulation (réponse ailleurs, refus, expiration, fin) ou relecture active pendant la sonnerie ; sur iOS, toute annulation reçue par PushKit est elle aussi rapportée (ADR-0002 GABON, P5) | P17c |
+| M5 | Fin de sonnerie | aucune annulation n'est poussée ; seule la souscription Convex retire l'appel | précision P17c du 20/10 : relecture active pendant la sonnerie et échéance native indépendante ; **aucun second push VoIP d’annulation**, ce canal Apple étant réservé au lancement d’un appel ; rapport immédiat puis fermeture si une ancienne ouverture n’est plus valide | P17c |
 | M6 | Budget des appels | chaque push d'appel réserve le budget social hebdomadaire (`deliveries.ts:47-62`, 35 par défaut, `notificationDelivery.ts:10`) ; `incomingCallAllowed` exige `weeklyLimit > 0`, la catégorie `calls` et le consentement (`policy.ts:90-104`) | décision du propriétaire : appels gouvernés par les préférences d'appel et « ne pas déranger », ou plafond distinct | P17c |
 | M7 | Session hors premier plan | abonnement inactif dès que la session expire (`sessionBinding.ts`) ; SecureStore lit par défaut en `WHEN_UNLOCKED`, inaccessible appareil verrouillé [S16] | jeton en `AFTER_FIRST_UNLOCK` (arbitrage sécurité, D7), rafraîchi à l'ouverture ; « appels inactifs sur cet appareil » à l'expiration ou à la révocation ; aucune exception de session | P17b–c |
 | M8 | Appareils multiples | `join` marque la participation de la **personne** (`lifecycle.ts:63-103`) ; jeton LiveKit à nonce par connexion (`livekitActions.ts:49`) : deux appareils d'une même personne peuvent entrer | réponse revendiquée par appareil (premier gagnant), autres appareils terminés (M5) ; tests de double acceptation | P17c |

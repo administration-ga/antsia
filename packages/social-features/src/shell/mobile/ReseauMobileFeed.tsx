@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/mobile/ReseauMobileFeed.tsx @ ad2e7fdc2 — adaptations : déplacé dans la coque (`shell/mobile/`) ; ma fiche lue sur la personne du moteur (`displayName`, portrait servi par la garde `avatar.url`, identifiant seulement PUBLIÉ) ; adresses par la table des routes injectée — lecteur des statuts sur `useRoutes().stories()` (paramètre `auteur`), geste du bandeau de profil vers `useRoutes().settings?.()` (retiré tant que l'application ne sert pas de réglages) — plus aucune route de l'espace en dur ; « Créer une actu » ouvre le composeur EN PLACE par la coquille (`onCreateStory`, la feuille qu'elle monte déjà) au lieu d'une page de composition ; surfaces `reseau` du plateau retirées (le moteur n'en connaît pas) ; chips de portée et leur note par leurs CLÉS i18n ; textes par l'i18n (`reseau:reseauMobileFeed.*`, et `t` passé en dernier aux modules purs : `invitationsBannerLabel`, `viewReturnLabel`, `searchStatusText`, `emptyFeedText`, `loadMoreAnnouncement`) ; résultats de recherche clés sur l'identifiant du moteur (`_id`) ; « agent » devient « personne » ; rendu et ordre inchangés ; P04 (18/10/2026) : quand l'application déclare le fil immersif (`NetworkProvider feedPresentation`), le fil et ses mots-clés s'affichent par défaut dans le lecteur immersif (`ImmersiveFeedReader`, même chaîne de pages, mêmes curseurs) avec la tête du fil en premier créneau et la bascule Liste/Immersion dans sa barre ; en liste, la bascule précède le fil et la position se retrouve au retour (`FeedListReturn`) ; sans déclaration, rendu historique à l'identique.
+// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/mobile/ReseauMobileFeed.tsx @ ad2e7fdc2 — adaptations : déplacé dans la coque (`shell/mobile/`) ; ma fiche lue sur la personne du moteur (`displayName`, portrait servi par la garde `avatar.url`, identifiant seulement PUBLIÉ) ; adresses par la table des routes injectée — lecteur des statuts sur `useRoutes().stories()` (paramètre `auteur`), geste du bandeau de profil vers `useRoutes().settings?.()` (retiré tant que l'application ne sert pas de réglages) — plus aucune route de l'espace en dur ; « Créer une actu » ouvre le composeur EN PLACE par la coquille (`onCreateStory`, la feuille qu'elle monte déjà) au lieu d'une page de composition ; surfaces `reseau` du plateau retirées (le moteur n'en connaît pas) ; chips de portée et leur note par leurs CLÉS i18n ; textes par l'i18n (`reseau:reseauMobileFeed.*`, et `t` passé en dernier aux modules purs : `invitationsBannerLabel`, `viewReturnLabel`, `searchStatusText`, `emptyFeedText`, `loadMoreAnnouncement`) ; résultats de recherche clés sur l'identifiant du moteur (`_id`) ; « agent » devient « personne » ; rendu et ordre inchangés ; P04 (18/10/2026) : quand l'application déclare le fil immersif (`NetworkProvider feedPresentation`), le fil et ses mots-clés s'affichent par défaut dans le lecteur immersif (`ImmersiveFeedReader`, même chaîne de pages, mêmes curseurs) avec la tête du fil en premier créneau et la bascule Liste/Immersion dans sa barre ; en liste, la bascule précède le fil et la position se retrouve au retour (`FeedListReturn`) ; sans déclaration, rendu historique à l'identique ; ADR-0028 : sous la présentation « charte », la tête suit l'écran des chartes — les actus juste sous l'en-tête, puis les bandeaux, les portées et la bascule Liste/Immersion ; le déclencheur du composeur s'efface devant le bouton « + » de la barre (Créer), qui ouvre la même surface.
 "use client"
 
 /**
@@ -35,7 +35,7 @@
  * trouvable, ni connectable — c'est un prérequis, pas une préférence.
  */
 
-import { useRoutes } from "@antsia/api/network"
+import { useNetwork, useRoutes } from "@antsia/api/network"
 import { Alert, Button, SkeletonCard } from "@antsia/ui"
 import { useCallback } from "react"
 import { useTranslation } from "react-i18next"
@@ -91,6 +91,8 @@ export function ReseauMobileFeed({
 }) {
   const { t } = useTranslation("reseau")
   const routes = useRoutes()
+  /* L'écran des chartes (ADR-0028) : actus d'abord, Créer par la barre. */
+  const charte = useNetwork().postPresentation === "charte"
   const {
     now,
     router,
@@ -139,11 +141,47 @@ export function ReseauMobileFeed({
     setPages((current) => appendPage(current, tailCursor))
   }, [setPages, tailCursor])
 
+  const storiesBlock = (
+    <>
+      {/* ── Les STORIES ───────────────────────────────────────────────────────
+          Elles viennent APRÈS le composeur : publier reste le geste principal
+          du fil, les actus restent accessibles dans leur rangée et dans le
+          menu. La barre s'efface d'elle-même tant que la réponse n'est pas là. */}
+      {view.kind === "feed" ? (
+        <>
+          <StoriesStyles />
+          <StoriesTray
+            myHandle={myHandle}
+            myAvatarUrl={myAvatarUrl}
+            now={now}
+            onOpen={(handle) => {
+              markStoriesOpenedFromApp()
+              const base = routes.stories()
+              router.push(handle === null ? base : `${base}?${new URLSearchParams({ [STORIES_AUTHOR_PARAM]: handle }).toString()}`)
+            }}
+            onCreate={onCreateStory}
+          />
+        </>
+      ) : null}
+    </>
+  )
+
+  /* La bascule Liste/Immersion : toujours visible et nommée, sur le fil et ses
+     mots-clés (P04) — absente sans déclaration de l'application. */
+  const modeToggle =
+    immersion !== null && feedId !== null ? (
+      <div className="fil-mode-row">
+        <FeedModeToggle state={immersion.mode} onChange={immersion.changeMode} />
+      </div>
+    ) : null
+
   /* La TÊTE du fil — bandeaux, composeur, actus, portées, vue en cours. En
      liste, elle précède les pages ; en immersion, elle est le premier créneau
-     du lecteur et défile avec lui. */
+     du lecteur et défile avec lui. Sous la charte (ADR-0028), les actus
+     ouvrent la tête, comme sur la maquette. */
   const head = (
     <>
+      {charte ? storiesBlock : null}
       {/* Sans profil publié, on n'est ni trouvable ni connectable, et ses
           publications s'affichent sous un nom neutre. Le bureau le dit dans
           `ProfileMiniCard` — cette carte n'est pas montée ici, la phrase
@@ -175,7 +213,7 @@ export function ReseauMobileFeed({
           couvre tous les autres volets et toutes les vues transitoires (R-02).
           Le poser au-dessus de résultats de recherche n'ajouterait qu'un
           doublon à trente pixels de la commande flottante. */}
-      {view.kind === "feed" ? (
+      {view.kind === "feed" && !charte ? (
         <button type="button" className="rm-composer-trigger" onClick={onCompose}>
           {/* L'AVATAR à gauche de la phrase — la grammaire du genre : le
               déclencheur parle à la première personne, et c'est le visage qui
@@ -188,26 +226,7 @@ export function ReseauMobileFeed({
         </button>
       ) : null}
 
-      {/* ── Les STORIES ───────────────────────────────────────────────────────
-          Elles viennent APRÈS le composeur : publier reste le geste principal
-          du fil, les actus restent accessibles dans leur rangée et dans le
-          menu. La barre s'efface d'elle-même tant que la réponse n'est pas là. */}
-      {view.kind === "feed" ? (
-        <>
-          <StoriesStyles />
-          <StoriesTray
-            myHandle={myHandle}
-            myAvatarUrl={myAvatarUrl}
-            now={now}
-            onOpen={(handle) => {
-              markStoriesOpenedFromApp()
-              const base = routes.stories()
-              router.push(handle === null ? base : `${base}?${new URLSearchParams({ [STORIES_AUTHOR_PARAM]: handle }).toString()}`)
-            }}
-            onCreate={onCreateStory}
-          />
-        </>
-      ) : null}
+      {charte ? null : storiesBlock}
 
       {/* Les CHIPS de portée. `role="tablist"` serait faux : ce ne sont pas des
           onglets qui montrent des contenus différents, ce sont des FILTRES qui
@@ -315,15 +334,13 @@ export function ReseauMobileFeed({
 
   return (
     <FeedSurfaceMemoryProvider value={immersion?.surfaceMemory ?? null}>
-      {/* La bascule Liste/Immersion : toujours visible et nommée, sur le fil
-          et ses mots-clés (P04) — absente sans déclaration de l'application. */}
-      {immersion !== null && feedId !== null ? (
-        <div className="fil-mode-row">
-          <FeedModeToggle state={immersion.mode} onChange={immersion.changeMode} />
-        </div>
-      ) : null}
+      {/* La bascule précède le fil ; sous la charte, elle suit la tête (les
+          actus ouvrent l'écran). */}
+      {charte ? null : modeToggle}
 
       {head}
+
+      {charte ? modeToggle : null}
 
       {view.kind === "post" ? (
         focused.isLoading ? (

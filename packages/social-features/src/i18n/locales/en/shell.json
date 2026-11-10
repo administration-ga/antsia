@@ -1,6 +1,7 @@
 {
   "appearance": {
     "label": "Appearance",
+    "theme": "Theme",
     "system": "System",
     "light": "Light",
     "dark": "Dark",

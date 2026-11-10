@@ -1,0 +1,114 @@
+{
+  "title": "Préparer mes paiements",
+  "lead": "Consultez les conditions et les capacités déclarées pour votre activité, puis poursuivez la préparation dans PRO.GA.",
+  "read": "Vérifier la préparation des paiements",
+  "refresh": "Vérifier à nouveau",
+  "loading": "Lecture de la préparation des paiements…",
+  "saveFirst": "Enregistrez vos modifications avant de vérifier les paiements.",
+  "offline": "Reconnectez-vous puis vérifiez à nouveau la préparation.",
+  "unavailable": "La préparation des paiements de cette activité n’est pas accessible actuellement.",
+  "unverified": "Les moyens ci-dessus doivent être vérifiés pour cette activité.",
+  "checkedAt": "État vérifié le {{date}}",
+  "validUntil": "Vérification valable jusqu’au {{date}}",
+  "expired": "Cette vérification a expiré. Relisez la préparation avant d’ouvrir PRO.GA.",
+  "expiredStatus": "À vérifier à nouveau",
+  "openPro": "Préparer les paiements dans PRO.GA",
+  "missingTitle": "Étapes manquantes",
+  "scope": {
+    "environment": "Configuration",
+    "environments": {
+      "sandbox": "Environnement de test",
+      "production": "Environnement de production"
+    },
+    "currency": "Devise",
+    "platformCountry": "Pays de la plateforme",
+    "sellerCountry": "Pays du vendeur",
+    "unknown": "Non confirmé"
+  },
+  "collection": {
+    "title": "Encaissement",
+    "closed": "Encaissement fermé pour cette activité.",
+    "ready": "Encaissement prêt selon la vérification PRO.GA."
+  },
+  "allocation": {
+    "title": "Répartition prévue",
+    "platform": "Part de la plateforme",
+    "seller": "Part du vendeur",
+    "unknown": "Aucune répartition n’est communiquée."
+  },
+  "refund": {
+    "title": "Remboursements et capacités par moyen",
+    "hint": "Consultez séparément les capacités déclarées pour chacun des moyens de paiement."
+  },
+  "payout": {
+    "title": "Reversement",
+    "closed": "Reversement fermé."
+  },
+  "beneficiary": {
+    "title": "Bénéficiaire du règlement",
+    "states": {
+      "not_configured": "Non configuré",
+      "not_verified": "Non vérifié",
+      "verified": "Vérifié"
+    }
+  },
+  "policy": {
+    "title": "Politique et accord vendeur",
+    "none": "Aucune politique n’est communiquée pour cette activité.",
+    "textVersion": "Version du texte d’accord",
+    "revision": "Révision de la politique",
+    "platformRevision": "Révision de la plateforme",
+    "mode": "Modèle de répartition",
+    "modes": {
+      "default_90": "Répartition standard de la plateforme",
+      "default_85": "Répartition standard de la plateforme",
+      "per_seller_contract": "Accord propre au vendeur",
+      "custom_platform_retention": "Répartition personnalisée de la plateforme"
+    },
+    "shareUnknown": "Non communiquée",
+    "accepted": "Accord vendeur enregistré pour cette politique.",
+    "notAccepted": "L’accord vendeur courant n’est pas enregistré.",
+    "acceptanceRevision": "Révision de l’accord enregistré : {{revision}}"
+  },
+  "rails": {
+    "title": "Moyens de paiement",
+    "names": {
+      "airtel_money": "Airtel Money",
+      "moov_money": "Moov Money",
+      "card": "Carte bancaire",
+      "paypal": "PayPal"
+    },
+    "qualified": "Qualification validée",
+    "unqualified": "Non qualifié pour cette activité",
+    "capabilitiesHint": "Les capacités sont présentées individuellement.",
+    "capabilities": {
+      "collect": "Encaissement",
+      "lookup": "Suivi du paiement",
+      "refund": "Remboursement",
+      "payout": "Reversement"
+    },
+    "supported": "Capacité déclarée prête",
+    "unsupported": "Capacité non prête"
+  },
+  "missing": {
+    "configuration_ambiguous": "Plusieurs configurations se chevauchent.",
+    "adapter_missing": "Connecteur de paiement manquant.",
+    "adapter_disabled": "Connecteur de paiement désactivé.",
+    "adapter_unqualified": "Connecteur non qualifié pour cette activité.",
+    "merchant_contract_missing": "Contrat de paiement marchand manquant.",
+    "country_not_approved": "Pays non admis pour ce moyen.",
+    "currency_not_approved": "Devise non admise pour ce moyen.",
+    "entity_not_approved": "Entité marchande non admise.",
+    "beneficiary_not_configured": "Bénéficiaire non configuré.",
+    "beneficiary_not_verified": "Bénéficiaire non vérifié.",
+    "policy_not_configured": "Politique de répartition non configurée.",
+    "policy_inactive": "Politique de répartition inactive.",
+    "policy_not_accepted": "Accord vendeur manquant.",
+    "stale_acceptance": "L’accord vendeur doit être renouvelé.",
+    "capability_unsupported": "Cette capacité n’est pas prise en charge.",
+    "source_permission_missing": "Autorisation de liaison manquante.",
+    "structure_not_verified": "Vérification de l’activité manquante.",
+    "collection_disabled": "Encaissement désactivé.",
+    "payout_not_implemented": "Le reversement n’est pas pris en charge."
+  }
+}

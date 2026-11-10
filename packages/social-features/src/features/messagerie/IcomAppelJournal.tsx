@@ -36,6 +36,7 @@ export function IcomAppelJournal({
   commercial = false,
   onOpenCommercialThread,
   onOpenContextualThread,
+  family,
 }: {
   /** Contrôles de niveau iAppel, rendus sur la même ligne que ses filtres. */
   leadingControls?: ReactNode
@@ -46,6 +47,8 @@ export function IcomAppelJournal({
    * par elle qu'on rappelle (accord et cible relus). Absent, ces lignes n'offrent aucun geste.
    */
   onOpenContextualThread?: (threadId: string) => void
+  /** ADR-0036 : la famille d'appels affichée (iCom ou iCom Pro) ; absente, tout le journal. */
+  family?: IappelJournalProps["family"]
 } = {}) {
   const { t } = useTranslation("messagerie")
   const { networkId, personId: viewerPersonId } = useNetwork()
@@ -121,6 +124,7 @@ export function IcomAppelJournal({
     <>{error ? <p role="alert" className="p-3 text-sm text-destructive">{error}</p> : null}<IappelJournal
       leadingControls={leadingControls}
       callPending={pending}
+      family={family}
       onCommercialWrite={commercial ? onOpenCommercialThread : undefined}
       onCommercialCallBack={commercial ? (input) => { void callBack({ userId: input.counterpartPersonId, name: input.name, mediaType: input.mediaType, commercialThreadId: input.threadId }) } : undefined}
       onContextualOpen={onOpenContextualThread === undefined ? undefined : (threadId) => onOpenContextualThread(String(threadId))}

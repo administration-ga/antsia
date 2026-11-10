@@ -1,11 +1,13 @@
 import type { api } from "@convex/_generated/api"
 import type { FunctionReturnType } from "convex/server"
 
+import { demoStorageNamespace } from "./demo-storage"
+
 /** Un compte de démonstration, tel que le catalogue de développement le rend. */
 export type DemoAccount = FunctionReturnType<typeof api.modules.platform.demoAccounts.catalogue>[number]
 
 /** Le compte choisi à l'écran de connexion, relu par l'automate d'accueil (cet onglet seulement). */
-export const DEMO_ACCOUNT_KEY = "antsia:antsia:demo-account"
+export const DEMO_ACCOUNT_KEY = `${demoStorageNamespace()}antsia:antsia:demo-account`
 
 function isDemoAccount(value: unknown): value is DemoAccount {
   if (typeof value !== "object" || value === null) return false

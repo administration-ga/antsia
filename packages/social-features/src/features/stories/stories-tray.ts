@@ -199,6 +199,20 @@ export function ringStateFor(
 }
 
 /**
+ * L'anneau DESSINÉ d'un médaillon. En présentation « rings » (maquette des
+ * chartes, ADR-0027), ma série porte le dégradé du thème, comme une série à
+ * voir : la maquette n'a pas d'anneau pâle, et un filet discret autour de
+ * « Vous » se lisait comme une série déjà vue. Les cartes gardent les trois
+ * états tels quels.
+ */
+export function drawnRingState(
+	state: StoryRingState,
+	rings: boolean,
+): StoryRingState {
+	return rings && state === "self" ? "unseen" : state
+}
+
+/**
  * La barre est-elle rendue ?
  *
  * Elle l'est dès qu'il y a QUELQUE CHOSE à faire : au moins une story à

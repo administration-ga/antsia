@@ -85,6 +85,24 @@ describe("comptes de démonstration — garde de développement", () => {
     expect(await t.query(api.modules.platform.demoAccounts.catalogue, {})).toEqual([])
   })
 
+  it("la démonstration déclarée ouvre le catalogue et l'équipement d'un acteur", async () => {
+    vi.stubEnv("CONVEX_CLOUD_URL", "https://demo-antsia-123.convex.cloud")
+    vi.stubEnv("ANTSIA_DEMO_DEPLOYMENT", "demo-antsia-123")
+    const t = await fixture()
+    expect((await t.query(api.modules.platform.demoAccounts.catalogue, {})).map((entry) => entry.actor)).toEqual([...DEMO_ACTORS])
+    const { as } = await demoActor(t, "membre")
+    expect(await as.mutation(api.modules.platform.demoAccounts.equipMyDemoAccount, { actor: "membre" })).toEqual({ actor: "membre", status: "declaree", role: "member" })
+  })
+
+  it("la déclaration recopiée sur un autre déploiement (la production comprise) n'ouvre rien", async () => {
+    vi.stubEnv("CONVEX_CLOUD_URL", "https://production-antsia-456.convex.cloud")
+    vi.stubEnv("ANTSIA_DEMO_DEPLOYMENT", "demo-antsia-123")
+    const t = await fixture()
+    expect(await t.query(api.modules.platform.demoAccounts.catalogue, {})).toEqual([])
+    const user = await welcomed(t, demoEmailOf("membre"), { handle: "membre.demo", displayName: "Awa MBA" })
+    expect(await code(user.as.mutation(api.modules.platform.demoAccounts.equipMyDemoAccount, { actor: "membre" }))).toBe("policyRefused")
+  })
+
   it("le catalogue nomme chaque acteur en Prénom NOM, sur le domaine réservé", async () => {
     openDevTools()
     const t = await fixture()
@@ -205,3 +223,50 @@ describe("comptes de démonstration — un acteur par compte", () => {
     expect(await as.mutation(api.modules.platform.demoAccounts.equipMyDemoAccount, { actor: "moderateur" })).toEqual({ actor: "moderateur", status: "verifiee", role: "network_moderator" })
   })
 })
+
+describe("figurants de démonstration — ambiance, hors de l'écran de connexion", () => {
+  it("fermés sans les outils de développement : catalogue vide et entrée refusée", async () => {
+    const t = await fixture()
+    expect(await t.query(api.modules.platform.demoAccounts.figurantCatalogue, {})).toEqual([])
+    const user = await welcomed(t, "figurant-1@demo.antsia.test", { handle: "kevin.mounguengui.demo", displayName: "Kévin MOUNGUENGUI" })
+    expect(await code(user.as.mutation(api.modules.platform.demoAccounts.equipMyDemoFigurant, { slot: 1 }))).toBe("policyRefused")
+  })
+
+  it("dix figurants sur l'adresse réservée, NOM en capitales, absents du catalogue de connexion", async () => {
+    openDevTools()
+    const t = await fixture()
+    const figurants = await t.query(api.modules.platform.demoAccounts.figurantCatalogue, {})
+    expect(figurants.map((figurant) => figurant.slot)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+    for (const figurant of figurants) {
+      expect(figurant.email).toBe(`figurant-${figurant.slot}@${DEMO_EMAIL_DOMAIN}`)
+      expect(figurant.profile.handle).toMatch(/^[a-z]+\.[a-z]+\.demo$/)
+      expect(figurant.profile.headline).toContain("Démo")
+      // Prénom capitalisé, NOM en capitales (normaliseur partagé de l'état civil).
+      expect(figurant.profile.displayName).toMatch(/^\p{Lu}\p{Ll}+ \p{Lu}+$/u)
+    }
+    expect(figurants.find((figurant) => figurant.slot === 4)?.profile.displayName).toBe("Inès OBAME")
+    const actors = await t.query(api.modules.platform.demoAccounts.catalogue, {})
+    expect(actors.some((entry) => entry.email.startsWith("figurant-"))).toBe(false)
+  })
+
+  it("entre dans la racine par la vraie règle, sans identité ni rôle ; refuse une autre adresse ou un profil absent", async () => {
+    openDevTools()
+    const t = await fixture()
+    const entry = (await t.query(api.modules.platform.demoAccounts.figurantCatalogue, {})).find((figurant) => figurant.slot === 3)
+    if (!entry) throw new Error("Figurant absent")
+    const intruder = await welcomed(t, "figurant-2@demo.antsia.test", { handle: "intrus.demo", displayName: "Intrus FICTIF" })
+    expect(await code(intruder.as.mutation(api.modules.platform.demoAccounts.equipMyDemoFigurant, { slot: 3 }))).toBe("policyRefused")
+    const unpublished = await signedIn(t, "figurant-5@demo.antsia.test")
+    expect(await code(unpublished.as.mutation(api.modules.platform.demoAccounts.equipMyDemoFigurant, { slot: 5 }))).toBe("profileRequired")
+    expect(await code(unpublished.as.mutation(api.modules.platform.demoAccounts.equipMyDemoFigurant, { slot: 11 }))).toBe("policyRefused")
+    const user = await welcomed(t, entry.email, entry.profile)
+    expect(await user.as.mutation(api.modules.platform.demoAccounts.equipMyDemoFigurant, { slot: 3 })).toEqual({ slot: 3, status: "declaree" })
+    expect(await user.as.mutation(api.modules.platform.demoAccounts.equipMyDemoFigurant, { slot: 3 })).toEqual({ slot: 3, status: "declaree" })
+    const membership = await t.run(async (ctx) => {
+      const root = await ctx.db.query("networks").withIndex("by_slug", (q) => q.eq("slug", "antsia")).unique()
+      return root ? await ctx.db.query("networkMemberships").withIndex("by_network_and_person", (q) => q.eq("networkId", root._id).eq("personId", user.personId)).unique() : null
+    })
+    expect(membership).toMatchObject({ status: "declaree", role: "member" })
+  })
+})
+

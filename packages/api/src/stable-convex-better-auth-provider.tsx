@@ -6,7 +6,7 @@ import { ConvexProviderWithAuth } from "convex/react"
 import type { ComponentProps, ReactNode } from "react"
 import { useEffect, useState } from "react"
 
-import { refreshCrossDomainSession, type RefreshableCrossDomainAuthClient, type SessionBootstrapResult, takeOneTimeToken } from "./cross-domain-session-bootstrap"
+import { refreshCrossDomainSession, type CrossDomainStorage, type RefreshableCrossDomainAuthClient, type SessionBootstrapResult, takeOneTimeToken } from "./cross-domain-session-bootstrap"
 
 type UpstreamProps = ComponentProps<typeof ConvexBetterAuthProvider>
 
@@ -20,6 +20,7 @@ export type SessionBootstrapLabels = {
 export type StableConvexBetterAuthProviderProps = Omit<UpstreamProps, "authClient" | "initialToken" | "children"> & {
   authClient: RefreshableCrossDomainAuthClient
   initialToken?: string | null
+  storage?: CrossDomainStorage
   labels: SessionBootstrapLabels
   children: ReactNode
 }
@@ -31,7 +32,7 @@ type BootstrapState = { status: "loading" } | { status: "ready"; token: string |
  * one-time-token est à USAGE UNIQUE et StrictMode joue les effets deux fois en
  * développement.
  */
-const bootstrapByClient = new WeakMap<object, Promise<SessionBootstrapResult>>()
+const bootstrapByClient = new WeakMap<object, Map<CrossDomainStorage | undefined, Promise<SessionBootstrapResult>>>()
 
 const anonymousAuth = {
   isLoading: false,
@@ -43,8 +44,9 @@ function useAnonymousAuth() {
   return anonymousAuth
 }
 
-function bootstrapOnce(authClient: RefreshableCrossDomainAuthClient): Promise<SessionBootstrapResult> {
-  const existing = bootstrapByClient.get(authClient)
+function bootstrapOnce(authClient: RefreshableCrossDomainAuthClient, storage?: CrossDomainStorage): Promise<SessionBootstrapResult> {
+  const promises = bootstrapByClient.get(authClient) ?? new Map<CrossDomainStorage | undefined, Promise<SessionBootstrapResult>>()
+  const existing = promises.get(storage)
   if (existing) return existing
 
   let oneTimeToken: string | null = null
@@ -55,8 +57,9 @@ function bootstrapOnce(authClient: RefreshableCrossDomainAuthClient): Promise<Se
     if (taken.token) window.history.replaceState({}, "", taken.href)
   }
 
-  const pending = refreshCrossDomainSession(authClient, { oneTimeToken })
-  bootstrapByClient.set(authClient, pending)
+  const pending = refreshCrossDomainSession(authClient, { oneTimeToken, ...(storage ? { storage } : {}) })
+  promises.set(storage, pending)
+  bootstrapByClient.set(authClient, promises)
   return pending
 }
 
@@ -65,7 +68,7 @@ function bootstrapOnce(authClient: RefreshableCrossDomainAuthClient): Promise<Se
  * Convex expiré ne laisse pas l'application sur une attente infinie, et le jeton
  * servi à Convex décrit bien la personne qui arrive.
  */
-export function StableConvexBetterAuthProvider({ children, client, authClient, initialToken, labels }: StableConvexBetterAuthProviderProps) {
+export function StableConvexBetterAuthProvider({ children, client, authClient, initialToken, labels, storage }: StableConvexBetterAuthProviderProps) {
   const [retry, setRetry] = useState(0)
   const [state, setState] = useState<BootstrapState>(() => (initialToken !== undefined ? { status: "ready", token: initialToken } : { status: "loading" }))
 
@@ -78,7 +81,7 @@ export function StableConvexBetterAuthProvider({ children, client, authClient, i
     // consommerait le one-time-token pour rien.
     let cancelled = false
     setState({ status: "loading" })
-    bootstrapOnce(authClient)
+    bootstrapOnce(authClient, storage)
       .then((result) => {
         if (cancelled) return
         // Le client Convex est un singleton de module : nettoyer l'auth d'un montage précédent.
@@ -93,7 +96,7 @@ export function StableConvexBetterAuthProvider({ children, client, authClient, i
     return () => {
       cancelled = true
     }
-  }, [authClient, client, initialToken, retry])
+  }, [authClient, client, initialToken, retry, storage])
 
   if (state.status === "loading") {
     return (
@@ -113,7 +116,7 @@ export function StableConvexBetterAuthProvider({ children, client, authClient, i
           className="rounded-md border border-border px-4 py-2"
           onClick={() => {
             // Sans cet oubli, le verrou resservirait la même promesse échouée.
-            bootstrapByClient.delete(authClient)
+            bootstrapByClient.get(authClient)?.delete(storage)
             setRetry((value) => value + 1)
           }}
         >

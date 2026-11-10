@@ -36,8 +36,8 @@
  *
  * ⚠️ L'instant passé aux lectures est FIGÉ au montage : le changer referait
  * l'abonnement, la série repasserait par « Chargement… » et la vidéo en cours
- * repartirait de zéro. Un écran de lecteur vit quelques minutes ; une story
- * expirée pendant qu'on la regarde reste lisible jusqu'au bout, comme au socle.
+ * repartirait de zéro. L'expiration déjà reçue ferme toutefois le segment
+ * dès que l'horloge de l'écran l'atteint, sans attendre un réabonnement.
  */
 
 import { api } from "@antsia/api/engine"
@@ -45,11 +45,12 @@ import { useAuthenticatedConvexQuery } from "@antsia/api/hooks"
 import { useNetwork } from "@antsia/api/network"
 import { Button } from "@antsia/ui"
 import { useMutation } from "convex/react"
-import { useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 import { SWIPE_HYSTERESIS_PX } from "../../shell/mobile/gestures"
 import { StoryOverlay } from "./StoryOverlay"
+import { DailySpecialStoryCard } from "./DailySpecialStoryCard"
 import { StoryProgressBar } from "./StoryProgressBar"
 import { StoryViewersSheet } from "./StoryViewersSheet"
 import {
@@ -71,6 +72,9 @@ import { storyEngineErrorText } from "./story-create"
 
 /** Au-delà, un appui n'est plus un tap mais une pause volontaire. */
 const LONG_PRESS_MS = 400
+
+/** La cible reste utilisable même si le lecteur est monté sans sa feuille. */
+const PLAYBACK_CONTROL_STYLE = { minWidth: 44, minHeight: 44 } as const
 
 /**
  * Un média RETENU par la garde (analyse en cours, ou bloqué) n'a rien à jouer :
@@ -98,7 +102,12 @@ export interface StoryViewerProps {
 	onExhausted: (direction: 1 | -1) => void
 }
 
-export function StoryViewer({
+export function StoryViewer(props: StoryViewerProps) {
+	const { networkId, personId } = useNetwork()
+	return <StoryViewerContent key={`${networkId}:${personId}:${props.handle ?? "mine"}:${props.myHandle ?? ""}`} {...props} />
+}
+
+function StoryViewerContent({
 	handle,
 	displayName,
 	avatarUrl,
@@ -129,7 +138,7 @@ export function StoryViewer({
 			: "skip",
 	)
 	const loaded = source === "mine" ? mine.data : theirs.data
-	const stories = loaded ?? []
+	const stories = useMemo(() => loaded ?? [], [loaded])
 
 	const markSeen = useMutation(api.modules.stories.stories.markSeen)
 	const removeStory = useMutation(api.modules.stories.stories.remove)
@@ -137,6 +146,10 @@ export function StoryViewer({
 	const [index, setIndex] = useState(0)
 	const [timer, setTimer] = useState(STORY_TIMER_ZERO)
 	const [paused, setPaused] = useState(false)
+	// L'intention explicite ne se relâche ni au pointerup, ni au pointerleave.
+	const [userPaused, setUserPaused] = useState(false)
+	// Le clavier ne doit pas perdre le bouton de commande au changement automatique de Story.
+	const [offerFocused, setOfferFocused] = useState(false)
 	const [stalled, setStalled] = useState(false)
 	const [muted, setMuted] = useState(true)
 	const [viewersOpen, setViewersOpen] = useState(false)
@@ -147,13 +160,32 @@ export function StoryViewer({
 	const [failed, setFailed] = useState(false)
 
 	const primed = useRef(false)
+	const alive = useRef(true)
+	const shownStory = useRef<string | null>(null)
+	useEffect(() => {
+		alive.current = true
+		return () => { alive.current = false }
+	}, [])
 	/** La sortie de série n'est annoncée QU'UNE fois — cf. l'effet plus bas. */
 	const exhausted = useRef(false)
 	const seenSent = useRef(new Set<string>())
+	const expiredAdvance = useRef<string | null>(null)
 	const pressed = useRef<{ x: number; y: number; t: number } | null>(null)
 	const videoRef = useRef<HTMLVideoElement>(null)
+	const playbackAttempt = useRef(0)
 
-	const current = stories[index]
+	const selected = stories[index]
+	// Le serveur reste l'autorité ; une date d'expiration déjà reçue interdit
+	// aussi de laisser l'ancien média ouvert entre deux lectures horodatées.
+	const current = selected !== undefined && selected.expiresAt > now ? selected : undefined
+	useEffect(() => {
+		if (!active || selected === undefined || selected.expiresAt > now) return
+		if (expiredAdvance.current === String(selected.storyId)) return
+		expiredAdvance.current = String(selected.storyId)
+		const next = stories.findIndex((story, position) => position > index && story.expiresAt > now)
+		if (next >= 0) setIndex(next)
+		else onExhausted(1)
+	}, [active, index, now, onExhausted, selected, stories])
 	const duration =
 		current === undefined
 			? 0
@@ -162,14 +194,15 @@ export function StoryViewer({
 	// La story N+1 de la MÊME série — le pager précharge déjà les auteurs
 	// voisins en les montant, mais rien ne réchauffait le segment suivant :
 	// chaque avancée payait un aller-retour réseau à froid.
-	const upcoming = preloadTarget(stories, index)
+	const nextStory = stories[index + 1]
+	const upcoming = nextStory !== undefined && nextStory.expiresAt > now ? preloadTarget(stories, index) : null
 
 	// L'horloge est ARRÊTÉE dès qu'une seule de ces raisons tient — la liste
 	// complète vit dans `isPlaybackHalted` (module pur) : en oublier une fait
 	// défiler une story que personne ne regarde (vécu avec l'autoplay refusé).
 	const halted = isPlaybackHalted({
 		active,
-		paused,
+		paused: paused || userPaused || offerFocused,
 		stalled,
 		viewersOpen,
 		needsTap,
@@ -181,7 +214,7 @@ export function StoryViewer({
 	// C'est le gel « écran noir » de toutes les vidéos d'actu (2026-08-20).
 	const mediaHalted = isMediaHalted({
 		active,
-		paused,
+		paused: paused || userPaused || offerFocused,
 		stalled,
 		viewersOpen,
 		needsTap,
@@ -192,16 +225,25 @@ export function StoryViewer({
 	useEffect(() => {
 		if (primed.current || stories.length === 0) return
 		primed.current = true
-		setIndex(initialStoryIndex(stories))
-	}, [stories])
+		const initial = initialStoryIndex(stories)
+		const live = stories.findIndex((story, position) => position >= initial && story.expiresAt > now)
+		setIndex(live >= 0 ? live : initial)
+	}, [now, stories])
 
 	/** Chaque story repart de zéro. */
 	const currentId = current === undefined ? null : String(current.storyId)
+	useLayoutEffect(() => { shownStory.current = currentId }, [currentId])
+	// Une promesse play() peut aboutir après une pause ou le réemploi du même
+	// élément vidéo pour une autre story. Elle ne décide plus de cette lecture.
+	useLayoutEffect(() => {
+		playbackAttempt.current += 1
+	}, [active, currentId, failed, paused, userPaused, offerFocused, viewersOpen])
 	useEffect(() => {
 		setTimer(STORY_TIMER_ZERO)
 		setRemoveArmed(false)
 		setNeedsTap(false)
 		setFailed(false)
+		setOfferFocused(false)
 		exhausted.current = false
 	}, [currentId])
 
@@ -281,6 +323,33 @@ export function StoryViewer({
 	 * le `playing` qui aurait rabaissé `stalled` — pause éternelle, vidéo
 	 * chargée à 100 % et muette (chronologie constatée le 2026-08-20).
 	 */
+	/**
+	 * Lance la lecture, et traduit le seul échec qui regarde l'écran : le
+	 * refus d'autoplay lève le chip « Lire ». Un AbortError (un `pause()` qui
+	 * interrompt un `play()` en vol) est bénin et quotidien — le traiter comme
+	 * un refus ferait clignoter le chip à chaque pause au doigt.
+	 */
+	const startPlayback = useCallback((node: HTMLVideoElement) => {
+		const attempt = ++playbackAttempt.current
+		const storyId = shownStory.current
+		const sourceUrl = node.getAttribute("src")
+		const isCurrentAttempt = () => alive.current && videoRef.current === node
+			&& shownStory.current === storyId && playbackAttempt.current === attempt
+			&& node.getAttribute("src") === sourceUrl
+		node
+			.play()
+			.then(() => {
+				if (isCurrentAttempt()) setNeedsTap(false)
+			})
+			.catch((err: unknown) => {
+				if (!isCurrentAttempt()) return
+				if (err instanceof DOMException && err.name === "NotAllowedError") {
+					setNeedsTap(true)
+					setStalled(false)
+				}
+			})
+	}, [setNeedsTap, setStalled])
+
 	useEffect(() => {
 		const node = videoRef.current
 		if (node === null) return
@@ -293,25 +362,10 @@ export function StoryViewer({
 			return
 		}
 		startPlayback(node)
-	}, [mediaHalted, muted, currentId])
-
-	/**
-	 * Lance la lecture, et traduit le seul échec qui regarde l'écran : le
-	 * refus d'autoplay lève le chip « Lire ». Un AbortError (un `pause()` qui
-	 * interrompt un `play()` en vol) est bénin et quotidien — le traiter comme
-	 * un refus ferait clignoter le chip à chaque pause au doigt.
-	 */
-	const startPlayback = (node: HTMLVideoElement) => {
-		node
-			.play()
-			.then(() => setNeedsTap(false))
-			.catch((err: unknown) => {
-				if (err instanceof DOMException && err.name === "NotAllowedError") {
-					setNeedsTap(true)
-					setStalled(false)
-				}
-			})
-	}
+		// Les raisons sont aussi suivies séparément : pendant un play() manuel,
+		// needsTap tient encore mediaHalted à true ; une nouvelle pause doit
+		// néanmoins interrompre cette tentative avant sa résolution.
+	}, [mediaHalted, muted, currentId, startPlayback, active, paused, userPaused, offerFocused, viewersOpen, failed])
 
 	/**
 	 * Rejoue quand la DÉCISION dit « joue » et que l'élément s'est pourtant
@@ -333,6 +387,16 @@ export function StoryViewer({
 	const goNext = () => {
 		if (index + 1 < stories.length) setIndex(index + 1)
 		else onExhausted(1)
+	}
+	const onStoryKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+		if (!active || event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return
+		const target = event.target
+		if (target instanceof HTMLElement && target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"], [role="combobox"], [role="slider"], [role="spinbutton"]')) return
+		if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return
+		event.preventDefault()
+		event.stopPropagation()
+		if (event.key === "ArrowLeft") goPrev()
+		else goNext()
 	}
 
 	// ─── États où il n'y a rien à lire ──────────────────────────────────────
@@ -382,6 +446,11 @@ export function StoryViewer({
 	return (
 		<div
 			className="st-stage esp-story-stage"
+			role="group"
+			aria-label={t("storyViewer.playbackControls")}
+			aria-keyshortcuts="ArrowLeft ArrowRight"
+			tabIndex={active ? 0 : -1}
+			onKeyDown={onStoryKeyDown}
 			onPointerDown={(event) => {
 				pressed.current = {
 					x: event.clientX,
@@ -505,10 +574,11 @@ export function StoryViewer({
 					}}
 				/>
 			) : (
+				// eslint-disable-next-line @next/next/no-img-element -- lecteur du moteur indépendant de Next : URL servie par la garde et scène déjà dimensionnée.
 				<img
-					className="st-media"
+					className={current.dailySpecial ? "st-media st-daily-special-media" : "st-media"}
 					src={current.media.url}
-					alt={current.caption ?? t("storyViewer.imageAlt", { name: authorName })}
+					alt={current.dailySpecial?.title ?? current.caption ?? t("storyViewer.imageAlt", { name: authorName })}
 					// Même règle qu'une vidéo cassée : sauter si la série continue,
 					// tenir l'écran (et le dire) si elle n'a que ce média.
 					onError={() => {
@@ -525,13 +595,13 @@ export function StoryViewer({
 					type="button"
 					className="st-chip esp-story-chip st-play"
 					aria-label={t("storyViewer.play")}
+					disabled={!active || paused || userPaused || viewersOpen}
 					onPointerDown={(event) => event.stopPropagation()}
 					onPointerUp={(event) => event.stopPropagation()}
 					onClick={() => {
-						void videoRef.current
-							?.play()
-							.then(() => setNeedsTap(false))
-							.catch(() => {})
+						if (!active || paused || userPaused || viewersOpen || failed) return
+						const node = videoRef.current
+						if (node !== null) startPlayback(node)
 					}}
 				>
 					{t("storyViewer.play")}
@@ -546,6 +616,7 @@ export function StoryViewer({
 					{upcoming.kind === "video" ? (
 						<video src={upcoming.url} preload="metadata" muted />
 					) : (
+						// eslint-disable-next-line @next/next/no-img-element -- préchargement borné de la seule voisine, URL servie par la garde ; aucune optimisation Next.
 						<img src={upcoming.url} alt="" />
 					)}
 				</div>
@@ -562,10 +633,28 @@ export function StoryViewer({
 				handle={handle}
 				avatarUrl={avatarUrl}
 				ageLabel={storyAgeLabel(current.publishedAt, now, t)}
-				caption={current.caption}
+				caption={current.dailySpecial ? null : current.caption}
+				content={current.dailySpecial && current.media.url !== null && !failed ? (
+					<DailySpecialStoryCard
+						key={currentId}
+						offer={current.dailySpecial}
+						onFocusWithinChange={setOfferFocused}
+					/>
+				) : undefined}
 				onClose={onClose}
 				actions={
 					<>
+						<div role="group" aria-label={t("storyViewer.playbackControls")} style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+							<button type="button" className="st-chip esp-story-chip" style={PLAYBACK_CONTROL_STYLE} disabled={!active} onClick={goPrev}>
+								{t("storyViewer.previous")}
+							</button>
+							<button type="button" className="st-chip esp-story-chip" style={PLAYBACK_CONTROL_STYLE} disabled={!active} onClick={() => setUserPaused(value => !value)}>
+								{t(userPaused ? "storyViewer.resume" : "storyViewer.pause")}
+							</button>
+							<button type="button" className="st-chip esp-story-chip" style={PLAYBACK_CONTROL_STYLE} disabled={!active} onClick={goNext}>
+								{t("storyViewer.next")}
+							</button>
+						</div>
 						{playableVideo ? (
 							<button
 								type="button"
@@ -605,10 +694,12 @@ export function StoryViewer({
 										}
 										void removeStory({ networkId, storyId: current.storyId })
 											.then(() => {
+												if (!alive.current || shownStory.current !== String(current.storyId)) return
 												toast.success(t("storyViewer.removed"))
 												goNext()
 											})
 											.catch((error: unknown) => {
+												if (!alive.current || shownStory.current !== String(current.storyId)) return
 												toast.error(
 													storyEngineErrorText(
 														error,
@@ -635,6 +726,7 @@ export function StoryViewer({
 					onOpenChange={setViewersOpen}
 					storyId={current.storyId}
 					now={now}
+					queryNow={queryNow}
 				/>
 			) : null}
 		</div>

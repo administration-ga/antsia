@@ -65,6 +65,8 @@
  * j'ai retiré mon profil, me ramène à sa gestion pour le republier.
  */
 
+import { COMPACT_SOCIAL_ACTION_STYLE } from "../social-action-style"
+import { peopleViewHref } from "./people-panel"
 import { api } from "@antsia/api/engine"
 import type { Id } from "@antsia/api/engine"
 import { useAuthenticatedConvexQuery } from "@antsia/api/hooks"
@@ -100,9 +102,9 @@ import {
   AlbumComposer,
   AlbumsSection,
 } from "../reseau-albums"
+import { useConnectionRequest } from "./use-connection-request"
 import { Avatar } from "./Avatar"
 import {
-  RESEAU_ACTION_SHAPE_STYLE,
   RESEAU_CARD_STYLE,
   RESEAU_PRIMARY_ACTION_STYLE,
   RESEAU_SECONDARY_ACTION_STYLE,
@@ -136,6 +138,7 @@ import {
   montreSquelette,
 } from "../../shell/query-state"
 import { ReseauQueryError } from "../../shell/ReseauQueryError"
+import { badgeLabelKey, signalBadges } from "../../components/identity"
 
 /** La fiche telle que le moteur la rend à un membre du réseau. */
 type PublicProfile = NonNullable<
@@ -198,9 +201,10 @@ export interface ProfilPersonnePageProps {
  * bascule en rendu dynamique.
  */
 export function ProfilPersonnePage(props: ProfilPersonnePageProps) {
+  const { networkId, personId } = useNetwork()
   return (
     <Suspense fallback={null}>
-      <ProfilPersonnePageInner {...props} />
+      <ProfilPersonnePageInner key={`${networkId}:${personId}:${props.handle}`} {...props} />
     </Suspense>
   )
 }
@@ -209,7 +213,9 @@ function ProfilPersonnePageInner({ handle }: ProfilPersonnePageProps) {
   const { t } = useTranslation("reseau")
   const router = useRouter()
   const routes = useRoutes()
-  const { networkId } = useNetwork()
+  const { networkId, navigation, navigationLayout, navigationLabels } = useNetwork()
+  const adaptive = navigation === "destinations" && navigationLayout === "adaptive"
+  const personalHubHref = adaptive ? routes.me?.() : undefined
   const searchParams = useSearchParams()
   /**
    * ⚠️ L'aperçu ne se DEMANDE pas au serveur : `getPublicProfile` rend
@@ -416,6 +422,7 @@ function ProfilPersonnePageInner({ handle }: ProfilPersonnePageProps) {
   const person = profile.data
   const coverUrl = person.cover.url
   const wallError = wallErrorText(t)
+  const clipsHref = adaptive && navigationLabels?.clips?.trim() ? routes.clips?.(person.handle) : undefined
 
   return (
     <ProfilFrame>
@@ -482,21 +489,31 @@ function ProfilPersonnePageInner({ handle }: ProfilPersonnePageProps) {
             ) : null}
           </div>
           <p className="pp-handle">@{person.handle}</p>
+          {adaptive ? (
+            <div className="pp-trust-badges">
+              {signalBadges(person).map((badge) => (
+                <Badge key={badge} tone="primary" size="sm">{t(badgeLabelKey(badge))}</Badge>
+              ))}
+            </div>
+          ) : null}
           {person.headline ? (
             <p className="pp-headline">{person.headline}</p>
           ) : null}
 
           <div className="pp-actions">
             {isSelf ? (
-              <Button
-                icon="edit"
-                aria-expanded={manage}
-                aria-controls={MANAGE_PANEL_ID}
-                onClick={() => setManage((open) => !open)}
-                style={RESEAU_PRIMARY_ACTION_STYLE}
-              >
-                {t("profilPersonnePage.actions.editProfile")}
-              </Button>
+              <>
+                <Button
+                  icon="edit"
+                  aria-expanded={manage}
+                  aria-controls={MANAGE_PANEL_ID}
+                  onClick={() => setManage((open) => !open)}
+                  style={RESEAU_PRIMARY_ACTION_STYLE}
+                >
+                  {t("profilPersonnePage.actions.editProfile")}
+                </Button>
+                {personalHubHref ? <Button variant="secondary" icon="user" style={RESEAU_SECONDARY_ACTION_STYLE} onClick={() => router.push(personalHubHref)}>{t("antsia:me.title")}</Button> : null}
+              </>
             ) : (
               <>
                 <ConnectionButton
@@ -513,6 +530,9 @@ function ProfilPersonnePageInner({ handle }: ProfilPersonnePageProps) {
                 ) : null}
               </>
             )}
+            {clipsHref ? (
+              <Button variant="secondary" icon="video" style={RESEAU_SECONDARY_ACTION_STYLE} onClick={() => router.push(clipsHref)}>{navigationLabels?.clips}</Button>
+            ) : null}
           </div>
 
           {isSelf ? (
@@ -883,7 +903,9 @@ function ConnectionButton({
 }) {
   const { t } = useTranslation("reseau")
   const { networkId } = useNetwork()
-  const request = useMutation(api.modules.graph.connections.requestConnection)
+  const connectionRequest = useConnectionRequest()
+  const routes = useRoutes()
+  const router = useRouter()
   const respond = useMutation(api.modules.graph.connections.respondToConnection)
   const [pending, setPending] = useState(false)
 
@@ -896,7 +918,7 @@ function ConnectionButton({
           variant="secondary"
           icon="userCheck"
           disabled
-          style={RESEAU_SECONDARY_ACTION_STYLE}
+          style={{ ...RESEAU_SECONDARY_ACTION_STYLE, ...COMPACT_SOCIAL_ACTION_STYLE }}
         >
           {t("profilPersonnePage.connection.connected")}
         </Button>
@@ -906,8 +928,8 @@ function ConnectionButton({
         <Button
           variant="secondary"
           icon="clock"
-          disabled
-          style={RESEAU_SECONDARY_ACTION_STYLE}
+          onClick={() => router.push(peopleViewHref("invitations", routes.home()))}
+          style={{ ...RESEAU_SECONDARY_ACTION_STYLE, ...COMPACT_SOCIAL_ACTION_STYLE }}
         >
           {t("profilPersonnePage.connection.requested")}
         </Button>
@@ -930,26 +952,25 @@ function ConnectionButton({
           .finally(() => setPending(false))
       }
       return (
-        <>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8, width: "100%", maxWidth: 400 }}>
           <Button
-            // Accepter : couleur des relations (ADR-0027).
             variant="social"
             icon="userCheck"
             disabled={pending}
-            style={RESEAU_PRIMARY_ACTION_STYLE}
+            style={COMPACT_SOCIAL_ACTION_STYLE}
             onClick={() => answer(true)}
           >
-            {t("profilPersonnePage.connection.accept")}
+            {t("peopleActions.confirm")}
           </Button>
           <Button
-            variant="ghost"
+            variant="outline"
             disabled={pending}
-            style={RESEAU_SECONDARY_ACTION_STYLE}
+            style={COMPACT_SOCIAL_ACTION_STYLE}
             onClick={() => answer(false)}
           >
             {t("profilPersonnePage.connection.decline")}
           </Button>
-        </>
+        </div>
       )
     }
     case "blocked_by_me":
@@ -958,7 +979,7 @@ function ConnectionButton({
           variant="ghost"
           icon="shieldAlert"
           disabled
-          style={RESEAU_SECONDARY_ACTION_STYLE}
+          style={{ ...RESEAU_SECONDARY_ACTION_STYLE, ...COMPACT_SOCIAL_ACTION_STYLE }}
         >
           {t("profilPersonnePage.connection.blocked")}
         </Button>
@@ -971,21 +992,21 @@ function ConnectionButton({
           // Se connecter : couleur des relations (ADR-0027).
           variant="social"
           icon="userPlus"
-          disabled={pending}
-          style={RESEAU_PRIMARY_ACTION_STYLE}
+          disabled={pending || connectionRequest.disabled}
+          style={COMPACT_SOCIAL_ACTION_STYLE}
           onClick={() => {
             setPending(true)
-            void request({ networkId, handle })
-              .then(() => toast.success(t("profilPersonnePage.toast.requestSent")))
+            void connectionRequest.send({ handle })
+              .then((sent) => { if (sent) toast.success(t("profilPersonnePage.toast.requestSent")) })
               .catch((err: unknown) =>
                 toast.error(gestureErrorText(err, "requestFailed", t)),
               )
               .finally(() => setPending(false))
           }}
         >
-          {pending
+          {connectionRequest.waitLabel ?? (pending
             ? t("profilPersonnePage.connection.sending")
-            : t("profilPersonnePage.connection.connect")}
+            : t("peopleActions.add"))}
         </Button>
       )
   }
@@ -1015,7 +1036,7 @@ function FollowButton({
       variant={isFollowing ? "outline" : "social"}
       icon={isFollowing ? "check" : "plus"}
       disabled={pending}
-      style={RESEAU_ACTION_SHAPE_STYLE}
+      style={COMPACT_SOCIAL_ACTION_STYLE}
       onClick={() => {
         setPending(true)
         const action = isFollowing
@@ -1059,7 +1080,6 @@ function ContactButtons({ person }: { person: PublicProfile }) {
   const { t } = useTranslation("reseau")
   const router = useRouter()
   const routes = useRoutes()
-  const { networkId } = useNetwork()
   const isMobile = useIsReseauMobile()
   const { busyHandle, ring } = useRingRelation()
 
@@ -1080,7 +1100,7 @@ function ContactButtons({ person }: { person: PublicProfile }) {
         // Écrire : bouton tonal, couleur des messages (ADR-0027).
         variant="message"
         icon="messageCircle"
-        style={RESEAU_ACTION_SHAPE_STYLE}
+        style={COMPACT_SOCIAL_ACTION_STYLE}
         onClick={write}
       >
         {t("profilPersonnePage.contact.write")}
@@ -1092,7 +1112,7 @@ function ContactButtons({ person }: { person: PublicProfile }) {
         aria-label={t("profilPersonnePage.contact.callLabel", {
           name: person.displayName,
         })}
-        style={RESEAU_SECONDARY_ACTION_STYLE}
+        style={{ ...RESEAU_SECONDARY_ACTION_STYLE, ...COMPACT_SOCIAL_ACTION_STYLE }}
         onClick={() =>
           void ring({
             personId: person.personId,

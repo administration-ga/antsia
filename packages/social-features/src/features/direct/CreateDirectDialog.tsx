@@ -100,17 +100,17 @@ function CreateDirectDraft({ onClose, prefill, asPage }: { onClose: () => void; 
     <EspaceDialog title={t("create.title")} description={t("create.description")} closeLabel={t("close")} onClose={isSubmitting ? () => undefined : onClose}>
       <form data-charte={charte} onSubmit={submit} className="flex flex-col gap-4" style={{ "--ui2-button-min-h": "44px", "--ui2-button-sm-min-h": "44px" } as CSSProperties}>
         <fieldset disabled={isSubmitting} className="contents">
-        <label className="flex flex-col gap-2 text-sm">{t("create.identity")}<select value={pageId ?? ""} onChange={(event) => { const value = event.target.value; setPageId(value ? value as Id<"pages"> : undefined); if (!value && audience === "followers") setValue("audience", "connections") }} className="min-h-11 rounded-lg border border-input bg-background px-3"><option value="">{t("create.personal")}</option>{pages.data?.map((page) => <option key={page.pageId} value={page.pageId}>{page.name}</option>)}{pageId && !pages.data?.some((page) => page.pageId === pageId) ? <option value={pageId}>{asPage?.name ?? t("create.pageUnavailable")}</option> : null}</select></label>
+        <label className="flex flex-col gap-2 text-sm">{t("create.identity")}<select value={pageId ?? ""} onChange={(event) => { const value = event.target.value; setPageId(value ? value as Id<"pages"> : undefined); if (!value && audience === "followers") setValue("audience", "connections") }} className="min-h-11 rounded-[var(--esp-input-radius,0.5rem)] border border-input bg-background px-3"><option value="">{t("create.personal")}</option>{pages.data?.map((page) => <option key={page.pageId} value={page.pageId}>{page.name}</option>)}{pageId && !pages.data?.some((page) => page.pageId === pageId) ? <option value={pageId}>{asPage?.name ?? t("create.pageUnavailable")}</option> : null}</select></label>
         {pages.isError ? <p role="alert">{t("create.pagesFailed")}</p> : null}
         {!pageUsable ? <p role="alert">{t("create.pageUnavailable")}</p> : null}
         <label htmlFor={`${id}-title`} className="flex flex-col gap-2 text-sm">
           {t("create.name")}
-          <input id={`${id}-title`} {...register("title")} maxLength={DIRECT_TITLE_MAX_LENGTH} aria-invalid={!!errors.title} className="min-h-11 rounded-lg border border-input bg-background px-3" />
+          <input id={`${id}-title`} {...register("title")} maxLength={DIRECT_TITLE_MAX_LENGTH} aria-invalid={!!errors.title} className="min-h-11 rounded-[var(--esp-input-radius,0.5rem)] border border-input bg-background px-3" />
           {errors.title ? <span role="alert">{t("create.invalidTitle", { max: DIRECT_TITLE_MAX_LENGTH })}</span> : null}
         </label>
         <label htmlFor={`${id}-audience`} className="flex flex-col gap-2 text-sm">
           {t("create.audience")}
-          <select id={`${id}-audience`} {...register("audience")} className="min-h-11 rounded-lg border border-input bg-background px-3">
+          <select id={`${id}-audience`} {...register("audience")} className="min-h-11 rounded-[var(--esp-input-radius,0.5rem)] border border-input bg-background px-3">
             <option value="connections">{t("audience.connections")}</option>
             <option value="public">{t("audience.public")}</option>
             <option value="invitees">{t("audience.invitees")}</option>
@@ -118,11 +118,11 @@ function CreateDirectDraft({ onClose, prefill, asPage }: { onClose: () => void; 
           </select>
         </label>
         <p className="text-sm text-muted-foreground">{t("create.networkOnly")}</p>
-        <label className="flex flex-col gap-2 text-sm">{t("studio.emission")}<select {...register("stageFormat")} className="min-h-11 rounded-lg border border-input bg-background px-3">{(["computer", "television", "mobile"] as const).map((format) => <option key={format} value={format}>{t(`studio.formats.${format}`)}</option>)}</select></label>
-        <label className="flex flex-col gap-2 text-sm">{t("studio.layout")}<select {...register("stageLayout")} className="min-h-11 rounded-lg border border-input bg-background px-3"><option value="adaptive">{t("studio.adaptive")}</option><option value="fixed">{t("studio.fixed")}</option></select></label>
+        <label className="flex flex-col gap-2 text-sm">{t("studio.emission")}<select {...register("stageFormat")} className="min-h-11 rounded-[var(--esp-input-radius,0.5rem)] border border-input bg-background px-3">{(["computer", "television", "mobile"] as const).map((format) => <option key={format} value={format}>{t(`studio.formats.${format}`)}</option>)}</select></label>
+        <label className="flex flex-col gap-2 text-sm">{t("studio.layout")}<select {...register("stageLayout")} className="min-h-11 rounded-[var(--esp-input-radius,0.5rem)] border border-input bg-background px-3"><option value="adaptive">{t("studio.adaptive")}</option><option value="fixed">{t("studio.fixed")}</option></select></label>
         <label htmlFor={`${id}-capacity`} className="flex flex-col gap-2 text-sm">
           {t("create.capacity")}
-          <input id={`${id}-capacity`} type="number" min={1} max={DIRECT_MAX_VIEWERS_CAP} {...register("maxViewers", { valueAsNumber: true })} aria-invalid={!!errors.maxViewers} className="min-h-11 rounded-lg border border-input bg-background px-3" />
+          <input id={`${id}-capacity`} type="number" min={1} max={DIRECT_MAX_VIEWERS_CAP} {...register("maxViewers", { valueAsNumber: true })} aria-invalid={!!errors.maxViewers} className="min-h-11 rounded-[var(--esp-input-radius,0.5rem)] border border-input bg-background px-3" />
           {errors.maxViewers ? <span role="alert">{t("create.invalidCapacity", { max: DIRECT_MAX_VIEWERS_CAP, DIRECT_MAX_INVITEES })}</span> : null}
         </label>
         <label className="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" {...register("replay")} />{t("create.record")}</label>

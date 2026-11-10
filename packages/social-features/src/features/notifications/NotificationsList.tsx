@@ -29,9 +29,12 @@ import { useNetwork } from "@antsia/api/network"
 import { Link } from "@antsia/api/routing"
 import { Badge, Button } from "@antsia/ui"
 import { useMutation } from "convex/react"
-import type { CSSProperties } from "react"
+import { useState, type CSSProperties } from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
+import { COMPACT_SOCIAL_ACTION_STYLE } from "../social-action-style"
+import { closeNotificationCenter } from "./notification-center-store"
+import { NOTIFICATIONS_STYLES_CSS } from "./notifications-styles"
 import { ReseauPaginatedErrorBoundary } from "../../shell/ReseauPaginatedErrorBoundary"
 import {
 	readFailureText,
@@ -111,7 +114,15 @@ function NotificationsListContent({
 	const markAllRead = useMutation(api.modules.notifications.bell.markAllRead)
 
 	const items: NotificationListItem[] = notifications.results
-	const visibleItems = compact ? items.slice(0, 2) : items
+	const [filter, setFilter] = useState<"all" | "unread">("all")
+	const visibleItems = compact ? items.slice(0, 2) : filter === "unread" ? items.filter((item) => item.readAt === null) : items
+	// Group only the loaded DTOs. A filtered empty page never claims that
+	// older pages contain no unread notification.
+	const recentCutoff = now - 24 * 60 * 60 * 1000
+	const sections = compact ? [{ key: "compact", items: visibleItems }] : [
+		{ key: "new", items: visibleItems.filter((item) => item.createdAt >= recentCutoff) },
+		{ key: "earlier", items: visibleItems.filter((item) => item.createdAt < recentCutoff) },
+	]
 	const unreadCount = unread.data?.count
 	const capped = unread.data?.capped ?? false
 	const badge = tabBadge(unreadCount, capped)
@@ -133,6 +144,7 @@ function NotificationsListContent({
 
 	return (
 		<>
+			<style href="antsia-notifications" precedence="default">{NOTIFICATIONS_STYLES_CSS}</style>
 			{hideHeader ? null : (
 				<header
 					style={{
@@ -163,7 +175,7 @@ function NotificationsListContent({
 						<Button
 							variant="link"
 							size="sm"
-							style={{ marginLeft: "auto" }}
+							style={{ ...COMPACT_SOCIAL_ACTION_STYLE, marginLeft: "auto" }}
 							onClick={() =>
 								void markAllRead({ networkId }).catch((error: unknown) =>
 									toast.error(readFailureText(error, t)),
@@ -176,44 +188,34 @@ function NotificationsListContent({
 				</header>
 			)}
 
+			{!compact ? <>
+				<div className="ntf-filters" role="group" aria-label={t("notificationsList.filters")}>
+					<button type="button" className="ntf-filter" aria-pressed={filter === "all"} onClick={() => setFilter("all")}>{t("notificationsList.all")}</button>
+					<button type="button" className="ntf-filter" aria-pressed={filter === "unread"} onClick={() => setFilter("unread")}>{t("notificationsList.unread")}</button>
+				</div>
+				{filter === "unread" ? <p className="ntf-scope">{t("notificationsList.filterScope")}</p> : null}
+			</> : null}
 			{notifications.isLoading && items.length === 0 ? (
-				<p style={{ margin: 0, fontSize: 13, color: "var(--ink-600)" }}>
-					{t("notificationsList.loading")}
-				</p>
-			) : items.length === 0 ? (
-				<p style={{ margin: 0, fontSize: 13, color: "var(--ink-600)" }}>
-					{t("notificationsList.empty")}
-				</p>
+				<p role="status" style={{ margin: 0, fontSize: 13, color: "var(--ink-600)" }}>{t("notificationsList.loading")}</p>
+			) : visibleItems.length === 0 ? (
+				<p role="status" style={{ margin: 0, fontSize: 13, color: "var(--ink-600)" }}>{t(filter === "unread" && !compact ? "notificationsList.emptyUnread" : "notificationsList.empty")}</p>
 			) : (
-				<ul
-					style={{
-						listStyle: "none",
-						margin: 0,
-						padding: 0,
-						display: "flex",
-						flexDirection: "column",
-						gap: 10,
-					}}
-				>
-					{visibleItems.map((item) => (
-						<NotificationRow
-							key={item.notificationId}
-							item={item}
-							now={now}
-							compact={compact}
-							targets={targets}
-							onMarkRead={read}
-							onMarkReadExplicitly={readExplicitly}
-						/>
+				<div className="ntf-list">
+					{sections.filter((section) => section.items.length > 0).map((section) => (
+						<section className="ntf-list-section" key={section.key} aria-label={compact ? undefined : t(`notificationsList.groups.${section.key}`)}>
+							{compact ? null : <h3>{t(`notificationsList.groups.${section.key}`)}</h3>}
+							<ul>{section.items.map((item) => <NotificationRow key={item.notificationId} item={item} now={now} compact={compact} targets={targets} onMarkRead={read} onMarkReadExplicitly={readExplicitly} />)}</ul>
+						</section>
 					))}
-				</ul>
-			)}
+				</div>
+			) }
 
 			{!compact && notifications.status === "CanLoadMore" ? (
 				<div style={{ marginTop: 12 }}>
 					<Button
 						variant="secondary"
 						size="sm"
+						style={COMPACT_SOCIAL_ACTION_STYLE}
 						onClick={() => notifications.loadMore(pageSize)}
 					>
 						{t("notificationsList.loadMore")}
@@ -231,6 +233,7 @@ function NotificationsListContent({
 				<p style={{ margin: "12px 0 0" }}>
 					<Link
 						href={fullHref}
+						onClick={closeNotificationCenter}
 						style={{ fontSize: 13, color: "var(--primary-700)" }}
 					>
 						{t("notificationsList.seeAll")}

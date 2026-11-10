@@ -6,7 +6,7 @@
  * un ancien événement ne réactive jamais une offre retirée ou close.
  */
 import { COMMERCE_JOBS_CONTRACT, commerceJobsEffect, parseCommerceJobsBody, type CommerceJobsEvent } from "@antsia/social-domain/commerce-jobs"
-import { COMMERCE_PUBLIC_CONTRACT, commerceCanonicalJson } from "@antsia/social-domain/commerce/primitives"
+import { commerceCanonicalJson, type CommercePublicContract } from "@antsia/social-domain/commerce/primitives"
 import { decideCommercePublicRevision, parseCommercePublicBody } from "@antsia/social-domain/commerce/projection"
 
 import type { Doc } from "../../_generated/dataModel"
@@ -17,7 +17,7 @@ import type { FederationApplyResult } from "./reseauPublic"
 import { federationBodyDigest } from "./signature"
 
 export type CommerceJobInput = {
-  contract: typeof COMMERCE_PUBLIC_CONTRACT | typeof COMMERCE_JOBS_CONTRACT
+  contract: CommercePublicContract | typeof COMMERCE_JOBS_CONTRACT
   objectRef: string
   rawBody: string
   event: CommerceJobsEvent
@@ -37,7 +37,7 @@ export async function applyCommerceJob(ctx: MutationCtx, emitter: Doc<"federatio
   const mapping = await ctx.db.query("commerceCatalogMappings").withIndex("by_emitter_shop_ref", (q) => q.eq("emitterId", emitter._id).eq("shopRef", event.shopRef)).unique()
   if (!mapping || mapping.networkId !== emitter.networkId || mapping.environment !== emitter.environment) return { applied: false, reason: "contract_not_allowed" }
   const live = await liveJobMapping(ctx, mapping.networkId, mapping.shopId)
-  if (!live || live.mapping._id !== mapping._id) return { applied: false, reason: "contract_not_allowed" }
+  if (!live || live.mapping._id !== mapping._id || !live.emitter.allowedContracts.includes(input.contract)) return { applied: false, reason: "contract_not_allowed" }
   const effect = commerceJobsEffect(event)
   const previous = await ctx.db.query("commerceJobHeads").withIndex("by_emitter_object", (q) => q.eq("emitterId", emitter._id).eq("objectRef", input.objectRef)).unique()
   if (previous && (previous.networkId !== mapping.networkId || previous.shopId !== mapping.shopId || previous.mappingId !== mapping._id ||
@@ -54,13 +54,13 @@ export async function applyCommerceJob(ctx: MutationCtx, emitter: Doc<"federatio
   if (effect.effect === "upsert") {
     if (!parentActive || !parent) return { applied: false, reason: "source_conflict" }
     const parentBody = parseCommercePublicBody(parent.body, now)
-    if (!parentBody.ok || (parentBody.value.payload.type !== "shop.published" && parentBody.value.payload.type !== "shop.updated") || !parentBody.value.payload.capabilities.includes("jobs")) return { applied: false, reason: "contract_not_allowed" }
+    if (!parentBody.ok || !live.emitter.allowedContracts.includes(parentBody.value.contract) || (parentBody.value.payload.type !== "shop.published" && parentBody.value.payload.type !== "shop.updated") || !parentBody.value.payload.capabilities.includes("jobs")) return { applied: false, reason: "contract_not_allowed" }
   }
   const parentActivationRevision = parentActive && parent ? parent.activationRevision : previous?.parentActivationRevision ?? 0
   if (decision.action === "duplicate") {
     // Une ancienne révision ne ressuscite pas après retrait/republication du parent.
     if (previous?.mappingGeneration !== mapping.generation || previous.parentActivationRevision !== parentActivationRevision) return { applied: false, reason: "source_conflict" }
-    await ctx.db.patch(previous._id, { receivedAt: now })
+    await ctx.db.patch(previous._id, { receivedAt: now, contract: input.contract, body: input.rawBody })
     return { applied: true }
   }
   const published = event.type === "job.published" ? event : null

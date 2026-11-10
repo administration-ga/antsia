@@ -1,6 +1,7 @@
 // Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/ReportContentDialog.tsx @ ad2e7fdc2 — adaptations : motifs et borne de la précision lus dans le domaine du moteur (`CONTENT_REPORT_REASONS`, `CONTENT_REPORT_NOTE_MAX` de `@antsia/social-domain/moderation`, type `ReportReason` = `ContentReportReason`) ; libellés par l'i18n (clés `reseau:reportContentDialog.*`, le motif par sa clé) ; voile et ombre par les jetons (`--ui2-scrim`, `--shadow-xl`) au lieu de couleurs littérales ; titre accordé (« Signaler cette publication » — le socle écrivait « ce publication ») ; un échec de transmission ne laisse plus de promesse rejetée sans lecteur (l’appelant le dit, la boîte reste ouverte) ; P18b (A03, A07, A30) : accessibilité modale par le hook partagé `useModalA11y` (focus initial sur le motif, piège de Tab, Échap qui ferme hors transmission, inertage du reste de la page, focus rendu au déclencheur), dialogue nommé et décrit par son titre et sa phrase (`aria-labelledby`, `aria-describedby`), échec doublé d'une alerte dans le dialogue (`role="alert"`, hors de la vue : le toast reste le retour visible), nom accessible de la précision = son libellé visible ; rendu inchangé.
 "use client"
 
+import { themedActionStyle } from "../themed-action-style"
 import { Button, TextArea, useModalA11y } from "@antsia/ui"
 import { CONTENT_REPORT_NOTE_MAX, CONTENT_REPORT_REASONS, type ContentReportReason } from "@antsia/social-domain/moderation"
 import { useEffect, useId, useRef, useState } from "react"
@@ -19,9 +20,11 @@ const REASONS: readonly { value: ReportReason; labelKey: string }[] = CONTENT_RE
 
 /** Dialogue unique pour publication et commentaire : le déclarant sait ce qui
  * sera transmis et le texte complémentaire reste strictement borné. */
-export function ReportContentDialog({ kind, onClose, onSubmit }: {
-  kind: "publication" | "commentaire"
+export function ReportContentDialog({ kind, onClose, onSubmit, allowNote = true }: {
+  kind: "publication" | "commentaire" | "professionalProfile" | "professionalCollaboration" | "editorialVersion" | "editorialMedia"
   onClose: () => void
+  /** Le port polymorphe ne transporte que le motif : aucune précision saisie puis ignorée. */
+  allowNote?: boolean
   onSubmit: (reason: ReportReason, note: string) => Promise<void>
 }) {
   const { t } = useTranslation("reseau")
@@ -30,7 +33,7 @@ export function ReportContentDialog({ kind, onClose, onSubmit }: {
   const [pending, setPending] = useState(false)
   /** Le refus de la transmission, redit DANS le dialogue (le toast peut être hors d'atteinte). */
   const [failure, setFailure] = useState<string | null>(null)
-  const title = kind === "publication" ? t("reportContentDialog.title.publication") : t("reportContentDialog.title.commentaire")
+  const title = t(`reportContentDialog.title.${kind}`)
   const titleId = useId()
   const descriptionId = useId()
   const dialogRef = useRef<HTMLDivElement>(null)
@@ -78,7 +81,7 @@ export function ReportContentDialog({ kind, onClose, onSubmit }: {
           // L'échec est DIT par l'appelant (toast) et REDIT ici, dans le
           // dialogue, pour les aides techniques ; la boîte reste ouverte pour
           // un nouvel essai — la promesse rejetée est donc lue ici.
-          void onSubmit(reason, note)
+          void onSubmit(reason, allowNote ? note : "")
             .then(onClose, (error: unknown) => {
               setFailure(postEngineErrorText(error, "reseau:postCard.toast.reportFailed", t))
             })
@@ -89,9 +92,9 @@ export function ReportContentDialog({ kind, onClose, onSubmit }: {
         }}
         style={{
           width: "min(520px, 100%)",
-          padding: 24,
+          padding: "24px",
           border: "1px solid var(--border)",
-          borderRadius: 12,
+          borderRadius: "12px",
           background: "var(--esp-surface-raised, var(--card))",
           color: "var(--foreground)",
           boxShadow: "var(--shadow-xl)",
@@ -110,6 +113,9 @@ export function ReportContentDialog({ kind, onClose, onSubmit }: {
             }}
           >
             {t("reportContentDialog.description")}
+            {/* SU01d : l'accusé de réception et la décision suivent la transmission (ordonnance 0011, art. 24). */}
+            {" "}
+            {t("reportContentDialog.followUp")}
           </p>
         </div>
         <label style={{ display: "grid", gap: 6, fontWeight: 600 }}>
@@ -121,9 +127,9 @@ export function ReportContentDialog({ kind, onClose, onSubmit }: {
               setReason(event.target.value as ReportReason)
             }
             style={{
-              minHeight: 40,
+              minHeight: "40px",
               border: "1px solid var(--input)",
-              borderRadius: 8,
+              borderRadius: "8px",
               background: "var(--card)",
               color: "var(--foreground)",
               padding: "0 10px",
@@ -136,7 +142,7 @@ export function ReportContentDialog({ kind, onClose, onSubmit }: {
             ))}
           </select>
         </label>
-        <label style={{ display: "grid", gap: 6, fontWeight: 600 }}>
+        {allowNote ? <label style={{ display: "grid", gap: 6, fontWeight: 600 }}>
           {t("reportContentDialog.noteLabel")}
           {/* Nommée par son libellé visible, qui l'enveloppe (A30). */}
           <TextArea
@@ -144,16 +150,16 @@ export function ReportContentDialog({ kind, onClose, onSubmit }: {
             maxLength={CONTENT_REPORT_NOTE_MAX}
             onChange={(event) => setNote(event.target.value)}
           />
-        </label>
+        </label> : null}
         {/* Région PERSISTANTE : le refus y est inséré, donc annoncé, même
             quand le toast de l'appelant reste hors d'atteinte de la modale. */}
         <p role="alert" className="sr-only">
           {failure ?? ""}
         </p>
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-          <Button
+          <Button style={themedActionStyle("cancel", "ghost")}
             type="button"
-            variant="ghost"
+            variant="outline"
             disabled={pending}
             onClick={onClose}
           >

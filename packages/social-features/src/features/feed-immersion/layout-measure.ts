@@ -117,9 +117,16 @@ export function useFillAvailableHeight(ref: RefObject<HTMLElement | null>, enabl
   return height
 }
 
-/** Le bord haut visible du défileur d'un élément (0 pour le document). */
+/** Le bord lisible du défileur : sous les outils épinglés du fil adaptatif, 0 pour le document. */
 export function scrollContainerTop(container: HTMLElement | null): number {
-  return container === null ? 0 : container.getBoundingClientRect().top
+  if (container === null) return 0
+  const top = container.getBoundingClientRect().top
+  const style = window.getComputedStyle(container)
+  // Seul le fil adaptatif mesure ce composeur. Le padding de défilement des
+  // autres surfaces ne change pas leur ancienne convention d'ancrage.
+  if (!style.getPropertyValue("--rp-composer-height").trim()) return top
+  const inset = Number.parseFloat(style.scrollPaddingTop)
+  return top + (Number.isFinite(inset) ? Math.max(0, inset) : 0)
 }
 
 /** Fait défiler le défileur de l'élément (ou la fenêtre) de `delta` pixels, sans animation. */

@@ -1,10 +1,11 @@
 /**
  * CC-2b (contrat CONVERSATION-CONTEXTUELLE-V1 §10.4, §10.5) — le registre FERMÉ des résolveurs,
- * une entrée par nature V1. C'est le SEUL fichier du moteur autorisé à importer une tranche
+ * une entrée par nature admise. C'est le SEUL fichier du moteur autorisé à importer une tranche
  * (cliquet `contextual-registry`).
  *
  * Les trois natures V1 sont branchées sur les résolveurs livrés par la tranche DIASPORALE
  * (CC-3a, `convex/modules/diaspora/conversationContexts.ts`, `DIASPORA_CONVERSATION_CONTEXTS`).
+ * MP09 ajoute la collaboration professionnelle via son résolveur propre, sous la même politique fermée.
  * Une entrée enregistrée rend OBLIGATOIRES les crochets de sa nature dans les transitions de la
  * tranche (cliquet `contextual-hooks`).
  *
@@ -18,6 +19,7 @@
  */
 import type { ContextualKind } from "@antsia/social-domain/contextualMessaging"
 
+import { PROFESSIONAL_CONVERSATION_CONTEXTS } from "../professionals/conversationContexts"
 import { DIASPORA_CONVERSATION_CONTEXTS } from "../diaspora/conversationContexts"
 import type { ContextualResolver } from "./contract"
 
@@ -30,4 +32,5 @@ export const CONTEXTUAL_REGISTRY: ContextualRegistry = {
   diasporaServiceRequest: DIASPORA_CONVERSATION_CONTEXTS.diasporaServiceRequest,
   diasporaMentoring: DIASPORA_CONVERSATION_CONTEXTS.diasporaMentoring,
   diasporaJobApplication: DIASPORA_CONVERSATION_CONTEXTS.diasporaJobApplication,
+  professionalCollaboration: PROFESSIONAL_CONVERSATION_CONTEXTS.professionalCollaboration,
 }

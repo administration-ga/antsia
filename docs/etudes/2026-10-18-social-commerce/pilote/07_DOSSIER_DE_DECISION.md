@@ -1,5 +1,57 @@
 # 07 — Dossier de décision
 
+## Décision préparée au 20 octobre 2026 : NO GO
+
+**NO GO pour admettre, piloter ou publier une candidate issue de cette reprise**, par capacité selon
+[01 — état actuel](01_VERSIONS_CANDIDATES.md#actualisation-du-20-octobre-2026).
+Ce verdict documentaire ne vaut pas décision humaine de mise en service. La poursuite P17d/P18/P19
+est autorisée sans nouvelle vérification, et n’accorde aucun résultat d’exécution. Il ne s’agit
+pas d’un verdict sur la production publiée par une autre session : aucune requête de production
+ni observation de sa configuration n’a été effectuée ici.
+
+| Preuve / absence de preuve | Situation de cette reprise |
+|---|---|
+| Base source | ANTSIA `c4d36f3` relu ; arbre partagé non gelé, modifications récentes P14–P18 ; pas de candidate immuable ni de révision servie attestée |
+| P14/P15/P16 | Sources et scénarios de reprise documentés ; nouvelles admissions sensibles fermées par registres, y compris nouvelles copies CV PRO.GA |
+| P17b/P17c | Client réel et appels système raccordés en source ; installation/lockfile, compatibilité native et compilation non effectués |
+| P17d | [Préparation de recette physique](../../../recette/antsia-native-p17d/README.md) ; aucune observation d’appareil, sonnerie, média ou fin des captures |
+| P18 | Corrections natives raccordées selon le rapport de reprise ; aucune mesure/accessibilité éprouvée dans cette reprise |
+| Correctifs P19 et suite DP-39 | Annonces accessibles, documentation machine, admission durable des CV et signal privé de relecture ; [bilan complémentaire](../rapports/P19_CORRECTIFS_AUTOMATIQUES_2026-10-20.md), scénarios non exécutés |
+| Vérifications / recette / pilote | Aucun test, génération, typage, lint, build, audit automatisé, recette ou séance utilisateur lancé ici ; aucun consentement pilote acquis |
+| Configuration et publication | Aucune valeur, identité, fournisseur ou capacité activée ; aucun Git write ou déploiement de ce lot |
+
+Les chiffres de tests, erreurs, espace disque, tables, crons et empreintes du 19 octobre ci-dessous
+restent des relevés historiques. Ils ne sont ni renouvelés ni présentés comme conformes à l’arbre
+actuel. Aucune empreinte de contrat n’est recalculée. Une éventuelle preuve Web acquise par une
+autre session ne prouve pas cette candidate native ; sa révision et son périmètre doivent être
+rapprochés séparément avant tout emploi dans une décision.
+
+### Conditions de réexamen
+
+1. Source stabilisée et périmètre choisi, coordonnés avec les sessions actives ; autorisation du
+   créneau de vérification, installation/génération/contrôles et rapports sur les mêmes sources.
+2. Décisions métier et conservation, configuration propriétaire et recette croisée par capacité.
+   Les registres P16 ne peuvent pas être ouverts par une ancienne bascule ou un mock de test.
+3. Binaire/configuration détenus et preuves physiques P17d pour toute promesse native ; corrections
+   P18 effectivement mesurées. Aucune réussite, latence ou conformité n’est supposée.
+4. Protocole utilisateur validé avec consentement, données minimisées, durée/accès aux notes et
+   responsables réellement désignés avant recrutement ; [04](04_PILOTE_UTILISATEUR.md) reste proposé.
+5. Autorisation humaine propre à l’ouverture/publication, puis preuve de révision effectivement
+   servie et parcours rejoués sur cette cible. Le présent dossier n’en tient pas lieu.
+
+Le retour arrière préparé [05](05_ACTIVATION_ET_RETOUR_ARRIERE.md) ferme les nouveaux effets sans
+effacer résultats/anti-rejeux, preuves, tombes ou files de retrait. Le suivi privé, les libérations,
+annulations, retraits, rapprochements et remboursements d’engagements existants gardent leurs
+portes. Conservation générale PRO.GA, accès des membres suspendus et purge CV non confirmée
+restent des limites explicites, sans garantie juridique ou certificat de suppression.
+
+Références actuelles : [bilan P19](../rapports/P19_REPRISE_2026-10-20.md),
+[P16](../rapports/P16_REPRISE_2026-10-20.md), [P17c](../rapports/P17C_REPRISE_2026-10-20.md),
+[plan coordonné](../rapports/P17D_P18_P19_PLAN_REPRISE_2026-10-20.md),
+[P17d](../rapports/P17D_REPRISE_2026-10-20.md) et [P18](../rapports/P18_REPRISE_2026-10-20.md).
+
+## Dossier historique du 19 octobre (conservé)
+
 19 octobre 2026, lot P19. Ce dossier permet au propriétaire de décider sur des preuves distinctes :
 code, tests, navigateur, fournisseurs, appareils. Il ne contient aucune preuve nouvelle d'exécution.
 

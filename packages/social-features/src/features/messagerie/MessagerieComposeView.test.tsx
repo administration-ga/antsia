@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/messagerie/MessagerieComposeView.test.tsx @ ad2e7fdc2 — adaptations : couche Convex simulée sur les références du MOTEUR (`graph.connections.paginateMine` / `searchMine`, arguments portant `networkId`) ; relations au DTO du moteur (`otherPersonId`, badges ; ni fonction ni administration) ; montage dans l'enveloppe du moteur (`renderWithEngine` : i18n fr, réseau, routes) au lieu de simuler `@antsia/ui` (vrais `Alert`/`Button`, vrai `useDebouncedValue`) ; un cas ajouté — relation sans nom publié ; les cinq cas du socle tels quels.
+// Dupliqué de socle/packages/agent-features/src/features/messagerie/MessagerieComposeView.test.tsx @ ad2e7fdc2 — adaptations : couche Convex authentifiée simulée sur les références du MOTEUR (`graph.connections.paginateMineSide` low/high indépendants / `searchMine`, arguments portant `networkId`) ; relations au DTO du moteur (`otherPersonId`, badges ; ni fonction ni administration) ; montage dans l'enveloppe du moteur (`renderWithEngine` : i18n fr, réseau, routes) au lieu de simuler `@antsia/ui` (vrais `Alert`/`Button`, vrai `useDebouncedValue`) ; un cas ajouté — relation sans nom publié ; les cinq cas du socle tels quels.
 // @vitest-environment jsdom
 
 /**
@@ -13,7 +13,7 @@
 import { act, cleanup, fireEvent, screen } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
-import { renderWithEngine } from "../../tests/engine-wrapper"
+import { renderWithEngine, TEST_NETWORK_ID } from "../../tests/engine-wrapper"
 
 type Relation = {
   connectionId: string
@@ -27,15 +27,15 @@ type Relation = {
 }
 type Page = { page: Relation[]; isDone: boolean; continueCursor: string }
 type DualPage = { low: Page; high: Page }
-type DualArgs = {
+type SideArgs = {
   networkId: string
-  lowPaginationOpts: { cursor: string | null; numItems: number }
-  highPaginationOpts: { cursor: string | null; numItems: number }
+  side: "low" | "high"
+  paginationOpts: { cursor: string | null; numItems: number }
 }
 type SearchArgs = { networkId: string; query: string; limit: number }
 
 const mocks = vi.hoisted(() => ({
-  pages: new Map<string, DualPage>(),
+  pages: new Map<string, Page>(),
   pageRequests: [] as string[],
   searchRequests: [] as Array<{ query: string; limit: number }>,
   search: {
@@ -47,12 +47,17 @@ const mocks = vi.hoisted(() => ({
   openDraft: vi.fn(),
 }))
 
+vi.mock("convex/react", () => ({
+  useConvexAuth: () => ({ isAuthenticated: true, isLoading: false }),
+}))
+
 vi.mock("@antsia/api/engine", () => ({
   api: {
     modules: {
       graph: {
         connections: {
           paginateMine: "paginateMine",
+          paginateMineSide: "paginateMineSide",
           paginatePendingForMe: "paginatePendingForMe",
           searchMine: "searchMine",
         },
@@ -64,7 +69,7 @@ vi.mock("@antsia/api/engine", () => ({
 vi.mock("@antsia/api/hooks", () => ({
   useAuthenticatedConvexQuery: (
     reference: string,
-    args: DualArgs | SearchArgs | "skip",
+    args: SideArgs | SearchArgs | "skip",
   ) => {
     if (args === "skip") {
       // Une requête désactivée reste `pending` en TanStack v5 : le hook de
@@ -76,8 +81,9 @@ vi.mock("@antsia/api/hooks", () => ({
       mocks.searchRequests.push({ query, limit })
       return { ...mocks.search, refetch: mocks.refetchSearch }
     }
-    const dual = args as DualArgs
-    const key = `${dual.lowPaginationOpts.cursor ?? "start"}|${dual.highPaginationOpts.cursor ?? "start"}`
+    if (reference !== "paginateMineSide" || !("side" in args)) throw new Error(`Requête inattendue : ${reference}`)
+    expect(args.networkId).toBe(TEST_NETWORK_ID)
+    const key = `${args.side}:${args.paginationOpts.cursor ?? "start"}`
     mocks.pageRequests.push(key)
     const data = mocks.pages.get(key)
     return { data, isPending: data === undefined, isError: false, refetch: vi.fn() }
@@ -111,14 +117,19 @@ const VINGT_SIXIEME = relation(26, {
   handle: "zoe.rel26",
 })
 
+function setDualPage(low: string, high: string, page: DualPage): void {
+  mocks.pages.set(`low:${low}`, page.low)
+  mocks.pages.set(`high:${high}`, page.high)
+}
+
 /** Une première page de 25 relations, avec une suite à charger. */
 function premierePage(): void {
   const rows = Array.from({ length: 25 }, (_, index) => relation(index + 1))
-  mocks.pages.set("start|start", {
+  setDualPage("start", "start", {
     low: { page: rows.slice(0, 13), isDone: false, continueCursor: "low-2" },
     high: { page: rows.slice(13), isDone: false, continueCursor: "high-2" },
   })
-  mocks.pages.set("low-2|high-2", {
+  setDualPage("low-2", "high-2", {
     low: { page: [VINGT_SIXIEME], isDone: true, continueCursor: "low-end" },
     high: { page: [], isDone: true, continueCursor: "high-end" },
   })
@@ -233,14 +244,15 @@ describe("MessagerieComposeView — chercher parmi TOUTES mes relations", () => 
     expect(screen.queryByText(/Aucune relation ne correspond à/)).toBeNull()
 
     fireEvent.click(screen.getByRole("button", { name: "Voir plus de relations" }))
-    expect(mocks.pageRequests).toContain("low-2|high-2")
+    expect(mocks.pageRequests).toContain("low:low-2")
+    expect(mocks.pageRequests).toContain("high:high-2")
     // La 26e relation, chargée, répond au pré-filtre local.
     expect(screen.getByRole("button", { name: "Écrire à Zoé Famille26" })).toBeTruthy()
   })
 
   it("garde l'état vide explicite quand il n'y a encore aucune relation", () => {
     mocks.pages.clear()
-    mocks.pages.set("start|start", {
+    setDualPage("start", "start", {
       low: { page: [], isDone: true, continueCursor: "low-end" },
       high: { page: [], isDone: true, continueCursor: "high-end" },
     })
@@ -250,7 +262,7 @@ describe("MessagerieComposeView — chercher parmi TOUTES mes relations", () => 
 
   it("nomme une relation SANS NOM publié par le libellé neutre, jamais par une case vide", () => {
     mocks.pages.clear()
-    mocks.pages.set("start|start", {
+    setDualPage("start", "start", {
       low: { page: [relation(1, { displayName: null, handle: "anonyme.ga" })], isDone: true, continueCursor: "low-end" },
       high: { page: [], isDone: true, continueCursor: "high-end" },
     })

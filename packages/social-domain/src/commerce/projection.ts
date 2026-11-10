@@ -1,5 +1,5 @@
 /**
- * PRO-COMMERCE-PUBLIC-V1 — projection publique PRO.GA → ANTSIA.
+ * PRO-COMMERCE-PUBLIC-V1/V2 — projection publique PRO.GA → ANTSIA.
  *
  * FICHIER JUMEAU (voir `primitives.ts`). PRO.GA est l'autorité ; ANTSIA reçoit
  * par son inbox signée (`POST /federation/inbox`, enveloppe fermée à cinq
@@ -18,6 +18,7 @@ import {
   COMMERCE_BODY_MAX_BYTES,
   COMMERCE_CURRENCY,
   COMMERCE_PUBLIC_CONTRACT,
+  COMMERCE_PUBLIC_CONTRACT_V2,
   COMMERCE_TRANSPORT_FORBIDDEN_FIELDS,
   commerceAmount,
   commerceArray,
@@ -43,10 +44,16 @@ import {
   commerceTextList,
   commerceTimeMs,
   commerceUnique,
+  isCommercePublicContract,
   type CommerceEnvironment,
+  type CommercePublicContract,
   type CommerceRefKind,
   type CommerceResult,
 } from "./primitives";
+import { catalogFacetsMatchKind, readCommerceCatalogFacets, type CommerceCatalogFacets } from "./catalogFacets";
+
+import { readCommerceStorefrontTerms, type CommerceStorefrontTerms } from "./storefrontTerms";
+import { readCommerceServiceProfile, type CommerceServiceProfile } from "./serviceProfile";
 
 export const COMMERCE_PUBLIC_EVENT_TYPES = [
   "shop.published",
@@ -236,6 +243,7 @@ export type CommerceShopEvent = {
   readonly serviceArea?: string;
   readonly shopRef: string;
   readonly type: "shop.published" | "shop.updated";
+  readonly storefrontTerms?: CommerceStorefrontTerms;
 };
 
 export type CommerceShopWithdrawnEvent = {
@@ -251,6 +259,8 @@ export type CommerceOfferEvent = {
   readonly changedAt: number;
   readonly collectionRefs: readonly string[];
   readonly description: string;
+  readonly facets?: CommerceCatalogFacets;
+  readonly serviceProfile?: CommerceServiceProfile;
   readonly kind: (typeof COMMERCE_OFFER_KINDS)[number];
   readonly leadTimeDays?: number;
   readonly media: readonly CommerceMedia[];
@@ -333,7 +343,7 @@ export type CommercePublicEvent =
   | CommerceJobClosedEvent;
 
 export type CommercePublicEnvelope = {
-  readonly contract: typeof COMMERCE_PUBLIC_CONTRACT;
+  readonly contract: CommercePublicContract;
   readonly eventId: string;
   readonly objectRef: string;
   readonly payload: CommercePublicEvent;
@@ -424,12 +434,12 @@ function readCollections(value: unknown, path: string): readonly CommerceShopCol
   return collections;
 }
 
-function readShop(payload: unknown, type: CommerceShopEvent["type"], objectRef: string, nowMs: number): CommerceShopEvent {
+function readShop(payload: unknown, type: CommerceShopEvent["type"], objectRef: string, nowMs: number, contract: CommercePublicContract): CommerceShopEvent {
   const row = commerceRecord(
     payload,
     P,
     ["capabilities", "changedAt", "collections", "commercialName", "country", "currency", "linkRef", "revision", "sellerVerification", "shopRef", "type"],
-    ["serviceArea"],
+    contract === COMMERCE_PUBLIC_CONTRACT_V2 ? ["serviceArea", "storefrontTerms"] : ["serviceArea"],
   );
   const shopRef = readObjectRef(row.shopRef, `${P}.shopRef`, "structure", objectRef);
   const revision = readRevision(row.revision, `${P}.revision`);
@@ -442,6 +452,8 @@ function readShop(payload: unknown, type: CommerceShopEvent["type"], objectRef: 
   const linkRef = commerceRef(row.linkRef, `${P}.linkRef`, ["commerce_link"]);
   const sellerVerification = commerceLiteral(row.sellerVerification, `${P}.sellerVerification`, COMMERCE_SELLER_VERIFICATIONS);
   const serviceArea = optionalText(row, "serviceArea", 1, L.serviceAreaMax);
+  const storefrontTerms = commerceHas(row, "storefrontTerms") ? readCommerceStorefrontTerms(row.storefrontTerms, `${P}.storefrontTerms`) : undefined;
+  if (storefrontTerms && storefrontTerms.publishedAt > changedAt) commerceReject("invalid_time", `${P}.storefrontTerms.publishedAt`);
   // Règle PRO.GA : le module commerce n'est effectif que pour une structure vérifiée.
   if (capabilities.includes("checkout") && sellerVerification !== "verified") {
     commerceReject("capability_incoherent", `${P}.capabilities`);
@@ -457,6 +469,7 @@ function readShop(payload: unknown, type: CommerceShopEvent["type"], objectRef: 
     revision,
     sellerVerification,
     ...(serviceArea === undefined ? {} : { serviceArea }),
+    ...(storefrontTerms ? { storefrontTerms } : {}),
     shopRef,
     type,
   };
@@ -532,21 +545,24 @@ function readVariants(value: unknown, path: string, axes: readonly string[], pri
   return variants;
 }
 
-function readOffer(payload: unknown, type: CommerceOfferEvent["type"], objectRef: string, nowMs: number): CommerceOfferEvent {
+function readOffer(payload: unknown, type: CommerceOfferEvent["type"], objectRef: string, nowMs: number, contract: CommercePublicContract): CommerceOfferEvent {
   const row = commerceRecord(
     payload,
     P,
     ["changedAt", "collectionRefs", "description", "kind", "media", "offerRef", "price", "revision", "shopRef", "showsAvailability", "tags", "title", "type", "variantAxes", "variants"],
-    ["leadTimeDays", "zone"],
+    contract === COMMERCE_PUBLIC_CONTRACT_V2 ? ["facets", "serviceProfile", "leadTimeDays", "zone"] : ["leadTimeDays", "zone"],
   );
   const offerRef = readObjectRef(row.offerRef, `${P}.offerRef`, "offer", objectRef);
   const revision = readRevision(row.revision, `${P}.revision`);
   const changedAt = commerceTimeMs(row.changedAt, `${P}.changedAt`, nowMs);
   const collectionRefs = commerceRefList(row.collectionRefs, `${P}.collectionRefs`, L.offerCollectionsMax, "offer_collection");
   const description = commerceText(row.description, `${P}.description`, 0, L.offerDescriptionMax, true);
+  const facets = commerceHas(row, "facets") ? readCommerceCatalogFacets(row.facets, `${P}.facets`) : undefined;
   const kind = commerceLiteral(row.kind, `${P}.kind`, COMMERCE_OFFER_KINDS);
   const leadTimeDays = commerceHas(row, "leadTimeDays") ? commerceInteger(row.leadTimeDays, `${P}.leadTimeDays`, 0, L.leadTimeDaysMax) : undefined;
   const media = readMedia(row.media, `${P}.media`);
+  const serviceProfile = commerceHas(row, "serviceProfile") ? readCommerceServiceProfile(row.serviceProfile, `${P}.serviceProfile`, media.length) : undefined;
+  if (serviceProfile !== undefined && kind !== "service") commerceReject("invalid_payload", `${P}.serviceProfile`);
   const price = readCommercePrice(row.price, `${P}.price`);
   const shopRef = commerceRef(row.shopRef, `${P}.shopRef`, ["structure"]);
   const showsAvailability = commerceBoolean(row.showsAvailability, `${P}.showsAvailability`);
@@ -555,10 +571,13 @@ function readOffer(payload: unknown, type: CommerceOfferEvent["type"], objectRef
   const variantAxes = commerceTextList(row.variantAxes, `${P}.variantAxes`, L.variantAxesMax, L.variantAxisMax);
   const variants = readVariants(row.variants, `${P}.variants`, variantAxes, price);
   const zone = optionalText(row, "zone", 1, L.zoneMax);
+  if (facets !== undefined && !catalogFacetsMatchKind(facets, kind)) commerceReject("invalid_payload", `${P}.facets.categoryPath`);
   return {
     changedAt,
     collectionRefs,
     description,
+    ...(facets === undefined ? {} : { facets }),
+    ...(serviceProfile === undefined ? {} : { serviceProfile }),
     kind,
     ...(leadTimeDays === undefined ? {} : { leadTimeDays }),
     media,
@@ -667,7 +686,7 @@ function readJobClosed(payload: unknown, objectRef: string, nowMs: number): Comm
   return { changedAt, jobRef, reason, revision, shopRef, type: "job.closed" };
 }
 
-function readPublicPayload(payload: unknown, objectRef: string, nowMs: number): CommercePublicEvent {
+function readPublicPayload(payload: unknown, objectRef: string, nowMs: number, contract: CommercePublicContract): CommercePublicEvent {
   if (payload === null || typeof payload !== "object" || Array.isArray(payload)) commerceReject("invalid_payload", P);
   commerceScanJson(payload, PUBLIC_FORBIDDEN, P);
   const type = (payload as Record<string, unknown>).type;
@@ -675,12 +694,12 @@ function readPublicPayload(payload: unknown, objectRef: string, nowMs: number): 
   switch (type) {
     case "shop.published":
     case "shop.updated":
-      return readShop(payload, type, objectRef, nowMs);
+      return readShop(payload, type, objectRef, nowMs, contract);
     case "shop.withdrawn":
       return readShopWithdrawn(payload, objectRef, nowMs);
     case "offer.published":
     case "offer.updated":
-      return readOffer(payload, type, objectRef, nowMs);
+      return readOffer(payload, type, objectRef, nowMs, contract);
     case "offer.withdrawn":
       return readOfferWithdrawn(payload, objectRef, nowMs);
     case "offer.availabilityChanged":
@@ -703,8 +722,12 @@ export function parseCommercePublicPayload(
   payload: unknown,
   objectRef: string,
   nowMs: number,
+  contract: CommercePublicContract = COMMERCE_PUBLIC_CONTRACT,
 ): CommerceResult<CommercePublicEvent, CommercePublicReason> {
-  return commerceCapture(() => readPublicPayload(payload, objectRef, nowMs));
+  return commerceCapture(() => {
+    if (!isCommercePublicContract(contract)) commerceReject("invalid_envelope", "$.contract");
+    return readPublicPayload(payload, objectRef, nowMs, contract);
+  });
 }
 
 const ENVELOPE_KEYS = ["contract", "eventId", "objectRef", "payload", "version"] as const;
@@ -717,13 +740,13 @@ export function parseCommercePublicBody(
   return commerceCapture(() => {
     const parsed = commerceParseCanonicalBody(rawBody, COMMERCE_BODY_MAX_BYTES);
     const row = commerceRecord(parsed, "$", ENVELOPE_KEYS, [], "invalid_envelope");
-    if (row.contract !== COMMERCE_PUBLIC_CONTRACT) commerceReject("invalid_envelope", "$.contract");
+    if (!isCommercePublicContract(row.contract)) commerceReject("invalid_envelope", "$.contract");
     if (row.version !== 1) commerceReject("invalid_envelope", "$.version");
     const eventId = row.eventId;
     if (!commerceIsOpaqueId(eventId)) commerceReject("invalid_envelope", "$.eventId");
     const objectRef = commerceRef(row.objectRef, "$.objectRef", ["job_opening", "offer", "structure"]);
-    const payload = readPublicPayload(row.payload, objectRef, nowMs);
-    return { contract: COMMERCE_PUBLIC_CONTRACT, eventId, objectRef, payload, version: 1 };
+    const payload = readPublicPayload(row.payload, objectRef, nowMs, row.contract);
+    return { contract: row.contract, eventId, objectRef, payload, version: 1 };
   });
 }
 
@@ -877,6 +900,8 @@ export type CommerceOfferPublicView = {
   readonly availability: CommerceAvailabilityState | null;
   readonly collectionRefs: readonly string[];
   readonly description: string;
+  readonly facets?: CommerceCatalogFacets;
+  readonly serviceProfile?: CommerceServiceProfile;
   readonly kind: CommerceOfferEvent["kind"];
   readonly leadTimeDays?: number;
   readonly media: readonly CommerceMedia[];
@@ -919,6 +944,8 @@ export function commerceOfferPublicView(
     availability: shown ? (matching?.availability ?? "unknown") : null,
     collectionRefs: offer.collectionRefs,
     description: offer.description,
+    ...(offer.facets === undefined ? {} : { facets: offer.facets }),
+    ...(offer.serviceProfile === undefined ? {} : { serviceProfile: offer.serviceProfile }),
     kind: offer.kind,
     ...(offer.leadTimeDays === undefined ? {} : { leadTimeDays: offer.leadTimeDays }),
     media: offer.media,
@@ -953,6 +980,7 @@ export type CommerceShopPublicView = {
   readonly sellerVerification: CommerceSellerVerification;
   readonly serviceArea?: string;
   readonly shopRef: string;
+  readonly storefrontTerms?: CommerceStorefrontTerms;
 };
 
 /** Projection ANONYME d'une boutique : sans référence de liaison, catégories rangées par position. */
@@ -967,6 +995,7 @@ export function commerceShopPublicView(shop: CommerceShopEvent): CommerceShopPub
     currency: shop.currency,
     sellerVerification: shop.sellerVerification,
     ...(shop.serviceArea === undefined ? {} : { serviceArea: shop.serviceArea }),
+    ...(shop.storefrontTerms === undefined ? {} : { storefrontTerms: shop.storefrontTerms }),
     shopRef: shop.shopRef,
   };
 }

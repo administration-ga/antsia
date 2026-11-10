@@ -15,9 +15,11 @@
  * lectures bornées par index, sans `.collect()` non bornée ; déterminisme (même instantané et
  * même instant, même résultat) ; aucune lecture hors du moteur ; `@diasporale/domain` importé
  * dans la tranche seulement ; tout refus prend la forme `null` (ou `false`), jamais une
- * exception porteuse de raison ; aucune lecture des signataires, des blocages ni des adhésions.
+ * exception porteuse de raison. Les résolveurs V1 ne lisent ni signataires, ni blocages, ni adhésions.
+ * MP09 peut relire les prérequis de sa visibilité professionnelle en db-only ; ces refus propres
+ * ne remplacent jamais les gardes communes, relues inconditionnellement par le moteur.
  */
-import type { ContextualKind, ContextualPhase, ContextualReferenceTable, ContextualSide, ContextualVoice } from "@antsia/social-domain/contextualMessaging"
+import type { ContextualKind, ContextualLegacyV1Kind, ContextualPhase, ContextualReferenceTable, ContextualSide, ContextualVoice } from "@antsia/social-domain/contextualMessaging"
 import type { ActiveMembershipStatus } from "@antsia/social-domain/membership"
 
 import type { Id, TableNames } from "../../_generated/dataModel"
@@ -35,7 +37,7 @@ export type ContextualObjectId<K extends ContextualKind> = Id<ContextualObjectTa
 /** Un objet ouvrant d'une nature donnée : sa nature et son identifiant typé. */
 export type ContextualObjectRefOf<K extends ContextualKind> = { readonly kind: K; readonly id: ContextualObjectId<K> }
 
-/** Un objet ouvrant, toutes natures V1 confondues (union discriminée par `kind`). */
+/** Un objet ouvrant, toutes natures admises confondues (union discriminée par `kind`). */
 export type ContextualObjectRef = { [K in ContextualKind]: ContextualObjectRefOf<K> }[ContextualKind]
 
 /** Le côté répondant de l'objet : une page (ses signataires vivants, relus par le moteur) ou une personne. */
@@ -91,4 +93,6 @@ export type ContextualResolver<K extends ContextualKind> = {
 }
 
 /** Ce que la tranche exporte (`DIASPORA_CONVERSATION_CONTEXTS`) : une entrée par nature V1. */
-export type ContextualResolvers = { readonly [K in ContextualKind]: ContextualResolver<K> }
+export type ContextualResolvers<Kinds extends ContextualKind = ContextualLegacyV1Kind> = { readonly [K in Kinds]: ContextualResolver<K> }
+/** Ancien contrat exhaustif conservé sans édition de la tranche DIASPORALE. */
+export type ContextualLegacyV1Resolvers = ContextualResolvers<ContextualLegacyV1Kind>

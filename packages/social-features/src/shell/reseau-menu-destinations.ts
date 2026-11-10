@@ -48,7 +48,7 @@ import { RESEAU_SERVED_TAB_IDS } from "./reseau-menu"
 /** Les cinq destinations, dans l'ordre du rendu. */
 export const RESEAU_DESTINATION_IDS = ["fil", "decouvrir", "creer", "messages", "profil"] as const
 
-export type ReseauDestinationId = (typeof RESEAU_DESTINATION_IDS)[number]
+export type ReseauDestinationId = (typeof RESEAU_DESTINATION_IDS)[number] | "clips"
 
 /** Les destinations qui sont des LIEUX (toutes, sauf « Créer »). */
 export type ReseauPlaceDestinationId = Exclude<ReseauDestinationId, "creer">
@@ -63,6 +63,9 @@ export interface ReseauDestinationRoutes extends CreationRoutes {
 	messages: () => string
 	me: () => string
 	profile: (handle: string) => string
+  /** U04 : ensemble vidéo effectivement servi et nommé par l'application. */
+  clips?: (handle?: string) => string
+  clipsLabel?: string
 }
 
 /**
@@ -73,13 +76,15 @@ export interface ReseauDestinationRoutes extends CreationRoutes {
 export function destinationRoutesOf(routes: EngineRoutes): ReseauDestinationRoutes | null {
 	const { discover, me } = routes
 	if (discover === undefined || me === undefined) return null
-	return { home: routes.home, discover, messages: routes.messages, me, profile: routes.profile }
+	return { home: routes.home, discover, messages: routes.messages, me, profile: routes.profile, ...(routes.myActivity === undefined ? {} : { myActivity: routes.myActivity }) }
 }
 
 export interface ReseauDestination {
 	id: ReseauDestinationId
 	/** Clé i18n qualifiée du libellé — c'est aussi le nom accessible de la cible. */
 	labelKey: string
+  /** Libellé facultatif déjà traduit, injecté pour une nouvelle destination. */
+  label?: string
 	/** L'adresse de la destination ; `null` pour « Créer », qui ouvre un choix. */
 	href: string | null
 }
@@ -92,6 +97,8 @@ function destinationHref(id: ReseauDestinationId, routes: ReseauDestinationRoute
 			return routes.discover()
 		case "creer":
 			return null
+    case "clips":
+      return routes.clips?.() ?? null
 		case "messages":
 			return routes.messages()
 		case "profil":
@@ -101,9 +108,13 @@ function destinationHref(id: ReseauDestinationId, routes: ReseauDestinationRoute
 
 /** Les cinq destinations, adressées sur la table de routes injectée. */
 export function reseauDestinations(routes: ReseauDestinationRoutes): ReseauDestination[] {
-	return RESEAU_DESTINATION_IDS.map((id) => ({
+  const ids: readonly ReseauDestinationId[] = routes.clips !== undefined && Boolean(routes.clipsLabel?.trim())
+    ? ["fil", "clips", "messages", "decouvrir", "profil"]
+    : RESEAU_DESTINATION_IDS
+  return ids.map((id) => ({
 		id,
 		labelKey: `reseau:reseauDestinations.${id}`,
+    ...(id === "clips" ? { label: routes.clipsLabel } : {}),
 		href: destinationHref(id, routes),
 	}))
 }
@@ -189,6 +200,8 @@ export function activeReseauDestination(
 	if (location.pathname === null) return null
 	const path = pathOf(location.pathname)
 
+  if (routes.clips !== undefined && path === pathOf(routes.clips())) return { id: "clips", current: "page" }
+
 	if (path === pathOf(routes.discover())) return { id: "decouvrir", current: "page" }
 	if (path === pathOf(routes.me())) return { id: "profil", current: "page" }
 
@@ -265,7 +278,7 @@ export function reseauCreationChoices(
 	context: { handle: string | null; liveAvailable: boolean },
 	routes: CreationRoutes,
 ): ReseauCreationChoice[] {
-	return creationEntries({ mobile: true, handle: context.handle })
+	return creationEntries({ mobile: true, handle: context.handle, activity: routes.myActivity !== undefined })
 		.filter((entry) => entry.kind !== "conference" || context.liveAvailable)
 		.map((entry) => {
 			const launch = creationLaunchFor(entry.kind, { handle: context.handle }, routes)

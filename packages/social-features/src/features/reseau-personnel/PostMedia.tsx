@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/PostMedia.tsx @ ad2e7fdc2 — adaptations : type `PostMediaDto` du contrat `@antsia/social-contracts/media` ; un média RETENU par la garde des fichiers (`url` nulle, `withheld` : analyse en cours ou bloqué) garde sa place et dit pourquoi (textes du code, espace `errors`) au lieu d'un lien mort — image, vidéo et carrousel ; libellés et annonces par l'i18n (clés `reseau:postMedia.*`) ; surface plein écran de `@antsia/ui/overlay` (charte de l'application) ; cadre, carrousel et gestes inchangés ; feuille de style sortie du JSX dans une constante de module (`POST_MEDIA_CSS`) — un littéral enfant de `<style>` passerait pour une chaîne d'interface — règles inchangées ; P03 (étude social-commerce) : présentation « media » déclarée par l'application (`presentation`, sinon `useOptionalNetwork().postPresentation`), rendue par `PostMediaPresentation` — ratio réel borné, galerie et visionneuse —, la présentation historique restant le défaut, à l'identique.
+// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/PostMedia.tsx @ ad2e7fdc2 — adaptations : type `PostMediaDto` du contrat `@antsia/social-contracts/media` ; un média RETENU par la garde des fichiers (`url` nulle, `withheld` : analyse en cours ou bloqué) garde sa place et dit pourquoi (textes du code, espace `errors`) au lieu d'un lien mort — image, vidéo et carrousel ; libellés et annonces par l'i18n (clés `reseau:postMedia.*`) ; surface plein écran de `@antsia/ui/overlay` (charte de l'application) ; cadre, carrousel et gestes inchangés ; feuille de style sortie du JSX dans une constante de module (`POST_MEDIA_CSS`) — un littéral enfant de `<style>` passerait pour une chaîne d'interface — règles inchangées ; P03 (étude social-commerce) : présentation « media » déclarée par l'application (`presentation`, sinon `useOptionalNetwork().postPresentation`), rendue par `PostMediaPresentation` — ratio réel borné, galerie et visionneuse —, la présentation historique restant le défaut, à l'identique ; ADR-0028 : présentation « charte » — les mêmes cadre, galerie et visionneuse que « media », POSÉS dans la carte à l'angle des photos (`inset`), la publication elle-même désignée par `primary` (coordination vidéo, mémoire de galerie).
 "use client"
 
 /**
@@ -70,6 +70,7 @@ export function PostMedia({
   media,
   gutter = 0,
   presentation,
+  primary = false,
 }: {
   media: readonly PostMediaDto[]
   /** Le rembourrage lateral de la carte hote, que le media TRAVERSE. */
@@ -81,10 +82,16 @@ export function PostMedia({
    * explicitement.
    */
   presentation?: EnginePostPresentation
+  /**
+   * Les médias de la publication ELLE-MÊME, posés dans sa carte (présentation
+   * « charte ») : ils suivent le coordinateur de lecture et la mémoire de
+   * galerie, jamais ceux d'une publication citée. Ailleurs, le débord en décide.
+   */
+  primary?: boolean
 }) {
   const { t } = useTranslation("reseau")
   const network = useOptionalNetwork()
-  const mode: EnginePostPresentation = presentation ?? (network?.postPresentation === "media" ? "media" : "classic")
+  const mode: EnginePostPresentation = presentation ?? network?.postPresentation ?? "classic"
   if (media.length === 0) return null
 
   // Le debord, ecrit une fois : marges negatives et largeur rendue, plus le
@@ -108,6 +115,8 @@ export function PostMedia({
   // Présentation « media » (opt-in de l'application) : son propre rendu. Tout
   // ce qui suit reste la présentation historique, intouchée.
   if (mode === "media") return <PostMediaPresentation media={media} bleed={bleed} />
+  // Présentation « charte » (ADR-0028) : jamais de débord, le média est posé.
+  if (mode === "charte") return <PostMediaPresentation media={media} bleed={null} primary={primary} inset />
 
   const video = media.find((item) => item.kind === "video")
   if (video) {

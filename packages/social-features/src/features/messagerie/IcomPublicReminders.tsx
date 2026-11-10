@@ -95,7 +95,7 @@ const ICOM_PUBLIC_REMINDERS_CSS = `
           align-items: start;
           gap: 10px;
           padding: 8px;
-          border-radius: var(--radius-lg);
+          border-radius: var(--esp-primitive-chip-radius, var(--radius-lg));
           color: inherit;
           text-decoration: none;
           transition: background 120ms ease;
@@ -148,7 +148,7 @@ const ICOM_PUBLIC_REMINDERS_CSS = `
           justify-content: center;
           gap: 7px;
           padding: 8px 10px;
-          border-radius: var(--radius-lg);
+          border-radius: var(--esp-primitive-button-radius, var(--radius-lg));
           color: var(--primary-600);
           font-size: 12px;
           font-weight: 700;

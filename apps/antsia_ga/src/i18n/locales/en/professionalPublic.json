@@ -1,0 +1,20 @@
+{
+  "title": "Professional profile",
+  "lead": "Skills, projects and activities voluntarily shared on ANTSIA.",
+  "voluntary": "This person chooses the information shown here. This profile is separate from personal dating.",
+  "collaborate": "Suggest a collaboration",
+  "about": "About",
+  "skills": "Declared skills",
+  "declared": "Skills declared by the person. Explore their work and discuss your project.",
+  "languages": "Languages",
+  "zone": "Service area",
+  "availability": "Availability",
+  "availabilities": {
+    "available": "Open to proposals",
+    "limited": "Limited availability",
+    "unavailable": "Currently unavailable"
+  },
+  "portfolio": "Projects",
+  "activities": "Linked activities",
+  "mandates": "Only public activities with a current management mandate are shown."
+}

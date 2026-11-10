@@ -28,7 +28,8 @@ describe("RootLayout — amorçage de l'apparence", () => {
     const html = await renderLayout()
     expect(html).toContain(`<head><script>${APPEARANCE_BOOT_SCRIPT}</script>`)
     expect(html.indexOf("<script>")).toBeLessThan(html.indexOf("<body"))
-    expect(html).toMatch(/^<html lang="fr" data-charte="antsia">/)
+    // MP04 : le défilement fluide est déclaré à Next, qui le suspend pendant ses navigations.
+    expect(html).toMatch(/^<html lang="fr" data-charte="antsia" data-scroll-behavior="smooth">/)
   })
 
   it("reprend le nonce que le proxy de la CSP à jeton posera sur la requête", async () => {

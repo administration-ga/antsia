@@ -16,7 +16,7 @@ import { type EntryEvidence, entryStatusFor, leaveCascades, nextMembershipStatus
 import { v } from "convex/values"
 
 import type { Doc } from "../../_generated/dataModel"
-import { query } from "../../_generated/server"
+import { type MutationCtx, query } from "../../_generated/server"
 import { effectiveMembershipStatus, getCurrentPerson, getMembership, getRootNetwork } from "../../lib/access"
 import { checked, fail, notFound } from "../../lib/errors"
 import { operatorMutation, personMutation } from "../../lib/functions"
@@ -115,6 +115,24 @@ export const leaveNetwork = personMutation({
   },
 })
 
+/**
+ * La suspension à la racine elle-même (transition `suspend`) : le statut d'avant
+ * gardé pour la levée, l'échéance éventuelle ; elle vaut PARTOUT, la garde la lit
+ * à chaque appel. Partagée par la console (`suspendEverywhere`, qui l'audite) et
+ * par les comptes de démonstration de DIASPORALE (`diaspora/demoAccounts`,
+ * développement local). `false` : transition refusée (déjà suspendue, ou partie).
+ */
+export async function suspendRootMembership(ctx: MutationCtx, rootMembership: Doc<"networkMemberships">, until?: number): Promise<boolean> {
+  const next = nextMembershipStatus(rootMembership.status, { kind: "suspend" })
+  if (!next) return false
+  const before = rootMembership.status === "en_attente" || rootMembership.status === "declaree" || rootMembership.status === "verifiee" ? rootMembership.status : undefined
+  await setMembershipStatus(ctx, rootMembership, next, {
+    ...(before ? { statusBeforeSuspension: before } : {}),
+    ...(until !== undefined ? { suspendedUntil: until } : {}),
+  })
+  return true
+}
+
 /** Console : suspendre une personne PARTOUT (suspension à la racine). La modération à l'échelle (PA5) s'appuie dessus. */
 export const suspendEverywhere = operatorMutation({
   args: { personId: v.id("persons"), until: v.optional(v.number()), reason: v.string() },
@@ -126,13 +144,7 @@ export const suspendEverywhere = operatorMutation({
     if (!root) return notFound()
     const membership = await getMembership(ctx, root._id, personId)
     if (!membership) return notFound()
-    const next = nextMembershipStatus(membership.status, { kind: "suspend" })
-    if (!next) return fail("conflict")
-    const before = membership.status === "en_attente" || membership.status === "declaree" || membership.status === "verifiee" ? membership.status : undefined
-    await setMembershipStatus(ctx, membership, next, {
-      ...(before ? { statusBeforeSuspension: before } : {}),
-      ...(until !== undefined ? { suspendedUntil: until } : {}),
-    })
+    if (!(await suspendRootMembership(ctx, membership, until))) return fail("conflict")
     await appendAudit(ctx, {
       action: "membership.suspend_everywhere",
       capacity: operatorCapacity(ctx.operator),

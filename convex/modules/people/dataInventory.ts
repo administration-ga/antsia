@@ -55,12 +55,15 @@ export function anonymizeReferences(value: unknown, shape: ValidatorJSON, person
 }
 
 const PRIVATE_EXPORT_FIELDS = new Set(["authuserid", "userid", "endpoint", "token", "auth", "p256dh", "keys", "contacts", "identitysubjects", "secret", "privatekey", "keyenvname", "credential", "sessionid", "password", "clientsecret", "accesstoken", "refreshtoken", "idtoken", "authorization", "bearer", "backupcodes"])
+// P17c : corrélations d'appareil/session du contrôle d'appel. Elles ne sont pas
+// nécessaires à l'historique personnel et ne constituent jamais une preuve exportable.
+const NATIVE_CALL_PRIVATE_EXPORT_FIELDS = new Set(["ownersessionid", "ownerdeviceid", "ownerapplicationid", "ownerbindingid", "ownerkind", "nativebindingid", "sessiongeneration", "nativeexpiresat", "systemcalluuid"])
 
 /** Les secrets sont retirés à toute profondeur, y compris dans les objets imbriqués. */
 function redactExportValue(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(redactExportValue)
   if (value && typeof value === "object") {
-    return Object.fromEntries(Object.entries(value).filter(([key]) => !PRIVATE_EXPORT_FIELDS.has(key.toLowerCase()) && !/(?:token|secret|password|credential|privatekey)$/i.test(key)).map(([key, item]) => [key, redactExportValue(item)]))
+    return Object.fromEntries(Object.entries(value).filter(([key]) => !PRIVATE_EXPORT_FIELDS.has(key.toLowerCase()) && !NATIVE_CALL_PRIVATE_EXPORT_FIELDS.has(key.toLowerCase()) && !/(?:token|secret|password|credential|privatekey)$/i.test(key)).map(([key, item]) => [key, redactExportValue(item)]))
   }
   return value
 }
@@ -92,6 +95,13 @@ const EXPORT_PERSON_FIELDS: Readonly<Record<string, readonly string[]>> = {
  * document d'autrui. Les relations partagées ont leurs propres projections.
  */
 export function exportableRecord(table: string, row: DataRecord, personId: string): Record<string, unknown> | null {
+  if (table === "professionalProfiles") return row.personId === personId ? projectedRecord(row, [...RECORD_METADATA, "revision", "state", "visibility", "title", "bio", "skills", "languageCodes", "zone", "availability", "collaborationTypes", "portfolio", "activityPageIds", "publicFields", "consentTextVersion", "consentedAt", "publicConsentTextVersion", "publicConsentAt", "publicConsentRevokedAt", "publishedAt", "pausedAt"]) : null
+  if (table === "professionalCollaborations") {
+    // L'auteur exporte sa proposition, le destinataire son propre geste ; aucun refus d'autrui.
+    if (row.fromPersonId === personId) return projectedRecord(row, [...RECORD_METADATA, "collaborationType", "message", "proposedAt", ...(row.cancelledByPersonId === personId ? ["cancelledAt"] : [])])
+    if (row.toPersonId === personId) return { ...projectedRecord(row, [...RECORD_METADATA, "respondedAt", ...(row.cancelledByPersonId === personId ? ["cancelledAt"] : [])]), ...(["accepted", "declined"].includes(String(row.status)) ? { decision: row.status } : {}) }
+    return null
+  }
   // P13 : le suivi personnel n'exporte ni texte de support, ni octets signés, ni sujet/session.
   if (table === "shopPurchaseRequests") return null
   if (table === "shopPurchaseSnapshots") {
@@ -116,6 +126,14 @@ export function exportableRecord(table: string, row: DataRecord, personId: strin
   if (table === "checkoutAttempts") return row.personId === personId ? projectedRecord(row, [...RECORD_METADATA, "shopId", "attemptId", "state", "expectedLines", "expectedFees", "expectedPolicyVersion", "result", "consentedAt", "consentTextVersion", "createdAt", "updatedAt"]) : null
   const policy = DATA_TABLE_POLICIES[table]
   if (!policy) return null
+  // MP12 : une signature est une trace, jamais un droit d'export sur le brouillon de la rédaction.
+  if (table === "editorialMedia") return row.publicConsentByPersonId === personId ? projectedRecord(row, [...RECORD_METADATA, "pageId", "publicConsentTextVersion", "publicConsentedAt", "publicConsentRevokedAt"]) : row.createdByPersonId === personId ? projectedRecord(row, [...RECORD_METADATA, "pageId"]) : null
+  if (table === "editorialGrants") return row.personId === personId ? projectedRecord(row, [...RECORD_METADATA, "pageId", "role", "state", "acceptedAt", "revokedAt", "bylineConsentTextVersion", "bylineConsentedAt", "bylineConsentRevokedAt"]) : row.invitedByPersonId === personId ? projectedRecord(row, [...RECORD_METADATA, "pageId", "role", "invitedAt"]) : null
+  if (table === "editorialArticles") return row.createdByPersonId === personId ? projectedRecord(row, [...RECORD_METADATA, "pageId", "articleKey"]) : null
+  if (table === "editorialVersions") return row.authorPersonId === personId ? projectedRecord(row, [...RECORD_METADATA, "pageId", "articleId", "versionNumber", "digest"]) : null
+  if (table === "editorialEvents") return row.actorPersonId === personId ? projectedRecord(row, [...RECORD_METADATA, "pageId", "articleId", "versionId", "action"]) : null
+  if (table === "editorialSocialLinks") return row.announcedByPersonId === personId ? projectedRecord(row, [...RECORD_METADATA, "pageId", "articleId", "postId", "announcedAt"]) : null
+  if (table === "editorialAssets") return row.uploadedByPersonId === personId ? projectedRecord(row, [...RECORD_METADATA, "pageId", "altText", "credit", "mimeType", "sizeBytes", "rightsConsentTextVersion", "rightsConsentedAt"]) : null
   // PA10 : les files, références de tiers et curseurs techniques ne sont pas
   // des copies exportables du contenu. Le propriétaire reçoit seulement la
   // fenêtre de sa préparation ; ses publications suivent la politique posts.
@@ -134,7 +152,7 @@ export function exportableRecord(table: string, row: DataRecord, personId: strin
   if (table === "contextualPolicies") return null
   if (table === "contextualThreads") {
     const side = row.requesterPersonId === personId ? "requester" : row.responderPersonId === personId ? "responder" : null
-    return side === null ? null : { ...projectedRecord(row, [...RECORD_METADATA, "kind", "serviceRequestId", "mentoringRequestId", "jobApplicationId", "status", "closedAt", "closedCause", "closedBySide", "lastMessageAt"]), side }
+    return side === null ? null : { ...projectedRecord(row, [...RECORD_METADATA, "kind", "serviceRequestId", "mentoringRequestId", "jobApplicationId", "professionalCollaborationId", "status", "closedAt", "closedCause", "closedBySide", "lastMessageAt"]), side }
   }
   if (table === "contextualMessages") {
     if (row.voice === "person" && row.authorPersonId === personId) {
@@ -160,11 +178,15 @@ export function exportableRecord(table: string, row: DataRecord, personId: strin
   if (table === "shopCatalogPolicies" || table === "commerceCatalogMappings" || table === "commerceCatalogHeads" || table === "commerceCatalogMediaAssets") return null
   // P15 : ni corps signé, session, sujet opaque ni identifiant de stockage ; la candidature et ses pièces au seul candidat.
   if (table === "commerceJobPolicies" || table === "commerceJobHeads" || table === "commerceApplicationSubjects") return null
+  if (table === "commerceApplicationIntentFences") return null
   if (table === "commerceApplicationFiles") return row.personId === personId ? projectedRecord(row, [...RECORD_METADATA, "kind", "filename", "sha256", "byteSize", "state", "retiredAt"]) : null
   if (table === "commerceApplications") return row.personId === personId ? projectedRecord(row, [...RECORD_METADATA, "shopId", "jobRef", "jobTitle", "civilName", "motivation", "files", "state", "rejection", "applicationRef", "submittedAt", "remoteState", "remoteUpdatedAt", "consentTextVersion", "consentedAt", "revokedAt", "revokeReason"]) : null
   // P14 : ni corps signé, session, sujet opaque, liaison, empreinte ni bail ; la demande, ses consentements et les états servis au seul acheteur.
   if (table === "commerceServicePolicies") return null
-  if (table === "commerceServiceRequests") return row.personId === personId ? projectedRecord(row, [...RECORD_METADATA, "shopId", "handle", "requestRowId", "mode", "offerRef", "offerTitle", "state", "reason", "threadId", "inquiryRef", "desiredDate", "chosenAttachmentCount", "serviceRef", "serviceLabel", "booking", "pendingReplacement", "order", "acceptedQuote", "purgeAt"]) : null
+  if (table === "serviceClientIntentFences") return null
+  // DP39 : registre technique de déduplication, ni corps de service ni projection personnelle.
+  if (table === "commerceServiceFollowupNotices") return null
+  if (table === "commerceServiceRequests") return row.personId === personId ? projectedRecord(row, [...RECORD_METADATA, "shopId", "handle", "requestRowId", "mode", "offerRef", "offerTitle", "state", "reason", "threadId", "inquiryRef", "desiredDate", "chosenAttachmentCount", "serviceRef", "serviceLabel", "booking", "pendingReplacement", "order", "acceptedQuote", "rejectedQuote", "purgeAt"]) : null
   if (table === "commerceServiceCommands") return row.personId === personId ? projectedRecord(row, [...RECORD_METADATA, "requestRowId", "kind", "state", "reason", "issuedAt", "expiresAt", "consentTextVersion", "consentedAt", "quoteRef", "quoteVersion", "acceptedTotal", "serviceRef", "slotStartAt", "slotEndAt", "appointmentRef", "expectedRevision", "offerRef", "quantity", "expectedUnitAmount", "expectedCatalogRevision", "currentVersion", "currentTotal", "currentUnitAmount", "currentCatalogRevision", "resultRef"]) : null
   if (table === "shopCommerceLinkCommands" || table === "shopCommerceSubjects" || table === "shopCommerceShopRefs") return null
   if (table === "shopCommerceLinks") return row.personId === personId ? projectedRecord(row, [...RECORD_METADATA, "personId", "shopId", "pageId", "source", "environment", "state", "shopRef", "linkRef", "permissions", "consentTextVersion", "consentedAt", "linkedAt", "revokedAt", "updatedAt"]) : null
@@ -181,7 +203,8 @@ export function exportableRecord(table: string, row: DataRecord, personId: strin
   if (table === "personBlocks") return row.blockerPersonId === personId ? projectedRecord(row, [...RECORD_METADATA, "blockerPersonId", "targetPersonId"]) : null
   if (table === "follows") return row.followerPersonId === personId || row.targetPersonId === personId ? projectedRecord(row, [...RECORD_METADATA, "followerPersonId", "targetPersonId"]) : null
   if (table === "reports" || table === "contentReports") {
-    if (row.reporterPersonId === personId) return projectedRecord(row, [...REPORT_REFERENCE_FIELDS, "reason", "note", "source"])
+    // SU01d : le déclarant exporte aussi le délai légal, ses deux avis et l'effet sur le contenu — jamais la sanction ni le motif de modération.
+    if (row.reporterPersonId === personId) return projectedRecord(row, [...REPORT_REFERENCE_FIELDS, "reason", "note", "source", "legalBasis", "dueAt", "acknowledgedAt", "reporterNotifiedAt", "removedTarget"])
     if (table === "reports" && row.ownerPersonId === personId) return projectedRecord(row, [...REPORT_REFERENCE_FIELDS, "source", "decisionReason", "reviewedAt", "removedTarget"])
     return null
   }
@@ -208,7 +231,8 @@ export function exportableRecord(table: string, row: DataRecord, personId: strin
     return null
   }
   if (table === "dataErasureJobs") return row.personId === personId ? projectedRecord(row, ["_id", "personId", "phase", "requestedAt", "dueAt", "updatedAt"]) : null
-  if (table === "pages" || table === "thematicGroups") return row.createdByPersonId === personId ? redactExportValue(row) as Record<string, unknown> : null
+  // Le geste de création appartient à son auteur ; le contenu courant est collectif.
+  if (table === "pages" || table === "thematicGroups") return row.createdByPersonId === personId ? projectedRecord(row, ["_id", "_creationTime", "networkId", "createdByPersonId", "createdAt"]) : null
   if (table === "shops") {
     // Un brouillon sans page appartient à son propriétaire. La préparation
     // historique d'une page ne donne aucun droit sur son état commercial actuel.

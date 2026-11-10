@@ -6,12 +6,14 @@
  * `notifications` (cliquet `notifications-writer`) ; aucun contenu, montant, nom ni contact dans
  * les arguments : un genre, une référence de sujet et une transition (références et révisions).
  *
- * P14 : PRO.GA ne pousse aucun état de service vers ANTSIA et le contrat SERVICE-CONTROL exige
+ * P14 : le contrat SERVICE-CONTROL exige
  * une preuve de session de cinq minutes au plus : toute observation a donc lieu dans la session
  * du CLIENT (sa commande ou sa relecture). Ses avis s'écrivent en trace déjà lue, sans transport ;
  * l'équipe habilitée, elle, n'observe rien elle-même : ses avis partent par la file habituelle.
  * P15 : le suivi d'une candidature est fait par la file serveur (aucune session) : avis non lu,
  * transporté selon les préférences, le consentement et le budget du candidat.
+ * DP39 : un signal privé signé peut réveiller la demande par un avis neutre non lu. Il ne
+ * remplace aucune observation SERVICE-CONTROL et ne confirme aucun état de service.
  */
 import { COMMERCIAL_TEAM_MAX } from "@antsia/social-domain/commercialContact"
 import { commerceJobsCandidateState } from "@antsia/social-domain/commerce-jobs"
@@ -23,7 +25,7 @@ import {
   commerceServiceObservationNotices,
 } from "@antsia/social-domain/commerceNotifications"
 
-import type { Doc } from "../../_generated/dataModel"
+import type { Doc, Id } from "../../_generated/dataModel"
 import type { MutationCtx } from "../../_generated/server"
 import { notifyPerson } from "./notify"
 
@@ -63,6 +65,14 @@ async function noticeClient(ctx: MutationCtx, row: ServiceRow, kind: CommerceNot
   await notifyPerson(ctx, {
     networkId: row.networkId, recipientPersonId: row.personId, kind,
     subject: { commerceServiceRequest: row._id }, commerceTransition: transition, observerPersonId: row.personId,
+  })
+}
+
+/** DP39 : aucune observation par le client, donc avis non lu ; transports habituels gardés. */
+export async function noticeServiceFollowup(ctx: MutationCtx, row: ServiceRow, transition: string): Promise<Id<"notifications"> | null> {
+  return await notifyPerson(ctx, {
+    networkId: row.networkId, recipientPersonId: row.personId, kind: "commerce_service_followup_updated",
+    subject: { commerceServiceRequest: row._id }, commerceTransition: transition,
   })
 }
 

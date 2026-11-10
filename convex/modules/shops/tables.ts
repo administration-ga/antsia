@@ -19,7 +19,7 @@ import { v } from "convex/values"
 import { contentVisibilityValidator } from "../../lib/validators"
 import { jobTables } from "./jobTables"
 import { serviceTables } from "./serviceTables"
-import { shopModelValidator, storefrontPolicyValidator, storefrontStateValidator } from "./validators"
+import { activityConfigurationValidator, shopModelValidator, storefrontPolicyValidator, storefrontStateValidator } from "./validators"
 
 export const shopsTables = {
   // P15 : emploi public reflété et candidatures privées (préfixes commerceJob*/commerceApplication*).
@@ -35,6 +35,8 @@ export const shopsTables = {
     /** La page sociale qui porte la boutique ; absente tant que la vitrine n'est pas admise. */
     pageId: v.optional(v.id("pages")),
     model: shopModelValidator,
+    /** MP02 : facultatif pour les lignes historiques ; aucune donnée économique ni référence personnelle. */
+    activityConfiguration: v.optional(activityConfigurationValidator),
     /** Identité du BROUILLON sans page ; avec une page, c'est la page qui la porte (ces champs sont vidés). */
     draftName: v.optional(v.string()),
     draftDescription: v.optional(v.string()),
@@ -44,6 +46,10 @@ export const shopsTables = {
     /** Zone approximative choisie par la boutique (jamais une adresse). */
     serviceArea: v.optional(v.string()),
     hours: v.optional(v.string()),
+    /** Le plat du jour d'une adresse « Alimentation et restauration » : une offre de son menu, pour un jour civil de Libreville. */
+    dailySpecial: v.optional(v.object({ offerRef: v.string(), day: v.string() })),
+    /** Incarnation de la désignation : retirer puis remettre ne ressuscite aucune Story. */
+    dailySpecialRevision: v.optional(v.number()),
     storefront: storefrontStateValidator,
     /** Motif de la dernière décision de l'équipe de la plateforme (refus, suspension) — rendu aux seuls gérants. */
     decisionReason: v.optional(v.string()),
@@ -80,6 +86,7 @@ export const shopsTables = {
   shopNetworkPolicies: defineTable({
     networkId: v.id("networks"),
     storefront: storefrontPolicyValidator,
+    automaticDecisionVersion: v.optional(v.string()),
     updatedAt: v.number(),
     updatedByPersonId: v.optional(v.id("persons")),
   }).index("by_network", ["networkId"]),

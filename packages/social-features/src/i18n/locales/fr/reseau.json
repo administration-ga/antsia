@@ -1,4 +1,14 @@
 {
+  "connectionRequest": {
+    "wait": "Réessayez dans {{count}} s."
+  },
+  "peopleActions": {
+    "confirm": "Confirmer",
+    "decline": "Refuser",
+    "add": "Ajouter",
+    "requestedAt": "Demande du {{date}}",
+    "answerInvitation": "Répondre à l’invitation"
+  },
   "postIdentity": {
     "announcement": "{{name}}, {{badges}}"
   },

@@ -19,9 +19,9 @@ import {
 import { normalizeCivilName } from "@antsia/social-domain/civilName"
 import { COMMERCE_INQUIRY_CONSENT_VERSION } from "@antsia/social-domain/commerce-inquiry"
 import {
-  COMMERCE_SERVICE_CONSENTS, COMMERCE_SERVICE_CONTROL_CONTRACT, COMMERCE_SERVICE_LIMITS, COMMERCE_SERVICE_TIME_ZONE,
+  COMMERCE_SERVICE_CONSENTS, COMMERCE_SERVICE_CONTROL_CONTRACT, COMMERCE_SERVICE_CONTROL_CONTRACT_V2, isCommerceServiceControlContract, COMMERCE_SERVICE_LIMITS, COMMERCE_SERVICE_TIME_ZONE,
   commerceServiceQuoteRequestMessage, parseCommerceServiceControlRequest, parseCommerceServiceControlResponse,
-  type CommerceServiceControlRequest, type CommerceServiceControlResponse,
+  type CommerceServiceControlContract, type CommerceServiceControlRequest, type CommerceServiceControlResponse,
 } from "@antsia/social-domain/commerce-services"
 import { makeFunctionReference } from "convex/server"
 import { type Infer, v } from "convex/values"
@@ -37,14 +37,14 @@ import { noticeServiceObservation, noticeServiceQuoteRevised, noticeServiceQuote
 import { readCommerceLinkConfig } from "./commerceLinkConfig"
 import { sha256Hex, validLinkToken } from "./commerceLinkCrypto"
 import {
-  existingServiceAuthority, initialServiceAuthority, liveServicePerson, ownedServiceRequest, sameServiceAuthority,
-  SERVICE_MODE_PERMISSIONS, validServiceId, type ServiceAuthority,
+  existingServiceAuthority, initialServiceAuthority, liveServiceSessionDigest, ownedServiceRequest, sameServiceAuthority, quoteControlContractForRequest, serviceQuoteControlV2Enabled, matchesPublishedServicePackage,
+  SERVICE_MODE_PERMISSIONS, validServiceId, type ServiceAuthority, type ServiceStrictContext,
 } from "./serviceAccess"
 import {
   SERVICE_BODY_TTL_MS, SERVICE_CLOSED_RETENTION_MS, SERVICE_COMMAND_OPERATIONS, SERVICE_COMMANDS_PER_REQUEST_MAX, SERVICE_CONSENT_VERSIONS,
   SERVICE_LEASE_MS, SERVICE_P06_KINDS, SERVICE_PENDING_MAX_MS, SERVICE_REQUEST_TTL_MS, bookingCanCancel, bookingCanChange, bookingSnapshotOf,
   controlResponseRequest, p06ResponseRequest, serviceActionResultValidator, serviceContactNameValidator, serviceMoneyValidator, serviceOptionsResultValidator,
-  serviceQuoteResultValidator, serviceQuotesResultValidator, serviceSlotsResultValidator, type ServiceActionResult, type ServiceBookingSnapshot,
+  serviceControlContractValidator, serviceQuoteResultValidator, serviceQuotesResultValidator, serviceSlotsResultValidator, type ServiceActionResult, type ServiceBookingSnapshot,
   type ServiceCommandKind, type ServiceMode, type ServiceOptionsResult, type ServiceQuoteResult, type ServiceQuotesResult, type ServiceSlotsResult,
 } from "./serviceRules"
 
@@ -119,20 +119,25 @@ function p06Body(envelope: Envelope, requestId: string, now: number, command: "i
   const parsed = rawBody ? parseCommerceCommandRequest(rawBody, { source: envelope.source, environment: envelope.environment, nowMs: now }) : null
   return rawBody && parsed?.ok && parsed.value.command === command ? rawBody : null
 }
-function controlBody(envelope: Envelope, requestId: string, now: number, operation: CommerceServiceControlRequest["operation"], payload: Record<string, unknown>): string | null {
+function controlBody(envelope: Envelope, requestId: string, now: number, operation: CommerceServiceControlRequest["operation"], payload: Record<string, unknown>, contract: CommerceServiceControlContract = COMMERCE_SERVICE_CONTROL_CONTRACT): string | null {
   const rawBody = commerceCanonicalJson({
-    contract: COMMERCE_SERVICE_CONTROL_CONTRACT, version: 1, operation, source: envelope.source, environment: envelope.environment, requestId, shopRef: envelope.shopRef,
+    contract, version: 1, operation, source: envelope.source, environment: envelope.environment, requestId, shopRef: envelope.shopRef,
     subject: { kind: "buyer", ref: envelope.subjectRef, authVerifiedAt: now }, issuedAt: now, expiresAt: now + SERVICE_REQUEST_TTL_MS, payload,
   })
-  const parsed = rawBody ? parseCommerceServiceControlRequest(rawBody, { source: envelope.source, environment: envelope.environment, nowMs: now }) : null
+  const parsed = rawBody ? parseCommerceServiceControlRequest(rawBody, { source: envelope.source, environment: envelope.environment, nowMs: now, contract }) : null
   return rawBody && parsed?.ok && parsed.value.operation === operation ? rawBody : null
+}
+
+/** Le contrat du corps reste fermé ; le défaut du parseur de domaine reste strictement V1. */
+function controlContractOf(rawBody: string): CommerceServiceControlContract | null {
+  try { const value: unknown = JSON.parse(rawBody); return value && typeof value === "object" && "contract" in value && isCommerceServiceControlContract(value.contract) ? value.contract : null } catch { return null }
 }
 
 // ─── Commandes : admission ───────────────────────────────────────────────────
 
 type CommandIds = { requestRowId: string; commandId: string; requestId: string; leaseToken: string; configFingerprint: string; clientRequestId: string }
 const commandIdArgs = { requestRowId: v.string(), commandId: v.string(), requestId: v.string(), leaseToken: v.string(), configFingerprint: v.string(), clientRequestId: v.string() }
-type CommandExtra = Partial<Pick<CommandRow, "quoteRef" | "quoteVersion" | "acceptedTotal" | "serviceRef" | "slotStartAt" | "slotEndAt" | "appointmentRef" | "expectedRevision" | "offerRef" | "quantity" | "expectedUnitAmount" | "expectedCatalogRevision">>
+type CommandExtra = Partial<Pick<CommandRow, "quoteRef" | "quoteVersion" | "acceptedTotal" | "serviceRef" | "slotStartAt" | "slotEndAt" | "appointmentRef" | "expectedRevision" | "offerRef" | "quantity" | "expectedUnitAmount" | "expectedCatalogRevision" | "publishedPackage" | "inquiryAttachmentMessageIds">>
 
 function validIds(input: CommandIds): boolean {
   return [input.requestRowId, input.commandId, input.requestId, input.clientRequestId].every(validServiceId) && validLinkToken(input.leaseToken)
@@ -141,9 +146,11 @@ function validIds(input: CommandIds): boolean {
 /** Même clé client + même intention : même demande ; autre intention : refus, jamais un second envoi. */
 async function replayByClient(ctx: MutationCtx, authority: Pick<ServiceAuthority, "personId" | "networkId">, clientRequestId: string, intentDigest: string): Promise<ServiceActionResult | null> {
   const existing = await ctx.db.query("commerceServiceCommands").withIndex("by_client", (q) => q.eq("personId", authority.personId).eq("networkId", authority.networkId).eq("clientRequestId", clientRequestId)).unique()
-  if (!existing) return null
-  return existing.intentDigest === intentDigest && existing.cancelledAt === undefined
+  if (existing) return existing.intentDigest === intentDigest && existing.cancelledAt === undefined
     ? { outcome: "request", requestRowId: existing.requestRowId, state: existing.state, reason: existing.reason ?? null } : refused()
+  // Même transaction que l'insertion : une clé clôturée ne peut plus être admise, quel que soit le parcours.
+  const fence = await ctx.db.query("serviceClientIntentFences").withIndex("by_client", (q) => q.eq("personId", authority.personId).eq("networkId", authority.networkId).eq("clientRequestId", clientRequestId)).unique()
+  return fence ? refused() : null
 }
 
 /** Une seule intention en vol par demande, et un nombre borné de commandes. */
@@ -161,7 +168,7 @@ async function insertCommand(ctx: MutationCtx, input: {
   await ctx.db.insert("commerceServiceCommands", {
     ...authority, requestRowId: key.requestRowId, commandId: key.commandId, kind: input.kind, clientRequestId: key.clientRequestId, intentDigest: input.intentDigest,
     requestId: key.requestId, bodySha256: await sha256Hex(input.rawBody), rawBody: input.rawBody, issuedAt: now, expiresAt: now + SERVICE_REQUEST_TTL_MS,
-    privateUntil: now + SERVICE_BODY_TTL_MS, state: "unknown", leaseToken: key.leaseToken, leaseUntil: now + SERVICE_LEASE_MS,
+    privateUntil: now + SERVICE_BODY_TTL_MS, state: "unknown", leaseToken: key.leaseToken, leaseUntil: now + SERVICE_LEASE_MS, leaseSessionDigest: authority.sessionDigest,
     consentTextVersion: SERVICE_CONSENT_VERSIONS[input.kind], consentedAt: now, ...input.extra, createdAt: now, updatedAt: now,
   })
   await ctx.scheduler.runAfter(SERVICE_BODY_TTL_MS, expirePrivateRef, { commandId: key.commandId })
@@ -207,7 +214,8 @@ export const admitQuoteRequest = internalMutation({
     let attachmentCount = 0
     for (const messageId of chosen) {
       const message = await ctx.db.get(messageId)
-      if (!message || message.threadId !== args.threadId || message.senderPersonId !== authority.personId || message.deletedAt !== undefined || !message.attachmentFiles?.length ||
+      if (!message || message.networkId !== args.networkId || message.threadId !== args.threadId || message.senderPersonId !== authority.personId || message.deletedAt !== undefined || !message.attachmentFiles?.length ||
+        attachmentCount + message.attachmentFiles.length > COMMERCE_SERVICE_LIMITS.quoteAttachmentsMax ||
         !await canReadModeratedContent(ctx, "commercialMessage", message._id, authority.personId)) return refused()
       for (const file of message.attachmentFiles) if (!await isServableStorage(ctx, file.storageId)) return refused()
       attachmentCount += message.attachmentFiles.length
@@ -227,7 +235,7 @@ export const admitQuoteRequest = internalMutation({
     if (!rawBody) return refused()
     await insertRequest(ctx, authority, { requestRowId: args.requestRowId, mode: "quote", offerRef: args.offerRef, offerTitle: offer.title, now, threadId: args.threadId,
       conversationRef: thread.thread.conversationRef, ...(desiredDate ? { desiredDate } : {}), chosenAttachmentCount: attachmentCount })
-    return await insertCommand(ctx, { authority, ids: args, kind: "inquiry", intentDigest, rawBody, now, extra: {} })
+    return await insertCommand(ctx, { authority, ids: args, kind: "inquiry", intentDigest, rawBody, now, extra: { inquiryAttachmentMessageIds: chosen } })
   },
 })
 
@@ -270,7 +278,7 @@ export const admitServiceOrder = internalMutation({
   args: {
     networkId: v.id("networks"), handle: v.string(), offerRef: v.string(), quantity: v.number(), expectedUnitAmount: serviceMoneyValidator, expectedCatalogRevision: v.number(),
     desiredDate: v.optional(v.string()), note: v.optional(v.string()), contactName: v.optional(serviceContactNameValidator), consentTextVersion: v.string(),
-    existingRequestRowId: v.optional(v.string()), ...commandIdArgs,
+    existingRequestRowId: v.optional(v.string()), publishedPackage: v.optional(v.literal(true)), ...commandIdArgs,
   },
   returns: serviceAdmissionValidator,
   handler: async (ctx, args): Promise<ServiceDelivery | ServiceActionResult> => {
@@ -280,12 +288,13 @@ export const admitServiceOrder = internalMutation({
     const admitted = await initialServiceAuthority(ctx, args.networkId, args.handle, args.offerRef, "fixed_order")
     if (!admitted || admitted.authority.configFingerprint !== args.configFingerprint) return refused()
     const { authority, offer } = admitted
+    if (args.publishedPackage && !matchesPublishedServicePackage(offer, { revision: args.expectedCatalogRevision, unitAmount: args.expectedUnitAmount })) return refused()
     await enforceRateLimit(ctx, "shop.service.order", authority.personId)
     const now = Date.now()
     const note = cleanText(args.note, COMMERCE_SERVICE_LIMITS.noteMax, true), displayName = contactDisplayName(args.contactName)
     const desiredDate = futureDate(args.desiredDate, now)
     if (note === null || displayName === null || desiredDate === null) return refused()
-    const intent = commerceCanonicalJson({ kind: "order", handle: args.handle, offerRef: args.offerRef, quantity: args.quantity, expectedUnitAmount: args.expectedUnitAmount, expectedCatalogRevision: args.expectedCatalogRevision, desiredDate: desiredDate ?? null, note: note ?? null, displayName: displayName ?? null, existing: args.existingRequestRowId ?? null })
+    const intent = commerceCanonicalJson({ kind: "order", handle: args.handle, offerRef: args.offerRef, quantity: args.quantity, expectedUnitAmount: args.expectedUnitAmount, expectedCatalogRevision: args.expectedCatalogRevision, desiredDate: desiredDate ?? null, note: note ?? null, displayName: displayName ?? null, existing: args.existingRequestRowId ?? null, ...(args.publishedPackage ? { publishedPackage: true } : {}) })
     if (!intent) return refused()
     const intentDigest = await sha256Hex(intent)
     const replay = await replayByClient(ctx, authority, args.clientRequestId, intentDigest)
@@ -309,7 +318,7 @@ export const admitServiceOrder = internalMutation({
       await insertRequest(ctx, authority, { requestRowId, mode: "fixed_order", offerRef: args.offerRef, offerTitle: offer.title, now, ...(desiredDate ? { desiredDate } : {}) })
     }
     return await insertCommand(ctx, { authority, ids: { ...args, requestRowId }, kind: "order", intentDigest, rawBody, now,
-      extra: { offerRef: args.offerRef, quantity: args.quantity, expectedUnitAmount: { ...args.expectedUnitAmount }, expectedCatalogRevision: args.expectedCatalogRevision } })
+      extra: { offerRef: args.offerRef, quantity: args.quantity, expectedUnitAmount: { ...args.expectedUnitAmount }, expectedCatalogRevision: args.expectedCatalogRevision, ...(args.publishedPackage ? { publishedPackage: true } : {}) } })
   },
 })
 
@@ -331,7 +340,7 @@ export const admitQuoteAccept = internalMutation({
     const intentDigest = await sha256Hex(intent)
     const replay = await replayByClient(ctx, authority, args.clientRequestId, intentDigest)
     if (replay) return replay
-    if (await commandRoom(ctx, row.requestRowId) !== "free") return refused()
+    if (row.rejectedQuote?.quoteRef === args.quoteRef && row.rejectedQuote.quoteVersion === args.quoteVersion || await commandRoom(ctx, row.requestRowId) !== "free") return refused()
     const now = Date.now()
     const rawBody = p06Body(authority, args.requestId, now, "quote.accept", {
       shopRef: authority.shopRef, quoteRef: args.quoteRef, quoteVersion: args.quoteVersion, acceptedTotal: { ...args.acceptedTotal },
@@ -343,7 +352,32 @@ export const admitQuoteAccept = internalMutation({
   },
 })
 
-/** Changement de créneau : conséquences affichées avant ; l'ancien rendez-vous reste si l'échange échoue. */
+/** MP06 : refus client V2, version et consentement propres ; même verrou que l'acceptation. */
+export const admitQuoteReject = internalMutation({
+  args: { networkId: v.id("networks"), quoteRef: v.string(), quoteVersion: v.number(), consentTextVersion: v.string(), ...commandIdArgs },
+  returns: serviceAdmissionValidator,
+  handler: async (ctx, args): Promise<ServiceDelivery | ServiceActionResult> => {
+    if (!serviceQuoteControlV2Enabled() || args.consentTextVersion !== COMMERCE_SERVICE_CONSENTS.quote_rejection.textVersion || !validIds(args) || !refKind(args.quoteRef, "quote") || !Number.isSafeInteger(args.quoteVersion) || args.quoteVersion < 1) return refused()
+    const row = await ownedServiceRequest(ctx, args.networkId, args.requestRowId)
+    if (!row || row.mode !== "quote" || row.state !== "active" || !row.inquiryRef || await quoteControlContractForRequest(ctx, row) !== COMMERCE_SERVICE_CONTROL_CONTRACT_V2) return refused()
+    const admitted = await initialServiceAuthority(ctx, args.networkId, row.handle, row.offerRef, "quote")
+    if (!admitted || admitted.authority.configFingerprint !== args.configFingerprint || admitted.authority.subjectRef !== row.subjectRef || admitted.authority.shopRef !== row.shopRef) return refused()
+    const { authority } = admitted
+    // Accepter et refuser partagent le même seau et le même verrou transactionnel.
+    await enforceRateLimit(ctx, "shop.service.accept", authority.personId)
+    const intent = commerceCanonicalJson({ kind: "quote_reject", requestRowId: row.requestRowId, quoteRef: args.quoteRef, quoteVersion: args.quoteVersion })
+    if (!intent) return refused()
+    const intentDigest = await sha256Hex(intent), replay = await replayByClient(ctx, authority, args.clientRequestId, intentDigest)
+    if (replay) return replay
+    if (row.acceptedQuote || row.order || row.rejectedQuote?.quoteRef === args.quoteRef && row.rejectedQuote.quoteVersion === args.quoteVersion || await commandRoom(ctx, row.requestRowId) !== "free") return refused()
+    const now = Date.now()
+    const rawBody = controlBody(authority, args.requestId, now, "service.quote.reject", { quoteRef: args.quoteRef, quoteVersion: args.quoteVersion, consent: { purpose: COMMERCE_SERVICE_CONSENTS.quote_rejection.purpose, textVersion: COMMERCE_SERVICE_CONSENTS.quote_rejection.textVersion, givenAt: now } }, COMMERCE_SERVICE_CONTROL_CONTRACT_V2)
+    if (!rawBody) return refused()
+    return await insertCommand(ctx, { authority, ids: { ...args, requestRowId: row.requestRowId }, kind: "quote_reject", intentDigest, rawBody, now, extra: { quoteRef: args.quoteRef, quoteVersion: args.quoteVersion } })
+  },
+})
+
+/** Changement de créneau : l’ancien rendez-vous reste si l’échange échoue. */
 export const admitReschedule = internalMutation({
   args: { networkId: v.id("networks"), startAt: v.number(), endAt: v.number(), resourceRef: v.optional(v.string()), expectedRevision: v.number(), consentTextVersion: v.string(), ...commandIdArgs },
   returns: serviceAdmissionValidator,
@@ -434,7 +468,7 @@ function lookupBody(command: CommandRow, requestId: string, now: number): string
   if (target === "inquiry.submit" || target === "quote.accept" || target === "booking.request") {
     return p06Body(command, requestId, now, "request.status", { targetCommand: target, targetRequestId: command.requestId, targetRequestSha256: command.bodySha256 })
   }
-  return controlBody(command, requestId, now, "action.status", { targetOperation: target, targetRequestId: command.requestId, targetRequestSha256: command.bodySha256 })
+  return controlBody(command, requestId, now, "action.status", { targetOperation: target, targetRequestId: command.requestId, targetRequestSha256: command.bodySha256 }, command.kind === "quote_reject" ? COMMERCE_SERVICE_CONTROL_CONTRACT_V2 : COMMERCE_SERVICE_CONTROL_CONTRACT)
 }
 
 export const admitLookup = internalMutation({
@@ -445,18 +479,21 @@ export const admitLookup = internalMutation({
     if (!row || !validServiceId(args.requestId) || !validLinkToken(args.leaseToken)) return null
     const now = Date.now()
     const command = await lookupTarget(ctx, row, args.resend)
-    if (!command || command.cancelledAt !== undefined || (command.leaseUntil ?? 0) > now || command.configFingerprint !== args.configFingerprint || !await liveServicePerson(ctx, command)) return null
+    if (!command || command.cancelledAt !== undefined || (command.leaseUntil ?? 0) > now || command.configFingerprint !== args.configFingerprint) return null
+    const sessionDigest = await liveServiceSessionDigest(ctx, command)
+    if (!sessionDigest) return null
     await enforceRateLimit(ctx, "shop.service.status", row.personId)
     if (args.resend) {
       // Renvoi des MÊMES octets : seulement avant expiration, après une consultation récente restée « inconnue ».
-      if (!command.rawBody || command.expiresAt <= now || command.lookupState !== "unknown" || (command.lastLookupAt ?? 0) < now - 10_000 ||
+      if (!command.rawBody || command.privateUntil <= now || command.expiresAt <= now || command.lookupState !== "unknown" || command.lookupSessionDigest !== sessionDigest || (command.lastLookupAt ?? 0) < now - 10_000 ||
         await sha256Hex(command.rawBody) !== command.bodySha256) return null
-      await ctx.db.patch(command._id, { leaseToken: args.leaseToken, leaseUntil: now + SERVICE_LEASE_MS, updatedAt: now })
+      await ctx.db.patch(command._id, { leaseToken: args.leaseToken, leaseUntil: now + SERVICE_LEASE_MS, leaseSessionDigest: sessionDigest, updatedAt: now })
       return { commandId: command.commandId, requestId: command.requestId, rawBody: command.rawBody, leaseToken: args.leaseToken, channel: channelOf(command.kind), purpose: "send" }
     }
     const rawBody = lookupBody(command, args.requestId, now)
     if (!rawBody) return null
-    await ctx.db.patch(command._id, { leaseToken: args.leaseToken, leaseUntil: now + SERVICE_LEASE_MS, updatedAt: now })
+    // Une consultation indisponible ne peut pas réutiliser le « unknown » d'une consultation précédente.
+    await ctx.db.patch(command._id, { leaseToken: args.leaseToken, leaseUntil: now + SERVICE_LEASE_MS, leaseSessionDigest: sessionDigest, lookupState: undefined, lastLookupAt: undefined, lookupSessionDigest: undefined, updatedAt: now })
     return { commandId: command.commandId, requestId: args.requestId, rawBody, leaseToken: args.leaseToken, channel: channelOf(command.kind), purpose: "lookup" }
   },
 })
@@ -464,10 +501,34 @@ export const admitLookup = internalMutation({
 // ─── Commandes : autorisation juste avant l'envoi ────────────────────────────
 
 /** Un nouvel engagement relit vitrine, liaison et permission ; l'annulation, la seule session. */
-function strictFor(command: CommandRow, row: RequestRow): { offerRef: string; mode: ServiceMode } | null {
+function strictFor(command: CommandRow, row: RequestRow): ServiceStrictContext | null {
   if (command.kind === "cancel") return null
-  const mode: ServiceMode = command.kind === "inquiry" || command.kind === "quote_accept" ? "quote" : command.kind === "order" ? "fixed_order" : "booking"
-  return { offerRef: row.offerRef, mode }
+  const mode: ServiceMode = command.kind === "inquiry" || command.kind === "quote_accept" || command.kind === "quote_reject" ? "quote" : command.kind === "order" ? "fixed_order" : "booking"
+  return { offerRef: row.offerRef, mode, ...(command.kind === "order" && command.publishedPackage ? { publishedPackage: { revision: command.expectedCatalogRevision ?? 0, unitAmount: command.expectedUnitAmount ?? { amount: 0, currency: "XAF" as const } } } : {}) }
+}
+
+/** Seules les pièces explicitement choisies sont relues ; une ancienne commande sans preuve ne repart pas. */
+async function inquiryStillAuthorized(ctx: MutationCtx, command: CommandRow, row: RequestRow): Promise<boolean> {
+  if (command.kind !== "inquiry") return true
+  const chosen = command.inquiryAttachmentMessageIds
+  if (!row.threadId || chosen === undefined || chosen.length > COMMERCE_SERVICE_LIMITS.quoteAttachmentsMax || new Set(chosen).size !== chosen.length) return false
+  const access = await commercialThreadAccess(ctx, command.networkId, command.personId, row.threadId)
+  if (!access || access.viewerKind !== "requester" || access.blocked || access.thread.state !== "accepted" || access.shop._id !== command.shopId ||
+    access.thread.conversationRef !== row.conversationRef || (access.thread.offerRef !== undefined && access.thread.offerRef !== row.offerRef)) return false
+  let count = 0
+  for (const messageId of chosen) {
+    const message = await ctx.db.get(messageId)
+    if (!message || message.networkId !== command.networkId || message.threadId !== row.threadId || message.senderPersonId !== command.personId ||
+      message.deletedAt !== undefined || !message.attachmentFiles?.length || count + message.attachmentFiles.length > COMMERCE_SERVICE_LIMITS.quoteAttachmentsMax ||
+      !await canReadModeratedContent(ctx, "commercialMessage", message._id, command.personId)) return false
+    for (const file of message.attachmentFiles) if (!await isServableStorage(ctx, file.storageId)) return false
+    count += message.attachmentFiles.length
+  }
+  return count === row.chosenAttachmentCount
+}
+
+function leaseAuthority(command: CommandRow): ServiceAuthority {
+  return { ...command, sessionDigest: command.leaseSessionDigest ?? command.sessionDigest }
 }
 
 export const authorize = internalMutation({
@@ -477,10 +538,11 @@ export const authorize = internalMutation({
     if (!owned) return false
     const { command, row } = owned, now = Date.now(), delivery = args.delivery
     if (command.leaseToken !== delivery.leaseToken || (command.leaseUntil ?? 0) <= now || command.configFingerprint !== args.configFingerprint || delivery.channel !== channelOf(command.kind)) return false
-    if (delivery.purpose === "lookup") return await liveServicePerson(ctx, command)
+    if (delivery.purpose === "lookup") return await sameServiceAuthority(ctx, leaseAuthority(command), null)
+    if (command.kind === "quote_reject" && !serviceQuoteControlV2Enabled()) return false
     if (command.state !== "unknown" || command.rawBody !== delivery.rawBody || command.requestId !== delivery.requestId || command.expiresAt <= now ||
       await sha256Hex(delivery.rawBody) !== command.bodySha256) return false
-    return await sameServiceAuthority(ctx, command, strictFor(command, row))
+    return await sameServiceAuthority(ctx, leaseAuthority(command), strictFor(command, row)) && await inquiryStillAuthorized(ctx, command, row)
   },
 })
 
@@ -581,6 +643,11 @@ async function applyControl(ctx: MutationCtx, command: CommandRow, row: RequestR
   }
   if (response.outcome !== "accepted" && response.outcome !== "reconfirm_required") return
   const result = response.result
+  if (command.kind === "quote_reject" && "quoteRef" in result && "rejectedAt" in result && result.state === "rejected") {
+    await ctx.db.patch(command._id, { state: "accepted", reason: undefined, resultRef: result.quoteRef, rawBody: undefined, updatedAt: now })
+    await ctx.db.patch(row._id, { rejectedQuote: { quoteRef: result.quoteRef, quoteVersion: result.quoteVersion, rejectedAt: result.rejectedAt }, updatedAt: now })
+    return
+  }
   if (command.kind === "order" && "state" in result && result.state === "reconfirm" && "currentUnitAmount" in result) {
     await ctx.db.patch(command._id, { state: "reconfirm", reason: undefined, currentUnitAmount: { ...result.currentUnitAmount }, currentCatalogRevision: result.currentCatalogRevision, rawBody: undefined, updatedAt: now })
     return
@@ -629,7 +696,7 @@ async function lookupStatus(command: CommandRow, rawBody: string, rawResponse: s
     const status = parsed.value.result
     return { state: status.state, current: status.current, ...(status.recordedResponse !== undefined ? { recordedResponse: status.recordedResponse } : {}), ...(status.recordedResponseSha256 !== undefined ? { recordedResponseSha256: status.recordedResponseSha256 } : {}) }
   }
-  const lookup = parseCommerceServiceControlRequest(rawBody, { source: command.source, environment: command.environment, nowMs: now })
+  const lookup = parseCommerceServiceControlRequest(rawBody, { source: command.source, environment: command.environment, nowMs: now, contract: command.kind === "quote_reject" ? COMMERCE_SERVICE_CONTROL_CONTRACT_V2 : COMMERCE_SERVICE_CONTROL_CONTRACT })
   if (!lookup.ok || lookup.value.operation !== "action.status" || lookup.value.payload.targetRequestId !== command.requestId || lookup.value.payload.targetRequestSha256 !== command.bodySha256) return null
   const parsed = parseCommerceServiceControlResponse(rawResponse, { request: lookup.value, requestSha256: lookupSha256, nowMs: now })
   if (!parsed.ok || parsed.value.outcome !== "accepted" || !("targetRequestId" in parsed.value.result)) return null
@@ -650,7 +717,7 @@ async function applyLookup(ctx: MutationCtx, command: CommandRow, row: RequestRo
   if (httpStatus !== undefined && httpStatus !== 200) return
   const status = await lookupStatus(command, rawBody, rawResponse, now)
   if (!status) return
-  await ctx.db.patch(command._id, { lookupState: status.state, lastLookupAt: now, updatedAt: now })
+  await ctx.db.patch(command._id, { lookupState: status.state, lastLookupAt: now, lookupSessionDigest: command.leaseSessionDigest ?? command.sessionDigest, updatedAt: now })
   await applyCurrentStates(ctx, row, status.current, now)
   if (command.state !== "unknown") return
   const fresh = await ctx.db.get(row._id)
@@ -680,10 +747,11 @@ export const finish = internalMutation({
     if (!owned) return refused()
     const { command, row } = owned, now = Date.now(), delivery = args.delivery
     if (command.leaseToken !== delivery.leaseToken || (command.leaseUntil ?? 0) <= now) return refused()
-    // L'envoi exige la session de l'admission ; la consultation, la même personne vivante.
-    const live = delivery.purpose === "send" ? await sameServiceAuthority(ctx, command, null) : await liveServicePerson(ctx, command)
-    if (!live) return refused()
-    await ctx.db.patch(command._id, { leaseToken: undefined, leaseUntil: undefined, updatedAt: now })
+    // Avant ET après I/O, la même session de CE bail ; le consentement et ses octets restent immuables.
+    const live = await sameServiceAuthority(ctx, leaseAuthority(command), delivery.purpose === "send" ? strictFor(command, row) : null)
+    if (!live || delivery.purpose === "send" && command.kind === "quote_reject" && !serviceQuoteControlV2Enabled()) return refused()
+    await ctx.db.patch(command._id, { leaseToken: undefined, leaseUntil: undefined, leaseSessionDigest: undefined, updatedAt: now })
+    if (delivery.purpose === "send" && !await inquiryStillAuthorized(ctx, command, row)) return refused()
     if (args.rawResponse !== undefined) {
       if (delivery.purpose === "lookup") await applyLookup(ctx, command, row, delivery.rawBody, args.rawResponse, args.httpStatus, now)
       else if (command.state === "unknown" && delivery.requestId === command.requestId) {
@@ -729,7 +797,7 @@ export const admitOfferRead = internalMutation({
 /** Lecture d'une demande existante : devis reçus, un devis, le rendez-vous tenu ou son remplaçant. */
 export const admitRequestRead = internalMutation({
   args: {
-    networkId: v.id("networks"), requestRowId: v.string(), requestId: v.string(), configFingerprint: v.string(),
+    networkId: v.id("networks"), requestRowId: v.string(), requestId: v.string(), configFingerprint: v.string(), contract: v.optional(serviceControlContractValidator),
     target: v.union(v.object({ kind: v.literal("quotes") }), v.object({ kind: v.literal("quote"), quoteRef: v.string() }), v.object({ kind: v.literal("booking"), which: v.union(v.literal("held"), v.literal("replacement")) })),
   },
   returns: serviceReadEnvelopeValidator,
@@ -739,10 +807,11 @@ export const admitRequestRead = internalMutation({
     const authority = await existingServiceAuthority(ctx, row)
     if (!authority || authority.configFingerprint !== args.configFingerprint) return null
     await enforceRateLimit(ctx, "shop.service.read", row.personId)
-    const now = Date.now(), target = args.target
+    const now = Date.now(), target = args.target, contract = args.contract ?? COMMERCE_SERVICE_CONTROL_CONTRACT
+    if (contract === COMMERCE_SERVICE_CONTROL_CONTRACT_V2 && (target.kind === "booking" || await quoteControlContractForRequest(ctx, row) !== contract)) return null
     let rawBody: string | null = null
-    if (target.kind === "quotes" && row.mode === "quote" && row.inquiryRef) rawBody = controlBody(authority, args.requestId, now, "quote.list", { inquiryRef: row.inquiryRef })
-    else if (target.kind === "quote" && row.mode === "quote" && row.inquiryRef && refKind(target.quoteRef, "quote")) rawBody = controlBody(authority, args.requestId, now, "quote.read", { quoteRef: target.quoteRef })
+    if (target.kind === "quotes" && row.mode === "quote" && row.inquiryRef) rawBody = controlBody(authority, args.requestId, now, "quote.list", { inquiryRef: row.inquiryRef }, contract)
+    else if (target.kind === "quote" && row.mode === "quote" && row.inquiryRef && refKind(target.quoteRef, "quote")) rawBody = controlBody(authority, args.requestId, now, "quote.read", { quoteRef: target.quoteRef }, contract)
     else if (target.kind === "booking" && row.mode === "booking") {
       const snapshot = target.which === "held" ? row.booking : row.pendingReplacement
       if (snapshot) rawBody = controlBody(authority, args.requestId, now, "booking.read", { appointmentRef: snapshot.appointmentRef })
@@ -756,7 +825,9 @@ async function validRead(rawBody: string, rawResponse: string | undefined, httpS
   const config = await readCommerceLinkConfig()
   if (!config || rawResponse === undefined) return null
   const now = Date.now()
-  const request = parseCommerceServiceControlRequest(rawBody, { source: config.source, environment: config.environment, nowMs: now })
+  const contract = controlContractOf(rawBody)
+  if (!contract || contract === COMMERCE_SERVICE_CONTROL_CONTRACT_V2 && !serviceQuoteControlV2Enabled()) return null
+  const request = parseCommerceServiceControlRequest(rawBody, { source: config.source, environment: config.environment, nowMs: now, contract })
   if (!request.ok || request.value.operation !== operation || request.value.expiresAt + COMMERCE_MAX_SKEW_MS < now) return null
   const response = parseCommerceServiceControlResponse(rawResponse, { request: request.value, requestSha256: await sha256Hex(rawBody), nowMs: now })
   return response.ok && statusMatches(response.value.outcome, httpStatus) ? { request: request.value, response: response.value } : null
@@ -805,6 +876,7 @@ async function readForRequest(ctx: MutationCtx, args: { networkId: Id<"networks"
   const row = await ownedServiceRequest(ctx, args.networkId, args.requestRowId)
   const read = row ? await validRead(args.rawBody, args.rawResponse, args.httpStatus, operation) : null
   if (!row || !read || read.request.subject.ref !== row.subjectRef || read.request.shopRef !== row.shopRef || !await existingServiceAuthority(ctx, row)) return null
+  if (read.request.contract === COMMERCE_SERVICE_CONTROL_CONTRACT_V2 && await quoteControlContractForRequest(ctx, row) !== COMMERCE_SERVICE_CONTROL_CONTRACT_V2) return null
   return { row, read }
 }
 
@@ -815,12 +887,12 @@ export const finishQuotes = internalMutation({
     if (!owned) return { outcome: "unavailable" }
     const response = owned.read.response
     if (response.outcome === "refused") return { outcome: "refused" }
-    if (response.outcome !== "accepted" || !("quotes" in response.result)) return { outcome: "unavailable" }
+    if (response.outcome !== "accepted" || !("quotes" in response.result) || response.result.quotes.some(quote => quote.inquiryRef !== owned.row.inquiryRef)) return { outcome: "unavailable" }
     // P14B : devis TRANSMIS par PRO.GA (liste corrélée) — une trace par version courante pour le client.
     await noticeServiceQuotes(ctx, owned.row, response.result.quotes)
     return {
       outcome: "ready", truncated: response.result.truncated,
-      quotes: response.result.quotes.map((quote) => ({ ...quote, total: { ...quote.total }, clientAcceptance: quote.clientAcceptance ? { ...quote.clientAcceptance, acceptedTotal: { ...quote.clientAcceptance.acceptedTotal } } : null })),
+      quotes: response.result.quotes.map((quote) => ({ ...quote, rejectable: quote.rejectable === true, clientRejection: quote.clientRejection ? { ...quote.clientRejection } : null, total: { ...quote.total }, clientAcceptance: quote.clientAcceptance ? { ...quote.clientAcceptance, acceptedTotal: { ...quote.clientAcceptance.acceptedTotal } } : null })),
     }
   },
 })
@@ -835,10 +907,12 @@ export const finishQuote = internalMutation({
     // `service.options` porte aussi un champ `quote` : seule sa réponse a un `offerRef`.
     if (response.outcome !== "accepted" || !("quote" in response.result) || "offerRef" in response.result) return { outcome: "unavailable" }
     const quote = response.result.quote
+    if (quote.inquiryRef !== owned.row.inquiryRef) return { outcome: "unavailable" }
     return {
       outcome: "ready", consentTextVersion: COMMERCE_SERVICE_CONSENTS.quote_acceptance.textVersion,
+      ...(owned.read.request.contract === COMMERCE_SERVICE_CONTROL_CONTRACT_V2 ? { rejectionConsentTextVersion: COMMERCE_SERVICE_CONSENTS.quote_rejection.textVersion } : {}),
       quote: {
-        ...quote, total: { ...quote.total }, lines: quote.lines.map((line) => ({ ...line, unitAmount: { ...line.unitAmount }, lineAmount: { ...line.lineAmount } })),
+        ...quote, rejectable: quote.rejectable === true, clientRejection: quote.clientRejection ? { ...quote.clientRejection } : null, total: { ...quote.total }, lines: quote.lines.map((line) => ({ ...line, unitAmount: { ...line.unitAmount }, lineAmount: { ...line.lineAmount } })),
         clientAcceptance: quote.clientAcceptance ? { ...quote.clientAcceptance, acceptedTotal: { ...quote.clientAcceptance.acceptedTotal } } : null,
       },
     }
@@ -877,7 +951,7 @@ export const expirePrivate = internalMutation({
     const command = await ctx.db.query("commerceServiceCommands").withIndex("by_command", (q) => q.eq("commandId", args.commandId)).unique()
     const now = Date.now()
     if (command && command.privateUntil <= now && command.privatePurgedAt === undefined) {
-      await ctx.db.patch(command._id, { rawBody: undefined, leaseToken: undefined, leaseUntil: undefined, privatePurgedAt: now })
+      await ctx.db.patch(command._id, { rawBody: undefined, leaseToken: undefined, leaseUntil: undefined, leaseSessionDigest: undefined, lookupSessionDigest: undefined, inquiryAttachmentMessageIds: undefined, privatePurgedAt: now })
     }
     return null
   },

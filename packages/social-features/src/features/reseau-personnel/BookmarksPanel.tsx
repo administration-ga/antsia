@@ -1,6 +1,7 @@
 // Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/BookmarksPanel.tsx @ ad2e7fdc2 — adaptations : mes signets dans le réseau courant (`marks.marks.paginateBookmarks` et `toggleMark` du moteur, `networkId` par `useNetwork()`) ; en-tête d'un aperçu décidé par `bookmarkIdentity` (la PAGE quand la publication parle en son nom, sinon l'auteur, sinon un nom neutre) ; dates relatives dans la langue courante (`formatRelativeDate(…, t)`) ; refus du moteur lus par code (`markActionErrorText`) ; état vide par `reseauEmptyState("signets", home, t)` (lien vers le fil composé sur la base injectée) ; toutes les chaînes par l'i18n (espace `reseau`, clés `bookmarksPanel.*`) ; état vide du kit d'espace (`@antsia/ui/espace-kit`).
 "use client"
 
+import { themedActionStyle } from "../themed-action-style"
 import { useViewerTimeZone } from "@antsia/api/viewer-preferences"
 
 /**
@@ -153,7 +154,7 @@ function BookmarksPanelContent({
                 <Button size="sm" variant="secondary" onClick={() => onOpenPost(item.postId)}>
                   {t("bookmarksPanel.open")}
                 </Button>
-                <Button size="sm" variant="ghost" disabled={busy === item.postId} onClick={() => void handleRemove(item.postId)}>
+                <Button style={themedActionStyle("danger", "ghost")} size="sm" variant="danger" disabled={busy === item.postId} onClick={() => void handleRemove(item.postId)}>
                   {t("bookmarksPanel.remove")}
                 </Button>
               </div>

@@ -4,6 +4,21 @@
     "description": "{{brand}} brings the networks of the Gabonese digital ecosystem together in one public network where everyone knows who they are talking to."
   },
   "skipToContent": "Skip to content",
+  "demoIntegration": {
+    "title": "Demo mode",
+    "lead": "Fictional accounts and content are shared between visitors. Your ANTSIA account stays separate.",
+    "entry": "Demo accounts",
+    "back": "Back to sign in",
+    "dismiss": "Dismiss demo notice",
+    "signOut": "Sign out",
+    "signingOut": "Signing out…",
+    "signOutFailed": "Sign out could not be completed. Try again.",
+    "frameTitle": "ANTSIA — isolated demo accounts and network",
+    "loading": "Loading the demo…",
+    "delayed": "The demo is taking longer to respond. You can wait or try again.",
+    "retry": "Try again",
+    "unavailable": "The demo is temporarily unavailable. You can return to sign in."
+  },
   "home": {
     "eyebrow": "Under construction",
     "title": "{{brand}}, the Gabonese public social network",
@@ -17,7 +32,7 @@
     "status": "The service will open in stages. This development version already lets you sign in, choose your handle, post and react.",
     "healthLink": "Service status",
     "enter": "Sign in",
-    "goToFeed": "Go to the feed"
+    "goToFeed": "Go Home"
   },
   "health": {
     "title": "Service status",
@@ -36,10 +51,10 @@
     "checking": "Checking your session…"
   },
   "nav": {
-    "feed": "Feed",
+    "feed": "Home",
     "signOut": "Sign out",
     "home": "Home",
-    "messages": "Messages",
+    "messages": "iCom",
     "myProfile": "My profile",
     "label": "Network navigation",
     "sessionTools": "Notifications, identity and session"
@@ -87,6 +102,8 @@
   "welcome": {
     "title": "Welcome to {{brand}}",
     "lead": "Choose how members will see you. Nothing is published without you.",
+    "previewTitle": "Profile preview",
+    "previewLead": "Check your display name and handle before joining the network.",
     "displayNameLabel": "Display name",
     "displayNameHint": "The name members will see. It is not copied from any registry.",
     "handleLabel": "Public handle",
@@ -106,7 +123,7 @@
     "invalidTimeZone": "Enter a valid time zone."
   },
   "feed": {
-    "title": "The feed"
+    "title": "Home"
   },
   "feedPreferences": {
     "title": "My feed",
@@ -127,7 +144,7 @@
     "generic": "Something went wrong. Please try again."
   },
   "messages": {
-    "title": "Messages"
+    "title": "iCom"
   },
   "notificationOpen": {
     "title": "Open a notification",
@@ -137,7 +154,7 @@
     "fallback": "View my notifications"
   },
   "stories": {
-    "title": "Statuses"
+    "title": "Stories"
   },
   "profile": {
     "title": "@{{handle}}'s profile"
@@ -163,7 +180,7 @@
   "personal": {
     "title": "My data and appeals",
     "lead": "Review decisions concerning you and stay in control of your data.",
-    "home": "Back to the feed",
+    "home": "Back home",
     "exportTitle": "Export my data",
     "exportLead": "A personal file contains your information and content. Authentication and notification credentials are excluded.",
     "export": "Download my export",
@@ -171,7 +188,7 @@
     "exportDone": "Your personal export is ready.",
     "error": "This operation did not complete. You can try again.",
     "eraseTitle": "Request account erasure",
-    "eraseLead": "Your content, connections and files will be erased after 30 days. You can cancel during this period. Preserved references become anonymous.",
+    "eraseLead": "Erasure of your social data is scheduled after a 30-day cancellation period. Retained quotations become anonymous. Commitments and transaction copies held by professionals follow a separate process.",
     "confirmWord": "DELETE",
     "confirmLabel": "Type {{word}} to confirm",
     "confirmError": "The confirmation does not match.",
@@ -181,6 +198,19 @@
     "eraseCancelled": "Your request was cancelled.",
     "decisionsTitle": "My moderation decisions",
     "noDecisions": "No decisions concerning you.",
+    "reportsTitle": "My reports",
+    "reportsLead": "The reports you have submitted: acknowledgement, legal deadline and decision. The author does not know who you are.",
+    "noReports": "You have not submitted any report.",
+    "reportedOn": "Submitted on {{date}}",
+    "reportAcknowledgedOn": "Acknowledged on {{date}}",
+    "reportDueBy": "Legal deadline: {{date}}",
+    "reportDecidedOn": "Decision on {{date}}",
+    "reportOutcomes": {
+      "pending": "Under review",
+      "removed": "Content removed",
+      "actioned": "Action taken, content kept",
+      "dismissed": "No breach found"
+    },
     "appeal": "File an appeal",
     "appealLabel": "Reason for your appeal",
     "appealHint": "Explain your request in 10 to 500 characters.",
@@ -227,7 +257,12 @@
     "pageDecisionsTitle": "Decisions about my pages",
     "pageDecisionsLead": "Content carried by a page you represent (offer, job post, reply, event) can be removed by moderation. An active signatory of the page can appeal on its behalf.",
     "pageDecisionsEmpty": "No decision concerns this page.",
-    "pageDecisionsUnavailable": "This page’s decisions are not available right now."
+    "pageDecisionsUnavailable": "This page’s decisions are not available right now.",
+    "eraseCommerce": "ANTSIA erasure does not cancel or refund appointments, orders or payments. It does not confirm erasure of copies held by PRO.GA or professionals. Retention of invoices, evidence and other transaction data follows a separate process whose rules remain to be validated.",
+    "eraseBookingsUnknown": "The number of upcoming appointments is unknown. An unavailable read does not mean there are none. Review your requests and commitments before deciding.",
+    "eraseBookingsNone": "No upcoming appointment was identified in the requests reviewed. This count does not cover your orders or payments.",
+    "eraseBookingsEmptyWindow": "No upcoming appointment was identified in the reviewed window. Other requests may not be covered.",
+    "erasePurchasesLink": "Open My purchases"
   },
   "settings": {
     "title": "Settings",
@@ -259,13 +294,34 @@
       "hintDevice": "Each theme has three colors, one for each family of actions: posting, following and writing, reacting and joining. Backgrounds stay light or dark according to your appearance setting. The change is immediate and saved for this network on this device.",
       "saveFailed": "The theme could not be saved to your account. {{reason}}",
       "options": {
-        "gaboma": { "name": "Gaboma", "description": "Green, yellow and blue of the flag. The network’s theme." },
-        "soleil": { "name": "Sun", "description": "Tangerine, azure and poppy red." },
-        "foret": { "name": "Forest", "description": "Forest green, olive and honey." },
-        "corail": { "name": "Coral", "description": "Coral pink, tangerine and lilac." },
-        "lagon": { "name": "Lagoon", "description": "Turquoise, coral and Naples yellow." },
-        "electrique": { "name": "Electric", "description": "Blue, pink and lime." },
-        "sable": { "name": "Sand", "description": "Gabon blue, teal and golden sand. DIASPORALE’s theme." }
+        "gaboma": {
+          "name": "Gaboma",
+          "description": "Green, yellow and blue of the flag. The network’s theme."
+        },
+        "soleil": {
+          "name": "Sun",
+          "description": "Tangerine, azure and poppy red."
+        },
+        "foret": {
+          "name": "Forest",
+          "description": "Forest green, olive and honey."
+        },
+        "corail": {
+          "name": "Coral",
+          "description": "Coral pink, tangerine and lilac."
+        },
+        "lagon": {
+          "name": "Lagoon",
+          "description": "Turquoise, coral and Naples yellow."
+        },
+        "electrique": {
+          "name": "Electric",
+          "description": "Blue, pink and lime."
+        },
+        "sable": {
+          "name": "Sand",
+          "description": "Gabon blue, teal and golden sand. DIASPORALE’s theme."
+        }
       }
     },
     "motif": {
@@ -354,6 +410,7 @@
   "demo": {
     "title": "Demo accounts",
     "lead": "Local development only: each account signs in with the real one-time code, read here for you, then the welcome steps fill themselves in.",
+    "leadShared": "Demo site: fictional accounts and content, shared by every visitor. One tap signs you in with the real one-time code, read here for you, then the welcome steps fill themselves in.",
     "signingIn": "Signing in…",
     "ready": "Demo account ready: {{name}}.",
     "failed": "The demo sign-in did not go through. Try again in a moment.",
@@ -391,5 +448,13 @@
         "description": "Moderator of the network."
       }
     }
+  },
+  "account": {
+    "menu": "My account",
+    "appearance": "Appearance"
+  },
+  "carousel": {
+    "previous": "Scroll left",
+    "next": "Scroll right"
   }
 }

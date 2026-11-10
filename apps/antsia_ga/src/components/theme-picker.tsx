@@ -36,7 +36,7 @@ export function ThemePicker() {
             <label
               key={entry.id}
               data-charte={entry.charte}
-              className={`relative grid min-w-0 cursor-pointer gap-2 rounded-[var(--radius)] bg-card p-2 text-card-foreground shadow-[var(--shadow-xs)] transition-shadow hover:shadow-[var(--shadow-md)] has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring has-[:focus-visible]:ring-offset-2 has-[:focus-visible]:ring-offset-background ${checked ? "shadow-[var(--shadow-md)]" : ""}`}
+              className={`relative grid min-w-0 cursor-pointer gap-2 rounded-[var(--ui2-card-radius)] border border-[color:var(--esp-surface-border)] p-4 text-card-foreground transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring has-[:focus-visible]:ring-offset-2 has-[:focus-visible]:ring-offset-background ${checked ? "bg-[var(--esp-tab-active-bg)]" : "bg-card"}`}
             >
               <input
                 type="radio"
@@ -47,8 +47,8 @@ export function ThemePicker() {
                 aria-describedby={hintId}
                 className="sr-only"
               />
-              <span aria-hidden="true" className="flex h-12 items-end gap-1.5 rounded-[calc(var(--radius)-4px)] bg-background p-1.5">
-                <span className="flex h-full min-w-0 flex-1 flex-col justify-center gap-1 rounded-md bg-card px-1.5 shadow-[var(--shadow-xs)]">
+              <span aria-hidden="true" className="flex h-12 items-end gap-1.5 rounded-[var(--esp-media-radius)] bg-background p-1.5">
+                <span className="flex h-full min-w-0 flex-1 flex-col justify-center gap-1 rounded-[var(--esp-chip-radius)] border border-[color:var(--esp-surface-border)] bg-card px-1.5">
                   <span className="h-1.5 w-3/4 rounded-full bg-foreground" />
                   <span className="h-1.5 w-1/2 rounded-full bg-muted-foreground" />
                 </span>

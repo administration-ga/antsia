@@ -1,6 +1,7 @@
 // Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/CommentsSurface.tsx @ ad2e7fdc2 — adaptations : commentaires du moteur avec le réseau courant (`useNetwork().networkId`) — `engagement.engagement.paginateComments` (racines PAGINÉES, « Voir plus de commentaires », aperçu des réponses et leur nombre) au lieu de `listComments` (100 racines, 10 réponses, sans curseur), la suite des réponses par `paginateReplies`, `comment`, `removeComment`, et `editComment` (« Modifier » sur ses propres commentaires) ; une requête paginée LÈVE ses erreurs : l'état d'échec (« Réessayer ») est rendu par une frontière d'erreur dans le cadre du dialogue ; le nombre de conversations ne s'affiche qu'une fois la liste complète (jamais un plancher présenté comme un total) ; nom neutre traduit pour un profil non publié ; identifiants `Id<"posts">` et `Id<"postComments">` ; portail porté par la charte du réseau (`useNetwork().charte`) ; libellés et toasts par l'i18n (clés `reseau:commentsSurface.*`, accords au nombre) ; refus du moteur dit par son code (`postEngineErrorText`) ; voile et ombres par les jetons (`--ui2-scrim`, `--shadow-xl`) au lieu de couleurs littérales ; feuille de style sortie du JSX dans une constante de module (`COMMENTS_SURFACE_CSS`) — un littéral enfant de `<style>` passerait pour une chaîne d'interface — règles inchangées. ; PA6 : dates et jours civils dans le fuseau personnel du lecteur (repli appareil). ; P18b (A06, A07) : la liste n'est plus une région vivante ; seuls l'ajout (« Commentaire publié. ») et l'échec s'annoncent, par deux régions persistantes hors de la vue, l'échec étant redit hors du toast.
 "use client"
 
+import { themedActionStyle } from "../themed-action-style"
 import { useViewerTimeZone } from "@antsia/api/viewer-preferences"
 import { api } from "@antsia/api/engine"
 import type { Id } from "@antsia/api/engine"
@@ -36,6 +37,8 @@ const REPEAT_MARK = String.fromCharCode(0xa0)
 
 interface CommentsSurfaceProps {
   postId: PostId
+  /** MP13 : lecture des preuves conservée ; aucun ajout/réponse/édition quand fermé. */
+  readOnly?: boolean
   now: number
   onClose: () => void
   onTag?: (tag: string) => void
@@ -144,6 +147,7 @@ export function CommentsSurface(props: CommentsSurfaceProps) {
 
 function CommentsSurfaceContent({
   postId,
+  readOnly = false,
   now,
   onClose,
   onTag,
@@ -184,7 +188,7 @@ function CommentsSurfaceContent({
   const tooLong = trimmed.length > COMMENT_MAX_LENGTH
 
   const handleSend = async () => {
-    if (trimmed.length === 0 || tooLong) return
+    if (readOnly || trimmed.length === 0 || tooLong) return
     setSending(true)
     try {
       await comment({
@@ -215,6 +219,7 @@ function CommentsSurfaceContent({
 
   const actions: CommentActions = {
     now,
+    readOnly,
     onTag,
     onMention,
     onRemove: (commentId) =>
@@ -224,6 +229,7 @@ function CommentsSurfaceContent({
         sayFailure(text)
       }),
     onEdit: async (commentId, nextBody) => {
+      if (readOnly) return false
       try {
         await editComment({ networkId, commentId, body: nextBody })
         return true
@@ -234,7 +240,7 @@ function CommentsSurfaceContent({
         return false
       }
     },
-    onReply: (commentId) => setReplyTo(commentId),
+    onReply: (commentId) => { if (!readOnly) setReplyTo(commentId) },
     onReport: closeThenReport,
   }
 
@@ -277,8 +283,11 @@ function CommentsSurfaceContent({
               style={{
                 margin: 0,
                 color: "var(--ink-900)",
-                fontSize: 17,
-                lineHeight: 1.25,
+                fontFamily: "inherit",
+                fontSize: "17px",
+                fontWeight: "inherit",
+                lineHeight: "1.25",
+                letterSpacing: "normal",
               }}
             >
               {t("commentsSurface.title")}
@@ -305,7 +314,7 @@ function CommentsSurfaceContent({
               display: "inline-grid",
               placeItems: "center",
               border: "none",
-              borderRadius: 10,
+              borderRadius: "10px",
               background: "transparent",
               color: "var(--ink-700)",
               cursor: "pointer",
@@ -355,7 +364,7 @@ function CommentsSurfaceContent({
           </CommentsListBoundary>
         </div>
 
-        <div
+        {readOnly ? <p role="status" className="border-t border-border px-4 py-4 text-sm text-muted-foreground">{t("commentsSurface.closed")}</p> : <div
           className="rp-comments-composer"
           style={{
             flex: "0 0 auto",
@@ -381,9 +390,9 @@ function CommentsSurfaceContent({
             >
               <span>{t("commentsSurface.replyingTo")}</span>
               <Button
-                variant="link"
+                variant="outline"
                 size="sm"
-                style={{ minHeight: 32 }}
+                style={themedActionStyle("cancel", "link", { minHeight: "32px" })}
                 onClick={() => setReplyTo(null)}
               >
                 {t("commentsSurface.cancel")}
@@ -424,7 +433,7 @@ function CommentsSurfaceContent({
               {sending ? t("commentsSurface.sending") : t("commentsSurface.send")}
             </Button>
           </div>
-        </div>
+        </div>}
       </section>
 
       <style>{COMMENTS_SURFACE_CSS}</style>
@@ -435,6 +444,7 @@ function CommentsSurfaceContent({
 /** Les gestes d'une ligne, décidés par la surface et passés à chaque ligne. */
 interface CommentActions {
   now: number
+  readOnly: boolean
   onTag?: (tag: string) => void
   onMention?: (handle: string) => void
   onRemove: (commentId: CommentId) => void
@@ -704,7 +714,7 @@ function CommentLine({
   const draftTooLong = trimmedDraft.length > COMMENT_MAX_LENGTH
 
   const save = async () => {
-    if (trimmedDraft.length === 0 || draftTooLong) return
+    if (actions.readOnly || trimmedDraft.length === 0 || draftTooLong) return
     setSaving(true)
     const saved = await actions.onEdit(row.commentId, trimmedDraft)
     setSaving(false)
@@ -739,7 +749,7 @@ function CommentLine({
             {formatRelativeDate(row.createdAt, actions.now, t, timeZone)}
           </time>
         </p>
-        {editing ? (
+        {editing && !actions.readOnly ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             <TextArea
               rows={2}
@@ -755,8 +765,9 @@ function CommentLine({
             ) : null}
             <div style={{ display: "flex", gap: 8 }}>
               <Button
+                variant="success"
                 size="sm"
-                style={{ minHeight: 44 }}
+                style={themedActionStyle("success", "primary", { minHeight: 44 })}
                 disabled={saving || trimmedDraft.length === 0 || draftTooLong}
                 onClick={() => void save()}
               >
@@ -764,8 +775,8 @@ function CommentLine({
               </Button>
               <Button
                 size="sm"
-                variant="ghost"
-                style={{ minHeight: 44 }}
+                variant="outline"
+                style={themedActionStyle("cancel", "ghost", { minHeight: 44 })}
                 onClick={() => {
                   setDraft(row.body)
                   setEditing(false)
@@ -780,12 +791,12 @@ function CommentLine({
             <RichText body={row.body} onTag={actions.onTag} onMention={actions.onMention} />
           </div>
         )}
-        {editing ? null : (
+        {editing && !actions.readOnly ? null : (
           <div style={{ display: "flex", flexWrap: "wrap", gap: 2 }}>
-            {onReply ? (
+            {onReply && !actions.readOnly ? (
               <CommentAction onClick={onReply}>{t("commentsSurface.reply")}</CommentAction>
             ) : null}
-            {row.isMine ? (
+            {row.isMine && !actions.readOnly ? (
               <CommentAction
                 onClick={() => {
                   setDraft(row.body)
@@ -827,7 +838,7 @@ function CommentAction({
         minHeight: 44,
         padding: "8px 7px",
         border: "none",
-        borderRadius: 8,
+        borderRadius: "8px",
         background: "transparent",
         color: "var(--primary-600)",
         fontFamily: "inherit",

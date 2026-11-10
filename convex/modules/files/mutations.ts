@@ -17,7 +17,7 @@ import { type AuditCapacity, assertDecisionReason } from "@antsia/social-domain/
 import { v } from "convex/values"
 
 import { internal } from "../../_generated/api"
-import type { Doc } from "../../_generated/dataModel"
+import type { Doc, Id } from "../../_generated/dataModel"
 import { internalMutation, type MutationCtx } from "../../_generated/server"
 import { getMembership } from "../../lib/access"
 import { checked, fail, notFound } from "../../lib/errors"
@@ -208,6 +208,20 @@ export const releaseScan = personMutation({
   },
 })
 
+async function requeueForAnalysis(ctx: MutationCtx, scan: Doc<"fileScans">, now: number): Promise<void> {
+  await ctx.db.patch(scan._id, {
+    status: "pending",
+    attempts: 0,
+    findings: undefined,
+    av: undefined,
+    verdictReason: undefined,
+    skipReason: undefined,
+    completedAt: undefined,
+    updatedAt: now,
+  })
+  if (!isKillSwitched(process.env)) await ctx.scheduler.runAfter(0, internal.modules.files.scan.runScan, { scanId: scan._id })
+}
+
 /** Relance une analyse depuis zéro (opérateur) — seule issue d'un `infected`. */
 export const requeueScan = operatorMutation({
   args: { scanId: v.id("fileScans") },
@@ -218,17 +232,7 @@ export const requeueScan = operatorMutation({
     if (!scan) return notFound()
     if (scan.blobPurgedAt !== undefined) return fail("conflict")
     const now = Date.now()
-    await ctx.db.patch(scan._id, {
-      status: "pending",
-      attempts: 0,
-      findings: undefined,
-      av: undefined,
-      verdictReason: undefined,
-      skipReason: undefined,
-      completedAt: undefined,
-      updatedAt: now,
-    })
-    if (!isKillSwitched(process.env)) await ctx.scheduler.runAfter(0, internal.modules.files.scan.runScan, { scanId: scan._id })
+    await requeueForAnalysis(ctx, scan, now)
     await appendAudit(ctx, {
       action: "file.requeue",
       capacity: operatorCapacity(ctx.operator),
@@ -239,6 +243,44 @@ export const requeueScan = operatorMutation({
       at: now,
     })
     return null
+  },
+})
+
+/** Réparation administrative bornée : vraie analyse après raccordement du fournisseur, sans identité humaine. */
+export const requeueUnconfiguredScans = internalMutation({
+  args: {
+    scanIds: v.array(v.id("fileScans")),
+    confirm: v.literal("ANTSIA_REQUEUE_PROVIDER_UNCONFIGURED"),
+  },
+  returns: v.object({ requeued: v.number(), scanIds: v.array(v.id("fileScans")) }),
+  handler: async (ctx, args): Promise<{ requeued: number; scanIds: Id<"fileScans">[] }> => {
+    if (args.scanIds.length < 1 || args.scanIds.length > 2 || new Set(args.scanIds).size !== args.scanIds.length) return fail("invalidArgument", { field: "scanIds" })
+    if (isKillSwitched(process.env)
+      || process.env.FILE_SCAN_PROVIDER?.trim().toLowerCase() !== "clamav-rest"
+      || !process.env.FILE_SCAN_CLAMAV_URL?.trim()
+      || !process.env.FILE_SCAN_CLAMAV_TOKEN?.trim()) return fail("conflict")
+
+    // Tout le lot est validé AVANT la moindre écriture ou planification.
+    const scans: Doc<"fileScans">[] = []
+    for (const scanId of args.scanIds) {
+      const scan = await ctx.db.get(scanId)
+      if (!scan) return notFound()
+      if (scan.status !== "error" || scan.verdictReason !== "AV_ERROR:provider_unconfigured" || scan.blobPurgedAt !== undefined) return fail("conflict")
+      scans.push(scan)
+    }
+    const now = Date.now()
+    for (const scan of scans) {
+      await requeueForAnalysis(ctx, scan, now)
+      await appendAudit(ctx, {
+        action: "file.requeue",
+        capacity: "system",
+        ...(scan.networkId ? { networkId: scan.networkId } : {}),
+        subject: { table: "fileScans", id: scan._id },
+        details: { reason: "provider_configuration_restored", from: "error", previousReason: "AV_ERROR:provider_unconfigured" },
+        at: now,
+      })
+    }
+    return { requeued: scans.length, scanIds: scans.map((scan) => scan._id) }
   },
 })
 

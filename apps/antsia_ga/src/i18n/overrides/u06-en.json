@@ -1,0 +1,13 @@
+{
+  "messagerie": {
+    "icomViews": {
+      "loadedWindow": "Search and filters cover loaded conversations. Load more for older individual conversations. Groups are limited to the first 50 returned by the server.",
+      "loadedGroupsWindow": "Search and filters cover loaded conversations. Groups are limited to the first 50 returned by the server; this is not a complete directory.",
+      "chooseConversation": "Choose a conversation",
+      "chooseConversationBody": "Open a conversation, check your calls or find your contacts. Each conversation keeps its own access rules."
+    },
+    "messagerieListView": {
+      "searchAll": "Search loaded conversations"
+    }
+  }
+}

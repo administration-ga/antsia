@@ -16,7 +16,7 @@ const state = vi.hoisted(() => ({
   listProps: null as { contextual?: unknown } | null,
 }))
 vi.mock("@antsia/ui/overlay", () => ({ useIsReseauMobile: () => state.mobile }))
-vi.mock("@antsia/api/network", () => ({ useNetwork: () => state }))
+vi.mock("@antsia/api/network", () => ({ useNetwork: () => state, useNetworkNavigationLayout: () => ({ adaptive: false, mobile: state.mobile }) }))
 vi.mock("react-i18next", () => ({ useTranslation: () => ({ t: (key: string) => key }) }))
 vi.mock("./IcomMessagesPage", () => ({
   IcomMessagesPage: (props: { conversationKey: string | null; contextual?: unknown }) => {

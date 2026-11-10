@@ -14,6 +14,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 const NAME = {
   thread: "modules/contextualMessaging/threads:getThread",
   forObject: "modules/contextualMessaging/threads:findForObject",
+  openForObject: "modules/contextualMessaging/threads:openForObject",
   mine: "modules/contextualMessaging/threads:paginateMine",
   forPage: "modules/contextualMessaging/threads:paginateForPage",
   read: "modules/contextualMessaging/threads:markRead",
@@ -135,6 +136,14 @@ describe("fil, objet et messages", () => {
 })
 
 describe("écritures : réseau injecté APRÈS les arguments, noms du contrat", () => {
+  it("ouvre une collaboration professionnelle par son objet, sans traiter son identifiant comme un fil", async () => {
+    const object = { kind: "professionalCollaboration", id: "collaboration-fixture" } as ContextualObjectRef
+    state.mutation.mockResolvedValueOnce({ threadId, created: true })
+    const { result } = renderHook(() => source.useWrites())
+    expect(await result.current.openForObject(object)).toEqual({ threadId, created: true })
+    expect(state.mutation).toHaveBeenCalledWith(NAME.openForObject, { networkId: "network-fixture", context: object })
+  })
+
   it("un appelant ne choisit jamais un autre réseau", async () => {
     const { result } = renderHook(() => source.useWrites())
     await result.current.send({ threadId, text: "Bonjour", idempotencyKey: "intent-0001", networkId: "autre-reseau" } as unknown as Parameters<typeof result.current.send>[0])

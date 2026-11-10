@@ -154,5 +154,10 @@
   },
   "messagesRoute": {
     "loading": "Loading messages…"
+  },
+  "icomSpace": {
+    "label": "Messaging space",
+    "personal": "iCom",
+    "pro": "iCom Pro"
   }
 }

@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/mobile/mobile-styles.tsx @ ad2e7fdc2 — adaptations : feuille sortie du JSX dans une constante de module exportée (`RESEAU_MOBILE_CSS`) — un littéral enfant de `<style>` passerait pour une chaîne d'interface ; AUCUNE couleur littérale — le masque du débordement des sous-menus lit un jeton opaque de la charte (`--foreground`) au lieu d'un mot-clé de couleur, la valeur hexadécimale citée en commentaire est retirée ; commentaires rapportés à la coque légère du moteur (scroller de l'hôte, cliquets `no-hardcoded-colors` et `theme-contract`, classes `.esp-*` fournies par `@antsia/ui`) ; règles, sélecteurs et paliers inchangés ; déplacé dans la coque (`shell/mobile/`) ; système épuré (ADR-0027) : déclencheur du composeur et puces de portée sans filet (`--esp-chip-*`), onglet actif en pastille tonale (`--esp-tab-active-*`), pastille de décompte aux couleurs des réactions (`--role-react-*`), motif de fond de page en option, valeurs d'origine en repli.
+// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/mobile/mobile-styles.tsx @ ad2e7fdc2 — adaptations : feuille sortie du JSX dans une constante de module exportée (`RESEAU_MOBILE_CSS`) — un littéral enfant de `<style>` passerait pour une chaîne d'interface ; AUCUNE couleur littérale — le masque du débordement des sous-menus lit un jeton opaque de la charte (`--foreground`) au lieu d'un mot-clé de couleur, la valeur hexadécimale citée en commentaire est retirée ; commentaires rapportés à la coque légère du moteur (scroller de l'hôte, cliquets `no-hardcoded-colors` et `theme-contract`, classes `.esp-*` fournies par `@antsia/ui`) ; règles, sélecteurs et paliers inchangés ; déplacé dans la coque (`shell/mobile/`) ; système épuré (ADR-0027) : déclencheur du composeur et puces de portée sans filet (`--esp-chip-*`), onglet actif en pastille tonale (`--esp-tab-active-*`), pastille de décompte aux couleurs des réactions (`--role-react-*`), motif de fond de page en option, valeurs d'origine en repli ; ADR-0028 : en-tête des chartes (`.rm-header[data-presentation="charte"]`) — sans filet, la marque en Familjen Grotesk, pastilles de la cloche et des messages posées au coin du rond et cerclées du fond.
 "use client"
 
 /**
@@ -125,6 +125,34 @@ export const RESEAU_MOBILE_CSS = `
       .rm-header .rm-tab {
         border-radius: var(--esp-header-icon-radius, 12px);
         background: var(--esp-header-icon-bg, transparent);
+      }
+      /* L'en-tête des chartes (ADR-0028) : aucun filet (l'en-tête a la couleur
+         du fond), la marque en Familjen Grotesk, la marge de la maquette à
+         gauche ; la pastille de décompte se pose au coin du ROND et se cercle
+         du fond, comme sur la maquette. */
+      .rm-header[data-presentation="charte"] {
+        padding: 6px 12px 8px 20px;
+        border-bottom-color: transparent;
+      }
+      .rm-header[data-presentation="charte"] .rm-wordmark[data-brand] {
+        font-family: var(--font-display, inherit);
+        font-size: 22px;
+        font-weight: 700;
+      }
+      .rm-header[data-presentation="charte"] .rm-tab {
+        position: relative;
+        color: var(--foreground);
+      }
+      .rm-header[data-presentation="charte"] .rm-tab-icon { position: static; }
+      .rm-header[data-presentation="charte"] .rm-tab-badge {
+        top: -3px;
+        right: -4px;
+        min-width: 18px;
+        height: 18px;
+        padding: 0 5px;
+        font-family: inherit;
+        font-size: 10.5px;
+        box-shadow: 0 0 0 2px var(--background);
       }
       .rm-avatar-link {
         display: inline-flex;

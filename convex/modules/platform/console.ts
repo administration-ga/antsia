@@ -1,6 +1,7 @@
 /** PA7 : console opérateur. Les constructeurs exigent la session et le rôle vivants ; chaque décision est auditée. */
 import { assertDecisionReason } from "@antsia/social-domain/audit"
-import { TRANSPARENCY_MIN_CASES } from "@antsia/social-domain/moderationPolicy"
+import type { ReportLegalBasis } from "@antsia/social-domain/moderation"
+import { legalDeadlineDisclosure, legalDeadlineStatus, TRANSPARENCY_MIN_CASES } from "@antsia/social-domain/moderationPolicy"
 import { paginationOptsValidator, type PaginationResult } from "convex/server"
 import { v } from "convex/values"
 
@@ -11,7 +12,7 @@ import { getMembership, isActiveMember } from "../../lib/access"
 import { checked, fail, notFound } from "../../lib/errors"
 import { operatorMutation, operatorQuery } from "../../lib/functions"
 import { enforceRateLimit } from "../../lib/rateLimit"
-import { moderationSurfaceValidator } from "../moderation/tables"
+import { moderationSurfaceValidator, reportLegalBasisValidator } from "../moderation/tables"
 import { findPublishedPersonByHandle, isDiscoverablePerson, livePersonProfile } from "../people/miniProfile"
 import { appendAudit, operatorCapacity } from "./audit"
 import { incidentSeverityValidator, metricStageValidator } from "./consoleTables"
@@ -24,6 +25,9 @@ const MEMBER_LIMIT = 100
 // La projection non paginée protège aussi le budget de lecture d'une requête.
 const TEAM_PROJECTION_LIMIT = 500
 const METRIC_BATCH = 50
+// SU01d : échéances lues par statut pour l'alerte, la même borne que la file prioritaire des modérateurs.
+const LEGAL_ALERT_LIMIT = 50
+const minuteOf = (at: number) => Math.floor(at / 60_000) * 60_000
 const emptyCounts = (): Counts => ({ members: 0, openReports: 0, openAppeals: 0, pendingFiles: 0, deadLetters: 0 })
 const motiveOf = (reason: string) => checked(() => assertDecisionReason(reason, 3))
 
@@ -232,7 +236,11 @@ export const recomputeMetrics = internalMutation({
   },
 })
 
-/** Export fermé : douze périodes, aucun texte ni identité, suppression de toute petite cohorte. */
+/**
+ * Export fermé : douze périodes, aucun texte ni identité, suppression de toute petite cohorte. SU01d :
+ * les échéances légales tenues et manquées suivent la règle de `/transparence` (`legalDeadlineDisclosure`),
+ * leur base jamais exportée ; l'état distingue une période non mesurée d'une cohorte masquée.
+ */
 export const aggregateExport = operatorQuery({
   args: { networkId: v.id("networks") },
   handler: async (ctx, args) => {
@@ -243,7 +251,37 @@ export const aggregateExport = operatorQuery({
       // Une petite sous-catégorie ou son complément n'est pas déductible du total.
       const actioned = row.actioned >= TRANSPARENCY_MIN_CASES && row.cases - row.actioned >= TRANSPARENCY_MIN_CASES ? row.actioned : null
       const dismissed = row.dismissed >= TRANSPARENCY_MIN_CASES && row.cases - row.dismissed >= TRANSPARENCY_MIN_CASES ? row.dismissed : null
-      return { periodStart: row.periodStart, periodEnd: row.periodEnd, cases: suppressed ? null : row.cases, actioned: suppressed ? null : actioned, dismissed: suppressed ? null : dismissed, suppressed }
+      const legal = legalDeadlineDisclosure(row)
+      return { periodStart: row.periodStart, periodEnd: row.periodEnd, cases: suppressed ? null : row.cases, actioned: suppressed ? null : actioned, dismissed: suppressed ? null : dismissed, suppressed, legalStatus: legalDeadlineStatus(row), legalMet: legal?.met ?? null, legalMissed: legal?.missed ?? null }
     }) }
+  },
+})
+
+/**
+ * SU01d (ordonnance n° 0011/PR/2026, art. 24, 32, 33) — l'alerte d'exploitation des délais légaux :
+ * les échéances des dossiers encore ouverts ou en examen, la plus proche d'abord, avec leur seul
+ * fondement légal (qui dit la classe du motif, jamais le motif). Ni dossier, ni cible, ni personne :
+ * la file prioritaire des modérateurs les traite. L'écran compte les retards avec son horloge, car
+ * une requête n'est pas relue quand le temps passe. `horizon` est l'échéance la plus proche restée
+ * hors lecture : avant elle, les comptes de l'écran sont exacts ; à partir d'elle, des minimums.
+ * Échéances et horizon sont arrondis à la minute inférieure : l'écran compte à la minute, l'heure
+ * exacte d'une transmission n'a pas à sortir, et un retard s'annonce au plus tôt, jamais en retard.
+ */
+export const legalDeadlineAlert = operatorQuery({
+  args: { networkId: v.id("networks") },
+  returns: v.object({ limit: v.number(), horizon: v.union(v.number(), v.null()), deadlines: v.array(v.object({ dueAt: v.number(), basis: reportLegalBasisValidator })) }),
+  handler: async (ctx, args) => {
+    const network = await activeNetwork(ctx, args.networkId)
+    const deadlines: { dueAt: number; basis: ReportLegalBasis }[] = []
+    let horizon: number | null = null
+    for (const status of ["open", "reviewing"] as const) {
+      // borné : les LEGAL_ALERT_LIMIT + 1 échéances les plus proches de chaque statut ; `dueAt` absent est exclu par la borne basse.
+      const batch = await ctx.db.query("reports").withIndex("by_network_status_dueAt", (q) => q.eq("networkId", network._id).eq("status", status).gte("dueAt", 0)).take(LEGAL_ALERT_LIMIT + 1)
+      const beyond = batch[LEGAL_ALERT_LIMIT]?.dueAt
+      if (beyond !== undefined) horizon = horizon === null ? minuteOf(beyond) : Math.min(horizon, minuteOf(beyond))
+      for (const row of batch.slice(0, LEGAL_ALERT_LIMIT)) if (row.dueAt !== undefined && row.legalBasis !== undefined) deadlines.push({ dueAt: minuteOf(row.dueAt), basis: row.legalBasis })
+    }
+    deadlines.sort((a, b) => a.dueAt - b.dueAt)
+    return { limit: LEGAL_ALERT_LIMIT, horizon, deadlines }
   },
 })

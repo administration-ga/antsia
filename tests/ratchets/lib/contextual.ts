@@ -29,18 +29,19 @@ export function topLevelInitializer(source: ts.SourceFile, name: string): ts.Exp
   return unwrap(variableInitializer(source, name))
 }
 
-/** Les entrées du registre : `null` (repli « nature indisponible ») ou `DIASPORA_CONVERSATION_CONTEXTS.<nature>`. */
+/** Les entrées du registre : `null` ou résolveur nommé de la tranche expressément admise pour cette nature. */
 export function registryEntries(file: string, text: string): RegistryEntry[] {
   const source = parseSource(file, text)
   const literal = topLevelInitializer(source, "CONTEXTUAL_REGISTRY")
   if (!literal || !ts.isObjectLiteralExpression(literal)) return []
+  const owners: Readonly<Record<string, string>> = { diasporaServiceRequest: "DIASPORA_CONVERSATION_CONTEXTS", diasporaMentoring: "DIASPORA_CONVERSATION_CONTEXTS", diasporaJobApplication: "DIASPORA_CONVERSATION_CONTEXTS", professionalCollaboration: "PROFESSIONAL_CONVERSATION_CONTEXTS" }
   return literal.properties.flatMap((property): RegistryEntry[] => {
     if (!ts.isPropertyAssignment(property)) return [{ kind: "<opaque>", value: "other", line: lineOf(source, property.getStart(source)) }]
     const kind = property.name.getText(source).replace(/["']/g, "")
     const value = property.initializer
     const resolved = value.kind === ts.SyntaxKind.NullKeyword
       ? ("null" as const)
-      : ts.isPropertyAccessExpression(value) && ts.isIdentifier(value.expression) && value.expression.text === "DIASPORA_CONVERSATION_CONTEXTS" && value.name.text === kind
+      : ts.isPropertyAccessExpression(value) && ts.isIdentifier(value.expression) && value.expression.text === owners[kind] && value.name.text === kind
         ? ("resolver" as const)
         : ("other" as const)
     return [{ kind, value: resolved, line: lineOf(source, property.getStart(source)) }]

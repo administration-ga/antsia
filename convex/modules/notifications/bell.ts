@@ -27,7 +27,7 @@ import type { PageCard } from "../pages/validators"
 import { serviceNoticeView, type ServiceNoticeDto } from "../diaspora/serviceNotifications"
 import { communityNoticeView, type CommunityNoticeDto } from "../diaspora/communityNotifications"
 import { subjectOf, subjectRefOf } from "./notify"
-import { notificationStillVisible } from "./policy"
+import { isReporterNoticeKind, notificationStillVisible } from "./policy"
 import { type DiasporaCommunityNotificationKind, type DiasporaServiceNotificationKind, isDiasporaCommunityNotificationKind, isDiasporaServiceNotificationKind } from "./tables"
 import { moderationDecisionPage, notificationOpenTargetOf } from "./targets"
 
@@ -111,8 +111,8 @@ async function toDto(ctx: Pick<QueryCtx, "db" | "storage">, me: Id<"persons">, r
     ...(row.kind === "association_event_reminder" ? { associationEvent: event && eventPage ? { eventId: event._id, pageHandle: eventPage.handle } : null } : {}),
     ...(isDiasporaServiceNotificationKind(row.kind) ? { serviceNotice: await serviceNoticeView(ctx, row) } : {}),
     ...(isDiasporaCommunityNotificationKind(row.kind) ? { communityNotice: await communityNoticeView(ctx, row) } : {}),
-    // P14B : destination typée relue (avis commerce, décision de modération).
-    ...(isCommerceNotificationKind(row.kind) || row.kind === "moderation_decision" || isContextualNotificationKind(row.kind) ? { target: await notificationOpenTargetOf(ctx, row) } : {}),
+    // P14B : destination typée relue (avis commerce, décision de modération) ; SU01d : avis au déclarant.
+    ...(isCommerceNotificationKind(row.kind) || row.kind === "moderation_decision" || isReporterNoticeKind(row.kind) || isContextualNotificationKind(row.kind) ? { target: await notificationOpenTargetOf(ctx, row) } : {}),
   }
 }
 

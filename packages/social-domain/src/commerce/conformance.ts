@@ -8,6 +8,7 @@
  * MÊMES octets ; un écart nomme le fichier, le cas et la valeur obtenue.
  */
 import {
+  COMMERCE_PUBLIC_CONTRACT_V2,
   commerceBusinessRefFromRef,
   commerceCanonicalJson,
   commerceCapture,
@@ -20,6 +21,7 @@ import {
 import {
   commerceOfferPrimaryAction,
   commerceOfferPublicView,
+  commerceShopPublicView,
   commerceOfferPurchasability,
   commercePublicEffect,
   commercePublicSigningText,
@@ -53,6 +55,9 @@ import {
   type CommerceOrderState,
   type CommercePaymentState,
 } from "./lifecycle";
+import { catalogFacetsMatchKind, parseCommerceCatalogFacets } from "./catalogFacets";
+import { parseCommerceStorefrontTerms } from "./storefrontTerms";
+import { commerceServiceZoneKey, normalizeCommerceServiceLanguageCode, parseCommerceServiceProfile } from "./serviceProfile";
 
 export const COMMERCE_FIXTURE_FILES = [
   "command-replay.json",
@@ -61,6 +66,10 @@ export const COMMERCE_FIXTURE_FILES = [
   "lifecycle.json",
   "names.json",
   "public-events.json",
+  "public-events-v2.json",
+  "catalog-facets.json",
+  "storefront-terms.json",
+  "service-profile.json",
   "public-revisions.json",
   "references.json",
   "signing.json",
@@ -76,6 +85,10 @@ export const COMMERCE_FIXTURE_SECTIONS: Readonly<Record<CommerceFixtureFile, rea
   "lifecycle.json": ["capabilities", "linkEvidence", "orderPayment", "settlement", "terminal", "transitions"],
   "names.json": ["normalize", "validate"],
   "public-events.json": ["cases"],
+  "public-events-v2.json": ["cases"],
+  "catalog-facets.json": ["cases", "kind"],
+  "storefront-terms.json": ["cases"],
+  "service-profile.json": ["cases", "languages", "zones"],
   "public-revisions.json": ["cases"],
   "references.json": ["fromBusiness", "toBusiness"],
   "signing.json": ["command", "public"],
@@ -128,35 +141,85 @@ export function runCommerceConformance(
   }
 
   // ─── Projection publique ───────────────────────────────────────────────
-  for (const entry of rows(fixtures["public-events.json"], "cases")) {
-    const name = String(entry.name);
-    const raw = typeof entry.rawBody === "string" ? entry.rawBody : commerceCanonicalJson(entry.body);
-    if (raw === null) {
-      fail("public-events.json", name, "corps non sérialisable");
-      continue;
-    }
-    if (typeof entry.bodySha256 === "string" && sha256Hex(raw) !== entry.bodySha256) {
-      fail("public-events.json", name, "empreinte du corps canonique différente");
-    }
-    const expect = entry.expect as Row;
-    const result = parseCommercePublicBody(raw, entry.nowMs as number);
-    if (expect.ok === true) {
-      if (!result.ok) {
-        fail("public-events.json", name, `refus inattendu ${show(failureOf(result))}`);
+  for (const file of ["public-events.json", "public-events-v2.json"] as const) {
+    for (const entry of rows(fixtures[file], "cases")) {
+      const name = String(entry.name);
+      const raw = typeof entry.rawBody === "string" ? entry.rawBody : commerceCanonicalJson(entry.body);
+      if (raw === null) {
+        fail(file, name, "corps non sérialisable");
         continue;
       }
-      const payload = (JSON.parse(raw) as Row).payload;
-      if (result.value.payload.type !== expect.type || result.value.objectRef !== expect.objectRef) {
-        fail("public-events.json", name, `type/objet ${result.value.payload.type} ${result.value.objectRef}`);
+      if (typeof entry.bodySha256 === "string" && sha256Hex(raw) !== entry.bodySha256) {
+        fail(file, name, "empreinte du corps canonique différente");
       }
-      if (!same(commercePublicEffect(result.value.payload), expect.effect)) {
-        fail("public-events.json", name, `effet ${show(commercePublicEffect(result.value.payload))}`);
+      const expect = entry.expect as Row;
+      const result = parseCommercePublicBody(raw, entry.nowMs as number);
+      if (expect.ok === true) {
+        if (!result.ok) {
+          fail(file, name, `refus inattendu ${show(failureOf(result))}`);
+          continue;
+        }
+        const payload = (JSON.parse(raw) as Row).payload;
+        const direct = parseCommercePublicPayload(payload, result.value.objectRef, entry.nowMs as number, result.value.contract);
+        if (!direct.ok || !same(direct.value, result.value.payload)) fail(file, name, "charge seule incompatible avec son contrat d'enveloppe");
+        if (result.value.payload.type !== expect.type || result.value.objectRef !== expect.objectRef) {
+          fail(file, name, `type/objet ${result.value.payload.type} ${result.value.objectRef}`);
+        }
+        if (!same(commercePublicEffect(result.value.payload), expect.effect)) {
+          fail(file, name, `effet ${show(commercePublicEffect(result.value.payload))}`);
+        }
+        // Le validateur ne perd ni n'ajoute rien : sa sortie est la charge reçue.
+        if (!same(result.value.payload, payload)) fail(file, name, "charge normalisée différente de la charge reçue");
+        if (result.value.payload.type === "shop.published" || result.value.payload.type === "shop.updated") {
+          const view = commerceShopPublicView(result.value.payload);
+          if (!same(view.storefrontTerms ?? null, result.value.payload.storefrontTerms ?? null)) fail(file, name, "conditions perdues ou ajoutées dans la vue publique");
+          if (result.value.payload.storefrontTerms === undefined && Object.prototype.hasOwnProperty.call(view, "storefrontTerms")) fail(file, name, "conditions absentes ajoutées dans la vue publique");
+        }
+        if (result.value.payload.type === "offer.published" || result.value.payload.type === "offer.updated") {
+          const view = commerceOfferPublicView(result.value.payload, null, { nowMs: entry.nowMs as number, purchase: false, quote: false });
+          if (!same(view.facets ?? null, result.value.payload.facets ?? null)) fail(file, name, "facettes perdues ou ajoutées dans la vue publique");
+          if (result.value.payload.facets === undefined && Object.prototype.hasOwnProperty.call(view, "facets")) fail(file, name, "facettes absentes ajoutées dans la vue publique");
+          if (!same(view.serviceProfile ?? null, result.value.payload.serviceProfile ?? null)) fail(file, name, "profil de service perdu ou ajouté dans la vue publique");
+          if (result.value.payload.serviceProfile === undefined && Object.prototype.hasOwnProperty.call(view, "serviceProfile")) fail(file, name, "profil de service absent ajouté dans la vue publique");
+          if (result.value.payload.serviceProfile !== undefined) {
+            const legacy = parseCommercePublicPayload(payload, result.value.objectRef, entry.nowMs as number);
+            if (legacy.ok || legacy.reason !== "invalid_payload") fail(file, name, "le lecteur V1 accepte le profil de service V2");
+          }
+          if (result.value.contract === COMMERCE_PUBLIC_CONTRACT_V2 && result.value.payload.facets !== undefined) {
+            const legacy = parseCommercePublicPayload(payload, result.value.objectRef, entry.nowMs as number);
+            if (legacy.ok || legacy.reason !== "invalid_payload" || legacy.path !== "$.payload.facets") fail(file, name, "le lecteur par défaut V1 accepte les facettes V2");
+          }
+        }
+      } else if (!same(failureOf(result), expect)) {
+        fail(file, name, `obtenu ${show(failureOf(result))}`);
       }
-      // Le validateur ne perd ni n'ajoute rien : sa sortie est la charge reçue.
-      if (!same(result.value.payload, payload)) fail("public-events.json", name, "charge normalisée différente de la charge reçue");
-    } else if (!same(failureOf(result), expect)) {
-      fail("public-events.json", name, `obtenu ${show(failureOf(result))}`);
     }
+  }
+
+  for (const entry of rows(fixtures["storefront-terms.json"], "cases")) {
+    const result = parseCommerceStorefrontTerms(entry.input);
+    if (!same(result, entry.expect)) fail("storefront-terms.json", String(entry.name), `obtenu ${show(result)}`);
+  }
+  for (const entry of rows(fixtures["service-profile.json"], "cases")) {
+    const result = parseCommerceServiceProfile(entry.input, entry.mediaCount as number);
+    if (!same(result, entry.expect)) fail("service-profile.json", String(entry.name), `obtenu ${show(result)}`);
+  }
+  for (const entry of rows(fixtures["service-profile.json"], "languages")) {
+    const result = normalizeCommerceServiceLanguageCode(entry.input as string);
+    if (result !== entry.expect) fail("service-profile.json", String(entry.name), `obtenu ${show(result)}`);
+  }
+  for (const entry of rows(fixtures["service-profile.json"], "zones")) {
+    const result = commerceServiceZoneKey(entry.input as string);
+    if (result !== entry.expect) fail("service-profile.json", String(entry.name), `obtenu ${show(result)}`);
+  }
+  for (const entry of rows(fixtures["catalog-facets.json"], "cases")) {
+    const result = parseCommerceCatalogFacets(entry.input);
+    if (!same(result, entry.expect)) fail("catalog-facets.json", String(entry.name), `obtenu ${show(result)}`);
+  }
+  for (const entry of rows(fixtures["catalog-facets.json"], "kind")) {
+    const facets = parseCommerceCatalogFacets(entry.input);
+    const result = facets !== null && catalogFacetsMatchKind(facets, entry.kind as "product" | "service");
+    if (result !== entry.expect) fail("catalog-facets.json", String(entry.name), `obtenu ${String(result)}`);
   }
 
   for (const entry of rows(fixtures["public-revisions.json"], "cases")) {

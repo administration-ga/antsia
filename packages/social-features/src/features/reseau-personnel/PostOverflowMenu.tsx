@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/PostOverflowMenu.tsx @ ad2e7fdc2 — adaptations : marques et sourdine du moteur avec le réseau courant (`marks.marks.*`, `useNetwork().networkId`) ; la sourdine vise une PERSONNE (prop `authorPersonId: Id<"persons">` au lieu de `authorUserId`, argument `targetPersonId`) ; identifiant `Id<"posts">` ; entrées du menu, toasts et noms accessibles par l'i18n (`overflowEntriesFor(…, t)`, `undoLabelFor(…, t)`, clés `reseau:postOverflowMenu.*`) ; refus du moteur dit par son code (`postEngineErrorText`) ; ombre par le jeton `--shadow-xl` au lieu d'une couleur littérale ; position et bascule inchangées ; P18b (A01) : focus porté dans le menu à l'ouverture (première entrée, dernière par Flèche haut sur le bouton), tabindex itinérant (flèches, Début, Fin), Échap et Tab ferment en rendant le focus au bouton, le menu suit son bouton au défilement tant que celui-ci reste visible au lieu de se fermer au moindre défilement.
+// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/PostOverflowMenu.tsx @ ad2e7fdc2 — adaptations : marques et sourdine du moteur avec le réseau courant (`marks.marks.*`, `useNetwork().networkId`) ; la sourdine vise une PERSONNE (prop `authorPersonId: Id<"persons">` au lieu de `authorUserId`, argument `targetPersonId`) ; identifiant `Id<"posts">` ; entrées du menu, toasts et noms accessibles par l'i18n (`overflowEntriesFor(…, t)`, `undoLabelFor(…, t)`, clés `reseau:postOverflowMenu.*`) ; refus du moteur dit par son code (`postEngineErrorText`) ; ombre par le jeton `--shadow-xl` au lieu d'une couleur littérale ; position et bascule inchangées ; P18b (A01) : focus porté dans le menu à l'ouverture (première entrée, dernière par Flèche haut sur le bouton), tabindex itinérant (flèches, Début, Fin), Échap et Tab ferment en rendant le focus au bouton, le menu suit son bouton au défilement tant que celui-ci reste visible au lieu de se fermer au moindre défilement. ; ADR-0028 : la présentation « charte » suit aussi son bouton au défilement.
 "use client"
 
 /**
@@ -91,11 +91,11 @@ export function PostOverflowMenu({
 	const { networkId, postPresentation } = useNetwork()
 	/**
 	 * Suivre le bouton au défilement change ce qui se VOIT pendant un
-	 * défilement : réservé à la présentation « media » déclarée par
-	 * l'application (ANTSIA). Ailleurs (DIASPORALE), le défilement ferme le menu
-	 * comme avant — en rendant désormais le focus au bouton.
+	 * défilement : réservé aux présentations « media » et « charte » déclarées
+	 * par l'application (ANTSIA). Ailleurs (DIASPORALE), le défilement ferme le
+	 * menu comme avant — en rendant désormais le focus au bouton.
 	 */
-	const followOnScroll = postPresentation === "media"
+	const followOnScroll = postPresentation === "media" || postPresentation === "charte"
 	const [open, setOpen] = useState(false)
 	/**
 	 * ⚠️ Ancré par le HAUT en dessous du bouton, par le BAS au-dessus de lui.

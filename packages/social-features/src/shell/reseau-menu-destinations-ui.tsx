@@ -14,7 +14,7 @@
 import { api } from "@antsia/api/engine"
 import { useAuthenticatedConvexQuery } from "@antsia/api/hooks"
 import { useNetwork, useRoutes } from "@antsia/api/network"
-import { CircleUserRound, Compass, House, MessageCircle, SquarePlus, type LucideIcon } from "lucide-react"
+import { CircleUserRound, Compass, House, MessageCircle, SquarePlay, SquarePlus, type LucideIcon } from "lucide-react"
 import type { MouseEvent } from "react"
 
 import {
@@ -31,6 +31,7 @@ export const RESEAU_DESTINATION_ICONS: Readonly<Record<ReseauDestinationId, Luci
 	creer: SquarePlus,
 	messages: MessageCircle,
 	profil: CircleUserRound,
+	clips: SquarePlay,
 })
 
 /**
@@ -39,9 +40,13 @@ export const RESEAU_DESTINATION_ICONS: Readonly<Record<ReseauDestinationId, Luci
  * alors sa navigation historique, à l'identique.
  */
 export function useReseauDestinationRoutes(): ReseauDestinationRoutes | null {
-	const { navigation } = useNetwork()
+	const { navigation, navigationLayout, navigationLabels } = useNetwork()
 	const routes = useRoutes()
-	return navigation === "destinations" ? destinationRoutesOf(routes) : null
+	const destinations = navigation === "destinations" ? destinationRoutesOf(routes) : null
+	if (destinations !== null && navigationLayout === "adaptive" && routes.clips !== undefined && navigationLabels?.clips?.trim()) {
+		return { ...destinations, clips: routes.clips, clipsLabel: navigationLabels.clips }
+	}
+	return destinations
 }
 
 /**

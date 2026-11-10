@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/livekit/src/audio-unlock.ts @ ad2e7fdc2 — adaptations : aucune dans le code (tel quel) ; le paquet `livekit` du socle devient le dossier `lib/livekit` du paquet des surfaces.
+// Dupliqué de socle/packages/livekit/src/audio-unlock.ts @ ad2e7fdc2 — adaptations : déverrouillage sur click/keydown de confiance avec activation navigateur, pas sur pointerdown tactile ; le paquet `livekit` du socle devient le dossier `lib/livekit` du paquet des surfaces.
 "use client";
 
 /**
@@ -15,7 +15,7 @@
  *  - `getSharedAudioContext()` — le contexte UNIQUE, créé paresseusement,
  *    JAMAIS fermé (le fermer au changement de profil coupait le son et
  *    consommait le quota navigateur, ~6 contextes par page — défaut S7) ;
- *  - `installAudioUnlock()` — écouteurs capture `pointerdown`/`keydown` qui
+ *  - `installAudioUnlock()` — écouteurs capture `click`/`keydown` qui
  *    tentent `resume()` : le premier clic de la journée déverrouille l'audio
  *    pour toutes les sonneries à venir. Les écouteurs RESTENT posés : iOS
  *    peut re-suspendre un contexte après une interruption ;
@@ -79,12 +79,17 @@ export function resumeSharedAudioContext(): void {
 	}
 }
 
-const UNLOCK_EVENTS = ["pointerdown", "keydown"] as const;
+const UNLOCK_EVENTS = ["click", "keydown"] as const;
 
 let unlockInstallCount = 0;
 let unlockTarget: AudioUnlockTarget | null = null;
 
-function onUnlockGesture(): void {
+function onUnlockGesture(event: Event): void {
+	// Le pointerdown tactile précède l'activation utilisateur de Chrome.
+	// Un événement synthétique ou une touche sans activation ne doit créer
+	// ni reprendre de contexte : catch() ne masque pas l'avertissement natif.
+	if (!event.isTrusted) return;
+	if (typeof navigator !== "undefined" && navigator.userActivation?.isActive === false) return;
 	resumeSharedAudioContext();
 }
 

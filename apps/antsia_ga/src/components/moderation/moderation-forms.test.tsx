@@ -5,19 +5,19 @@ import { createRoot, type Root } from "react-dom/client"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import type { Id } from "@antsia/api/engine"
 
-const state = vi.hoisted(() => ({ available: true, previewError: null as unknown, mutation: vi.fn(), success: vi.fn(), failure: vi.fn(), info: vi.fn() }))
+const state = vi.hoisted(() => ({ available: true, previewKind: "post", sourceRevision: undefined as number | undefined, sourceDigest: undefined as string | undefined, body: "Excerpt", previewError: null as unknown, mutation: vi.fn(), success: vi.fn(), failure: vi.fn(), info: vi.fn() }))
 vi.mock("@antsia/api/engine", () => ({ api: { modules: { moderation: { cases: { decide: "decide", reviewContent: "review", reviewNetworkAppeal: "appeal" }, reviewProjection: { preview: "preview" } } } } }))
 vi.mock("@antsia/api/network", () => ({ useNetwork: () => ({ networkId: "network" }) }))
 vi.mock("@antsia/api/viewer-preferences", () => ({ useViewerTimeZone: () => "UTC" }))
 vi.mock("@antsia/api/sign-out-everywhere", () => ({ isSigningOutEverywhere: () => false }))
-vi.mock("@antsia/api/hooks", () => ({ useAuthenticatedConvexQuery: () => ({ data: { available: state.available, kind: "post", title: null, body: "Excerpt", media: [] }, error: state.previewError, refetch: vi.fn() }) }))
+vi.mock("@antsia/api/hooks", () => ({ useAuthenticatedConvexQuery: () => ({ data: { available: state.available, kind: state.previewKind, title: null, body: state.body, media: [], sourceRevision: state.sourceRevision, sourceDigest: state.sourceDigest }, error: state.previewError, refetch: vi.fn() }) }))
 vi.mock("@antsia/social-features/reseau-personnel", () => ({ PostMedia: () => null }))
 vi.mock("convex/react", () => ({ useMutation: () => state.mutation }))
 vi.mock("react-i18next", () => ({ useTranslation: () => ({ t: (key: string) => key }) }))
 vi.mock("sonner", () => ({ toast: { success: state.success, error: state.failure, info: state.info } }))
-vi.mock("next/link", () => ({ default: ({ href, ...props }: AnchorHTMLAttributes<HTMLAnchorElement> & { href: string }) => <a {...props} href={href} /> }))
+vi.mock("next/link", () => ({ default: ({ href, children, ...props }: AnchorHTMLAttributes<HTMLAnchorElement> & { href: string }) => <a {...props} href={href}>{children}</a> }))
 
-import { AppealDecision, ReportDecision } from "./moderation-forms"
+import { AppealDecision, PendingDecision, ReportDecision } from "./moderation-forms"
 import { ModerationGuard } from "./moderation-guard"
 
 let root: Root | undefined
@@ -37,12 +37,82 @@ async function submit(index = 0) { await act(async () => { container.querySelect
 beforeEach(() => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
   container = document.createElement("div"); document.body.append(container)
-  state.available = true; state.previewError = null
+  state.available = true; state.previewError = null; state.previewKind = "post"; state.sourceRevision = undefined; state.sourceDigest = undefined; state.body = "Excerpt"
   state.mutation.mockReset().mockResolvedValue({ status: "dismissed" }); state.success.mockReset(); state.failure.mockReset(); state.info.mockReset()
+})
+
+describe("MP05 — décision commerciale sur l'aperçu relu", () => {
+  function pendingTree(kind: "commerceStorefront" | "commerceOffer" | "professionalProfile" | "professionalCollaboration" | "editorialVersion" | "editorialMedia" = "commerceStorefront") { return <ModerationGuard><PendingDecision targetKind={kind} targetId="catalog-head" /></ModerationGuard> }
+  async function mountPending(kind: "commerceStorefront" | "commerceOffer" | "professionalProfile" | "professionalCollaboration" | "editorialVersion" | "editorialMedia" = "commerceStorefront") { root = createRoot(container); await act(async () => { root?.render(pendingTree(kind)) }) }
+
+  it.each(["commerceStorefront", "commerceOffer", "professionalProfile", "professionalCollaboration", "editorialVersion", "editorialMedia"] as const)("ferme %s sans preuve, même après une soumission forcée", async kind => {
+    state.previewKind = kind
+    await mountPending(kind)
+    expect(container.querySelector("fieldset")?.disabled).toBe(true)
+    await reason("Conditions relues intégralement."); await submit()
+    expect(state.mutation).not.toHaveBeenCalled()
+  })
+
+  it.each(["approve", "reject"] as const)("transmet exactement la révision et l'empreinte affichées pour %s", async decision => {
+    vi.spyOn(window, "confirm").mockReturnValue(true)
+    state.previewKind = "commerceStorefront"; state.sourceRevision = 7; state.sourceDigest = "a".repeat(64)
+    state.body = `${"Clause longue. ".repeat(360)}Dernière clause de garantie visible.`
+    await mountPending()
+    expect(container.textContent).toContain("Dernière clause de garantie visible.")
+    expect(container.querySelector("fieldset")?.disabled).toBe(false)
+    await reason("Conditions relues intégralement.")
+    await act(async () => { const select = container.querySelector<HTMLSelectElement>('select[name="approve"]'); if (select) { select.value = decision; select.dispatchEvent(new Event("change", { bubbles: true })) } })
+    await submit()
+    expect(state.mutation).toHaveBeenCalledWith({ networkId: "network", target: { kind: "commerceStorefront", id: "catalog-head" }, approve: decision === "approve", reason: "Conditions relues intégralement.", expectedSourceRevision: 7, expectedSourceDigest: "a".repeat(64) })
+  })
+
+  it.each(["professionalProfile", "professionalCollaboration"] as const)("transmet la preuve de %s et laisse visible tout le texte relu", async kind => {
+    state.previewKind = kind; state.sourceRevision = 3; state.sourceDigest = "b".repeat(64)
+    state.body = kind === "professionalProfile" ? `${"Portfolio. ".repeat(600)}Dernière clause visible.` : "Message initial intégral."
+    await mountPending(kind)
+    expect(container.textContent).toContain(kind === "professionalProfile" ? "Dernière clause visible." : "Message initial intégral.")
+    await reason("Contenu professionnel relu."); await submit()
+    expect(state.mutation).toHaveBeenCalledWith({ networkId: "network", target: { kind, id: "catalog-head" }, approve: true, reason: "Contenu professionnel relu.", expectedSourceRevision: 3, expectedSourceDigest: "b".repeat(64) })
+  })
+
+  it.each(["editorialVersion", "editorialMedia"] as const)("transmet la preuve %s avec sa dernière clause intégrale", async kind => {
+    state.previewKind = kind; state.sourceRevision = 4; state.sourceDigest = "c".repeat(64)
+    state.body = `${"Article intégral. ".repeat(600)}Dernière clause éditoriale.`
+    await mountPending(kind)
+    expect(container.textContent).toContain("Dernière clause éditoriale.")
+    await reason("Version éditoriale intégralement relue."); await submit()
+    expect(state.mutation).toHaveBeenCalledWith({ networkId: "network", target: { kind, id: "catalog-head" }, approve: true, reason: "Version éditoriale intégralement relue.", expectedSourceRevision: 4, expectedSourceDigest: "c".repeat(64) })
+  })
+
+  it("referme les actions si la preuve disparaît, est incomplète ou si l'habilitation est perdue", async () => {
+    state.previewKind = "commerceStorefront"; state.sourceRevision = 1; state.sourceDigest = "a".repeat(64)
+    await mountPending(); await reason("Conditions relues intégralement.")
+    for (const change of [() => { state.sourceDigest = undefined }, () => { state.sourceDigest = "invalid" }, () => { state.sourceDigest = "a".repeat(64); state.sourceRevision = 1.5 }, () => { state.sourceRevision = 1; state.previewError = new Error("notFound") }]) {
+      change(); await act(async () => { root?.render(pendingTree()) })
+      expect(container.querySelector("fieldset")?.disabled).toBe(true)
+      await submit()
+    }
+    expect(state.mutation).not.toHaveBeenCalled()
+  })
 })
 afterEach(async () => { await act(async () => { root?.unmount() }); root = undefined; container.remove(); vi.restoreAllMocks() })
 
 describe("décision motivée et garde de navigation", () => {
+  it.each(["editorialVersion", "editorialMedia"] as const)("ferme le signalement %s sans preuve, puis transmet la révision relue", async kind => {
+    state.previewKind = kind
+    await mount(); await reason("Version éditoriale intégralement relue.")
+    expect(container.querySelector("fieldset")?.disabled).toBe(true)
+    await submit(); expect(state.mutation).not.toHaveBeenCalled()
+    state.sourceRevision = 2; state.sourceDigest = "d".repeat(64)
+    await act(async () => { root?.render(tree()) })
+    expect(container.querySelector("fieldset")?.disabled).toBe(false)
+    await submit()
+    expect(state.mutation).toHaveBeenCalledWith({ networkId: "network", reportId: "report-0", decision: "dismissed", reason: "Version éditoriale intégralement relue.", sanctions: [], expectedSourceRevision: 2, expectedSourceDigest: "d".repeat(64) })
+    state.available = false
+    await act(async () => { root?.render(tree()) })
+    expect(container.querySelector("fieldset")?.disabled).toBe(true)
+  })
+
   it("un contenu devenu indisponible autorise seulement le classement, une erreur reste fermée", async () => {
     state.available = false
     await mount()

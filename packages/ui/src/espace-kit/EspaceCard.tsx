@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/components/espace-kit/EspaceCard.tsx @ ad2e7fdc2 — adaptations : `Card` importé en relatif depuis le paquet (`../components/card`) ; titre, compteur et libellé d'action restent fournis (déjà traduits) par l'appelant ; rendu inchangé.
+// Dupliqué de socle/packages/agent-features/src/components/espace-kit/EspaceCard.tsx @ ad2e7fdc2 — adaptations : `Card` importé en relatif depuis le paquet (`../components/card`) ; titre, compteur et libellé d'action restent fournis (déjà traduits) par l'appelant ; rendu inchangé. rembourrage de carte opt-in ANTSIA (`--esp-card-padding`), valeurs historiques en repli.
 "use client"
 
 import type { ReactNode } from "react"
@@ -35,7 +35,7 @@ export function EspaceCard({
 }) {
   return (
     <Card padded={false} style={ESPACE_SURFACE_STYLE}>
-      <section id={id} style={{ padding: eyebrow ? 20 : "18px 20px" }}>
+      <section id={id} style={{ padding: eyebrow ? "var(--esp-card-padding, 20px)" : "var(--esp-card-padding, 18px 20px)" }}>
         <header className="esk-card-head">
           {icon ? <span aria-hidden="true">{icon}</span> : null}
           <h2 className={eyebrow ? "esk-eyebrow" : "esk-card-title"}>

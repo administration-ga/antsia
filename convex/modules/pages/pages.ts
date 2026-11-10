@@ -542,6 +542,7 @@ export const editPagePost = networkMutation({
     const { page, role } = await requireManagedPage(ctx, { networkId: ctx.networkId, personId: ctx.person._id }, args.pageId, "signatory")
     const stored = await ctx.db.get(args.postId)
     if (!stored || stored.networkId !== ctx.networkId || stored.pageId !== page._id || stored.federationSource !== undefined) return notFound()
+    if (stored.editorialArticleId !== undefined) return notFound()
     const post = requireNativePostAuthor(stored)
     if (post.status !== "published" || !(await canSeePostDoc(ctx, readerOf(ctx), post))) return notFound()
     const body = checked(() => assertPostContent({ body: args.body, mediaCount: post.media?.length ?? 0, isShare: post.sharedPostId !== undefined }))

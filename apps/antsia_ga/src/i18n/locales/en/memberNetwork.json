@@ -3,17 +3,17 @@
     "myShop": "My shop",
     "myShopLead": "Prepare your presentation and manage your activity storefronts.",
     "shops": "Shops",
-    "shopsLead": "Discover storefronts admitted to this network. Catalogs and purchases are not yet enabled.",
-    "all": "Discover everything",
+    "shopsLead": "Explore shops and their offers available on ANTSIA.",
+    "all": "Explore everything",
     "sections": "Discovery sections"
   },
   "nav": {
     "national": "National",
-    "discover": "Discover",
+    "discover": "Explore",
     "moderation": "Moderation"
   },
   "common": {
-    "failed": "This request or action is unavailable. Try again or return to your feed.",
+    "failed": "This request or action is unavailable. Try again or return home.",
     "retry": "Try again",
     "loading": "Loading…",
     "firstPage": "Return to the first page",
@@ -29,7 +29,7 @@
     "provinceLabel": "Post province",
     "allProvinces": "All provinces",
     "provinceApply": "Show",
-    "publicDiscover": "Discover content available without an account",
+    "publicDiscover": "Explore content available without an account",
     "empty": "No post matches this filter.",
     "emptyWindow": "No content on this page is eligible. The next page may contain results.",
     "pagination": "National feed pages",
@@ -48,7 +48,19 @@
     "tagSubmit": "See the posts",
     "networkTitle": "In the network",
     "publicTitle": "Public view",
-    "publicLead": "What someone without an account can read. This view opens outside your member space."
+    "publicLead": "What someone without an account can read. This view opens outside your member space.",
+    "pillars": {
+      "label": "ANTSIA's pillars",
+      "business": "Business",
+      "publicLife": "Public life",
+      "entertainment": "Entertainment"
+    },
+    "universes": {
+      "shops": "Shops",
+      "services": "Services and craftspeople",
+      "food": "Food and restaurants",
+      "clips": "Clips"
+    }
   },
   "moderation": {
     "title": "National moderation",
@@ -95,14 +107,15 @@
       "event": "Event",
       "page": "Page",
       "person": "Profile",
-      "live": "Live stream",
-      "story": "Status",
+      "live": "Live",
+      "story": "Story",
       "album": "Album",
       "commercialMessage": "Commercial message",
       "commerceJob": "Job opening",
       "serviceReview": "Service review",
       "serviceReviewReply": "Service review reply",
       "commerceOffer": "Store offer",
+      "commerceStorefront": "Store terms",
       "contextualMessage": "Matchmaking message",
       "diasporaAidQuestion": "DIASPORALE mutual aid question",
       "diasporaAidAnswer": "DIASPORALE mutual aid answer",
@@ -112,7 +125,11 @@
       "diasporaKitResource": "DIASPORALE arrival kit resource",
       "diasporaJobOffer": "DIASPORALE job offer",
       "diasporaTalentProfile": "DIASPORALE talent profile",
-      "diasporaJobApplication": "DIASPORALE job application"
+      "diasporaJobApplication": "DIASPORALE job application",
+      "professionalProfile": "Professional profile",
+      "professionalCollaboration": "Collaboration request",
+      "editorialVersion": "Article version",
+      "editorialMedia": "Media presentation"
     },
     "preview": "Content excerpt for review",
     "previewBounded": "Limited excerpt, accessible within your current scope.",
@@ -155,6 +172,29 @@
       "mute": "Publishing restriction",
       "suspension": "Temporary suspension",
       "exclusion": "Exclusion"
+    },
+    "deadlines": {
+      "title": "Legal deadlines",
+      "lead": "Reports subject to the deadlines of Ordinance No. 0011/PR/2026, nearest deadline first.",
+      "empty": "No report with a legal deadline is waiting.",
+      "truncated": "Only the 50 nearest deadlines are shown.",
+      "summary_one": "{{count}} report with a legal deadline",
+      "summary_other": "{{count}} reports with a legal deadline",
+      "overdueCount_one": "({{count}} overdue)",
+      "overdueCount_other": "({{count}} overdue)",
+      "basis": {
+        "art24": "Art. 24: decision notified within 72 h",
+        "art32": "Art. 32: prohibited AI content, removal within 24 h",
+        "art33": "Art. 33: removal within 24 h"
+      },
+      "remaining": "{{duration}} left",
+      "overdue": "{{duration}} overdue",
+      "hoursMinutes": "{{hours}} h {{minutes}} min",
+      "minutes": "{{minutes}} min",
+      "dueAt": "Deadline: {{date}}",
+      "acknowledged": "Acknowledgement sent on {{date}}",
+      "notAcknowledged": "Acknowledgement not delivered",
+      "ordinaryTitle": "Other reports"
     }
   }
 }

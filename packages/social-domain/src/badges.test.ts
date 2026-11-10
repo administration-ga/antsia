@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { computePageBadge, computePersonBadges, hasStrongIdentity, isPageClaimable, isTrustAllowedForOwner } from "./badges"
+import { computePageBadge, computePersonBadges, CONSOLE_MIN_LOA, hasStrongIdentity, isPageClaimable, isTrustAllowedForOwner, VERIFIED_MIN_LOA } from "./badges"
 
 describe("computePersonBadges — calculés, jamais déclarés", () => {
   it("sans lien fort : Communauté", () => {
@@ -54,5 +54,14 @@ describe("pages — confiance et revendication", () => {
       expect(isTrustAllowedForOwner(owner, "official")).toBe(false)
       expect(isTrustAllowedForOwner(owner, "verified")).toBe(true)
     }
+  })
+})
+
+describe("ADR-0039 — niveaux IDN de la console et du badge Vérifié", () => {
+  it("la console admet le niveau 1 ; le badge Vérifié et l'identité forte restent au niveau 2", () => {
+    expect(CONSOLE_MIN_LOA).toBe(1)
+    expect(VERIFIED_MIN_LOA).toBe(2)
+    expect(hasStrongIdentity([{ provider: "idn", loa: CONSOLE_MIN_LOA }])).toBe(false)
+    expect(hasStrongIdentity([{ provider: "idn", loa: VERIFIED_MIN_LOA }])).toBe(true)
   })
 })

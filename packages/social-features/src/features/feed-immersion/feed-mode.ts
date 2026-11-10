@@ -3,7 +3,9 @@
  * composant (lot P04 de l'étude social-commerce du 18/10/2026, 04 §3 ;
  * ADR-0017 §4).
  *
- *  · téléphone : Immersion par défaut, Liste toujours offerte ;
+ *  · téléphone : Immersion par défaut, Liste toujours offerte — sauf sous
+ *    l'écran des chartes (ADR-0028), où la Liste est le défaut et
+ *    l'Immersion reste offerte ;
  *  · bureau : Liste par défaut, Immersion proposée ;
  *  · réduction des mouvements demandée, sans choix explicite : Liste ;
  *  · écran trop bas pour une publication par hauteur (paysage, zoom 200 %) :
@@ -76,10 +78,13 @@ export function withStoredFeedMode(current: StoredFeedModes, pose: FeedPose, mod
   return Object.freeze({ ...current, [pose]: mode })
 }
 
-/** Le mode sans choix explicite. */
-export function defaultFeedMode(pose: FeedPose, reducedMotion: boolean): FeedMode {
+/**
+ * Le mode sans choix explicite. `phoneDefault` : ce que l'application veut au
+ * téléphone — l'Immersion (P04), ou la Liste de l'écran des chartes (ADR-0028).
+ */
+export function defaultFeedMode(pose: FeedPose, reducedMotion: boolean, phoneDefault: FeedMode = "immersive"): FeedMode {
   if (pose === "desktop") return "list"
-  return reducedMotion ? "list" : "immersive"
+  return reducedMotion ? "list" : phoneDefault
 }
 
 export interface FeedModeResolution {
@@ -97,11 +102,13 @@ export function resolveFeedMode(input: {
   pose: FeedPose
   stored: StoredFeedModes
   reducedMotion: boolean
+  /** Le défaut du téléphone que l'application déclare ; l'Immersion sans valeur. */
+  phoneDefault?: FeedMode
   /** Hauteur de la fenêtre en pixels CSS ; `null` tant qu'elle est inconnue. */
   viewportHeight: number | null
 }): FeedModeResolution {
   const chosen = input.stored[input.pose]
-  const preferred = chosen ?? defaultFeedMode(input.pose, input.reducedMotion)
+  const preferred = chosen ?? defaultFeedMode(input.pose, input.reducedMotion, input.phoneDefault)
   const tooLow = input.viewportHeight !== null && Number.isFinite(input.viewportHeight) && input.viewportHeight > 0 && input.viewportHeight < IMMERSIVE_MIN_VIEWPORT_HEIGHT
   if (preferred === "immersive" && tooLow) return { preferred, effective: "list", fallback: "lowHeight", explicit: chosen !== undefined }
   return { preferred, effective: preferred, fallback: null, explicit: chosen !== undefined }

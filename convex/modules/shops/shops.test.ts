@@ -1,5 +1,6 @@
 // @vitest-environment edge-runtime
 import { engineErrorAppRule, engineErrorCode } from "@antsia/social-contracts/errors"
+import type { ActivityConfiguration } from "@antsia/social-domain/activityConfiguration"
 import { makeFunctionReference } from "convex/server"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
@@ -7,7 +8,8 @@ import { api, internal } from "../../_generated/api"
 import type { Doc, Id } from "../../_generated/dataModel"
 import { SEED_CONFIRMATION } from "../../seeds/foundations"
 import { testConvex } from "../../test.setup"
-import { setStorefrontSuspended } from "./decisions"
+import { applyStorefrontPolicy, setStorefrontSuspended } from "./decisions"
+import { storefrontPolicyOf } from "./access"
 import { SHOP_DRAFTS_PER_PERSON_MAX, SHOP_MANAGEMENT_PAGES_MAX, SHOP_PUBLIC_LISTING_TEXT_VERSION } from "./rules"
 import type { PublicStorefront } from "./validators"
 
@@ -100,6 +102,136 @@ async function caught(work: Promise<unknown>): Promise<unknown> {
 function shopRefusal(error: unknown) {
   return { code: engineErrorCode(error), appRule: engineErrorAppRule(error)?.appRule ?? null }
 }
+
+const MIXED_ACTIVITY: ActivityConfiguration = { version: 1, capabilities: ["products", "services"], template: "fashion", blocks: ["publications", "services", "about", "catalog"] }
+
+describe("MP02 — configuration progressive de l'activité", () => {
+  it("conserve les anciens clients et projette une configuration héritée sans backfill", async () => {
+    const f = await fixture()
+    const { shopId } = await f.owner.as.mutation(S.startShop, { networkId: f.root, model: "quote_services", name: "Studio historique" })
+    expect(await f.owner.as.query(S.getMyShop, { networkId: f.root, shopId })).toMatchObject({ activityConfiguration: { version: 1, capabilities: ["services"], template: "local", blocks: ["services", "publications", "about"] } })
+    expect(await f.t.run(async (ctx) => ctx.db.get(shopId))).not.toHaveProperty("activityConfiguration")
+    const explicit: ActivityConfiguration = { version: 1, capabilities: ["services"], template: "local", blocks: ["services", "publications", "about"] }
+    expect(await f.owner.as.mutation(S.updateShop, { networkId: f.root, shopId, activityConfiguration: explicit })).toEqual({ changed: true })
+    expect(await f.t.run(async (ctx) => ctx.db.get(shopId))).toMatchObject({ activityConfiguration: explicit })
+  })
+
+  it("prépare une activité mixte sans page, publication ni encaissement implicites", async () => {
+    const f = await fixture()
+    const { shopId } = await f.owner.as.mutation(S.startShop, { networkId: f.root, model: "products", name: "Atelier mixte", activityConfiguration: MIXED_ACTIVITY })
+    const editor = await f.owner.as.query(S.getMyShop, { networkId: f.root, shopId })
+    expect(editor).toMatchObject({ activityConfiguration: MIXED_ACTIVITY, page: null, policy: "closed", checkout: { available: false } })
+    expect(editor?.blocks).toEqual([{ id: "publications", state: "awaiting_page" }, { id: "services", state: "awaiting_pro_link" }, { id: "about", state: "active" }, { id: "catalog", state: "awaiting_pro_link" }])
+    expect(await f.t.run(async (ctx) => ctx.db.get(shopId))).toMatchObject({ activityConfiguration: MIXED_ACTIVITY, storefront: "draft" })
+    await f.owner.as.mutation(S.updateShop, { networkId: f.root, shopId, description: "Produits et prestations préparés dans notre atelier local." })
+    const refusal = await caught(f.owner.as.mutation(S.requestStorefrontPublication, { networkId: f.root, shopId }))
+    expect(shopRefusal(refusal).appRule).toBe("shop_publication_closed")
+  })
+
+  it("enregistre la configuration sur une page administrée sans changer sa nature ni ses droits", async () => {
+    const f = await fixture()
+    const identity = await page(f.t, f.root, f.owner, "activite-mixte")
+    const { shopId } = await f.owner.as.mutation(S.startShop, { networkId: f.root, model: "products", pageId: identity.pageId, activityConfiguration: MIXED_ACTIVITY })
+    expect(await f.t.run(async (ctx) => ctx.db.get(shopId))).toMatchObject({ activityConfiguration: MIXED_ACTIVITY, pageId: identity.pageId, storefront: "draft" })
+    expect(await f.t.run(async (ctx) => ctx.db.get(identity.pageId))).toMatchObject({ ownerKind: "company", trust: "community" })
+    expect(await caught(f.reader.as.mutation(S.updateShop, { networkId: f.root, shopId, activityConfiguration: { ...MIXED_ACTIVITY, template: "media" } }))).not.toBeNull()
+    expect(await f.t.run(async (ctx) => ctx.db.get(shopId))).toMatchObject({ activityConfiguration: MIXED_ACTIVITY })
+    const institution = await page(f.t, f.root, f.owner, "institution-protegee", { ownerKind: "institution", trust: "official", trustRank: 3 })
+    const previousRefusal = await caught(f.owner.as.mutation(S.startShop, { networkId: f.root, model: "products", pageId: institution.pageId }))
+    const configuredRefusal = await caught(f.owner.as.mutation(S.startShop, { networkId: f.root, model: "products", pageId: institution.pageId, activityConfiguration: MIXED_ACTIVITY }))
+    expect(configuredRefusal).not.toBeNull()
+    expect(shopRefusal(configuredRefusal)).toEqual(shopRefusal(previousRefusal))
+  })
+
+  it("ne perd pas la configuration lors d'une sauvegarde ancienne et ne réécrit pas un état identique", async () => {
+    const f = await fixture()
+    const { shopId } = await f.owner.as.mutation(S.startShop, { networkId: f.root, model: "products", name: "Atelier durable", activityConfiguration: MIXED_ACTIVITY })
+    const before = await f.t.run(async (ctx) => ctx.db.get(shopId))
+    vi.setSystemTime(Date.now() + 1000)
+    expect(await f.owner.as.mutation(S.updateShop, { networkId: f.root, shopId, activityConfiguration: { ...MIXED_ACTIVITY, capabilities: ["services", "products"] } })).toEqual({ changed: false })
+    const reorderedKeys: ActivityConfiguration = { blocks: [...MIXED_ACTIVITY.blocks], template: MIXED_ACTIVITY.template, capabilities: [...MIXED_ACTIVITY.capabilities], version: 1 }
+    expect(await f.owner.as.mutation(S.updateShop, { networkId: f.root, shopId, activityConfiguration: reorderedKeys })).toEqual({ changed: false })
+    expect((await f.t.run(async (ctx) => ctx.db.get(shopId)))?.updatedAt).toBe(before?.updatedAt)
+    await f.owner.as.mutation(S.updateShop, { networkId: f.root, shopId, description: "Une présentation modifiée par un ancien client." })
+    expect(await f.t.run(async (ctx) => ctx.db.get(shopId))).toMatchObject({ activityConfiguration: MIXED_ACTIVITY })
+    const changed = { ...MIXED_ACTIVITY, blocks: ["about", "services", "catalog", "publications"] } satisfies ActivityConfiguration
+    expect(await f.owner.as.mutation(S.updateShop, { networkId: f.root, shopId, activityConfiguration: changed })).toEqual({ changed: true })
+    expect(await f.owner.as.query(S.getMyShop, { networkId: f.root, shopId })).toMatchObject({ activityConfiguration: changed })
+  })
+
+  it("refuse une mise à jour incohérente avant toute modification d'identité ou de configuration", async () => {
+    const f = await fixture()
+    const { shopId } = await f.owner.as.mutation(S.startShop, { networkId: f.root, model: "products", name: "Atelier conservé", activityConfiguration: MIXED_ACTIVITY })
+    const error = await caught(f.owner.as.mutation(S.updateShop, { networkId: f.root, shopId, name: "Nom qui ne doit pas être enregistré", activityConfiguration: { ...MIXED_ACTIVITY, capabilities: ["products"] } }))
+    expect(engineErrorCode(error)).toBe("invalidArgument")
+    expect(await f.t.run(async (ctx) => ctx.db.get(shopId))).toMatchObject({ draftName: "Atelier conservé", activityConfiguration: MIXED_ACTIVITY })
+  })
+
+  it.each([
+    { ...MIXED_ACTIVITY, capabilities: [] },
+    { ...MIXED_ACTIVITY, capabilities: ["products", "products"] },
+    { ...MIXED_ACTIVITY, blocks: ["about", "about"] },
+    { ...MIXED_ACTIVITY, capabilities: ["products"] },
+    { ...MIXED_ACTIVITY, version: 2 },
+    { ...MIXED_ACTIVITY, template: "unrestricted" },
+    { ...MIXED_ACTIVITY, permissions: ["payments"] },
+  ])("refuse la configuration incohérente ou étrangère sans écriture", async (raw) => {
+    const f = await fixture()
+    const activityConfiguration = raw as unknown as ActivityConfiguration
+    expect(await caught(f.owner.as.mutation(S.startShop, { networkId: f.root, model: "products", name: "Atelier refusé", activityConfiguration }))).not.toBeNull()
+    expect((await f.owner.as.query(S.myShops, { networkId: f.root })).items).toEqual([])
+  })
+
+  it("projette la configuration publique mais masque les blocs sans offre et les publications community", async () => {
+    const f = await fixture()
+    const shop = await publishedShop(f.t, f.root, f.owner, "composition-publique", { activityConfiguration: MIXED_ACTIVITY })
+    const memberView = await f.reader.as.query(S.storefront, { networkId: f.root, handle: shop.handle })
+    const publicView = await f.t.query(getPublicStorefront, { networkId: f.root, handle: shop.handle })
+    expect(memberView).toMatchObject({ activityConfiguration: MIXED_ACTIVITY, blocks: ["publications", "about"] })
+    expect(publicView).toMatchObject({ activityConfiguration: MIXED_ACTIVITY, blocks: ["about"] })
+    expect(publicView).not.toHaveProperty("viewer")
+    expect(publicView).not.toHaveProperty("pageId")
+    expect(await f.t.query(api.modules.public.projections.getOfficialPage, { networkId: f.root, handle: shop.handle })).toBeNull()
+  })
+})
+
+describe("P16 — admission automatique sans décision validée", () => {
+  it("refuse la bascule serveur, même si un client l'envoie directement", async () => {
+    const f = await fixture()
+    const error = await caught(f.t.run(async (ctx) => await applyStorefrontPolicy(ctx, f.root, "auto_verified", f.owner.personId)))
+    expect(shopRefusal(error)).toEqual({ code: "policyRefused", appRule: "shop_publication_closed" })
+    expect(await f.t.run(async (ctx) => await storefrontPolicyOf(ctx, f.root))).toBe("closed")
+  })
+
+  it("une ancienne bascule automatique envoie même un membre vérifié en revue", async () => {
+    const f = await fixture()
+    await status(f.t, f.root, f.owner.personId, "verifiee")
+    await f.t.run(async (ctx) => await ctx.db.insert("shopNetworkPolicies", { networkId: f.root, storefront: "auto_verified", updatedAt: Date.now() }))
+    const { shopId } = await f.owner.as.mutation(S.startShop, { networkId: f.root, model: "products", name: "Atelier en revue" })
+    await f.owner.as.mutation(S.updateShop, { networkId: f.root, shopId, description: "Produits fabriqués dans un atelier local." })
+    await f.owner.as.mutation(S.requestStorefrontPublication, { networkId: f.root, shopId })
+    const queuedShop = await f.t.run(async (ctx) => await ctx.db.get(shopId))
+    expect(queuedShop).toMatchObject({ storefront: "pending_review" })
+    expect(queuedShop).not.toHaveProperty("pageId")
+  })
+
+  it("conserve les vitrines déjà admises et permet le remplacement explicite par la revue", async () => {
+    const f = await fixture()
+    const shop = await publishedShop(f.t, f.root, f.owner, "vitrine-historique")
+    await f.t.run(async (ctx) => {
+      const policy = await ctx.db.query("shopNetworkPolicies").withIndex("by_network", (q) => q.eq("networkId", f.root)).unique()
+      if (!policy) throw new Error("Politique de fixture absente")
+      await ctx.db.patch(policy._id, { storefront: "auto_verified", automaticDecisionVersion: "ancienne-decision" })
+    })
+    expect(await f.owner.as.query(S.storefront, { networkId: f.root, handle: "vitrine-historique" })).not.toBeNull()
+    expect(await f.t.run(async (ctx) => await applyStorefrontPolicy(ctx, f.root, "review", f.owner.personId))).toEqual({ changed: true, previous: "auto_verified" })
+    expect(await f.t.run(async (ctx) => await storefrontPolicyOf(ctx, f.root))).toBe("review")
+    expect(await f.t.run(async (ctx) => (await ctx.db.get(shop.shopId))?.storefront)).toBe("published")
+    const reviewedPolicy = await f.t.run(async (ctx) => await ctx.db.query("shopNetworkPolicies").withIndex("by_network", (q) => q.eq("networkId", f.root)).unique())
+    expect(reviewedPolicy).toMatchObject({ storefront: "review" })
+    expect(reviewedPolicy).not.toHaveProperty("automaticDecisionVersion")
+  })
+})
 
 describe("P07 — préparation et autorité", () => {
   it("rétablir une vitrine suspendue ne contourne pas la politique de publication fermée", async () => {
@@ -229,7 +361,7 @@ describe("P07 — projection publique commerciale", () => {
     const shop = await publishedShop(f.t, f.root, f.owner, "projection-test")
     const dto = await f.t.query(getPublicStorefront, { networkId: f.root, handle: shop.handle })
     expect(dto).toMatchObject({ handle: shop.handle, badge: "community", blocks: ["about"], logoUrl: null, bannerUrl: null })
-    expect(Object.keys(dto!).sort()).toEqual(["badge", "bannerUrl", "blocks", "description", "handle", "hours", "logoUrl", "model", "name", "origin", "publishedAt", "serviceArea", "specialty"].sort())
+    expect(Object.keys(dto!).sort()).toEqual(["activityConfiguration", "badge", "bannerUrl", "blocks", "description", "handle", "hours", "logoUrl", "model", "name", "origin", "publishedAt", "serviceArea", "specialty"].sort())
     const json = JSON.stringify(dto)
     expect(json).not.toContain(f.owner.personId)
     expect(json).not.toContain(shop.pageId)

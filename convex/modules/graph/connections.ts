@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/modules/reseau/connections.ts (avec la façade socle/convex/modules/reseauPersonnel/connections.ts) @ ad2e7fdc2 — adaptations : RÉÉCRIT sur personnes et réseaux, une seule façade (plus de délégation par `runMutation`) ; garde d'adhésion par le constructeur, débit, message borné par le domaine ; adressage par identifiant OU par personne, avec la MÊME exigence de découvrabilité (manque du socle sur l'API brute, EXF-AN-15) ; FUITE DU BLOCAGE CORRIGÉE (D12 : le bloqué reçoit la réponse d'une demande envoyée, sans rien écrire) ; blocage posé et lu sur toute la paire, tous réseaux ; demandes reçues listées par un index (`recipientPersonId`) au lieu d'un `.filter()` ; listes historiques plafonnées (`listMine`, `listPendingForMe`, qui levaient au-delà de 200) non recopiées, la pagination native les remplace (D04) ; fonction et administration (`resolvePostIdentities`) retirées ; poser ou lever le blocage d'une paire déplace la pastille de messagerie à l'écriture (D38) et recompte les conversations de groupe partagées (D23) ; la paire qui se FERME planifie la coupure de ses directs (`live/revocation.revokeConnectionDirects`, les deux expulsions symétriques du helper `revokeConnectionDirects` du socle, une fois au lieu de chaque `block`).
+// Dupliqué de socle/convex/modules/reseau/connections.ts (avec la façade socle/convex/modules/reseauPersonnel/connections.ts) @ ad2e7fdc2 — adaptations : RÉÉCRIT sur personnes et réseaux, une seule façade (plus de délégation par `runMutation`) ; garde d'adhésion par le constructeur, débit, message borné par le domaine ; adressage par identifiant OU par personne, avec la MÊME exigence de découvrabilité (manque du socle sur l'API brute, EXF-AN-15) ; FUITE DU BLOCAGE CORRIGÉE (D12 : le bloqué reçoit la réponse d'une demande envoyée, sans rien écrire) ; blocage posé et lu sur toute la paire, tous réseaux ; demandes reçues listées par un index (`recipientPersonId`) au lieu d'un `.filter()` ; listes historiques plafonnées (`listMine`, `listPendingForMe`, qui levaient au-delà de 200) non recopiées, la pagination native les remplace (D04) ; fonction et administration (`resolvePostIdentities`) retirées ; poser ou lever le blocage d'une paire déplace la pastille de messagerie à l'écriture (D38) et recompte les conversations de groupe partagées (D23) ; la paire qui se FERME planifie la coupure de ses directs (`live/revocation.revokeConnectionDirects`, les deux expulsions symétriques du helper `revokeConnectionDirects` du socle, une fois au lieu de chaque `block`) ; `paginateMine` lit ses deux côtés par le flux de convex-helpers dans UNE exécution (`acceptedSidePage`), jamais par sous-requête : correctif du socle du 25/10/2026 (PR 776) repris, `paginateMineSide`, appelée seule par le client, reste native.
 /**
  * Connexions personne ↔ personne dans un réseau : demander, répondre, bloquer.
  *
@@ -11,21 +11,24 @@
  * Le BLOCAGE est unilatéral, muet, et vaut pour toute la paire, dans tous les
  * réseaux : seul son auteur le lève.
  */
+import { connectionRequestRetryAfter } from "@antsia/social-contracts/connectionRequests"
 import type { Badge } from "@antsia/social-domain/badges"
 import { assertConnectionMessage, normalizeHandle } from "@antsia/social-domain/content"
 import { canonicalPair, type ConnectionView, viewConnection } from "@antsia/social-domain/connectionState"
 import { foldDiacritics } from "@antsia/social-domain/searchText"
-import { paginationOptsValidator, type PaginationResult } from "convex/server"
+import { stream } from "convex-helpers/server/stream"
+import { paginationOptsValidator, type PaginationOptions, type PaginationResult } from "convex/server"
 import { v } from "convex/values"
 
-import { api, internal } from "../../_generated/api"
+import { internal } from "../../_generated/api"
 import type { Doc, Id } from "../../_generated/dataModel"
-import type { MutationCtx } from "../../_generated/server"
+import type { MutationCtx, QueryCtx } from "../../_generated/server"
 import { isActiveMember } from "../../lib/access"
 import { checked, fail, notFound } from "../../lib/errors"
 import { networkMutation, networkQuery } from "../../lib/functions"
 import { enforceRateLimit } from "../../lib/rateLimit"
 import { badgeValidator } from "../../lib/validators"
+import schema from "../../schema"
 import { onPairBlockChangedInGroups } from "../groups/unread"
 import { onPairBlockChanged } from "../messaging/threads"
 import { notifyPerson, resolveNotifications } from "../notifications/notify"
@@ -49,10 +52,20 @@ import { refreshReaderFeed, scheduleReaderRefresh } from "../posts/feedMateriali
  * recevait `blocked` et apprenait le blocage.
  */
 export const requestConnection = networkMutation({
-  args: { targetPersonId: v.optional(v.id("persons")), handle: v.optional(v.string()), message: v.optional(v.string()) },
-  returns: v.object({ status: v.union(v.literal("requested"), v.literal("accepted")) }),
+  args: { targetPersonId: v.optional(v.id("persons")), handle: v.optional(v.string()), message: v.optional(v.string()), returnRateLimit: v.optional(v.boolean()) },
+  returns: v.union(
+    v.object({ status: v.union(v.literal("requested"), v.literal("accepted")) }),
+    v.object({ status: v.literal("rateLimited"), retryAfterMs: v.number() }),
+  ),
   handler: async (ctx, args) => {
-    await enforceRateLimit(ctx, "connection.request", ctx.person._id)
+    try {
+      await enforceRateLimit(ctx, "connection.request", ctx.person._id)
+    } catch (error) {
+      // Refus attendu, sans invitation ni notification ; les autres gardes restent fermées.
+      const retryAfterMs = connectionRequestRetryAfter(error)
+      if (retryAfterMs === null || !args.returnRateLimit) throw error
+      return { status: "rateLimited" as const, retryAfterMs }
+    }
     const message = checked(() => assertConnectionMessage(args.message))
     const target = await resolveTarget(ctx, args)
     if (target === ctx.person._id) return fail("invalidArgument", { field: "target" })
@@ -200,44 +213,62 @@ export const blockPerson = networkMutation({
     if (targetPersonId === ctx.person._id) return fail("invalidArgument", { field: "targetPersonId" })
     const target = await ctx.db.get(targetPersonId)
     if (!target || target.deletionRequestedAt !== undefined || target.erasedAt !== undefined) return notFound()
-    const now = Date.now()
-    const pair = await pairBlockState(ctx, ctx.person._id, targetPersonId)
-    if (pair.overflow) return fail("conflict")
-    const rows = pair.rows
-    const wasBlocked = pair.blocked
-    if (!pair.firstIntent) {
-      await ctx.db.insert("personBlocks", { networkId: ctx.networkId, blockerPersonId: ctx.person._id, targetPersonId, createdAt: now, updatedAt: now })
-    }
-    for (const row of rows) {
-      // Un blocage déjà posé par l'autre reste le sien : la paire est fermée de toute façon.
-      if (row.status === "blocked") continue
-      await ctx.db.patch(row._id, { status: "blocked", blockedByPersonId: ctx.person._id, updatedAt: now })
-    }
-    if (!rows.some((row) => row.networkId === ctx.networkId)) {
-      const { low, high } = canonicalPair(ctx.person._id, targetPersonId)
-      await ctx.db.insert("connections", {
-        networkId: ctx.networkId,
-        personIdLow: low,
-        personIdHigh: high,
-        requestedByPersonId: ctx.person._id,
-        recipientPersonId: targetPersonId,
-        status: "blocked",
-        blockedByPersonId: ctx.person._id,
-        requestedAt: now,
-        updatedAt: now,
-      })
-    }
-    // La paire SE FERME : la pastille de messagerie de chaque côté perd les non-lus du fil (D38).
-    if (!wasBlocked) {
-      await scheduleReaderRefresh(ctx, ctx.person._id)
-      await scheduleReaderRefresh(ctx, targetPersonId)
-      await onPairBlockChanged(ctx, ctx.person._id, targetPersonId, true)
-      await onPairBlockChangedInGroups(ctx, ctx.person._id, targetPersonId)
-      await ctx.scheduler.runAfter(0, internal.modules.live.revocation.revokeConnectionDirects, { firstPersonId: ctx.person._id, secondPersonId: targetPersonId })
-    }
+    await blockPair(ctx, { networkId: ctx.networkId, blockerPersonId: ctx.person._id, targetPersonId })
     return null
   },
 })
+
+/**
+ * Le blocage lui-même, une fois la garde passée (adhésion du bloqueur, débit,
+ * cible vivante) : l'intention de son auteur, toutes les lignes de la paire (tous
+ * réseaux), la ligne de ce réseau au besoin, puis — si la paire était ouverte —
+ * sa fermeture (fils, pastilles, conversations de groupe, directs). Rejoué sur
+ * une paire déjà bloquée par son auteur, il n'écrit rien. Partagé par
+ * `blockPerson` et par les comptes de démonstration de DIASPORALE
+ * (`diaspora/demoAccounts`, développement local), qui posent le blocage d'un
+ * acteur par un autre.
+ */
+export async function blockPair(
+  ctx: MutationCtx,
+  args: { networkId: Id<"networks">; blockerPersonId: Id<"persons">; targetPersonId: Id<"persons"> },
+): Promise<void> {
+  const { networkId, blockerPersonId, targetPersonId } = args
+  const now = Date.now()
+  const pair = await pairBlockState(ctx, blockerPersonId, targetPersonId)
+  if (pair.overflow) return fail("conflict")
+  const rows = pair.rows
+  const wasBlocked = pair.blocked
+  if (!pair.firstIntent) {
+    await ctx.db.insert("personBlocks", { networkId, blockerPersonId, targetPersonId, createdAt: now, updatedAt: now })
+  }
+  for (const row of rows) {
+    // Un blocage déjà posé par l'autre reste le sien : la paire est fermée de toute façon.
+    if (row.status === "blocked") continue
+    await ctx.db.patch(row._id, { status: "blocked", blockedByPersonId: blockerPersonId, updatedAt: now })
+  }
+  if (!rows.some((row) => row.networkId === networkId)) {
+    const { low, high } = canonicalPair(blockerPersonId, targetPersonId)
+    await ctx.db.insert("connections", {
+      networkId,
+      personIdLow: low,
+      personIdHigh: high,
+      requestedByPersonId: blockerPersonId,
+      recipientPersonId: targetPersonId,
+      status: "blocked",
+      blockedByPersonId: blockerPersonId,
+      requestedAt: now,
+      updatedAt: now,
+    })
+  }
+  // La paire SE FERME : la pastille de messagerie de chaque côté perd les non-lus du fil (D38).
+  if (!wasBlocked) {
+    await scheduleReaderRefresh(ctx, blockerPersonId)
+    await scheduleReaderRefresh(ctx, targetPersonId)
+    await onPairBlockChanged(ctx, blockerPersonId, targetPersonId, true)
+    await onPairBlockChangedInGroups(ctx, blockerPersonId, targetPersonId)
+    await ctx.scheduler.runAfter(0, internal.modules.live.revocation.revokeConnectionDirects, { firstPersonId: blockerPersonId, secondPersonId: targetPersonId })
+  }
+}
 
 /**
  * Lever MES blocages envers une personne (tous réseaux). Débloquer ne rétablit
@@ -344,9 +375,37 @@ export type ConnectionPersonDto = {
   message?: string
 }
 
+type ConnectionSide = "low" | "high"
+
+/** Une page de MES relations acceptées d'un côté, projetée : les paires bloquées sont écartées. */
+async function projectAcceptedPage(ctx: Pick<QueryCtx, "db" | "storage">, me: Id<"persons">, result: PaginationResult<Doc<"connections">>): Promise<PaginationResult<ConnectionPersonDto>> {
+  const profileOf = miniProfileCache(ctx)
+  const page: ConnectionPersonDto[] = []
+  for (const row of result.page) {
+    const other = row.personIdLow === me ? row.personIdHigh : row.personIdLow
+    if (await isBlockedBetween(ctx, me, other)) continue
+    const person = await profileOf(other)
+    page.push({
+      connectionId: row._id,
+      otherPersonId: other,
+      displayName: person.displayName,
+      handle: person.handle,
+      headline: person.headline,
+      avatarUrl: person.avatarUrl,
+      badges: person.badges,
+      at: row.respondedAt ?? row.requestedAt,
+    })
+  }
+  return { ...result, page }
+}
+
 /**
- * Une moitié native de la paire canonique : une exécution ne porte qu'une
- * pagination native, `paginateMine` en compose deux.
+ * Une moitié native de la paire canonique, SEULE dans son exécution : le client
+ * l'appelle une fois par côté. Ses curseurs sont natifs ; ceux de `paginateMine`
+ * (flux) ne s'y mélangent pas.
+ *
+ * ⚠️ Jamais par `ctx.runQuery` depuis une autre requête : une sous-requête
+ * PARTAGE l'exécution — et l'unique `.paginate()` natif — de son appelante.
  */
 export const paginateMineSide = networkQuery({
   args: { side: v.union(v.literal("low"), v.literal("high")), paginationOpts: paginationOptsValidator },
@@ -364,34 +423,68 @@ export const paginateMineSide = networkQuery({
             .withIndex("by_network_high_status", (q) => q.eq("networkId", ctx.networkId).eq("personIdHigh", me).eq("status", "accepted"))
             .order("desc")
             .paginate(args.paginationOpts)
-    const profileOf = miniProfileCache(ctx)
-    const page: ConnectionPersonDto[] = []
-    for (const row of result.page) {
-      const other = row.personIdLow === me ? row.personIdHigh : row.personIdLow
-      if (await isBlockedBetween(ctx, me, other)) continue
-      const person = await profileOf(other)
-      page.push({
-        connectionId: row._id,
-        otherPersonId: other,
-        displayName: person.displayName,
-        handle: person.handle,
-        headline: person.headline,
-        avatarUrl: person.avatarUrl,
-        badges: person.badges,
-        at: row.respondedAt ?? row.requestedAt,
-      })
-    }
-    return { ...result, page }
+    return await projectAcceptedPage(ctx, me, result)
   },
 })
 
-/** Mes connexions, exhaustives : un résultat natif par côté de la paire (D04 : plus de plafond qui lève). */
+/**
+ * UN côté de la paire canonique dans ce réseau, en flux ordonné du plus récent au plus ancien.
+ *
+ * ⚠️ PAS de `.paginate()` natif pour lire les DEUX côtés. Le moteur n'en admet
+ * qu'UN par exécution, et une sous-requête `ctx.runQuery` PARTAGE l'exécution
+ * de la requête qui l'appelle : composer les deux côtés natifs par deux
+ * sous-requêtes lève en production — « This query function ran multiple
+ * paginated queries » — alors que convex-test, qui ouvre un contexte par
+ * sous-requête, l'accepte. Le flux de convex-helpers pagine sans ce verrou :
+ * les deux côtés vivent dans la MÊME exécution.
+ *
+ * Ses curseurs sont la clé d'index en clair ; `paginate` les recoupe avec la
+ * plage de la requête (`narrow`) : un curseur forgé ne sort pas de MES lignes,
+ * ni de ce réseau.
+ */
+function acceptedSideStream(ctx: Pick<QueryCtx, "db">, networkId: Id<"networks">, me: Id<"persons">, side: ConnectionSide) {
+  const connections = stream(ctx.db, schema).query("connections")
+  return (
+    side === "low"
+      ? connections.withIndex("by_network_low_status", (q) => q.eq("networkId", networkId).eq("personIdLow", me).eq("status", "accepted"))
+      : connections.withIndex("by_network_high_status", (q) => q.eq("networkId", networkId).eq("personIdHigh", me).eq("status", "accepted"))
+  ).order("desc")
+}
+
+/**
+ * Le curseur d'un côté ÉPUISÉ. Le flux rend `"[]"` quand il n'a plus rien —
+ * mais, rejoué, ce curseur vide ne borne RIEN (`splitRange` lit une clé vide
+ * comme « sans limite ») et le côté repartirait du début. Or le client rejoue
+ * le curseur d'un côté fini tant que l'autre continue.
+ */
+const EXHAUSTED_SIDE_CURSOR = "[]"
+
+/** Une page d'UN côté de MES relations acceptées, lue par le flux. */
+export async function acceptedSidePage(
+  ctx: Pick<QueryCtx, "db" | "storage">,
+  networkId: Id<"networks">,
+  me: Id<"persons">,
+  side: ConnectionSide,
+  paginationOpts: PaginationOptions,
+): Promise<PaginationResult<ConnectionPersonDto>> {
+  if (paginationOpts.cursor === EXHAUSTED_SIDE_CURSOR) return { page: [], isDone: true, continueCursor: EXHAUSTED_SIDE_CURSOR }
+  const result = await acceptedSideStream(ctx, networkId, me, side).paginate(paginationOpts)
+  const projected = await projectAcceptedPage(ctx, me, result)
+  return result.isDone ? { ...projected, continueCursor: EXHAUSTED_SIDE_CURSOR } : projected
+}
+
+/**
+ * Mes connexions, exhaustives : un résultat par côté de la paire, chacun avec son
+ * curseur (D04 : plus de plafond qui lève), lus dans cette exécution — jamais par
+ * sous-requête.
+ */
 export const paginateMine = networkQuery({
   args: { lowPaginationOpts: paginationOptsValidator, highPaginationOpts: paginationOptsValidator },
   handler: async (ctx, args): Promise<{ low: PaginationResult<ConnectionPersonDto>; high: PaginationResult<ConnectionPersonDto> }> => {
+    const me = ctx.person._id
     const [low, high] = await Promise.all([
-      ctx.runQuery(api.modules.graph.connections.paginateMineSide, { networkId: ctx.networkId, side: "low", paginationOpts: args.lowPaginationOpts }),
-      ctx.runQuery(api.modules.graph.connections.paginateMineSide, { networkId: ctx.networkId, side: "high", paginationOpts: args.highPaginationOpts }),
+      acceptedSidePage(ctx, ctx.networkId, me, "low", args.lowPaginationOpts),
+      acceptedSidePage(ctx, ctx.networkId, me, "high", args.highPaginationOpts),
     ])
     return { low, high }
   },

@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/modules/reseauPersonnel/suggestions.ts @ ad2e7fdc2 — adaptations : catalogue PAR RÉSEAU, puisé dans l'annuaire du réseau (`peopleDirectory`, membres découvrables, D17) — un réseau gouverné par une tranche sert ses propres suggestions (refus `policyRefused`, comme le rail) ; poste et organisation (`resolvePostIdentities`) remplacés par le titre (`headline`) de la personne ; avatar par la garde des fichiers (D05, plus de `getUrl` brut) ; personnes nommées par le mini-profil publié ; masquage par réseau ; `listDismissed` paginée (D19) ; `listSentInvitations` RÉÉCRITE en pagination native sur un index du demandeur (au lieu de deux balayages bornés filtrés) ; adhésion par le constructeur (au lieu d'`assertNotSuspended`) ; refus à code ; débit sur `dismiss` et `restore` (D14).
+// Dupliqué de socle/convex/modules/reseauPersonnel/suggestions.ts @ ad2e7fdc2 — adaptations : catalogue PAR RÉSEAU, puisé dans l'annuaire du réseau (`peopleDirectory`, membres découvrables, D17) — un réseau gouverné par une tranche sert ses propres suggestions (refus `policyRefused`, comme le rail) ; poste et organisation (`resolvePostIdentities`) remplacés par le titre (`headline`) de la personne ; avatar par la garde des fichiers (D05, plus de `getUrl` brut) ; personnes nommées par le mini-profil publié ; masquage par réseau ; `listDismissed` paginée (D19) ; `listSentInvitations` RÉÉCRITE en pagination native sur un index du demandeur (au lieu de deux balayages bornés filtrés) ; adhésion par le constructeur (au lieu d'`assertNotSuspended`) ; refus à code ; débit sur `dismiss` et `restore` (D14) ; étude du 22/10/2026 (ADR-0037) : chaque carte dit si la personne suit déjà l'appelant (`followsYou`), pour « Suivre en retour ».
 /**
  * Le CATALOGUE des suggestions d'un réseau — la destination de « Voir tout »,
  * à côté du rail (`graph.follows.suggestions`, cinq noms) — et l'état SERVEUR
@@ -42,6 +42,8 @@ export type SuggestionCatalogItem = {
   headline: string | null
   avatarUrl: string | null
   relationState: SuggestionRelationState
+  /** La personne suit déjà l'appelant dans ce réseau : l'écran propose « Suivre en retour ». */
+  followsYou: boolean
   /** Masquée par l'appelant — rendue seulement avec `includeDismissed`. */
   dismissed: boolean
 }
@@ -88,6 +90,8 @@ export const paginate = networkQuery({
       const person = await ctx.db.get(id)
       if (!person || !isDiscoverablePerson(person) || !person.handle || !person.displayName) continue
       const profile = await profileOf(id)
+      // Une lecture par carte gardée, sur l'index unique du suivi (page bornée à 50).
+      const followsYou = await isFollowingPerson(ctx, ctx.networkId, id, me)
       kept.push({
         personId: id,
         handle: person.handle,
@@ -95,6 +99,7 @@ export const paginate = networkQuery({
         headline: person.headline ?? null,
         avatarUrl: profile.avatarUrl,
         relationState: pending.byMe.has(id) ? "requested_by_me" : pending.byThem.has(id) ? "requested_by_them" : "none",
+        followsYou,
         dismissed,
       })
     }

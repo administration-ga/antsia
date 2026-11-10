@@ -14,7 +14,8 @@ La porte commune `social-features/identity` est branchée dans ANTSIA, la consol
 | E-mail | `RESEND_API_KEY`, `RESEND_FROM_ADDRESS` | Refus 503 hors développement local |
 | SMS | `SMS_PROVIDER=webhook`, `SMS_ENDPOINT` HTTPS, `SMS_API_KEY` | Refus 503 hors développement local |
 | Origines | `SITE_URL`, `TRUSTED_ORIGINS` et catalogue | Contrôle exact des origines ; ports locaux seulement sous la double garde locale |
-| Langue des codes | `AUTH_DEFAULT_LOCALE` facultatif : `fr` ou `en` | Français |
+| Langue des codes | `Accept-Language` de la requête, que les applications posent sur la langue affichée ; à défaut, `AUTH_DEFAULT_LOCALE` facultatif : `fr` ou `en` | Français |
+| Marque des codes | Aucune : tirée de l'origine (application du catalogue ; DIASPORALE par le manifeste de sa tranche) | ANTSIA |
 
 Les codes à six chiffres expirent après cinq minutes, sont consommés une fois et limités à trois essais. Les vérifications OTP sont conservées hachées. Le double local conserve temporairement le code en clair uniquement dans l'outil de développement existant, protégé par la cible loopback et le drapeau local ; aucune délivrance réelle ni exposition de code sur un backend cloud.
 
@@ -37,6 +38,14 @@ Les sessions durent sept jours, les JWT trente minutes et portent `sessionId`. L
 `signOutEverywhere` révoque les sessions serveur avant la déconnexion locale. Il purge les deux clés Better Auth et les espaces personnels ANTSIA, actuels et anciens, des deux stockages, puis réinitialise l'atome et les rappels locaux. DIASPORALE ajoute sa purge nominale de brouillons. Les préférences de thème/langue et les clés étrangères sont conservées. La navigation complète démonte médias, singletons et caches. La garde réactive laisse terminer cette purge avant son propre rechargement. Un registre partagé entre les copies du module conserve le verrou jusqu'au remplacement du document ; la navigation est appelée dans le gestionnaire de déconnexion. Aucune synchronisation de personne ne démarre pendant cette sortie. Si la révocation ou le nettoyage échoue, l'arrivée affiche que la déconnexion complète n'est pas confirmée.
 
 Le cliquet `sign-out-everywhere` interdit les appels directs à la déconnexion SDK hors de la porte commune. Les gardes d'exécution et les tests du gestionnaire réel complètent ce contrôle statique.
+
+Le 20/10/2026, la recette de la démo a révélé une redirection d'accueil pendant la révocation,
+qui remontait le préflight et invalidait la génération de purge. `useSessionState` et le
+préflight respectent désormais le verrou de sortie jusqu'à la navigation finale. Correctif
+publié sur la démo et changement de compte réel vérifié : [recette dédiée](recette/deconnexion-demo-2026-10-20/README.md).
+Le même contenu est ensuite publié sur ANTSIA en production. Sa recette à deux comptes reste
+bloquée par les portes de connexion désactivées et l'absence de réseau racine actif accessible :
+[publication et limites de la recette production](recette/deconnexion-production-2026-10-20/README.md).
 
 ## Vérification
 

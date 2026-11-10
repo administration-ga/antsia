@@ -9,6 +9,7 @@
 // ── La page réseau et sa coque (`shell/`) ──────────────────────────────────
 export { ReseauAgentPage, RESEAU_DESKTOP_CSS } from "../../shell/ReseauAgentPage"
 export { ReseauMenuRail } from "../../shell/ReseauMenuRail"
+export { ReseauCreateAction } from "../../shell/ReseauCreateAction"
 export { ReseauDesktopIcomLink, desktopIcomLabel, icomUnreadTotal } from "../../shell/ReseauDesktopIcomLink"
 // ⚠️ Ré-export NOMMÉ, et non `export *` : `mobile/reseau-mobile-tabs` publie
 // déjà un `ReseauMenuItem` — la feuille « Menu » du téléphone et le rail-menu
@@ -61,7 +62,7 @@ export { PrivacyLists } from "./PrivacyLists"
 
 // ── Pages (réécrites sur les pages du moteur) ──────────────────────────────
 // La fiche d'UNE page (`useRoutes().page(handle)`).
-export { ProfilPagePage } from "./ProfilPagePage"
+export { ProfilPagePage, type PageCommerce } from "./ProfilPagePage"
 export { PagesPanel } from "./PagesPanel"
 export { PageFollowButton } from "./PageFollowButton"
 export { PagesSuggestionsRail } from "./PagesSuggestionsRail"

@@ -393,11 +393,13 @@ describe("annoncer un évènement dans le fil", () => {
     expect(first.created).toBe(true)
     expect(await alice.as.mutation(E.announce, { networkId: root, eventId, audience: "public", body: "Encore" })).toEqual({ postId: first.postId, created: false })
     const card = async (reader: Person) => (await reader.as.query(api.modules.posts.posts.getPost, { networkId: root, postId: first.postId })).event
-    expect(await card(alice)).toMatchObject({ eventId, title: "Pique-nique au bord de mer", status: "scheduled", myParticipation: null })
-    expect(await card(bob)).toMatchObject({ myParticipation: "pending" })
-    await bob.as.mutation(E.respond, { networkId: root, participationId: (await participationOf(t, eventId, bob))!._id, response: "accepted" })
+    expect(await card(alice)).toMatchObject({ eventId, title: "Pique-nique au bord de mer", status: "scheduled", myParticipation: null, myParticipationId: null })
+    // ADR-0028 : l'invité reçoit l'identifiant de SA ligne, celui que `respond` attend.
+    const bobCard = await card(bob)
+    expect(bobCard).toMatchObject({ myParticipation: "pending", myParticipationId: (await participationOf(t, eventId, bob))!._id })
+    await bob.as.mutation(E.respond, { networkId: root, participationId: bobCard!.myParticipationId!, response: "accepted" })
     expect(await card(bob)).toMatchObject({ myParticipation: "accepted" })
-    expect(await card(carla)).toMatchObject({ myParticipation: null })
+    expect(await card(carla)).toMatchObject({ myParticipation: null, myParticipationId: null })
     expect((await alice.as.query(api.modules.posts.posts.getPost, { networkId: root, postId: first.postId })).body).toBe("Pique-nique au bord de mer")
     await alice.as.mutation(E.cancel, { networkId: root, eventId })
     expect(await card(carla)).toMatchObject({ status: "cancelled" })

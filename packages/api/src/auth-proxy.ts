@@ -16,6 +16,8 @@ export type AuthProxyOptions = {
   convexSiteUrl: string | undefined
   /** Développement HTTP : cookies sans `__Secure-` ni `Secure`, `SameSite=Lax`. */
   isDev: boolean
+  /** Préfixe public de l'application ; retiré du seul chemin /api/auth avant le saut Convex. */
+  publicBasePath?: string
   /** Injectable pour les tests. */
   fetchImpl?: typeof fetch
 }
@@ -41,7 +43,15 @@ export async function proxyToConvex(req: NextRequest, options: AuthProxyOptions)
   if (!convexSiteUrl) return NextResponse.json({ error: "convex_site_url_missing" }, { status: 500 })
 
   const url = new URL(req.url)
-  const targetUrl = `${convexSiteUrl}${url.pathname}${url.search}`
+  const publicBasePath = options.publicBasePath ?? ""
+  let pathname = url.pathname
+  if (publicBasePath !== "") {
+    if (!/^\/[A-Za-z0-9_-]+(?:\/[A-Za-z0-9_-]+)*$/.test(publicBasePath)) return NextResponse.json({ error: "auth_proxy_path_refused" }, { status: 403 })
+    const authPath = `${publicBasePath}/api/auth`
+    if (pathname !== authPath && !pathname.startsWith(`${authPath}/`)) return NextResponse.json({ error: "auth_proxy_path_refused" }, { status: 403 })
+    pathname = pathname.slice(publicBasePath.length)
+  }
+  const targetUrl = `${convexSiteUrl}${pathname}${url.search}`
 
   const proxyHeaders: Record<string, string> = {}
   req.headers.forEach((value, key) => {

@@ -9,6 +9,7 @@
  *  · la SUSPENSION d'une vitrine publiée, et son rétablissement.
  */
 import { assertDecisionReason } from "@antsia/social-domain/audit"
+import { effectiveActivityConfiguration } from "@antsia/social-domain/activityConfiguration"
 import { paginationOptsValidator, type PaginationResult } from "convex/server"
 import { v } from "convex/values"
 
@@ -47,6 +48,7 @@ async function reviewItemOf(ctx: ReadCtx, shop: Doc<"shops">, profileOf: (person
     networkSlug: network?.slug ?? "",
     storefront: shop.storefront,
     model: shop.model,
+    activityConfiguration: effectiveActivityConfiguration(shop.activityConfiguration, shop.model),
     name: identity.name,
     description: identity.description,
     specialty: shop.specialty ?? null,

@@ -36,6 +36,13 @@ import {
 
 export const COMMERCE_SERVICE_CONTROL_CONTRACT = "PRO-COMMERCE-SERVICE-CONTROL-V1";
 export const COMMERCE_SERVICE_CONTROL_PROFILE = "pro-ga-commerce-service-control-hmac/v1";
+/** MP06 : refus de devis client explicite ; aucune admission implicite par une source V1. */
+export const COMMERCE_SERVICE_CONTROL_CONTRACT_V2 = "PRO-COMMERCE-SERVICE-CONTROL-V2";
+export const COMMERCE_SERVICE_CONTROL_PROFILE_V2 = "pro-ga-commerce-service-control-hmac/v2";
+export type CommerceServiceControlContract = typeof COMMERCE_SERVICE_CONTROL_CONTRACT | typeof COMMERCE_SERVICE_CONTROL_CONTRACT_V2;
+export function isCommerceServiceControlContract(value: unknown): value is CommerceServiceControlContract {
+  return value === COMMERCE_SERVICE_CONTROL_CONTRACT || value === COMMERCE_SERVICE_CONTROL_CONTRACT_V2;
+}
 export const COMMERCE_SERVICE_CONTROL_AUDIENCE = "pro.ga.commerce.service";
 export const COMMERCE_SERVICE_CONTROL_MAX_BYTES = 8192;
 export const COMMERCE_SERVICE_CONTROL_RESPONSE_MAX_BYTES = 65536;
@@ -77,6 +84,7 @@ export const COMMERCE_SERVICE_CONSENTS = {
   booking_change: { purpose: "commerce_booking_change", textVersion: "2026-10-18-p14-change-v1" },
   booking_cancel: { purpose: "commerce_booking_cancel", textVersion: "2026-10-18-p14-cancel-v1" },
   service_order: { purpose: "commerce_service_order", textVersion: "2026-10-18-p14-order-v1" },
+  quote_rejection: { purpose: "commerce_quote_rejection", textVersion: "2026-10-21-mp06-quote-reject-v1" },
 } as const;
 export type CommerceServiceConsentKind = keyof typeof COMMERCE_SERVICE_CONSENTS;
 export const COMMERCE_SERVICE_CONSENT_TEXTS: Readonly<Record<CommerceServiceConsentKind, { readonly en: string; readonly fr: string }>> = {
@@ -100,6 +108,10 @@ export const COMMERCE_SERVICE_CONSENT_TEXTS: Readonly<Record<CommerceServiceCons
     fr: "Je commande cette prestation au tarif affiché. Le professionnel confirme ma commande ; aucun paiement n’est déclenché.",
     en: "I order this service at the price shown. The professional confirms my order; no payment is triggered.",
   },
+  quote_rejection: {
+    fr: "Je refuse ce devis dans la version affichée. Mon refus est transmis à ce professionnel et ne crée aucune commande ni aucun paiement.",
+    en: "I decline this quote in the version shown. My decision is sent to this professional and creates no order or payment.",
+  },
 };
 
 export const COMMERCE_SERVICE_CONTROL_OPERATIONS = [
@@ -113,10 +125,13 @@ export const COMMERCE_SERVICE_CONTROL_OPERATIONS = [
   "service.order.request",
   "action.status",
 ] as const;
-export type CommerceServiceControlOperation = (typeof COMMERCE_SERVICE_CONTROL_OPERATIONS)[number];
+export const COMMERCE_SERVICE_CONTROL_V2_OPERATIONS = ["service.quote.reject", "quote.read", "quote.list", "action.status"] as const;
+export const COMMERCE_SERVICE_CONTROL_ALL_OPERATIONS = [...COMMERCE_SERVICE_CONTROL_OPERATIONS, "service.quote.reject"] as const;
+export type CommerceServiceControlOperation = (typeof COMMERCE_SERVICE_CONTROL_ALL_OPERATIONS)[number];
 /** Extensions qui écrivent : décision durable, rejouée à l'octet près. */
 export const COMMERCE_SERVICE_ACTION_OPERATIONS = ["booking.reschedule.request", "booking.cancel.request", "service.order.request"] as const;
-export type CommerceServiceActionOperation = (typeof COMMERCE_SERVICE_ACTION_OPERATIONS)[number];
+export const COMMERCE_SERVICE_ALL_ACTION_OPERATIONS = [...COMMERCE_SERVICE_ACTION_OPERATIONS, "service.quote.reject"] as const;
+export type CommerceServiceActionOperation = (typeof COMMERCE_SERVICE_ALL_ACTION_OPERATIONS)[number];
 
 export const COMMERCE_SERVICE_CONTROL_PATHS = {
   "service.options": "/commerce/v1/services/options",
@@ -128,7 +143,13 @@ export const COMMERCE_SERVICE_CONTROL_PATHS = {
   "quote.read": "/commerce/v1/services/quotes/read",
   "service.order.request": "/commerce/v1/services/orders",
   "action.status": "/commerce/v1/services/actions/status",
-} as const satisfies Readonly<Record<CommerceServiceControlOperation, string>>;
+} as const;
+export const COMMERCE_SERVICE_CONTROL_V2_PATHS = {
+  "service.quote.reject": "/commerce/v2/services/quotes/reject",
+  "quote.read": "/commerce/v2/services/quotes/read",
+  "quote.list": "/commerce/v2/services/quotes/list",
+  "action.status": "/commerce/v2/services/actions/status",
+} as const;
 
 /** Chaque opération emprunte un scope P06 existant : la source PRO.GA le relit depuis sa clé. */
 export const COMMERCE_SERVICE_CONTROL_SCOPES = {
@@ -141,7 +162,26 @@ export const COMMERCE_SERVICE_CONTROL_SCOPES = {
   "quote.read": "commerce.quote.accept",
   "service.order.request": "commerce.checkout.prepare",
   "action.status": "commerce.request.status",
-} as const satisfies Readonly<Record<CommerceServiceControlOperation, CommerceCommandScope>>;
+} as const satisfies Readonly<Record<(typeof COMMERCE_SERVICE_CONTROL_OPERATIONS)[number], CommerceCommandScope>>;
+export const COMMERCE_SERVICE_CONTROL_V2_SCOPES = { "service.quote.reject": "commerce.quote.reject", "quote.read": "commerce.quote.accept", "quote.list": "commerce.quote.accept", "action.status": "commerce.request.status" } as const;
+export type CommerceServiceControlScope = CommerceCommandScope | (typeof COMMERCE_SERVICE_CONTROL_V2_SCOPES)[keyof typeof COMMERCE_SERVICE_CONTROL_V2_SCOPES];
+
+export function commerceServiceControlOperationAllowed(operation: string, contract: CommerceServiceControlContract = COMMERCE_SERVICE_CONTROL_CONTRACT): operation is CommerceServiceControlOperation {
+  if (!isCommerceServiceControlContract(contract)) return false;
+  return ((contract === COMMERCE_SERVICE_CONTROL_CONTRACT_V2 ? COMMERCE_SERVICE_CONTROL_V2_OPERATIONS : COMMERCE_SERVICE_CONTROL_OPERATIONS) as readonly string[]).includes(operation);
+}
+export function commerceServiceControlPath(operation: CommerceServiceControlOperation, contract: CommerceServiceControlContract = COMMERCE_SERVICE_CONTROL_CONTRACT): string | null {
+  if (!commerceServiceControlOperationAllowed(operation, contract)) return null;
+  return contract === COMMERCE_SERVICE_CONTROL_CONTRACT_V2
+    ? COMMERCE_SERVICE_CONTROL_V2_PATHS[operation as keyof typeof COMMERCE_SERVICE_CONTROL_V2_PATHS]
+    : COMMERCE_SERVICE_CONTROL_PATHS[operation as keyof typeof COMMERCE_SERVICE_CONTROL_PATHS];
+}
+export function commerceServiceControlScope(operation: CommerceServiceControlOperation, contract: CommerceServiceControlContract = COMMERCE_SERVICE_CONTROL_CONTRACT): CommerceServiceControlScope | null {
+  if (!commerceServiceControlOperationAllowed(operation, contract)) return null;
+  return contract === COMMERCE_SERVICE_CONTROL_CONTRACT_V2
+    ? COMMERCE_SERVICE_CONTROL_V2_SCOPES[operation as keyof typeof COMMERCE_SERVICE_CONTROL_V2_SCOPES]
+    : COMMERCE_SERVICE_CONTROL_SCOPES[operation as keyof typeof COMMERCE_SERVICE_CONTROL_SCOPES];
+}
 
 /** Refus métier fermés par opération ; `access_denied` est INDISTINCT (objet, sujet, boutique, mandat). */
 export const COMMERCE_SERVICE_REFUSALS: Readonly<Record<CommerceServiceControlOperation, readonly string[]>> = {
@@ -154,6 +194,7 @@ export const COMMERCE_SERVICE_REFUSALS: Readonly<Record<CommerceServiceControlOp
   "quote.read": ["access_denied"],
   "service.order.request": ["access_denied", "capability_disabled", "consent_invalid", "not_orderable", "offer_unavailable", "quota_exceeded", "request_expired"],
   "action.status": ["access_denied"],
+  "service.quote.reject": ["access_denied", "capability_disabled", "consent_invalid", "not_rejectable", "request_expired", "stale_revision", "quota_exceeded"],
 };
 export const COMMERCE_SERVICE_UNAVAILABLE_REASONS = ["rate_limited", "temporarily_unavailable"] as const;
 export const COMMERCE_SERVICE_OUTCOMES = ["accepted", "conflict", "reconfirm_required", "refused", "unavailable"] as const;
@@ -177,6 +218,7 @@ export type CommerceServiceControlPayloads = {
   readonly "booking.cancel.request": { readonly appointmentRef: string; readonly consent: CommerceConsent; readonly expectedRevision: number };
   readonly "quote.list": { readonly inquiryRef?: string };
   readonly "quote.read": { readonly quoteRef: string };
+  readonly "service.quote.reject": { readonly quoteRef: string; readonly quoteVersion: number; readonly consent: CommerceConsent };
   readonly "service.order.request": {
     readonly consent: CommerceConsent; readonly desiredDate?: string; readonly displayName?: string;
     readonly expectedCatalogRevision: number; readonly expectedUnitAmount: CommerceMoney; readonly note?: string;
@@ -186,7 +228,7 @@ export type CommerceServiceControlPayloads = {
 };
 
 type RequestBase = {
-  readonly contract: typeof COMMERCE_SERVICE_CONTROL_CONTRACT;
+  readonly contract: CommerceServiceControlContract;
   readonly environment: CommerceEnvironment;
   readonly expiresAt: number;
   readonly issuedAt: number;
@@ -198,6 +240,7 @@ type RequestBase = {
 };
 export type CommerceServiceControlRequest = {
   readonly [Operation in CommerceServiceControlOperation]: RequestBase & {
+    readonly contract: Operation extends "service.quote.reject" ? typeof COMMERCE_SERVICE_CONTROL_CONTRACT_V2 : Operation extends "action.status" | "quote.read" | "quote.list" ? CommerceServiceControlContract : typeof COMMERCE_SERVICE_CONTROL_CONTRACT;
     readonly operation: Operation;
     readonly payload: CommerceServiceControlPayloads[Operation];
   };
@@ -226,7 +269,7 @@ function readSlot(value: unknown, path: string, issuedAt: number): CommerceServi
   return { endAt, startAt, timeZone };
 }
 
-function readPayload(operation: CommerceServiceControlOperation, value: unknown, issuedAt: number): CommerceServiceControlRequest["payload"] {
+function readPayload(operation: CommerceServiceControlOperation, value: unknown, issuedAt: number, contract: CommerceServiceControlContract): CommerceServiceControlRequest["payload"] {
   if (value === null || typeof value !== "object" || Array.isArray(value)) commerceReject("invalid_payload", P);
   commerceScanJson(value, FORBIDDEN, P);
   switch (operation) {
@@ -273,6 +316,11 @@ function readPayload(operation: CommerceServiceControlOperation, value: unknown,
       const row = commerceRecord(value, P, ["quoteRef"]);
       return { quoteRef: commerceRef(row.quoteRef, `${P}.quoteRef`, ["quote"]) };
     }
+    case "service.quote.reject": {
+      const row = commerceRecord(value, P, ["quoteRef", "quoteVersion", "consent"]);
+      return { quoteRef: commerceRef(row.quoteRef, `${P}.quoteRef`, ["quote"]), quoteVersion: readRevision(row.quoteVersion, `${P}.quoteVersion`),
+        consent: commerceConsent(row.consent, `${P}.consent`, COMMERCE_SERVICE_CONSENTS.quote_rejection.purpose, issuedAt) };
+    }
     case "service.order.request": {
       const row = commerceRecord(value, P, ["consent", "expectedCatalogRevision", "expectedUnitAmount", "offerRef", "quantity"], ["desiredDate", "displayName", "note"]);
       const consent = commerceConsent(row.consent, `${P}.consent`, COMMERCE_SERVICE_CONSENTS.service_order.purpose, issuedAt);
@@ -290,7 +338,7 @@ function readPayload(operation: CommerceServiceControlOperation, value: unknown,
     }
     case "action.status": {
       const row = commerceRecord(value, P, ["targetOperation", "targetRequestId", "targetRequestSha256"]);
-      const targetOperation = commerceLiteral(row.targetOperation, `${P}.targetOperation`, COMMERCE_SERVICE_ACTION_OPERATIONS);
+      const targetOperation = commerceLiteral(row.targetOperation, `${P}.targetOperation`, contract === COMMERCE_SERVICE_CONTROL_CONTRACT_V2 ? ["service.quote.reject"] : COMMERCE_SERVICE_ACTION_OPERATIONS);
       if (!commerceIsOpaqueId(row.targetRequestId)) commerceReject("invalid_payload", `${P}.targetRequestId`);
       if (!commerceIsSha256(row.targetRequestSha256)) commerceReject("invalid_payload", `${P}.targetRequestSha256`);
       return { targetOperation, targetRequestId: row.targetRequestId, targetRequestSha256: row.targetRequestSha256 };
@@ -305,12 +353,14 @@ function readPayload(operation: CommerceServiceControlOperation, value: unknown,
  */
 export function parseCommerceServiceControlRequest(
   rawBody: string,
-  context: { readonly environment: CommerceEnvironment; readonly nowMs: number; readonly source: string },
+  context: { readonly environment: CommerceEnvironment; readonly nowMs: number; readonly source: string; readonly contract?: CommerceServiceControlContract },
 ): CommerceResult<CommerceServiceControlRequest, string> {
   return commerceCapture(() => {
     const row = commerceRecord(commerceParseCanonicalBody(rawBody, COMMERCE_SERVICE_CONTROL_MAX_BYTES), "$", REQUEST_KEYS, [], "invalid_request");
-    if (row.contract !== COMMERCE_SERVICE_CONTROL_CONTRACT || row.version !== 1) commerceReject("invalid_request", "$.contract");
-    const operation = commerceLiteral(row.operation, "$.operation", COMMERCE_SERVICE_CONTROL_OPERATIONS, "invalid_request");
+    const contract = context.contract ?? COMMERCE_SERVICE_CONTROL_CONTRACT;
+    if (!isCommerceServiceControlContract(contract) || row.contract !== contract || row.version !== 1) commerceReject("invalid_request", "$.contract");
+    const operation = commerceLiteral(row.operation, "$.operation", COMMERCE_SERVICE_CONTROL_ALL_OPERATIONS, "invalid_request");
+    if (!commerceServiceControlOperationAllowed(operation, contract)) commerceReject("invalid_request", "$.operation");
     if (!commerceIsOpaqueId(row.requestId)) commerceReject("invalid_request", "$.requestId");
     const requestId = row.requestId;
     if (!commerceIsMachineIdentity(row.source)) commerceReject("invalid_request", "$.source");
@@ -328,9 +378,9 @@ export function parseCommerceServiceControlRequest(
     // Session ANTSIA vivante revérifiée au plus cinq minutes avant l'émission.
     if (authVerifiedAt > issuedAt || issuedAt - authVerifiedAt > COMMERCE_MAX_SKEW_MS) commerceReject("invalid_time", "$.subject.authVerifiedAt");
     const shopRef = commerceRef(row.shopRef, "$.shopRef", ["structure"]);
-    const payload = readPayload(operation, row.payload, issuedAt);
+    const payload = readPayload(operation, row.payload, issuedAt, contract);
     return {
-      contract: COMMERCE_SERVICE_CONTROL_CONTRACT, environment, expiresAt, issuedAt, operation, payload, requestId, shopRef, source,
+      contract, environment, expiresAt, issuedAt, operation, payload, requestId, shopRef, source,
       subject: { authVerifiedAt, kind: "buyer", ref: commerceAntsiaRef(subject.ref, "$.subject.ref", "sub") }, version: 1,
     } as CommerceServiceControlRequest;
   });
@@ -387,9 +437,14 @@ export type CommerceServiceReschedule = { readonly current: CommerceServiceBooki
 export type CommerceServiceClientAcceptance = {
   readonly acceptedAt: number; readonly acceptedTotal: CommerceMoney; readonly orderRef: string | null; readonly quoteVersion: number;
 };
+export type CommerceServiceClientRejection = { readonly quoteVersion: number; readonly rejectedAt: number };
+export type CommerceServiceQuoteRejection = CommerceServiceClientRejection & { readonly quoteRef: string; readonly state: "rejected" };
 export type CommerceServiceQuoteSummary = {
   readonly acceptable: boolean;
   readonly clientAcceptance: CommerceServiceClientAcceptance | null;
+  /** Présents uniquement dans une vue SERVICE-CONTROL-V2 explicitement demandée. */
+  readonly rejectable?: boolean;
+  readonly clientRejection?: CommerceServiceClientRejection | null;
   /** Dernière version transmise de son fil ; une version révisée exige une nouvelle acceptation. */
   readonly current: boolean;
   readonly inquiryRef: string | null;
@@ -430,12 +485,13 @@ export type CommerceServiceControlResult =
   | CommerceServiceOrderResult
   | CommerceServiceReschedule
   | CommerceServiceSlots
+  | CommerceServiceQuoteRejection
   | { readonly booking: CommerceServiceBookingView }
   | { readonly quote: CommerceServiceQuoteDetail }
   | { readonly quotes: readonly CommerceServiceQuoteSummary[]; readonly truncated: boolean };
 
 type ReplyBase = {
-  readonly contract: typeof COMMERCE_SERVICE_CONTROL_CONTRACT; readonly requestId: string; readonly requestSha256: string;
+  readonly contract: CommerceServiceControlContract; readonly requestId: string; readonly requestSha256: string;
   readonly respondedAt: number; readonly version: 1;
 };
 export type CommerceServiceControlResponse = ReplyBase & (
@@ -568,9 +624,10 @@ function readLines(value: unknown, path: string, min: number): readonly Commerce
   });
 }
 
-function readQuoteSummary(value: unknown, path: string, extra: readonly string[] = []): { row: CommerceRecord; summary: CommerceServiceQuoteSummary } {
+function readQuoteSummary(value: unknown, path: string, extra: readonly string[] = [], contract: CommerceServiceControlContract = COMMERCE_SERVICE_CONTROL_CONTRACT, respondedAt = Number.MAX_SAFE_INTEGER): { row: CommerceRecord; summary: CommerceServiceQuoteSummary } {
   const row = commerceRecord(value, path, [
     "acceptable", "clientAcceptance", "current", "inquiryRef", "quoteRef", "reference", "sentAt", "state", "title", "total", "validUntil", "version", ...extra,
+    ...(contract === COMMERCE_SERVICE_CONTROL_CONTRACT_V2 ? ["rejectable", "clientRejection"] : []),
   ]);
   const state = commerceLiteral(row.state, `${path}.state`, COMMERCE_QUOTE_STATES, "unknown_state");
   // Un brouillon n'est jamais transmis au client.
@@ -589,21 +646,35 @@ function readQuoteSummary(value: unknown, path: string, extra: readonly string[]
   }
   const acceptable = commerceBoolean(row.acceptable, `${path}.acceptable`);
   const current = commerceBoolean(row.current, `${path}.current`);
+  const validUntil = nullableInstant(row.validUntil, `${path}.validUntil`);
   if (acceptable && (!current || clientAcceptance !== null || !["sent", "viewed", "negotiating", "accepted"].includes(state))) commerceReject("invalid_response", `${path}.acceptable`);
+  let rejection: { rejectable: boolean; clientRejection: CommerceServiceClientRejection | null } | undefined;
+  if (contract === COMMERCE_SERVICE_CONTROL_CONTRACT_V2) {
+    const rejectable = commerceBoolean(row.rejectable, `${path}.rejectable`);
+    let clientRejection: CommerceServiceClientRejection | null = null;
+    if (row.clientRejection !== null) {
+      const at = `${path}.clientRejection`, item = commerceRecord(row.clientRejection, at, ["quoteVersion", "rejectedAt"]);
+      clientRejection = { quoteVersion: readRevision(item.quoteVersion, `${at}.quoteVersion`), rejectedAt: commerceInstant(item.rejectedAt, `${at}.rejectedAt`) };
+      if (clientRejection.quoteVersion !== version || clientRejection.rejectedAt > respondedAt || clientAcceptance !== null || acceptable) commerceReject("invalid_response", at);
+    }
+    if (rejectable && (!current || clientAcceptance !== null || clientRejection !== null || !["sent", "viewed", "negotiating"].includes(state) || (validUntil !== null && validUntil <= respondedAt))) commerceReject("invalid_response", `${path}.rejectable`);
+    rejection = { rejectable, clientRejection };
+  }
   return {
     row,
     summary: {
       acceptable, clientAcceptance, current, inquiryRef: nullableRef(row.inquiryRef, `${path}.inquiryRef`, "inquiry"),
+      ...(rejection === undefined ? {} : rejection),
       quoteRef: commerceRef(row.quoteRef, `${path}.quoteRef`, ["quote"]), reference: commerceText(row.reference, `${path}.reference`, 1, 60),
       sentAt: nullableInstant(row.sentAt, `${path}.sentAt`), state, title: commerceText(row.title, `${path}.title`, 1, 200), total,
-      validUntil: nullableInstant(row.validUntil, `${path}.validUntil`), version,
+      validUntil, version,
     },
   };
 }
 
-function readQuoteDetail(value: unknown, request: CommerceServiceControlPayloads["quote.read"]): { readonly quote: CommerceServiceQuoteDetail } {
+function readQuoteDetail(value: unknown, request: CommerceServiceControlPayloads["quote.read"], contract: CommerceServiceControlContract, respondedAt: number): { readonly quote: CommerceServiceQuoteDetail } {
   const row = commerceRecord(value, R, ["quote"]);
-  const { row: item, summary } = readQuoteSummary(row.quote, `${R}.quote`, ["lines", "notes", "sellerLabel"]);
+  const { row: item, summary } = readQuoteSummary(row.quote, `${R}.quote`, ["lines", "notes", "sellerLabel"], contract, respondedAt);
   if (summary.quoteRef !== request.quoteRef) mismatch(`${R}.quote.quoteRef`);
   const lines = readLines(item.lines, `${R}.quote.lines`, 1);
   const sum = commerceSumAmounts(lines.map((line) => line.lineAmount.amount));
@@ -616,9 +687,9 @@ function readQuoteDetail(value: unknown, request: CommerceServiceControlPayloads
   };
 }
 
-function readQuoteList(value: unknown, request: CommerceServiceControlPayloads["quote.list"]): { readonly quotes: readonly CommerceServiceQuoteSummary[]; readonly truncated: boolean } {
+function readQuoteList(value: unknown, request: CommerceServiceControlPayloads["quote.list"], contract: CommerceServiceControlContract, respondedAt: number): { readonly quotes: readonly CommerceServiceQuoteSummary[]; readonly truncated: boolean } {
   const row = commerceRecord(value, R, ["quotes", "truncated"]);
-  const quotes = commerceArray(row.quotes, `${R}.quotes`, 0, L.quotesMax).map((entry, index) => readQuoteSummary(entry, `${R}.quotes[${index}]`).summary);
+  const quotes = commerceArray(row.quotes, `${R}.quotes`, 0, L.quotesMax).map((entry, index) => readQuoteSummary(entry, `${R}.quotes[${index}]`, [], contract, respondedAt).summary);
   commerceUnique(quotes.map((quote) => quote.quoteRef), `${R}.quotes`);
   if (request.inquiryRef !== undefined && quotes.some((quote) => quote.inquiryRef !== request.inquiryRef)) mismatch(`${R}.quotes`);
   return { quotes, truncated: commerceBoolean(row.truncated, `${R}.truncated`) };
@@ -689,7 +760,7 @@ function readActionStatus(value: unknown, request: CommerceServiceControlPayload
   };
 }
 
-function readResult(request: CommerceServiceControlRequest, value: unknown, outcome: CommerceServiceOutcome): CommerceServiceControlResult {
+function readResult(request: CommerceServiceControlRequest, value: unknown, outcome: CommerceServiceOutcome, respondedAt: number): CommerceServiceControlResult {
   if (outcome === "reconfirm_required" && request.operation !== "service.order.request") commerceReject("invalid_response", "$.outcome");
   switch (request.operation) {
     case "service.options": return readOptions(value, request.payload);
@@ -709,8 +780,16 @@ function readResult(request: CommerceServiceControlRequest, value: unknown, outc
       if (booking.revision <= request.payload.expectedRevision) mismatch(`${R}.booking.revision`);
       return { booking };
     }
-    case "quote.list": return readQuoteList(value, request.payload);
-    case "quote.read": return readQuoteDetail(value, request.payload);
+    case "quote.list": return readQuoteList(value, request.payload, request.contract, respondedAt);
+    case "quote.read": return readQuoteDetail(value, request.payload, request.contract, respondedAt);
+    case "service.quote.reject": {
+      const row = commerceRecord(value, R, ["quoteRef", "quoteVersion", "state", "rejectedAt"]);
+      const quoteRef = commerceRef(row.quoteRef, `${R}.quoteRef`, ["quote"]), quoteVersion = readRevision(row.quoteVersion, `${R}.quoteVersion`);
+      if (quoteRef !== request.payload.quoteRef || quoteVersion !== request.payload.quoteVersion) mismatch(R);
+      const rejectedAt = commerceInstant(row.rejectedAt, `${R}.rejectedAt`);
+      if (rejectedAt > respondedAt) commerceReject("invalid_time", `${R}.rejectedAt`);
+      return { quoteRef, quoteVersion, state: commerceLiteral(row.state, `${R}.state`, ["rejected"]), rejectedAt };
+    }
     case "service.order.request": return readOrder(value, request.payload, outcome);
     case "action.status": return readActionStatus(value, request.payload);
   }
@@ -727,7 +806,7 @@ export function parseCommerceServiceControlResponse(
       commerceParseCanonicalBody(rawBody, COMMERCE_SERVICE_CONTROL_RESPONSE_MAX_BYTES), "$",
       ["contract", "outcome", "requestId", "requestSha256", "respondedAt", "version"], ["reason", "result"], "invalid_response",
     );
-    if (row.contract !== COMMERCE_SERVICE_CONTROL_CONTRACT || row.version !== 1) commerceReject("invalid_response", "$.contract");
+    if (!isCommerceServiceControlContract(context.request.contract) || !commerceServiceControlOperationAllowed(context.request.operation, context.request.contract) || row.contract !== context.request.contract || row.version !== 1) commerceReject("invalid_response", "$.contract");
     if (row.requestId !== context.request.requestId) mismatch("$.requestId");
     if (row.requestSha256 !== context.requestSha256) mismatch("$.requestSha256");
     const respondedAt = commerceInstant(row.respondedAt, "$.respondedAt");
@@ -735,11 +814,11 @@ export function parseCommerceServiceControlResponse(
       commerceReject("invalid_time", "$.respondedAt");
     }
     const outcome = commerceLiteral(row.outcome, "$.outcome", COMMERCE_SERVICE_OUTCOMES, "invalid_response");
-    const base: ReplyBase = { contract: COMMERCE_SERVICE_CONTROL_CONTRACT, requestId: context.request.requestId, requestSha256: context.requestSha256, respondedAt, version: 1 };
+    const base: ReplyBase = { contract: context.request.contract, requestId: context.request.requestId, requestSha256: context.requestSha256, respondedAt, version: 1 };
     if (outcome === "accepted" || outcome === "reconfirm_required") {
       if (!commerceHas(row, "result") || commerceHas(row, "reason")) commerceReject("invalid_response", "$.result");
       commerceScanJson(row.result, FORBIDDEN, R);
-      return { ...base, outcome, result: readResult(context.request, row.result, outcome) };
+      return { ...base, outcome, result: readResult(context.request, row.result, outcome, respondedAt) };
     }
     if (commerceHas(row, "result") || !commerceHas(row, "reason")) commerceReject("invalid_response", "$.reason");
     const allowed = outcome === "refused" ? COMMERCE_SERVICE_REFUSALS[context.request.operation] : outcome === "conflict" ? ["idempotency_conflict"] : COMMERCE_SERVICE_UNAVAILABLE_REASONS;
@@ -821,18 +900,21 @@ export function commerceServiceQuoteRequestMessage(input: { readonly attachmentC
 export function commerceServiceControlSigningInput(input: {
   readonly bodySha256: string; readonly environment: CommerceEnvironment; readonly issuedAtMs: number; readonly keyId: string;
   readonly nonce: string; readonly operation: CommerceServiceControlOperation; readonly source: string;
+  readonly contract?: CommerceServiceControlContract;
 }): string | null {
+  const contract = input.contract ?? COMMERCE_SERVICE_CONTROL_CONTRACT;
+  const scope = commerceServiceControlScope(input.operation, contract);
   if (
     !commerceIsSha256(input.bodySha256) || !commerceIsMachineIdentity(input.source) ||
     !(COMMERCE_ENVIRONMENTS as readonly string[]).includes(input.environment) ||
-    !(COMMERCE_SERVICE_CONTROL_OPERATIONS as readonly string[]).includes(input.operation) ||
+    scope === null ||
     !Number.isSafeInteger(input.issuedAtMs) || input.issuedAtMs < 0 ||
     !/^[A-Za-z0-9._:-]{8,128}$/u.test(input.keyId) || !/^[A-Za-z0-9_-]{24,128}$/u.test(input.nonce)
   ) {
     return null;
   }
   return [
-    COMMERCE_SERVICE_CONTROL_PROFILE, input.keyId, String(input.issuedAtMs), input.nonce, input.source, input.environment,
-    COMMERCE_SERVICE_CONTROL_AUDIENCE, COMMERCE_SERVICE_CONTROL_SCOPES[input.operation], input.operation, input.bodySha256,
+    contract === COMMERCE_SERVICE_CONTROL_CONTRACT_V2 ? COMMERCE_SERVICE_CONTROL_PROFILE_V2 : COMMERCE_SERVICE_CONTROL_PROFILE, input.keyId, String(input.issuedAtMs), input.nonce, input.source, input.environment,
+    COMMERCE_SERVICE_CONTROL_AUDIENCE, scope, input.operation, input.bodySha256,
   ].map((part) => `${part.length}:${part}`).join("|");
 }

@@ -80,19 +80,21 @@ function readOnlyCtx(ctx: Pick<QueryCtx, "db">): ResolverCtx {
 // ═══════════════════════════════════════════════════════════════
 
 /** La référence typée de l'objet d'un fil ; `null` si les colonnes ne sont pas celles de sa nature. */
-export function objectRefOf(thread: Pick<Doc<"contextualThreads">, "kind" | "serviceRequestId" | "mentoringRequestId" | "jobApplicationId">): ContextualObjectRef | null {
+export function objectRefOf(thread: Pick<Doc<"contextualThreads">, "kind" | "serviceRequestId" | "mentoringRequestId" | "jobApplicationId" | "professionalCollaborationId">): ContextualObjectRef | null {
   switch (thread.kind) {
     case "diasporaServiceRequest":
-      return thread.serviceRequestId !== undefined && thread.mentoringRequestId === undefined && thread.jobApplicationId === undefined ? { kind: "diasporaServiceRequest", id: thread.serviceRequestId } : null
+      return thread.serviceRequestId !== undefined && thread.mentoringRequestId === undefined && thread.jobApplicationId === undefined && thread.professionalCollaborationId === undefined ? { kind: "diasporaServiceRequest", id: thread.serviceRequestId } : null
     case "diasporaMentoring":
-      return thread.mentoringRequestId !== undefined && thread.serviceRequestId === undefined && thread.jobApplicationId === undefined ? { kind: "diasporaMentoring", id: thread.mentoringRequestId } : null
+      return thread.mentoringRequestId !== undefined && thread.serviceRequestId === undefined && thread.jobApplicationId === undefined && thread.professionalCollaborationId === undefined ? { kind: "diasporaMentoring", id: thread.mentoringRequestId } : null
     case "diasporaJobApplication":
-      return thread.jobApplicationId !== undefined && thread.serviceRequestId === undefined && thread.mentoringRequestId === undefined ? { kind: "diasporaJobApplication", id: thread.jobApplicationId } : null
+      return thread.jobApplicationId !== undefined && thread.serviceRequestId === undefined && thread.mentoringRequestId === undefined && thread.professionalCollaborationId === undefined ? { kind: "diasporaJobApplication", id: thread.jobApplicationId } : null
+    case "professionalCollaboration":
+      return thread.professionalCollaborationId !== undefined && thread.serviceRequestId === undefined && thread.mentoringRequestId === undefined && thread.jobApplicationId === undefined ? { kind: "professionalCollaboration", id: thread.professionalCollaborationId } : null
   }
 }
 
 /** Les colonnes de référence d'un objet, telles qu'un fil les porte (exactement une). */
-export function referenceColumnsOf(ref: ContextualObjectRef): Pick<Doc<"contextualThreads">, "serviceRequestId" | "mentoringRequestId" | "jobApplicationId"> {
+export function referenceColumnsOf(ref: ContextualObjectRef): Pick<Doc<"contextualThreads">, "serviceRequestId" | "mentoringRequestId" | "jobApplicationId" | "professionalCollaborationId"> {
   switch (ref.kind) {
     case "diasporaServiceRequest":
       return { serviceRequestId: ref.id }
@@ -100,6 +102,8 @@ export function referenceColumnsOf(ref: ContextualObjectRef): Pick<Doc<"contextu
       return { mentoringRequestId: ref.id }
     case "diasporaJobApplication":
       return { jobApplicationId: ref.id }
+    case "professionalCollaboration":
+      return { professionalCollaborationId: ref.id }
   }
 }
 
@@ -131,6 +135,10 @@ export async function loadContextualSnapshot(ctx: Pick<QueryCtx, "db">, ref: Con
       const resolver = registry.diasporaJobApplication
       return resolver ? await resolver.load(reader, ref.id, now) : null
     }
+    case "professionalCollaboration": {
+      const resolver = registry.professionalCollaboration
+      return resolver ? await resolver.load(reader, ref.id, now) : null
+    }
   }
 }
 
@@ -150,6 +158,10 @@ export async function objectVisibleTo(ctx: Pick<QueryCtx, "db">, ref: Contextual
       const resolver = registry.diasporaJobApplication
       return resolver ? await resolver.visibleTo(reader, ref.id, personId, now) : false
     }
+    case "professionalCollaboration": {
+      const resolver = registry.professionalCollaboration
+      return resolver ? await resolver.visibleTo(reader, ref.id, personId, now) : false
+    }
   }
 }
 
@@ -166,6 +178,10 @@ export function sliceTextRule(kind: ContextualKind, input: Omit<ContextualTextRu
     }
     case "diasporaJobApplication": {
       const resolver = registry.diasporaJobApplication
+      return resolver?.textRule ? resolver.textRule({ ...input, kind }) : { ok: true }
+    }
+    case "professionalCollaboration": {
+      const resolver = registry.professionalCollaboration
       return resolver?.textRule ? resolver.textRule({ ...input, kind }) : { ok: true }
     }
   }

@@ -3,7 +3,7 @@ import ts from "typescript"
 import { describe, expect, it } from "vitest"
 import { parseSource, readRepoFile, walk } from "./lib/source-files"
 
-const JOB_FIELDS = new Set(["networkId", "recipientPersonId", "channel", "notificationId", "callId", "subscriptionId", "applicationId", "category", "dedupKey", "weekStart", "state", "attempts", "nextAttemptAt", "leaseUntil", "leaseToken", "providerReceiptId", "resultCode", "createdAt", "updatedAt"])
+const JOB_FIELDS = new Set(["networkId", "recipientPersonId", "channel", "notificationId", "callId", "subscriptionId", "applicationId", "category", "dedupKey", "weekStart", "state", "attempts", "nextAttemptAt", "leaseUntil", "leaseToken", "providerReceiptId", "resultCode", "createdAt", "updatedAt", "nativeBindingId", "sessionGeneration", "nativeExpiresAt"])
 function illegalJobFields(text: string): string[] {
   const source = parseSource("tables.ts", text), illegal: string[] = []
   walk(source, (node) => {
@@ -51,5 +51,11 @@ describe("notification-payload-content", () => {
     expect(unsafeTransportCopy(readRepoFile("convex/modules/notifications/transports.ts"))).toEqual([])
     expect(readRepoFile("convex/modules/notifications/transports.ts")).toContain("isNeutralNotificationPayload(payload)")
     expect(readRepoFile("convex/modules/notifications/digest.ts")).toContain("neutralNotificationMessage(current.payload.locale, current.payload.count)")
+  })
+  it("le transport natif garde une enveloppe fermée sans identité, contenu ou jeton média", () => {
+    const source = readRepoFile("convex/modules/notifications/transports.ts")
+    expect(source).toContain("isNativeCallPushPayload")
+    expect(source).toContain("voip")
+    expect(illegalJobFields('const tables = { notificationDeliveryJobs: defineTable({ nativeBindingId: v.string(), sessionGeneration: v.string(), nativeExpiresAt: v.number(), callerName: v.string() }) }')).toEqual(["callerName"])
   })
 })

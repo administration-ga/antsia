@@ -13,7 +13,7 @@ import { appResources } from "@/i18n/resources"
 import { routes } from "@/lib/routes"
 import { MemberShopDirectory } from "./member-shop-directory"
 
-const storefront = { handle: "atelier", name: "Atelier partagé", logoUrl: null, model: "products", specialty: "Artisanat", serviceArea: "Libreville", badge: "community", publishedAt: 1_700_000_000_000 }
+const storefront = { handle: "atelier", name: "Atelier partagé", logoUrl: null as string | null, model: "products", specialty: "Artisanat", serviceArea: "Libreville", badge: "community", publishedAt: 1_700_000_000_000 }
 const i18n = () => createAppI18n({ locale: "fr", appResources, defaultNS: "shops" })
 const ui = () => <I18nextProvider i18n={i18n()}><MemberShopDirectory /></I18nextProvider>
 
@@ -91,5 +91,21 @@ describe("annuaire membre de vitrines P07", () => {
     mocks.network = { networkId: "root-a", personId: "person-b" }
     await render()
     expect(mocks.query.mock.calls.at(-1)?.[1]).toEqual({ networkId: "root-a", paginationOpts: { cursor: null, numItems: 12 } })
+  })
+
+  it("valorise le logo admis et le badge projeté sans inventer de produits, avec une action vers la même boutique", async () => {
+    const logoUrl = "https://media.example/atelier-logo.jpg"
+    mocks.query.mockReturnValue(result({ page: [{ ...storefront, logoUrl }], isDone: true, continueCursor: "" }))
+    await render()
+    expect(container.querySelector("article img")?.getAttribute("src")).toBe(logoUrl)
+    expect(container.querySelector("article")?.textContent).toContain(i18n().t("badges.community"))
+    expect(container.querySelector("article")?.textContent).toContain(storefront.specialty)
+    expect(container.querySelector("article")?.textContent).toContain(storefront.serviceArea)
+    expect(link(new RegExp(i18n().t("storefront.viewStorefront")))?.getAttribute("href")).toBe(routes.storefront(storefront.handle))
+    expect(container.querySelector("article ul, article button")).toBeNull()
+    mocks.query.mockReturnValue(result({ page: [storefront], isDone: true, continueCursor: "" }))
+    await render()
+    expect(container.querySelector("article img")).toBeNull()
+    expect(link(new RegExp(i18n().t("storefront.viewStorefront")))?.getAttribute("href")).toBe(routes.storefront(storefront.handle))
   })
 })

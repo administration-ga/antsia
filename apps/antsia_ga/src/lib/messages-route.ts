@@ -1,4 +1,4 @@
-import { COMPOSE_GROUPE_LEAF, COMPOSE_LEAF, CONVERSATION_ROUTE_KINDS } from "@antsia/social-features/features/messagerie/messagerie-routes"
+import { COMPOSE_GROUPE_LEAF, COMPOSE_LEAF, CONVERSATION_ROUTE_KINDS, CONTEXTUAL_ROUTE_KIND } from "@antsia/social-features/features/messagerie/messagerie-routes"
 
 /** Ce que l'aiguillage de la messagerie (`MessagesRoute`) reçoit d'une adresse. */
 export type MessagesRouteTarget = { kind?: string; id?: string; compose?: "personne" | "groupe" }
@@ -18,7 +18,10 @@ export function parseMessagesSegments(segments: readonly string[]): MessagesRout
     if (first === COMPOSE_GROUPE_LEAF) return { compose: "groupe" }
     return null
   }
-  const kind = decodeURIComponent(first)
-  if (kind !== "commerce" && !(CONVERSATION_ROUTE_KINDS as readonly string[]).includes(kind)) return null
-  return { kind, id: decodeURIComponent(second) }
+  try {
+    const kind = decodeURIComponent(first), id = decodeURIComponent(second)
+    if (kind === CONTEXTUAL_ROUTE_KIND) return /^[A-Za-z0-9_-]{1,128}$/u.test(id) ? { kind, id } : null
+    if (kind !== "commerce" && !(CONVERSATION_ROUTE_KINDS as readonly string[]).includes(kind)) return null
+    return { kind, id }
+  } catch { return null }
 }

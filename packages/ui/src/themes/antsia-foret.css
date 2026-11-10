@@ -85,14 +85,14 @@
   --primary-fill-on: #ffffff; /* texte posé sur l'aplat d'identité */
   --ui2-button-secondary-bg: #e0e9de; /* bouton secondaire tonal, sans filet */
   --ui2-button-secondary-fg: #2d7240;
-  --esp-mobilebar-bg: rgb(255 253 249 / 0.9); /* barre flottante, translucide au-dessus du fil */
+  --esp-mobilebar-bg: rgb(255 253 249 / 0.72); /* barre flottante, translucide au-dessus du fil */
   --esp-fab-shadow: 0 10px 20px -8px rgb(49 122 69 / 0.55);
   --esp-tab-active-bg: #dee8dc; /* onglet actif : pastille tonale */
   --esp-tab-active-fg: #2d7240;
 
   /* Géométrie et typographie, valables dans les deux thèmes. */
   --radius-xl: 12px;
-  --rp-surface-radius: 24px; /* cartes du fil et surfaces de premier niveau */
+  --rp-surface-radius: 16px; /* cartes du fil et surfaces de premier niveau (étude du 22/10/2026) */
   --esp-inline-link-decoration: underline;
   --esp-sticky-header-inset: 4rem; /* barre de membre collante (P18b, A13) */
   --body-font-size: 16px;
@@ -167,7 +167,7 @@
   --primary-fill-on: #031c09; /* texte posé sur l'aplat d'identité */
   --ui2-button-secondary-bg: #2b352b; /* bouton secondaire tonal, sans filet */
   --ui2-button-secondary-fg: #76bf85;
-  --esp-mobilebar-bg: rgb(30 29 27 / 0.9); /* barre flottante, translucide au-dessus du fil */
+  --esp-mobilebar-bg: rgb(30 29 27 / 0.72); /* barre flottante, translucide au-dessus du fil */
   --esp-fab-shadow: 0 10px 20px -8px rgb(118 191 133 / 0.45);
   --esp-tab-active-bg: #2c372c; /* onglet actif : pastille tonale */
   --esp-tab-active-fg: #76bf85;
@@ -258,13 +258,17 @@
   /* ── Système épuré : un angle par élément, contour seulement à couleur égale ── */
   --ui2-button-radius: 999px; /* boutons d'action en pilule */
   --ui2-badge-radius: 6px;
-  --ui2-card-radius: 24px; /* cartes d'ui-v2, comme les surfaces du réseau */
+  --ui2-card-radius: 16px; /* cartes d'ui-v2, comme les surfaces du réseau (étude du 22/10/2026) */
+  --esp-content-font-size: 15px;
+  --ui2-button-outline-fg: var(--foreground);
+  --esp-primitive-surface-border: var(--esp-surface-border);
+  --esp-social-action-radius: 6px; /* boutons compacts de 25 px (Suivre, Ajouter) */
   --esp-chip-radius: 10px;
   --esp-avatar-page-radius: 12px; /* les pages en carré arrondi, les personnes en rond */
   --esp-field-radius: 14px;
-  --esp-media-radius: 16px; /* un média dans une carte : plus petit que la carte */
-  --esp-fab-radius: 18px;
-  --esp-mobilebar-radius: 28px;
+  --esp-media-radius: 12px; /* un média dans une carte : plus petit que la carte */
+  --esp-fab-radius: 14px;
+  --esp-mobilebar-radius: 26px; /* barre de 52 px : une capsule */
   --ui2-button-outline-bg: var(--muted); /* bouton neutre (Annuler) : gris, sans filet */
   --ui2-button-outline-border: transparent;
   --ui2-button-secondary-border: transparent;

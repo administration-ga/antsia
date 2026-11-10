@@ -12,6 +12,7 @@
   "consentRequired": "Votre consentement est nécessaire pour continuer.",
   "profileRequired": "Choisissez d'abord votre identifiant et votre nom affiché.",
   "fileScanPending": "Analyse de sécurité en cours : le fichier sera disponible dans quelques instants.",
+  "fileScanUnavailable": "L'analyse de sécurité n'a pas pu être terminée. Le fichier reste indisponible jusqu'à sa vérification.",
   "fileQuarantined": "Ce fichier a été bloqué par l'analyse de sécurité.",
   "groupMembershipRequired": "Rejoignez ce groupe pour accéder à ses publications.",
   "groupRoleRequired": "Votre rôle dans ce groupe ne permet pas ce geste.",

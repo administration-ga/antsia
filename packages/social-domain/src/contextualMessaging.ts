@@ -1,7 +1,7 @@
 /**
  * CC-1 (contrat CONVERSATION-CONTEXTUELLE-V1 accepté, ADR-0025) — règles PURES d'une
  * conversation contextuelle : une conversation ouverte et fermée par un OBJET déjà accepté par son
- * propre parcours (demande de service, mentorat accepté, candidature présélectionnée), jamais par
+ * propre parcours (demande de service, mentorat accepté, candidature présélectionnée, collaboration professionnelle acceptée), jamais par
  * une relation sociale. Elle n'ouvre pas la messagerie personnelle et ne duplique pas le canal
  * commercial P10.
  *
@@ -20,8 +20,13 @@ import type { DomainRule } from "./violation"
 // ═══════════════════════════════════════════════════════════════
 
 /** Les natures V1. Ajouter une nature est un changement du moteur (§10.5), jamais une chaîne libre. */
-export const CONTEXTUAL_KINDS = ["diasporaServiceRequest", "diasporaMentoring", "diasporaJobApplication"] as const
-export type ContextualKind = (typeof CONTEXTUAL_KINDS)[number]
+export const CONTEXTUAL_LEGACY_V1_KINDS = ["diasporaServiceRequest", "diasporaMentoring", "diasporaJobApplication"] as const
+export type ContextualLegacyV1Kind = (typeof CONTEXTUAL_LEGACY_V1_KINDS)[number]
+/** Export V1 stable pour les tranches historiques qui n'implémentent que ces trois résolveurs. */
+export const CONTEXTUAL_KINDS = CONTEXTUAL_LEGACY_V1_KINDS
+/** Registre exhaustif du moteur, à employer pour les validateurs, politiques et projections. */
+export const CONTEXTUAL_SUPPORTED_KINDS = [...CONTEXTUAL_LEGACY_V1_KINDS, "professionalCollaboration"] as const
+export type ContextualKind = (typeof CONTEXTUAL_SUPPORTED_KINDS)[number]
 
 /**
  * Noms RÉSERVÉS, refusés par le validateur V1 : `commerceJobApplication` (P15, D11 — quatre
@@ -30,9 +35,9 @@ export type ContextualKind = (typeof CONTEXTUAL_KINDS)[number]
 export const CONTEXTUAL_RESERVED_KINDS = ["commerceJobApplication", "shopContact"] as const
 export type ContextualReservedKind = (typeof CONTEXTUAL_RESERVED_KINDS)[number]
 
-/** Une nature V1 ? Une nature réservée ou inconnue ne l'est jamais. */
+/** Une nature admise ? Une nature réservée ou inconnue ne l'est jamais. */
 export function isContextualKind(value: unknown): value is ContextualKind {
-  return typeof value === "string" && (CONTEXTUAL_KINDS as readonly string[]).includes(value)
+  return typeof value === "string" && (CONTEXTUAL_SUPPORTED_KINDS as readonly string[]).includes(value)
 }
 
 /** Un nom réservé (refusé en V1, à ne jamais réattribuer à une autre nature) ? */
@@ -45,17 +50,19 @@ export const CONTEXTUAL_REFERENCE_FIELDS = {
   diasporaServiceRequest: "serviceRequestId",
   diasporaMentoring: "mentoringRequestId",
   diasporaJobApplication: "jobApplicationId",
+  professionalCollaboration: "professionalCollaborationId",
 } as const satisfies Readonly<Record<ContextualKind, string>>
 export type ContextualReferenceField = (typeof CONTEXTUAL_REFERENCE_FIELDS)[ContextualKind]
 
 /** Toutes les colonnes de référence, dans l'ordre des natures (classification des données : parents). */
-export const CONTEXTUAL_REFERENCE_FIELD_LIST: readonly ContextualReferenceField[] = CONTEXTUAL_KINDS.map((kind) => CONTEXTUAL_REFERENCE_FIELDS[kind])
+export const CONTEXTUAL_REFERENCE_FIELD_LIST: readonly ContextualReferenceField[] = CONTEXTUAL_SUPPORTED_KINDS.map((kind) => CONTEXTUAL_REFERENCE_FIELDS[kind])
 
-/** La table de l'objet ouvrant de chaque nature (tranche DIASPORALE : lecture par son résolveur seulement). */
+/** La table de l'objet ouvrant de chaque nature (lecture par le résolveur de sa tranche seulement). */
 export const CONTEXTUAL_REFERENCE_TABLES = {
   diasporaServiceRequest: "serviceRequests",
   diasporaMentoring: "mentoringRequests",
   diasporaJobApplication: "jobApplications",
+  professionalCollaboration: "professionalCollaborations",
 } as const satisfies Readonly<Record<ContextualKind, string>>
 export type ContextualReferenceTable<K extends ContextualKind = ContextualKind> = (typeof CONTEXTUAL_REFERENCE_TABLES)[K]
 
@@ -64,6 +71,7 @@ export const CONTEXTUAL_RESPONDER_KINDS = {
   diasporaServiceRequest: "page",
   diasporaMentoring: "person",
   diasporaJobApplication: "page",
+  professionalCollaboration: "person",
 } as const satisfies Readonly<Record<ContextualKind, "page" | "person">>
 
 /**
@@ -87,7 +95,7 @@ const OBJECT_ID_PATTERN = /^[A-Za-z0-9_-]{1,128}$/u
 
 /**
  * La clé « nature:identifiant » d'un objet : UNE conversation par objet. Rend `null` pour une
- * nature hors V1 ou un identifiant mal formé (jamais une clé fabriquée à partir d'une chaîne libre).
+ * nature non admise ou un identifiant mal formé (jamais une clé fabriquée à partir d'une chaîne libre).
  */
 export function contextualKey(kind: string, objectId: string): string | null {
   if (!isContextualKind(kind) || !OBJECT_ID_PATTERN.test(objectId)) return null

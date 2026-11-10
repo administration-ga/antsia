@@ -28,7 +28,7 @@ export const sendReserved = internalMutation({ args: { jobId: v.id("notification
     if (!user || typeof user !== "object" || !("_id" in user) || user._id !== first.authUserId || !("emailVerified" in user) || user.emailVerified !== true || !("email" in user) || typeof user.email !== "string" || user.email.length > 320 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/u.test(user.email)) { await finish("cancelled", "policy"); return null }
     // Une révocation pendant la lecture du compte ferme aussi le transport.
     const current = await prepareDelivery(ctx, args.jobId, args.leaseToken)
-    if (!current || current.authUserId !== first.authUserId) { await finish("cancelled", "policy"); return null }
+    if (!current || current.authUserId !== first.authUserId || !("locale" in current.payload)) { await finish("cancelled", "policy"); return null }
     await new Resend(components.resend, { testMode: false }).sendEmail(ctx as unknown as Parameters<Resend["sendEmail"]>[0], { from: process.env.RESEND_FROM_ADDRESS, to: user.email, subject: BRAND_NAME, text: `${neutralNotificationMessage(current.payload.locale, current.payload.count)}\n${current.payload.url}` })
     // « sent » signifie admission par le composant ; la réception e-mail relève de la recette fournisseur.
     await finish("sent")

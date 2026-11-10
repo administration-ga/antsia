@@ -12,6 +12,7 @@ import { requireMembership } from "../../lib/access"
 import { counterpartOf } from "../messaging/participation"
 import { isLiveMemberOfThreadCall, participationOf } from "./access"
 import { conversationFieldsOfCall } from "./conversation"
+import { activeCallSession, isWebOwner } from "./deviceOwnership"
 import { callMediaTypeValidator } from "./validators"
 
 /**
@@ -23,16 +24,17 @@ export const authorizeToken = internalQuery({
   args: { networkId: v.id("networks"), callId: v.id("calls") },
   returns: v.union(
     v.null(),
-    v.object({ roomName: v.string(), mediaType: callMediaTypeValidator, personId: v.id("persons"), displayName: v.union(v.string(), v.null()), commercialThreadId: v.optional(v.id("commercialThreads")), contextualThreadId: v.optional(v.id("contextualThreads")) }),
+    v.object({ roomName: v.string(), mediaType: callMediaTypeValidator, personId: v.id("persons"), displayName: v.union(v.string(), v.null()), commercialThreadId: v.optional(v.id("commercialThreads")), contextualThreadId: v.optional(v.id("contextualThreads")), sessionId: v.string() }),
   ),
   handler: async (ctx, args) => {
     const { person } = await requireMembership(ctx, args.networkId, "declaree")
     const call = await ctx.db.get(args.callId)
     if (!call || call.networkId !== args.networkId || call.status !== "active") return null
     const row = await participationOf(ctx, call._id, person._id)
-    if (!row || row.leftAt !== undefined) return null
+    const sessionId = await activeCallSession(ctx)
+    if (!row || row.joinedAt === undefined || row.leftAt !== undefined || !isWebOwner(row, sessionId)) return null
     if ((await isLiveMemberOfThreadCall(ctx, call, person._id)) === false) return null
     const label = await counterpartOf(ctx, person._id)
-    return { roomName: call.roomName, mediaType: call.mediaType, personId: person._id, displayName: label.displayName, ...conversationFieldsOfCall(call) }
+    return { roomName: call.roomName, mediaType: call.mediaType, personId: person._id, sessionId, displayName: label.displayName, ...conversationFieldsOfCall(call) }
   },
 })

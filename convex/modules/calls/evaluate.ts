@@ -14,10 +14,11 @@ import type { Id } from "../../_generated/dataModel"
 import type { MutationCtx, QueryCtx } from "../../_generated/server"
 import { isConnectedTo } from "../graph/graph"
 import { pageEventAccess } from "../events/pageEventAccess"
+import { hasLiveNativeCallChannel } from "../notifications/nativeChannels"
 import { notifyPerson } from "../notifications/notify"
 import { type AdmissionDecision, decideCallAdmission } from "./admission"
 
-type ReadCtx = Pick<QueryCtx, "db">
+type ReadCtx = Pick<QueryCtx, "db"> & Partial<Pick<QueryCtx, "runQuery">>
 
 /** Lignes vivantes examinées pour « tient-il déjà un appel ? » : personne ne tient dix appels à la fois. */
 const LIVE_PARTICIPATIONS_SCAN = 10
@@ -27,14 +28,13 @@ const EVENTS_SCAN = 10
 /**
  * L'appelé est-il PROUVABLEMENT hors ligne dans le réseau de l'appel ?
  *
- * Deux conditions, toutes deux nécessaires — en retirer une casse le fail-open :
+ * Le constat exige une présence connue périmée ET aucun canal natif admissible :
  *  · il A une ligne de présence dans ce réseau (aucune ligne = il n'a jamais
  *    ouvert d'écran du réseau = on ne sait rien = l'appel sonne) ;
  *  · elle n'est ni « en ligne » ni fraîche (trois battements manqués).
  *
- * ⚠️ PA5 : un abonnement push rendra joignable un appareil sans présence
- * fraîche — la condition « aucun canal push » s'ajoutera ici, comme au socle.
- * Avant elle, un écran fermé ne peut sonner nulle part : le constat est exact.
+ * P17c : seule une souscription native actuellement admissible (session,
+ * configuration, consentement, préférences et budget relus) réfute ce constat.
  */
 export async function isCalleeKnownOffline(ctx: ReadCtx, networkId: Id<"networks">, personId: Id<"persons">, now: number): Promise<boolean> {
   const row = await ctx.db
@@ -42,7 +42,8 @@ export async function isCalleeKnownOffline(ctx: ReadCtx, networkId: Id<"networks
     .withIndex("by_network_person", (q) => q.eq("networkId", networkId).eq("personId", personId))
     .unique()
   if (!row) return false
-  return !(row.status === "online" && now - row.lastHeartbeat <= PRESENCE_FRESHNESS_MS)
+  if (row.status === "online" && now - row.lastHeartbeat <= PRESENCE_FRESHNESS_MS) return false
+  return !ctx.runQuery || !(await hasLiveNativeCallChannel({ db: ctx.db, runQuery: ctx.runQuery }, networkId, personId, now))
 }
 
 /**

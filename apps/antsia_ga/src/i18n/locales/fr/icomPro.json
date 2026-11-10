@@ -1,0 +1,40 @@
+{
+  "conversations": {
+    "label": "Conversations d'iCom Pro",
+    "activities": "Activités",
+    "purchases": "Mes achats et démarches",
+    "relations": "Mises en relation",
+    "search": "Rechercher une conversation",
+    "states": {
+      "label": "État des conversations",
+      "all": "Toutes",
+      "requested": "Nouvelles demandes",
+      "accepted": "En cours",
+      "closed": "Closes"
+    },
+    "emptyState": "Aucune conversation dans cet état parmi celles chargées.",
+    "windowNote": "L'état se filtre parmi les conversations chargées.",
+    "noShopMandate": "Pour lire les messages de la boutique « {{shop}} », ouvrez son équipe et donnez-vous le droit de lecture.",
+    "openTeam": "Ouvrir l'équipe de la boutique"
+  },
+  "contacts": {
+    "label": "Contacts d'iCom Pro",
+    "clients": "Clients de mes boutiques",
+    "clientsHelp": "Les personnes qui ont écrit à vos boutiques. Aucun contact n'est importé.",
+    "noShops": "Vous ne lisez encore les messages d'aucune boutique.",
+    "noClients": "Aucun client pour le moment.",
+    "partners": "Partenaires professionnels",
+    "partnersHelp": "Vos collaborations professionnelles acceptées.",
+    "noPartners": "Aucun partenaire pour le moment.",
+    "suppliers": "Boutiques contactées",
+    "noSuppliers": "Vous n'avez encore écrit à aucune boutique.",
+    "person": "Personne",
+    "lastExchange": "Dernier échange : {{date}}",
+    "openConversation": "Ouvrir la conversation avec {{name}}",
+    "openProfile": "Voir le profil : {{name}}",
+    "openShop": "Voir la boutique {{name}}",
+    "unavailable": "Impossible de charger ces contacts pour le moment.",
+    "loading": "Chargement…",
+    "window": "D'après vos échanges récents."
+  }
+}

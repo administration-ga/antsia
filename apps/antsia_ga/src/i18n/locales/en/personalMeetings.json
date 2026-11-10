@@ -1,0 +1,26 @@
+{
+  "title": "Personal meetings",
+  "lead": "A personal space separate from professional networking.",
+  "closed": {
+    "title": "This space remains closed",
+    "reason": "No qualified proof-of-adulthood service is available for this space. Personal meetings therefore remain closed.",
+    "noCollection": "This page collects no date of birth, intimate preferences or personal-meeting registration. A badge or self-declaration does not replace proof of adulthood.",
+    "capabilities": {
+      "participation": "Participation is closed",
+      "discovery": "Profile discovery is closed",
+      "interests": "Expressions of interest are closed",
+      "contact": "Personal introductions are closed"
+    }
+  },
+  "status": {
+    "loading": "Reading access status… Personal meetings remain closed.",
+    "confirmed": "Closed access confirmed.",
+    "unavailable": "Access status could not be refreshed. Personal meetings remain closed."
+  },
+  "professional": {
+    "title": "For your professional projects",
+    "description": "Explore skills and propose collaborations in the Pros space. This path remains separate from personal meetings.",
+    "link": "Explore Pros"
+  },
+  "entryLabel": "Personal connections · closed"
+}

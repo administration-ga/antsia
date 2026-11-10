@@ -7,6 +7,7 @@ import { DisplayPreferences } from "@/components/display-preferences"
 import { MemberPage } from "@/components/member-chrome"
 import { PreferencesControls } from "@/components/preferences-controls"
 import { Card } from "@/components/shared/controls"
+import { SCREEN_SECTIONS } from "@/components/shared/screen-layout"
 import { meEntries } from "../moi/me-model"
 import { EntryList } from "../moi/me-screen"
 
@@ -27,8 +28,8 @@ export function SettingsScreen() {
 
   return (
     <MemberPage>
-      <div className="mx-auto flex w-full max-w-3xl min-w-0 flex-col gap-8">
-        <header className="flex flex-col gap-2">
+      <div className={`${SCREEN_SECTIONS} gap-y-8`}>
+        <header className="col-span-full flex flex-col gap-2">
           <h1 className="text-2xl font-semibold tracking-tight">{t("settings.title")}</h1>
           <p className="text-base text-muted-foreground">{t("settings.lead")}</p>
         </header>

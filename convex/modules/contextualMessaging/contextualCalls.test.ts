@@ -10,7 +10,7 @@
  * À la réouverture des contrôles : `bunx vitest run --config convex/vitest.config.ts modules/contextualMessaging`.
  */
 import { engineErrorCode, engineErrorRule } from "@antsia/social-contracts/errors"
-import { CONTEXTUAL_KINDS } from "@antsia/social-domain/contextualMessaging"
+import { CONTEXTUAL_SUPPORTED_KINDS } from "@antsia/social-domain/contextualMessaging"
 import { makeFunctionReference } from "convex/server"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
@@ -52,7 +52,7 @@ const fakes = vi.hoisted(() => {
   })
   return {
     objects,
-    registry: { diasporaServiceRequest: resolver("diasporaServiceRequest"), diasporaMentoring: resolver("diasporaMentoring"), diasporaJobApplication: resolver("diasporaJobApplication") },
+    registry: { diasporaServiceRequest: resolver("diasporaServiceRequest"), diasporaMentoring: resolver("diasporaMentoring"), diasporaJobApplication: resolver("diasporaJobApplication"), professionalCollaboration: resolver("professionalCollaboration") },
   }
 })
 
@@ -128,7 +128,7 @@ async function fixture() {
     const id = await ctx.db.insert("pages", { networkId: root, handle: "call-salon", name: "Salon des appels", ownerKind: "company", trust: "community", trustRank: 1, visibility: "network", onRoot: true, status: "active", createdByPersonId: admin.personId, searchText: "salon appels", createdAt: NOW, updatedAt: NOW })
     await ctx.db.insert("pageSignatories", { networkId: root, pageId: id, personId: admin.personId, role: "admin", acceptedAt: NOW, createdAt: NOW, updatedAt: NOW })
     await ctx.db.insert("pageSignatories", { networkId: root, pageId: id, personId: teammate.personId, role: "signatory", acceptedAt: NOW, createdAt: NOW, updatedAt: NOW })
-    for (const kind of CONTEXTUAL_KINDS) await ctx.db.insert("contextualPolicies", { networkId: root, kind, enabled: true, updatedAt: NOW })
+    for (const kind of CONTEXTUAL_SUPPORTED_KINDS) await ctx.db.insert("contextualPolicies", { networkId: root, kind, enabled: true, updatedAt: NOW })
     return id
   })
   return { t, root, requester, admin, teammate, mentor, stranger, pageId }
@@ -190,6 +190,7 @@ async function place(who: Actor, scope: Scope, targetPersonId?: Id<"persons">): 
 async function ringing(who: Actor, scope: Scope, targetPersonId?: Id<"persons">): Promise<Id<"calls">> {
   const placed = await place(who, scope, targetPersonId)
   if (!placed.admitted) throw new Error(`appel contextuel refusé : ${placed.reason}`)
+  await who.as.mutation(C.lifecycle.join, { networkId: scope.networkId, callId: placed.callId })
   await who.as.mutation(C.lifecycle.setCallRinging, { networkId: scope.networkId, callId: placed.callId })
   return placed.callId
 }
@@ -288,7 +289,8 @@ describe("CC-4 — revalidation à chaque perte de droit (N28)", () => {
     await consent(f.requester, scope)
     await consent(f.admin, scope)
     const callId = await ringing(f.requester, scope, f.admin.personId)
-    expect(await grantFor(f.admin, f.root, callId)).toMatchObject({ personId: f.admin.personId, contextualThreadId: scope.threadId })
+    expect(await grantFor(f.admin, f.root, callId)).toBeNull()
+    expect(await grantFor(f.requester, f.root, callId)).toMatchObject({ personId: f.requester.personId, contextualThreadId: scope.threadId })
     expect(await ringingOf(f.admin, f.root)).toEqual([expect.objectContaining({ callId, contextualThreadId: scope.threadId })])
     await consent(f.admin, scope, false)
     expect(await callDoc(f, callId)).toMatchObject({ status: "ended", endReason: "normal" })
@@ -400,7 +402,8 @@ describe("CC-4 — porte partagée et D5 (a) (N30)", () => {
     // Le demandeur ne lit rien des réglages du mentor : seulement les siens.
     expect(await f.requester.as.query(getThread, scope)).toMatchObject({ callSettings: { outsideRelationsSilenceWaived: false, dndUntil: null, meetingSilence: false, callWaitingOff: false, incomingPushOff: false } })
     const callId = await ringing(f.requester, scope)
-    expect(await grantFor(f.mentor, f.root, callId)).toMatchObject({ contextualThreadId: scope.threadId })
+    expect(await grantFor(f.mentor, f.root, callId)).toBeNull()
+    expect(await grantFor(f.requester, f.root, callId)).toMatchObject({ personId: f.requester.personId, contextualThreadId: scope.threadId })
     expect(await ringingOf(f.mentor, f.root)).toEqual([expect.objectContaining({ callId, contextualThreadId: scope.threadId })])
     // L'appel personnel garde le réglage : la conversation ne lui confère aucun droit.
     const personal = await f.requester.as.mutation(C.direct.callMember, { networkId: f.root, target: { personId: f.mentor.personId } })
@@ -585,6 +588,8 @@ describe("CC-4 — sélecteur de contexte et jeton court", () => {
     await consent(f.requester, scope)
     await consent(f.mentor, scope)
     const callId = await ringing(f.requester, scope)
+    expect(engineErrorCode(await caught(f.mentor.as.action(C.livekitActions.requestToken, { networkId: f.root, callId })))).toBe("notFound")
+    await f.mentor.as.mutation(C.lifecycle.join, { networkId: f.root, callId })
     const issued = await f.mentor.as.action(C.livekitActions.requestToken, { networkId: f.root, callId })
     const claims = JSON.parse(atob((issued.token.split(".")[1] ?? "").replace(/-/g, "+").replace(/_/g, "/"))) as { exp?: number; nbf?: number }
     expect((claims.exp ?? 0) - (claims.nbf ?? 0)).toBe(60)

@@ -1,7 +1,8 @@
 /** P08 : validation PUBLIC avant reçu ; seul un contrat de recette sandbox a un effet. */
-import { COMMERCE_PUBLIC_CONTRACT, commerceParseCanonicalBody, commerceRecord } from "@antsia/social-domain/commerce/primitives"
+import { isCommercePublicContract, commerceParseCanonicalBody, commerceRecord } from "@antsia/social-domain/commerce/primitives"
 import { parseCommercePublicBody } from "@antsia/social-domain/commerce/projection"
 import { COMMERCE_JOBS_CONTRACT, parseCommerceJobsBody } from "@antsia/social-domain/commerce-jobs"
+import { COMMERCE_SERVICE_NOTICE_CONTRACT, parseCommerceServiceNoticeBody } from "@antsia/social-domain/commerce-service-notices"
 import { COMMERCE_TRANSPORT_TEST_CONTRACT, FEDERATION_MAX_SKEW_MS, type FederationEnvelope, type FederationEnvironment, validFederationReference } from "@antsia/social-domain/federationProtocol"
 
 import type { Doc } from "../../_generated/dataModel"
@@ -43,9 +44,13 @@ export function parseCommerceTransportProbe(rawBody: string, now: number): Comme
 
 /** À appeler AVANT le nouveau reçu et avant tout nouvel effet de replay. */
 export function validateCommerceTransportBody(rawBody: string, envelope: FederationEnvelope, environment: FederationEnvironment, now: number): "valid" | "invalid" | "unauthorized" {
-  if (envelope.contract === COMMERCE_PUBLIC_CONTRACT) return parseCommercePublicBody(rawBody, now).ok ? "valid" : "invalid"
+  if (isCommercePublicContract(envelope.contract)) return parseCommercePublicBody(rawBody, now).ok ? "valid" : "invalid"
   // P15 : même garde canonique avant reçu pour les emplois complets (jumeau hors manifeste P06).
   if (envelope.contract === COMMERCE_JOBS_CONTRACT) return parseCommerceJobsBody(rawBody, now).ok ? "valid" : "invalid"
+  if (envelope.contract === COMMERCE_SERVICE_NOTICE_CONTRACT) {
+    const parsed = parseCommerceServiceNoticeBody(rawBody, now)
+    return !parsed.ok ? "invalid" : parsed.value.payload.environment === environment ? "valid" : "unauthorized"
+  }
   if (envelope.contract !== COMMERCE_TRANSPORT_TEST_CONTRACT) return "valid"
   if (!commerceTransportTestEnabled(environment)) return "unauthorized"
   return parseCommerceTransportProbe(rawBody, now) ? "valid" : "invalid"

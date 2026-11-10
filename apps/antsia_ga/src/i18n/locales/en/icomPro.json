@@ -1,0 +1,40 @@
+{
+  "conversations": {
+    "label": "iCom Pro conversations",
+    "activities": "Activities",
+    "purchases": "My purchases and requests",
+    "relations": "Connections",
+    "search": "Search a conversation",
+    "states": {
+      "label": "Conversation status",
+      "all": "All",
+      "requested": "New requests",
+      "accepted": "Ongoing",
+      "closed": "Closed"
+    },
+    "emptyState": "No conversation with this status among those loaded.",
+    "windowNote": "The status is filtered among the loaded conversations.",
+    "noShopMandate": "To read {{shop}}'s messages, open the shop's team and give yourself the right to read.",
+    "openTeam": "Open the shop's team"
+  },
+  "contacts": {
+    "label": "iCom Pro contacts",
+    "clients": "Customers of my shops",
+    "clientsHelp": "People who wrote to your shops. No contact is imported.",
+    "noShops": "You don't read any shop's messages yet.",
+    "noClients": "No customers yet.",
+    "partners": "Professional partners",
+    "partnersHelp": "Your accepted professional collaborations.",
+    "noPartners": "No partners yet.",
+    "suppliers": "Shops contacted",
+    "noSuppliers": "You haven't written to any shop yet.",
+    "person": "Person",
+    "lastExchange": "Last exchange: {{date}}",
+    "openConversation": "Open the conversation with {{name}}",
+    "openProfile": "See {{name}}'s profile",
+    "openShop": "See the {{name}} shop",
+    "unavailable": "These contacts can't be loaded right now.",
+    "loading": "Loading…",
+    "window": "Based on your recent exchanges."
+  }
+}

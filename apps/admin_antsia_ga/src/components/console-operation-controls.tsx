@@ -8,7 +8,7 @@ import { Button, Field, TextArea } from "@antsia/ui"
 import { zodResolver } from "@hookform/resolvers/zod"
 import type { TFunction } from "i18next"
 import { ChevronLeft, ChevronRight } from "lucide-react"
-import { createContext, useContext, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react"
+import { Component, createContext, Fragment, useContext, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react"
 import { useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
@@ -17,6 +17,15 @@ import { z } from "zod"
 export const controlStyle = { minHeight: 44, whiteSpace: "normal" as const }
 export const inputStyle = { minHeight: 44 }
 export const panelClass = "min-w-0 rounded-xl border border-border bg-card p-4 sm:p-6"
+
+/** Les erreurs Convex traversent le rendu ; une panne n'est jamais un refus métier. */
+export class ConsoleQueryBoundary extends Component<{ children: ReactNode; fallback: (error: unknown, retry: () => void) => ReactNode }, { caught: boolean; error: unknown; attempt: number }> {
+  override state = { caught: false, error: null as unknown, attempt: 0 }
+  static getDerivedStateFromError(error: unknown) { return { caught: true, error } }
+  override render() {
+    return this.state.caught ? this.props.fallback(this.state.error, () => this.setState((state) => ({ caught: false, error: null, attempt: state.attempt + 1 }))) : <Fragment key={this.state.attempt}>{this.props.children}</Fragment>
+  }
+}
 
 type DraftRegistry = { set: (id: string, dirty: boolean, pending?: boolean) => void; remove: (id: string) => void; isDirty: () => boolean; isPending: () => boolean }
 const OperationDraftContext = createContext<DraftRegistry | null>(null)

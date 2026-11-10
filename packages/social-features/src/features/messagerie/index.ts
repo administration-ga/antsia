@@ -90,6 +90,11 @@ export type {
 } from "./contextual-messaging-source"
 export * from "./contextual-conversation-model"
 export { CONTEXTUAL_CONVERSATION_FILTER } from "./icom-views"
+/** ADR-0036 : les deux espaces iCom et iCom Pro, la pilule de bascule et la présence d'une activité pro. */
+export type { IcomProInjection } from "./IcomMessagesPage"
+export { ICOM_PRO_ACTIVITY_PARAM, ICOM_SPACE_PARAM, icomProActivityFrom, icomProHref, icomSpaceHref, icomSpaceOf, type IcomSpace } from "./icom-space"
+export { IcomDockSpaceTitle, IcomSpaceHeading, IcomSpaceSwitch } from "./IcomSpaceSwitch"
+export { icomProAvailabilityOf, useIcomProAvailability } from "./use-icom-pro"
 export type { MessageAttachmentData } from "./MessageAttachment"
 export { ReplyPreview } from "./ReplyPreview"
 export type { ReplyPreviewData } from "./ReplyPreview"

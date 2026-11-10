@@ -234,7 +234,8 @@ const PROFILE_MINI_CARD_CSS = `
           font-size: 13px;
           font-weight: 700;
           color: var(--primary-600);
-          text-decoration: none;
+          /* Une action en texte des chartes est soulignée (ADR-0030) ; sans trait ailleurs. */
+          text-decoration: var(--esp-inline-link-decoration, none);
           white-space: nowrap;
         }
         .rp-identity-cta:hover { text-decoration: underline; }

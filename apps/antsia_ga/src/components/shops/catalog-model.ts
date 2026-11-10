@@ -2,7 +2,7 @@ import type { CatalogOffer } from "@convex/modules/shops/catalogValidators"
 import type { CommercePrice } from "@antsia/social-domain/commerce/projection"
 
 export type { CatalogOffer }
-export type CatalogPage = { page: CatalogOffer[]; continueCursor: string; isDone: boolean; collections: { collectionRef: string; label: string }[]; filteredWindow: boolean }
+export type CatalogPage = { page: CatalogOffer[]; continueCursor: string; isDone: boolean; collections: { collectionRef: string; label: string }[]; filteredWindow: boolean; indexStatus?: "building" | "ready" }
 export type CatalogTranslate = (key: string, options?: Record<string, unknown>) => string
 export type CatalogAudience = "member" | "public"
 

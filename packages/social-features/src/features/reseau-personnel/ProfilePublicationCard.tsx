@@ -22,6 +22,7 @@
  *     effacer — l'identifiant reste réservé, republier rétablit.
  */
 
+import { themedActionStyle } from "../themed-action-style"
 import { api } from "@antsia/api/engine"
 import type { Id } from "@antsia/api/engine"
 import { useAuthenticatedConvexQuery } from "@antsia/api/hooks"
@@ -116,8 +117,8 @@ export function ProfilePublicationCard() {
     delivery: ProfileImageDelivery,
     usage: ProfileImageUsage,
   ) => {
-    if (delivery.withheld === "fileQuarantined") {
-      toast.error(t("errors:fileQuarantined"))
+    if (delivery.withheld === "fileQuarantined" || delivery.withheld === "fileScanUnavailable") {
+      toast.error(t(`errors:${delivery.withheld}`))
       return
     }
     if (delivery.withheld === "fileScanPending") {
@@ -287,9 +288,9 @@ export function ProfilePublicationCard() {
           </Field>
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
             <Button
-              variant="ghost"
+              variant="outline"
               onClick={() => setEditing(false)}
-              style={RESEAU_SECONDARY_ACTION_STYLE}
+              style={themedActionStyle("cancel", "ghost", RESEAU_SECONDARY_ACTION_STYLE)}
             >
               {t("profilePublicationCard.editor.cancel")}
             </Button>
@@ -374,14 +375,18 @@ export function ProfilePublicationCard() {
             carte le dit, au lieu d'un médaillon vide sans explication. */}
         {avatarWithheld !== null ? (
           <p style={{ margin: 0, fontSize: 12.5, color: "var(--ink-600)" }}>
-            {avatarWithheld === "fileScanPending"
+            {avatarWithheld === "fileScanUnavailable"
+              ? t("errors:fileScanUnavailable")
+              : avatarWithheld === "fileScanPending"
               ? t("profilePublicationCard.withheld.avatarPending")
               : t("profilePublicationCard.withheld.avatarBlocked")}
           </p>
         ) : null}
         {coverWithheld !== null ? (
           <p style={{ margin: 0, fontSize: 12.5, color: "var(--ink-600)" }}>
-            {coverWithheld === "fileScanPending"
+            {coverWithheld === "fileScanUnavailable"
+              ? t("errors:fileScanUnavailable")
+              : coverWithheld === "fileScanPending"
               ? t("profilePublicationCard.withheld.coverPending")
               : t("profilePublicationCard.withheld.coverBlocked")}
           </p>
@@ -437,9 +442,9 @@ export function ProfilePublicationCard() {
           </Button>
           {person.avatar !== null ? (
             <Button
-              variant="ghost"
+              variant="danger"
               size="sm"
-              style={RESEAU_SECONDARY_ACTION_STYLE}
+              style={themedActionStyle("danger", "ghost", RESEAU_SECONDARY_ACTION_STYLE)}
               onClick={() => removeImage("avatar")}
             >
               {t("profilePublicationCard.actions.removeAvatar")}
@@ -447,9 +452,9 @@ export function ProfilePublicationCard() {
           ) : null}
           {person.cover !== null ? (
             <Button
-              variant="ghost"
+              variant="danger"
               size="sm"
-              style={RESEAU_SECONDARY_ACTION_STYLE}
+              style={themedActionStyle("danger", "ghost", RESEAU_SECONDARY_ACTION_STYLE)}
               onClick={() => removeImage("cover")}
             >
               {t("profilePublicationCard.actions.removeCover")}

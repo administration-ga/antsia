@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest"
 import { storyComposePose } from "../features/stories/story-create"
 import { createAppI18n } from "../i18n"
 import { RESEAU_MOBILE_CSS } from "./mobile/mobile-styles"
+import { RESEAU_ADAPTIVE_CSS } from "./reseau-adaptive-styles"
 import {
   COLLAPSED_FEED_MIN,
   COLLAPSED_NAV_MIN,
@@ -182,6 +183,17 @@ function selectorParts(rule: CssRule): string[] {
   return rule.selector.split(",").map((part) => part.trim())
 }
 
+/** Une déclaration doit rester sur son sélecteur ET son palier, pas ailleurs dans la feuille. */
+function ruleBody(rules: readonly CssRule[], selector: string, conditions: readonly string[] = []): string {
+  const matches = rules.filter((rule) =>
+    selectorParts(rule).includes(selector) &&
+    rule.conditions.length === conditions.length &&
+    rule.conditions.every((condition, index) => condition === conditions[index])
+  )
+  expect(matches).toHaveLength(1)
+  return matches[0]?.body ?? ""
+}
+
 describe("la grille implémente les paliers du module", () => {
   const css = cssOf(RESEAU_DESKTOP_CSS)
   const rules = cssRules(css)
@@ -203,6 +215,73 @@ describe("la grille implémente les paliers du module", () => {
   it("emploie la même gouttière latérale et aligne les cartes en tête", () => {
     expect(css).toContain(".rp-scope { padding: 14px 16px 0; }")
     expect(css).toContain("padding-top: 0;")
+  })
+
+  it("garde une hauteur définie et les scrollers historiques hors opt-in adaptatif", () => {
+    expect(codeOf("./ReseauAgentPage.tsx")).toMatch(
+      /<div\s+className="rp-scope"\s+data-navigation-layout=\{adaptive \? "adaptive" : undefined\}\s+style=\{adaptive \? undefined : \{\s*height:\s*"100%"/
+    )
+    expect(ruleBody(rules, ".rp-scope")).toContain("overflow: hidden")
+    const singleColumn = ruleBody(rules, ".rp-grid")
+    expect(singleColumn).toContain("flex: 1")
+    expect(singleColumn).toContain("min-height: 0")
+    expect(singleColumn).toContain("overflow-y: auto")
+
+    const twoColumns = [`@container rp-page (min-width: ${TWO_COLUMN_MIN}px)`]
+    const grid = ruleBody(rules, ".rp-grid", twoColumns)
+    expect(grid).toContain("height: 100%")
+    expect(grid).toContain("overflow: hidden")
+    for (const selector of [".rp-main-col", ".rp-grid .rp-rail-end"]) {
+      const column = ruleBody(rules, selector, twoColumns)
+      expect(column).toContain("overflow-y: auto")
+      expect(column).toContain("min-height: 0")
+      expect(column).toContain("padding-bottom: 48px")
+    }
+    const rightRail = ruleBody(rules, ".rp-grid .rp-rail-end", twoColumns)
+    expect(rightRail).toContain("max-height: 100%")
+    expect(rightRail).toContain("overflow-x: hidden")
+    const leftRail = ruleBody(rules, ".rp-rail-start", [`@container rp-page (min-width: ${COLLAPSED_NAV_MIN}px)`])
+    expect(leftRail).toContain("overflow-y: auto")
+    expect(leftRail).toContain("min-height: 0")
+    expect(leftRail).toContain("padding-bottom: 48px")
+  })
+
+  it("borne les trois compartiments et épingle les deux parties de l'en-tête adaptatif", () => {
+    const adaptive = cssRules(cssOf(RESEAU_ADAPTIVE_CSS))
+    const scope = '.rp-scope[data-navigation-layout="adaptive"]'
+    expect(ruleBody(adaptive, scope)).toContain("height: 100%")
+    expect(ruleBody(adaptive, scope)).toContain("overflow: hidden")
+    expect(ruleBody(adaptive, `${scope} .rp-main-col`)).toContain("overflow-y: auto")
+    expect(ruleBody(adaptive, `${scope} .rp-main-col`)).toContain("scroll-padding-top:")
+    const rails = adaptive.find(rule => selectorParts(rule).includes(`${scope} .rp-rail-start`) && rule.body.includes("max-height: 100%"))?.body ?? ""
+    expect(rails).toContain("overflow-y: auto")
+    expect(rails).toContain("overscroll-behavior-y: contain")
+    expect(ruleBody(adaptive, `${scope} .rp-identity-region`)).toContain("position: sticky")
+    expect(ruleBody(adaptive, `${scope} .rp-volet-head`)).toContain("top: calc(var(--rp-composer-height")
+  })
+
+  it("UNE gouttière à l'opt-in : marge extérieure = écart entre colonnes, sans largeur maximale (22/10/2026)", () => {
+    const adaptive = cssRules(cssOf(RESEAU_ADAPTIVE_CSS))
+    const scope = '.rp-scope[data-navigation-layout="adaptive"]'
+    // Le jeton de l'application, à défaut les paliers d'U09 (16 px, puis 24 px).
+    expect(ruleBody(adaptive, scope)).toContain("--rp-adaptive-gutter: var(--spacing-gutter, 16px)")
+    expect(ruleBody(adaptive, scope, ["@media (min-width: 1200px)"])).toContain("--rp-adaptive-gutter: var(--spacing-gutter, 24px)")
+    // Les bords de la page et l'écart entre les colonnes lisent le MÊME jeton.
+    expect(ruleBody(adaptive, scope)).toContain("padding: 24px var(--rp-adaptive-gutter) 0")
+    expect(ruleBody(adaptive, `${scope} .rp-grid`)).toContain("gap: var(--rp-adaptive-gutter)")
+    // Ni cadre de 1 400 px, ni colonne centrale bornée puis centrée : l'un comme
+    // l'autre creuserait aux bords ou autour du fil un écart plus large que la gouttière.
+    for (const selector of [`${scope} .rp-grid`, `${scope} .rp-main-col`]) {
+      expect(ruleBody(adaptive, selector)).toContain("max-width: none")
+      expect(ruleBody(adaptive, selector)).toContain("margin-inline: 0")
+    }
+    for (const rule of adaptive) {
+      expect(rule.body).not.toMatch(/max-width:(?!\s*none)/)
+      expect(rule.body).not.toContain("justify-self: center")
+    }
+    expect(ruleBody(adaptive, `${scope} .rp-grid`, ["@media (min-width: 1400px)", "@container rp-page (min-width: 1280px)"])).toContain(
+      "grid-template-columns: var(--rp-adaptive-nav-width) minmax(0, 1fr) 312px"
+    )
   })
 
   it("ne masque le rappel du profil à AUCUN palier", () => {

@@ -6,8 +6,8 @@
  * seulement le cache, la coupure d'un appel établi et la purge — d'où cette obligation.
  *
  * COMMENT IL LIT, par l'arbre syntaxique des fichiers de transition de la tranche :
- *  1. une écriture d'état est un `….db.patch(…, { status … })` ou `….db.replace(…, { status … })`
- *     (objet littéral portant `status`) ; elle exige `syncContextualConversation` ou
+ *  1. une écriture d'état est un `….db.patch|replace(…, { status|state … })`
+ *     (objet littéral portant `status`, ou `state` dans le fichier des profils professionnels) ; elle exige `syncContextualConversation` ou
  *     `openContextualConversation` dans la fonction qui l'englobe (alias d'import compris) ;
  *  2. pour une nature qui s'ouvre à la création, `….db.insert("<table>", …)` exige
  *     `openContextualConversation` (ou `syncContextualConversation`, qui ouvre) ;
@@ -29,7 +29,7 @@
  *
  * Écrit le 19/10/2026 sans exécution (décision du propriétaire : « Continuer sans vérifier »).
  */
-import { CONTEXTUAL_KINDS, type ContextualKind } from "@antsia/social-domain/contextualMessaging"
+import { CONTEXTUAL_SUPPORTED_KINDS, type ContextualKind } from "@antsia/social-domain/contextualMessaging"
 import ts from "typescript"
 import { describe, expect, it } from "vitest"
 
@@ -42,6 +42,7 @@ const HOOKS = "convex/modules/contextualMessaging/hooks.ts"
 
 /** Les fichiers de transition de chaque nature (tranche DIASPORALE) et la table qui s'ouvre à la création. */
 export const HOOKED_SOURCES: Readonly<Record<ContextualKind, { files: readonly string[]; openOnInsert: string | null }>> = {
+  professionalCollaboration: { files: ["convex/modules/professionals/collaborations.ts", "convex/modules/professionals/profiles.ts"], openOnInsert: null },
   diasporaServiceRequest: { files: ["convex/modules/diaspora/serviceRequests.ts"], openOnInsert: "serviceRequests" },
   diasporaMentoring: { files: ["convex/modules/diaspora/mentoring.ts", "convex/modules/diaspora/moderationTargets.ts"], openOnInsert: null },
   diasporaJobApplication: { files: ["convex/modules/diaspora/jobs.ts", "convex/modules/diaspora/moderationTargets.ts"], openOnInsert: null },
@@ -49,6 +50,7 @@ export const HOOKED_SOURCES: Readonly<Record<ContextualKind, { files: readonly s
 
 /** Resynchronisations planifiées admises comme équivalent d'un crochet : référence → fichier qui la définit. */
 export const SCHEDULED_SYNCS: Readonly<Record<string, { file: string; name: string }>> = {
+  "syncSlice": { file: "convex/modules/professionals/profiles.ts", name: "syncConversationSlice" },
   "internal.modules.diaspora.conversationSync.syncConversationsAfterModeration": { file: "convex/modules/diaspora/conversationSync.ts", name: "syncConversationsAfterModeration" },
 }
 
@@ -98,14 +100,14 @@ function referenceText(node: ts.Expression | undefined): string | undefined {
 }
 
 /** Une planification `….scheduler.runAfter|runAt(…, <référence admise>, …)` ? */
-function schedulesSync(node: ts.Node): boolean {
+function schedulesSync(node: ts.Node, file?: string): boolean {
   if (!ts.isCallExpression(node) || !ts.isPropertyAccessExpression(node.expression)) return false
   const method = node.expression.name.text
   if (method !== "runAfter" && method !== "runAt") return false
   const receiver = node.expression.expression
   if (!ts.isPropertyAccessExpression(receiver) || receiver.name.text !== "scheduler") return false
   const reference = referenceText(node.arguments[1])
-  return reference !== undefined && Object.hasOwn(SCHEDULED_SYNCS, reference)
+  return reference !== undefined && Object.hasOwn(SCHEDULED_SYNCS, reference) && (reference !== "syncSlice" || file === "convex/modules/professionals/profiles.ts")
 }
 
 function containsCall(root: ts.Node | undefined, accept: (node: ts.CallExpression) => boolean): boolean {
@@ -123,7 +125,7 @@ function containsCall(root: ts.Node | undefined, accept: (node: ts.CallExpressio
 function localSchedulingHelpers(source: ts.SourceFile): Set<string> {
   const helpers = new Set<string>()
   for (const statement of source.statements) {
-    if (ts.isFunctionDeclaration(statement) && statement.name && containsCall(statement.body, schedulesSync)) helpers.add(statement.name.text)
+    if (ts.isFunctionDeclaration(statement) && statement.name && containsCall(statement.body, node => schedulesSync(node, source.fileName))) helpers.add(statement.name.text)
   }
   return helpers
 }
@@ -136,7 +138,11 @@ function dbCall(node: ts.CallExpression, method: string): boolean {
 
 function writesStatus(argument: ts.Expression | undefined, source: ts.SourceFile): boolean {
   if (!argument || !ts.isObjectLiteralExpression(argument)) return false
-  return argument.properties.some((property) => (ts.isPropertyAssignment(property) || ts.isShorthandPropertyAssignment(property)) && property.name.getText(source) === "status")
+  // V1 conserve sa détection status ; state est le cycle du profil professionnel dont
+  // toute pause doit synchroniser ses collaborations. Les profils de mentor historiques
+  // ne sont pas les objets ouvrants de mentoringRequest.
+  const fields = source.fileName === "convex/modules/professionals/profiles.ts" ? ["status", "state"] : ["status"]
+  return argument.properties.some((property) => (ts.isPropertyAssignment(property) || ts.isShorthandPropertyAssignment(property)) && fields.includes(property.name.getText(source)))
 }
 
 /** Les écritures d'état d'objet sans crochet (ni équivalent admis) dans la même fonction. */
@@ -146,7 +152,7 @@ export function detectMissingHooks(file: string, text: string, openOnInsert: Rea
   const helpers = localSchedulingHelpers(source)
   const findings: Finding[] = []
   const hooked = (fn: FunctionLike): boolean => containsCall(fn.body, (call) => {
-    if (schedulesSync(call)) return true
+    if (schedulesSync(call, file)) return true
     if (!ts.isIdentifier(call.expression)) return false
     const name = names.get(call.expression.text) ?? call.expression.text
     return HOOK_NAMES.has(name) || helpers.has(call.expression.text)
@@ -176,7 +182,7 @@ export function detectMissingHooks(file: string, text: string, openOnInsert: Rea
 /** Les natures ARMÉES : enregistrées (résolveur non `null`) dans le registre réel. */
 function armedKinds(): ContextualKind[] {
   const entries = registryEntries(REGISTRY, readRepoFile(REGISTRY))
-  return CONTEXTUAL_KINDS.filter((kind) => entries.some((entry) => entry.kind === kind && entry.value === "resolver"))
+  return CONTEXTUAL_SUPPORTED_KINDS.filter((kind) => entries.some((entry) => entry.kind === kind && entry.value === "resolver"))
 }
 
 describe("contextual-hooks — toute transition d'un objet enregistré appelle son crochet", () => {
@@ -208,6 +214,15 @@ describe("contextual-hooks — toute transition d'un objet enregistré appelle s
       const syncs = containsCall(declaration?.initializer, (call) => ts.isIdentifier(call.expression) && (names.get(call.expression.text) ?? call.expression.text) === "syncContextualConversation")
       expect(syncs, reference).toBe(true)
     }
+  })
+
+  it("MP09 : l'aide de profil planifie seulement son passage fermé et state exige aussi un crochet", () => {
+    const file = "convex/modules/professionals/profiles.ts"
+    expect(readRepoFile(file)).toContain('makeFunctionReference<"mutation", SyncArgs, null>("modules/professionals/profiles:syncConversationSlice")')
+    expect(detectMissingHooks(file, 'export async function pause(ctx) { await ctx.db.patch(id, { state: "paused" }) }', new Set())).toHaveLength(1)
+    const source = 'async function syncProfile(ctx) { await ctx.scheduler.runAfter(0, syncSlice, {}) } export async function pause(ctx) { await ctx.db.patch(id, { state: "paused" }); await syncProfile(ctx) }'
+    expect(detectMissingHooks(file, source, new Set())).toEqual([])
+    expect(detectMissingHooks("convex/modules/professionals/other.ts", source.replace('state: "paused"', 'status: "paused"'), new Set())).toHaveLength(1)
   })
 
   it("test du test : écriture d'état sans crochet, avec crochet, alias, planification admise, exemption motivée", () => {

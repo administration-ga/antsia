@@ -72,7 +72,7 @@ const VARIANTS: Record<Variant, CSSProperties> = {
   // Le neutre (Annuler) : gris, sans filet, dans les thèmes ANTSIA.
   outline: {
     background: "var(--ui2-button-outline-bg, var(--ink-0))",
-    color: "var(--ink-800)",
+    color: "var(--ui2-button-outline-fg, var(--ink-800))",
     border: "1px solid var(--ui2-button-outline-border, var(--ink-300))",
   },
   // Valider et Supprimer : chacun son texte sur l'aplat (ADR-0027) ; l'aplat est déjà

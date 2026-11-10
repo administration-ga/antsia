@@ -21,6 +21,7 @@ export const AUDIT_ACTIONS = [
   "network.archive",
   "network.archive_request", "network.archive_cancel",
   "console.access", "console.incident_open", "console.incident_resolve", "console.metrics_refresh",
+  "operator.bootstrap",
   // Console : adhésions (suspension à la racine, qui vaut partout)
   "membership.suspend_everywhere",
   "membership.lift_suspension",

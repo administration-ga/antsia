@@ -31,9 +31,10 @@ export function isMemberThemeId(value: unknown): value is MemberThemeId {
 
 /**
  * Le thème à appliquer pour une valeur enregistrée : un thème courant tel quel ;
- * un ancien identifiant ou une valeur inconnue donnent `undefined`, c'est-à-dire
- * le thème par défaut (Gaboma) chez le fournisseur d'apparence.
+ * un ancien identifiant donne explicitement Gaboma. Une préférence absente ou
+ * inconnue reste absente : elle ne doit pas effacer le choix de l'appareil.
  */
 export function memberThemeOf(value: unknown): MemberThemeId | undefined {
-  return isMemberThemeId(value) ? value : undefined
+  if (isMemberThemeId(value)) return value
+  return typeof value === "string" && (LEGACY_MEMBER_THEME_IDS as readonly string[]).includes(value) ? "gaboma" : undefined
 }

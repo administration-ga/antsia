@@ -1,5 +1,35 @@
 # Guide du candidat et de l'employeur — pilote ANTSIA × PRO.GA
 
+> **Mise à jour du 20 octobre 2026.** Les nouvelles candidatures et nouvelles copies de CV sont
+> fermées par P16 dans les sources étudiées. Aucun pilote ni dépôt de recette n’est effectué dans cette reprise.
+> Une ancienne politique activée ne lève pas ce verrou. Le parcours historique du 19 octobre
+> ci-dessous n’est donc pas une annonce de disponibilité.
+
+Cet état concerne la candidate de cette reprise, sans observation de production publiée ailleurs.
+
+### Confidentialité, retrait et suppression : état actuel
+
+La reprise P15 relit l’autorité de publication volontaire et la session réelle du recruteur,
+y compris juste avant délivrance du PDF. Un résultat arrivé après changement d’acteur ne doit
+pas ouvrir l’ancien CV. Une révocation ferme les accès futurs ; elle ne récupère pas des octets
+déjà remis au destinataire. Les notes internes RH ne sont pas une information du candidat.
+
+Le suivi et le retrait d’une candidature déjà admise gardent leurs voies dédiées. **Retirer
+l’accès ne confirme pas la suppression physique.** PRO.GA garde la référence d’une copie révoquée
+dans une file privée `pending/failed` jusqu’à absence observée ; l’échec de suppression n’est
+pas transformé en succès. `remoteUnconfirmed` signifie absence d’accusé distant, jamais CV
+supprimé. La reprise ANTSIA parcourt aussi les retraits au-delà de cinquante candidatures.
+
+La fenêtre de crash entre stockage et rattachement d’un nouveau CV reste à résoudre avant
+réactivation ; elle n’est pas couverte par une purge générale. Durée métier de conservation,
+export et effacement général PRO.GA demeurent des décisions distinctes. Aucun certificat
+d’effacement universel ni délai de réponse employeur n’est promis.
+
+[P15 repris](../../rapports/P15_REPRISE_2026-10-20.md),
+[P16](../../rapports/P16_REPRISE_2026-10-20.md), [support](PROCEDURES_SUPPORT.md).
+
+### Guide historique du 19 octobre (conservé)
+
 > **Avant de lire.** Ce guide décrit le fonctionnement prévu par le code livré les 18 et 19 octobre
 > 2026. Rien n'est encore vérifié ni ouvert. Les offres d'emploi n'apparaissent que si le réseau a
 > ouvert l'emploi et si un employeur a donné son accord poste par poste. Candidater est gratuit.

@@ -66,7 +66,8 @@ describe("genres commerce — liste fermée, publics et catégorie", () => {
   it("les natures de destination et les publics DIASPORALE sont fermés", () => {
     // CC-2b (ADR-0025) : la conversation contextuelle, sujet générique routé par l'application de la nature.
     // 19/10/2026 : l'avis de la vie communautaire DIASPORALE (entraide, mentorat, emploi, kit d'arrivée).
-    expect(NOTIFICATION_OPEN_TARGET_KINDS).toEqual(["serviceRequest", "commercialThread", "jobApplication", "pageModerationDecisions", "personalDecisions", "diasporaServiceNotice", "diasporaCommunityNotice", "contextualThread"])
+    // SU01d : « Mes signalements », destination de l'accusé de réception et de la décision au déclarant.
+    expect(NOTIFICATION_OPEN_TARGET_KINDS).toEqual(["serviceRequest", "commercialThread", "jobApplication", "pageModerationDecisions", "personalDecisions", "personalReports", "diasporaServiceNotice", "diasporaCommunityNotice", "contextualThread"])
     expect(DIASPORA_NOTICE_AUDIENCES).toEqual(["requester", "provider", "responsible", "member"])
     expect(DIASPORA_COMMUNITY_NOTICE_AUDIENCES).toEqual(["author", "team", "mentor", "mentee", "candidate"])
     expect(DIASPORA_COMMUNITY_NOTICE_OPENS).toEqual(["aidQuestion", "aidMission", "mentoringRequest", "jobApplication", "kitResource"])

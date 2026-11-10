@@ -64,6 +64,8 @@ export async function publicPageEligible(ctx: ReadCtx, context: PublicContext, p
 
 /** Prédicat sans enrichissement, partagé par les listes et les mesures système. */
 export async function publicPostEligible(ctx: ReadCtx, context: PublicContext, post: Doc<"posts">): Promise<boolean> {
+  // MP13 : seule la projection éditoriale spécialisée admet un article sans compte.
+  if (post.editorialArticleId !== undefined) return false
   if (post.status !== "published" || post.onRoot !== true || post.visibility !== "root" || post.audience !== "public" || post.groupId !== undefined) return false
   if (!await isFederatedContentAvailable(ctx, "posts", post._id)) return false
   if (!await publicOriginNetwork(ctx, context.root, post.networkId) || !await canReadModeratedContent(ctx, "post", post._id, context.reader?.personId)) return false

@@ -27,7 +27,7 @@
     "backendMissing": "Le moteur n’est pas configuré pour cette console.",
     "connected": "Session du moteur ouverte.",
     "signedOut": "Vous n’êtes pas connecté au moteur.",
-    "noAuthority": "Une connexion IDN de niveau 2 ou supérieur et une habilitation d’opérateur vivante sont nécessaires. Vous pouvez relancer la connexion IDN.",
+    "noAuthority": "Une connexion IDN de niveau {{level}} ou supérieur et une habilitation d’opérateur vivante sont nécessaires. Vous pouvez relancer la connexion IDN.",
     "signIn": "Me connecter",
     "signOut": "Me déconnecter partout",
     "signingOut": "Déconnexion…",
@@ -44,7 +44,7 @@
     "loading": "Vérification de la disponibilité d’IDN…",
     "help": "Utilisez votre identité IDN habilitée pour accéder aux outils du moteur.",
     "unavailable": "La connexion IDN de cette console n’est pas encore configurée. Le propriétaire doit créer et configurer son client OIDC.",
-    "minimum": "IDN niveau 2 minimum. Une connexion seule ne crée aucune habilitation.",
+    "minimum": "IDN niveau {{level}} minimum. Une connexion seule ne crée aucune habilitation.",
     "configurationFailed": "La disponibilité de la connexion ne peut pas être vérifiée."
   },
   "common": {

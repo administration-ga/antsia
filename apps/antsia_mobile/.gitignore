@@ -1,0 +1,13 @@
+/.expo/
+/ios/
+/android/
+/dist/
+/build-artifacts/
+/credentials.json
+*.keystore
+*.jks
+*.p12
+*.mobileprovision
+*.ipa
+*.apk
+*.aab

@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/mobile/ReseauMobileHeader.tsx @ ad2e7fdc2 — adaptations : sans la coque de l'espace agent (`espace-mobile-volets` retiré) — la porte d'iCom mène à la messagerie en pages de l'application (`useRoutes().messages()`), la cloche du moteur montée sans base de l'espace (ses cibles se composent sur `useRoutes()`) ; `profileHref` devient `string | null` (un profil non publié n'a pas d'adresse : la pastille reste, sans lien) ; libellés par l'i18n (`reseau:reseauMobileHeader.*`, nom accessible d'iCom accordé par `count`) ; « iRéseau » devient « réseau » ; rendu, recherche à la demande et focus inchangés ; P02 (18/10/2026) : sous la navigation par destinations déclarée par l'application, la porte d'iCom et la pastille du profil quittent l'en-tête (Messages et Profil sont des destinations de la barre) — la recherche et la cloche restent. ; bascule clair/sombre en un appui (`AppearanceToggle`) à côté de la cloche, au rond des icônes de l'en-tête.
+// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/mobile/ReseauMobileHeader.tsx @ ad2e7fdc2 — adaptations : sans la coque de l'espace agent (`espace-mobile-volets` retiré) — la porte d'iCom mène à la messagerie en pages de l'application (`useRoutes().messages()`), la cloche du moteur montée sans base de l'espace (ses cibles se composent sur `useRoutes()`) ; `profileHref` devient `string | null` (un profil non publié n'a pas d'adresse : la pastille reste, sans lien) ; libellés par l'i18n (`reseau:reseauMobileHeader.*`, nom accessible d'iCom accordé par `count`) ; « iRéseau » devient « réseau » ; rendu, recherche à la demande et focus inchangés ; P02 (18/10/2026) : sous la navigation par destinations déclarée par l'application, la porte d'iCom et la pastille du profil quittent l'en-tête (Messages et Profil sont des destinations de la barre) — la recherche et la cloche restent. ; bascule clair/sombre en un appui (`AppearanceToggle`) à côté de la cloche, au rond des icônes de l'en-tête ; ADR-0028 : sous la présentation « charte », l'en-tête des chartes à la lettre — la marque, puis la recherche, la cloche et la porte des messages (pastille comprise, même sous la navigation par destinations), sans bascule clair/sombre (Paramètres > Affichage et la barre des autres pages la gardent) ni filet sous l'en-tête.
 "use client"
 
 /**
@@ -25,7 +25,7 @@
  * geste principal de l'en-tête.
  */
 
-import { useNetwork, useRoutes } from "@antsia/api/network"
+import { useNetwork, useNetworkNavigationLayout, useRoutes } from "@antsia/api/network"
 import { Link } from "@antsia/api/routing"
 import { Icon, TextInput } from "@antsia/ui"
 import { type FormEvent, type KeyboardEvent, useEffect, useRef, useState } from "react"
@@ -36,6 +36,7 @@ import { AppearanceToggle } from "../appearance/AppearanceToggle"
 import { Avatar } from "../../features/reseau-personnel/Avatar"
 import { formatUnreadBadge } from "../../features/reseau-personnel/shared"
 import { useReseauDestinationRoutes } from "../reseau-menu-destinations-ui"
+import { ReseauCreateAction } from "../ReseauCreateAction"
 
 export interface ReseauMobileHeaderProps {
   /** Lance la recherche — le parent décide ce que « chercher » veut dire. */
@@ -56,7 +57,14 @@ export function ReseauMobileHeader({ onSearch, searchQuery, profileHref, avatarU
   /* Navigation par destinations : Messages et Profil sont des places de la
      barre basse — les répéter ici donnerait deux portes et deux pastilles. */
   const destinations = useReseauDestinationRoutes() !== null
-  const { wordmark } = useNetwork()
+  const { wordmark, postPresentation } = useNetwork()
+  /* L'en-tête des chartes (ADR-0028) : recherche, cloche, messages — la porte
+     des messages reste même quand la barre basse en porte une. */
+  const charte = postPresentation === "charte"
+  /* U09 (épure, opt-in adaptatif) : Messages est une place de la barre basse ;
+     l'en-tête n'en répète pas la porte ni la pastille. */
+  const { adaptive } = useNetworkNavigationLayout()
+  const showMessagesDoor = !adaptive && (charte || !destinations)
   /**
    * Le brouillon est LOCAL, semé par la recherche en cours. Remonter chaque
    * frappe au parent relancerait la query à chaque lettre : la recherche se
@@ -102,9 +110,30 @@ export function ReseauMobileHeader({ onSearch, searchQuery, profileHref, avatarU
   const unreadBadge = formatUnreadBadge(unreadMessages)
   const avatar = <Avatar displayName={displayName} avatarUrl={avatarUrl} size={34} />
 
+  /* La porte d'iCom. PAS d'`aria-label` sec : le nom accessible se compose du
+     `sr-only` — pastille comprise quand elle existe. */
+  const messagesDoor = showMessagesDoor ? (
+    <Link href={routes.messages()} className="rm-tab min-h-11 min-w-11" style={{ flex: "0 0 auto", width: 44 }}>
+      <span className="rm-tab-icon">
+        <Icon name="messageCircle" size={20} />
+        {unreadBadge !== null ? (
+          <span className="rm-tab-badge">
+            <span aria-hidden="true">{unreadBadge}</span>
+          </span>
+        ) : null}
+      </span>
+      <span className="sr-only">
+        {unreadMessages !== undefined && unreadMessages > 0
+          ? t("reseauMobileHeader.icomOpenWithUnread", { count: unreadMessages })
+          : t("reseauMobileHeader.icomOpen")}
+      </span>
+    </Link>
+  ) : null
+
   return (
-    <header className="rm-header">
+    <header className="rm-header" data-presentation={charte ? "charte" : undefined}>
       <div className="rm-header-row">
+        {!searchOpen ? <ReseauCreateAction /> : null}
         {searchOpen ? (
           <form role="search" aria-label={t("reseauMobileHeader.searchLabel")} onSubmit={submit} className="rm-search">
             <div style={{ minWidth: 0, flex: 1 }}>
@@ -168,32 +197,17 @@ export function ReseauMobileHeader({ onSearch, searchQuery, profileHref, avatarU
             </button>
           </>
         )}
-        {/* La porte d'iCom. PAS d'`aria-label` sec : le nom accessible se
-            compose du `sr-only` — pastille comprise quand elle existe. */}
-        {destinations ? null : (
-          <Link href={routes.messages()} className="rm-tab min-h-11 min-w-11" style={{ flex: "0 0 auto", width: 44 }}>
-            <span className="rm-tab-icon">
-              <Icon name="messageCircle" size={20} />
-              {unreadBadge !== null ? (
-                <span className="rm-tab-badge">
-                  <span aria-hidden="true">{unreadBadge}</span>
-                </span>
-              ) : null}
-            </span>
-            <span className="sr-only">
-              {unreadMessages !== undefined && unreadMessages > 0
-                ? t("reseauMobileHeader.icomOpenWithUnread", { count: unreadMessages })
-                : t("reseauMobileHeader.icomOpen")}
-            </span>
-          </Link>
-        )}
+        {/* Les chartes (ADR-0028) : recherche, cloche, messages, dans cet ordre. */}
+        {charte ? null : messagesDoor}
         {/* La cloche. Sur la page réseau au téléphone, la coque n'en pose
             aucune autre : sans elle, ce réseau serait le SEUL endroit sans
             accès aux notifications (R-03). Elle est posée ici, à la facture
             des onglets. */}
-        {/* Le mode sombre en un appui (ADR-0027), au rond des icônes de l'en-tête. */}
-        <AppearanceToggle className="rm-tab min-h-11 min-w-11" style={{ flex: "0 0 auto", width: 44 }} />
+        {/* Le mode sombre en un appui (ADR-0027), au rond des icônes de l'en-tête —
+            hors de l'en-tête des chartes, qui ne le porte pas. */}
+        {charte ? null : <AppearanceToggle className="rm-tab min-h-11 min-w-11" style={{ flex: "0 0 auto", width: 44 }} />}
         <NotificationBell variant="reseau" />
+        {charte ? messagesDoor : null}
         {destinations ? null : profileHref !== null ? (
           <Link href={profileHref} className="rm-avatar-link" aria-label={t("reseauMobileHeader.profileLink")}>
             {/* `Avatar` porte déjà `aria-hidden` : le nom du lien vient de

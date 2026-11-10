@@ -22,10 +22,10 @@
  * `capture` est ignoré et l'entrée caméra retomberait sur un sélecteur de
  * fichiers — d'où les deux, la caméra en premier au téléphone.
  *
- * ── La clé d'idempotence est tirée AU MONTAGE ──────────────────────────────
- * Même règle que `PostComposer`, et pour la même raison : le média est
- * TÉLÉVERSÉ avant que la mutation ne parte. Un renvoi après expiration réseau
- * publierait deux stories. La clé n'est renouvelée qu'après un SUCCÈS.
+ * ── Une clé par INTENTION ─────────────────────────────────────────────────
+ * Même fichier, légende et audience : un renvoi conserve la clé et le média
+ * déjà téléversé. Changer ces éléments crée une nouvelle intention. La clé
+ * et le brouillon restent en mémoire pour le seul acteur du réseau courant.
  *
  * ⚠️ L'aperçu passe par `URL.createObjectURL` sur le fichier LOCAL, et l'URL
  * est RÉVOQUÉE au remplacement comme au démontage : sans cela, une session de
@@ -48,6 +48,7 @@ import {
 	type ReachAudience,
 } from "../reseau-personnel/shared"
 import { StoriesStyles } from "./stories-styles"
+import { retainStorySubmissionIntent, type StorySubmissionIntent } from "./story-submission-intent"
 import {
 	canPublishStory,
 	evaluateStoryCaption,
@@ -90,12 +91,13 @@ export function StoryCreateSheet({
 	onPublished,
 }: StoryCreateSheetProps) {
 	const { t } = useTranslation("stories")
+	const { networkId, personId } = useNetwork()
 	// La POSE (décision pure `storyComposePose`) : plein écran au téléphone —
 	// le clavier exige la surface immersive et son `--kb-inset` — et carte
 	// flottante COMPACTE au bureau, sur le voile (`scrim`), comme le lecteur.
 	const mobile = useIsReseauMobile()
 	const pose = storyComposePose(mobile)
-	const form = <StoryCreateForm onClose={onClose} onPublished={onPublished} />
+	const form = <StoryCreateForm key={`${networkId}:${personId}`} onClose={onClose} onPublished={onPublished} />
 	return (
 		<ImmersiveOverlay
 			open={open}
@@ -133,7 +135,12 @@ function StoryCreateForm({
 	const [caption, setCaption] = useState("")
 	const [audience, setAudience] = useState<ReachAudience>(DEFAULT_AUDIENCE)
 	const [submitting, setSubmitting] = useState(false)
-	const [idempotencyKey, setIdempotencyKey] = useState(newIdempotencyKey)
+	const submitLock = useRef(false)
+	const alive = useRef(true)
+	const uploadAbort = useRef<AbortController | null>(null)
+	// Une intention précise, en mémoire seulement : retry = même clé et même
+	// dépôt ; un autre fichier, texte ou audience crée une autre intention.
+	const intent = useRef<StorySubmissionIntent<Id<"_storage">> | null>(null)
 	/** La durée RÉELLE de la vidéo (sonde ou conversion) — part dans `publish`. */
 	const [videoDurationMs, setVideoDurationMs] = useState<number | null>(null)
 	/** La préparation vidéo en cours — le brouillon reste nul tant qu'elle dure. */
@@ -151,8 +158,13 @@ function StoryCreateForm({
 	const liveUrls = useRef(new Set<string>())
 
 	useEffect(() => {
+		alive.current = true
 		const urls = liveUrls.current
 		return () => {
+			alive.current = false
+			prepToken.current += 1
+			uploadAbort.current?.abort()
+			intent.current = null
 			for (const url of urls) URL.revokeObjectURL(url)
 			urls.clear()
 		}
@@ -273,7 +285,7 @@ function StoryCreateForm({
 	}
 
 	const accept = (chosen: File | undefined) => {
-		if (chosen === undefined) return
+		if (chosen === undefined || submitLock.current || !alive.current) return
 		const token = ++prepToken.current
 		// L'aperçu précédent part AVANT que le suivant n'arrive : garder les deux
 		// est exactement la fuite que `useMediaDraft` documente.
@@ -303,27 +315,37 @@ function StoryCreateForm({
 	}
 
 	const handleSubmit = async () => {
-		if (!canSubmit || file === null || !isStoryDraftReady(draft)) return
+		if (submitLock.current || !alive.current || !canSubmit || file === null || !isStoryDraftReady(draft)) return
+		submitLock.current = true
+		intent.current = retainStorySubmissionIntent(intent.current, { file, caption, audience }, newIdempotencyKey)
+		const submission = intent.current
 		setSubmitting(true)
 		try {
-			const uploadUrl = await generateUploadUrl({
-				networkId,
-				usage: "story_media",
-			})
-			const response = await fetch(uploadUrl, {
-				method: "POST",
-				headers: { "Content-Type": file.type },
-				body: file,
-			})
-			if (!response.ok) {
-				throw new Error(UPLOAD_FAILED)
+			if (submission.storageId === null) {
+				const uploadUrl = await generateUploadUrl({ networkId, usage: "story_media" })
+				if (!alive.current) return
+				const controller = new AbortController()
+				uploadAbort.current = controller
+				const response = await fetch(uploadUrl, {
+					method: "POST",
+					headers: { "Content-Type": file.type },
+					body: file,
+					signal: controller.signal,
+				})
+				if (!response.ok) throw new Error(UPLOAD_FAILED)
+				const result: unknown = await response.json()
+				if (!alive.current) return
+				if (!result || typeof result !== "object" || !("storageId" in result) || typeof result.storageId !== "string") throw new Error(UPLOAD_FAILED)
+				submission.storageId = result.storageId as Id<"_storage">
 			}
-			const { storageId } = (await response.json()) as { storageId: string }
+			if (!alive.current) return
+			const storageId = submission.storageId
+			if (storageId === null) return
 
 			await publish({
 				networkId,
 				media: {
-					storageId: storageId as Id<"_storage">,
+					storageId,
 					kind: draft.kind,
 					// DÉCLARÉS, puis recoupés par le serveur avec les métadonnées
 					// réelles du stockage. On les envoie parce que la mutation les
@@ -339,14 +361,16 @@ function StoryCreateForm({
 				},
 				...(caption.trim().length > 0 ? { caption: caption.trim() } : {}),
 				audience,
-				idempotencyKey,
+				idempotencyKey: submission.key,
 			})
 
-			setIdempotencyKey(newIdempotencyKey())
+			if (!alive.current) return
+			intent.current = null
 			toast.success(t("storyCreateSheet.published"))
 			onPublished?.()
 			onClose()
 		} catch (error) {
+			if (!alive.current) return
 			// La clé n'est PAS renouvelée sur échec : c'est ce qui rend le renvoi
 			// sûr — le serveur reconnaîtra le rejeu au lieu de publier deux fois.
 			toast.error(
@@ -355,7 +379,9 @@ function StoryCreateForm({
 					: t("storyCreateSheet.uploadFailed"),
 			)
 		} finally {
-			setSubmitting(false)
+			submitLock.current = false
+			uploadAbort.current = null
+			if (alive.current) setSubmitting(false)
 		}
 	}
 
@@ -417,11 +443,13 @@ function StoryCreateForm({
 					type="file"
 					accept={STORY_ACCEPT}
 					capture="user"
+					disabled={submitting}
 					className="sr-only"
 					onChange={(event) => accept(event.target.files?.[0])}
 				/>
 				<input
 					ref={galleryInput}
+					disabled={submitting}
 					type="file"
 					accept={STORY_ACCEPT}
 					className="sr-only"
@@ -432,6 +460,7 @@ function StoryCreateForm({
 					<Button
 						variant="secondary"
 						icon="camera"
+						disabled={submitting}
 						onClick={() => cameraInput.current?.click()}
 					>
 						{t("storyCreateSheet.takePhoto")}
@@ -439,6 +468,7 @@ function StoryCreateForm({
 					<Button
 						variant="secondary"
 						icon="image"
+						disabled={submitting}
 						onClick={() => galleryInput.current?.click()}
 					>
 						{t("storyCreateSheet.chooseFromGallery")}
@@ -497,6 +527,7 @@ function StoryCreateForm({
 								loop
 							/>
 						) : (
+							// eslint-disable-next-line @next/next/no-img-element -- aperçu local révocable : object URL du fichier, jamais un média distant à optimiser via Next.
 							<img
 								className="st-media"
 								src={previewUrl}
@@ -509,6 +540,7 @@ function StoryCreateForm({
 				<Field label={t("storyCreateSheet.captionLabel")} htmlFor="story-caption">
 					<TextArea
 						id="story-caption"
+						disabled={submitting}
 						value={caption}
 						onChange={(event) => setCaption(event.target.value)}
 						rows={2}
@@ -543,6 +575,7 @@ function StoryCreateForm({
 				>
 					<Select
 						id="story-audience"
+						disabled={submitting}
 						value={audience}
 						onChange={(event) =>
 							setAudience(event.target.value as ReachAudience)
@@ -560,6 +593,7 @@ function StoryCreateForm({
 					onClick={() => void handleSubmit()}
 					disabled={!canSubmit}
 					icon="upload"
+					aria-busy={submitting || undefined}
 				>
 					{submitting
 						? t("storyCreateSheet.publishing")

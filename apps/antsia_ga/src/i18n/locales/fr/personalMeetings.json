@@ -1,0 +1,26 @@
+{
+  "title": "Rencontres",
+  "lead": "Un espace personnel distinct du réseau professionnel.",
+  "closed": {
+    "title": "Cet espace reste fermé",
+    "reason": "Aucun service de preuve de majorité n’est disponible et qualifié pour cet espace. L’accès aux rencontres personnelles reste donc fermé.",
+    "noCollection": "Cette page ne recueille aucune date de naissance, préférence intime ni inscription aux rencontres. Un badge ou une déclaration personnelle ne remplace pas une preuve de majorité.",
+    "capabilities": {
+      "participation": "Participation fermée",
+      "discovery": "Découverte de profils fermée",
+      "interests": "Marques d’intérêt fermées",
+      "contact": "Mise en contact personnelle fermée"
+    }
+  },
+  "status": {
+    "loading": "Lecture de l’état d’accès… Les rencontres restent fermées.",
+    "confirmed": "Accès fermé confirmé.",
+    "unavailable": "L’état n’a pas pu être relu. Les rencontres restent fermées."
+  },
+  "professional": {
+    "title": "Pour vos projets professionnels",
+    "description": "Découvrez les compétences et proposez des collaborations dans l’espace Les pros. Ce parcours reste distinct des rencontres personnelles.",
+    "link": "Explorer Les pros"
+  },
+  "entryLabel": "Rencontres · accès fermé"
+}

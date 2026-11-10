@@ -2,9 +2,15 @@ import { reseauAgentHref } from "@antsia/social-features/shell/reseau-agent-nav"
 import { describe, expect, it } from "vitest"
 
 import { engineRoutes, routes } from "@/lib/routes"
-import { meEntries, meEntriesIn, RESERVED_ME_ENTRIES } from "./me-model"
+import { meActivityEntries, meEntries, meEntriesIn, RESERVED_ME_ENTRIES } from "./me-model"
 
 describe("Profil — ce que la destination regroupe (P02)", () => {
+  it("sépare le raccourci vers le mur des outils personnels sans retirer d'activité", () => {
+    const all = meEntriesIn("activity", "awa.ndong")
+    expect(meActivityEntries("awa.ndong")).toEqual(all.filter((entry) => entry.id !== "profile"))
+    expect(meActivityEntries(null)).toEqual(meEntriesIn("activity", null))
+    expect(meActivityEntries("awa.ndong").map((entry) => entry.href)).toContain(routes.purchases())
+  })
   it("mon profil public, mes signets, mes actus, mon fil, la modération, mes données — dans cet ordre", () => {
     expect(meEntries("awa.ndong").map((entry) => [entry.id, entry.href])).toEqual([
       ["profile", routes.profile("awa.ndong")],

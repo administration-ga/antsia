@@ -23,7 +23,13 @@ import { fileURLToPath, pathToFileURL } from "node:url"
 
 export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..")
 export const ECOSYSTEMS = resolve(ROOT, "..")
-const OPTIONAL_PUBLIC_ARGS = new Set(["NEXT_PUBLIC_POSTHOG_KEY", "NEXT_PUBLIC_POSTHOG_HOST", "NEXT_PUBLIC_POSTHOG_EU_RELAY_ORIGIN"])
+const OPTIONAL_PUBLIC_ARGS = new Set([
+  "NEXT_PUBLIC_POSTHOG_KEY",
+  "NEXT_PUBLIC_POSTHOG_HOST",
+  "NEXT_PUBLIC_POSTHOG_EU_RELAY_ORIGIN",
+  "NEXT_PUBLIC_DEMO_ENTRY_ENABLED",
+  "NEXT_PUBLIC_APP_BASE_PATH",
+])
 
 /** Seules les options explicitement admises peuvent rester absentes au build. */
 export function requiredBuildArgs(app) {
@@ -75,6 +81,7 @@ function copiesPath(dockerfile, path) {
 
 /**
  * Contrôle d'un catalogue : chaque application déclare un paquet existant,
+ * une configuration et une entrée Expo pour le natif ; pour le web,
  * un Dockerfile présent, et chaque variable NEXT_PUBLIC_* est un ARG du
  * Dockerfile ET une substitution de Cloud Build (sinon le bundle se construit
  * avec une valeur vide, sans erreur) ; chaque image copie les espaces de
@@ -89,10 +96,18 @@ export function checkCatalog(catalog, root = ROOT) {
   if (cloudbuild === null) problems.push("deploy/cloudbuild.yaml introuvable")
   const externals = existsSync(join(root, "package.json")) ? externalRootWorkspaces(root) : []
   for (const [key, app] of Object.entries(catalog.applications ?? {})) {
+    const platform = app.platform ?? "web"
+    if (platform !== "web" && platform !== "expo-native") {
+      problems.push(`${key} : plateforme inconnue ${platform}`)
+      continue
+    }
     for (const arg of app.optional_build_args ?? []) {
       if (!OPTIONAL_PUBLIC_ARGS.has(arg) || !(app.build_args ?? []).includes(arg)) problems.push(`${key} : variable facultative non admise ${arg}`)
     }
-    for (const field of ["package", "path", "service", "dockerfile", "site_url", "dev_port", "build_args"]) {
+    const fields = platform === "expo-native"
+      ? ["package", "path", "platforms", "config", "entry", "public_env", "config_env"]
+      : ["package", "path", "service", "dockerfile", "site_url", "dev_port", "build_args"]
+    for (const field of fields) {
       if (app[field] === undefined) problems.push(`${key} : champ « ${field} » manquant`)
     }
     const manifestPath = join(root, app.path ?? "", "package.json")
@@ -102,7 +117,25 @@ export function checkCatalog(catalog, root = ROOT) {
       const manifest = JSON.parse(readFileSync(manifestPath, "utf8"))
       if (manifest.name !== app.package) problems.push(`${key} : le paquet s'appelle « ${manifest.name} », pas « ${app.package} »`)
       const devScript = manifest.scripts?.dev ?? ""
-      if (!devScript.includes(`--port ${app.dev_port}`)) problems.push(`${key} : le script dev n'écoute pas sur ${app.dev_port}`)
+      if (platform === "expo-native") {
+        if (!/^expo start(?:\s|$)/.test(devScript)) problems.push(`${key} : le script dev ne démarre pas Expo`)
+        if (!manifest.dependencies?.expo) problems.push(`${key} : dépendance Expo absente`)
+        if (manifest.main !== app.entry) problems.push(`${key} : le point d'entrée ne correspond pas au manifeste`)
+      } else if (!devScript.includes(`--port ${app.dev_port}`)) problems.push(`${key} : le script dev n'écoute pas sur ${app.dev_port}`)
+    }
+    if (platform === "expo-native") {
+      if (!Array.isArray(app.platforms) || [...app.platforms].sort().join(",") !== "android,ios") problems.push(`${key} : plateformes natives attendues : ios et android`)
+      for (const field of ["config", "entry"]) {
+        const path = app[field]
+        if (typeof path !== "string" || !path || !existsSync(join(root, app.path ?? "", path))) problems.push(`${key} : ${field} natif introuvable`)
+      }
+      for (const field of ["public_env", "config_env"]) {
+        if (!Array.isArray(app[field]) || app[field].some((name) => typeof name !== "string" || !(field === "public_env" ? /^EXPO_PUBLIC_[A-Z0-9_]+$/ : /^(?:NATIVE_|APNS_)[A-Z0-9_]+$/).test(name))) problems.push(`${key} : ${field} natif invalide`)
+      }
+      for (const field of ["service", "dockerfile", "site_url", "dev_port", "build_args", "optional_build_args", "runtime_env"]) {
+        if (app[field] !== undefined) problems.push(`${key} : champ web « ${field} » interdit au natif`)
+      }
+      continue
     }
     const dockerfilePath = join(ecosystems, app.dockerfile ?? "")
     if (!existsSync(dockerfilePath)) {
@@ -127,6 +160,8 @@ export function checkCatalog(catalog, root = ROOT) {
 export function buildPlan(catalog, appKey, env = process.env) {
   const app = catalog.applications?.[appKey]
   if (!app) throw new Error(`Application inconnue du catalogue : ${appKey}`)
+  if (app.platform === "expo-native") throw new Error(`Publication native non raccordée : ${appKey} ne possède aucun plan Cloud Run`)
+  if (app.platform !== undefined && app.platform !== "web") throw new Error(`Plateforme inconnue du catalogue : ${app.platform}`)
   const project = env.ANTSIA_GCP_PROJECT ?? "<ANTSIA_GCP_PROJECT>"
   const region = env.ANTSIA_GCP_REGION ?? "<ANTSIA_GCP_REGION>"
   const image = `${region}-docker.pkg.dev/${project}/antsia/${app.service}:latest`
@@ -135,7 +170,7 @@ export function buildPlan(catalog, appKey, env = process.env) {
   const buildArgs = (app.build_args ?? []).flatMap((name) => ["--build-arg", `${name}=${valueOf(name)}`])
   // Toutes les clés du gabarit Cloud Build : celles de l'application, et vides
   // celles des autres (la substitution reste stricte).
-  const allArgs = [...new Set(Object.values(catalog.applications).flatMap((entry) => entry.build_args ?? []))]
+  const allArgs = [...new Set(Object.values(catalog.applications).filter((entry) => entry.platform !== "expo-native").flatMap((entry) => entry.build_args ?? []))]
   const substitutions = [
     `_DOCKERFILE=${app.dockerfile}`,
     `_IMAGE=${image}`,

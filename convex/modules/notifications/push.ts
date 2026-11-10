@@ -19,7 +19,7 @@ export const deliver = internalAction({
     if (job.providerReceiptId && Date.now() - job.createdAt > 24 * 60 * 60_000) { await finish("failed", "transport"); return null }
     // Un reçu en attente est consulté, jamais réémis comme un nouveau push.
     const guard = async () => (await ctx.runQuery(internal.modules.notifications.deliveries.deliveryContext, { ...args, leaseToken: job.leaseToken })) !== null
-    const result = job.providerReceiptId ? await readExpoReceipt(job.providerReceiptId) : await deliverPush(prepared.subscription.credential, prepared.payload, job.channel === "call", guard)
+    const result = job.providerReceiptId ? await readExpoReceipt(job.providerReceiptId) : await deliverPush(prepared.subscription.credential, prepared.payload, job.channel === "call", guard, prepared.application)
     if (result.status === "sent") await finish("sent")
     else if (result.status === "accepted") {
       // Expo recommande de vérifier les reçus ; 24 h est la borne locale.

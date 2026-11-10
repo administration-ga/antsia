@@ -9,6 +9,7 @@ import { validateFacetSchema } from "@antsia/social-domain/facets"
 import { ATTESTATION_PATH, canonicalAttestationString, DAY_MS, DEFAULT_FACET_VISIBILITY, MEMBER_COUNTER_DISPLAY_THRESHOLD, SPONSORSHIPS_PER_WINDOW } from "@diasporale/domain"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
+import catalog from "../../../deploy/catalog.json"
 import { api, components, internal } from "../../_generated/api"
 import type { Id } from "../../_generated/dataModel"
 import schema from "../../schema"
@@ -158,6 +159,14 @@ describe("graine et manifeste de la tranche", () => {
   it("le manifeste dit vrai : ses tables sont au schéma du moteur", () => {
     expect([...DIASPORA_SLICE_MANIFEST.tables].sort()).toEqual(Object.keys(diasporaTables).sort())
     for (const table of DIASPORA_SLICE_MANIFEST.tables) expect(Object.keys(schema.tables)).toContain(table)
+  })
+
+  it("le manifeste dit vrai : son application est celle de DIASPORALE au catalogue, sa marque le nom du réseau", async () => {
+    const application = catalog.applications[DIASPORA_SLICE_MANIFEST.application]
+    expect(application.path).toMatch(/^\.\.\/DIASPORALE\//)
+    const t = testConvex()
+    const { diasporale } = await seedAll(t)
+    expect((await t.run(async (ctx) => await ctx.db.get(diasporale)))?.name).toBe(DIASPORA_SLICE_MANIFEST.brand)
   })
 })
 

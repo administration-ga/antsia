@@ -1,8 +1,9 @@
-// Dupliqué de socle/packages/agent-features/src/features/stories/stories-tray.test.ts @ ad2e7fdc2 — adaptations : groupes au DTO du moteur (`personId`, `cover` toujours porté) ; cas du champ de compatibilité `coverUrl` et de la vignette absente retirés (le moteur écarte un groupe sans vignette) ; libellés lus par l'i18n du moteur (`t` français, mêmes phrases attendues) ; cas ajoutés : nom neutre d'un auteur sans nom, libellé anglais, instant arrondi des lectures, prénom d'un médaillon (présentation « rings »).
+// Dupliqué de socle/packages/agent-features/src/features/stories/stories-tray.test.ts @ ad2e7fdc2 — adaptations : groupes au DTO du moteur (`personId`, `cover` toujours porté) ; cas du champ de compatibilité `coverUrl` et de la vignette absente retirés (le moteur écarte un groupe sans vignette) ; libellés lus par l'i18n du moteur (`t` français, mêmes phrases attendues) ; cas ajoutés : nom neutre d'un auteur sans nom, libellé anglais, instant arrondi des lectures, prénom d'un médaillon (présentation « rings ») ; anneau dessiné de ma série en médaillons (ADR-0028).
 import { describe, expect, it } from "vitest"
 
 import { createAppI18n } from "../../i18n"
 import {
+	drawnRingState,
 	orderTray,
 	ringStateFor,
 	STORY_QUERY_STEP_MS,
@@ -132,6 +133,19 @@ describe("ringStateFor", () => {
 
 	it("traite un handle propre vide comme absent", () => {
 		expect(ringStateFor(group("marie"), "")).toBe("seen")
+	})
+})
+
+describe("drawnRingState — l'anneau dessiné", () => {
+	it("en médaillons, ma série porte le dégradé du thème, comme une série à voir", () => {
+		expect(drawnRingState("self", true)).toBe("unseen")
+		expect(drawnRingState("unseen", true)).toBe("unseen")
+		expect(drawnRingState("seen", true)).toBe("seen")
+	})
+
+	it("les cartes gardent les trois états tels quels", () => {
+		expect(drawnRingState("self", false)).toBe("self")
+		expect(drawnRingState("seen", false)).toBe("seen")
 	})
 })
 

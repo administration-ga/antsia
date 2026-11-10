@@ -2,6 +2,7 @@
 
 import { api } from "@antsia/api/engine"
 import { isSigningOutEverywhere } from "@antsia/api/sign-out-everywhere"
+import { CONSOLE_MIN_LOA } from "@antsia/social-domain/badges"
 import { identityErrorKey, type IdentityConfiguration } from "@antsia/social-features/identity"
 import { Button } from "@antsia/ui"
 import { useConvexAuth, useQuery } from "convex/react"
@@ -56,7 +57,7 @@ export function IdnConsoleEntry({ configuration }: { configuration: IdentityConf
         if (mounted.current) setPending(false)
       }
     }}><ShieldCheck className="size-5 shrink-0" aria-hidden="true" />{pending ? t("signIn.connecting") : t("signIn.idn")}</Button>
-    <p className="text-xs text-muted-foreground">{t("signIn.minimum")}</p>
+    <p className="text-xs text-muted-foreground">{t("signIn.minimum", { level: CONSOLE_MIN_LOA })}</p>
   </section>
 }
 

@@ -8,7 +8,7 @@
  */
 import { COMMERCE_JOBS_ATTACHMENT_KINDS, COMMERCE_JOBS_CONTRACT } from "@antsia/social-domain/commerce-jobs"
 import { COMMERCE_APPLICATION_STATES } from "@antsia/social-domain/commerce/lifecycle"
-import { COMMERCE_ENVIRONMENTS, COMMERCE_PUBLIC_CONTRACT } from "@antsia/social-domain/commerce/primitives"
+import { COMMERCE_ENVIRONMENTS, COMMERCE_PUBLIC_CONTRACT, COMMERCE_PUBLIC_CONTRACT_V2 } from "@antsia/social-domain/commerce/primitives"
 import { COMMERCE_JOB_CONTRACT_TYPES } from "@antsia/social-domain/commerce/projection"
 import { defineTable } from "convex/server"
 import { v } from "convex/values"
@@ -18,7 +18,7 @@ import { literals } from "../../lib/validators"
 export const jobContractTypeValidator = literals(COMMERCE_JOB_CONTRACT_TYPES)
 export const jobAttachmentKindValidator = literals(COMMERCE_JOBS_ATTACHMENT_KINDS)
 export const jobRemoteStateValidator = literals(COMMERCE_APPLICATION_STATES)
-export const jobHeadContractValidator = v.union(v.literal(COMMERCE_PUBLIC_CONTRACT), v.literal(COMMERCE_JOBS_CONTRACT))
+export const jobHeadContractValidator = v.union(v.literal(COMMERCE_PUBLIC_CONTRACT), v.literal(COMMERCE_PUBLIC_CONTRACT_V2), v.literal(COMMERCE_JOBS_CONTRACT))
 export const jobHeadStateValidator = v.union(v.literal("active"), v.literal("withdrawn"), v.literal("closed"))
 export const jobClosureValidator = v.union(v.literal("closed"), v.literal("filled"), v.literal("withdrawn"))
 /** Candidature locale : file d'envoi, résultat distant, retrait. Aucun état ne prétend une décision RH. */
@@ -38,6 +38,10 @@ export const jobApplicationFileValidator = v.object({
 })
 
 export const jobTables = {
+  /** Clé abandonnée avant admission : aucun contenu candidat, conservée jusqu'à son effacement. */
+  commerceApplicationIntentFences: defineTable({
+    networkId: v.id("networks"), personId: v.id("persons"), idempotencyKey: v.string(), stoppedAt: v.number(),
+  }).index("by_key", ["personId", "networkId", "idempotencyKey"]).index("by_person", ["personId"]),
   /** Politique d'un réseau, réglée par un opérateur ; aucune ligne : emplois et candidatures FERMÉS. */
   commerceJobPolicies: defineTable({
     networkId: v.id("networks"), jobsEnabled: v.boolean(), applicationsEnabled: v.boolean(),
@@ -89,7 +93,13 @@ export const jobTables = {
     jobRef: v.string(), shopRef: v.string(), linkRef: v.string(), jobTitle: v.string(),
     source: v.string(), environment: literals(COMMERCE_ENVIRONMENTS), configFingerprint: v.string(),
     subjectRef: v.string(), requestId: v.string(), requestSha256: v.string(), requestExpiresAt: v.number(), rawBody: v.optional(v.string()),
-    idempotencyKey: v.string(), intentionSha256: v.string(), consentTextVersion: v.string(), consentedAt: v.number(),
+    idempotencyKey: v.string(), intentionSha256: v.string(), intentionVersion: v.optional(v.literal(2)), consentTextVersion: v.string(), consentedAt: v.number(),
+    // Preuve privée prise UNIQUEMENT lors d'un geste authentifié ; jamais exportée ni renouvelée par cron.
+    authorizationSessionId: v.optional(v.string()), authorizationAuthUserId: v.optional(v.string()),
+    authorizedAt: v.optional(v.number()), authorizationUntil: v.optional(v.number()), authorizationRequired: v.optional(v.boolean()),
+    leaseSessionId: v.optional(v.string()),
+    // Absence distante corrélée : permet une nouvelle décision seulement après expiration + dérive d'horloge.
+    unknownConfirmedAt: v.optional(v.number()), unknownRequestSha256: v.optional(v.string()),
     civilName: v.optional(v.object({ firstName: v.string(), lastName: v.string() })), motivation: v.optional(v.string()),
     files: v.array(jobApplicationFileValidator),
     state: jobApplicationStateValidator, rejection: v.optional(jobApplicationRejectionValidator), applicationRef: v.optional(v.string()), submittedAt: v.optional(v.number()),
@@ -102,7 +112,10 @@ export const jobTables = {
     remoteUnconfirmed: v.optional(v.boolean()),
     createdAt: v.number(), updatedAt: v.number(),
   }).index("by_person", ["personId"])
+    .index("by_person_revoked", ["personId", "revokedAt"])
     .index("by_person_network_createdAt", ["personId", "networkId", "createdAt"])
+    .index("by_person_network_key", ["personId", "networkId", "idempotencyKey"])
+    .index("by_person_network_job", ["personId", "networkId", "jobRef"])
     .index("by_person_job", ["personId", "jobRef"])
     .index("by_request", ["requestId"])
     .index("by_person_state", ["personId", "state"])

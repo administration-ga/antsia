@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => {
   return {
     anyPath,
     mobile: false as boolean | null,
+    adaptive: false,
     tab: "fil" as string,
     goToTab: vi.fn(),
     push: vi.fn(),
@@ -24,6 +25,11 @@ const mocks = vi.hoisted(() => {
 vi.mock("@antsia/ui/overlay", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@antsia/ui/overlay")>()),
   useIsReseauMobile: () => mocks.mobile,
+}))
+
+vi.mock("@antsia/api/network", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@antsia/api/network")>()),
+  useNetworkNavigationLayout: () => ({ adaptive: mocks.adaptive, mobile: mocks.mobile }),
 }))
 
 vi.mock("@antsia/api/engine", () => ({ api: mocks.anyPath() }))
@@ -114,10 +120,11 @@ vi.mock("../features/stories/StoryCreateSheet", () => ({
   StoryCreateSheet: ({ open }: { open: boolean }) => <div data-testid="StoryCreateSheet" data-open={String(open)} />,
 }))
 vi.mock("./mobile/PostComposerSheet", () => ({
-  PostComposerSheet: ({ open }: { open: boolean }) => <div data-testid="PostComposerSheet" data-open={String(open)} />,
+  PostComposerSheet: ({ open }: { open: boolean }) => <div data-testid="PostComposerSheet" data-open={String(open)}>{open ? <input type="file" data-testid="composer-file-picker" /> : null}</div>,
 }))
 
 import { ReseauAgentPage } from "./ReseauAgentPage"
+import { postDraftStore } from "../features/reseau-personnel/post-draft-store"
 
 function page() {
   return render(
@@ -128,7 +135,9 @@ function page() {
 }
 
 beforeEach(() => {
+  postDraftStore.resetForTests()
   mocks.mobile = false
+  mocks.adaptive = false
   mocks.tab = "fil"
   mocks.goToTab.mockClear()
   mocks.push.mockClear()
@@ -136,6 +145,72 @@ beforeEach(() => {
 })
 
 describe("ReseauAgentPage — la page réseau", () => {
+  /** U02 : scénarios écrits seulement ; jsdom ne mesure pas les container queries. */
+  it("pose la variante adaptative sur un seul arbre, sans hauteur de page imposée", () => {
+    mocks.adaptive = true
+    const vue = page()
+    const scope = vue.container.querySelector<HTMLElement>(".rp-scope")!
+    expect(scope.getAttribute("data-navigation-layout")).toBe("adaptive")
+    expect(scope.style.height).toBe("")
+    expect(screen.getAllByRole("main")).toHaveLength(1)
+    expect(screen.getAllByTestId("FeedPage")).toHaveLength(1)
+    expect(screen.getAllByTestId("PostComposerSheet")).toHaveLength(1)
+    // L'ossature reste unique ; les seuils tablette/ordinateur redistribuent ses éléments en CSS.
+    expect(scope.querySelectorAll(".rp-rail-start")).toHaveLength(1)
+    expect(scope.querySelectorAll(".rp-main-col")).toHaveLength(1)
+    expect(scope.querySelectorAll(".rp-rail-end")).toHaveLength(1)
+  })
+
+  it("garde les mêmes noeuds et le sélecteur de fichier entre tablette et ordinateur", () => {
+    mocks.adaptive = true
+    postDraftStore.setComposerOpen(true)
+    const initialWidth = window.innerWidth
+    const vue = page()
+    const scope = vue.container.querySelector(".rp-scope")
+    const feed = screen.getByTestId("FeedPage")
+    const picker = screen.getByTestId("composer-file-picker")
+    try {
+      // Le hook partagé a déjà retenu mobile=false à chacun de ces paliers ;
+      // on vérifie le montage React, pas une mesure CSS simulée comme une preuve visuelle.
+      for (const width of [768, 1199, 1200, 1400]) {
+        Object.defineProperty(window, "innerWidth", { configurable: true, value: width })
+        vue.rerender(<EngineTestWrapper><ReseauAgentPage /></EngineTestWrapper>)
+        expect(vue.container.querySelector(".rp-scope")).toBe(scope)
+        expect(screen.getByTestId("FeedPage")).toBe(feed)
+        expect(screen.getByTestId("composer-file-picker")).toBe(picker)
+        expect(picker.isConnected).toBe(true)
+        expect(screen.getAllByRole("main")).toHaveLength(1)
+      }
+    } finally {
+      Object.defineProperty(window, "innerWidth", { configurable: true, value: initialWidth })
+    }
+  })
+
+  it("conserve le contrat de hauteur et l'absence d'opt-in pour un réseau historique", () => {
+    const vue = page()
+    const scope = vue.container.querySelector<HTMLElement>(".rp-scope")!
+    expect(scope.hasAttribute("data-navigation-layout")).toBe(false)
+    expect(scope.style.height).toBe("100%")
+  })
+
+  it.each([true, false])("conserve le sélecteur ouvert quand la coquille change depuis mobile=%s", (mobile) => {
+    mocks.mobile = mobile
+    postDraftStore.setComposerOpen(true)
+    const vue = page()
+    const picker = screen.getByTestId("composer-file-picker")
+
+    mocks.mobile = !mobile
+    vue.rerender(<EngineTestWrapper><ReseauAgentPage /></EngineTestWrapper>)
+
+    expect(picker.isConnected).toBe(true)
+    expect(screen.getByTestId("composer-file-picker")).toBe(picker)
+    expect(screen.getAllByTestId("PostComposerSheet")).toHaveLength(1)
+
+    mocks.mobile = mobile
+    vue.rerender(<EngineTestWrapper><ReseauAgentPage /></EngineTestWrapper>)
+    expect(screen.getByTestId("composer-file-picker")).toBe(picker)
+  })
+
   it("ne monte AUCUN arbre tant que la largeur n'est pas connue", () => {
     mocks.mobile = null
     page()
@@ -222,5 +297,17 @@ describe("ReseauAgentPage — la page réseau", () => {
     fireEvent.click(screen.getByRole("button", { name: "Publier" }))
     expect(screen.getByTestId("PostComposerSheet").getAttribute("data-open")).toBe("true")
     expect(mocks.push).not.toHaveBeenCalled()
+  })
+
+  it("U09 : en adaptatif, la porte de publication remplace la carte d'identité ; iCom garde la tête de la colonne droite", () => {
+    mocks.adaptive = true
+    page()
+    expect(screen.queryByTestId("ProfileMiniCard")).toBeNull()
+    expect(screen.getByRole("region", { name: "Publier dans le fil" })).toBeTruthy()
+    fireEvent.click(screen.getByRole("button", { name: /^Quoi de neuf/ }))
+    expect(screen.getByTestId("PostComposerSheet").getAttribute("data-open")).toBe("true")
+    const rail = screen.getByLabelText("iCom et découverte du réseau")
+    const modules = Array.from(rail.querySelectorAll("[data-testid]")).map((node) => node.getAttribute("data-testid"))
+    expect(modules).toEqual(["MessagerieDock", "SuggestionsPanel", "PagesSuggestionsRail", "EvenementsRail"])
   })
 })

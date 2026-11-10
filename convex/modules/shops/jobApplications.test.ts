@@ -6,24 +6,25 @@
  */
 import { engineErrorCode } from "@antsia/social-contracts/errors"
 import { COMMERCE_JOBS_APPLICATION_CONSENT_VERSION, COMMERCE_JOBS_CONTRACT, COMMERCE_JOBS_CONTROL_CONTRACT, COMMERCE_JOBS_FILES_ATTACHMENT_HEADER, COMMERCE_JOBS_FILES_CONTRACT, COMMERCE_JOBS_FILES_REQUEST_HEADER, parseCommerceJobsControlRequest, type CommerceJobsClosed, type CommerceJobsPublished } from "@antsia/social-domain/commerce-jobs"
-import { parseCommerceCommandRequest } from "@antsia/social-domain/commerce/command"
-import { COMMERCE_COMMAND_CONTRACT, COMMERCE_PUBLIC_CONTRACT, commerceCanonicalJson } from "@antsia/social-domain/commerce/primitives"
+import { COMMERCE_COMMAND_LIMITS, parseCommerceCommandRequest } from "@antsia/social-domain/commerce/command"
+import { COMMERCE_COMMAND_CONTRACT, COMMERCE_PUBLIC_CONTRACT, COMMERCE_MAX_SKEW_MS, commerceCanonicalJson } from "@antsia/social-domain/commerce/primitives"
 import { commercePublicEffect, type CommerceShopEvent } from "@antsia/social-domain/commerce/projection"
 import { COMMERCE_LINK_CONSENT_VERSION } from "@antsia/social-domain/commerce-link"
 import { federationSigningText } from "@antsia/social-domain/federationProtocol"
 import { makeFunctionReference } from "convex/server"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
-import { api, internal } from "../../_generated/api"
+import { api, components, internal } from "../../_generated/api"
 import type { Id } from "../../_generated/dataModel"
 import { SEED_CONFIRMATION } from "../../seeds/foundations"
-import { createTestOperatorProof, testConvex } from "../../test.setup"
+import { createTestOperatorProof, createTestSession, testConvex } from "../../test.setup"
 import { directlyOwned, exportableRecord, type DataRecord } from "../people/dataInventory"
 import { readCommerceLinkConfig } from "./commerceLinkConfig"
 import { sha256Hex } from "./commerceLinkCrypto"
 import { revokeJobApplicationsForPerson } from "./jobApplicationLifecycle"
 import type { JobFileDto } from "./jobFiles"
-import type { MyApplication } from "./jobApplications"
+import type { JobApplicationIntentLookup, JobApplicationStopIntentResult, MyApplication } from "./jobApplications"
+import type { JobApplicationJob } from "./jobApplicationTransport"
 import { SHOP_PUBLIC_LISTING_TEXT_VERSION } from "./rules"
 
 const NOW = Date.UTC(2026, 9, 18, 12)
@@ -41,6 +42,12 @@ const policy = makeFunctionReference<"mutation", { networkId: Id<"networks">; en
 const mapping = makeFunctionReference<"mutation", { networkId: Id<"networks">; shopId: Id<"shops">; emitterId: Id<"federationEmitters">; enabled: boolean; reason: string }, null>("modules/shops/catalogControl:configureMapping")
 const jobPolicy = makeFunctionReference<"mutation", { networkId: Id<"networks">; jobsEnabled: boolean; applicationsEnabled: boolean; reason: string }, null>("modules/shops/jobs:setPolicy")
 const apply = makeFunctionReference<"mutation", ApplyArgs, { applicationId: Id<"commerceApplications">; state: State }>("modules/shops/jobApplications:apply")
+const retry = makeFunctionReference<"mutation", { networkId: Id<"networks">; applicationId: Id<"commerceApplications">; consentTextVersion?: string }, { state: State }>("modules/shops/jobApplications:retry")
+const findIntent = makeFunctionReference<"query", { networkId: Id<"networks">; idempotencyKey: string }, JobApplicationIntentLookup>("modules/shops/jobApplications:findByIdempotencyKey")
+const stopIntent = makeFunctionReference<"mutation", { networkId: Id<"networks">; idempotencyKey: string }, JobApplicationStopIntentResult>("modules/shops/jobApplications:stopClientIntent")
+const claimJob = makeFunctionReference<"mutation", { applicationId: Id<"commerceApplications"> }, JobApplicationJob | null>("modules/shops/jobApplicationTransport:claim")
+const authorizeJob = makeFunctionReference<"mutation", { applicationId: Id<"commerceApplications">; job: JobApplicationJob; configFingerprint: string }, boolean>("modules/shops/jobApplicationTransport:authorize")
+const finishJob = makeFunctionReference<"mutation", { applicationId: Id<"commerceApplications">; generation: number; attempt: number; job: JobApplicationJob; delivery: { outcome: "submitted"; applicationRef: string; submittedAt: number } | { outcome: "stored"; attachmentRef: string } | { outcome: "unavailable" } }, null>("modules/shops/jobApplicationTransport:finish")
 const withdraw = makeFunctionReference<"mutation", { applicationId: Id<"commerceApplications"> }, { state: State }>("modules/shops/jobApplications:withdraw")
 const refresh = makeFunctionReference<"mutation", { networkId: Id<"networks">; applicationId: Id<"commerceApplications"> }, null>("modules/shops/jobApplications:refreshStatus")
 const mine = makeFunctionReference<"query", { networkId: Id<"networks">; applicationId: Id<"commerceApplications"> }, { summary: MyApplication; civilName: { firstName: string; lastName: string } | null; motivation: string | null } | null>("modules/shops/jobApplications:myApplication")
@@ -150,7 +157,7 @@ async function row(f: Fixture, applicationId: Id<"commerceApplications">) { retu
 
 type Seen = { path: string; headers: Record<string, string>; body: string | Uint8Array }
 /** PRO.GA simulé : commandes, pièces et contrôles, réponses canoniques corrélées. */
-function proServer(behaviour: { submit?: "accepted" | "job_closed" | "lost"; file?: "stored" | "rejected"; control?: "applied" | "rejected"; state?: string } = {}) {
+function proServer(behaviour: { submit?: "accepted" | "job_closed" | "lost"; file?: "stored" | "rejected"; control?: "applied" | "rejected"; state?: string; status?: "unknown" | "unavailable" } = {}) {
   const seen: Seen[] = []
   const json = (value: unknown, status = 200) => new Response(canonical(value), { status, headers: { "Content-Type": "application/json" } })
   vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
@@ -164,6 +171,8 @@ function proServer(behaviour: { submit?: "accepted" | "job_closed" | "lost"; fil
         return behaviour.submit === "job_closed" ? json({ ...base, outcome: "rejected", reason: "job_closed" }, 422)
           : json({ ...base, outcome: "accepted", result: { applicationRef: PRO_APPLICATION, state: "received", submittedAt: NOW } })
       }
+      if (behaviour.status === "unavailable") throw new Error("Statut distant indisponible")
+      if (behaviour.status === "unknown") return json({ ...base, outcome: "accepted", result: { targetRequestId: request.payload.targetRequestId, state: "unknown", current: [] } })
       const recordedResponse = canonical({ contract: COMMERCE_COMMAND_CONTRACT, version: 1, command: "application.submit", requestId: request.payload.targetRequestId, requestSha256: request.payload.targetRequestSha256, respondedAt: NOW, outcome: "accepted", result: { applicationRef: PRO_APPLICATION, state: "received", submittedAt: NOW } })
       return json({ ...base, outcome: "accepted", result: { targetRequestId: request.payload.targetRequestId, state: "completed", recordedResponse, recordedResponseSha256: await sha256Hex(recordedResponse),
         current: [{ objectKind: "job_application", objectRef: PRO_APPLICATION, revision: 2, state: behaviour.state ?? "screening", updatedAt: NOW }] } })
@@ -307,6 +316,7 @@ describe("P15 — transport privé signé", () => {
     await f.t.action(deliver, { applicationId })
     expect(await row(f, applicationId)).toMatchObject({ state: "submitting", requestId: original?.requestId, rawBody: original?.rawBody })
     vi.setSystemTime((original?.requestExpiresAt ?? NOW) + 60_000)
+    await f.candidate.as.mutation(retry, { networkId: f.root, applicationId })
     const seen = proServer()
     await f.t.action(deliver, { applicationId })
     const commands = seen.filter((call) => call.path === "/commerce/v1/commands").map((call) => JSON.parse(String(call.body)) as { command: string })
@@ -562,3 +572,204 @@ describe("P14B — avis de suivi d'une candidature", () => {
     expect(sent.every((notice) => notice.recipientPersonId === f.candidate.personId)).toBe(true)
   })
 })
+
+// Reprise du 20/10 : scénarios ÉCRITS uniquement, sans exécution.
+describe("P15 — récupération par clé et preuve réelle de session", () => {
+  it("clôture atomique d'une clé absente : idempotente, privée et sans candidature ni contenu", async () => {
+    const f = await fixture(), intent = choice(f, []), key = { networkId: f.root, idempotencyKey: intent.idempotencyKey }
+    expect(await f.candidate.as.query(findIntent, key)).toEqual({ outcome: "absent" })
+    expect(await f.candidate.as.mutation(stopIntent, key)).toEqual({ outcome: "stopped" })
+    expect(await f.candidate.as.mutation(stopIntent, key)).toEqual({ outcome: "stopped" })
+    expect(await f.candidate.as.query(findIntent, key)).toEqual({ outcome: "stopped" })
+    expect(await f.other.as.query(findIntent, key)).toEqual({ outcome: "absent" })
+    expect(await code(f.candidate.as.mutation(apply, intent))).toBe("policyRefused")
+    const fences = await f.t.run(async (ctx) => ctx.db.query("commerceApplicationIntentFences").withIndex("by_key", (q) => q.eq("personId", f.candidate.personId).eq("networkId", f.root).eq("idempotencyKey", intent.idempotencyKey)).take(2))
+    expect(fences).toHaveLength(1)
+    expect(directlyOwned("commerceApplicationIntentFences", fences[0]! as unknown as DataRecord, f.candidate.personId)).toBe(true)
+    expect(exportableRecord("commerceApplicationIntentFences", fences[0]! as unknown as DataRecord, f.candidate.personId)).toBeNull()
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled()
+  })
+
+  it("une candidature existante reste prioritaire, sans retrait ni modification de ses octets", async () => {
+    const f = await fixture(), intent = choice(f, []), { applicationId } = await f.candidate.as.mutation(apply, intent)
+    const before = await row(f, applicationId), key = { networkId: f.root, idempotencyKey: intent.idempotencyKey }
+    expect(await f.candidate.as.query(findIntent, key)).toEqual({ outcome: "application", applicationId })
+    expect(await f.candidate.as.mutation(stopIntent, key)).toEqual({ outcome: "application", applicationId })
+    expect(await row(f, applicationId)).toEqual(before)
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled()
+  })
+
+  it("doublon legacy ambigu : lookup, stop et apply ferment sans choisir une candidature", async () => {
+    const f = await fixture(), intent = choice(f, []), { applicationId } = await f.candidate.as.mutation(apply, intent)
+    await f.t.run(async (ctx) => {
+      const source = await ctx.db.get(applicationId)
+      if (!source) throw new Error("Candidature attendue")
+      const { _id, _creationTime, ...data } = source
+      await ctx.db.insert("commerceApplications", { ...data, requestId: "legacy-duplicate-request-0001", intentionVersion: undefined })
+    })
+    const key = { networkId: f.root, idempotencyKey: intent.idempotencyKey }
+    expect(await code(f.candidate.as.query(findIntent, key))).toBe("conflict")
+    expect(await code(f.candidate.as.mutation(stopIntent, key))).toBe("conflict")
+    // Identité forte : ce test atteint le handler de rejeu, sans être bloqué par le budget renforcé du premier clic.
+    await f.t.run(async (ctx) => ctx.db.insert("identityLinks", { personId: f.candidate.personId, provider: "idn", subject: "p15-duplicate-strong", loa: 2, linkedAt: NOW }))
+    expect(await code(f.candidate.as.mutation(apply, intent))).toBe("conflict")
+  })
+
+  it("un ancien rejeu d'un autre réseau ne retourne jamais son identifiant", async () => {
+    const f = await fixture(), intent = choice(f, []), { applicationId } = await f.candidate.as.mutation(apply, intent)
+    await f.t.run(async (ctx) => {
+      const networkId = await ctx.db.insert("networks", { slug: "p15-other-network", kind: "closed", parentId: f.root, name: "Autre réseau", membershipPolicy: "open", defaultVisibility: "network", reachValues: [], theme: "antsia", status: "active", createdAt: NOW, updatedAt: NOW })
+      await ctx.db.patch(applicationId, { networkId, intentionVersion: undefined })
+    })
+    const key = { networkId: f.root, idempotencyKey: intent.idempotencyKey }
+    expect(await f.candidate.as.query(findIntent, key)).toEqual({ outcome: "absent" })
+    expect(await f.candidate.as.mutation(stopIntent, key)).toEqual({ outcome: "stopped" })
+    expect((await row(f, applicationId))?.networkId).not.toBe(f.root)
+  })
+
+  it("rejeu legacy de même propriétaire/réseau/boutique : empreinte ancienne admise, même après clôture du poste", async () => {
+    const f = await fixture(), intent = choice(f, []), { applicationId } = await f.candidate.as.mutation(apply, intent)
+    await f.t.run(async (ctx) => {
+      await ctx.db.insert("identityLinks", { personId: f.candidate.personId, provider: "idn", subject: "p15-legacy-strong", loa: 2, linkedAt: NOW })
+      await ctx.db.patch(applicationId, { intentionVersion: undefined, intentionSha256: await sha256Hex(canonical({ jobRef: JOB, civilName: { firstName: "Jean-Rémy Éloïse", lastName: "NDONG MBA" }, fileIds: [], textVersion: COMMERCE_JOBS_APPLICATION_CONSENT_VERSION, motivation: intent.motivation })) })
+    })
+    await published(f, { type: "job.closed", shopRef: SHOP, jobRef: JOB, revision: 2, changedAt: NOW, reason: "closed" })
+    expect(await f.candidate.as.mutation(apply, intent)).toEqual({ applicationId, state: "queued" })
+  })
+
+  it("preuve expirée : aucun départ depuis cron ; un geste d'une nouvelle session reprend les mêmes octets", async () => {
+    const f = await fixture(), { applicationId } = await f.candidate.as.mutation(apply, choice(f, [])), before = await row(f, applicationId)
+    vi.setSystemTime(NOW + COMMERCE_COMMAND_LIMITS.authMaxAgeMs + 1)
+    const seen = proServer()
+    await f.t.action(deliver, { applicationId })
+    expect(seen).toHaveLength(0)
+    expect(await row(f, applicationId)).toMatchObject({ state: "failed", authorizationRequired: true, rawBody: before?.rawBody, authorizedAt: NOW })
+    const sessionId = await createTestSession(f.t, "candidat.recette-fixture"), later = f.t.withIdentity({ subject: "candidat.recette-fixture", sessionId })
+    await later.mutation(retry, { networkId: f.root, applicationId })
+    await f.t.action(deliver, { applicationId })
+    expect(seen[0]?.body).toBe(before?.rawBody)
+    expect(await row(f, applicationId)).toMatchObject({ state: "submitted", requestId: before?.requestId, authorizationSessionId: sessionId, authorizedAt: Date.now() })
+  })
+
+  it("session révoquée pendant I/O : réponse non appliquée ; le retrait privé reste exécutable", async () => {
+    const f = await fixture(), { applicationId } = await f.candidate.as.mutation(apply, choice(f, []))
+    const job = await f.t.mutation(claimJob, { applicationId }), config = (await readCommerceLinkConfig())!
+    if (!job || job.kind !== "submit") throw new Error("Bail d'envoi attendu")
+    expect(await f.t.mutation(authorizeJob, { applicationId, job, configFingerprint: config.fingerprint })).toBe(true)
+    await f.t.mutation(components.betterAuth.adapter.deleteOne, { input: { model: "session", where: [{ field: "_id", value: job.sessionId! }] } })
+    await f.t.mutation(finishJob, { applicationId, generation: job.generation, attempt: job.attempt, job, delivery: { outcome: "submitted", applicationRef: PRO_APPLICATION, submittedAt: NOW } })
+    expect((await row(f, applicationId))?.applicationRef).toBeUndefined()
+    expect((await row(f, applicationId))?.authorizationRequired).toBe(true)
+    await f.t.run(async (ctx) => revokeJobApplicationsForPerson(ctx, f.candidate.personId))
+    const seen = proServer()
+    await f.t.action(deliver, { applicationId })
+    expect(seen.map((call) => call.path)).toEqual(["/commerce/v1/application-control"])
+    expect((await row(f, applicationId))?.state).toBe("withdrawn")
+  })
+
+  it("suivi déjà demandé puis preuve expirée : refresh recapture la session réelle et débloque le suivi", async () => {
+    const f = await fixture(), { applicationId } = await f.candidate.as.mutation(apply, choice(f, []))
+    proServer(); await f.t.action(deliver, { applicationId })
+    await f.candidate.as.mutation(refresh, { networkId: f.root, applicationId })
+    vi.setSystemTime(NOW + COMMERCE_COMMAND_LIMITS.authMaxAgeMs + 1)
+    const seen = proServer()
+    await f.t.action(deliver, { applicationId })
+    expect(seen).toHaveLength(0)
+    expect((await row(f, applicationId))?.statusRequestedAt).toBeDefined()
+    await f.candidate.as.mutation(refresh, { networkId: f.root, applicationId })
+    await f.t.action(deliver, { applicationId })
+    expect((await row(f, applicationId))?.statusRequestedAt).toBeUndefined()
+    const status = JSON.parse(String(seen[0]?.body)) as { subject: { authVerifiedAt: number } }
+    expect(status.subject.authVerifiedAt).toBe(Date.now())
+  })
+
+  it("unknown avant la fin de dérive puis panne : aucune nouvelle clé ; nouvel accord seulement après absence prouvée", async () => {
+    const f = await fixture(), { applicationId } = await f.candidate.as.mutation(apply, choice(f, [])), original = (await row(f, applicationId))!
+    proServer({ submit: "lost" }); await f.t.action(deliver, { applicationId })
+    vi.setSystemTime(original.requestExpiresAt + 1)
+    await f.candidate.as.mutation(retry, { networkId: f.root, applicationId })
+    proServer({ status: "unknown" }); await f.t.action(deliver, { applicationId })
+    expect(await row(f, applicationId)).toMatchObject({ state: "submitting", requestId: original.requestId, rawBody: original.rawBody })
+    vi.setSystemTime(original.requestExpiresAt + COMMERCE_MAX_SKEW_MS + 1)
+    await f.candidate.as.mutation(retry, { networkId: f.root, applicationId })
+    proServer({ status: "unavailable" }); await f.t.action(deliver, { applicationId })
+    expect(await row(f, applicationId)).toMatchObject({ state: "submitting", requestId: original.requestId })
+    expect((await row(f, applicationId))?.unknownRequestSha256).toBeUndefined()
+    await f.candidate.as.mutation(retry, { networkId: f.root, applicationId })
+    proServer({ status: "unknown" }); await f.t.action(deliver, { applicationId })
+    expect(await row(f, applicationId)).toMatchObject({ state: "failed", lastOutcome: "expired", requestId: original.requestId, unknownRequestSha256: original.requestSha256 })
+    expect(await code(f.candidate.as.mutation(retry, { networkId: f.root, applicationId }))).toBe("consentRequired")
+  })
+
+  it("un renvoi consomme la preuve d'absence ; sa réponse perdue impose une nouvelle consultation", async () => {
+    const f = await fixture(), { applicationId } = await f.candidate.as.mutation(apply, choice(f, []))
+    proServer({ submit: "lost" }); await f.t.action(deliver, { applicationId })
+    vi.setSystemTime(NOW + 31_000)
+    proServer({ status: "unknown" }); await f.t.action(deliver, { applicationId })
+    expect((await row(f, applicationId))?.unknownRequestSha256).toBeDefined()
+    const job = await f.t.mutation(claimJob, { applicationId }), config = (await readCommerceLinkConfig())!
+    if (!job || job.kind !== "submit") throw new Error("Renvoi des mêmes octets attendu")
+    expect(await f.t.mutation(authorizeJob, { applicationId, job, configFingerprint: config.fingerprint })).toBe(true)
+    expect((await row(f, applicationId))?.unknownRequestSha256).toBeUndefined()
+    await f.t.mutation(finishJob, { applicationId, generation: job.generation, attempt: job.attempt, job, delivery: { outcome: "unavailable" } })
+    await f.candidate.as.mutation(retry, { networkId: f.root, applicationId })
+    const seen = proServer({ status: "unavailable" }); await f.t.action(deliver, { applicationId })
+    expect(seen.map((call) => JSON.parse(String(call.body)).command)).toEqual(["request.status"])
+    expect((await row(f, applicationId))?.unknownConfirmedAt).toBeUndefined()
+  })
+
+  it("renouvellement explicite : une pièce disparue ne peut pas être omise du nouveau corps", async () => {
+    const f = await fixture(), file = await pdf(f), { applicationId } = await f.candidate.as.mutation(apply, choice(f, [file.fileId])), original = (await row(f, applicationId))!
+    vi.setSystemTime(original.requestExpiresAt + COMMERCE_MAX_SKEW_MS + 1)
+    await f.t.run(async (ctx) => {
+      await ctx.db.patch(file.fileId, { state: "retired", retiredAt: Date.now() })
+      await ctx.db.patch(applicationId, { state: "failed", rawBody: undefined, lastOutcome: "expired", unknownConfirmedAt: Date.now(), unknownRequestSha256: original.requestSha256 })
+    })
+    expect(await code(f.candidate.as.mutation(retry, { networkId: f.root, applicationId, consentTextVersion: COMMERCE_JOBS_APPLICATION_CONSENT_VERSION }))).toBe("policyRefused")
+    expect((await row(f, applicationId))?.requestId).toBe(original.requestId)
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled()
+  })
+
+  it.each(["retired", "quarantined", "full_scan_missing"] as const)("PDF %s après claim : la porte avant I/O refuse et stored n'écrase pas le retrait", async (change) => {
+    const f = await fixture(), file = await pdf(f), { applicationId } = await f.candidate.as.mutation(apply, choice(f, [file.fileId]))
+    const seen = proServer(); await f.t.action(deliver, { applicationId })
+    const job = await f.t.mutation(claimJob, { applicationId }), config = (await readCommerceLinkConfig())!
+    if (!job || job.kind !== "upload") throw new Error("Bail PDF attendu")
+    if (change === "retired") await f.candidate.as.mutation(retireFile, { fileId: file.fileId })
+    else await f.t.run(async (ctx) => {
+      const scan = await ctx.db.query("fileScans").withIndex("by_storageId", (q) => q.eq("storageId", file.storageId)).unique()
+      if (!scan) throw new Error("Scan attendu")
+      await ctx.db.patch(scan._id, change === "quarantined" ? { status: "infected", av: { provider: "test", verdict: "infected" } } : { requiresFullScan: false })
+    })
+    expect(await f.t.mutation(authorizeJob, { applicationId, job, configFingerprint: config.fingerprint })).toBe(false)
+    await f.t.mutation(finishJob, { applicationId, generation: job.generation, attempt: job.attempt, job, delivery: { outcome: "stored", attachmentRef: job.attachmentRef } })
+    expect(seen.filter((call) => call.path === "/commerce/v1/application-files")).toHaveLength(0)
+    expect((await row(f, applicationId))?.files[0]?.transfer).not.toBe("stored")
+    if (change === "retired") {
+      expect((await row(f, applicationId))?.files[0]?.transfer).toBe("revoke_pending")
+      expect((await row(f, applicationId))?.nextAttemptAt).toBe(Date.now())
+      await f.t.mutation(components.betterAuth.adapter.deleteOne, { input: { model: "session", where: [{ field: "_id", value: job.sessionId! }] } })
+      // Le premier réveil du retrait pouvait rencontrer le bail upload ; sa fermeture replanifie la voie privée.
+      await f.t.action(deliver, { applicationId })
+      expect(seen.filter((call) => call.path === "/commerce/v1/application-control")).toHaveLength(1)
+      expect((await row(f, applicationId))?.files[0]?.transfer).toBe("revoked")
+    }
+  })
+
+  it("export : ni preuve de session, ni bail, ni fence ; legacy sans preuve ne part pas", async () => {
+    const f = await fixture(), { applicationId } = await f.candidate.as.mutation(apply, choice(f, [])), saved = (await row(f, applicationId))!
+    const projected = exportableRecord("commerceApplications", saved as unknown as DataRecord, f.candidate.personId)
+    for (const field of ["authorizationSessionId", "authorizationAuthUserId", "authorizedAt", "authorizationUntil", "leaseSessionId", "unknownRequestSha256"]) expect(projected).not.toHaveProperty(field)
+    await f.t.run(async (ctx) => ctx.db.patch(applicationId, { authorizationSessionId: undefined, authorizationAuthUserId: undefined, authorizedAt: undefined, authorizationUntil: undefined }))
+    const seen = proServer(); await f.t.action(deliver, { applicationId })
+    expect(seen).toHaveLength(0)
+    expect((await row(f, applicationId))?.authorizationRequired).toBe(true)
+  })
+})
+
+// P16 : validation fictive EN TEST pour préserver les scénarios historiques.
+// Aucun contournement d'environnement ni activation en source applicative.
+vi.mock("./commerceActivation", async (importOriginal) => ({
+  ...await importOriginal<typeof import("./commerceActivation")>(),
+  commerceActivationReady: () => true,
+}))

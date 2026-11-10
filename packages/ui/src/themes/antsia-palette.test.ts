@@ -318,9 +318,9 @@ describe("charte ANTSIA servie par le moteur — cascade base + thème", () => {
     expect(value("clair", "--esp-r-chrome")).toBe("999px")
   })
 
-  it("cartes du fil (ADR-0027, après le lot P03) : 24 px dans les deux thèmes, un angle propre aux cartes", () => {
+  it("cartes du fil (ADR-0027, étude du 22/10/2026) : 16 px dans les deux thèmes, un angle propre aux cartes", () => {
     for (const mode of MODES) {
-      for (const nested of [false, true]) expect(value(mode, "--rp-surface-radius", nested), mode).toBe("24px")
+      for (const nested of [false, true]) expect(value(mode, "--rp-surface-radius", nested), mode).toBe("16px")
     }
   })
 

@@ -37,7 +37,7 @@
  * pas par `y`) signale l'entrée d'un nouvel item.
  */
 
-import type { ReactNode } from "react"
+import type { FocusEvent, ReactNode } from "react"
 import { useLayoutEffect, useRef, useState } from "react"
 import {
 	animate,
@@ -79,6 +79,31 @@ export function VerticalPager<T>({
 	const y = useMotionValue(0)
 	const reduceMotion = useReducedMotion() ?? false
 	const activeAnimation = useRef<AnimationPlaybackControlsWithThen | null>(null)
+	const focusedPanelBeforeChange = useRef<HTMLDivElement | null>(null)
+
+	// Mémoriser le panneau à la prise du focus : inert ou disabled peuvent
+	// faire flouter son contrôle avant les effets de layout. Une sortie
+	// volontaire du focus efface la mémoire ; une fermeture DOM la conserve.
+	const rememberPanelFocus = (event: FocusEvent<HTMLDivElement>) => {
+		focusedPanelBeforeChange.current = event.target.closest<HTMLDivElement>("[data-vertical-pager-panel]")
+	}
+	const forgetPanelFocus = (event: FocusEvent<HTMLDivElement>) => {
+		if (event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget)) return
+		if (event.target.closest("[inert], :disabled")) return
+		focusedPanelBeforeChange.current = null
+	}
+	useLayoutEffect(() => {
+		const panel = focusedPanelBeforeChange.current
+		const container = containerRef.current
+		if (panel === null || container === null) return
+		if (container.contains(panel) && panel.dataset.verticalPagerPanel === "active") return
+		focusedPanelBeforeChange.current = null
+		const doc = container.ownerDocument
+		const focused = doc.activeElement
+		// Un autofocus légitime ailleurs dans le document garde la main.
+		if (focused !== null && focused !== doc.body && focused !== doc.documentElement && !panel.contains(focused)) return
+		container.focus({ preventScroll: true })
+	})
 
 	// Mesure la hauteur RÉELLE du conteneur : `h-full` ne donne aucun nombre de
 	// pixels exploitable par `swipe.ts`, qui n'en connaît aucun lui-même.
@@ -145,7 +170,9 @@ export function VerticalPager<T>({
 	}
 
 	const onKeyDown = (event: React.KeyboardEvent) => {
-		if (disabled) return
+		if (disabled || event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return
+		const target = event.target
+		if (target instanceof HTMLElement && target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"], [role="combobox"], [role="slider"], [role="spinbutton"]')) return
 		// Convention CLAVIER standard des listes (ARIA listbox) : bas = suivant,
 		// haut = précédent — délibérément DIFFÉRENTE de la convention du GESTE
 		// (glisser vers le haut = suivant, cf. `swipe.ts`). Les deux paradigmes
@@ -175,6 +202,8 @@ export function VerticalPager<T>({
 			role="group"
 			aria-label={ariaLabel}
 			aria-disabled={disabled || undefined}
+			onFocusCapture={rememberPanelFocus}
+			onBlurCapture={forgetPanelFocus}
 			onKeyDown={onKeyDown}
 			onPointerDown={onPointerDown}
 			onPointerMove={swipe.onPointerMove}
@@ -184,16 +213,18 @@ export function VerticalPager<T>({
 			<motion.div className="absolute inset-0" style={{ y }}>
 				{visible.map(({ item, itemIndex }) => {
 					return (
-						<motion.div
-							key={keyExtractor(item, itemIndex)}
-							className="absolute inset-x-0 h-full"
-							style={{ top: (itemIndex - index) * size }}
-							initial={reduceMotion ? { opacity: 0 } : false}
-							animate={{ opacity: 1 }}
-							transition={{ duration: reduceMotion ? REDUCED_MOTION_FADE_S : 0 }}
+							<div
+								key={keyExtractor(item, itemIndex)}
+								className="absolute inset-x-0 h-full"
+								style={{ top: (itemIndex - index) * size }}
+								data-vertical-pager-panel={itemIndex === index ? "active" : "inactive"}
+								inert={itemIndex !== index}
+								aria-hidden={itemIndex !== index ? true : undefined}
 						>
-							{renderItem(item, { active: itemIndex === index, index: itemIndex })}
-						</motion.div>
+								<motion.div className="h-full w-full" initial={reduceMotion ? { opacity: 0 } : false} animate={{ opacity: 1 }} transition={{ duration: reduceMotion ? REDUCED_MOTION_FADE_S : 0 }}>
+									{renderItem(item, { active: itemIndex === index, index: itemIndex })}
+								</motion.div>
+							</div>
 					)
 				})}
 			</motion.div>

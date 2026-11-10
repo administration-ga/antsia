@@ -7,7 +7,7 @@ import { useConvexAuth, useMutation, useQuery } from "convex/react"
 import type { FunctionReference } from "convex/server"
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react"
 
-import type { RefreshableCrossDomainAuthClient } from "./cross-domain-session-bootstrap"
+import type { CrossDomainStorage, RefreshableCrossDomainAuthClient } from "./cross-domain-session-bootstrap"
 import { isSigningOutEverywhere } from "./sign-out-everywhere"
 import { type SessionBootstrapLabels, StableConvexBetterAuthProvider } from "./stable-convex-better-auth-provider"
 
@@ -139,6 +139,7 @@ function LiveSessionGate({ query, loadingLabel, children }: {
 export function EngineConvexProvider(props: {
   convexUrl: string
   authClient: RefreshableCrossDomainAuthClient
+  storage?: CrossDomainStorage
   ensurePerson: FunctionReference<"mutation", "public">
   isSessionActive?: FunctionReference<"query", "public", Record<string, never>, boolean>
   labels: SessionBootstrapLabels
@@ -154,7 +155,7 @@ export function EngineConvexProvider(props: {
 
   return (
     <QueryClientProvider client={pair.query}>
-      <StableConvexBetterAuthProvider client={pair.convex.convexClient} authClient={props.authClient} labels={props.labels}>
+      <StableConvexBetterAuthProvider client={pair.convex.convexClient} authClient={props.authClient} labels={props.labels} storage={props.storage}>
         {props.isSessionActive ? (
           <LiveSessionGate query={props.isSessionActive} loadingLabel={props.labels.loading}>{content}</LiveSessionGate>
         ) : content}

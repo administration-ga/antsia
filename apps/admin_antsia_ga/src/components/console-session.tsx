@@ -3,6 +3,7 @@
 import { api } from "@antsia/api/engine"
 import { Button } from "@antsia/ui"
 import { engineErrorCode } from "@antsia/social-contracts/errors"
+import { CONSOLE_MIN_LOA } from "@antsia/social-domain/badges"
 import { useConvexAuth, useMutation, useQuery } from "convex/react"
 import Link from "next/link"
 import { useEffect, useRef, useState } from "react"
@@ -38,7 +39,7 @@ function AdmissionMessage({ kind, retry, connected = false }: { kind: "loading" 
     <header className="space-y-3"><p className="text-sm font-medium uppercase tracking-wide text-muted-foreground">{t("home.eyebrow")}</p><h1 className="text-3xl">{t("home.title")}</h1><p className="text-muted-foreground">{t("home.access")}</p></header>
     <section className="space-y-4 rounded-xl border border-border bg-card p-5">
       <p role={kind === "denied" || kind === "failed" || kind === "backendMissing" ? "alert" : "status"}>{t("session." + kind)}</p>
-      {kind === "denied" ? <p className="text-sm text-muted-foreground">{t("session.noAuthority")}</p> : null}
+      {kind === "denied" ? <p className="text-sm text-muted-foreground">{t("session.noAuthority", { level: CONSOLE_MIN_LOA })}</p> : null}
       {retry ? <Button style={{ minHeight: 44 }} onClick={retry}>{t("session.retry")}</Button> : null}
       {kind === "signedOut" || kind === "denied" ? <Link className="inline-flex min-h-11 items-center rounded-md underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-4" href={routes.signIn()}>{t("session.signIn")}</Link> : null}
       {connected ? <ConsoleSignOut /> : null}

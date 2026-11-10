@@ -1,5 +1,36 @@
 # Guide du vendeur et du prestataire — pilote ANTSIA × PRO.GA
 
+> **Mise à jour du 20 octobre 2026.** Ce guide reste une préparation de pilote, sans séance ni
+> ouverture effectuée. Les nouvelles demandes de services, acceptations engageantes et
+> candidatures sont fermées par P16 dans les sources étudiées ; le paiement aussi. Une politique activée ne suffit pas.
+> Les étapes du 19 octobre conservées ci-dessous décrivent le parcours cible et ne constituent
+> pas une disponibilité actuelle. [État par capacité](../01_VERSIONS_CANDIDATES.md#actualisation-du-20-octobre-2026).
+
+Cet état concerne la candidate de cette reprise, sans observation de production publiée ailleurs.
+
+### Ce qui a changé dans les sources
+
+- La reprise P14 distingue l’accord du client (version, total et date) du statut « accepté »
+  choisi par un employé. Un devis remplacé ou une retenue expirée ne peut pas être confirmé
+  comme s’il était courant. Aucun paiement manuel ou acompte de service ne devient disponible
+  en passant par une commande ou une facture issue d’ANTSIA.
+- Fermer une offre, une vitrine ou une nouvelle capacité ne supprime pas les engagements déjà
+  pris. Leur suivi, annulation ou résolution passent par leurs portes privées normales.
+  Une demande dont la réponse est inconnue n’est pas à recréer pour essayer de la débloquer.
+- Le catalogue affiché reste une copie datée ; réconcilier ou recevoir un événement n’atteste
+  pas une nouvelle observation de stock. Une lettre morte possède désormais une voie de
+  relance auditée en source PRO.GA, encore non éprouvée ; voir les
+  [procédures de support actualisées](PROCEDURES_SUPPORT.md).
+- Le client natif et les appels système existent désormais en source, sans binaire ni recette
+  physique. Aucune sonnerie verrouillée ou réponse avant déverrouillage n’est promise au vendeur.
+
+Les décisions de conservation et d’effacement général PRO.GA restent ouvertes. Aucun taux,
+délai de versement, responsable d’astreinte ou fournisseur n’est choisi par ce guide.
+Références : [P14](../../rapports/P14_REPRISE_2026-10-20.md),
+[P16](../../rapports/P16_REPRISE_2026-10-20.md), [P17c](../../rapports/P17C_REPRISE_2026-10-20.md).
+
+### Guide historique du 19 octobre (conservé)
+
 > **Avant de lire.** Ce guide décrit le fonctionnement prévu par le code livré les 18 et 19 octobre
 > 2026. Rien n'est encore vérifié ni ouvert. Chaque fonction indique sa **disponibilité** : elle
 > n'existe pour vous qu'après la vérification, la recette et l'ouverture décidée par le réseau.

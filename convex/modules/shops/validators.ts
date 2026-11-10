@@ -1,3 +1,5 @@
+import { storefrontTermsValidator } from "./storefrontTerms"
+import { catalogOfferValidator } from "./catalogValidators"
 /**
  * Validateurs des BOUTIQUES (P07). Module sans fonction Convex enregistrée.
  * Littéraux DÉRIVÉS des listes pures (`./rules`, une seule source) ; DTO
@@ -5,6 +7,7 @@
  * fichiers), aucun signataire, aucun contact.
  */
 import { type Infer, v } from "convex/values"
+import { ACTIVITY_BLOCKS, ACTIVITY_CAPABILITIES, ACTIVITY_TEMPLATES } from "@antsia/social-domain/activityConfiguration"
 
 import { badgeValidator, contentVisibilityValidator, literals, membershipStatusValidator } from "../../lib/validators"
 import { withheldCodeValidator } from "../files/storageGuard"
@@ -20,6 +23,20 @@ import {
 } from "./rules"
 
 export const shopModelValidator = literals(SHOP_MODELS)
+/** Le gabarit d'activité : il règle la présentation et range la boutique dans son univers, jamais les droits. */
+export const activityTemplateValidator = literals(ACTIVITY_TEMPLATES)
+/**
+ * Le plat du jour d'une adresse « Alimentation et restauration », daté du jour civil de Libreville où il a été
+ * désigné. Les écrans ne l'annoncent que ce jour-là (`@antsia/social-domain/dailySpecial`).
+ */
+export const dailySpecialValidator = v.union(v.null(), v.object({ offerRef: v.string(), day: v.string() }))
+/** MP02 : configuration de présentation, jamais une permission de publication ou d'encaissement. */
+export const activityConfigurationValidator = v.object({
+  version: v.literal(1),
+  capabilities: v.array(literals(ACTIVITY_CAPABILITIES)),
+  template: activityTemplateValidator,
+  blocks: v.array(literals(ACTIVITY_BLOCKS)),
+})
 export const storefrontStateValidator = literals(STOREFRONT_STATES)
 export const storefrontPolicyValidator = literals(STOREFRONT_POLICIES)
 export const shopBlockValidator = literals(SHOP_BLOCKS)
@@ -80,11 +97,13 @@ export const shopEditorValidator = v.object({
   shopId: v.id("shops"),
   role: shopManagerRoleValidator,
   model: shopModelValidator,
+  activityConfiguration: v.optional(activityConfigurationValidator),
   name: v.union(v.string(), v.null()),
   description: v.union(v.string(), v.null()),
   specialty: v.union(v.string(), v.null()),
   serviceArea: v.union(v.string(), v.null()),
   hours: v.union(v.string(), v.null()),
+  dailySpecial: dailySpecialValidator,
   logo: v.object({ present: v.boolean(), url: v.union(v.string(), v.null()), withheld: v.union(withheldCodeValidator, v.null()) }),
   page: v.union(v.null(), v.object({ handle: v.string(), badge: badgeValidator })),
   storefront: v.object({
@@ -113,6 +132,7 @@ export type ShopEditor = Infer<typeof shopEditorValidator>
 
 /** La VITRINE vue par un membre du réseau : identité de la page, présentation commerciale, blocs non vides. */
 export const storefrontValidator = v.object({
+  storefrontTerms: v.optional(storefrontTermsValidator),
   pageId: v.id("pages"),
   handle: v.string(),
   name: v.string(),
@@ -120,9 +140,11 @@ export const storefrontValidator = v.object({
   logoUrl: v.union(v.string(), v.null()),
   bannerUrl: v.union(v.string(), v.null()),
   model: shopModelValidator,
+  activityConfiguration: v.optional(activityConfigurationValidator),
   specialty: v.union(v.string(), v.null()),
   serviceArea: v.union(v.string(), v.null()),
   hours: v.union(v.string(), v.null()),
+  dailySpecial: dailySpecialValidator,
   badge: badgeValidator,
   blocks: v.array(shopBlockValidator),
   publishedAt: v.number(),
@@ -131,14 +153,23 @@ export const storefrontValidator = v.object({
 })
 export type Storefront = Infer<typeof storefrontValidator>
 
-/** Une carte de l'annuaire des boutiques du réseau. */
+/**
+ * Une carte de l'annuaire des boutiques du réseau. La bannière est celle de la page (même garde des fichiers que
+ * le logo) : la marketplace en fait la photo de ses grandes cartes (décision du propriétaire du 22/10/2026).
+ */
 export const storefrontCardValidator = v.object({
   handle: v.string(),
   name: v.string(),
   logoUrl: v.union(v.string(), v.null()),
+  bannerUrl: v.union(v.string(), v.null()),
   model: shopModelValidator,
+  /** Le gabarit d'activité effectif : il range la boutique dans son univers (« Alimentation et restauration » pour `food`). */
+  template: activityTemplateValidator,
   specialty: v.union(v.string(), v.null()),
   serviceArea: v.union(v.string(), v.null()),
+  /** Les horaires annoncés (texte libre) : l'univers Alimentation les montre sous chaque adresse. */
+  hours: v.union(v.string(), v.null()),
+  dailySpecial: dailySpecialValidator,
   badge: badgeValidator,
   publishedAt: v.number(),
 })
@@ -151,12 +182,14 @@ export type StorefrontCard = Infer<typeof storefrontCardValidator>
  * officielles (`modules/public/access.ts`, inchangé).
  */
 export const publicStorefrontValidator = v.object({
+  storefrontTerms: v.optional(storefrontTermsValidator),
   handle: v.string(),
   name: v.string(),
   description: v.union(v.string(), v.null()),
   logoUrl: v.union(v.string(), v.null()),
   bannerUrl: v.union(v.string(), v.null()),
   model: shopModelValidator,
+  activityConfiguration: v.optional(activityConfigurationValidator),
   specialty: v.union(v.string(), v.null()),
   serviceArea: v.union(v.string(), v.null()),
   hours: v.union(v.string(), v.null()),
@@ -167,6 +200,14 @@ export const publicStorefrontValidator = v.object({
 })
 export type PublicStorefront = Infer<typeof publicStorefrontValidator>
 
+/** SU06 : projection séparée ; les lecteurs stricts de la vitrine historique gardent leur contrat. */
+export const publicDailySpecialValidator = v.object({
+  version: v.literal(1),
+  day: v.string(),
+  offer: catalogOfferValidator,
+})
+export type PublicDailySpecial = Infer<typeof publicDailySpecialValidator>
+
 /** Une demande en FILE D'ADMISSION, pour l'équipe de la plateforme : la présentation à relire et son préparateur. */
 export const storefrontReviewItemValidator = v.object({
   shopId: v.id("shops"),
@@ -174,6 +215,7 @@ export const storefrontReviewItemValidator = v.object({
   networkSlug: v.string(),
   storefront: storefrontStateValidator,
   model: shopModelValidator,
+  activityConfiguration: v.optional(activityConfigurationValidator),
   name: v.union(v.string(), v.null()),
   description: v.union(v.string(), v.null()),
   specialty: v.union(v.string(), v.null()),

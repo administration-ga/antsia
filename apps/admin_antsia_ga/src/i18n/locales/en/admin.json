@@ -27,7 +27,7 @@
     "backendMissing": "The engine is not configured for this console.",
     "connected": "Engine session is open.",
     "signedOut": "You are not signed in to the engine.",
-    "noAuthority": "An IDN identity at level 2 or above and a current operator authorisation are required. You can sign in with IDN again.",
+    "noAuthority": "An IDN identity at level {{level}} or above and a current operator authorisation are required. You can sign in with IDN again.",
     "signIn": "Sign in",
     "signOut": "Sign out everywhere",
     "signingOut": "Signing out…",
@@ -44,7 +44,7 @@
     "loading": "Checking IDN availability…",
     "help": "Use your authorised IDN identity to access engine tools.",
     "unavailable": "IDN sign-in for this console is not configured yet. The owner must create and configure its OIDC client.",
-    "minimum": "IDN level 2 minimum. Signing in does not create an authorisation.",
+    "minimum": "IDN level {{level}} minimum. Signing in does not create an authorisation.",
     "configurationFailed": "Sign-in availability cannot be checked."
   },
   "common": {

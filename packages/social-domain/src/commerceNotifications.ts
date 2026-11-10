@@ -8,12 +8,15 @@
  *   porte un genre et une référence ; l'objet est relu avec ses gardes à l'écriture, à la lecture
  *   de la cloche, avant tout transport et à l'ouverture.
  * - Seul un état CONFIRMÉ par PRO.GA (réponse corrélée, relecture, consultation, suivi) fait un
- *   avis, jamais un clic local ; une transition ne s'annonce qu'une fois (clé `genre|sujet:transition|-`).
+ *   avis, jamais un clic local ; DP39 ajoute un signal neutre de mise à jour À RELIRE, sans état annoncé.
+ *   Une transition ne s'annonce qu'une fois (clé `genre|sujet:transition|-`).
  */
 import type { CommerceBookingState, CommerceOrderState } from "./commerce/lifecycle"
 import type { NotificationCategory } from "./notificationDelivery"
 
 export const COMMERCE_NOTIFICATION_KINDS = [
+  /** Signal privé corrélé : la demande doit être relue sous une session actuelle. */
+  "commerce_service_followup_updated",
   // Client (demandeur P14) : décisions du PROFESSIONNEL observées chez PRO.GA.
   /** Un devis (première version) est transmis pour sa demande. */
   "commerce_service_quote_received",
@@ -52,6 +55,7 @@ export type CommerceNoticeAudience = (typeof COMMERCE_NOTICE_AUDIENCES)[number]
 
 /** Le public de CHAQUE genre : un genre ajouté sans public ne compile pas. */
 export const COMMERCE_NOTICE_AUDIENCE: Readonly<Record<CommerceNotificationKind, CommerceNoticeAudience>> = Object.freeze({
+  commerce_service_followup_updated: "client",
   commerce_service_quote_received: "client",
   commerce_service_quote_revised: "client",
   commerce_service_booking_confirmed: "client",

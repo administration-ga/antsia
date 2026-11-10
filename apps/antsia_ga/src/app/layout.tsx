@@ -33,7 +33,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   const { locale, t } = getAppT(await getPublicLocale())
   const nonce = (await headers()).get(CSP_NONCE_HEADER) ?? undefined
   return (
-    <html lang={locale} data-charte="antsia" suppressHydrationWarning>
+    <html lang={locale} data-charte="antsia" data-scroll-behavior="smooth" suppressHydrationWarning>
       <head>
         {/* Thème et mode sombre de l'appareil posés avant le premier affichage (ADR-0026). */}
         <AppearanceBootScript nonce={nonce} />

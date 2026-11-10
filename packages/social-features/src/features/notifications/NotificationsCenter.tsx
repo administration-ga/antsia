@@ -16,7 +16,9 @@ import { useAuthenticatedConvexQuery } from "@antsia/api/hooks"
 import { useNetwork } from "@antsia/api/network"
 import { Button } from "@antsia/ui"
 import { useMutation } from "convex/react"
+import { useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
+import { COMPACT_SOCIAL_ACTION_STYLE } from "../social-action-style"
 import { toast } from "sonner"
 import { NotificationsList } from "./NotificationsList"
 import { readFailureText } from "./notification-center-tabs"
@@ -45,13 +47,23 @@ export function NotificationsCenter({
 	const markAllRead = useMutation(api.modules.notifications.bell.markAllRead)
 
 	const hasUnread = (unread.data?.count ?? 0) > 0
+	const marking = useRef(false)
+	const [markingRead, setMarkingRead] = useState(false)
 
 	// Son échec se DIT : sinon la pastille resterait allumée sans raison
 	// apparente.
-	const markEverythingRead = () => {
-		void markAllRead({ networkId }).catch((error: unknown) =>
-			toast.error(readFailureText(error, t)),
-		)
+	const markEverythingRead = async () => {
+		if (marking.current) return
+		marking.current = true
+		setMarkingRead(true)
+		try {
+			await markAllRead({ networkId })
+		} catch (error: unknown) {
+			toast.error(readFailureText(error, t))
+		} finally {
+			marking.current = false
+			setMarkingRead(false)
+		}
 	}
 
 	return (
@@ -64,7 +76,7 @@ export function NotificationsCenter({
 						marginBottom: 12,
 					}}
 				>
-					<Button variant="link" size="sm" onClick={markEverythingRead}>
+					<Button variant="link" size="sm" disabled={markingRead} aria-busy={markingRead} style={COMPACT_SOCIAL_ACTION_STYLE} onClick={() => void markEverythingRead()}>
 						{t("notificationsCenter.markAllRead")}
 					</Button>
 				</div>

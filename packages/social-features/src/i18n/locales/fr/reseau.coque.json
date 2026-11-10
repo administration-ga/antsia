@@ -12,7 +12,13 @@
     "showLess": "Voir moins",
     "myProfile": "Mon profil",
     "settings": "Paramètres",
-    "shortcuts": "Vos raccourcis"
+    "shortcuts": "Vos raccourcis",
+    "socialSection": "Réseau social",
+    "activitySection": "Activité",
+    "pageSection": "Page",
+    "createActivity": "Créer une activité",
+    "myPages": "Mes pages",
+    "createPage": "Créer une page"
   },
   "reseauDesktopIcomLink": {
     "label": "iCom",
@@ -34,7 +40,11 @@
     "seeRequests": "Voir les demandes",
     "postUnavailable": "Cette publication n'est plus accessible.",
     "searchEmpty": "Aucune publication ne correspond à cette recherche.",
-    "loadMore": "Voir plus de publications"
+    "loadMore": "Voir plus de publications",
+    "composerLabel": "Publier dans le fil",
+    "composerPrompt": "Quoi de neuf, {{name}} ?",
+    "composerPromptAnonymous": "Quoi de neuf ?",
+    "composerPhoto": "Photo"
   },
   "reseauMobileHeader": {
     "wordmark": "Réseau",

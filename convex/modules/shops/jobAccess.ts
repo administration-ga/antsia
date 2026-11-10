@@ -9,6 +9,7 @@ import type { Doc, Id } from "../../_generated/dataModel"
 import type { QueryCtx } from "../../_generated/server"
 import { publicStorefrontPage } from "./access"
 import { liveCatalogMapping } from "./catalogAccess"
+import { commerceActivationReady } from "./commerceActivation"
 
 type ReadCtx = Pick<QueryCtx, "db">
 
@@ -18,7 +19,7 @@ export type JobPolicy = { jobs: boolean; applications: boolean }
 export async function jobPolicyOf(ctx: ReadCtx, networkId: Id<"networks">): Promise<JobPolicy> {
   const row = await ctx.db.query("commerceJobPolicies").withIndex("by_network", (q) => q.eq("networkId", networkId)).unique()
   const jobs = row?.jobsEnabled === true
-  return { jobs, applications: jobs && row?.applicationsEnabled === true }
+  return { jobs, applications: commerceActivationReady("applications") && jobs && row?.applicationsEnabled === true }
 }
 
 /** Le parent boutique reste celui du catalogue P09 ; le lien doit en plus porter `publish_jobs`. */
@@ -42,7 +43,7 @@ export async function readableJobMapping(ctx: ReadCtx, root: Doc<"networks">, sh
   const head = live.parentHead
   if (!head || head.mappingId !== live.mapping._id || head.mappingGeneration !== live.mapping.generation || head.state !== "active") return null
   const parsed = parseCommercePublicBody(head.body, Date.now())
-  if (!parsed.ok || (parsed.value.payload.type !== "shop.published" && parsed.value.payload.type !== "shop.updated")) return null
+  if (!parsed.ok || !live.emitter.allowedContracts.includes(parsed.value.contract) || (parsed.value.payload.type !== "shop.published" && parsed.value.payload.type !== "shop.updated")) return null
   const parent = parsed.value.payload
   if (parent.linkRef !== live.link.linkRef || !parent.capabilities.includes("jobs")) return null
   return { ...live, parentHead: head, parent }

@@ -13,6 +13,7 @@ import { describe, expect, it } from "vitest"
 import { type Finding, formatFindings, isTestFile, lineOf, listFiles, moduleSpecifiers, parseSource, readRepoFile, REPO_ROOT, walk } from "./lib/source-files"
 
 const GATE = "packages/api/src/sign-out-everywhere.ts"
+const NATIVE_GATE = "packages/social-native/src/sign-out.ts"
 const SDK_EXIT_METHODS = new Set(["signOut", "revokeSessions"])
 const CONSUMERS = [
   "apps/antsia_ga/src/lib/sign-out.ts",
@@ -90,7 +91,7 @@ function detectMethods(file: string, text: string, names: ReadonlySet<string>): 
 }
 
 function detectRawSessionExit(file: string, text: string): Finding[] {
-  return file === GATE ? [] : detectMethods(file, text, SDK_EXIT_METHODS)
+  return file === GATE || file === NATIVE_GATE ? [] : detectMethods(file, text, SDK_EXIT_METHODS)
 }
 
 function hasFullNavigation(source: ts.SourceFile): boolean {
@@ -140,6 +141,21 @@ describe("sign-out-everywhere — révocation et sortie complètes par une seule
     expect(methods.some((finding) => finding.message.includes("revokeSessions"))).toBe(true)
     const globalPurges = detectMethods(GATE, text, new Set(["clear"]))
     expect(globalPurges, formatFindings(globalPurges)).toEqual([])
+  })
+
+  it("le client natif passe par la porte asynchrone et réinitialise ses données sans attendre un document Web", () => {
+    const gateText = readRepoFile(NATIVE_GATE)
+    const methods = detectMethods(NATIVE_GATE, gateText, SDK_EXIT_METHODS)
+    expect(methods.some((finding) => finding.message.includes("signOut"))).toBe(true)
+    expect(methods.some((finding) => finding.message.includes("revokeSessions"))).toBe(true)
+    expect(gateText).toContain("clearCredentials")
+    expect(gateText).toContain("stopResources")
+    expect(gateText).not.toMatch(/\b(?:localStorage|sessionStorage|window|document)\s*\./)
+    const consumer = readRepoFile("apps/antsia_mobile/src/lib/session-controller.ts")
+    expect(moduleSpecifiers(parseSource("native-session-controller.ts", consumer)).some(({ specifier }) => specifier === "@antsia/social-native/sign-out")).toBe(true)
+    expect(consumer).toContain("clearCredentials: () => vault.clear()")
+    expect(consumer).toContain("setSession(null)")
+    expect(consumer).toContain("setTransportKey")
   })
 
   it.each(CONSUMERS)("%s appelle la porte partagée et termine les caches par navigation complète", (file) => {

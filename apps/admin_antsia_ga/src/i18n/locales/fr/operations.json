@@ -37,6 +37,7 @@
     "serviceReview": "Avis de prestations",
     "serviceReviewReply": "Réponses aux avis de prestations",
     "commerceOffer": "Offres des boutiques",
+    "commerceStorefront": "Conditions de la boutique",
     "commercialMessage": "Message commercial",
     "contextualMessage": "Messages de mise en relation",
     "commerceJob": "Offres d’emploi",
@@ -48,7 +49,11 @@
     "diasporaKitResource": "Ressources du kit d’arrivée DIASPORALE",
     "diasporaJobOffer": "Offres d’emploi DIASPORALE",
     "diasporaTalentProfile": "Profils de talent DIASPORALE",
-    "diasporaJobApplication": "Candidatures DIASPORALE"
+    "diasporaJobApplication": "Candidatures DIASPORALE",
+    "professionalProfile": "Profil professionnel",
+    "professionalCollaboration": "Demande de collaboration",
+    "editorialVersion": "Version d’article",
+    "editorialMedia": "Présentation du média"
   },
   "teams": {
     "title": "Équipes de modération",
@@ -244,6 +249,29 @@
       "openAppeals": "Recours ouverts",
       "pendingFiles": "Fichiers en attente d’analyse",
       "deadLetters": "Lettres mortes"
+    },
+    "legal": {
+      "title": "Délais légaux des signalements",
+      "lead": "Dossiers soumis aux délais de l’ordonnance n° {{ordinance}}, encore ouverts ou en examen, lus en direct et comptés par fondement légal. Aucun dossier ni personne n’apparaît ici : la file prioritaire des modérateurs les traite.",
+      "overdue": "Délai légal dépassé : {{value}} dossier(s) encore ouvert(s) ou en examen.",
+      "oldest": "Plus ancienne échéance dépassée :",
+      "noneOverdue": "Aucun délai légal dépassé parmi les dossiers ouverts ou en examen.",
+      "failed": "Les délais légaux n’ont pas pu être lus. Les autres indicateurs de cette page restent valables.",
+      "atLeast": "au moins {{value}}",
+      "undetermined": "Non déterminé",
+      "metrics": {
+        "overdue": "En retard",
+        "dueSoon": "Échéance dans les 24 h",
+        "open": "Total à délai légal"
+      },
+      "byBasis": "Retards par fondement",
+      "basis": {
+        "art24": "Art. 24 : décision sous {{hours}} h",
+        "art32": "Art. 32 : retrait sous {{hours}} h",
+        "art33": "Art. 33 : retrait sous {{hours}} h"
+      },
+      "bounded": "Lecture bornée aux {{limit}} échéances les plus proches de chaque statut : au-delà, les nombres sont des minimums.",
+      "clockHint": "Un dossier passe en retard à l’heure de cet écran, actualisée chaque minute. Aucune notification externe n’est envoyée."
     }
   },
   "export": {
@@ -254,13 +282,22 @@
     "columns": {
       "cases": "Dossiers",
       "actioned": "Décisions appliquées",
-      "dismissed": "Dossiers classés"
+      "dismissed": "Dossiers classés",
+      "legalMet": "Dans le délai",
+      "legalMissed": "Hors délai"
     },
     "json": "Télécharger le JSON agrégé",
     "csv": "Télécharger le CSV agrégé",
     "downloaded": "Téléchargement de l’export agrégé demandé.",
     "failed": "Le fichier n’a pas pu être téléchargé. Vous pouvez réessayer.",
-    "invalid": "La projection agrégée n’est pas exportable ; le téléchargement est fermé."
+    "invalid": "La projection agrégée n’est pas exportable ; le téléchargement est fermé.",
+    "legal": {
+      "title": "Échéances légales",
+      "hint": "Échéances légales (ordonnance n° {{ordinance}}) : celles tombées pendant la période, tenues ou manquées. Même règle que la page Transparence : une période close au calcul, au moins {{threshold}} échéances sur autant d’auteurs distincts, et aucun nombre inférieur à {{threshold}}. Leur total n’est jamais exporté.",
+      "lessThan": "Moins de {{threshold}}",
+      "unmeasured": "Non mesurées pour cette période.",
+      "suppressed": "Masquées : moins de {{threshold}} échéances ou auteurs distincts."
+    }
   },
   "commercialContact": {
     "title": "Contact commercial",
@@ -282,7 +319,8 @@
     "kinds": {
       "diasporaServiceRequest": "Demandes de service (DIASPORALE)",
       "diasporaMentoring": "Mentorats acceptés (DIASPORALE)",
-      "diasporaJobApplication": "Candidatures présélectionnées (DIASPORALE)"
+      "diasporaJobApplication": "Candidatures présélectionnées (DIASPORALE)",
+      "professionalCollaboration": "Collaboration professionnelle"
     }
   },
   "paymentPolicy": {
@@ -294,7 +332,9 @@
     "disabled": "Nouveaux lancements de paiement fermés",
     "enable": "Autoriser les nouveaux paiements",
     "disable": "Fermer les nouveaux paiements",
-    "updated": "Dernière décision le"
+    "updated": "Dernière décision le",
+    "validationMissing": "Les nouveaux paiements restent fermés : la validation des décisions de paiement et la recette croisée manquent. Un ancien réglage actif ne remplace pas ces prérequis.",
+    "validationBlocked": "Nouveaux paiements bloqués en attente de validation"
   },
   "servicePolicy": {
     "title": "Devis, rendez-vous et prestations",
@@ -305,7 +345,9 @@
     "disabled": "Demandes de services fermées",
     "enable": "Ouvrir les demandes de services",
     "disable": "Fermer les demandes de services",
-    "updated": "Dernière décision le"
+    "updated": "Dernière décision le",
+    "validationMissing": "Les nouvelles demandes de services restent fermées : les règles de conservation et la recette croisée doivent être validées. Le suivi et les annulations des engagements existants gardent leurs voies dédiées.",
+    "validationBlocked": "Nouvelles demandes bloquées en attente de validation"
   },
   "jobPolicy": {
     "title": "Offres d’emploi et candidatures",
@@ -319,7 +361,9 @@
     "disableJobs": "Masquer les offres d’emploi (et fermer les candidatures)",
     "enableApplications": "Ouvrir les candidatures",
     "disableApplications": "Fermer les candidatures",
-    "updated": "Dernière décision le"
+    "updated": "Dernière décision le",
+    "validationMissing": "Les candidatures restent fermées en attente de validation des règles de conservation et de la recette croisée. Les offres peuvent rester consultables ; suivi et retrait des candidatures existantes gardent leurs voies dédiées.",
+    "validationBlocked": "Nouvelles candidatures bloquées en attente de validation"
   },
   "storefrontPolicy": {
     "title": "Publication des vitrines",
@@ -371,6 +415,37 @@
     "enable": "Ouvrir les catalogues",
     "disable": "Fermer les catalogues",
     "updated": "Dernière décision le"
+  },
+  "catalogMapping": {
+    "title": "Rattacher les boutiques à leur catalogue PRO.GA",
+    "lead": "Choisissez une boutique et son émetteur autorisé. Le rattachement ne crée aucune offre : seuls les événements signés et appliqués de PRO.GA alimentent le catalogue.",
+    "shops": "Boutiques à rattacher",
+    "unnamedShop": "Boutique sans nom public",
+    "active": "Rattachement actif",
+    "inactive": "Rattachement désactivé",
+    "unmapped": "Aucun rattachement",
+    "currentEmitter": "Émetteur : {{emitter}} · Génération {{generation}}",
+    "unknownEmitter": "Émetteur indisponible",
+    "chooseShop": "Configurer {{name}}",
+    "chooseShopHint": "Sélectionnez la boutique à configurer dans cette page de résultats.",
+    "editShop": "Catalogue de {{name}}",
+    "linkReady": "La liaison vivante autorise la publication du catalogue.",
+    "linkRequired": "Le gestionnaire doit d’abord établir une liaison PRO.GA vivante avec la permission de publier le catalogue.",
+    "categoriesHint": "Les catégories alimentaires exigent le contrat PUBLIC V2 et des facettes déclarées dans les offres publiées. Un émetteur compatible V2 ne prouve pas qu’un produit classé a été reçu. Les catalogues V1 restent utilisables.",
+    "emitters": "Émetteurs du catalogue",
+    "emitter": "Émetteur à rattacher",
+    "emitterHint": "Choisissez un émetteur actif du même environnement, autorisé pour PUBLIC V1 ou V2. Parcourez les pages si nécessaire.",
+    "selectEmitter": "Choisir un émetteur sur cette page",
+    "emitterOption": "{{slug}} · {{environment}} · {{state}} · {{contract}}",
+    "v2": "PUBLIC V2 : catégories possibles",
+    "v1": "PUBLIC V1 : sans catégories",
+    "noCatalog": "Contrat catalogue absent",
+    "noCompatibleOnPage": "Aucun émetteur compatible sur cette page. Parcourez les autres pages ou configurez un émetteur dans Fédération.",
+    "unchanged": "Cet émetteur est déjà rattaché à la boutique. Aucune nouvelle décision n’est nécessaire.",
+    "replaceHint": "Changer l’émetteur ouvre une nouvelle génération de catalogue. Les offres attendront de nouveaux événements appliqués de PRO.GA.",
+    "enable": "Rattacher {{name}} à {{emitter}}",
+    "enableUnselected": "Choisissez un émetteur pour rattacher la boutique",
+    "disable": "Retirer le rattachement de {{name}}"
   },
   "checkoutPolicy": {
     "title": "Préparation des commandes",

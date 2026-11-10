@@ -16,12 +16,14 @@ export const RESEAU_PUBLIC_EMITTER = "administration-ga"
 export const COMMERCE_TRANSPORT_TEST_CONTRACT = "PRO-COMMERCE-TRANSPORT-TEST-V1"
 /** P15 : emplois publics complets (compétences, période), jumeau `commerce-jobs` hors manifeste P06. */
 export const COMMERCE_JOBS_FEDERATION_CONTRACT = "PRO-COMMERCE-JOBS-V1"
-export const FEDERATION_IMPLEMENTED_CONTRACTS: readonly string[] = [RESEAU_PUBLIC_CONTRACT, COMMERCE_TRANSPORT_TEST_CONTRACT, "PRO-COMMERCE-PUBLIC-V1", COMMERCE_JOBS_FEDERATION_CONTRACT]
+export const FEDERATION_IMPLEMENTED_CONTRACTS: readonly string[] = [RESEAU_PUBLIC_CONTRACT, COMMERCE_TRANSPORT_TEST_CONTRACT, "PRO-COMMERCE-PUBLIC-V1", "PRO-COMMERCE-PUBLIC-V2", COMMERCE_JOBS_FEDERATION_CONTRACT, "PRO-COMMERCE-SERVICE-NOTICE-V1"]
 export const FEDERATION_IMPLEMENTED_EVENTS = {
   [RESEAU_PUBLIC_CONTRACT]: ["page.upserted", "post.published", "post.removed", "person.optin", "person.optout"],
   [COMMERCE_TRANSPORT_TEST_CONTRACT]: ["transport.probe"],
   "PRO-COMMERCE-PUBLIC-V1": ["shop.published", "shop.updated", "shop.withdrawn", "offer.published", "offer.updated", "offer.withdrawn", "offer.availabilityChanged", "job.published", "job.closed"],
+  "PRO-COMMERCE-PUBLIC-V2": ["shop.published", "shop.updated", "shop.withdrawn", "offer.published", "offer.updated", "offer.withdrawn", "offer.availabilityChanged", "job.published", "job.closed"],
   [COMMERCE_JOBS_FEDERATION_CONTRACT]: ["job.published", "job.closed"],
+  "PRO-COMMERCE-SERVICE-NOTICE-V1": ["service.followup.changed"],
 } as const
 
 export type FederationJson = null | boolean | number | string | FederationJson[] | { [key: string]: FederationJson }

@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/creation-controller.ts @ ad2e7fdc2 — adaptations : routes injectées, formats traduits ; évènement dans son volet, album sur le profil ; conférence rétablie en F3a avec son dialogue branché au moteur.
+// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/creation-controller.ts @ ad2e7fdc2 — adaptations : routes injectées, formats traduits ; évènement dans son volet, album sur le profil ; conférence rétablie en F3a avec son dialogue branché au moteur. ; sept univers (22/10/2026) : « Mon activité » (`activite`) ferme la liste quand l'application sert `myActivity`, et y mène.
 /**
  * creation-controller — CE QU'ON PEUT CRÉER dans le réseau, et par quelle surface.
  *
@@ -47,6 +47,8 @@ export type CreationKind =
   | "evenement"
   | "album"
   | "conference"
+  /** « Mon activité » : la gestion de ses boutiques et prestations, quand l'application la sert (`myActivity`). */
+  | "activite"
 
 /**
  * Ce que l'appelant sait de la personne — aujourd'hui, son handle de réseau.
@@ -68,6 +70,8 @@ export interface CreationRoutes {
   home: () => string
   /** Le profil d'une personne, par son identifiant public : `EngineRoutes.profile`. */
   profile: (handle: string) => string
+  /** La gestion de ses activités (« Ma boutique ») : `EngineRoutes.myActivity`, absente sans espace de gestion. */
+  myActivity?: () => string
 }
 
 /** Un handle utilisable — ni absent, ni vide, ni fait d'espaces. */
@@ -89,6 +93,7 @@ export type CreationSurface =
   | "events_route"
   | "profil_albums_route"
   | "direct_dialog"
+  | "activity_route"
 
 /**
  * L'adresse du volet Évènements de la page réseau, carte de création OUVERTE
@@ -124,6 +129,7 @@ const ENTRIES: Readonly<Record<CreationKind, CreationEntry>> = Object.freeze({
   evenement: entryKeys("evenement", "calendar"),
   album: entryKeys("album", "image"),
   conference: entryKeys("conference", "video"),
+  activite: entryKeys("activite", "briefcase"),
 })
 
 /**
@@ -146,12 +152,14 @@ const ENTRIES: Readonly<Record<CreationKind, CreationEntry>> = Object.freeze({
  * serait atteignable que par qui pense à ouvrir son propre profil.
  */
 export function creationEntries(
-  options: { mobile?: boolean } & CreationContext = {}
+  options: { mobile?: boolean; activity?: boolean } & CreationContext = {}
 ): CreationEntry[] {
   const kinds: CreationKind[] = options.mobile
     ? ["publication", "actu", "evenement", "conference"]
     : ["publication", "conference"]
   if (usableHandle(options) !== null) kinds.push("album")
+  // « Mon activité » ferme la liste, aux deux formats, quand l'application sert la gestion des activités (étude des sept univers, § 12).
+  if (options.activity === true) kinds.push("activite")
   return kinds.map((kind) => ENTRIES[kind])
 }
 
@@ -172,6 +180,8 @@ export function creationSurfaceFor(kind: CreationKind): CreationSurface {
       return "profil_albums_route"
     case "conference":
       return "direct_dialog"
+    case "activite":
+      return "activity_route"
   }
 }
 
@@ -202,6 +212,7 @@ export function creationLaunchFor(
   context: CreationContext,
   routes: CreationRoutes
 ): CreationLaunch {
+  if (kind === "activite") return { action: "navigate", href: routes.myActivity?.() ?? routes.home() }
   if (kind === "album") {
     const handle = usableHandle(context)
     return {

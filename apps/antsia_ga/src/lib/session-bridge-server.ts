@@ -4,6 +4,7 @@ import { NextResponse } from "next/server"
 import { z } from "zod"
 
 import { routes } from "./routes"
+import { admittedDemoProxy } from "./demo-proxy"
 import { BRIDGE_TIMEOUT_MS, BRIDGE_TTL_SECONDS, type BridgeReceipt, bridgeCookieNames, isBridgeGeneration, sdkSessionCookie } from "./session-bridge"
 import { boundedAuthFetch, configuredBridgeOrigin, readBoundedText, tokenCorrelatesWithSession, verifiedSessionDto, withinBridgeDeadline } from "./server-session"
 
@@ -50,7 +51,7 @@ export async function handleSessionBridge(request: Request, dependencies: Bridge
 
 async function verifySessionBridge(request: Request, dependencies: BridgeServerDependencies, signal: AbortSignal): Promise<NextResponse> {
   const origin = dependencies.origin === undefined ? configuredBridgeOrigin() : dependencies.origin
-  if (!origin || request.headers.get("origin") !== origin || new URL(request.url).origin !== origin || request.headers.get("content-type")?.split(";")[0]?.trim().toLowerCase() !== "application/json") return reply(403)
+  if (!origin || request.headers.get("origin") !== origin || (new URL(request.url).origin !== origin && !admittedDemoProxy(request)) || request.headers.get("content-type")?.split(";")[0]?.trim().toLowerCase() !== "application/json") return reply(403)
   if (request.method !== "POST" && request.method !== "DELETE") return reply(405)
   const names = bridgeCookieNames(new URL(origin).protocol === "https:")
   const generation = requestGeneration(request, names.generation)

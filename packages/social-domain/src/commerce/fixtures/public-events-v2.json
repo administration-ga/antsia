@@ -1,0 +1,2945 @@
+{
+  "contract": "PRO-COMMERCE-PUBLIC-V2",
+  "description": "MP03 : cas distincts V2, V1 conserv\u00e9 et refus des facettes priv\u00e9es ; les anciennes fixtures V1 restent inchang\u00e9es.",
+  "cases": [
+    {
+      "name": "V2 produit class\u00e9 mode",
+      "nowMs": 1792285200000,
+      "body": {
+        "contract": "PRO-COMMERCE-PUBLIC-V2",
+        "eventId": "pro-ga-evt-000001",
+        "objectRef": "pro.ga:offer:01JA00000000000000000000F1",
+        "payload": {
+          "changedAt": 1792281600000,
+          "collectionRefs": [
+            "pro.ga:offer_collection:01JA00000000000000000000C1"
+          ],
+          "description": "Robe en wax cousue main.\nTailles sur demande.",
+          "kind": "product",
+          "leadTimeDays": 3,
+          "media": [
+            {
+              "altText": "Robe port\u00e9e, vue de face",
+              "byteSize": 245760,
+              "height": 1350,
+              "mimeType": "image/jpeg",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+              "width": 1080
+            }
+          ],
+          "offerRef": "pro.ga:offer:01JA00000000000000000000F1",
+          "price": {
+            "amount": 25000,
+            "currency": "XAF",
+            "mode": "fixed"
+          },
+          "revision": 3,
+          "shopRef": "pro.ga:structure:01JA00000000000000000000S1",
+          "showsAvailability": true,
+          "tags": [
+            "robe",
+            "wax"
+          ],
+          "title": "Robe Nyota",
+          "type": "offer.published",
+          "variantAxes": [],
+          "variants": [],
+          "zone": "Libreville",
+          "facets": {
+            "taxonomyVersion": 1,
+            "categoryPath": [
+              "fashion",
+              "fashion.women",
+              "fashion.women.clothing"
+            ],
+            "attributes": [
+              {
+                "key": "brand",
+                "type": "text",
+                "value": "Atelier D\u00e9mo"
+              },
+              {
+                "key": "color",
+                "type": "text",
+                "value": "Bleu nuit"
+              },
+              {
+                "key": "audience",
+                "type": "choice",
+                "value": "women"
+              }
+            ]
+          }
+        },
+        "version": 1
+      },
+      "expect": {
+        "ok": true,
+        "type": "offer.published",
+        "objectRef": "pro.ga:offer:01JA00000000000000000000F1",
+        "effect": {
+          "effect": "upsert",
+          "objectRef": "pro.ga:offer:01JA00000000000000000000F1",
+          "revision": 3,
+          "sequence": "catalog"
+        }
+      }
+    },
+    {
+      "name": "V2 service class\u00e9 num\u00e9rique",
+      "nowMs": 1792285200000,
+      "body": {
+        "contract": "PRO-COMMERCE-PUBLIC-V2",
+        "eventId": "pro-ga-evt-000001",
+        "objectRef": "pro.ga:offer:01JA00000000000000000000F1",
+        "payload": {
+          "changedAt": 1792281600000,
+          "collectionRefs": [
+            "pro.ga:offer_collection:01JA00000000000000000000C1"
+          ],
+          "description": "Robe en wax cousue main.\nTailles sur demande.",
+          "kind": "service",
+          "leadTimeDays": 3,
+          "media": [
+            {
+              "altText": "Robe port\u00e9e, vue de face",
+              "byteSize": 245760,
+              "height": 1350,
+              "mimeType": "image/jpeg",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+              "width": 1080
+            }
+          ],
+          "offerRef": "pro.ga:offer:01JA00000000000000000000F1",
+          "price": {
+            "amount": 25000,
+            "currency": "XAF",
+            "mode": "fixed"
+          },
+          "revision": 3,
+          "shopRef": "pro.ga:structure:01JA00000000000000000000S1",
+          "showsAvailability": true,
+          "tags": [
+            "robe",
+            "wax"
+          ],
+          "title": "Robe Nyota",
+          "type": "offer.published",
+          "variantAxes": [],
+          "variants": [],
+          "zone": "Libreville",
+          "facets": {
+            "taxonomyVersion": 1,
+            "categoryPath": [
+              "services",
+              "services.digital"
+            ],
+            "attributes": [
+              {
+                "key": "serviceMode",
+                "type": "choice",
+                "value": "hybrid"
+              },
+              {
+                "key": "durationMinutes",
+                "type": "number",
+                "value": 60
+              }
+            ]
+          }
+        },
+        "version": 1
+      },
+      "expect": {
+        "ok": true,
+        "type": "offer.published",
+        "objectRef": "pro.ga:offer:01JA00000000000000000000F1",
+        "effect": {
+          "effect": "upsert",
+          "objectRef": "pro.ga:offer:01JA00000000000000000000F1",
+          "revision": 3,
+          "sequence": "catalog"
+        }
+      }
+    },
+    {
+      "name": "V2 sans facettes reste consultable",
+      "nowMs": 1792285200000,
+      "body": {
+        "contract": "PRO-COMMERCE-PUBLIC-V2",
+        "eventId": "pro-ga-evt-000001",
+        "objectRef": "pro.ga:offer:01JA00000000000000000000F1",
+        "payload": {
+          "changedAt": 1792281600000,
+          "collectionRefs": [
+            "pro.ga:offer_collection:01JA00000000000000000000C1"
+          ],
+          "description": "Robe en wax cousue main.\nTailles sur demande.",
+          "kind": "product",
+          "leadTimeDays": 3,
+          "media": [
+            {
+              "altText": "Robe port\u00e9e, vue de face",
+              "byteSize": 245760,
+              "height": 1350,
+              "mimeType": "image/jpeg",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+              "width": 1080
+            }
+          ],
+          "offerRef": "pro.ga:offer:01JA00000000000000000000F1",
+          "price": {
+            "amount": 25000,
+            "currency": "XAF",
+            "mode": "fixed"
+          },
+          "revision": 3,
+          "shopRef": "pro.ga:structure:01JA00000000000000000000S1",
+          "showsAvailability": true,
+          "tags": [
+            "robe",
+            "wax"
+          ],
+          "title": "Robe Nyota",
+          "type": "offer.published",
+          "variantAxes": [],
+          "variants": [],
+          "zone": "Libreville"
+        },
+        "version": 1
+      },
+      "expect": {
+        "ok": true,
+        "type": "offer.published",
+        "objectRef": "pro.ga:offer:01JA00000000000000000000F1",
+        "effect": {
+          "effect": "upsert",
+          "objectRef": "pro.ga:offer:01JA00000000000000000000F1",
+          "revision": 3,
+          "sequence": "catalog"
+        }
+      }
+    },
+    {
+      "name": "V2 retrait inchang\u00e9",
+      "nowMs": 1792285200000,
+      "body": {
+        "contract": "PRO-COMMERCE-PUBLIC-V2",
+        "eventId": "pro-ga-evt-000001",
+        "objectRef": "pro.ga:offer:01JA00000000000000000000F1",
+        "payload": {
+          "changedAt": 1792281600000,
+          "offerRef": "pro.ga:offer:01JA00000000000000000000F1",
+          "reason": "seller_paused",
+          "revision": 4,
+          "shopRef": "pro.ga:structure:01JA00000000000000000000S1",
+          "type": "offer.withdrawn"
+        },
+        "version": 1
+      },
+      "expect": {
+        "ok": true,
+        "type": "offer.withdrawn",
+        "objectRef": "pro.ga:offer:01JA00000000000000000000F1",
+        "effect": {
+          "effect": "withdraw",
+          "objectRef": "pro.ga:offer:01JA00000000000000000000F1",
+          "revision": 4,
+          "sequence": "catalog"
+        }
+      }
+    },
+    {
+      "name": "V2 mise \u00e0 jour class\u00e9e",
+      "nowMs": 1792285200000,
+      "body": {
+        "contract": "PRO-COMMERCE-PUBLIC-V2",
+        "eventId": "pro-ga-evt-000001",
+        "objectRef": "pro.ga:offer:01JA00000000000000000000F1",
+        "payload": {
+          "changedAt": 1792281600000,
+          "collectionRefs": [
+            "pro.ga:offer_collection:01JA00000000000000000000C1"
+          ],
+          "description": "Robe en wax cousue main.\nTailles sur demande.",
+          "kind": "product",
+          "leadTimeDays": 3,
+          "media": [
+            {
+              "altText": "Robe port\u00e9e, vue de face",
+              "byteSize": 245760,
+              "height": 1350,
+              "mimeType": "image/jpeg",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+              "width": 1080
+            }
+          ],
+          "offerRef": "pro.ga:offer:01JA00000000000000000000F1",
+          "price": {
+            "amount": 25000,
+            "currency": "XAF",
+            "mode": "fixed"
+          },
+          "revision": 2,
+          "shopRef": "pro.ga:structure:01JA00000000000000000000S1",
+          "showsAvailability": true,
+          "tags": [
+            "robe",
+            "wax"
+          ],
+          "title": "Robe Nyota",
+          "type": "offer.updated",
+          "variantAxes": [],
+          "variants": [],
+          "zone": "Libreville",
+          "facets": {
+            "taxonomyVersion": 1,
+            "categoryPath": [
+              "fashion",
+              "fashion.women",
+              "fashion.women.clothing"
+            ],
+            "attributes": [
+              {
+                "key": "brand",
+                "type": "text",
+                "value": "Atelier D\u00e9mo"
+              },
+              {
+                "key": "color",
+                "type": "text",
+                "value": "Bleu nuit"
+              },
+              {
+                "key": "audience",
+                "type": "choice",
+                "value": "women"
+              }
+            ]
+          }
+        },
+        "version": 1
+      },
+      "expect": {
+        "ok": true,
+        "type": "offer.updated",
+        "objectRef": "pro.ga:offer:01JA00000000000000000000F1",
+        "effect": {
+          "effect": "upsert",
+          "objectRef": "pro.ga:offer:01JA00000000000000000000F1",
+          "revision": 2,
+          "sequence": "catalog"
+        }
+      }
+    },
+    {
+      "name": "V2 tous les types publics d\u00e9claratifs",
+      "nowMs": 1792285200000,
+      "body": {
+        "contract": "PRO-COMMERCE-PUBLIC-V2",
+        "eventId": "pro-ga-evt-000001",
+        "objectRef": "pro.ga:offer:01JA00000000000000000000F1",
+        "payload": {
+          "changedAt": 1792281600000,
+          "collectionRefs": [
+            "pro.ga:offer_collection:01JA00000000000000000000C1"
+          ],
+          "description": "Robe en wax cousue main.\nTailles sur demande.",
+          "kind": "product",
+          "leadTimeDays": 3,
+          "media": [
+            {
+              "altText": "Robe port\u00e9e, vue de face",
+              "byteSize": 245760,
+              "height": 1350,
+              "mimeType": "image/jpeg",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+              "width": 1080
+            }
+          ],
+          "offerRef": "pro.ga:offer:01JA00000000000000000000F1",
+          "price": {
+            "amount": 25000,
+            "currency": "XAF",
+            "mode": "fixed"
+          },
+          "revision": 3,
+          "shopRef": "pro.ga:structure:01JA00000000000000000000S1",
+          "showsAvailability": true,
+          "tags": [
+            "robe",
+            "wax"
+          ],
+          "title": "Robe Nyota",
+          "type": "offer.published",
+          "variantAxes": [],
+          "variants": [],
+          "zone": "Libreville",
+          "facets": {
+            "taxonomyVersion": 1,
+            "categoryPath": [
+              "craft",
+              "craft.home"
+            ],
+            "attributes": [
+              {
+                "key": "brand",
+                "type": "text",
+                "value": "Cr\u00e9ation Gabon"
+              },
+              {
+                "key": "material",
+                "type": "text",
+                "value": "Raphia naturel"
+              },
+              {
+                "key": "color",
+                "type": "text",
+                "value": "Bleu"
+              },
+              {
+                "key": "audience",
+                "type": "choice",
+                "value": "unisex"
+              },
+              {
+                "key": "serviceMode",
+                "type": "choice",
+                "value": "onsite"
+              },
+              {
+                "key": "durationMinutes",
+                "type": "number",
+                "value": 43200
+              },
+              {
+                "key": "ecoLabel",
+                "type": "boolean",
+                "value": true
+              }
+            ]
+          }
+        },
+        "version": 1
+      },
+      "expect": {
+        "ok": true,
+        "type": "offer.published",
+        "objectRef": "pro.ga:offer:01JA00000000000000000000F1",
+        "effect": {
+          "effect": "upsert",
+          "objectRef": "pro.ga:offer:01JA00000000000000000000F1",
+          "revision": 3,
+          "sequence": "catalog"
+        }
+      }
+    },
+    {
+      "name": "V1 continue de refuser le nouveau champ",
+      "nowMs": 1792285200000,
+      "body": {
+        "contract": "PRO-COMMERCE-PUBLIC-V1",
+        "eventId": "pro-ga-evt-000001",
+        "objectRef": "pro.ga:offer:01JA00000000000000000000F1",
+        "payload": {
+          "changedAt": 1792281600000,
+          "collectionRefs": [
+            "pro.ga:offer_collection:01JA00000000000000000000C1"
+          ],
+          "description": "Robe en wax cousue main.\nTailles sur demande.",
+          "kind": "product",
+          "leadTimeDays": 3,
+          "media": [
+            {
+              "altText": "Robe port\u00e9e, vue de face",
+              "byteSize": 245760,
+              "height": 1350,
+              "mimeType": "image/jpeg",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+              "width": 1080
+            }
+          ],
+          "offerRef": "pro.ga:offer:01JA00000000000000000000F1",
+          "price": {
+            "amount": 25000,
+            "currency": "XAF",
+            "mode": "fixed"
+          },
+          "revision": 3,
+          "shopRef": "pro.ga:structure:01JA00000000000000000000S1",
+          "showsAvailability": true,
+          "tags": [
+            "robe",
+            "wax"
+          ],
+          "title": "Robe Nyota",
+          "type": "offer.published",
+          "variantAxes": [],
+          "variants": [],
+          "zone": "Libreville",
+          "facets": {
+            "taxonomyVersion": 1,
+            "categoryPath": [
+              "fashion",
+              "fashion.women",
+              "fashion.women.clothing"
+            ],
+            "attributes": [
+              {
+                "key": "brand",
+                "type": "text",
+                "value": "Atelier D\u00e9mo"
+              },
+              {
+                "key": "color",
+                "type": "text",
+                "value": "Bleu nuit"
+              },
+              {
+                "key": "audience",
+                "type": "choice",
+                "value": "women"
+              }
+            ]
+          }
+        },
+        "version": 1
+      },
+      "expect": {
+        "ok": false,
+        "path": "$.payload.facets",
+        "reason": "invalid_payload"
+      }
+    },
+    {
+      "name": "V2 version taxonomie inconnue",
+      "nowMs": 1792285200000,
+      "body": {
+        "contract": "PRO-COMMERCE-PUBLIC-V2",
+        "eventId": "pro-ga-evt-000001",
+        "objectRef": "pro.ga:offer:01JA00000000000000000000F1",
+        "payload": {
+          "changedAt": 1792281600000,
+          "collectionRefs": [
+            "pro.ga:offer_collection:01JA00000000000000000000C1"
+          ],
+          "description": "Robe en wax cousue main.\nTailles sur demande.",
+          "kind": "product",
+          "leadTimeDays": 3,
+          "media": [
+            {
+              "altText": "Robe port\u00e9e, vue de face",
+              "byteSize": 245760,
+              "height": 1350,
+              "mimeType": "image/jpeg",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+              "width": 1080
+            }
+          ],
+          "offerRef": "pro.ga:offer:01JA00000000000000000000F1",
+          "price": {
+            "amount": 25000,
+            "currency": "XAF",
+            "mode": "fixed"
+          },
+          "revision": 3,
+          "shopRef": "pro.ga:structure:01JA00000000000000000000S1",
+          "showsAvailability": true,
+          "tags": [
+            "robe",
+            "wax"
+          ],
+          "title": "Robe Nyota",
+          "type": "offer.published",
+          "variantAxes": [],
+          "variants": [],
+          "zone": "Libreville",
+          "facets": {
+            "taxonomyVersion": 2,
+            "categoryPath": [
+              "fashion",
+              "fashion.women",
+              "fashion.women.clothing"
+            ],
+            "attributes": [
+              {
+                "key": "brand",
+                "type": "text",
+                "value": "Atelier D\u00e9mo"
+              },
+              {
+                "key": "color",
+                "type": "text",
+                "value": "Bleu nuit"
+              },
+              {
+                "key": "audience",
+                "type": "choice",
+                "value": "women"
+              }
+            ]
+          }
+        },
+        "version": 1
+      },
+      "expect": {
+        "ok": false,
+        "path": "$.payload.facets.taxonomyVersion",
+        "reason": "invalid_payload"
+      }
+    },
+    {
+      "name": "V2 cat\u00e9gorie inconnue",
+      "nowMs": 1792285200000,
+      "body": {
+        "contract": "PRO-COMMERCE-PUBLIC-V2",
+        "eventId": "pro-ga-evt-000001",
+        "objectRef": "pro.ga:offer:01JA00000000000000000000F1",
+        "payload": {
+          "changedAt": 1792281600000,
+          "collectionRefs": [
+            "pro.ga:offer_collection:01JA00000000000000000000C1"
+          ],
+          "description": "Robe en wax cousue main.\nTailles sur demande.",
+          "kind": "product",
+          "leadTimeDays": 3,
+          "media": [
+            {
+              "altText": "Robe port\u00e9e, vue de face",
+              "byteSize": 245760,
+              "height": 1350,
+              "mimeType": "image/jpeg",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+              "width": 1080
+            }
+          ],
+          "offerRef": "pro.ga:offer:01JA00000000000000000000F1",
+          "price": {
+            "amount": 25000,
+            "currency": "XAF",
+            "mode": "fixed"
+          },
+          "revision": 3,
+          "shopRef": "pro.ga:structure:01JA00000000000000000000S1",
+          "showsAvailability": true,
+          "tags": [
+            "robe",
+            "wax"
+          ],
+          "title": "Robe Nyota",
+          "type": "offer.published",
+          "variantAxes": [],
+          "variants": [],
+          "zone": "Libreville",
+          "facets": {
+            "taxonomyVersion": 1,
+            "categoryPath": [
+              "foreign"
+            ],
+            "attributes": [
+              {
+                "key": "brand",
+                "type": "text",
+                "value": "Atelier D\u00e9mo"
+              },
+              {
+                "key": "color",
+                "type": "text",
+                "value": "Bleu nuit"
+              },
+              {
+                "key": "audience",
+                "type": "choice",
+                "value": "women"
+              }
+            ]
+          }
+        },
+        "version": 1
+      },
+      "expect": {
+        "ok": false,
+        "path": "$.payload.facets.categoryPath[0]",
+        "reason": "invalid_payload"
+      }
+    },
+    {
+      "name": "V2 chemin saute la racine",
+      "nowMs": 1792285200000,
+      "body": {
+        "contract": "PRO-COMMERCE-PUBLIC-V2",
+        "eventId": "pro-ga-evt-000001",
+        "objectRef": "pro.ga:offer:01JA00000000000000000000F1",
+        "payload": {
+          "changedAt": 1792281600000,
+          "collectionRefs": [
+            "pro.ga:offer_collection:01JA00000000000000000000C1"
+          ],
+          "description": "Robe en wax cousue main.\nTailles sur demande.",
+          "kind": "product",
+          "leadTimeDays": 3,
+          "media": [
+            {
+              "altText": "Robe port\u00e9e, vue de face",
+              "byteSize": 245760,
+              "height": 1350,
+              "mimeType": "image/jpeg",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+              "width": 1080
+            }
+          ],
+          "offerRef": "pro.ga:offer:01JA00000000000000000000F1",
+          "price": {
+            "amount": 25000,
+            "currency": "XAF",
+            "mode": "fixed"
+          },
+          "revision": 3,
+          "shopRef": "pro.ga:structure:01JA00000000000000000000S1",
+          "showsAvailability": true,
+          "tags": [
+            "robe",
+            "wax"
+          ],
+          "title": "Robe Nyota",
+          "type": "offer.published",
+          "variantAxes": [],
+          "variants": [],
+          "zone": "Libreville",
+          "facets": {
+            "taxonomyVersion": 1,
+            "categoryPath": [
+              "fashion.women",
+              "fashion.women.clothing"
+            ],
+            "attributes": [
+              {
+                "key": "brand",
+                "type": "text",
+                "value": "Atelier D\u00e9mo"
+              },
+              {
+                "key": "color",
+                "type": "text",
+                "value": "Bleu nuit"
+              },
+              {
+                "key": "audience",
+                "type": "choice",
+                "value": "women"
+              }
+            ]
+          }
+        },
+        "version": 1
+      },
+      "expect": {
+        "ok": false,
+        "path": "$.payload.facets.categoryPath[0]",
+        "reason": "invalid_payload"
+      }
+    },
+    {
+      "name": "V2 chemin m\u00e9lange les branches",
+      "nowMs": 1792285200000,
+      "body": {
+        "contract": "PRO-COMMERCE-PUBLIC-V2",
+        "eventId": "pro-ga-evt-000001",
+        "objectRef": "pro.ga:offer:01JA00000000000000000000F1",
+        "payload": {
+          "changedAt": 1792281600000,
+          "collectionRefs": [
+            "pro.ga:offer_collection:01JA00000000000000000000C1"
+          ],
+          "description": "Robe en wax cousue main.\nTailles sur demande.",
+          "kind": "product",
+          "leadTimeDays": 3,
+          "media": [
+            {
+              "altText": "Robe port\u00e9e, vue de face",
+              "byteSize": 245760,
+              "height": 1350,
+              "mimeType": "image/jpeg",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+              "width": 1080
+            }
+          ],
+          "offerRef": "pro.ga:offer:01JA00000000000000000000F1",
+          "price": {
+            "amount": 25000,
+            "currency": "XAF",
+            "mode": "fixed"
+          },
+          "revision": 3,
+          "shopRef": "pro.ga:structure:01JA00000000000000000000S1",
+          "showsAvailability": true,
+          "tags": [
+            "robe",
+            "wax"
+          ],
+          "title": "Robe Nyota",
+          "type": "offer.published",
+          "variantAxes": [],
+          "variants": [],
+          "zone": "Libreville",
+          "facets": {
+            "taxonomyVersion": 1,
+            "categoryPath": [
+              "fashion",
+              "electronics.phones"
+            ],
+            "attributes": [
+              {
+                "key": "brand",
+                "type": "text",
+                "value": "Atelier D\u00e9mo"
+              },
+              {
+                "key": "color",
+                "type": "text",
+                "value": "Bleu nuit"
+              },
+              {
+                "key": "audience",
+                "type": "choice",
+                "value": "women"
+              }
+            ]
+          }
+        },
+        "version": 1
+      },
+      "expect": {
+        "ok": false,
+        "path": "$.payload.facets.categoryPath[1]",
+        "reason": "invalid_payload"
+      }
+    },
+    {
+      "name": "V2 chemin r\u00e9p\u00e9t\u00e9",
+      "nowMs": 1792285200000,
+      "body": {
+        "contract": "PRO-COMMERCE-PUBLIC-V2",
+        "eventId": "pro-ga-evt-000001",
+        "objectRef": "pro.ga:offer:01JA00000000000000000000F1",
+        "payload": {
+          "changedAt": 1792281600000,
+          "collectionRefs": [
+            "pro.ga:offer_collection:01JA00000000000000000000C1"
+          ],
+          "description": "Robe en wax cousue main.\nTailles sur demande.",
+          "kind": "product",
+          "leadTimeDays": 3,
+          "media": [
+            {
+              "altText": "Robe port\u00e9e, vue de face",
+              "byteSize": 245760,
+              "height": 1350,
+              "mimeType": "image/jpeg",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+              "width": 1080
+            }
+          ],
+          "offerRef": "pro.ga:offer:01JA00000000000000000000F1",
+          "price": {
+            "amount": 25000,
+            "currency": "XAF",
+            "mode": "fixed"
+          },
+          "revision": 3,
+          "shopRef": "pro.ga:structure:01JA00000000000000000000S1",
+          "showsAvailability": true,
+          "tags": [
+            "robe",
+            "wax"
+          ],
+          "title": "Robe Nyota",
+          "type": "offer.published",
+          "variantAxes": [],
+          "variants": [],
+          "zone": "Libreville",
+          "facets": {
+            "taxonomyVersion": 1,
+            "categoryPath": [
+              "fashion",
+              "fashion"
+            ],
+            "attributes": [
+              {
+                "key": "brand",
+                "type": "text",
+                "value": "Atelier D\u00e9mo"
+              },
+              {
+                "key": "color",
+                "type": "text",
+                "value": "Bleu nuit"
+              },
+              {
+                "key": "audience",
+                "type": "choice",
+                "value": "women"
+              }
+            ]
+          }
+        },
+        "version": 1
+      },
+      "expect": {
+        "ok": false,
+        "path": "$.payload.facets.categoryPath[1]",
+        "reason": "invalid_payload"
+      }
+    },
+    {
+      "name": "V2 profondeur sup\u00e9rieure \u00e0 trois",
+      "nowMs": 1792285200000,
+      "body": {
+        "contract": "PRO-COMMERCE-PUBLIC-V2",
+        "eventId": "pro-ga-evt-000001",
+        "objectRef": "pro.ga:offer:01JA00000000000000000000F1",
+        "payload": {
+          "changedAt": 1792281600000,
+          "collectionRefs": [
+            "pro.ga:offer_collection:01JA00000000000000000000C1"
+          ],
+          "description": "Robe en wax cousue main.\nTailles sur demande.",
+          "kind": "product",
+          "leadTimeDays": 3,
+          "media": [
+            {
+              "altText": "Robe port\u00e9e, vue de face",
+              "byteSize": 245760,
+              "height": 1350,
+              "mimeType": "image/jpeg",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+              "width": 1080
+            }
+          ],
+          "offerRef": "pro.ga:offer:01JA00000000000000000000F1",
+          "price": {
+            "amount": 25000,
+            "currency": "XAF",
+            "mode": "fixed"
+          },
+          "revision": 3,
+          "shopRef": "pro.ga:structure:01JA00000000000000000000S1",
+          "showsAvailability": true,
+          "tags": [
+            "robe",
+            "wax"
+          ],
+          "title": "Robe Nyota",
+          "type": "offer.published",
+          "variantAxes": [],
+          "variants": [],
+          "zone": "Libreville",
+          "facets": {
+            "taxonomyVersion": 1,
+            "categoryPath": [
+              "fashion",
+              "fashion.women",
+              "fashion.women.clothing",
+              "foreign"
+            ],
+            "attributes": [
+              {
+                "key": "brand",
+                "type": "text",
+                "value": "Atelier D\u00e9mo"
+              },
+              {
+                "key": "color",
+                "type": "text",
+                "value": "Bleu nuit"
+              },
+              {
+                "key": "audience",
+                "type": "choice",
+                "value": "women"
+              }
+            ]
+          }
+        },
+        "version": 1
+      },
+      "expect": {
+        "ok": false,
+        "path": "$.payload.facets.categoryPath",
+        "reason": "invalid_payload"
+      }
+    },
+    {
+      "name": "V2 produit dans branche service",
+      "nowMs": 1792285200000,
+      "body": {
+        "contract": "PRO-COMMERCE-PUBLIC-V2",
+        "eventId": "pro-ga-evt-000001",
+        "objectRef": "pro.ga:offer:01JA00000000000000000000F1",
+        "payload": {
+          "changedAt": 1792281600000,
+          "collectionRefs": [
+            "pro.ga:offer_collection:01JA00000000000000000000C1"
+          ],
+          "description": "Robe en wax cousue main.\nTailles sur demande.",
+          "kind": "product",
+          "leadTimeDays": 3,
+          "media": [
+            {
+              "altText": "Robe port\u00e9e, vue de face",
+              "byteSize": 245760,
+              "height": 1350,
+              "mimeType": "image/jpeg",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+              "width": 1080
+            }
+          ],
+          "offerRef": "pro.ga:offer:01JA00000000000000000000F1",
+          "price": {
+            "amount": 25000,
+            "currency": "XAF",
+            "mode": "fixed"
+          },
+          "revision": 3,
+          "shopRef": "pro.ga:structure:01JA00000000000000000000S1",
+          "showsAvailability": true,
+          "tags": [
+            "robe",
+            "wax"
+          ],
+          "title": "Robe Nyota",
+          "type": "offer.published",
+          "variantAxes": [],
+          "variants": [],
+          "zone": "Libreville",
+          "facets": {
+            "taxonomyVersion": 1,
+            "categoryPath": [
+              "services",
+              "services.digital"
+            ],
+            "attributes": [
+              {
+                "key": "serviceMode",
+                "type": "choice",
+                "value": "hybrid"
+              },
+              {
+                "key": "durationMinutes",
+                "type": "number",
+                "value": 60
+              }
+            ]
+          }
+        },
+        "version": 1
+      },
+      "expect": {
+        "ok": false,
+        "path": "$.payload.facets.categoryPath",
+        "reason": "invalid_payload"
+      }
+    },
+    {
+      "name": "V2 service dans branche produit",
+      "nowMs": 1792285200000,
+      "body": {
+        "contract": "PRO-COMMERCE-PUBLIC-V2",
+        "eventId": "pro-ga-evt-000001",
+        "objectRef": "pro.ga:offer:01JA00000000000000000000F1",
+        "payload": {
+          "changedAt": 1792281600000,
+          "collectionRefs": [
+            "pro.ga:offer_collection:01JA00000000000000000000C1"
+          ],
+          "description": "Robe en wax cousue main.\nTailles sur demande.",
+          "kind": "service",
+          "leadTimeDays": 3,
+          "media": [
+            {
+              "altText": "Robe port\u00e9e, vue de face",
+              "byteSize": 245760,
+              "height": 1350,
+              "mimeType": "image/jpeg",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+              "width": 1080
+            }
+          ],
+          "offerRef": "pro.ga:offer:01JA00000000000000000000F1",
+          "price": {
+            "amount": 25000,
+            "currency": "XAF",
+            "mode": "fixed"
+          },
+          "revision": 3,
+          "shopRef": "pro.ga:structure:01JA00000000000000000000S1",
+          "showsAvailability": true,
+          "tags": [
+            "robe",
+            "wax"
+          ],
+          "title": "Robe Nyota",
+          "type": "offer.published",
+          "variantAxes": [],
+          "variants": [],
+          "zone": "Libreville",
+          "facets": {
+            "taxonomyVersion": 1,
+            "categoryPath": [
+              "fashion",
+              "fashion.women",
+              "fashion.women.clothing"
+            ],
+            "attributes": [
+              {
+                "key": "brand",
+                "type": "text",
+                "value": "Atelier D\u00e9mo"
+              },
+              {
+                "key": "color",
+                "type": "text",
+                "value": "Bleu nuit"
+              },
+              {
+                "key": "audience",
+                "type": "choice",
+                "value": "women"
+              }
+            ]
+          }
+        },
+        "version": 1
+      },
+      "expect": {
+        "ok": false,
+        "path": "$.payload.facets.categoryPath",
+        "reason": "invalid_payload"
+      }
+    },
+    {
+      "name": "V2 cl\u00e9 attribut dupliqu\u00e9e",
+      "nowMs": 1792285200000,
+      "body": {
+        "contract": "PRO-COMMERCE-PUBLIC-V2",
+        "eventId": "pro-ga-evt-000001",
+        "objectRef": "pro.ga:offer:01JA00000000000000000000F1",
+        "payload": {
+          "changedAt": 1792281600000,
+          "collectionRefs": [
+            "pro.ga:offer_collection:01JA00000000000000000000C1"
+          ],
+          "description": "Robe en wax cousue main.\nTailles sur demande.",
+          "kind": "product",
+          "leadTimeDays": 3,
+          "media": [
+            {
+              "altText": "Robe port\u00e9e, vue de face",
+              "byteSize": 245760,
+              "height": 1350,
+              "mimeType": "image/jpeg",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+              "width": 1080
+            }
+          ],
+          "offerRef": "pro.ga:offer:01JA00000000000000000000F1",
+          "price": {
+            "amount": 25000,
+            "currency": "XAF",
+            "mode": "fixed"
+          },
+          "revision": 3,
+          "shopRef": "pro.ga:structure:01JA00000000000000000000S1",
+          "showsAvailability": true,
+          "tags": [
+            "robe",
+            "wax"
+          ],
+          "title": "Robe Nyota",
+          "type": "offer.published",
+          "variantAxes": [],
+          "variants": [],
+          "zone": "Libreville",
+          "facets": {
+            "taxonomyVersion": 1,
+            "categoryPath": [
+              "fashion",
+              "fashion.women",
+              "fashion.women.clothing"
+            ],
+            "attributes": [
+              {
+                "key": "color",
+                "type": "text",
+                "value": "Bleu"
+              },
+              {
+                "key": "color",
+                "type": "text",
+                "value": "Vert"
+              }
+            ]
+          }
+        },
+        "version": 1
+      },
+      "expect": {
+        "ok": false,
+        "path": "$.payload.facets.attributes",
+        "reason": "duplicate_entry"
+      }
+    },
+    {
+      "name": "V2 trop d'attributs",
+      "nowMs": 1792285200000,
+      "body": {
+        "contract": "PRO-COMMERCE-PUBLIC-V2",
+        "eventId": "pro-ga-evt-000001",
+        "objectRef": "pro.ga:offer:01JA00000000000000000000F1",
+        "payload": {
+          "changedAt": 1792281600000,
+          "collectionRefs": [
+            "pro.ga:offer_collection:01JA00000000000000000000C1"
+          ],
+          "description": "Robe en wax cousue main.\nTailles sur demande.",
+          "kind": "product",
+          "leadTimeDays": 3,
+          "media": [
+            {
+              "altText": "Robe port\u00e9e, vue de face",
+              "byteSize": 245760,
+              "height": 1350,
+              "mimeType": "image/jpeg",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+              "width": 1080
+            }
+          ],
+          "offerRef": "pro.ga:offer:01JA00000000000000000000F1",
+          "price": {
+            "amount": 25000,
+            "currency": "XAF",
+            "mode": "fixed"
+          },
+          "revision": 3,
+          "shopRef": "pro.ga:structure:01JA00000000000000000000S1",
+          "showsAvailability": true,
+          "tags": [
+            "robe",
+            "wax"
+          ],
+          "title": "Robe Nyota",
+          "type": "offer.published",
+          "variantAxes": [],
+          "variants": [],
+          "zone": "Libreville",
+          "facets": {
+            "taxonomyVersion": 1,
+            "categoryPath": [
+              "fashion",
+              "fashion.women",
+              "fashion.women.clothing"
+            ],
+            "attributes": [
+              {
+                "key": "color",
+                "type": "text",
+                "value": "Bleu"
+              },
+              {
+                "key": "color",
+                "type": "text",
+                "value": "Bleu"
+              },
+              {
+                "key": "color",
+                "type": "text",
+                "value": "Bleu"
+              },
+              {
+                "key": "color",
+                "type": "text",
+                "value": "Bleu"
+              },
+              {
+                "key": "color",
+                "type": "text",
+                "value": "Bleu"
+              },
+              {
+                "key": "color",
+                "type": "text",
+                "value": "Bleu"
+              },
+              {
+                "key": "color",
+                "type": "text",
+                "value": "Bleu"
+              },
+              {
+                "key": "color",
+                "type": "text",
+                "value": "Bleu"
+              },
+              {
+                "key": "color",
+                "type": "text",
+                "value": "Bleu"
+              }
+            ]
+          }
+        },
+        "version": 1
+      },
+      "expect": {
+        "ok": false,
+        "path": "$.payload.facets.attributes",
+        "reason": "invalid_payload"
+      }
+    },
+    {
+      "name": "V2 attribut priv\u00e9 non admis",
+      "nowMs": 1792285200000,
+      "body": {
+        "contract": "PRO-COMMERCE-PUBLIC-V2",
+        "eventId": "pro-ga-evt-000001",
+        "objectRef": "pro.ga:offer:01JA00000000000000000000F1",
+        "payload": {
+          "changedAt": 1792281600000,
+          "collectionRefs": [
+            "pro.ga:offer_collection:01JA00000000000000000000C1"
+          ],
+          "description": "Robe en wax cousue main.\nTailles sur demande.",
+          "kind": "product",
+          "leadTimeDays": 3,
+          "media": [
+            {
+              "altText": "Robe port\u00e9e, vue de face",
+              "byteSize": 245760,
+              "height": 1350,
+              "mimeType": "image/jpeg",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+              "width": 1080
+            }
+          ],
+          "offerRef": "pro.ga:offer:01JA00000000000000000000F1",
+          "price": {
+            "amount": 25000,
+            "currency": "XAF",
+            "mode": "fixed"
+          },
+          "revision": 3,
+          "shopRef": "pro.ga:structure:01JA00000000000000000000S1",
+          "showsAvailability": true,
+          "tags": [
+            "robe",
+            "wax"
+          ],
+          "title": "Robe Nyota",
+          "type": "offer.published",
+          "variantAxes": [],
+          "variants": [],
+          "zone": "Libreville",
+          "facets": {
+            "taxonomyVersion": 1,
+            "categoryPath": [
+              "fashion",
+              "fashion.women",
+              "fashion.women.clothing"
+            ],
+            "attributes": [
+              {
+                "key": "sku",
+                "type": "text",
+                "value": "stock-interne"
+              }
+            ]
+          }
+        },
+        "version": 1
+      },
+      "expect": {
+        "ok": false,
+        "path": "$.payload.facets.attributes[0].key",
+        "reason": "invalid_payload"
+      }
+    },
+    {
+      "name": "V2 donn\u00e9e priv\u00e9e imbriqu\u00e9e refus\u00e9e avant structure",
+      "nowMs": 1792285200000,
+      "body": {
+        "contract": "PRO-COMMERCE-PUBLIC-V2",
+        "eventId": "pro-ga-evt-000001",
+        "objectRef": "pro.ga:offer:01JA00000000000000000000F1",
+        "payload": {
+          "changedAt": 1792281600000,
+          "collectionRefs": [
+            "pro.ga:offer_collection:01JA00000000000000000000C1"
+          ],
+          "description": "Robe en wax cousue main.\nTailles sur demande.",
+          "kind": "product",
+          "leadTimeDays": 3,
+          "media": [
+            {
+              "altText": "Robe port\u00e9e, vue de face",
+              "byteSize": 245760,
+              "height": 1350,
+              "mimeType": "image/jpeg",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+              "width": 1080
+            }
+          ],
+          "offerRef": "pro.ga:offer:01JA00000000000000000000F1",
+          "price": {
+            "amount": 25000,
+            "currency": "XAF",
+            "mode": "fixed"
+          },
+          "revision": 3,
+          "shopRef": "pro.ga:structure:01JA00000000000000000000S1",
+          "showsAvailability": true,
+          "tags": [
+            "robe",
+            "wax"
+          ],
+          "title": "Robe Nyota",
+          "type": "offer.published",
+          "variantAxes": [],
+          "variants": [],
+          "zone": "Libreville",
+          "facets": {
+            "taxonomyVersion": 1,
+            "categoryPath": [
+              "fashion",
+              "fashion.women",
+              "fashion.women.clothing"
+            ],
+            "attributes": [
+              {
+                "key": "color",
+                "type": "text",
+                "value": "Bleu",
+                "internal": {
+                  "sku": "stock-interne"
+                }
+              }
+            ]
+          }
+        },
+        "version": 1
+      },
+      "expect": {
+        "ok": false,
+        "path": "$.payload.facets.attributes[0].internal.sku",
+        "reason": "forbidden_field"
+      }
+    },
+    {
+      "name": "V2 contact priv\u00e9 imbriqu\u00e9 refus\u00e9",
+      "nowMs": 1792285200000,
+      "body": {
+        "contract": "PRO-COMMERCE-PUBLIC-V2",
+        "eventId": "pro-ga-evt-000001",
+        "objectRef": "pro.ga:offer:01JA00000000000000000000F1",
+        "payload": {
+          "changedAt": 1792281600000,
+          "collectionRefs": [
+            "pro.ga:offer_collection:01JA00000000000000000000C1"
+          ],
+          "description": "Robe en wax cousue main.\nTailles sur demande.",
+          "kind": "product",
+          "leadTimeDays": 3,
+          "media": [
+            {
+              "altText": "Robe port\u00e9e, vue de face",
+              "byteSize": 245760,
+              "height": 1350,
+              "mimeType": "image/jpeg",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+              "width": 1080
+            }
+          ],
+          "offerRef": "pro.ga:offer:01JA00000000000000000000F1",
+          "price": {
+            "amount": 25000,
+            "currency": "XAF",
+            "mode": "fixed"
+          },
+          "revision": 3,
+          "shopRef": "pro.ga:structure:01JA00000000000000000000S1",
+          "showsAvailability": true,
+          "tags": [
+            "robe",
+            "wax"
+          ],
+          "title": "Robe Nyota",
+          "type": "offer.published",
+          "variantAxes": [],
+          "variants": [],
+          "zone": "Libreville",
+          "facets": {
+            "taxonomyVersion": 1,
+            "categoryPath": [
+              "fashion",
+              "fashion.women",
+              "fashion.women.clothing"
+            ],
+            "attributes": [
+              {
+                "key": "color",
+                "type": "text",
+                "value": "Bleu",
+                "contactEmail": "prive@example.test"
+              }
+            ]
+          }
+        },
+        "version": 1
+      },
+      "expect": {
+        "ok": false,
+        "path": "$.payload.facets.attributes[0].contactEmail",
+        "reason": "forbidden_field"
+      }
+    },
+    {
+      "name": "V2 type incorrect",
+      "nowMs": 1792285200000,
+      "body": {
+        "contract": "PRO-COMMERCE-PUBLIC-V2",
+        "eventId": "pro-ga-evt-000001",
+        "objectRef": "pro.ga:offer:01JA00000000000000000000F1",
+        "payload": {
+          "changedAt": 1792281600000,
+          "collectionRefs": [
+            "pro.ga:offer_collection:01JA00000000000000000000C1"
+          ],
+          "description": "Robe en wax cousue main.\nTailles sur demande.",
+          "kind": "product",
+          "leadTimeDays": 3,
+          "media": [
+            {
+              "altText": "Robe port\u00e9e, vue de face",
+              "byteSize": 245760,
+              "height": 1350,
+              "mimeType": "image/jpeg",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+              "width": 1080
+            }
+          ],
+          "offerRef": "pro.ga:offer:01JA00000000000000000000F1",
+          "price": {
+            "amount": 25000,
+            "currency": "XAF",
+            "mode": "fixed"
+          },
+          "revision": 3,
+          "shopRef": "pro.ga:structure:01JA00000000000000000000S1",
+          "showsAvailability": true,
+          "tags": [
+            "robe",
+            "wax"
+          ],
+          "title": "Robe Nyota",
+          "type": "offer.published",
+          "variantAxes": [],
+          "variants": [],
+          "zone": "Libreville",
+          "facets": {
+            "taxonomyVersion": 1,
+            "categoryPath": [
+              "fashion",
+              "fashion.women",
+              "fashion.women.clothing"
+            ],
+            "attributes": [
+              {
+                "key": "color",
+                "type": "boolean",
+                "value": true
+              }
+            ]
+          }
+        },
+        "version": 1
+      },
+      "expect": {
+        "ok": false,
+        "path": "$.payload.facets.attributes[0].type",
+        "reason": "invalid_payload"
+      }
+    },
+    {
+      "name": "V2 choix inconnu",
+      "nowMs": 1792285200000,
+      "body": {
+        "contract": "PRO-COMMERCE-PUBLIC-V2",
+        "eventId": "pro-ga-evt-000001",
+        "objectRef": "pro.ga:offer:01JA00000000000000000000F1",
+        "payload": {
+          "changedAt": 1792281600000,
+          "collectionRefs": [
+            "pro.ga:offer_collection:01JA00000000000000000000C1"
+          ],
+          "description": "Robe en wax cousue main.\nTailles sur demande.",
+          "kind": "product",
+          "leadTimeDays": 3,
+          "media": [
+            {
+              "altText": "Robe port\u00e9e, vue de face",
+              "byteSize": 245760,
+              "height": 1350,
+              "mimeType": "image/jpeg",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+              "width": 1080
+            }
+          ],
+          "offerRef": "pro.ga:offer:01JA00000000000000000000F1",
+          "price": {
+            "amount": 25000,
+            "currency": "XAF",
+            "mode": "fixed"
+          },
+          "revision": 3,
+          "shopRef": "pro.ga:structure:01JA00000000000000000000S1",
+          "showsAvailability": true,
+          "tags": [
+            "robe",
+            "wax"
+          ],
+          "title": "Robe Nyota",
+          "type": "offer.published",
+          "variantAxes": [],
+          "variants": [],
+          "zone": "Libreville",
+          "facets": {
+            "taxonomyVersion": 1,
+            "categoryPath": [
+              "fashion",
+              "fashion.women",
+              "fashion.women.clothing"
+            ],
+            "attributes": [
+              {
+                "key": "audience",
+                "type": "choice",
+                "value": "everyone"
+              }
+            ]
+          }
+        },
+        "version": 1
+      },
+      "expect": {
+        "ok": false,
+        "path": "$.payload.facets.attributes[0].value",
+        "reason": "invalid_payload"
+      }
+    },
+    {
+      "name": "V2 dur\u00e9e fractionnaire",
+      "nowMs": 1792285200000,
+      "body": {
+        "contract": "PRO-COMMERCE-PUBLIC-V2",
+        "eventId": "pro-ga-evt-000001",
+        "objectRef": "pro.ga:offer:01JA00000000000000000000F1",
+        "payload": {
+          "changedAt": 1792281600000,
+          "collectionRefs": [
+            "pro.ga:offer_collection:01JA00000000000000000000C1"
+          ],
+          "description": "Robe en wax cousue main.\nTailles sur demande.",
+          "kind": "product",
+          "leadTimeDays": 3,
+          "media": [
+            {
+              "altText": "Robe port\u00e9e, vue de face",
+              "byteSize": 245760,
+              "height": 1350,
+              "mimeType": "image/jpeg",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+              "width": 1080
+            }
+          ],
+          "offerRef": "pro.ga:offer:01JA00000000000000000000F1",
+          "price": {
+            "amount": 25000,
+            "currency": "XAF",
+            "mode": "fixed"
+          },
+          "revision": 3,
+          "shopRef": "pro.ga:structure:01JA00000000000000000000S1",
+          "showsAvailability": true,
+          "tags": [
+            "robe",
+            "wax"
+          ],
+          "title": "Robe Nyota",
+          "type": "offer.published",
+          "variantAxes": [],
+          "variants": [],
+          "zone": "Libreville",
+          "facets": {
+            "taxonomyVersion": 1,
+            "categoryPath": [
+              "fashion",
+              "fashion.women",
+              "fashion.women.clothing"
+            ],
+            "attributes": [
+              {
+                "key": "durationMinutes",
+                "type": "number",
+                "value": 1.5
+              }
+            ]
+          }
+        },
+        "version": 1
+      },
+      "expect": {
+        "ok": false,
+        "path": "$.payload.facets.attributes[0].value",
+        "reason": "invalid_payload"
+      }
+    },
+    {
+      "name": "V2 dur\u00e9e hors borne",
+      "nowMs": 1792285200000,
+      "body": {
+        "contract": "PRO-COMMERCE-PUBLIC-V2",
+        "eventId": "pro-ga-evt-000001",
+        "objectRef": "pro.ga:offer:01JA00000000000000000000F1",
+        "payload": {
+          "changedAt": 1792281600000,
+          "collectionRefs": [
+            "pro.ga:offer_collection:01JA00000000000000000000C1"
+          ],
+          "description": "Robe en wax cousue main.\nTailles sur demande.",
+          "kind": "product",
+          "leadTimeDays": 3,
+          "media": [
+            {
+              "altText": "Robe port\u00e9e, vue de face",
+              "byteSize": 245760,
+              "height": 1350,
+              "mimeType": "image/jpeg",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+              "width": 1080
+            }
+          ],
+          "offerRef": "pro.ga:offer:01JA00000000000000000000F1",
+          "price": {
+            "amount": 25000,
+            "currency": "XAF",
+            "mode": "fixed"
+          },
+          "revision": 3,
+          "shopRef": "pro.ga:structure:01JA00000000000000000000S1",
+          "showsAvailability": true,
+          "tags": [
+            "robe",
+            "wax"
+          ],
+          "title": "Robe Nyota",
+          "type": "offer.published",
+          "variantAxes": [],
+          "variants": [],
+          "zone": "Libreville",
+          "facets": {
+            "taxonomyVersion": 1,
+            "categoryPath": [
+              "fashion",
+              "fashion.women",
+              "fashion.women.clothing"
+            ],
+            "attributes": [
+              {
+                "key": "durationMinutes",
+                "type": "number",
+                "value": 43201
+              }
+            ]
+          }
+        },
+        "version": 1
+      },
+      "expect": {
+        "ok": false,
+        "path": "$.payload.facets.attributes[0].value",
+        "reason": "invalid_payload"
+      }
+    },
+    {
+      "name": "V2 bool\u00e9en sous forme texte",
+      "nowMs": 1792285200000,
+      "body": {
+        "contract": "PRO-COMMERCE-PUBLIC-V2",
+        "eventId": "pro-ga-evt-000001",
+        "objectRef": "pro.ga:offer:01JA00000000000000000000F1",
+        "payload": {
+          "changedAt": 1792281600000,
+          "collectionRefs": [
+            "pro.ga:offer_collection:01JA00000000000000000000C1"
+          ],
+          "description": "Robe en wax cousue main.\nTailles sur demande.",
+          "kind": "product",
+          "leadTimeDays": 3,
+          "media": [
+            {
+              "altText": "Robe port\u00e9e, vue de face",
+              "byteSize": 245760,
+              "height": 1350,
+              "mimeType": "image/jpeg",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+              "width": 1080
+            }
+          ],
+          "offerRef": "pro.ga:offer:01JA00000000000000000000F1",
+          "price": {
+            "amount": 25000,
+            "currency": "XAF",
+            "mode": "fixed"
+          },
+          "revision": 3,
+          "shopRef": "pro.ga:structure:01JA00000000000000000000S1",
+          "showsAvailability": true,
+          "tags": [
+            "robe",
+            "wax"
+          ],
+          "title": "Robe Nyota",
+          "type": "offer.published",
+          "variantAxes": [],
+          "variants": [],
+          "zone": "Libreville",
+          "facets": {
+            "taxonomyVersion": 1,
+            "categoryPath": [
+              "fashion",
+              "fashion.women",
+              "fashion.women.clothing"
+            ],
+            "attributes": [
+              {
+                "key": "ecoLabel",
+                "type": "boolean",
+                "value": "true"
+              }
+            ]
+          }
+        },
+        "version": 1
+      },
+      "expect": {
+        "ok": false,
+        "path": "$.payload.facets.attributes[0].value",
+        "reason": "invalid_payload"
+      }
+    },
+    {
+      "name": "V2 espaces non normalis\u00e9s",
+      "nowMs": 1792285200000,
+      "body": {
+        "contract": "PRO-COMMERCE-PUBLIC-V2",
+        "eventId": "pro-ga-evt-000001",
+        "objectRef": "pro.ga:offer:01JA00000000000000000000F1",
+        "payload": {
+          "changedAt": 1792281600000,
+          "collectionRefs": [
+            "pro.ga:offer_collection:01JA00000000000000000000C1"
+          ],
+          "description": "Robe en wax cousue main.\nTailles sur demande.",
+          "kind": "product",
+          "leadTimeDays": 3,
+          "media": [
+            {
+              "altText": "Robe port\u00e9e, vue de face",
+              "byteSize": 245760,
+              "height": 1350,
+              "mimeType": "image/jpeg",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+              "width": 1080
+            }
+          ],
+          "offerRef": "pro.ga:offer:01JA00000000000000000000F1",
+          "price": {
+            "amount": 25000,
+            "currency": "XAF",
+            "mode": "fixed"
+          },
+          "revision": 3,
+          "shopRef": "pro.ga:structure:01JA00000000000000000000S1",
+          "showsAvailability": true,
+          "tags": [
+            "robe",
+            "wax"
+          ],
+          "title": "Robe Nyota",
+          "type": "offer.published",
+          "variantAxes": [],
+          "variants": [],
+          "zone": "Libreville",
+          "facets": {
+            "taxonomyVersion": 1,
+            "categoryPath": [
+              "fashion",
+              "fashion.women",
+              "fashion.women.clothing"
+            ],
+            "attributes": [
+              {
+                "key": "color",
+                "type": "text",
+                "value": "Bleu  nuit"
+              }
+            ]
+          }
+        },
+        "version": 1
+      },
+      "expect": {
+        "ok": false,
+        "path": "$.payload.facets.attributes[0].value",
+        "reason": "invalid_text"
+      }
+    },
+    {
+      "name": "V2 Unicode non NFC",
+      "nowMs": 1792285200000,
+      "body": {
+        "contract": "PRO-COMMERCE-PUBLIC-V2",
+        "eventId": "pro-ga-evt-000001",
+        "objectRef": "pro.ga:offer:01JA00000000000000000000F1",
+        "payload": {
+          "changedAt": 1792281600000,
+          "collectionRefs": [
+            "pro.ga:offer_collection:01JA00000000000000000000C1"
+          ],
+          "description": "Robe en wax cousue main.\nTailles sur demande.",
+          "kind": "product",
+          "leadTimeDays": 3,
+          "media": [
+            {
+              "altText": "Robe port\u00e9e, vue de face",
+              "byteSize": 245760,
+              "height": 1350,
+              "mimeType": "image/jpeg",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+              "width": 1080
+            }
+          ],
+          "offerRef": "pro.ga:offer:01JA00000000000000000000F1",
+          "price": {
+            "amount": 25000,
+            "currency": "XAF",
+            "mode": "fixed"
+          },
+          "revision": 3,
+          "shopRef": "pro.ga:structure:01JA00000000000000000000S1",
+          "showsAvailability": true,
+          "tags": [
+            "robe",
+            "wax"
+          ],
+          "title": "Robe Nyota",
+          "type": "offer.published",
+          "variantAxes": [],
+          "variants": [],
+          "zone": "Libreville",
+          "facets": {
+            "taxonomyVersion": 1,
+            "categoryPath": [
+              "fashion",
+              "fashion.women",
+              "fashion.women.clothing"
+            ],
+            "attributes": [
+              {
+                "key": "color",
+                "type": "text",
+                "value": "e\u0301cru"
+              }
+            ]
+          }
+        },
+        "version": 1
+      },
+      "expect": {
+        "ok": false,
+        "path": "$.payload.facets.attributes[0].value",
+        "reason": "invalid_text"
+      }
+    },
+    {
+      "name": "V2 contr\u00f4le ASCII",
+      "nowMs": 1792285200000,
+      "body": {
+        "contract": "PRO-COMMERCE-PUBLIC-V2",
+        "eventId": "pro-ga-evt-000001",
+        "objectRef": "pro.ga:offer:01JA00000000000000000000F1",
+        "payload": {
+          "changedAt": 1792281600000,
+          "collectionRefs": [
+            "pro.ga:offer_collection:01JA00000000000000000000C1"
+          ],
+          "description": "Robe en wax cousue main.\nTailles sur demande.",
+          "kind": "product",
+          "leadTimeDays": 3,
+          "media": [
+            {
+              "altText": "Robe port\u00e9e, vue de face",
+              "byteSize": 245760,
+              "height": 1350,
+              "mimeType": "image/jpeg",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+              "width": 1080
+            }
+          ],
+          "offerRef": "pro.ga:offer:01JA00000000000000000000F1",
+          "price": {
+            "amount": 25000,
+            "currency": "XAF",
+            "mode": "fixed"
+          },
+          "revision": 3,
+          "shopRef": "pro.ga:structure:01JA00000000000000000000S1",
+          "showsAvailability": true,
+          "tags": [
+            "robe",
+            "wax"
+          ],
+          "title": "Robe Nyota",
+          "type": "offer.published",
+          "variantAxes": [],
+          "variants": [],
+          "zone": "Libreville",
+          "facets": {
+            "taxonomyVersion": 1,
+            "categoryPath": [
+              "fashion",
+              "fashion.women",
+              "fashion.women.clothing"
+            ],
+            "attributes": [
+              {
+                "key": "color",
+                "type": "text",
+                "value": "bleu\nnoir"
+              }
+            ]
+          }
+        },
+        "version": 1
+      },
+      "expect": {
+        "ok": false,
+        "path": "$.payload.facets.attributes[0].value",
+        "reason": "invalid_text"
+      }
+    },
+    {
+      "name": "V2 contr\u00f4le C1",
+      "nowMs": 1792285200000,
+      "body": {
+        "contract": "PRO-COMMERCE-PUBLIC-V2",
+        "eventId": "pro-ga-evt-000001",
+        "objectRef": "pro.ga:offer:01JA00000000000000000000F1",
+        "payload": {
+          "changedAt": 1792281600000,
+          "collectionRefs": [
+            "pro.ga:offer_collection:01JA00000000000000000000C1"
+          ],
+          "description": "Robe en wax cousue main.\nTailles sur demande.",
+          "kind": "product",
+          "leadTimeDays": 3,
+          "media": [
+            {
+              "altText": "Robe port\u00e9e, vue de face",
+              "byteSize": 245760,
+              "height": 1350,
+              "mimeType": "image/jpeg",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+              "width": 1080
+            }
+          ],
+          "offerRef": "pro.ga:offer:01JA00000000000000000000F1",
+          "price": {
+            "amount": 25000,
+            "currency": "XAF",
+            "mode": "fixed"
+          },
+          "revision": 3,
+          "shopRef": "pro.ga:structure:01JA00000000000000000000S1",
+          "showsAvailability": true,
+          "tags": [
+            "robe",
+            "wax"
+          ],
+          "title": "Robe Nyota",
+          "type": "offer.published",
+          "variantAxes": [],
+          "variants": [],
+          "zone": "Libreville",
+          "facets": {
+            "taxonomyVersion": 1,
+            "categoryPath": [
+              "fashion",
+              "fashion.women",
+              "fashion.women.clothing"
+            ],
+            "attributes": [
+              {
+                "key": "color",
+                "type": "text",
+                "value": "bleu\u0085noir"
+              }
+            ]
+          }
+        },
+        "version": 1
+      },
+      "expect": {
+        "ok": false,
+        "path": "$.payload.facets.attributes[0].value",
+        "reason": "invalid_text"
+      }
+    },
+    {
+      "name": "V2 substitut Unicode isol\u00e9",
+      "nowMs": 1792285200000,
+      "body": {
+        "contract": "PRO-COMMERCE-PUBLIC-V2",
+        "eventId": "pro-ga-evt-000001",
+        "objectRef": "pro.ga:offer:01JA00000000000000000000F1",
+        "payload": {
+          "changedAt": 1792281600000,
+          "collectionRefs": [
+            "pro.ga:offer_collection:01JA00000000000000000000C1"
+          ],
+          "description": "Robe en wax cousue main.\nTailles sur demande.",
+          "kind": "product",
+          "leadTimeDays": 3,
+          "media": [
+            {
+              "altText": "Robe port\u00e9e, vue de face",
+              "byteSize": 245760,
+              "height": 1350,
+              "mimeType": "image/jpeg",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+              "width": 1080
+            }
+          ],
+          "offerRef": "pro.ga:offer:01JA00000000000000000000F1",
+          "price": {
+            "amount": 25000,
+            "currency": "XAF",
+            "mode": "fixed"
+          },
+          "revision": 3,
+          "shopRef": "pro.ga:structure:01JA00000000000000000000S1",
+          "showsAvailability": true,
+          "tags": [
+            "robe",
+            "wax"
+          ],
+          "title": "Robe Nyota",
+          "type": "offer.published",
+          "variantAxes": [],
+          "variants": [],
+          "zone": "Libreville",
+          "facets": {
+            "taxonomyVersion": 1,
+            "categoryPath": [
+              "fashion",
+              "fashion.women",
+              "fashion.women.clothing"
+            ],
+            "attributes": [
+              {
+                "key": "color",
+                "type": "text",
+                "value": "bleu\ud800"
+              }
+            ]
+          }
+        },
+        "version": 1
+      },
+      "expect": {
+        "ok": false,
+        "path": "$.payload.facets.attributes[0].value",
+        "reason": "invalid_text"
+      }
+    },
+    {
+      "name": "V2 texte trop long",
+      "nowMs": 1792285200000,
+      "body": {
+        "contract": "PRO-COMMERCE-PUBLIC-V2",
+        "eventId": "pro-ga-evt-000001",
+        "objectRef": "pro.ga:offer:01JA00000000000000000000F1",
+        "payload": {
+          "changedAt": 1792281600000,
+          "collectionRefs": [
+            "pro.ga:offer_collection:01JA00000000000000000000C1"
+          ],
+          "description": "Robe en wax cousue main.\nTailles sur demande.",
+          "kind": "product",
+          "leadTimeDays": 3,
+          "media": [
+            {
+              "altText": "Robe port\u00e9e, vue de face",
+              "byteSize": 245760,
+              "height": 1350,
+              "mimeType": "image/jpeg",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+              "width": 1080
+            }
+          ],
+          "offerRef": "pro.ga:offer:01JA00000000000000000000F1",
+          "price": {
+            "amount": 25000,
+            "currency": "XAF",
+            "mode": "fixed"
+          },
+          "revision": 3,
+          "shopRef": "pro.ga:structure:01JA00000000000000000000S1",
+          "showsAvailability": true,
+          "tags": [
+            "robe",
+            "wax"
+          ],
+          "title": "Robe Nyota",
+          "type": "offer.published",
+          "variantAxes": [],
+          "variants": [],
+          "zone": "Libreville",
+          "facets": {
+            "taxonomyVersion": 1,
+            "categoryPath": [
+              "fashion",
+              "fashion.women",
+              "fashion.women.clothing"
+            ],
+            "attributes": [
+              {
+                "key": "color",
+                "type": "text",
+                "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+              }
+            ]
+          }
+        },
+        "version": 1
+      },
+      "expect": {
+        "ok": false,
+        "path": "$.payload.facets.attributes[0].value",
+        "reason": "invalid_text"
+      }
+    },
+    {
+      "name": "V2 ne change pas la version de transport",
+      "nowMs": 1792285200000,
+      "body": {
+        "contract": "PRO-COMMERCE-PUBLIC-V2",
+        "eventId": "pro-ga-evt-000001",
+        "objectRef": "pro.ga:offer:01JA00000000000000000000F1",
+        "payload": {
+          "changedAt": 1792281600000,
+          "collectionRefs": [
+            "pro.ga:offer_collection:01JA00000000000000000000C1"
+          ],
+          "description": "Robe en wax cousue main.\nTailles sur demande.",
+          "kind": "product",
+          "leadTimeDays": 3,
+          "media": [
+            {
+              "altText": "Robe port\u00e9e, vue de face",
+              "byteSize": 245760,
+              "height": 1350,
+              "mimeType": "image/jpeg",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+              "width": 1080
+            }
+          ],
+          "offerRef": "pro.ga:offer:01JA00000000000000000000F1",
+          "price": {
+            "amount": 25000,
+            "currency": "XAF",
+            "mode": "fixed"
+          },
+          "revision": 3,
+          "shopRef": "pro.ga:structure:01JA00000000000000000000S1",
+          "showsAvailability": true,
+          "tags": [
+            "robe",
+            "wax"
+          ],
+          "title": "Robe Nyota",
+          "type": "offer.published",
+          "variantAxes": [],
+          "variants": [],
+          "zone": "Libreville",
+          "facets": {
+            "taxonomyVersion": 1,
+            "categoryPath": [
+              "fashion",
+              "fashion.women",
+              "fashion.women.clothing"
+            ],
+            "attributes": [
+              {
+                "key": "brand",
+                "type": "text",
+                "value": "Atelier D\u00e9mo"
+              },
+              {
+                "key": "color",
+                "type": "text",
+                "value": "Bleu nuit"
+              },
+              {
+                "key": "audience",
+                "type": "choice",
+                "value": "women"
+              }
+            ]
+          }
+        },
+        "version": 2
+      },
+      "expect": {
+        "ok": false,
+        "path": "$.version",
+        "reason": "invalid_envelope"
+      }
+    },
+    {
+      "name": "V2 boutique avec conditions publi\u00e9es",
+      "nowMs": 1792285200000,
+      "body": {
+        "contract": "PRO-COMMERCE-PUBLIC-V2",
+        "eventId": "pro-ga-evt-000001",
+        "objectRef": "pro.ga:structure:01JA00000000000000000000S1",
+        "payload": {
+          "capabilities": [
+            "catalog",
+            "checkout",
+            "quote"
+          ],
+          "changedAt": 1792281600000,
+          "collections": [
+            {
+              "collectionRef": "pro.ga:offer_collection:01JA00000000000000000000C1",
+              "label": "Robes",
+              "position": 1
+            },
+            {
+              "collectionRef": "pro.ga:offer_collection:01JA00000000000000000000C2",
+              "label": "Retouches",
+              "position": 0
+            }
+          ],
+          "commercialName": "Atelier Fictif Nzeng",
+          "country": "GA",
+          "currency": "XAF",
+          "linkRef": "pro.ga:commerce_link:01JA00000000000000000000K1",
+          "revision": 1,
+          "sellerVerification": "verified",
+          "serviceArea": "Libreville",
+          "shopRef": "pro.ga:structure:01JA00000000000000000000S1",
+          "type": "shop.published",
+          "storefrontTerms": {
+            "version": 1,
+            "publishedAt": 1792281600000,
+            "pickup": {
+              "points": [
+                {
+                  "establishmentRef": "pro.ga:establishment:01JA00000000000000000000E1",
+                  "label": "Boutique centre"
+                }
+              ]
+            },
+            "delivery": {
+              "country": "GA",
+              "localities": [
+                "Libreville",
+                "Owendo"
+              ],
+              "label": "Livraison locale",
+              "fee": {
+                "amount": 1500,
+                "currency": "XAF"
+              },
+              "leadTimeDays": 2
+            },
+            "fees": [
+              {
+                "kind": "packaging",
+                "label": "Emballage cadeau",
+                "amount": {
+                  "amount": 500,
+                  "currency": "XAF"
+                }
+              }
+            ],
+            "returns": {
+              "summary": "Contactez la boutique avant tout retour."
+            },
+            "warranty": {
+              "summary": "Garantie commerciale pr\u00e9cis\u00e9e sur la facture."
+            }
+          }
+        },
+        "version": 1
+      },
+      "expect": {
+        "ok": true,
+        "type": "shop.published",
+        "objectRef": "pro.ga:structure:01JA00000000000000000000S1",
+        "effect": {
+          "effect": "upsert",
+          "objectRef": "pro.ga:structure:01JA00000000000000000000S1",
+          "revision": 1,
+          "sequence": "catalog"
+        }
+      },
+      "antsiaTransport": "accepted"
+    },
+    {
+      "name": "V1 refuse les conditions V2",
+      "nowMs": 1792285200000,
+      "body": {
+        "contract": "PRO-COMMERCE-PUBLIC-V1",
+        "eventId": "pro-ga-evt-000001",
+        "objectRef": "pro.ga:structure:01JA00000000000000000000S1",
+        "payload": {
+          "capabilities": [
+            "catalog",
+            "checkout",
+            "quote"
+          ],
+          "changedAt": 1792281600000,
+          "collections": [
+            {
+              "collectionRef": "pro.ga:offer_collection:01JA00000000000000000000C1",
+              "label": "Robes",
+              "position": 1
+            },
+            {
+              "collectionRef": "pro.ga:offer_collection:01JA00000000000000000000C2",
+              "label": "Retouches",
+              "position": 0
+            }
+          ],
+          "commercialName": "Atelier Fictif Nzeng",
+          "country": "GA",
+          "currency": "XAF",
+          "linkRef": "pro.ga:commerce_link:01JA00000000000000000000K1",
+          "revision": 1,
+          "sellerVerification": "verified",
+          "serviceArea": "Libreville",
+          "shopRef": "pro.ga:structure:01JA00000000000000000000S1",
+          "type": "shop.published",
+          "storefrontTerms": {
+            "version": 1,
+            "publishedAt": 1792281600000,
+            "pickup": {
+              "points": [
+                {
+                  "establishmentRef": "pro.ga:establishment:01JA00000000000000000000E1",
+                  "label": "Boutique centre"
+                }
+              ]
+            },
+            "delivery": {
+              "country": "GA",
+              "localities": [
+                "Libreville",
+                "Owendo"
+              ],
+              "label": "Livraison locale",
+              "fee": {
+                "amount": 1500,
+                "currency": "XAF"
+              },
+              "leadTimeDays": 2
+            },
+            "fees": [
+              {
+                "kind": "packaging",
+                "label": "Emballage cadeau",
+                "amount": {
+                  "amount": 500,
+                  "currency": "XAF"
+                }
+              }
+            ],
+            "returns": {
+              "summary": "Contactez la boutique avant tout retour."
+            },
+            "warranty": {
+              "summary": "Garantie commerciale pr\u00e9cis\u00e9e sur la facture."
+            }
+          }
+        },
+        "version": 1
+      },
+      "expect": {
+        "ok": false,
+        "reason": "invalid_payload",
+        "path": "$.payload.storefrontTerms"
+      },
+      "antsiaTransport": "accepted"
+    },
+    {
+      "name": "conditions post\u00e9rieures \u00e0 leur \u00e9v\u00e9nement",
+      "nowMs": 1792285200000,
+      "body": {
+        "contract": "PRO-COMMERCE-PUBLIC-V2",
+        "eventId": "pro-ga-evt-000001",
+        "objectRef": "pro.ga:structure:01JA00000000000000000000S1",
+        "payload": {
+          "capabilities": [
+            "catalog",
+            "checkout",
+            "quote"
+          ],
+          "changedAt": 1792281600000,
+          "collections": [
+            {
+              "collectionRef": "pro.ga:offer_collection:01JA00000000000000000000C1",
+              "label": "Robes",
+              "position": 1
+            },
+            {
+              "collectionRef": "pro.ga:offer_collection:01JA00000000000000000000C2",
+              "label": "Retouches",
+              "position": 0
+            }
+          ],
+          "commercialName": "Atelier Fictif Nzeng",
+          "country": "GA",
+          "currency": "XAF",
+          "linkRef": "pro.ga:commerce_link:01JA00000000000000000000K1",
+          "revision": 1,
+          "sellerVerification": "verified",
+          "serviceArea": "Libreville",
+          "shopRef": "pro.ga:structure:01JA00000000000000000000S1",
+          "type": "shop.published",
+          "storefrontTerms": {
+            "version": 1,
+            "publishedAt": 1792281600001,
+            "pickup": {
+              "points": [
+                {
+                  "establishmentRef": "pro.ga:establishment:01JA00000000000000000000E1",
+                  "label": "Boutique centre"
+                }
+              ]
+            },
+            "delivery": {
+              "country": "GA",
+              "localities": [
+                "Libreville",
+                "Owendo"
+              ],
+              "label": "Livraison locale",
+              "fee": {
+                "amount": 1500,
+                "currency": "XAF"
+              },
+              "leadTimeDays": 2
+            },
+            "fees": [
+              {
+                "kind": "packaging",
+                "label": "Emballage cadeau",
+                "amount": {
+                  "amount": 500,
+                  "currency": "XAF"
+                }
+              }
+            ],
+            "returns": {
+              "summary": "Contactez la boutique avant tout retour."
+            },
+            "warranty": {
+              "summary": "Garantie commerciale pr\u00e9cis\u00e9e sur la facture."
+            }
+          }
+        },
+        "version": 1
+      },
+      "expect": {
+        "ok": false,
+        "reason": "invalid_time",
+        "path": "$.payload.storefrontTerms.publishedAt"
+      },
+      "antsiaTransport": "accepted"
+    },
+    {
+      "name": "MP06 service avec profil public explicite",
+      "nowMs": 1792285200000,
+      "body": {
+        "contract": "PRO-COMMERCE-PUBLIC-V2",
+        "eventId": "pro-ga-evt-000001",
+        "objectRef": "pro.ga:offer:01JA00000000000000000000F1",
+        "payload": {
+          "changedAt": 1792281600000,
+          "collectionRefs": [
+            "pro.ga:offer_collection:01JA00000000000000000000C1"
+          ],
+          "description": "Robe en wax cousue main.\nTailles sur demande.",
+          "kind": "service",
+          "leadTimeDays": 3,
+          "media": [
+            {
+              "altText": "Robe port\u00e9e, vue de face",
+              "byteSize": 245760,
+              "height": 1350,
+              "mimeType": "image/jpeg",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+              "width": 1080
+            }
+          ],
+          "offerRef": "pro.ga:offer:01JA00000000000000000000F1",
+          "price": {
+            "amount": 25000,
+            "currency": "XAF",
+            "mode": "fixed"
+          },
+          "revision": 3,
+          "shopRef": "pro.ga:structure:01JA00000000000000000000S1",
+          "showsAvailability": true,
+          "tags": [
+            "robe",
+            "wax"
+          ],
+          "title": "Robe Nyota",
+          "type": "offer.published",
+          "variantAxes": [],
+          "variants": [],
+          "zone": "Libreville",
+          "serviceProfile": {
+            "version": 1,
+            "commercialModes": [
+              "quote",
+              "booking",
+              "fixed_order"
+            ],
+            "languageCodes": [
+              "fr",
+              "en",
+              "fr-GA"
+            ],
+            "zones": [
+              {
+                "countryCode": "GA",
+                "locality": "Libreville"
+              }
+            ],
+            "deliverables": [
+              "Rapport final"
+            ],
+            "inclusions": [
+              "Une r\u00e9vision"
+            ],
+            "exclusions": [
+              "Impression"
+            ],
+            "portfolio": [
+              {
+                "title": "Identit\u00e9 visuelle",
+                "description": "Une r\u00e9alisation de d\u00e9monstration.",
+                "mediaIndexes": [
+                  0
+                ]
+              }
+            ]
+          }
+        },
+        "version": 1
+      },
+      "expect": {
+        "ok": true,
+        "type": "offer.published",
+        "objectRef": "pro.ga:offer:01JA00000000000000000000F1",
+        "effect": {
+          "effect": "upsert",
+          "objectRef": "pro.ga:offer:01JA00000000000000000000F1",
+          "revision": 3,
+          "sequence": "catalog"
+        }
+      }
+    },
+    {
+      "name": "MP06 produit ne porte pas de profil service",
+      "nowMs": 1792285200000,
+      "body": {
+        "contract": "PRO-COMMERCE-PUBLIC-V2",
+        "eventId": "pro-ga-evt-000001",
+        "objectRef": "pro.ga:offer:01JA00000000000000000000F1",
+        "payload": {
+          "changedAt": 1792281600000,
+          "collectionRefs": [
+            "pro.ga:offer_collection:01JA00000000000000000000C1"
+          ],
+          "description": "Robe en wax cousue main.\nTailles sur demande.",
+          "kind": "product",
+          "leadTimeDays": 3,
+          "media": [
+            {
+              "altText": "Robe port\u00e9e, vue de face",
+              "byteSize": 245760,
+              "height": 1350,
+              "mimeType": "image/jpeg",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+              "width": 1080
+            }
+          ],
+          "offerRef": "pro.ga:offer:01JA00000000000000000000F1",
+          "price": {
+            "amount": 25000,
+            "currency": "XAF",
+            "mode": "fixed"
+          },
+          "revision": 3,
+          "shopRef": "pro.ga:structure:01JA00000000000000000000S1",
+          "showsAvailability": true,
+          "tags": [
+            "robe",
+            "wax"
+          ],
+          "title": "Robe Nyota",
+          "type": "offer.published",
+          "variantAxes": [],
+          "variants": [],
+          "zone": "Libreville",
+          "serviceProfile": {
+            "version": 1,
+            "commercialModes": [
+              "quote",
+              "booking",
+              "fixed_order"
+            ],
+            "languageCodes": [
+              "fr",
+              "en",
+              "fr-GA"
+            ],
+            "zones": [
+              {
+                "countryCode": "GA",
+                "locality": "Libreville"
+              }
+            ],
+            "deliverables": [
+              "Rapport final"
+            ],
+            "inclusions": [
+              "Une r\u00e9vision"
+            ],
+            "exclusions": [
+              "Impression"
+            ],
+            "portfolio": [
+              {
+                "title": "Identit\u00e9 visuelle",
+                "description": "Une r\u00e9alisation de d\u00e9monstration.",
+                "mediaIndexes": [
+                  0
+                ]
+              }
+            ]
+          }
+        },
+        "version": 1
+      },
+      "expect": {
+        "ok": false,
+        "reason": "invalid_payload",
+        "path": "$.payload.serviceProfile"
+      }
+    },
+    {
+      "name": "MP06 V1 refuse le profil service",
+      "nowMs": 1792285200000,
+      "body": {
+        "contract": "PRO-COMMERCE-PUBLIC-V1",
+        "eventId": "pro-ga-evt-000001",
+        "objectRef": "pro.ga:offer:01JA00000000000000000000F1",
+        "payload": {
+          "changedAt": 1792281600000,
+          "collectionRefs": [
+            "pro.ga:offer_collection:01JA00000000000000000000C1"
+          ],
+          "description": "Robe en wax cousue main.\nTailles sur demande.",
+          "kind": "service",
+          "leadTimeDays": 3,
+          "media": [
+            {
+              "altText": "Robe port\u00e9e, vue de face",
+              "byteSize": 245760,
+              "height": 1350,
+              "mimeType": "image/jpeg",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+              "width": 1080
+            }
+          ],
+          "offerRef": "pro.ga:offer:01JA00000000000000000000F1",
+          "price": {
+            "amount": 25000,
+            "currency": "XAF",
+            "mode": "fixed"
+          },
+          "revision": 3,
+          "shopRef": "pro.ga:structure:01JA00000000000000000000S1",
+          "showsAvailability": true,
+          "tags": [
+            "robe",
+            "wax"
+          ],
+          "title": "Robe Nyota",
+          "type": "offer.published",
+          "variantAxes": [],
+          "variants": [],
+          "zone": "Libreville",
+          "serviceProfile": {
+            "version": 1,
+            "commercialModes": [
+              "quote",
+              "booking",
+              "fixed_order"
+            ],
+            "languageCodes": [
+              "fr",
+              "en",
+              "fr-GA"
+            ],
+            "zones": [
+              {
+                "countryCode": "GA",
+                "locality": "Libreville"
+              }
+            ],
+            "deliverables": [
+              "Rapport final"
+            ],
+            "inclusions": [
+              "Une r\u00e9vision"
+            ],
+            "exclusions": [
+              "Impression"
+            ],
+            "portfolio": [
+              {
+                "title": "Identit\u00e9 visuelle",
+                "description": "Une r\u00e9alisation de d\u00e9monstration.",
+                "mediaIndexes": [
+                  0
+                ]
+              }
+            ]
+          }
+        },
+        "version": 1
+      },
+      "expect": {
+        "ok": false,
+        "reason": "invalid_payload",
+        "path": "$.payload.serviceProfile"
+      }
+    },
+    {
+      "name": "MP06 portfolio hors manifeste",
+      "nowMs": 1792285200000,
+      "body": {
+        "contract": "PRO-COMMERCE-PUBLIC-V2",
+        "eventId": "pro-ga-evt-000001",
+        "objectRef": "pro.ga:offer:01JA00000000000000000000F1",
+        "payload": {
+          "changedAt": 1792281600000,
+          "collectionRefs": [
+            "pro.ga:offer_collection:01JA00000000000000000000C1"
+          ],
+          "description": "Robe en wax cousue main.\nTailles sur demande.",
+          "kind": "service",
+          "leadTimeDays": 3,
+          "media": [
+            {
+              "altText": "Robe port\u00e9e, vue de face",
+              "byteSize": 245760,
+              "height": 1350,
+              "mimeType": "image/jpeg",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+              "width": 1080
+            }
+          ],
+          "offerRef": "pro.ga:offer:01JA00000000000000000000F1",
+          "price": {
+            "amount": 25000,
+            "currency": "XAF",
+            "mode": "fixed"
+          },
+          "revision": 3,
+          "shopRef": "pro.ga:structure:01JA00000000000000000000S1",
+          "showsAvailability": true,
+          "tags": [
+            "robe",
+            "wax"
+          ],
+          "title": "Robe Nyota",
+          "type": "offer.published",
+          "variantAxes": [],
+          "variants": [],
+          "zone": "Libreville",
+          "serviceProfile": {
+            "version": 1,
+            "commercialModes": [
+              "quote",
+              "booking",
+              "fixed_order"
+            ],
+            "languageCodes": [
+              "fr",
+              "en",
+              "fr-GA"
+            ],
+            "zones": [
+              {
+                "countryCode": "GA",
+                "locality": "Libreville"
+              }
+            ],
+            "deliverables": [
+              "Rapport final"
+            ],
+            "inclusions": [
+              "Une r\u00e9vision"
+            ],
+            "exclusions": [
+              "Impression"
+            ],
+            "portfolio": [
+              {
+                "title": "Identit\u00e9 visuelle",
+                "description": "Une r\u00e9alisation de d\u00e9monstration.",
+                "mediaIndexes": [
+                  1
+                ]
+              }
+            ]
+          }
+        },
+        "version": 1
+      },
+      "expect": {
+        "ok": false,
+        "reason": "invalid_payload",
+        "path": "$.payload.serviceProfile.portfolio[0].mediaIndexes"
+      }
+    }
+  ]
+}

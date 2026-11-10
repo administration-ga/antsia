@@ -1,4 +1,14 @@
 {
+  "recovery": {
+    "offline": "Vous êtes hors ligne. Vos saisies restent dans cet écran ; aucun envoi n’est effectué.",
+    "reviewRequired": "Relisez les conditions ou les disponibilités avant de donner un nouvel accord.",
+    "review": "Relire les conditions",
+    "uncertain": "Une intention a déjà été envoyée. Recherchez son résultat avant de recommencer ; aucun contenu privé n’est conservé dans l’index de reprise.",
+    "lookup": "Rechercher la demande envoyée",
+    "stopHint": "Aucune demande correspondante n’a été retrouvée. Clôturez d’abord cette clé sur le serveur. Une demande déjà créée sera ouverte, jamais annulée par ce choix.",
+    "stop": "Clôturer cette intention avant de recommencer",
+    "storageUnavailable": "La clé de reprise ne peut pas être conservée dans cet onglet. Aucun nouvel envoi n’est autorisé. Consultez Mes demandes."
+  },
   "common": {
     "loading": "Chargement…",
     "unavailable": "Ce service n’est pas disponible pour le moment. Rien n’a été envoyé à votre place.",
@@ -100,7 +110,17 @@
     "refused": "Cette commande ne peut pas être transmise. Le tarif ou l’offre a peut-être changé.",
     "panel": "Commande",
     "noOrder": "Aucune commande n’a encore été ouverte pour cette demande.",
-    "priceChanged": "Le tarif a changé : {{amount}} par unité. Relisez-le et donnez un nouvel accord pour commander."
+    "priceChanged": "Le tarif a changé : {{amount}} par unité. Relisez-le et donnez un nouvel accord pour commander.",
+    "publishedConditions": "Conditions publiées du forfait",
+    "conditionsLoading": "Lecture des conditions publiées…",
+    "publicRevision": "Version publique {{version}}",
+    "rereadConditions": "Relire les conditions du forfait",
+    "conditions": {
+      "unavailable": "L’offre publiée ou ses modalités ne sont pas accessibles. Relisez les conditions avant de confirmer.",
+      "unqualified": "Cette offre ne publie pas encore un forfait qualifié avec ses livrables. Les anciens profils doivent être complétés par le prestataire avant une commande depuis cet écran.",
+      "mismatch": "La version, le tarif ou le délai publiés diffèrent des modalités proposées. Relisez-les pour confirmer une même version."
+    },
+    "noPublishedLeadTime": "Le délai n’est pas précisé dans cette version."
   },
   "contact": {
     "legend": "Nom donné au professionnel (facultatif)",
@@ -114,7 +134,8 @@
     "booking": "Je demande ce créneau à ce professionnel. Il peut être retenu pour une durée limitée en attendant sa confirmation. Aucun paiement n’est déclenché.",
     "bookingChange": "Je demande à changer de créneau. Mon rendez-vous actuel est conservé si le nouveau créneau n’est pas obtenu.",
     "bookingCancel": "J’annule ce rendez-vous. Le créneau est libéré pour d’autres clients.",
-    "serviceOrder": "Je commande cette prestation au tarif affiché. Le professionnel confirme ma commande ; aucun paiement n’est déclenché."
+    "serviceOrder": "Je commande cette prestation au tarif affiché. Le professionnel confirme ma commande ; aucun paiement n’est déclenché.",
+    "quoteRejection": "Je confirme le refus de ce devis dans la version affichée. Ce refus sera transmis au professionnel et n’ouvrira aucune commande."
   },
   "slots": {
     "title": "Créneaux libres",
@@ -185,7 +206,14 @@
     "orderOpened": "Une commande a été ouverte auprès du professionnel.",
     "noOrderYet": "Aucune commande n’a encore été ouverte par cette acceptation.",
     "expired": "Ce devis a expiré : demandez une nouvelle proposition au professionnel.",
-    "notAcceptable": "Cette version ne peut pas être acceptée en ligne."
+    "notAcceptable": "Cette version ne peut pas être acceptée en ligne.",
+    "reloadDetail": "Relire cette version",
+    "rejectTitle": "Refuser le devis",
+    "rejectRecap": "Vous refusez le devis {{reference}}, version {{version}}.",
+    "reject": "Refuser cette version",
+    "rejectRefused": "Ce devis ne peut pas être refusé : il a peut-être expiré, été retiré, révisé ou déjà fait l’objet d’une décision. Relisez-le avant de recommencer.",
+    "rejectedNow": "Votre refus de devis est enregistré par le professionnel.",
+    "rejectedProof": "Refusé par vous : version {{version}}, le {{date}}."
   },
   "requests": {
     "title": "Mes demandes",
@@ -254,7 +282,8 @@
     "booking": "demande de rendez-vous",
     "reschedule": "changement de créneau",
     "cancel": "annulation",
-    "order": "commande de prestation"
+    "order": "commande de prestation",
+    "quote_reject": "refus de devis par vous"
   },
   "commandStates": {
     "unknown": "Résultat encore inconnu.",
@@ -329,7 +358,8 @@
     "abandoned": "La demande est restée sans suite et a été close.",
     "inactive": "La demande, sans nouvelle depuis longtemps, a été close.",
     "erasure_requested": "Interrompu par votre demande d’effacement des données.",
-    "other": "Le professionnel a refusé cette action."
+    "other": "Le professionnel a refusé cette action.",
+    "not_rejectable": "Ce devis ne peut pas être refusé dans son état actuel. Actualisez-le avant de décider."
   },
   "validation": {
     "text": "Ce texte contient un caractère non pris en charge.",

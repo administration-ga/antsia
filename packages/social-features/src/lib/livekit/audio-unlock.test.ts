@@ -5,7 +5,7 @@
  * partagé `./audio-unlock` (précédent d'import :
  * `ringing-signal.test.ts`).
  */
-import { afterEach, beforeEach, describe, expect, it } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import {
 	__resetSharedAudioForTests,
 	getSharedAudioContext,
@@ -37,21 +37,23 @@ class FakeAudioContext {
 
 /** Une cible d'écouteurs façon window, pilotable à la main. */
 class FakeTarget implements AudioUnlockTarget {
-	private handlers = new Map<string, Set<() => void>>()
+	private handlers = new Map<string, Set<(event: Event) => void>>()
 
 	addEventListener(type: string, listener: unknown) {
 		const set = this.handlers.get(type) ?? new Set()
-		set.add(listener as () => void)
+		set.add(listener as (event: Event) => void)
 		this.handlers.set(type, set)
 	}
 	removeEventListener(type: string, listener: unknown) {
-		this.handlers.get(type)?.delete(listener as () => void)
+		this.handlers.get(type)?.delete(listener as (event: Event) => void)
 	}
 	count(type: string): number {
 		return this.handlers.get(type)?.size ?? 0
 	}
-	fire(type: string) {
-		for (const listener of this.handlers.get(type) ?? []) listener()
+	fire(type: string, isTrusted = true) {
+		for (const listener of this.handlers.get(type) ?? []) {
+			listener({ isTrusted } as Event)
+		}
 	}
 }
 
@@ -68,6 +70,7 @@ beforeEach(() => {
 
 afterEach(() => {
 	__resetSharedAudioForTests(null)
+	vi.unstubAllGlobals()
 })
 
 describe("getSharedAudioContext — un seul contexte, jamais fermé", () => {
@@ -104,16 +107,48 @@ describe("isRingtoneAudioBlocked — dire le blocage, jamais l'inventer", () => 
 })
 
 describe("installAudioUnlock — le premier geste arme l'audio", () => {
-	it("pose pointerdown + keydown, et le geste déclenche resume()", () => {
+	it("attend click + keydown, sans créer de contexte pendant pointerdown", () => {
 		const target = new FakeTarget()
 		const uninstall = installAudioUnlock(target)
-		expect(target.count("pointerdown")).toBe(1)
+		expect(target.count("click")).toBe(1)
 		expect(target.count("keydown")).toBe(1)
 
-		getSharedAudioContext() // le contexte existe, suspendu
+		expect(target.count("pointerdown")).toBe(0)
 		target.fire("pointerdown")
+		expect(created).toHaveLength(0)
+		target.fire("click")
 		expect(created[0]?.resumeCalls).toBeGreaterThan(0)
 		expect(created[0]?.state).toBe("running")
+		uninstall()
+	})
+
+	it("ignore les événements synthétiques, sans créer de contexte", () => {
+		const target = new FakeTarget()
+		const uninstall = installAudioUnlock(target)
+		target.fire("click", false)
+		target.fire("keydown", false)
+		expect(created).toHaveLength(0)
+		uninstall()
+	})
+
+	it("attend l'activation reconnue par le navigateur avant création et reprise", () => {
+		const activation = { isActive: false }
+		vi.stubGlobal("navigator", { userActivation: activation })
+		const target = new FakeTarget()
+		const uninstall = installAudioUnlock(target)
+		target.fire("click")
+		expect(created).toHaveLength(0)
+		activation.isActive = true
+		target.fire("keydown")
+		expect(created).toHaveLength(1)
+		expect(created[0]?.resumeCalls).toBe(1)
+		created[0]!.state = "suspended"
+		activation.isActive = false
+		target.fire("keydown")
+		expect(created[0]?.resumeCalls).toBe(1)
+		activation.isActive = true
+		target.fire("click")
+		expect(created[0]?.resumeCalls).toBe(2)
 		uninstall()
 	})
 
@@ -122,9 +157,9 @@ describe("installAudioUnlock — le premier geste arme l'audio", () => {
 		const first = installAudioUnlock(target)
 		const second = installAudioUnlock(target)
 		first()
-		expect(target.count("pointerdown")).toBe(1)
+		expect(target.count("click")).toBe(1)
 		second()
-		expect(target.count("pointerdown")).toBe(0)
+		expect(target.count("click")).toBe(0)
 	})
 
 	it("désinstallateur idempotent — le rappeler ne décompte pas deux fois", () => {
@@ -133,7 +168,7 @@ describe("installAudioUnlock — le premier geste arme l'audio", () => {
 		first()
 		first()
 		const again = installAudioUnlock(target)
-		expect(target.count("pointerdown")).toBe(1)
+		expect(target.count("click")).toBe(1)
 		again()
 	})
 })

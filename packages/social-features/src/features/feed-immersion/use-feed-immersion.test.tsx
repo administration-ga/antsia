@@ -105,6 +105,18 @@ describe("useFeedImmersion", () => {
     expect(result.current?.restore).toMatchObject({ anchorPostId: "posts_7" })
   })
 
+  it("Clips garde son mode sans modifier celui du fil", () => {
+    const first = renderHook(() => useFeedImmersion({ feedId: "fil:pour_vous", depth: 1 }), { wrapper: wrapperFor() })
+    act(() => first.result.current?.changeMode("list"))
+    const clips = renderHook(() => useFeedImmersion({ feedId: "clips", depth: 1, surface: "clips" }), { wrapper: wrapperFor() })
+    expect(clips.result.current?.immersive).toBe(true)
+    act(() => clips.result.current?.changeMode("list"))
+    expect(first.result.current?.immersive).toBe(false)
+    act(() => first.result.current?.changeMode("immersive"))
+    expect(clips.result.current?.immersive).toBe(false)
+    expect(Array.from({ length: window.localStorage.length }, (_, index) => window.localStorage.key(index)).every(key => key?.startsWith("antsia:test:"))).toBe(true)
+  })
+
   it("une session remplacée (autre personne) ne rétablit jamais la position de la précédente", () => {
     const first = renderHook(() => useFeedImmersion({ feedId: "fil:pour_vous", depth: 1 }), { wrapper: wrapperFor() })
     act(() => first.result.current?.recordSlotAnchor({ postId: "posts_9", offset: 0 }))

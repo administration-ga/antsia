@@ -63,6 +63,8 @@ export const postsTables = {
     pageId: v.optional(v.id("pages")),
     /** P09 : référence d'offre seulement ; prix, état et droits sont relus dans la projection catalogue. */
     commerceOffer: v.optional(v.object({ shopId: v.id("shops"), offerRef: v.string() })),
+    /** MP13 : référence seule ; l'aperçu relit toujours la version éditoriale actuellement publiée. */
+    editorialArticleId: v.optional(v.id("editorialArticles")),
     /** Portée, parmi celles que le réseau déclare (`networks.reachValues`). */
     reach: v.optional(v.string()),
     /** Pays (ISO 3166-1 alpha-2) ; exigé par la portée locale. */

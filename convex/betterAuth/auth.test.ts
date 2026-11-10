@@ -3,8 +3,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { Resend } from "@convex-dev/resend"
 
+import catalog from "../../deploy/catalog.json"
 import { api, components, internal } from "../_generated/api"
 import { createTestSession, testConvex } from "../test.setup"
+import { otpPresentation } from "./delivery"
 
 const PRIMARY_ORIGIN = "http://localhost:3030"
 const PEER_ORIGIN = "http://localhost:3031"
@@ -19,7 +21,7 @@ beforeEach(() => {
   vi.stubEnv("CONVEX_CLOUD_URL", "http://127.0.0.1:3210")
   vi.stubEnv("ANTSIA_DEV_TOOLS", "true")
   vi.stubEnv("BETTER_AUTH_SECRET", TEST_SECRET)
-  for (const key of ["IDN_CLIENT_ID", "IDN_CLIENT_SECRET", "IDN_ISSUER", "IDN_DISCOVERY_URL", "RESEND_API_KEY", "RESEND_FROM_ADDRESS", "SMS_PROVIDER", "SMS_ENDPOINT", "SMS_API_KEY", "TRUSTED_ORIGINS"]) vi.stubEnv(key, undefined)
+  for (const key of ["IDN_CLIENT_ID", "IDN_CLIENT_SECRET", "IDN_ISSUER", "IDN_DISCOVERY_URL", "RESEND_API_KEY", "RESEND_FROM_ADDRESS", "SMS_PROVIDER", "SMS_ENDPOINT", "SMS_API_KEY", "TRUSTED_ORIGINS", "AUTH_DEFAULT_LOCALE"]) vi.stubEnv(key, undefined)
 })
 
 afterEach(() => {
@@ -40,18 +42,20 @@ function textField(value: unknown, key: string): string {
   return field
 }
 
-async function request(t: T, path: string, { method = "POST", body, token, origin = PRIMARY_ORIGIN }: { method?: "GET" | "POST"; body?: Record<string, unknown>; token?: string; origin?: string } = {}) {
+async function request(t: T, path: string, { method = "POST", body, token, origin = PRIMARY_ORIGIN, acceptLanguage, browserCookie }: { method?: "GET" | "POST"; body?: Record<string, unknown>; token?: string; origin?: string; acceptLanguage?: string; browserCookie?: string } = {}) {
   const response = await t.action(async (ctx) => {
     const { createAuth } = await import("./auth")
     const headers = new Headers({ Origin: origin })
     if (body) headers.set("Content-Type", "application/json")
     if (token) headers.set("Authorization", `Bearer ${token}`)
+    if (acceptLanguage) headers.set("Accept-Language", acceptLanguage)
+    if (browserCookie !== undefined) headers.set("Better-Auth-Cookie", browserCookie)
     const result = await createAuth(ctx, origin).handler(new Request(`${PRIMARY_ORIGIN}/api/auth${path}`, {
       method,
       headers,
       ...(body ? { body: JSON.stringify(body) } : {}),
     }))
-    return { status: result.status, body: await result.text(), tokenHeader: result.headers.get("set-auth-token") }
+    return { status: result.status, body: await result.text(), tokenHeader: result.headers.get("set-auth-token"), hasBrowserCookie: result.headers.has("set-better-auth-cookie") }
   })
   return { ...response, data: response.body ? JSON.parse(response.body) as unknown : null }
 }
@@ -143,6 +147,19 @@ describe("connexion légère e-mail et SMS réelle dans Better Auth", () => {
     expect(await t.run((ctx) => ctx.db.query("networkMemberships").first())).toBeNull()
   })
 
+  it.each(["email", "phone"] as const)("le transport navigateur %s conserve le corps de session et son cookie", async (channel) => {
+    const t = testConvex({ automaticSessions: false })
+    const code = await issueCode(t, channel)
+    const result = await request(t, channel === "email" ? "/sign-in/email-otp" : "/phone-number/verify", {
+      body: channel === "email" ? { email: EMAIL, otp: code.code } : { phoneNumber: PHONE, code: code.code },
+      browserCookie: "",
+    })
+    expect(result.status).toBe(200)
+    expect(textField(result.data, "token")).toBeTruthy()
+    expect(textField(record(result.data).user, "id")).toBeTruthy()
+    expect(result.hasBrowserCookie).toBe(true)
+  })
+
   it.each(["email", "phone"] as const)("un code %s consommé ne peut ouvrir une deuxième session", async (channel) => {
     const t = testConvex({ automaticSessions: false })
     const code = await issueCode(t, channel)
@@ -227,6 +244,171 @@ describe("connexion légère e-mail et SMS réelle dans Better Auth", () => {
     expect(refusal.body).not.toContain("fictional-resend-test-key")
     expect(await t.query(api.modules.platform.devTools.latestOtp, { email: EMAIL })).toBeNull()
     expect(await t.run((ctx) => ctx.db.query("persons").first())).toBeNull()
+  })
+})
+
+describe("déploiement de démonstration déclaré : les comptes réservés seulement", () => {
+  const DEMO_EMAIL = "membre@demo.antsia.test"
+
+  function declareDemo(name = "demo-antsia-123") {
+    vi.stubEnv("CONVEX_CLOUD_URL", "https://demo-antsia-123.convex.cloud")
+    vi.stubEnv("ANTSIA_DEV_TOOLS", undefined)
+    vi.stubEnv("ANTSIA_DEMO_DEPLOYMENT", name)
+  }
+
+  it("le code d'un compte de démonstration se relit et ouvre une vraie session, sans service de courriel", async () => {
+    declareDemo()
+    const t = testConvex({ automaticSessions: false })
+    const code = await issueCode(t, "email", DEMO_EMAIL)
+    const result = await signIn(t, "email", code.code, DEMO_EMAIL)
+    expect(result.status).toBe(200)
+    expect(record(record(result.data).user).email).toBe(DEMO_EMAIL)
+  })
+
+  it("le code d'un compte de démonstration DIASPORALE se relit de même (ADR-0038)", async () => {
+    declareDemo()
+    const t = testConvex({ automaticSessions: false })
+    const email = "moderateur@demo.diasporale.test"
+    const code = await issueCode(t, "email", email)
+    const result = await signIn(t, "email", code.code, email)
+    expect(result.status).toBe(200)
+    expect(record(record(result.data).user).email).toBe(email)
+  })
+
+  it("toute autre adresse exige le vrai service de courriel : aucun code lisible", async () => {
+    declareDemo()
+    const t = testConvex({ automaticSessions: false })
+    const refusal = await request(t, "/email-otp/send-verification-otp", { body: { email: EMAIL, type: "sign-in" } })
+    expect(refusal.status).toBe(503)
+    expect(record(refusal.data).code).toBe("otpDeliveryUnavailable")
+    expect(await t.query(api.modules.platform.devTools.latestOtp, { email: EMAIL })).toBeNull()
+    expect(await t.run((ctx) => ctx.db.query("devOtpCodes").take(1))).toEqual([])
+  })
+
+  it("avec le service de courriel, une vraie adresse reçoit son code par courriel et jamais à l'écran", async () => {
+    declareDemo()
+    vi.stubEnv("RESEND_API_KEY", "fictional-resend-test-key")
+    vi.stubEnv("RESEND_FROM_ADDRESS", "ANTSIA <no-reply@example.test>")
+    const send = vi.spyOn(Resend.prototype, "sendEmail").mockResolvedValue("fictional-email-id" as never)
+    const t = testConvex({ automaticSessions: false })
+    const response = await request(t, "/email-otp/send-verification-otp", { body: { email: EMAIL, type: "sign-in" } })
+    expect(response.status).toBe(200)
+    expect(send).toHaveBeenCalledOnce()
+    expect(await t.query(api.modules.platform.devTools.latestOtp, { email: EMAIL })).toBeNull()
+  })
+
+  it("aucun code par SMS ne s'affiche : la porte SMS reste fermée sans relais", async () => {
+    declareDemo()
+    const t = testConvex({ automaticSessions: false })
+    const refusal = await request(t, "/phone-number/send-otp", { body: { phoneNumber: PHONE } })
+    expect(refusal.status).toBe(503)
+    expect(await t.query(api.modules.platform.devTools.latestOtp, { email: PHONE })).toBeNull()
+  })
+
+  it("la déclaration recopiée sur un autre déploiement n'ouvre rien, même pour une adresse réservée", async () => {
+    declareDemo("production-antsia-456")
+    const t = testConvex({ automaticSessions: false })
+    const refusal = await request(t, "/email-otp/send-verification-otp", { body: { email: DEMO_EMAIL, type: "sign-in" } })
+    expect(refusal.status).toBe(503)
+    expect(record(refusal.data).code).toBe("otpDeliveryUnavailable")
+    expect(await t.query(api.modules.platform.devTools.latestOtp, { email: DEMO_EMAIL })).toBeNull()
+  })
+})
+
+describe("langue de la personne et marque du réseau dans le code de connexion", () => {
+  const DIASPORALE_ORIGIN = new URL(catalog.applications.diasporale_com.site_url).origin
+  const ANTSIA_ORIGIN = new URL(catalog.applications.antsia_ga.site_url).origin
+  const LOCAL_DIASPORALE_ORIGIN = `http://localhost:${catalog.applications.diasporale_com.dev_port}`
+  const ENGLISH_DIASPORALE = /^Your DIASPORALE code: \d{6}\. It expires in five minutes\.$/
+
+  /** Un backend en nuage avec un transport configuré : le message est réellement composé, son envoi est simulé. */
+  function emailTransport() {
+    vi.stubEnv("CONVEX_CLOUD_URL", "https://backend.example.test")
+    vi.stubEnv("RESEND_API_KEY", "fictional-resend-test-key")
+    vi.stubEnv("RESEND_FROM_ADDRESS", "ANTSIA <no-reply@example.test>")
+    return vi.spyOn(Resend.prototype, "sendEmail").mockResolvedValue("fictional-email-id" as never)
+  }
+
+  async function sendEmailCode(t: T, options: { origin: string; acceptLanguage?: string; email?: string }) {
+    const response = await request(t, "/email-otp/send-verification-otp", { origin: options.origin, acceptLanguage: options.acceptLanguage, body: { email: options.email ?? EMAIL, type: "sign-in" } })
+    expect(response.status).toBe(200)
+  }
+
+  function lastEmail(send: ReturnType<typeof emailTransport>) {
+    const email = record(send.mock.lastCall?.[1])
+    return { from: email.from, to: email.to, subject: email.subject, text: textField(email, "text") }
+  }
+
+  it("un code demandé en anglais sur diasporale.com part en anglais, à la marque DIASPORALE", async () => {
+    const send = emailTransport()
+    const t = testConvex({ automaticSessions: false })
+    await sendEmailCode(t, { origin: DIASPORALE_ORIGIN, acceptLanguage: "en" })
+    expect(send).toHaveBeenCalledOnce()
+    const email = lastEmail(send)
+    expect(email).toMatchObject({ from: "ANTSIA <no-reply@example.test>", to: EMAIL, subject: "Your DIASPORALE sign-in code" })
+    expect(email.text).toMatch(ENGLISH_DIASPORALE)
+  })
+
+  it("en français sur diasporale.com, préférences régionales comprises", async () => {
+    const send = emailTransport()
+    const t = testConvex({ automaticSessions: false })
+    await sendEmailCode(t, { origin: DIASPORALE_ORIGIN, acceptLanguage: "fr-FR,fr;q=0.9,en;q=0.8" })
+    const email = lastEmail(send)
+    expect(email.subject).toBe("Votre code de connexion DIASPORALE")
+    expect(email.text).toMatch(/^Votre code DIASPORALE : \d{6}\. Il expire dans cinq minutes\.$/)
+  })
+
+  it("sans langue donnée : celle du déploiement, sinon le français ; antsia.ga garde la marque ANTSIA", async () => {
+    const send = emailTransport()
+    const t = testConvex({ automaticSessions: false })
+    await sendEmailCode(t, { origin: ANTSIA_ORIGIN })
+    expect(lastEmail(send).subject).toBe("Votre code de connexion ANTSIA")
+    expect(lastEmail(send).text).toMatch(/^Votre code ANTSIA : \d{6}\. Il expire dans cinq minutes\.$/)
+    vi.stubEnv("AUTH_DEFAULT_LOCALE", "en")
+    await sendEmailCode(t, { origin: DIASPORALE_ORIGIN, email: "bob.auth@example.test" })
+    expect(lastEmail(send)).toMatchObject({ to: "bob.auth@example.test", subject: "Your DIASPORALE sign-in code" })
+    // La langue demandée passe devant celle du déploiement.
+    await sendEmailCode(t, { origin: ANTSIA_ORIGIN, acceptLanguage: "fr", email: "carla.auth@example.test" })
+    expect(lastEmail(send)).toMatchObject({ to: "carla.auth@example.test", subject: "Votre code de connexion ANTSIA" })
+    expect(send).toHaveBeenCalledTimes(3)
+  })
+
+  it("une langue non prise en charge retombe sur le français ; une origine hors catalogue porte ANTSIA", async () => {
+    const send = emailTransport()
+    const t = testConvex({ automaticSessions: false })
+    await sendEmailCode(t, { origin: PRIMARY_ORIGIN, acceptLanguage: "de-DE,es;q=0.8" })
+    expect(lastEmail(send).subject).toBe("Votre code de connexion ANTSIA")
+  })
+
+  it("le SMS demandé en anglais sur diasporale.com part en anglais, à la marque DIASPORALE", async () => {
+    vi.stubEnv("CONVEX_CLOUD_URL", "https://backend.example.test")
+    vi.stubEnv("SMS_PROVIDER", "webhook")
+    vi.stubEnv("SMS_ENDPOINT", "https://sms.example.test/send")
+    vi.stubEnv("SMS_API_KEY", "fictional-sms-test-key")
+    const relay = vi.fn(async (_url: string | URL | Request, _init?: RequestInit) => new Response(null, { status: 202 }))
+    vi.stubGlobal("fetch", relay)
+    const t = testConvex({ automaticSessions: false })
+    const response = await request(t, "/phone-number/send-otp", { origin: DIASPORALE_ORIGIN, acceptLanguage: "en-GB,en;q=0.9", body: { phoneNumber: PHONE } })
+    expect(response.status).toBe(200)
+    expect(relay).toHaveBeenCalledOnce()
+    const [url, init] = relay.mock.calls[0] ?? []
+    expect(url).toBe("https://sms.example.test/send")
+    const body = record(JSON.parse(String(init?.body)))
+    expect(body).toMatchObject({ to: PHONE, type: "otp", ttlSeconds: 300 })
+    expect(textField(body, "text")).toMatch(ENGLISH_DIASPORALE)
+  })
+
+  it("la marque vient de l'origine vérifiée, en production comme en local ; la langue, de la requête puis du déploiement", () => {
+    const local = { ANTSIA_DEV_TOOLS: "true", CONVEX_CLOUD_URL: "http://127.0.0.1:3210" }
+    expect(otpPresentation({ origin: DIASPORALE_ORIGIN, acceptLanguage: "en" }, {})).toEqual({ locale: "en", brand: "DIASPORALE" })
+    expect(otpPresentation({ origin: LOCAL_DIASPORALE_ORIGIN, acceptLanguage: "en" }, local)).toEqual({ locale: "en", brand: "DIASPORALE" })
+    // Un port local sans les outils de développement d'un backend local ne désigne aucune application.
+    expect(otpPresentation({ origin: LOCAL_DIASPORALE_ORIGIN, acceptLanguage: "en" }, {})).toEqual({ locale: "en", brand: "ANTSIA" })
+    for (const app of ["antsia_ga", "admin_antsia_ga"] as const) {
+      expect(otpPresentation({ origin: new URL(catalog.applications[app].site_url).origin, acceptLanguage: null }, {}).brand).toBe("ANTSIA")
+    }
+    for (const origin of [null, undefined, "https://foreign.example.test"]) expect(otpPresentation({ origin, acceptLanguage: undefined }, {})).toEqual({ locale: "fr", brand: "ANTSIA" })
+    expect(otpPresentation({ origin: null, acceptLanguage: undefined }, { AUTH_DEFAULT_LOCALE: "en" }).locale).toBe("en")
   })
 })
 
@@ -360,9 +542,34 @@ describe("composition du fournisseur d'identité", () => {
       const options = record(plugin.options)
       if (!Array.isArray(options.config) || options.config.length !== 1) throw new Error("Fournisseur IDN absent")
       const provider = record(options.config[0])
-      return { providerId: provider.providerId, pkce: provider.pkce, scopes: provider.scopes, redirectURI: provider.redirectURI }
+      return { providerId: provider.providerId, pkce: provider.pkce, scopes: provider.scopes, redirectURI: provider.redirectURI, prompt: provider.prompt }
     })
-    expect(config).toEqual({ providerId: "idn", pkce: true, scopes: ["openid", "profile", "email"], redirectURI: `${PRIMARY_ORIGIN}/api/auth/oauth2/callback/idn` })
+    expect(config).toEqual({ providerId: "idn", pkce: true, scopes: ["openid", "profile", "email"], redirectURI: `${PRIMARY_ORIGIN}/api/auth/oauth2/callback/idn`, prompt: "login" })
+  })
+
+  it.each([
+    { transport: "HTTP", browserCookie: undefined },
+    { transport: "SDK navigateur", browserCookie: "" },
+  ])("la vraie demande OAuth ($transport) conserve redirection, PKCE, état et callback", async ({ browserCookie }) => {
+    vi.stubEnv("IDN_CLIENT_ID", "sandbox-client-fixture")
+    vi.stubEnv("IDN_CLIENT_SECRET", "fictional-idn-secret-for-tests")
+    vi.stubEnv("IDN_ISSUER", "https://idn.example.test")
+    const issuer = "https://idn.example.test"
+    const discovery = vi.fn(async () => new Response(JSON.stringify({ issuer, authorization_endpoint: `${issuer}/api/auth/oauth2/authorize`, token_endpoint: `${issuer}/api/auth/oauth2/token` }), { headers: { "Content-Type": "application/json" } }))
+    vi.stubGlobal("fetch", discovery)
+    const t = testConvex({ automaticSessions: false })
+    const result = await request(t, "/sign-in/oauth2", { body: { providerId: "idn", callbackURL: `${PEER_ORIGIN}/bienvenue` }, origin: PEER_ORIGIN, browserCookie })
+    expect(result.status).toBe(200)
+    const url = new URL(textField(result.data, "url"))
+    expect(url.origin).toBe(issuer)
+    expect(url.searchParams.get("prompt")).toBe("login")
+    expect(url.searchParams.get("client_id")).toBe("sandbox-client-fixture")
+    expect(url.searchParams.get("redirect_uri")).toBe(`${PRIMARY_ORIGIN}/api/auth/oauth2/callback/idn`)
+    expect(url.searchParams.get("code_challenge_method")).toBe("S256")
+    expect(url.searchParams.get("code_challenge")).toBeTruthy()
+    expect(url.searchParams.get("state")).toBeTruthy()
+    expect(record(result.data).redirect).toBe(true)
+    expect(result.hasBrowserCookie).toBe(browserCookie !== undefined)
   })
 })
 

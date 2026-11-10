@@ -30,7 +30,7 @@ export function CallWaitingChip({ call, onAccept, onDecline }: CallWaitingChipPr
 	const name = peerDisplayName(call.caller, undefined, t)
 	return (
 		<div
-			className="iappel-enter mx-3 mt-3 flex items-center gap-3 rounded-xl px-3 py-2"
+			className="iappel-enter mx-3 mt-3 flex items-center gap-[var(--esp-card-gap,0.75rem)] rounded-[var(--esp-primitive-card-radius,0.75rem)] px-3 py-2"
 			style={{
 				background: "color-mix(in srgb, var(--esp-immersive-on-ink) 12%, transparent)",
 				color: "var(--esp-immersive-on-ink)",

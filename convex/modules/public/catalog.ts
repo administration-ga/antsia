@@ -4,12 +4,12 @@ import { v } from "convex/values"
 
 import { query } from "../../_generated/server"
 import { catalogOfferByHandle, listCatalog, resolvePostOffer } from "../shops/catalogRead"
-import { catalogKindValidator, catalogListValidator, catalogOfferValidator } from "../shops/catalogValidators"
+import { catalogFilterArgs, catalogListValidator, catalogOfferValidator } from "../shops/catalogValidators"
 import { publicContext, publicPostEligible } from "./access"
 
 /** @publicProjection DTO de vitrine/catégories et copies média admises, aucun privilège de membre. */
 export const list = query({
-  args: { networkId: v.id("networks"), handle: v.string(), kind: v.optional(catalogKindValidator), collectionRef: v.optional(v.string()), query: v.optional(v.string()), paginationOpts: paginationOptsValidator }, returns: catalogListValidator,
+  args: { networkId: v.id("networks"), handle: v.string(), ...catalogFilterArgs, paginationOpts: paginationOptsValidator }, returns: catalogListValidator,
   handler: async (ctx, args) => {
     const context = await publicContext(ctx, args.networkId)
     return await listCatalog(ctx, { root: context.root, readerPersonId: context.reader?.personId }, args)

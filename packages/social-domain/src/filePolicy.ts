@@ -43,6 +43,7 @@ export const FILE_SCAN_SOURCES = [
   /** Pièces d'une revendication de page (EXF-AN-17), lues par la modération seule. */
   "page_claim",
   "album",
+  "editorial",
   "voice",
   "live",
   /** P15 : pièces personnelles d'une candidature, sans réseau ni nom de fichier dans la garde. */

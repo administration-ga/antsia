@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/mobile/ReseauMobileTabBar.tsx @ ad2e7fdc2 — adaptations : sans la coque de l'espace agent (`espace-mobile-volets`, `espace-mobile-volets-row`, `personal-nav` retirés) — le bouton fixe « Menu » OUVRE le menu principal du réseau (`ReseauMobileMenuSheet`, feuille du bas) au lieu de remplacer les sous-menus par les volets de l'espace ; seuil mobile par `MOBILE_ONLY_CLASS` (`@antsia/ui/overlay`) ; adresses des volets composées sur la base injectée (`reseauTabHref(id, useRoutes().home())`) ; volets SERVIS seuls (`isServedReseauTab` : « Conférences » attend le module `live`) ; libellés par l'i18n (`reseau:reseauMobileTabBar.*`, libellé court du volet par sa clé) ; « iRéseau » devient « réseau » ; mêmes props (`active`, `badges`), mêmes repères (`data-mobile-nav`, `data-reseau-mobile-nav`) et mêmes classes de géométrie (`.esp-reseau-tabbar`, `.rm-*`) ; P02 (18/10/2026) : quand l'APPLICATION déclare la navigation par destinations (`useNetwork().navigation`), la barre rend les cinq destinations Fil · Découvrir · Créer · Messages · Profil (même ancrage, même encoche, mêmes repères) — sinon la barre historique, inchangée ; système épuré (ADR-0027) : onglet actif en pastille tonale (`--esp-tab-active-*`), pastille de décompte aux couleurs des réactions (`--role-react-*`), « Créer » en carré arrondi plein de 48 px à l'ombre colorée, simple « + », libellé en `sr-only` (`--esp-fab-*`), valeurs d'origine en repli.
+// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/mobile/ReseauMobileTabBar.tsx @ ad2e7fdc2 — adaptations : sans la coque de l'espace agent (`espace-mobile-volets`, `espace-mobile-volets-row`, `personal-nav` retirés) — le bouton fixe « Menu » OUVRE le menu principal du réseau (`ReseauMobileMenuSheet`, feuille du bas) au lieu de remplacer les sous-menus par les volets de l'espace ; seuil mobile par `MOBILE_ONLY_CLASS` (`@antsia/ui/overlay`) ; adresses des volets composées sur la base injectée (`reseauTabHref(id, useRoutes().home())`) ; volets SERVIS seuls (`isServedReseauTab` : « Conférences » attend le module `live`) ; libellés par l'i18n (`reseau:reseauMobileTabBar.*`, libellé court du volet par sa clé) ; « iRéseau » devient « réseau » ; mêmes props (`active`, `badges`), mêmes repères (`data-mobile-nav`, `data-reseau-mobile-nav`) et mêmes classes de géométrie (`.esp-reseau-tabbar`, `.rm-*`) ; P02 (18/10/2026) : quand l'APPLICATION déclare la navigation par destinations (`useNetwork().navigation`), la barre rend les cinq destinations Fil · Découvrir · Créer · Messages · Profil (même ancrage, même encoche, mêmes repères) — sinon la barre historique, inchangée ; système épuré (ADR-0027) : onglet actif en pastille tonale (`--esp-tab-active-*`), pastille de décompte aux couleurs des réactions (`--role-react-*`), « Créer » en carré arrondi plein de 48 px à l'ombre colorée, simple « + », libellé en `sr-only` (`--esp-fab-*`), valeurs d'origine en repli ; étude du 22/10/2026 : barre des destinations en verre (flou et saturation), 52 px, icônes seules (libellés en `sr-only`), « Créer » de 40 px.
 "use client"
 
 /**
@@ -104,7 +104,8 @@ const DESTINATION_ITEM_CLASS =
  *
  * ⚠️ Cinq places de LARGEUR ÉGALE, jamais un défilement : une destination
  * hors champ n'est pas une destination stable. À 320 px chaque place fait
- * plus de 44 px ; au zoom, les libellés se tronquent, les cibles restent.
+ * plus de 44 px. Icônes seules depuis l'étude du 22/10/2026 : les libellés
+ * restent les noms accessibles, en `sr-only`.
  *
  * Sa géométrie est portée par des classes de rôle (Tailwind), sans la feuille
  * `.rm-*` de la coquille du fil : elle se rend aussi sur les pages de membre
@@ -112,7 +113,7 @@ const DESTINATION_ITEM_CLASS =
  */
 function DestinationsTabBar({ routes, onCreate, handle = null, current }: ReseauMobileTabBarProps & { routes: ReseauDestinationRoutes }) {
   const { t } = useTranslation("reseau")
-  const { liveAvailable } = useNetwork()
+  const { liveAvailable, navigationLayout } = useNetwork()
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const { open, setOpen, triggerRef } = useChoiceTrigger<HTMLButtonElement>()
@@ -135,14 +136,16 @@ function DestinationsTabBar({ routes, onCreate, handle = null, current }: Reseau
       data-mobile-nav=""
       data-reseau-mobile-nav=""
       data-reseau-destinations=""
-      className={`fixed right-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom,0px))] left-3 z-40 print:hidden ${MOBILE_ONLY_CLASS}`}
+      className={`fixed right-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom,0px))] left-3 z-40 print:hidden ${navigationLayout === "adaptive" ? "min-[768px]:hidden" : MOBILE_ONLY_CLASS}`}
     >
-      <div className="esp-reseau-tabbar border backdrop-blur-md">
-        <ul className="m-0 flex h-16 list-none items-stretch gap-0.5 p-1">
+      {/* Étude du 22/10/2026 : verre (flou et saturation), large et basse — 52 px,
+          des cibles de 44 px, icônes seules ; chaque libellé reste le nom accessible. */}
+      <div className="esp-reseau-tabbar border backdrop-blur-xl backdrop-saturate-150">
+        <ul className="m-0 flex h-[52px] list-none items-stretch gap-0.5 p-1">
           {reseauDestinations(routes).map((destination) => {
             // « Créer » (sans adresse) est l'action principale de la barre : un carré
-            // arrondi plein de 48 px, à l'ombre de sa couleur, marqué d'un simple « + »
-            // et sans libellé visible — le libellé reste son nom accessible (ADR-0027).
+            // arrondi plein de 40 px (48 px avant la barre basse de 52 px), à l'ombre de
+            // sa couleur, marqué d'un simple « + » ; le libellé reste son nom accessible.
             const isCreate = destination.href === null
             const DestinationIcon = isCreate ? Plus : RESEAU_DESTINATION_ICONS[destination.id]
             const ariaCurrent = ariaCurrentFor(match, destination.id)
@@ -153,23 +156,24 @@ function DestinationsTabBar({ routes, onCreate, handle = null, current }: Reseau
             const inner: ReactNode = (
               <>
                 <span
+                  data-destination-icon=""
                   className={cn(
                     "relative flex items-center justify-center",
                     isCreate
-                      ? "size-12 rounded-[var(--esp-fab-radius,10px)] bg-[var(--primary-fill)] text-[color:var(--primary-fill-on,var(--on-fill))] shadow-[var(--esp-fab-shadow,none)]"
-                      : "size-7 rounded-[var(--esp-chip-radius,10px)]",
+                      ? "size-10 rounded-[var(--esp-fab-radius,10px)] bg-[var(--primary-fill)] text-[color:var(--primary-fill-on,var(--on-fill))] shadow-[var(--esp-fab-shadow,none)]"
+                      : "size-8 rounded-[var(--esp-chip-radius,10px)]",
                     // Onglet actif : pastille tonale du thème (ADR-0027), accent plein en repli.
                     ariaCurrent !== undefined && "bg-[var(--esp-tab-active-bg,var(--accent))] text-[color:var(--esp-tab-active-fg,var(--accent-foreground))]",
                   )}
                 >
-                  <DestinationIcon aria-hidden="true" className={isCreate ? "size-[22px]" : "size-5"} strokeWidth={isCreate ? 2.4 : undefined} />
+                  <DestinationIcon aria-hidden="true" className={isCreate ? "size-5" : "size-[22px]"} strokeWidth={isCreate ? 2.4 : undefined} />
                   {badge !== null ? (
-                    <span className="absolute -top-1.5 -right-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--role-react-fill,var(--primary))] px-1 font-mono text-[9px] font-bold tabular-nums text-[color:var(--role-react-on,var(--primary-foreground))]">
+                    <span data-destination-badge="" className="absolute -top-1.5 -right-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--role-react-fill,var(--primary))] px-1 font-mono text-[9px] font-bold tabular-nums text-[color:var(--role-react-on,var(--primary-foreground))]">
                       <span aria-hidden="true">{badge}</span>
                     </span>
                   ) : null}
                 </span>
-                <span className={isCreate ? "sr-only" : "max-w-full truncate text-[10px] font-semibold"}>{t(destination.labelKey)}</span>
+                <span data-destination-label="" className="sr-only">{destination.label ?? t(destination.labelKey)}</span>
                 {/* Un espace ENTRE le libellé et la phrase : le nom accessible se
                     lit « Messages 3 conversations non lues », jamais « Messages3… ». */}
                 {badge !== null ? (
@@ -185,6 +189,7 @@ function DestinationsTabBar({ routes, onCreate, handle = null, current }: Reseau
                 {destination.href === null ? (
                   <button
                     ref={triggerRef}
+                    data-destination-item={destination.id}
                     type="button"
                     onClick={() => setOpen(true)}
                     aria-haspopup="dialog"
@@ -196,6 +201,7 @@ function DestinationsTabBar({ routes, onCreate, handle = null, current }: Reseau
                 ) : (
                   <Link
                     href={destination.href}
+                    data-destination-item={destination.id}
                     aria-current={ariaCurrent}
                     className={cn(DESTINATION_ITEM_CLASS, ariaCurrent !== undefined && "text-primary hover:text-primary")}
                   >

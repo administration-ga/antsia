@@ -21,6 +21,7 @@ import { callConversationOf, conversationFieldsOf } from "./conversation"
 import { conversationCallPairAllowed } from "./conversationAccess"
 import { evaluateCallAdmission, insertRefusedCall } from "./evaluate"
 import { scheduleDirectRingExpiry } from "./ringExpiry"
+import { activeCallSession } from "./deviceOwnership"
 import { callAdmissionReasonValidator, callMediaTypeValidator } from "./validators"
 
 /** Qui l'on appelle : sa personne, ou son identifiant public. */
@@ -60,6 +61,7 @@ export async function placeDirectCall(
     if (!(await conversationCallPairAllowed(ctx, ctx.networkId, conversation, me, callee._id))) return notFound()
 
     const now = Date.now()
+    const ownerSessionId = await activeCallSession(ctx)
     const mediaType = args.mediaType ?? "audio"
     await reapStaleCallsOf(ctx, ctx.networkId, me, now)
     const roomName = callRoomName("direct", now)
@@ -79,6 +81,7 @@ export async function placeDirectCall(
       status: "active",
       callStatus: "initiating",
       roomName,
+      systemCallUuid: crypto.randomUUID(),
       createdByPersonId: me,
       calleePersonId: callee._id,
       mediaType,
@@ -88,7 +91,7 @@ export async function placeDirectCall(
       ...(admission.calleeEngaged ? { calleeEngagedAtCreate: true } : {}),
     })
     // L'appelant est dans sa salle dès la création ; l'appelé y entrera en décrochant.
-    await ctx.db.insert("callParticipants", { networkId: ctx.networkId, callId, personId: me, role: "host", joinedAt: now })
+    await ctx.db.insert("callParticipants", { networkId: ctx.networkId, callId, personId: me, role: "host", joinedAt: now, ownerSessionId })
     await ctx.db.insert("callParticipants", { networkId: ctx.networkId, callId, personId: callee._id, role: "participant" })
     await scheduleDirectRingExpiry(ctx, { callId, startedAt: now, now })
     return { admitted: true as const, callId, calleePersonId: callee._id, roomName, mediaType }

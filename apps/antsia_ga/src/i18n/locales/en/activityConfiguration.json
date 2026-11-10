@@ -1,0 +1,16 @@
+{
+  "lead": "Compose your activity: sell products, offer services or prepare your media space.",
+  "capabilities": { "label": "What you offer", "hint": "Choose one or more activities. You keep a single social page.", "products": "Products", "services": "Services", "media": "Media" },
+  "capabilityHints": { "products": "Catalogue and collections", "services": "Quotes, packages and appointments", "media": "Prepare your editorial space" },
+  "template": { "label": "Activity presentation", "hint": "This choice adapts the presentation without changing your rights or page type." },
+  "templates": { "general": "General shop", "fashion": "Fashion and accessories", "food": "Food and restaurants", "artisan": "Crafts and creations", "local": "Local provider", "expert": "Remote expert", "media": "Media and newsroom" },
+  "blocks": { "label": "Your space sections", "hint": "Arrange your sections. Visitors only see a section when it contains authorised content.", "moveUp": "Move {{name}} up", "moveDown": "Move {{name}} down", "hide": "Hide", "hideNamed": "Hide {{name}}", "restore": "Restore {{name}}" },
+  "blockNames": { "catalog": "Catalogue", "services": "Services", "publications": "Posts", "about": "About" },
+  "mediaPreparation": "Media preparation: the newsroom will be added in the press stages.",
+  "permissionsHint": "Preparing, publishing and collecting payments remain separate steps. Prices, stock and commitments are managed in PRO.GA.",
+  "invalid": "Check the selected activities and sections.",
+  "unsaved": "Your changes have not been saved yet.",
+  "saved": "Configuration saved.",
+  "save": "Save",
+  "saveAndContinue": "Save and continue"
+}

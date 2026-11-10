@@ -1,5 +1,4 @@
 /** PA5 — admission et relecture identiques avant le transport différé. */
-import { isConsentInForce, type ConsentPurpose } from "@antsia/social-domain/consent"
 import { notificationCategory } from "@antsia/social-domain/notificationDelivery"
 import { COMMERCE_NOTIFICATION_CATEGORY, isCommerceNotificationKind } from "@antsia/social-domain/commerceNotifications"
 import { isContextualNotificationKind } from "@antsia/social-domain/contextualMessaging"
@@ -21,16 +20,13 @@ import { liveSignatoryRole } from "../pages/access"
 import { serviceNoticeVisible } from "../diaspora/serviceNotifications"
 import { communityNoticeVisible } from "../diaspora/communityNotifications"
 import { commerceNoticeVisible } from "./commerceAccess"
+import { notificationConsent } from "./consent"
 import { deliveryPreferences } from "./preferences"
 import { isDiasporaCommunityNotificationKind, isDiasporaServiceNotificationKind } from "./tables"
 
 type ReadCtx = Pick<QueryCtx, "db">
 
-export async function notificationConsent(ctx: ReadCtx, networkId: Id<"networks">, personId: Id<"persons">, purpose: ConsentPurpose): Promise<boolean> {
-  const rows = await ctx.db.query("consents").withIndex("by_person_and_purpose", (q) => q.eq("personId", personId).eq("purpose", purpose)).take(101)
-  // Une troncature ne devient jamais un accord ; portée EXACTE du réseau.
-  return rows.length <= 100 && isConsentInForce(rows.filter((row) => row.networkId === networkId), purpose)
-}
+export { notificationConsent } from "./consent"
 
 /**
  * Exception étroite : seule sa propre décision, aucun accès aux contenus du réseau. P16 : un
@@ -48,6 +44,23 @@ export async function moderationNoticeRecipient(ctx: ReadCtx, networkId: Id<"net
   return page !== null && (await liveSignatoryRole(ctx, page, personId)) !== null
 }
 
+/**
+ * SU01d : l'accusé de réception et l'avis de décision ne regardent que le DÉCLARANT du dossier,
+ * dans le réseau où il a signalé, même suspendu depuis ; jamais l'auteur, une page ni un tiers.
+ */
+export async function reporterNoticeRecipient(ctx: ReadCtx, networkId: Id<"networks">, personId: Id<"persons">, reportId: Id<"reports">): Promise<boolean> {
+  const report = await ctx.db.get(reportId)
+  const network = await ctx.db.get(networkId)
+  const member = await getMembership(ctx, networkId, personId)
+  const person = await ctx.db.get(personId)
+  if (!report || report.reporterPersonId !== personId || (report.reporterNetworkId ?? report.networkId) !== networkId) return false
+  return !!network && network.status === "active" && !!member && member.status !== "partie" && !!person && person.deletionRequestedAt === undefined
+}
+
+export function isReporterNoticeKind(kind: Doc<"notifications">["kind"]): kind is "report_received" | "report_decided" {
+  return kind === "report_received" || kind === "report_decided"
+}
+
 export async function notificationStillVisible(ctx: ReadCtx, row: Doc<"notifications">): Promise<boolean> {
   // Tranche `diaspora` (mise en relation) : avis du système, relu avec sa garde (destinataire, droits, réseau).
   if (isDiasporaServiceNotificationKind(row.kind)) return row.actorPersonId === undefined && await serviceNoticeVisible(ctx, row)
@@ -60,6 +73,7 @@ export async function notificationStillVisible(ctx: ReadCtx, row: Doc<"notificat
   if (isContextualNotificationKind(row.kind)) return row.subjectContextualThreadId !== undefined && await canReadContextualThread(ctx, row.networkId, row.recipientPersonId, row.subjectContextualThreadId)
   if (row.kind === "association_event_reminder") return row.actorPersonId === undefined && row.subjectEventId !== undefined && await pageEventReminderVisible(ctx, row.networkId, row.subjectEventId, row.recipientPersonId)
   if (row.kind === "moderation_decision") return row.subjectReportId !== undefined && await moderationNoticeRecipient(ctx, row.networkId, row.recipientPersonId, row.subjectReportId)
+  if (isReporterNoticeKind(row.kind)) return row.actorPersonId === undefined && row.subjectReportId !== undefined && await reporterNoticeRecipient(ctx, row.networkId, row.recipientPersonId, row.subjectReportId)
   if (!(await isActiveMember(ctx, row.networkId, row.recipientPersonId))) return false
   const person = await ctx.db.get(row.recipientPersonId)
   if (!person || person.deletionRequestedAt !== undefined) return false

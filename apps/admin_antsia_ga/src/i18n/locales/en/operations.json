@@ -37,6 +37,7 @@
     "serviceReview": "Service reviews",
     "serviceReviewReply": "Service review replies",
     "commerceOffer": "Store offers",
+    "commerceStorefront": "Store terms",
     "commercialMessage": "Commercial message",
     "contextualMessage": "Request conversation messages",
     "commerceJob": "Job openings",
@@ -48,7 +49,11 @@
     "diasporaKitResource": "DIASPORALE arrival kit resources",
     "diasporaJobOffer": "DIASPORALE job offers",
     "diasporaTalentProfile": "DIASPORALE talent profiles",
-    "diasporaJobApplication": "DIASPORALE job applications"
+    "diasporaJobApplication": "DIASPORALE job applications",
+    "professionalProfile": "Professional profile",
+    "professionalCollaboration": "Collaboration request",
+    "editorialVersion": "Article version",
+    "editorialMedia": "Media presentation"
   },
   "teams": {
     "title": "Moderation teams",
@@ -244,6 +249,29 @@
       "openAppeals": "Open appeals",
       "pendingFiles": "Files awaiting scan",
       "deadLetters": "Dead letters"
+    },
+    "legal": {
+      "title": "Report legal deadlines",
+      "lead": "Cases subject to the deadlines of ordinance No. {{ordinance}}, still open or under review, read live and counted by legal basis. No case or person appears here: the moderators' priority queue handles them.",
+      "overdue": "Legal deadline exceeded: {{value}} case(s) still open or under review.",
+      "oldest": "Oldest missed deadline:",
+      "noneOverdue": "No legal deadline exceeded among open or in-review cases.",
+      "failed": "Legal deadlines could not be read. The other indicators on this page remain valid.",
+      "atLeast": "at least {{value}}",
+      "undetermined": "Undetermined",
+      "metrics": {
+        "overdue": "Overdue",
+        "dueSoon": "Due within 24 h",
+        "open": "Total with a legal deadline"
+      },
+      "byBasis": "Overdue by legal basis",
+      "basis": {
+        "art24": "Art. 24: decision within {{hours}} h",
+        "art32": "Art. 32: removal within {{hours}} h",
+        "art33": "Art. 33: removal within {{hours}} h"
+      },
+      "bounded": "Read capped at the {{limit}} nearest deadlines of each status: beyond that, figures are minimums.",
+      "clockHint": "A case becomes overdue by this screen's clock, refreshed every minute. No external notification is sent."
     }
   },
   "export": {
@@ -254,13 +282,22 @@
     "columns": {
       "cases": "Cases",
       "actioned": "Actioned decisions",
-      "dismissed": "Dismissed cases"
+      "dismissed": "Dismissed cases",
+      "legalMet": "Within the deadline",
+      "legalMissed": "Past the deadline"
     },
     "json": "Download aggregate JSON",
     "csv": "Download aggregate CSV",
     "downloaded": "Aggregate export download requested.",
     "failed": "The file could not be downloaded. You can retry.",
-    "invalid": "This aggregate projection cannot be exported; download is blocked."
+    "invalid": "This aggregate projection cannot be exported; download is blocked.",
+    "legal": {
+      "title": "Legal deadlines",
+      "hint": "Legal deadlines (ordinance No. {{ordinance}}): those that fell during the period, met or missed. Same rule as the Transparency page: a period closed when computed, at least {{threshold}} deadlines from as many distinct authors, and no number below {{threshold}}. Their total is never exported.",
+      "lessThan": "Fewer than {{threshold}}",
+      "unmeasured": "Not measured for this period.",
+      "suppressed": "Suppressed: fewer than {{threshold}} deadlines or distinct authors."
+    }
   },
   "commercialContact": {
     "title": "Commercial contact",
@@ -282,7 +319,8 @@
     "kinds": {
       "diasporaServiceRequest": "Service requests (DIASPORALE)",
       "diasporaMentoring": "Accepted mentorships (DIASPORALE)",
-      "diasporaJobApplication": "Shortlisted applications (DIASPORALE)"
+      "diasporaJobApplication": "Shortlisted applications (DIASPORALE)",
+      "professionalCollaboration": "Professional collaboration"
     }
   },
   "paymentPolicy": {
@@ -294,7 +332,9 @@
     "disabled": "New payment starts closed",
     "enable": "Allow new payments",
     "disable": "Close new payments",
-    "updated": "Last decision on"
+    "updated": "Last decision on",
+    "validationMissing": "New payments remain closed: payment decisions and cross-system acceptance still need validation. A previously enabled setting does not replace these prerequisites.",
+    "validationBlocked": "New payments blocked pending validation"
   },
   "servicePolicy": {
     "title": "Quotes, appointments and services",
@@ -305,7 +345,9 @@
     "disabled": "Service requests closed",
     "enable": "Open service requests",
     "disable": "Close service requests",
-    "updated": "Last decision on"
+    "updated": "Last decision on",
+    "validationMissing": "New service requests remain closed until retention rules and cross-system acceptance are validated. Existing commitments retain their dedicated status and cancellation paths.",
+    "validationBlocked": "New requests blocked pending validation"
   },
   "jobPolicy": {
     "title": "Job openings and applications",
@@ -319,7 +361,9 @@
     "disableJobs": "Hide job openings (and close applications)",
     "enableApplications": "Open applications",
     "disableApplications": "Close applications",
-    "updated": "Last decision on"
+    "updated": "Last decision on",
+    "validationMissing": "Applications remain closed pending validation of retention rules and cross-system acceptance. Openings may remain readable; existing applications retain their dedicated status and withdrawal paths.",
+    "validationBlocked": "New applications blocked pending validation"
   },
   "storefrontPolicy": {
     "title": "Storefront publication",
@@ -371,6 +415,37 @@
     "enable": "Open catalogs",
     "disable": "Close catalogs",
     "updated": "Last decision on"
+  },
+  "catalogMapping": {
+    "title": "Connect shops to their PRO.GA catalog",
+    "lead": "Choose a shop and its authorized emitter. Mapping creates no offer: only signed and applied PRO.GA events populate the catalog.",
+    "shops": "Shops to connect",
+    "unnamedShop": "Shop without a public name",
+    "active": "Mapping active",
+    "inactive": "Mapping disabled",
+    "unmapped": "No mapping",
+    "currentEmitter": "Emitter: {{emitter}} · Generation {{generation}}",
+    "unknownEmitter": "Emitter unavailable",
+    "chooseShop": "Configure {{name}}",
+    "chooseShopHint": "Select the shop to configure on this results page.",
+    "editShop": "Catalog for {{name}}",
+    "linkReady": "The live link allows catalog publication.",
+    "linkRequired": "The manager must first establish a live PRO.GA link with permission to publish the catalog.",
+    "categoriesHint": "Food categories require the PUBLIC V2 contract and facets declared in published offers. A V2-capable emitter does not prove that a classified product has been received. V1 catalogs remain usable.",
+    "emitters": "Catalog emitters",
+    "emitter": "Emitter to connect",
+    "emitterHint": "Choose an active emitter in the same environment, authorized for PUBLIC V1 or V2. Browse the pages if needed.",
+    "selectEmitter": "Choose an emitter on this page",
+    "emitterOption": "{{slug}} · {{environment}} · {{state}} · {{contract}}",
+    "v2": "PUBLIC V2: categories supported",
+    "v1": "PUBLIC V1: no categories",
+    "noCatalog": "No catalog contract",
+    "noCompatibleOnPage": "No compatible emitter on this page. Browse the other pages or configure an emitter under Federation.",
+    "unchanged": "This emitter is already connected to the shop. No new decision is needed.",
+    "replaceHint": "Changing the emitter starts a new catalog generation. Offers will wait for new applied PRO.GA events.",
+    "enable": "Connect {{name}} to {{emitter}}",
+    "enableUnselected": "Choose an emitter to connect the shop",
+    "disable": "Remove the mapping for {{name}}"
   },
   "checkoutPolicy": {
     "title": "Order preparation",

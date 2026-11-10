@@ -12,14 +12,18 @@ import { useMutation, useQuery } from "convex/react"
 import type { FunctionReturnType } from "convex/server"
 import { ArrowLeft, Globe2, Plus, ShieldCheck } from "lucide-react"
 import Link from "next/link"
-import { Component, Fragment, type ReactNode, useCallback, useEffect, useId, useRef, useState } from "react"
+import { type ReactNode, useCallback, useEffect, useId, useRef, useState } from "react"
 import { useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 import { z } from "zod"
 
+import { ConsoleQueryBoundary } from "./console-operation-controls"
 import { OperationsPanel } from "./console-operations"
 import { CONSOLE_SECTIONS, readConsoleState, routes, type ConsoleSection } from "@/lib/routes"
+
+// La frontière vit avec les contrôles partagés, que les panneaux importent sans cycle ; son chemin d'import reste valable.
+export { ConsoleQueryBoundary }
 
 export type ConsoleOperator = { admissionId?: Id<"operatorSessionProofs">; personId: Id<"persons">; displayName: string | null; role: "platform_operator" | "platform_admin" }
 type NetworkSummary = FunctionReturnType<typeof api.modules.networks.networks.listForConsole>[number]
@@ -32,15 +36,6 @@ function useLiveConsoleForm() {
   const live = useRef(true)
   useEffect(() => { live.current = true; return () => { live.current = false } }, [])
   return live
-}
-
-/** Les erreurs Convex traversent le rendu ; une panne n'est jamais un refus métier. */
-export class ConsoleQueryBoundary extends Component<{ children: ReactNode; fallback: (error: unknown, retry: () => void) => ReactNode }, { caught: boolean; error: unknown; attempt: number }> {
-  override state = { caught: false, error: null as unknown, attempt: 0 }
-  static getDerivedStateFromError(error: unknown) { return { caught: true, error } }
-  override render() {
-    return this.state.caught ? this.props.fallback(this.state.error, () => this.setState((state) => ({ caught: false, error: null, attempt: state.attempt + 1 }))) : <Fragment key={this.state.attempt}>{this.props.children}</Fragment>
-  }
 }
 
 function QueryFailure({ error, retry }: { error: unknown; retry: () => void }) {

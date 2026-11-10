@@ -1,0 +1,114 @@
+{
+  "title": "Prepare my payments",
+  "lead": "Check the conditions and declared capabilities for your activity, then continue preparation in PRO.GA.",
+  "read": "Check payment preparation",
+  "refresh": "Check again",
+  "loading": "Reading payment preparation…",
+  "saveFirst": "Save your changes before checking payments.",
+  "offline": "Reconnect, then check preparation again.",
+  "unavailable": "Payment preparation for this activity is currently unavailable.",
+  "unverified": "The payment methods above must be checked for this activity.",
+  "checkedAt": "Checked on {{date}}",
+  "validUntil": "Check valid until {{date}}",
+  "expired": "This check has expired. Read preparation again before opening PRO.GA.",
+  "expiredStatus": "Check again required",
+  "openPro": "Prepare payments in PRO.GA",
+  "missingTitle": "Missing steps",
+  "scope": {
+    "environment": "Configuration",
+    "environments": {
+      "sandbox": "Test environment",
+      "production": "Production environment"
+    },
+    "currency": "Currency",
+    "platformCountry": "Platform country",
+    "sellerCountry": "Seller country",
+    "unknown": "Not confirmed"
+  },
+  "collection": {
+    "title": "Collection",
+    "closed": "Collection is closed for this activity.",
+    "ready": "Collection is ready according to the PRO.GA check."
+  },
+  "allocation": {
+    "title": "Planned allocation",
+    "platform": "Platform share",
+    "seller": "Seller share",
+    "unknown": "No allocation has been provided."
+  },
+  "refund": {
+    "title": "Refunds and capabilities by method",
+    "hint": "Check the declared capabilities of each payment method separately."
+  },
+  "payout": {
+    "title": "Payout",
+    "closed": "Payout is closed."
+  },
+  "beneficiary": {
+    "title": "Settlement beneficiary",
+    "states": {
+      "not_configured": "Not configured",
+      "not_verified": "Not verified",
+      "verified": "Verified"
+    }
+  },
+  "policy": {
+    "title": "Policy and seller agreement",
+    "none": "No policy has been provided for this activity.",
+    "textVersion": "Agreement text version",
+    "revision": "Policy revision",
+    "platformRevision": "Platform revision",
+    "mode": "Allocation model",
+    "modes": {
+      "default_90": "Standard platform allocation",
+      "default_85": "Standard platform allocation",
+      "per_seller_contract": "Seller-specific agreement",
+      "custom_platform_retention": "Custom platform allocation"
+    },
+    "shareUnknown": "Not provided",
+    "accepted": "The seller agreement for this policy is recorded.",
+    "notAccepted": "The current seller agreement is not recorded.",
+    "acceptanceRevision": "Recorded agreement revision: {{revision}}"
+  },
+  "rails": {
+    "title": "Payment methods",
+    "names": {
+      "airtel_money": "Airtel Money",
+      "moov_money": "Moov Money",
+      "card": "Bank card",
+      "paypal": "PayPal"
+    },
+    "qualified": "Qualification validated",
+    "unqualified": "Not qualified for this activity",
+    "capabilitiesHint": "Each capability is shown separately.",
+    "capabilities": {
+      "collect": "Collection",
+      "lookup": "Payment tracking",
+      "refund": "Refund",
+      "payout": "Payout"
+    },
+    "supported": "Capability declared ready",
+    "unsupported": "Capability not ready"
+  },
+  "missing": {
+    "configuration_ambiguous": "Multiple configurations overlap.",
+    "adapter_missing": "Payment connector missing.",
+    "adapter_disabled": "Payment connector disabled.",
+    "adapter_unqualified": "Connector not qualified for this activity.",
+    "merchant_contract_missing": "Merchant payment contract missing.",
+    "country_not_approved": "Country not approved for this method.",
+    "currency_not_approved": "Currency not approved for this method.",
+    "entity_not_approved": "Merchant entity not approved.",
+    "beneficiary_not_configured": "Beneficiary not configured.",
+    "beneficiary_not_verified": "Beneficiary not verified.",
+    "policy_not_configured": "Allocation policy not configured.",
+    "policy_inactive": "Allocation policy inactive.",
+    "policy_not_accepted": "Seller agreement missing.",
+    "stale_acceptance": "The seller agreement must be renewed.",
+    "capability_unsupported": "This capability is not supported.",
+    "source_permission_missing": "Link permission missing.",
+    "structure_not_verified": "Activity verification missing.",
+    "collection_disabled": "Collection disabled.",
+    "payout_not_implemented": "Payout is not supported."
+  }
+}

@@ -13,6 +13,9 @@
 import { randomUUID } from "node:crypto"
 
 import { v } from "convex/values"
+import { makeFunctionReference } from "convex/server"
+import type { Id } from "../../_generated/dataModel"
+import { nativeBindingFields } from "./deviceOwnership"
 import { AccessToken } from "livekit-server-sdk"
 
 import { internal } from "../../_generated/api"
@@ -38,13 +41,10 @@ export const requestToken = networkAction({
     // Configuration depuis l'environnement du déploiement (source unique, aucune URL en dur).
     const { apiKey, apiSecret, wsUrl } = getLiveKitConfig()
     await ensureLiveKitAwake(wsUrl)
-    // CC-4 : le sélecteur unique — tout appel de conversation (P10 ou contextuelle) est relu après le réveil et reçoit un jeton court.
+    // Le réveil peut prendre du temps : session, gagnant et droits sont relus pour TOUS les appels.
     const conversationCall = isConversationCall(grant)
-    if (conversationCall) {
-      // Le réveil peut prendre du temps : ni mandat, ni accord, ni phase ne sont photographiés avant lui.
-      const fresh = await ctx.runQuery(internal.modules.calls.token.authorizeToken, { networkId: ctx.networkId, callId: args.callId })
-      if (fresh === null || fresh.roomName !== grant.roomName || fresh.commercialThreadId !== grant.commercialThreadId || fresh.contextualThreadId !== grant.contextualThreadId) return notFound()
-    }
+    const fresh = await ctx.runQuery(internal.modules.calls.token.authorizeToken, { networkId: ctx.networkId, callId: args.callId })
+    if (fresh === null || fresh.sessionId !== grant.sessionId || fresh.personId !== grant.personId || fresh.roomName !== grant.roomName || fresh.commercialThreadId !== grant.commercialThreadId || fresh.contextualThreadId !== grant.contextualThreadId) return notFound()
 
     const identity = await ctx.auth.getUserIdentity()
     if (!identity) return fail("unauthenticated")
@@ -57,6 +57,44 @@ export const requestToken = networkAction({
       metadata: JSON.stringify({ personId: grant.personId }),
     })
     token.addGrant({ roomJoin: true, room: grant.roomName, canPublish: true, canSubscribe: true, canPublishData: true })
-    return { token: await token.toJwt(), roomName: grant.roomName, wsUrl, mediaType: grant.mediaType }
+    const signed = await token.toJwt()
+    const final = await ctx.runQuery(internal.modules.calls.token.authorizeToken, { networkId: ctx.networkId, callId: args.callId })
+    if (!final || final.sessionId !== grant.sessionId || final.personId !== grant.personId || final.roomName !== grant.roomName) return notFound()
+    return { token: signed, roomName: grant.roomName, wsUrl, mediaType: grant.mediaType }
+  },
+})
+
+
+type NativeTokenArgs = { networkId: Id<"networks">; callId: Id<"calls">; applicationId: string; deviceId: string; bindingId: string }
+type NativeTokenGrant = { roomName: string; mediaType: "audio" | "video"; personId: Id<"persons">; displayName: string | null; sessionId: string; commercialThreadId?: Id<"commercialThreads">; contextualThreadId?: Id<"contextualThreads"> }
+const authorizeNativeToken = makeFunctionReference<"query", NativeTokenArgs, NativeTokenGrant | null>("modules/calls/native:authorizeNativeToken")
+
+/** Aucun secret média dans le push : seul le gagnant vivant reçoit ce jeton au geste. */
+export const requestNativeToken = networkAction({
+  writeBucket: "call.token", args: { callId: v.id("calls"), ...nativeBindingFields },
+  returns: v.object({ token: v.string(), serverUrl: v.string(), media: callMediaTypeValidator }),
+  handler: async (ctx, args): Promise<{ token: string; serverUrl: string; media: "audio" | "video" }> => {
+    const input = { networkId: ctx.networkId, ...args }
+    const grant = await ctx.runQuery(authorizeNativeToken, input)
+    if (!grant) return notFound()
+    const { apiKey, apiSecret, wsUrl } = getLiveKitConfig()
+    await ensureLiveKitAwake(wsUrl)
+    const stillAuthorized = async () => {
+      const fresh = await ctx.runQuery(authorizeNativeToken, input)
+      return fresh !== null && fresh.sessionId === grant.sessionId && fresh.personId === grant.personId && fresh.roomName === grant.roomName && fresh.commercialThreadId === grant.commercialThreadId && fresh.contextualThreadId === grant.contextualThreadId
+    }
+    if (!(await stillAuthorized())) return notFound()
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) return fail("unauthenticated")
+    const token = new AccessToken(apiKey, apiSecret, {
+      identity: buildLiveKitIdentity({ kind: "call", subject: identity.subject, nonce: randomUUID().slice(0, 8) }),
+      ttl: isConversationCall(grant) ? CONVERSATION_CALL_TOKEN_TTL : TOKEN_TTL,
+      ...(grant.displayName !== null ? { name: grant.displayName } : {}),
+      attributes: { personId: grant.personId }, metadata: JSON.stringify({ personId: grant.personId }),
+    })
+    token.addGrant({ roomJoin: true, room: grant.roomName, canPublish: true, canSubscribe: true, canPublishData: true })
+    const signed = await token.toJwt()
+    if (!(await stillAuthorized())) return notFound()
+    return { token: signed, serverUrl: wsUrl, media: grant.mediaType }
   },
 })

@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/stories/StoriesTray.tsx @ ad2e7fdc2 — adaptations : branché sur `stories.stories.tray` du moteur (réseau de `useNetwork()`, instant ARRONDI des lectures tiré de l'horloge de l'écran — `storyQueryInstant` — et plateau du pas précédent gardé pendant que le pas suivant s'abonne : la rangée ne clignote pas) ; propriété `surface` (ADR-0079 du socle) retirée avec les surfaces du moteur ; vignette toujours portée (repli du champ `coverUrl` retiré) ; auteur au contrat `counterpartLabel` (`personId`, nom nullable dit par le libellé neutre) ; libellés traduits (clés `stories:storiesTray.*`) ; présentation « rings » déclarée par l'application (`storiesPresentation`, ADR-0027) : médaillons ronds dans leur anneau et prénom dessous, « Vous » et son « + » en tête — les cartes restent le défaut.
+// Dupliqué de socle/packages/agent-features/src/features/stories/StoriesTray.tsx @ ad2e7fdc2 — adaptations : branché sur `stories.stories.tray` du moteur (réseau de `useNetwork()`, instant ARRONDI des lectures tiré de l'horloge de l'écran — `storyQueryInstant` — et plateau du pas précédent gardé pendant que le pas suivant s'abonne : la rangée ne clignote pas) ; propriété `surface` (ADR-0079 du socle) retirée avec les surfaces du moteur ; vignette toujours portée (repli du champ `coverUrl` retiré) ; auteur au contrat `counterpartLabel` (`personId`, nom nullable dit par le libellé neutre) ; libellés traduits (clés `stories:storiesTray.*`) ; présentation « rings » déclarée par l'application (`storiesPresentation`, ADR-0027) : médaillons ronds dans leur anneau et prénom dessous, « Vous » et son « + » en tête, ma série en ligne fusionnée dans « Vous » (médaillon dans le dégradé du thème qui l'ouvre, « + » frère qui en crée une, ADR-0028) — les cartes restent le défaut.
 "use client"
 
 /**
@@ -48,6 +48,7 @@ import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { StoryRing } from "./StoryRing"
 import {
+	drawnRingState,
 	orderTray,
 	ringStateFor,
 	storyAuthorName,
@@ -122,11 +123,50 @@ export function StoriesTray({
 	if (!trayVisible(groups, canCreate)) return null
 
 	const ordered = orderTray(groups, myHandle)
+	// Médaillons : MA série rejoint la tuile « Vous » — une seule tuile, comme
+	// la maquette des chartes ; le médaillon l'ouvre, le « + » en crée une
+	// autre. Les cartes gardent deux tuiles (« Créer » et la mienne).
+	const mine = rings ? ordered.find((group) => ringStateFor(group, myHandle) === "self") ?? null : null
+	const others = mine === null ? ordered : ordered.filter((group) => group !== mine)
 
 	return (
 		<div className="st-tray" data-presentation={storiesPresentation} role="group" aria-label={t("storiesTray.label")}>
-			{/* Si elle est autorisée, la carte de création précède les séries. */}
-			{canCreate ? (
+			{mine !== null ? (
+				/* « Vous » avec une série en ligne : deux gestes, deux boutons
+				   frères (un bouton n'en contient jamais un autre). */
+				<div className="st-tray-tile st-ring-tile st-ring-own">
+					<span className="st-ring-self">
+						<button
+							type="button"
+							className="st-ring-open"
+							aria-label={trayTileLabel(mine, myHandle, now, t)}
+							onClick={() => onOpen(mine.author.handle)}
+						>
+							<StoryRing
+								presentation="rings"
+								state={drawnRingState("self", rings)}
+								displayName={mine.author.displayName ?? ""}
+								avatarUrl={mine.author.avatarUrl ?? myAvatarUrl}
+							/>
+						</button>
+						{canCreate ? (
+							<button
+								type="button"
+								className="st-ring-plus-button"
+								aria-label={t("storiesTray.create")}
+								onClick={onCreate}
+							>
+								<span className="st-ring-plus" aria-hidden="true">
+									<Icon name="plus" size={14} />
+								</span>
+							</button>
+						) : null}
+					</span>
+					<span className="st-ring-name" aria-hidden="true">
+						{t("storiesTray.you")}
+					</span>
+				</div>
+			) : canCreate ? (
 				<button
 					type="button"
 					className="st-tray-tile st-tray-create"
@@ -139,14 +179,10 @@ export function StoriesTray({
 						<span className="st-ring-tile">
 							<span className="st-ring-self">
 								<span className="st-tray-disc">
-									{myAvatarUrl !== null ? (
-										<img className="st-tray-cover" src={myAvatarUrl} alt="" aria-hidden="true" />
-									) : (
-										<Icon name="user" size={24} />
-									)}
+									<OwnStoryPortrait key={myAvatarUrl} url={myAvatarUrl} />
 								</span>
 								<span className="st-ring-plus" aria-hidden="true">
-									<Icon name="plus" size={14} />
+									<Icon name="plus" size={13} />
 								</span>
 							</span>
 							<span className="st-ring-name" aria-hidden="true">
@@ -176,7 +212,7 @@ export function StoriesTray({
 				</button>
 			) : null}
 
-			{ordered.map((group) => {
+			{others.map((group) => {
 				const ring = ringStateFor(group, myHandle)
 				const cover = trayCoverFor(group)
 				return (
@@ -194,6 +230,7 @@ export function StoriesTray({
 							   reste dans `aria-label`). */
 							<span className="st-ring-tile">
 								<StoryRing
+									presentation="rings"
 									state={ring}
 									displayName={group.author.displayName ?? ""}
 									avatarUrl={group.author.avatarUrl}
@@ -263,4 +300,12 @@ export function StoriesTray({
 			})}
 		</div>
 	)
+}
+
+/** Sans série à ouvrir, « Vous » reste une entrée de création neutre. */
+function OwnStoryPortrait({ url }: { url: string | null }) {
+	const [failed, setFailed] = useState(false)
+	if (url === null || failed) return <Icon name="user" size={24} />
+	// eslint-disable-next-line @next/next/no-img-element -- moteur indépendant de Next : portrait déjà délivré par la garde.
+	return <img className="st-tray-cover" src={url} alt="" aria-hidden="true" onError={() => setFailed(true)} />
 }

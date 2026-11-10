@@ -1,5 +1,5 @@
 /**
- * PRO-COMMERCE-PUBLIC-V1 · PRO-COMMERCE-COMMAND-V1 — primitives communes.
+ * PRO-COMMERCE-PUBLIC-V1/V2 · PRO-COMMERCE-COMMAND-V1 — primitives communes.
  *
  * FICHIER JUMEAU, octet pour octet : ANTSIA `packages/social-domain/src/commerce/`
  * et PRO.GA `packages/pro-domain/src/commerce/`. Son empreinte figure dans
@@ -11,6 +11,12 @@
  */
 
 export const COMMERCE_PUBLIC_CONTRACT = "PRO-COMMERCE-PUBLIC-V1";
+export const COMMERCE_PUBLIC_CONTRACT_V2 = "PRO-COMMERCE-PUBLIC-V2";
+export const COMMERCE_PUBLIC_CONTRACTS = [COMMERCE_PUBLIC_CONTRACT, COMMERCE_PUBLIC_CONTRACT_V2] as const;
+export type CommercePublicContract = (typeof COMMERCE_PUBLIC_CONTRACTS)[number];
+export function isCommercePublicContract(value: unknown): value is CommercePublicContract {
+  return typeof value === "string" && (COMMERCE_PUBLIC_CONTRACTS as readonly string[]).includes(value);
+}
 export const COMMERCE_COMMAND_CONTRACT = "PRO-COMMERCE-COMMAND-V1";
 /** Version de TRANSPORT (enveloppe) : jamais une révision métier. */
 export const COMMERCE_TRANSPORT_VERSION = 1;

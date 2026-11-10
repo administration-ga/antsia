@@ -45,6 +45,96 @@ describe("buildContentSecurityPolicy", () => {
   })
 })
 
+describe("permissions d'iframe explicites", () => {
+  const iframeOrigin = "https://demo.example.test"
+  const parentOrigin = "https://app.example.test"
+  const directive = (csp: string, name: string) => csp.split("; ").find((value) => value.startsWith(`${name} `))
+
+  it("garde la politique historique exacte et DENY sans permission", () => {
+    expect(buildContentSecurityPolicy({ isDev: false })).toBe([
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline'",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: blob:",
+      "font-src 'self' data:",
+      "connect-src 'self'",
+      "media-src 'self' blob:",
+      "worker-src 'self' blob:",
+      "frame-ancestors 'none'",
+      "object-src 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+    ].join("; "))
+    expect(securityHeaders({ isDev: false })).toContainEqual({ key: "X-Frame-Options", value: "DENY" })
+    expect(securityHeaders({ isDev: false, iframeSources: [], frameAncestors: [] })).toEqual(securityHeaders({ isDev: false }))
+  })
+
+  it("autorise uniquement l'origine source exacte sans permettre l'encadrement de l'application", () => {
+    const options = { isDev: false, iframeSources: [iframeOrigin, iframeOrigin] }
+    const csp = buildContentSecurityPolicy(options)
+    expect(directive(csp, "frame-src")).toBe(`frame-src ${iframeOrigin}`)
+    expect(directive(csp, "frame-ancestors")).toBe("frame-ancestors 'none'")
+    expect(csp).not.toContain("*")
+    expect(securityHeaders(options)).toContainEqual({ key: "X-Frame-Options", value: "DENY" })
+  })
+
+  it("retire XFO seulement pour un ancêtre admis et conserve toutes les autres directives et tous les autres en-têtes", () => {
+    const base = { isDev: false, convexUrl: "https://x.convex.cloud", livekitUrl: "wss://media.example.test" }
+    const options = { ...base, frameAncestors: [parentOrigin, parentOrigin] }
+    const csp = buildContentSecurityPolicy(options)
+    expect(directive(csp, "frame-ancestors")).toBe(`frame-ancestors ${parentOrigin}`)
+    expect(directive(csp, "frame-src")).toBeUndefined()
+    expect(csp).not.toContain("*")
+    expect(csp.replace(`frame-ancestors ${parentOrigin}`, "frame-ancestors 'none'")).toBe(buildContentSecurityPolicy(base))
+    const headers = securityHeaders(options)
+    expect(headers.some(({ key }) => key === "X-Frame-Options")).toBe(false)
+    expect(headers.filter(({ key }) => key !== "Content-Security-Policy")).toEqual(securityHeaders(base).filter(({ key }) => key !== "Content-Security-Policy" && key !== "X-Frame-Options"))
+    expect(headers.some(({ value }) => value.includes("ALLOW-FROM"))).toBe(false)
+  })
+
+  it.each([
+    "",
+    "http://demo.example.test",
+    "wss://demo.example.test",
+    "//demo.example.test",
+    "https://demo.example.test/",
+    "https://demo.example.test/path",
+    "https://demo.example.test?key=1",
+    "https://demo.example.test#fragment",
+    "https://demo.example.test:443",
+    "https://demo.example.test:8443",
+    "https://user:secret@demo.example.test",
+    "https://@demo.example.test",
+    " https://demo.example.test",
+    "https://demo.example.test ",
+    "https://demo.example.test\n",
+    "https://demo.example.test\t",
+    "https://*.example.test",
+    "https://*",
+    "*",
+    "'self'",
+    "https://demo.example.test; frame-ancestors *",
+    "https://demo.example.test https://other.example.test",
+    "https://demo.example.test\\path",
+    "https://demo.example.test,other.example.test",
+    "https://demo..example.test",
+    "https://demo.example.test.",
+    "HTTPS://demo.example.test",
+  ])("refuse l'origine piégée %j sans ouvrir de permission", (invalid) => {
+    const options = { isDev: false, iframeSources: [invalid], frameAncestors: [invalid] }
+    expect(buildContentSecurityPolicy(options)).toBe(buildContentSecurityPolicy({ isDev: false }))
+    expect(securityHeaders(options)).toEqual(securityHeaders({ isDev: false }))
+  })
+
+  it("ignore les entrées invalides d'une liste mixte sans élargir l'origine admise", () => {
+    const csp = buildContentSecurityPolicy({ isDev: false, iframeSources: ["https://*.example.test", iframeOrigin], frameAncestors: ["https://app.example.test:443", parentOrigin] })
+    expect(directive(csp, "frame-src")).toBe(`frame-src ${iframeOrigin}`)
+    expect(directive(csp, "frame-ancestors")).toBe(`frame-ancestors ${parentOrigin}`)
+    expect(csp).not.toContain("*")
+    expect(csp).not.toContain(":443")
+  })
+})
+
 describe("livekitOrigins — le serveur média des appels", () => {
   it("dérive la signalisation (wss) et l'origine HTTPS d'un serveur sécurisé", () => {
     expect(livekitOrigins("wss://media.exemple.ga")).toEqual(["wss://media.exemple.ga", "https://media.exemple.ga"])

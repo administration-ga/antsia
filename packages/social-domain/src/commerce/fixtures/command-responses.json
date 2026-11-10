@@ -131,6 +131,26 @@
       }
     },
     {
+      "name": "quote.accept fermée par capacité",
+      "nowMs": 1792285200000,
+      "requestCase": "quote.accept nominal",
+      "requestSha256": "0f722f25e9e1ed22b447d921aeb581c0579768056602a1870e2f53227cfad4b1",
+      "response": {
+        "command": "quote.accept",
+        "contract": "PRO-COMMERCE-COMMAND-V1",
+        "outcome": "rejected",
+        "requestId": "antsia-req-000005",
+        "requestSha256": "0f722f25e9e1ed22b447d921aeb581c0579768056602a1870e2f53227cfad4b1",
+        "respondedAt": 1792285200000,
+        "version": 1,
+        "reason": "capability_disabled"
+      },
+      "expect": {
+        "ok": true,
+        "outcome": "rejected"
+      }
+    },
+    {
       "name": "quote.accept nouvelle version à reconfirmer",
       "nowMs": 1792285200000,
       "requestCase": "quote.accept nominal",

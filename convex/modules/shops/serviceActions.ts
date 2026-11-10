@@ -4,6 +4,7 @@
  * lecture (modes, créneaux, devis, rendez-vous) n'a aucun effet chez PRO.GA et n'est jamais
  * persistée. Aucun succès n'est supposé : sans réponse corrélée, la demande reste « inconnue ».
  */
+import type { CommerceServiceControlContract } from "@antsia/social-domain/commerce-services"
 import { type DefaultFunctionArgs, makeFunctionReference } from "convex/server"
 import { type Infer, v } from "convex/values"
 
@@ -15,7 +16,7 @@ import { randomLinkId, randomLinkToken } from "./commerceLinkCrypto"
 import { sendServiceCommand, sendServiceControl, type ServiceReply } from "./serviceClient"
 import type { ServiceDelivery } from "./serviceFlow"
 import {
-  serviceActionResultValidator, serviceContactNameValidator, serviceMoneyValidator, serviceOptionsResultValidator, serviceQuoteResultValidator,
+  serviceActionResultValidator, serviceControlContractValidator, serviceContactNameValidator, serviceMoneyValidator, serviceOptionsResultValidator, serviceQuoteResultValidator,
   serviceQuotesResultValidator, serviceSlotsResultValidator, type ServiceActionResult, type ServiceOptionsResult, type ServiceQuoteResult, type ServiceQuotesResult, type ServiceSlotsResult,
 } from "./serviceRules"
 
@@ -32,7 +33,8 @@ type RequestTarget = { kind: "quotes" } | { kind: "quote"; quoteRef: string } | 
 const ref = <Args extends DefaultFunctionArgs, Result>(name: string) => makeFunctionReference<"mutation", Args, Result>(`modules/shops/serviceFlow:${name}`)
 const admitQuoteRequestRef = ref<Net & Keys & { handle: string; offerRef: string; threadId: Id<"commercialThreads">; need: string; constraints?: string; desiredDate?: string; quantity?: number; attachmentMessageIds: Id<"commercialMessages">[]; consentTextVersion: string }, Admission>("admitQuoteRequest")
 const admitBookingRef = ref<Net & Keys & { handle: string; offerRef: string; serviceRef: string; serviceLabel: string; resourceRef?: string; startAt: number; endAt: number; note?: string; contactName?: ContactName; consentTextVersion: string }, Admission>("admitBooking")
-const admitServiceOrderRef = ref<Net & Keys & { handle: string; offerRef: string; quantity: number; expectedUnitAmount: Money; expectedCatalogRevision: number; desiredDate?: string; note?: string; contactName?: ContactName; consentTextVersion: string; existingRequestRowId?: string }, Admission>("admitServiceOrder")
+const admitServiceOrderRef = ref<Net & Keys & { handle: string; offerRef: string; quantity: number; expectedUnitAmount: Money; expectedCatalogRevision: number; desiredDate?: string; note?: string; contactName?: ContactName; consentTextVersion: string; existingRequestRowId?: string; publishedPackage?: true }, Admission>("admitServiceOrder")
+const admitQuoteRejectRef = ref<Net & Keys & { quoteRef: string; quoteVersion: number; consentTextVersion: string }, Admission>("admitQuoteReject")
 const admitQuoteAcceptRef = ref<Net & Keys & { quoteRef: string; quoteVersion: number; acceptedTotal: Money; consentTextVersion: string }, Admission>("admitQuoteAccept")
 const admitRescheduleRef = ref<Net & Keys & { startAt: number; endAt: number; resourceRef?: string; expectedRevision: number; consentTextVersion: string }, Admission>("admitReschedule")
 const admitCancelRef = ref<Net & Keys & { expectedRevision: number; consentTextVersion: string }, Admission>("admitCancel")
@@ -40,7 +42,7 @@ const admitLookupRef = ref<Net & { requestRowId: string; requestId: string; leas
 const authorizeRef = ref<Net & { delivery: ServiceDelivery; configFingerprint: string }, boolean>("authorize")
 const finishRef = ref<Net & { delivery: ServiceDelivery; rawResponse?: string; httpStatus?: number }, ServiceActionResult>("finish")
 const admitOfferReadRef = ref<Net & { handle: string; offerRef: string; requestId: string; configFingerprint: string; slots?: { serviceRef: string; resourceRef?: string; fromAt: number; toAt: number } }, Envelope>("admitOfferRead")
-const admitRequestReadRef = ref<Net & { requestRowId: string; requestId: string; configFingerprint: string; target: RequestTarget }, Envelope>("admitRequestRead")
+const admitRequestReadRef = ref<Net & { requestRowId: string; requestId: string; configFingerprint: string; target: RequestTarget; contract?: CommerceServiceControlContract }, Envelope>("admitRequestRead")
 const finishOptionsRef = ref<Net & ReadReply & { handle: string; offerRef: string }, ServiceOptionsResult>("finishOptions")
 const finishSlotsRef = ref<Net & ReadReply & { handle: string; offerRef: string }, ServiceSlotsResult>("finishSlots")
 const finishQuotesRef = ref<Net & ReadReply & { requestRowId: string }, ServiceQuotesResult>("finishQuotes")
@@ -142,7 +144,7 @@ export const orderService = networkAction({
   args: {
     handle: v.string(), offerRef: v.string(), quantity: v.number(), expectedUnitAmount: serviceMoneyValidator, expectedCatalogRevision: v.number(),
     desiredDate: v.optional(v.string()), note: v.optional(v.string()), contactName: v.optional(serviceContactNameValidator), consentTextVersion: v.string(), clientRequestId: v.string(),
-    existingRequestRowId: v.optional(v.string()),
+    existingRequestRowId: v.optional(v.string()), publishedPackage: v.optional(v.literal(true)),
   },
   returns: serviceActionResultValidator,
   handler: async (ctx, args): Promise<ServiceActionResult> => {
@@ -153,26 +155,38 @@ export const orderService = networkAction({
   },
 })
 
-async function readRequest(ctx: ActionCtx, networkId: Id<"networks">, config: CommerceLinkConfig, requestRowId: string, target: RequestTarget): Promise<{ rawBody: string; reply: ServiceReply | null } | null> {
-  const envelope = await ctx.runMutation(admitRequestReadRef, { networkId, requestRowId, requestId: randomLinkId(), configFingerprint: config.fingerprint, target })
+async function readRequest(ctx: ActionCtx, networkId: Id<"networks">, config: CommerceLinkConfig, requestRowId: string, target: RequestTarget, contract?: CommerceServiceControlContract): Promise<{ rawBody: string; reply: ServiceReply | null } | null> {
+  const envelope = await ctx.runMutation(admitRequestReadRef, { networkId, requestRowId, requestId: randomLinkId(), configFingerprint: config.fingerprint, target, ...(contract ? { contract } : {}) })
   return envelope ? { rawBody: envelope.rawBody, reply: await sendServiceControl(config, envelope.rawBody) } : null
 }
 
 export const quotes = networkAction({
-  args: { requestRowId: v.string() }, returns: serviceQuotesResultValidator,
+  args: { requestRowId: v.string(), contract: v.optional(serviceControlContractValidator) }, returns: serviceQuotesResultValidator,
   handler: async (ctx, args): Promise<ServiceQuotesResult> => {
     const config = await readCommerceLinkConfig()
-    const read = config ? await readRequest(ctx, ctx.networkId, config, args.requestRowId, { kind: "quotes" }) : null
+    const read = config ? await readRequest(ctx, ctx.networkId, config, args.requestRowId, { kind: "quotes" }, args.contract) : null
     return read ? await ctx.runMutation(finishQuotesRef, { networkId: ctx.networkId, requestRowId: args.requestRowId, rawBody: read.rawBody, ...replyFields(read.reply) }) : { outcome: "unavailable" }
   },
 })
 
 export const quote = networkAction({
-  args: { requestRowId: v.string(), quoteRef: v.string() }, returns: serviceQuoteResultValidator,
+  args: { requestRowId: v.string(), quoteRef: v.string(), contract: v.optional(serviceControlContractValidator) }, returns: serviceQuoteResultValidator,
   handler: async (ctx, args): Promise<ServiceQuoteResult> => {
     const config = await readCommerceLinkConfig()
-    const read = config ? await readRequest(ctx, ctx.networkId, config, args.requestRowId, { kind: "quote", quoteRef: args.quoteRef }) : null
+    const read = config ? await readRequest(ctx, ctx.networkId, config, args.requestRowId, { kind: "quote", quoteRef: args.quoteRef }, args.contract) : null
     return read ? await ctx.runMutation(finishQuoteRef, { networkId: ctx.networkId, requestRowId: args.requestRowId, rawBody: read.rawBody, ...replyFields(read.reply) }) : { outcome: "unavailable" }
+  },
+})
+
+/** Refus volontaire de la version affichée ; aucun paiement ni commande de prestation. */
+export const rejectQuote = networkAction({
+  args: { requestRowId: v.string(), quoteRef: v.string(), quoteVersion: v.number(), consentTextVersion: v.string(), clientRequestId: v.string() },
+  returns: serviceActionResultValidator,
+  handler: async (ctx, args): Promise<ServiceActionResult> => {
+    const config = await readCommerceLinkConfig()
+    if (!config) return { outcome: "unavailable" }
+    const { clientRequestId, requestRowId, ...intent } = args
+    return await settle(ctx, ctx.networkId, config, await ctx.runMutation(admitQuoteRejectRef, { networkId: ctx.networkId, ...intent, ...keys(config, clientRequestId, requestRowId) }))
   },
 })
 

@@ -39,7 +39,7 @@ import {
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { useTranslation } from "react-i18next"
 
-import { groupCallJournal, type JournalEntry } from "./call-journal"
+import { groupCallJournal, journalOfFamily, type CallJournalFamily, type JournalEntry } from "./call-journal"
 import { scopeBadgeLabel } from "./call-peer"
 import { formatClockTime, formatElapsed } from "./call-timer"
 
@@ -63,6 +63,8 @@ export interface IappelJournalProps {
 	 */
 	onContextualOpen?: (threadId: NonNullable<JournalEntry["contextualThreadId"]>) => void
 	callPending?: boolean
+	/** ADR-0036 : iCom ne montre que les appels personnels, iCom Pro ceux des boutiques et mises en relation. */
+	family?: CallJournalFamily
 }
 
 type JournalFilter = "all" | "missed"
@@ -167,6 +169,7 @@ export function IappelJournal({
 	onCommercialWrite,
 	onContextualOpen,
 	callPending = false,
+	family,
 }: IappelJournalProps) {
 	const { t, i18n } = useTranslation("iappel")
 	const timeZone = useViewerTimeZone()
@@ -196,7 +199,7 @@ export function IappelJournal({
 
 	const journal = useMemo(() => groupCallJournal(history.data?.calls ?? []), [history.data])
 
-	const entries = filter === "missed" ? journal.missed : journal.all
+	const entries = journalOfFamily(filter === "missed" ? journal.missed : journal.all, family)
 	const locale = i18n.language
 	const now = Date.now()
 	const dayGroups = useMemo(() => groupByDay(entries, now, t, locale, timeZone), [entries, now, t, locale, timeZone])

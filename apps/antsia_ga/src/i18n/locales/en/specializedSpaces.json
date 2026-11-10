@@ -1,0 +1,44 @@
+{
+  "returnToAntsia": "Back to ANTSIA",
+  "shopSpace": "Shop space",
+  "serviceSpace": "Service provider",
+  "navigation": "Activity navigation",
+  "messages": "iCom Pro",
+  "nav": {
+    "home": "Home",
+    "catalog": "Catalogue",
+    "cart": "Cart",
+    "social": "Social page",
+    "providerHome": "Overview",
+    "services": "Services",
+    "requests": "My requests",
+    "cartCount_one": "Cart: {{count}} line",
+    "cartCount_other": "Cart: {{count}} lines"
+  },
+  "mobile": {
+    "social": "Page",
+    "home": "Home",
+    "requests": "Requests",
+    "profile": "Pro profile",
+    "collaborations": "Collaborate",
+    "activities": "Activities",
+    "media": "Media"
+  },
+  "openMemberSpace": "Open member space",
+  "professionalSpace": "Professional network",
+  "professionalNav": {
+    "directory": "Discover",
+    "profile": "My professional profile",
+    "collaborations": "Collaborations",
+    "activities": "My activities"
+  },
+  "editorialSpace": "Media space",
+  "editorialNav": {
+    "desk": "Newsroom",
+    "config": "Settings",
+    "team": "Team",
+    "media": "My media",
+    "discover": "Explore",
+    "activities": "My activities"
+  }
+}

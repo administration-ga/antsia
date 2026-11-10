@@ -16,7 +16,7 @@ import {
 } from "./commerce-services"
 
 /** Empreinte du fichier jumeau, identique dans les deux dépôts (règle « même octets »). */
-const TWIN_SHA256 = "cb8f418ce38e262e886c4f2f6444c5281a6f53a2f9f08f1afdfdcbc1e338de6c"
+const TWIN_SHA256 = "f6ddd4e8f3e89b5b5eaf1de23279601a26c4709d1ae74aec75ff1c8dc2f8b40b"
 const nowMs = 1_800_000_000_000
 const HOUR = 3_600_000
 const context = { source: "antsia", environment: "sandbox" as const, nowMs }

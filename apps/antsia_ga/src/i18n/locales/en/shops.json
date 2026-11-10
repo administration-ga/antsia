@@ -1,4 +1,21 @@
 {
+  "variantSelection": {
+    "price": "Price for this selection",
+    "unavailableOption": "unavailable for this choice",
+    "indicative": "Indicative availability, to be confirmed with the shop during preparation.",
+    "states": {
+      "incomplete": "Choose every option to see the exact price.",
+      "unavailable": "This selection is no longer available. Choose another option.",
+      "ambiguous": "This combination does not identify a unique variant.",
+      "notPurchasable": "This offer cannot be added to a basket with its current options."
+    }
+  },
+  "publicActions": {
+    "chooseOptions": "Choose my options",
+    "signInNotice": "Signing in keeps your selection. Nothing is added to a basket and no order is sent automatically.",
+    "memberNotice": "Find your selection in the member area, then decide whether to add it to a basket.",
+    "demoNotice": "Fictional demo offer: viewing and sharing only, with no basket or purchase."
+  },
   "contact": {
     "ask": "Ask a question",
     "person": "ANTSIA member",
@@ -30,10 +47,10 @@
     "reportRecorded": "The report was sent to moderation.",
     "states": {
       "requested": "Request pending",
-      "accepted": "Conversation accepted",
+      "accepted": "Chat accepted",
       "declined": "Request declined",
       "blocked": "Exchanges blocked",
-      "closed": "Conversation closed"
+      "closed": "Chat closed"
     },
     "stateHelp": {
       "requested": "Your first text is a request. Exchanges, attachments and calls stay closed until the shop accepts it.",
@@ -77,7 +94,7 @@
       "myRequests": "My requests"
     },
     "calls": {
-      "origin": "Shop conversation",
+      "origin": "Shop chat",
       "consent": "I accept audio and video calls in this conversation.",
       "help": "This consent is personal and revocable. The other side must also accept; availability and preferences are checked when starting a call.",
       "respondent": "Person to call at the shop",
@@ -162,6 +179,8 @@
     "backToCatalog": "Return to the catalog",
     "openOffer": "View offer",
     "openOfferNamed": "View {{title}}",
+    "offerPhotos": "Offer photos",
+    "openOfferPhoto": "View {{title}}, photo {{index}}",
     "soldBy": "Offered by @{{handle}}",
     "attachedOffer": "Offer attached to this post",
     "search": "Search this catalog",
@@ -240,7 +259,206 @@
       "nextOffers": "Next offers",
       "previousPosts": "Previous posts",
       "nextPosts": "Next posts"
-    }
+    },
+    "facets": {
+      "title": "Offer details",
+      "categories": {
+        "fashion": {
+          "label": "Fashion",
+          "women": {
+            "label": "Women",
+            "clothing": {
+              "label": "Clothing"
+            },
+            "shoes": {
+              "label": "Shoes"
+            },
+            "bags": {
+              "label": "Bags"
+            }
+          },
+          "men": {
+            "label": "Men",
+            "clothing": {
+              "label": "Clothing"
+            },
+            "shoes": {
+              "label": "Shoes"
+            },
+            "bags": {
+              "label": "Bags"
+            }
+          },
+          "kids": {
+            "label": "Kids",
+            "clothing": {
+              "label": "Clothing"
+            },
+            "shoes": {
+              "label": "Shoes"
+            },
+            "bags": {
+              "label": "Bags"
+            }
+          },
+          "accessories": {
+            "label": "Accessories",
+            "bags": {
+              "label": "Bags"
+            },
+            "jewelry": {
+              "label": "Jewelry"
+            }
+          }
+        },
+        "food": {
+          "label": "Food",
+          "groceries": {
+            "label": "Groceries"
+          },
+          "beverages": {
+            "label": "Drinks"
+          },
+          "prepared": {
+            "label": "Prepared food"
+          }
+        },
+        "craft": {
+          "label": "Crafts",
+          "home": {
+            "label": "Home"
+          },
+          "bags": {
+            "label": "Bags"
+          },
+          "accessories": {
+            "label": "Accessories"
+          }
+        },
+        "electronics": {
+          "label": "Electronics",
+          "computers": {
+            "label": "Computers"
+          },
+          "phones": {
+            "label": "Phones"
+          },
+          "accessories": {
+            "label": "Accessories"
+          }
+        },
+        "beauty": {
+          "label": "Beauty",
+          "care": {
+            "label": "Care"
+          },
+          "fragrance": {
+            "label": "Fragrances"
+          }
+        },
+        "home": {
+          "label": "Home",
+          "decor": {
+            "label": "Decor"
+          },
+          "equipment": {
+            "label": "Equipment"
+          }
+        },
+        "services": {
+          "label": "Services",
+          "digital": {
+            "label": "Digital and IT"
+          },
+          "creative": {
+            "label": "Creative services"
+          },
+          "home": {
+            "label": "Home services"
+          },
+          "wellness": {
+            "label": "Wellness"
+          },
+          "events": {
+            "label": "Events"
+          },
+          "consulting": {
+            "label": "Consulting"
+          }
+        }
+      },
+      "attributes": {
+        "brand": "Brand",
+        "material": "Material",
+        "color": "Colour",
+        "audience": "For whom",
+        "serviceMode": "Service delivery",
+        "durationMinutes": "Duration",
+        "ecoLabel": "Seller environmental claim"
+      },
+      "choices": {
+        "audience": {
+          "women": "Women",
+          "men": "Men",
+          "kids": "Kids",
+          "unisex": "Unisex"
+        },
+        "serviceMode": {
+          "onsite": "On site",
+          "remote": "Remote",
+          "hybrid": "On site or remote"
+        }
+      },
+      "declaredYes": "Yes, declared by the seller",
+      "declaredNo": "No, declared by the seller",
+      "minutes": "{{count}} min"
+    },
+    "filters": {
+      "title": "Filter and sort",
+      "open": "Search and filter",
+      "active": "Active filters",
+      "query": "What are you looking for?",
+      "queryHint": "Up to 120 characters and 16 words.",
+      "categories": "Departments and categories",
+      "brand": "Brands",
+      "material": "Materials",
+      "color": "Colours",
+      "audience": "For whom",
+      "serviceMode": "Service delivery",
+      "add": "Add",
+      "addValue": "Add a value to {{facet}}",
+      "remove": "Remove {{value}}",
+      "multipleHint": "Up to 6 values per filter. Results may match any one of these values.",
+      "minPrice": "Minimum price (XAF)",
+      "maxPrice": "Maximum price (XAF)",
+      "priceHint": "Displayed prices are indicative; quote-based offers remain labelled.",
+      "sort": "Sort",
+      "apply": "Show results",
+      "reset": "Reset all",
+      "invalid": "Check the filters: categories, prices and values must be compatible.",
+      "queryInvalid": "Enter a search of up to 120 characters and 16 words.",
+      "facetInvalid": "Add up to 6 distinct values of no more than 80 characters.",
+      "priceInvalid": "Enter a non-negative whole amount."
+    },
+    "sorts": {
+      "newest": "Newest",
+      "price_asc": "Price: low to high",
+      "price_desc": "Price: high to low",
+      "relevance": "Relevance"
+    },
+    "indexBuilding": "The catalogue is being indexed. Existing offers remain available without filters; filtering will be available after this update.",
+    "card": {
+      "outOfStock": "Currently unavailable"
+    },
+    "layout": {
+      "label": "Offer layout",
+      "grid": "Show as a grid",
+      "list": "Show as rows"
+    },
+    "seeCollection": "See the collection",
+    "sameShop": "From the same shop",
+    "choosePhoto": "Choose a photo",
+    "showPhoto": "Show photo {{index}}"
   },
   "link": {
     "title": "My PRO.GA activity",
@@ -305,7 +523,9 @@
     "empty": "You have not prepared a storefront yet.",
     "untitled": "Activity in preparation",
     "manage": "Prepare and manage",
-    "truncated": "This list may be incomplete. Some activities you manage may not appear."
+    "truncated": "This list may be incomplete. Some activities you manage may not appear.",
+    "viewPage": "View my page",
+    "clients": "My customers"
   },
   "start": {
     "title": "Prepare a storefront",
@@ -362,6 +582,23 @@
     "serviceArea": "Service area",
     "hours": "Opening hours"
   },
+  "images": {
+    "guideTitle": "Prepare square images",
+    "guideLead": "Photos fill their frame with cropping, without stretching or added bands. Check that the subject stays visible in the centre.",
+    "guideSquare": "Prepare a sharp, well-lit square image, ideally 1,200 × 1,200 pixels or larger.",
+    "guideSubject": "Keep the product or logo in the centre, with enough space around it to avoid cutting off details.",
+    "guideEdges": "Avoid black bars, frames and text near the file edges. Use the original photo rather than a screenshot.",
+    "productSource": "For products, prepare these photos in PRO.GA before publishing or synchronising the catalogue. Display cropping does not change your catalogue files.",
+    "cropTitle": "Crop my logo",
+    "cropHint": "The square shows the result that will be saved. Move the image or zoom to keep what matters; cropping happens on your device.",
+    "horizontal": "Horizontal position",
+    "vertical": "Vertical position",
+    "zoom": "Zoom",
+    "reset": "Centre image",
+    "invalid": "This image could not be prepared. Choose a readable JPEG, PNG or WebP photo of up to 40 megapixels.",
+    "previewAlt": "Square preview of the selected logo",
+    "cancel": "Cancel selection"
+  },
   "presentation": {
     "lead": "Describe your activity at your own pace. Your business name keeps its own spelling.",
     "pageIdentity": "The name, description and logo also belong to your social page.",
@@ -380,7 +617,10 @@
     "draft": "This preview shows draft fields, including unsaved changes. The logo is the currently saved one. Nothing is published.",
     "width": "Preview width",
     "phone": "Phone",
-    "desktop": "Desktop"
+    "desktop": "Desktop",
+    "tablet": "Tablet",
+    "blocks": "Block order",
+    "blocksHint": "Commerce blocks appear when accessible offers have been received from PRO.GA."
   },
   "offers": {
     "products": "Present products published from your business in PRO.GA.",
@@ -434,7 +674,10 @@
     "request": "Request publication",
     "cancelRequest": "Cancel my request",
     "withdraw": "Withdraw storefront",
-    "withdrawConfirm": "Withdraw this storefront from discovery and public reading? Your presentation will be kept."
+    "withdrawConfirm": "Withdraw this storefront from discovery and public reading? Your presentation will be kept.",
+    "newConsent": "This checkbox gives new consent for the displayed version and scope. Existing consent remains indicated below. Saving without new consent closes access without an account.",
+    "consentChanged": "The version or scope changed. Review the information and check the box again to give new consent.",
+    "withdrawPublicConsent": "Withdraw public-listing consent"
   },
   "directory": {
     "title": "Storefronts",
@@ -460,7 +703,9 @@
     "manage": "Manage my storefronts",
     "publicVersion": "View version without an account",
     "publicationsHint": "Find the actual posts from this activity on its social page.",
-    "socialPage": "Open social page"
+    "socialPage": "Open social page",
+    "viewNamed": "Open the shop {{name}}",
+    "facts": "What the shop declares"
   },
   "badges": {
     "official": "Official",
@@ -494,5 +739,74 @@
     "shop_consent_outdated": "The consent text has changed. Read it again before confirming your choice.",
     "shop_owner_inactive": "You can no longer manage this storefront with your current access.",
     "shop_handle_unavailable": "A business address could not be assigned. Try again later."
+  },
+  "pageShop": {
+    "products": "Our products",
+    "offers": "Our offers",
+    "seeShop": "See the shop",
+    "inShop": "In the shop"
+  },
+  "storefrontTerms": {
+    "title": "Store terms",
+    "declared": "Information declared by the seller. Applicable terms and charges will be confirmed before any agreement.",
+    "pickup": "Pickup",
+    "delivery": "Delivery",
+    "fees": "Other charges",
+    "returns": "Returns",
+    "warranty": "Warranty",
+    "unknown": "Not provided",
+    "leadTime_one": "Indicative lead time: {{count}} day",
+    "leadTime_other": "Indicative lead time: {{count}} days",
+    "updated": "Terms published on {{date}}"
+  },
+  "postFormula": {
+    "actions": {
+      "book": "Book",
+      "quote": "Get a quote",
+      "order": "Order",
+      "orderProduct": "Order",
+      "buy": "Buy",
+      "view": "View offer"
+    },
+    "models": "Models of {{title}}",
+    "actionLabel": "{{action}}: {{title}}"
+  },
+  "nav": {
+    "myShop": "My shop"
+  },
+  "food": {
+    "namedMenu": "The menu at {{name}}",
+    "backToMenu": "Back to the menu",
+    "menu": "Menu",
+    "seeMenu": "See the menu",
+    "hours": "Opening hours",
+    "todaysSpecial": "Today’s special"
+  },
+  "dailySpecial": {
+    "title": "Today’s special",
+    "story": {
+      "title": "Share it in Stories",
+      "lead": "Publish this dish in your Stories in this network, with a link to its offer. It disappears at midnight in Libreville, or when you remove the daily special.",
+      "share": "Share in Stories",
+      "shareNamed": "Share the dish “{{title}}” in Stories",
+      "open": "Open Stories",
+      "created": "Story published until midnight in Libreville.",
+      "existing": "This dish is already in your Stories for this daily special.",
+      "unavailable": "The dish and a photo must be visible in the menu before you can share it."
+    },
+    "lead": "Choose a product from your menu: it is featured today on your storefront and in the “Food and restaurants” universe, until midnight.",
+    "label": "Menu product",
+    "choose": "Choose a menu product",
+    "set": "Feature today",
+    "clear": "Remove today’s special",
+    "current": "Today: {{title}}",
+    "currentUnavailable": "Today’s featured dish can no longer be read in your menu.",
+    "none": "No special is featured today.",
+    "emptyMenu": "Your menu has no product yet: it arrives through the link with PRO.GA.",
+    "saved": "Today’s special featured.",
+    "cleared": "Today’s special removed.",
+    "pages": "Menu pages",
+    "previous": "Previous products",
+    "next": "Next products"
   }
 }

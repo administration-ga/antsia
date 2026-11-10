@@ -1,3 +1,4 @@
+import { commerceActivationReady } from "./commerceActivation"
 /** P12 : propriété historique pour le suivi, autorité courante pour tout nouveau débit. */
 import type { Id } from "../../_generated/dataModel"
 import type { MutationCtx, QueryCtx } from "../../_generated/server"
@@ -11,6 +12,7 @@ import { sha256Hex } from "./commerceLinkCrypto"
 type ReadCtx = Pick<QueryCtx, "db">
 export const paymentOpaque = (value: string) => /^[A-Za-z0-9][A-Za-z0-9._:-]{7,99}$/u.test(value)
 export async function paymentPolicyOpen(ctx: ReadCtx, networkId: Id<"networks">): Promise<boolean> {
+  if (!commerceActivationReady("payments")) return false
   return (await ctx.db.query("shopPaymentPolicies").withIndex("by_network", (q) => q.eq("networkId", networkId)).unique())?.enabled === true
 }
 export async function ownedPaymentCheckout(ctx: ReadCtx, networkId: Id<"networks">, personId: Id<"persons">, attemptId: string) {

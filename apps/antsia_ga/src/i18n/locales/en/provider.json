@@ -1,0 +1,90 @@
+{
+  "title": "Service provider",
+  "lead": "Explore the services and portfolio published by this activity.",
+  "navigation": "Explore this provider",
+  "sections": {
+    "presentation": "Overview",
+    "services": "Services",
+    "portfolio": "Portfolio",
+    "availability": "Availability",
+    "about": "About",
+    "reviews": "Reviews"
+  },
+  "actions": {
+    "catalog": "All services",
+    "nextCatalog": "Next services",
+    "socialPage": "Social page",
+    "signInSocial": "Sign in to view the social page",
+    "backSocial": "Back to ANTSIA",
+    "openOptions": "View service options",
+    "directory": "Find a provider",
+    "retry": "Try again",
+    "first": "First page",
+    "previous": "Previous page"
+  },
+  "status": {
+    "loading": "Loading provider…",
+    "unavailable": "This provider is currently unavailable.",
+    "building": "The services catalog is being prepared.",
+    "refreshing": "Refreshing services…"
+  },
+  "presentation": {
+    "empty": "This provider has not published an introduction yet.",
+    "sameActivity": "This professional presentation and the social page belong to the same activity.",
+    "specialty": "Specialty",
+    "area": "Stated service area",
+    "hours": "Stated opening hours"
+  },
+  "availability": {
+    "onRequest": "Availability on request. View a service to see the arrangements actually offered.",
+    "noCalendar": "No appointment calendar is published here.",
+    "openServices": "Explore services"
+  },
+  "profile": {
+    "title": "Service arrangements",
+    "declared": "Information declared by the provider for this offer.",
+    "unknown": "Confirm service arrangements with the provider.",
+    "commercialModes": "How to request this service",
+    "languages": "Available languages",
+    "zones": "Locations served in Gabon",
+    "deliverables": "Deliverables",
+    "inclusions": "What is included",
+    "exclusions": "What is not included",
+    "duration": "Stated duration",
+    "minutes": "{{count}} min"
+  },
+  "commercialModes": {
+    "quote": "By quote",
+    "booking": "By appointment",
+    "fixed_order": "Service to order"
+  },
+  "portfolio": {
+    "title": "Declared portfolio",
+    "notice": "Work linked to the services on this page, based on the information published by the provider.",
+    "empty": "No portfolio entries are published in the services on this page.",
+    "fromOffer": "Service: {{title}}",
+    "mediaWithheld": "Media unavailable",
+    "noMedia": "No media published for this portfolio entry",
+    "media": "Portfolio media"
+  },
+  "directory": {
+    "title": "Discover service providers",
+    "lead": "Browse services accessible within your network.",
+    "all": "Search and filter services",
+    "demo": "Example services",
+    "demoNotice": "Separate demonstration selection: no commitment or payment."
+  },
+  "reviews": {
+    "unavailable": "Public reviews are not yet available for this activity.",
+    "requests": "My service requests"
+  },
+  "catalog": {
+    "title": "Services",
+    "namedTitle": "Services by {{name}}",
+    "descriptionMeta": "Explore published services and their terms.",
+    "backToProvider": "Back to the provider"
+  },
+  "detail": {
+    "title": "Service details"
+  }
+}

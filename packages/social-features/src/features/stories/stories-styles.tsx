@@ -237,11 +237,11 @@ const STORIES_CSS = `
          tuile garde une largeur figée : la rangée ne se recompose pas selon
          la longueur des prénoms, tronqués d'une ellipse. */
       .st-tray[data-presentation="rings"] {
-        gap: 12px;
+        gap: 10px;
         padding: 4px 2px 8px;
       }
       .st-tray[data-presentation="rings"] .st-tray-tile {
-        width: 72px;
+        width: 64px;
         text-align: center;
       }
       .st-ring-tile {
@@ -250,41 +250,84 @@ const STORIES_CSS = `
         align-items: center;
         gap: 6px;
       }
+      /* Les mesures de la maquette des chartes (ADR-0028) : un anneau de
+         2,5 px, séparé du portrait par 2,5 px de la couleur de page. */
       .st-ring-tile .st-tray-ring {
-        width: 68px;
-        height: 68px;
-        padding: 3px;
+        width: 60px;
+        height: 60px;
+        padding: 2.5px;
       }
-      /* « Vous » : un disque neutre, sans anneau, et son « + » à l'aplat
-         d'identité, comme le bouton Créer. */
+      .st-ring-tile .st-tray-disc {
+        border-width: 2.5px;
+      }
+      /* « Vous » : mon portrait (ou la silhouette), et son « + » à l'aplat
+         d'identité, comme le bouton Créer. Sans série en ligne, un disque
+         neutre sans anneau ; avec, ma série dans son anneau. */
       .st-ring-self {
         position: relative;
         display: flex;
-        width: 68px;
-        height: 68px;
+        width: 60px;
+        height: 60px;
       }
-      .st-ring-self .st-tray-disc {
+      .st-ring-self > .st-tray-disc {
         border: none;
+      }
+      .st-ring-open {
+        display: flex;
+        width: 100%;
+        height: 100%;
+        padding: 0;
+        border: none;
+        border-radius: 999px;
+        background: transparent;
+        color: inherit;
+        cursor: pointer;
+      }
+      .st-ring-open:focus-visible,
+      .st-ring-plus-button:focus-visible {
+        outline: 2px solid var(--ring);
+        outline-offset: 3px;
       }
       .st-ring-plus {
         position: absolute;
         right: -2px;
         bottom: -2px;
         display: flex;
-        width: 26px;
-        height: 26px;
+        width: 22px;
+        height: 22px;
+        box-sizing: border-box;
         align-items: center;
         justify-content: center;
-        border: 3px solid var(--background);
+        border: 2.5px solid var(--background);
         border-radius: 999px;
         background: var(--primary-fill);
         color: var(--primary-fill-on, var(--on-fill));
       }
+      /* Le « + » garde sa pastille de 22 px mais possède sa propre cible de
+         44 px, distincte du bouton d'ouverture de la série. Le centre de la
+         pastille reste à la même place (bord visuel à -2 px du portrait). */
+      .st-ring-plus-button {
+        position: absolute;
+        right: -13px;
+        bottom: -13px;
+        width: 44px;
+        height: 44px;
+        box-sizing: border-box;
+        padding: 0;
+        border: none;
+        background: transparent;
+        cursor: pointer;
+      }
+      .st-ring-plus-button .st-ring-plus {
+        right: 11px;
+        bottom: 11px;
+        pointer-events: none;
+      }
       .st-ring-name {
-        max-width: 72px;
+        max-width: 64px;
         overflow: hidden;
         font-size: 12px;
-        font-weight: 600;
+        font-weight: 500;
         line-height: 1.25;
         white-space: nowrap;
         text-overflow: ellipsis;
@@ -334,6 +377,91 @@ const STORIES_CSS = `
         width: 100%;
         height: 100%;
         object-fit: contain;
+      }
+      /* Le plat est une référence commerciale : sa photo remplit la scène,
+         tandis que les médias personnels gardent le cadrage de leur auteur. */
+      .st-media.st-daily-special-media { object-fit: cover; }
+      .st-daily-special-card {
+        display: grid;
+        min-width: 0;
+        gap: 8px;
+        padding: 14px 16px;
+        border-radius: var(--ui2-card-radius, 16px);
+        background: var(--card);
+        color: var(--card-foreground);
+        box-shadow: var(--shadow-lg, none);
+        overflow-wrap: anywhere;
+      }
+      .st-daily-special-heading {
+        display: flex;
+        min-width: 0;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 4px 10px;
+      }
+      .st-daily-special-label {
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--role-commerce-ink, var(--primary));
+      }
+      .st-daily-special-shop {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--muted-foreground);
+      }
+      .st-daily-special-title {
+        display: -webkit-box;
+        margin: 0;
+        overflow: hidden;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+        font-size: 20px;
+        font-weight: 700;
+        line-height: 1.2;
+      }
+      .st-daily-special-footer {
+        display: flex;
+        min-width: 0;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px 12px;
+      }
+      .st-daily-special-price {
+        margin: 0;
+        font-size: 20px;
+        font-weight: 700;
+        line-height: 1.2;
+        color: var(--role-commerce-ink, var(--foreground));
+      }
+      .st-daily-special-order {
+        display: inline-flex;
+        min-width: 44px;
+        min-height: 44px;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 8px 14px;
+        border-radius: var(--ui2-button-radius, 12px);
+        background: var(--role-commerce-fill, var(--primary-fill));
+        color: var(--role-commerce-on, var(--primary-fill-on, var(--on-fill)));
+        font-size: 13px;
+        font-weight: 700;
+        line-height: 1.2;
+        text-decoration: none;
+      }
+      .st-daily-special-order:focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; }
+      .st-daily-special-expiry {
+        margin: 0;
+        font-size: 11px;
+        line-height: 1.3;
+        color: var(--muted-foreground);
       }
       /* Le voile de lisibilite. Il ne capte AUCUN geste : les taps doivent
          atteindre la scene, qui les traduit en precedent/suivant. */

@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/ReseauMenuRail.tsx @ ad2e7fdc2 — adaptations : déplacé dans la coque (`shell/`) ; branché sur le moteur — ma fiche par `people.persons.getMyPerson` (sans réseau ; identité montrée seulement si le profil est publié, portrait servi par la garde des fichiers), mes groupes par `thematicGroups.thematicGroups.myGroups`, mes pages suivies par la première page de `pages.pages.paginateMyPageFollows` (pages GÉNÉRIQUES du moteur, au lieu des pages d'organisation), réseau courant par `useNetwork()` ; adresses par la table des routes INJECTÉE (`useRoutes()` : volets sur `home()`, mon profil sur `profile(handle)`, fiche d'une page sur `page(handle)`, réglages sur `settings?.()`) — `personal-nav` et ses URL de l'espace retirés, une destination absente RETIRE son entrée (et « Voir plus » disparaît quand il n'a plus rien à déplier) ; volets SERVIS seuls (`menuItemsFor(counts, home)`) ; libellés par l'i18n (`reseau:reseauMenuRail.*`, libellé du volet par sa clé, pastille par `menuBadgeLabel(item, t)`) ; « iRéseau » devient « réseau » ; liens par `Link` de `@antsia/api/routing`, d'UNE seule pièce (un lien à la facture du bouton fantôme au lieu d'un bouton DANS un lien : deux arrêts de tabulation pour un geste) ; rendu, ordre et styles inchangés ; P02 (18/10/2026) : monté aussi HORS de la page réseau (`activeTab` nul, volets rendus en liens quand aucun `onSelectTab` n'est fourni) et, sous la navigation par destinations déclarée par l'application, coiffé des cinq destinations Fil · Découvrir · Créer · Messages · Profil (« Créer » ouvre la carte de choix partagée) — le volet Fil et « Voir plus » cèdent alors leur place aux destinations Fil et Profil ; les paramètres (`settings?.()`) gardent alors une entrée au pied du rail, courante sur leur page. ; système épuré (ADR-0027) : destination active en pastille tonale sans filet (`--esp-tab-active-*`, `--esp-chip-border`) et angle des puces (`--esp-chip-radius`), facture d'origine en repli. Pastilles de décompte aux couleurs des réactions (`--role-react-*`), ton d'origine en repli.
+// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/ReseauMenuRail.tsx @ ad2e7fdc2 — adaptations : déplacé dans la coque (`shell/`) ; branché sur le moteur — ma fiche par `people.persons.getMyPerson` (sans réseau ; identité montrée seulement si le profil est publié, portrait servi par la garde des fichiers), mes groupes par `thematicGroups.thematicGroups.myGroups`, mes pages suivies par la première page de `pages.pages.paginateMyPageFollows` (pages GÉNÉRIQUES du moteur, au lieu des pages d'organisation), réseau courant par `useNetwork()` ; adresses par la table des routes INJECTÉE (`useRoutes()` : volets sur `home()`, mon profil sur `profile(handle)`, fiche d'une page sur `page(handle)`, réglages sur `settings?.()`) — `personal-nav` et ses URL de l'espace retirés, une destination absente RETIRE son entrée (et « Voir plus » disparaît quand il n'a plus rien à déplier) ; volets SERVIS seuls (`menuItemsFor(counts, home)`) ; libellés par l'i18n (`reseau:reseauMenuRail.*`, libellé du volet par sa clé, pastille par `menuBadgeLabel(item, t)`) ; « iRéseau » devient « réseau » ; liens par `Link` de `@antsia/api/routing`, d'UNE seule pièce (un lien à la facture du bouton fantôme au lieu d'un bouton DANS un lien : deux arrêts de tabulation pour un geste) ; rendu, ordre et styles inchangés ; P02 (18/10/2026) : monté aussi HORS de la page réseau (`activeTab` nul, volets rendus en liens quand aucun `onSelectTab` n'est fourni) et, sous la navigation par destinations déclarée par l'application, coiffé des cinq destinations Fil · Découvrir · Créer · Messages · Profil (« Créer » ouvre la carte de choix partagée) — le volet Fil et « Voir plus » cèdent alors leur place aux destinations Fil et Profil ; les paramètres (`settings?.()`) gardent alors une entrée au pied du rail, courante sur leur page. ; système épuré (ADR-0027) : destination active en pastille tonale sans filet (`--esp-tab-active-*`, `--esp-chip-border`) et angle des puces (`--esp-chip-radius`), facture d'origine en repli. Pastilles de décompte aux couleurs des réactions (`--role-react-*`), ton d'origine en repli. ; sept univers (22/10/2026) : « Ma boutique » suit Boutiques quand l'application en fournit le libellé (`navigationLabels.myShop`) et la route `myActivity`.
 "use client"
 
 /**
@@ -21,9 +21,10 @@
 
 import { api } from "@antsia/api/engine"
 import { useAuthenticatedConvexQuery, useAuthenticatedPaginatedQuery } from "@antsia/api/hooks"
-import { useNetwork, useRoutes } from "@antsia/api/network"
+import { useNetwork, useNetworkNavigationLayout, useRoutes } from "@antsia/api/network"
 import { Link, usePathname, useSearchParams } from "@antsia/api/routing"
 import { Badge, Button, Card, Icon } from "@antsia/ui"
+import { BriefcaseBusiness, FilePlus2, PanelsTopLeft, Store } from "lucide-react"
 import { type CSSProperties, type ReactNode, useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
 
@@ -33,8 +34,9 @@ import { formatUnreadBadge } from "../features/reseau-personnel/shared"
 import { AppearanceControl } from "./appearance"
 import { RESEAU_SURFACE_STYLE } from "./design-styles"
 import { CreationChoiceCard, useChoiceTrigger } from "./mobile/ReseauMobileCreateButton"
-import type { ReseauAgentTabId } from "./reseau-agent-nav"
+import { reseauAgentHref, type ReseauAgentTabId } from "./reseau-agent-nav"
 import { menuBadgeLabel, menuItemsFor, SHORTCUTS_MAX, shortcutsFor, type ReseauMenuCounts } from "./reseau-menu"
+import { RESEAU_MENU_RAIL_ADAPTIVE_CSS } from "./reseau-menu-rail-styles"
 import {
 	activeReseauDestination,
 	ariaCurrentFor,
@@ -122,6 +124,13 @@ const SECTION_TITLE_STYLE: CSSProperties = {
 	paddingInline: 10,
 }
 
+/** Compare les chemins injectés, sans confondre une piste et un préfixe de nom. */
+function railPathMatches(pathname: string | null, href: string | null | undefined): boolean {
+	if (pathname === null || !href) return false
+	const path = href.split(/[?#]/u)[0]?.replace(/\/+$/u, "") || "/"
+	return pathname === path || (path !== "/" && pathname.startsWith(`${path}/`))
+}
+
 export function ReseauMenuRail({
 	activeTab,
 	counts,
@@ -152,7 +161,8 @@ export function ReseauMenuRail({
 	current?: ReseauDestinationMatch | null
 }) {
 	const { t } = useTranslation("reseau")
-	const { networkId } = useNetwork()
+	const { networkId, navigationLabels } = useNetwork()
+	const { adaptive } = useNetworkNavigationLayout()
 	const routes = useRoutes()
 	const home = routes.home()
 	const [expanded, setExpanded] = useState(false)
@@ -192,7 +202,17 @@ export function ReseauMenuRail({
 	const profileHref = handle !== null ? routes.profile(handle) : null
 	const displayName = person?.displayName ?? handle ?? ""
 	const settingsHref = routes.settings?.() ?? null
+	const shopsLabel = navigationLabels?.shops?.trim() ?? ""
+	const shopsHref = adaptive && shopsLabel.length > 0 ? routes.shops?.() ?? null : null
+	/* « Ma boutique » : l'application n'en donne le libellé qu'à qui gère déjà une boutique. */
+	const myShopLabel = navigationLabels?.myShop?.trim() ?? ""
+	const myShopHref = adaptive && myShopLabel.length > 0 ? routes.myActivity?.() ?? null : null
 	const pathname = usePathname()
+	/* U09 — épure (opt-in adaptatif d'ANTSIA) : le rail ne garde que les
+	   destinations, Boutiques, Créer et Réglages. « Dans le réseau » vit dans
+	   Explorer, l'identité dans la destination Profil (sa photo), l'apparence
+	   dans le menu du compte : aucune entrée n'y est répétée. */
+	const epure = adaptive && destinationRoutes !== null
 
 	/* L'identité mène au profil — c'est le geste qu'on cherche en premier dans
 	   un menu de réseau social. Sous la navigation par destinations, elle coiffe
@@ -201,6 +221,8 @@ export function ReseauMenuRail({
 		profileHref !== null ? (
 			<Link
 				href={profileHref}
+				className="rmr-identity"
+				title={adaptive ? `${displayName} · @${handle}` : undefined}
 				style={{
 					display: "flex",
 					alignItems: "center",
@@ -213,31 +235,35 @@ export function ReseauMenuRail({
 				}}
 			>
 				<Avatar displayName={displayName} avatarUrl={person?.avatar?.url ?? null} size={32} />
-				<span style={{ display: "grid", gap: 1, minWidth: 0 }}>
+				<span className="rmr-identity-label" style={{ display: "grid", gap: 1, minWidth: 0 }}>
 					<span style={{ fontSize: 13.5, fontWeight: 700 }}>{displayName}</span>
 					<span style={{ fontSize: 11.5, color: "var(--muted-foreground)" }}>@{handle}</span>
 				</span>
 			</Link>
 		) : null
 
-	return (
+	const rail = (
 		<Card padded={false} style={RESEAU_SURFACE_STYLE}>
 			{destinationRoutes !== null ? (
 				<RailDestinations
 					routes={destinationRoutes}
-					identity={identity}
+					identity={epure ? null : identity}
+					profileAvatar={epure ? { displayName, avatarUrl: person?.avatar?.url ?? null } : null}
+					shops={epure && shopsHref !== null ? { href: shopsHref, label: shopsLabel } : null}
+					myShop={epure && myShopHref !== null ? { href: myShopHref, label: myShopLabel } : null}
+					grouped={epure}
 					handle={handle}
 					onSelectTab={onSelectTab}
 					onCreate={onCreate}
 					current={current}
 				/>
 			) : null}
-			<nav aria-label={t("reseauMenuRail.navLabel")} style={{ padding: 12 }}>
+			<nav aria-label={t("reseauMenuRail.navLabel")} style={epure ? { padding: 12, borderTop: "1px solid var(--esp-surface-border, var(--border))", marginTop: 12 } : { padding: 12 }}>
 				{/* Les volets sous les destinations : un titre les sépare, pour
 				    qu'une liste continue ne se lise pas comme un seul niveau. */}
-				{destinationRoutes === null ? identity : <h2 style={SECTION_TITLE_STYLE}>{t("reseauDestinations.voletsTitle")}</h2>}
+				{epure ? null : destinationRoutes === null ? identity : <h2 className="rmr-section-title" style={SECTION_TITLE_STYLE}>{t("reseauDestinations.voletsTitle")}</h2>}
 
-				<ul
+				{epure ? null : <ul
 					style={{
 						listStyle: "none",
 						margin: "8px 0 0",
@@ -252,13 +278,13 @@ export function ReseauMenuRail({
 						const content = (
 							<>
 								<Icon name={item.icon} size={18} aria-hidden />
-								<span style={{ flex: 1, fontSize: 13.5, fontWeight: 600 }}>{t(item.labelKey)}</span>
+								<span className="rmr-label" style={{ flex: 1, fontSize: 13.5, fontWeight: 600 }}>{t(item.labelKey)}</span>
 								{item.badge !== null ? (
-									<Badge tone="primary" size="sm" style={COUNT_BADGE_STYLE}>
+									<span className="rmr-badge"><Badge tone="primary" size="sm" style={COUNT_BADGE_STYLE}>
 										{/* Le chiffre est masqué au lecteur d'écran : la phrase
 										    qui suit dit 3 QUOI, ce qu'un « 3 » nu ne dit pas. */}
 										<span aria-hidden="true">{item.badge > 99 ? "99+" : item.badge}</span>
-									</Badge>
+									</Badge></span>
 								) : null}
 								{badgeLabel !== null ? <span className="sr-only">{badgeLabel}</span> : null}
 							</>
@@ -267,6 +293,8 @@ export function ReseauMenuRail({
 							<li key={item.id}>
 								{onSelectTab !== undefined ? (
 									<Button
+										className="rmr-item"
+										title={adaptive ? t(item.labelKey) : undefined}
 										variant={selected ? "secondary" : "ghost"}
 										// `aria-current` et non `aria-selected` : ce sont des liens
 										// de navigation, pas les onglets d'un `tablist`.
@@ -283,7 +311,8 @@ export function ReseauMenuRail({
 										href={item.href}
 										aria-current={selected ? "page" : undefined}
 										style={selected ? SELECTED_LINK_ITEM_STYLE : LINK_ITEM_STYLE}
-										className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+										className="rmr-item focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+										title={adaptive ? t(item.labelKey) : undefined}
 									>
 										{content}
 									</Link>
@@ -291,7 +320,14 @@ export function ReseauMenuRail({
 							</li>
 						)
 					})}
-				</ul>
+				</ul>}
+
+				{!epure && shopsHref !== null ? (
+					<Link href={shopsHref} style={{ ...LINK_ITEM_STYLE, marginTop: 14 }} className="rmr-item focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" title={shopsLabel}>
+						<Store size={18} aria-hidden="true" />
+						<span className="rmr-label" style={{ flex: 1, fontSize: 13.5, fontWeight: 600 }}>{shopsLabel}</span>
+					</Link>
+				) : null}
 
 				{/* « Voir plus » : les destinations de COMPTE, repliées par défaut.
 				    Elles ne sont pas des volets — les mêler à la liste ci-dessus
@@ -330,9 +366,10 @@ export function ReseauMenuRail({
 					</>
 				) : null}
 
-				{shortcuts.length > 0 ? (
+				{!epure && shortcuts.length > 0 ? (
 					<section style={{ marginTop: 14 }}>
 						<h2
+							className="rmr-section-title"
 							style={{
 								margin: "0 0 8px",
 								fontSize: 10.5,
@@ -348,7 +385,7 @@ export function ReseauMenuRail({
 						<ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 2 }}>
 							{shortcuts.map((shortcut) => (
 								<li key={shortcut.id}>
-									<Link href={shortcut.href} style={LINK_ITEM_STYLE}>
+									<Link href={shortcut.href} style={LINK_ITEM_STYLE} className="rmr-item" title={adaptive ? shortcut.label : undefined}>
 										<Avatar
 											displayName={shortcut.label}
 											avatarUrl={shortcut.imageUrl}
@@ -356,6 +393,7 @@ export function ReseauMenuRail({
 											shape={shortcut.id.startsWith("page:") ? "square" : "round"}
 										/>
 										<span
+											className="rmr-label"
 											style={{
 												fontSize: 13,
 												fontWeight: 600,
@@ -379,16 +417,33 @@ export function ReseauMenuRail({
 					<Link
 						href={settingsHref}
 						aria-current={pathname === settingsHref ? "page" : undefined}
-						style={{ ...(pathname === settingsHref ? SELECTED_LINK_ITEM_STYLE : LINK_ITEM_STYLE), marginTop: 14 }}
-						className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+						style={{ ...(pathname === settingsHref ? SELECTED_LINK_ITEM_STYLE : LINK_ITEM_STYLE), marginTop: epure ? 0 : 14 }}
+						className="rmr-item focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+						title={adaptive ? t("reseauMenuRail.settings") : undefined}
 					>
 						<Icon name="settings" size={18} aria-hidden />
-						<span style={{ fontSize: 13.5, fontWeight: 600 }}>{t("reseauMenuRail.settings")}</span>
+						<span className="rmr-label" style={{ fontSize: 13.5, fontWeight: 600 }}>{t("reseauMenuRail.settings")}</span>
 					</Link>
 				) : null}
-				<AppearanceControl />
+				{/* Un seul contrôle, gardé dans le rail large. En compact, sa porte
+				    mène aux vrais réglages sans panneau débordant du scroller. */}
+				{epure && settingsHref !== null ? null : adaptive && settingsHref !== null ? (
+					<>
+						<div className="rmr-appearance-controls"><AppearanceControl /></div>
+						<Link href={settingsHref} style={{ ...LINK_ITEM_STYLE, marginTop: 8 }} className="rmr-item rmr-appearance-link focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" title={t("shell:appearance.label")}>
+							<Icon name="sun" size={18} aria-hidden />
+							<span className="rmr-label" style={{ flex: 1, fontSize: 13.5, fontWeight: 600 }}>{t("shell:appearance.label")}</span>
+						</Link>
+					</>
+				) : <AppearanceControl />}
 			</nav>
 		</Card>
+	)
+	return (
+		<div data-reseau-menu-layout={adaptive ? "adaptive" : undefined}>
+			{adaptive ? <style>{RESEAU_MENU_RAIL_ADAPTIVE_CSS}</style> : null}
+			{rail}
+		</div>
 	)
 }
 
@@ -413,6 +468,10 @@ export function ReseauMenuRail({
 function RailDestinations({
 	routes,
 	identity,
+	profileAvatar = null,
+	shops = null,
+	myShop = null,
+	grouped = false,
 	handle,
 	onSelectTab,
 	onCreate,
@@ -420,6 +479,14 @@ function RailDestinations({
 }: {
 	routes: ReseauDestinationRoutes
 	identity: ReactNode
+	/** U09 : la photo du membre tient lieu d'icône à Profil (plus de carte d'identité au-dessus). */
+	profileAvatar?: { displayName: string; avatarUrl: string | null } | null
+	/** U09 : Boutiques suit les destinations, avant Créer. */
+	shops?: { href: string; label: string } | null
+	/** « Ma boutique » suit Boutiques, pour qui gère déjà une boutique. */
+	myShop?: { href: string; label: string } | null
+	/** Trois espaces distincts, uniquement pour la navigation adaptative déclarée. */
+	grouped?: boolean
 	handle: string | null
 	onSelectTab?: (tab: ReseauAgentTabId) => void
 	onCreate?: (kind: CreationKind) => void
@@ -427,24 +494,36 @@ function RailDestinations({
 }) {
 	const { t } = useTranslation("reseau")
 	const { liveAvailable } = useNetwork()
+	const engineRoutes = useRoutes()
+	const { adaptive } = useNetworkNavigationLayout()
 	const pathname = usePathname()
 	const searchParams = useSearchParams()
 	const { open, setOpen, triggerRef } = useChoiceTrigger<HTMLButtonElement>()
 	/* La pastille de Messages : MÊME composition que la barre d'iCom (IC-06). */
 	const unread = useMessagesUnreadTotal()
 	const unreadBadge = formatUnreadBadge(unread)
+	const CreateIcon = RESEAU_DESTINATION_ICONS.creer
 
 	/* Une navigation referme le choix : il masquerait la page demandée. */
 	useEffect(() => {
 		setOpen(false)
 	}, [pathname, setOpen])
 
-	const match = current !== undefined ? current : activeReseauDestination({ pathname, search: searchParams }, routes, handle)
+	// Ces destinations possèdent désormais leur propre entrée dans le rail :
+	// leur ancien rattachement à Explorer/Profil ne doit plus allumer deux lieux.
+	const workspaceCurrent = grouped && (
+		(pathname === routes.home() && searchParams.get("tab") === "pages") ||
+		railPathMatches(pathname, shops?.href) ||
+		railPathMatches(pathname, engineRoutes.myActivity?.()) ||
+		railPathMatches(pathname, engineRoutes.settings?.())
+	)
+	const match = workspaceCurrent ? null : current !== undefined ? current : activeReseauDestination({ pathname, search: searchParams }, routes, handle)
 	const choices = reseauCreationChoices({ handle, liveAvailable }, routes).filter((choice) => onCreate !== undefined || choice.href !== null)
 
 	return (
 		<nav aria-label={t("reseauDestinations.navLabel")} style={{ padding: "12px 12px 0" }}>
 			{identity}
+			{grouped ? <h2 className="rmr-section-title" style={SECTION_TITLE_STYLE}>{t("reseauMenuRail.socialSection")}</h2> : null}
 			<ul style={{ listStyle: "none", margin: "8px 0 0", padding: 0, display: "grid", gap: 2 }}>
 				{reseauDestinations(routes).map((destination) => {
 					const DestinationIcon = RESEAU_DESTINATION_ICONS[destination.id]
@@ -452,12 +531,16 @@ function RailDestinations({
 					const badge = destination.id === "messages" ? unreadBadge : null
 					const content = (
 						<>
-							<DestinationIcon aria-hidden="true" size={18} />
-							<span style={{ flex: 1, fontSize: 13.5, fontWeight: 600 }}>{t(destination.labelKey)}</span>
+							{destination.id === "profil" && profileAvatar !== null ? (
+								<span aria-hidden="true" style={{ display: "inline-flex", flex: "0 0 auto" }}>
+									<Avatar displayName={profileAvatar.displayName} avatarUrl={profileAvatar.avatarUrl} size={22} />
+								</span>
+							) : <DestinationIcon aria-hidden="true" size={18} />}
+							<span className="rmr-label" style={{ flex: 1, fontSize: 13.5, fontWeight: 600 }}>{destination.label ?? t(destination.labelKey)}</span>
 							{badge !== null ? (
-								<Badge tone="primary" size="sm" style={COUNT_BADGE_STYLE}>
+								<span className="rmr-badge"><Badge tone="primary" size="sm" style={COUNT_BADGE_STYLE}>
 									<span aria-hidden="true">{badge}</span>
-								</Badge>
+								</Badge></span>
 							) : null}
 							{/* Un espace ENTRE le libellé et la phrase du nom accessible. */}
 							{badge !== null ? (
@@ -472,6 +555,8 @@ function RailDestinations({
 						<li key={destination.id}>
 							{destination.href === null ? (
 								<Button
+									className="rmr-item"
+									title={adaptive ? destination.label ?? t(destination.labelKey) : undefined}
 									ref={triggerRef}
 									variant="ghost"
 									aria-haspopup="dialog"
@@ -486,7 +571,8 @@ function RailDestinations({
 									href={destination.href}
 									aria-current={ariaCurrent}
 									style={ariaCurrent !== undefined ? SELECTED_LINK_ITEM_STYLE : LINK_ITEM_STYLE}
-									className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+									className="rmr-item focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+									title={adaptive ? destination.label ?? t(destination.labelKey) : undefined}
 									onClick={
 										onSelectTab === undefined || destination.id !== "fil"
 											? undefined
@@ -504,7 +590,64 @@ function RailDestinations({
 					)
 				})}
 			</ul>
+			{!grouped && shops !== null ? (
+				<Link href={shops.href} style={{ ...LINK_ITEM_STYLE, marginTop: 2 }} className="rmr-item focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" title={adaptive ? shops.label : undefined}>
+					<Store size={18} aria-hidden="true" />
+					<span className="rmr-label" style={{ flex: 1, fontSize: 13.5, fontWeight: 600 }}>{shops.label}</span>
+				</Link>
+			) : null}
+			{!grouped && myShop !== null ? (
+				<Link href={myShop.href} aria-current={pathname === myShop.href || pathname.startsWith(`${myShop.href}/`) ? "page" : undefined} style={{ ...(pathname === myShop.href || pathname.startsWith(`${myShop.href}/`) ? SELECTED_LINK_ITEM_STYLE : LINK_ITEM_STYLE), marginTop: 2 }} className="rmr-item focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" title={adaptive ? myShop.label : undefined}>
+					<BriefcaseBusiness size={18} aria-hidden="true" />
+					<span className="rmr-label" style={{ flex: 1, fontSize: 13.5, fontWeight: 600 }}>{myShop.label}</span>
+				</Link>
+			) : null}
+			{routes.clips !== undefined ? <Button ref={triggerRef} className="rmr-item" title={t("reseauDestinations.creer")} variant="ghost" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(true)} style={{ ...ITEM_STYLE, marginTop: 8 }}>
+				<CreateIcon aria-hidden="true" size={18} />
+				<span className="rmr-label" style={{ flex: 1, fontSize: 13.5, fontWeight: 600 }}>{t("reseauDestinations.creer")}</span>
+			</Button> : null}
+			{grouped ? <RailWorkspaceSections shops={shops} myShop={myShop} /> : null}
 			<CreationChoiceCard open={open} onClose={() => setOpen(false)} choices={choices} onPick={(kind) => onCreate?.(kind)} />
 		</nav>
 	)
+}
+
+/** Les droits viennent des listes du membre ; les destinations gardent leurs gardes métier. */
+function RailWorkspaceSections({ shops, myShop }: {
+	shops: { href: string; label: string } | null
+	myShop: { href: string; label: string } | null
+}) {
+	const { t } = useTranslation("reseau")
+	const { networkId } = useNetwork()
+	const routes = useRoutes()
+	const pathname = usePathname()
+	const search = useSearchParams()
+	const mine = useAuthenticatedConvexQuery(api.modules.pages.pages.myPages, { networkId })
+	const pages = mine.data ?? []
+	const activityHref = routes.myActivity?.() ?? null
+	const pagesHref = reseauAgentHref("pages", routes.home())
+	const pageSelected = pathname === routes.home() && search.get("tab") === "pages"
+	const shopsSelected = railPathMatches(pathname, shops?.href)
+	const activityLabel = myShop?.label ?? t("reseauMenuRail.createActivity")
+	const pagesLabel = pages.length > 0 ? t("reseauMenuRail.myPages") : t("reseauMenuRail.createPage")
+	return <>
+		<section className="rmr-workspace-section" aria-label={t("reseauMenuRail.activitySection")}>
+			<h2 className="rmr-section-title" style={SECTION_TITLE_STYLE}>{t("reseauMenuRail.activitySection")}</h2>
+			{shops ? <Link href={shops.href} aria-current={shopsSelected ? "page" : undefined} style={shopsSelected ? SELECTED_LINK_ITEM_STYLE : LINK_ITEM_STYLE} className="rmr-item focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" title={shops.label}>
+				<Store size={18} aria-hidden="true" /><span className="rmr-label" style={{ flex: 1 }}>{shops.label}</span>
+			</Link> : null}
+			{activityHref ? <Link href={activityHref} aria-current={pathname === activityHref || pathname.startsWith(`${activityHref}/`) ? "page" : undefined} style={pathname === activityHref || pathname.startsWith(`${activityHref}/`) ? SELECTED_LINK_ITEM_STYLE : LINK_ITEM_STYLE} className="rmr-item focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" title={activityLabel}>
+				<BriefcaseBusiness size={18} aria-hidden="true" /><span className="rmr-label" style={{ flex: 1 }}>{activityLabel}</span>
+			</Link> : null}
+		</section>
+		<section className="rmr-workspace-section" aria-label={t("reseauMenuRail.pageSection")}>
+			<h2 className="rmr-section-title" style={SECTION_TITLE_STYLE}>{t("reseauMenuRail.pageSection")}</h2>
+			<Link href={pagesHref} aria-current={pageSelected ? "page" : undefined} style={pageSelected ? SELECTED_LINK_ITEM_STYLE : LINK_ITEM_STYLE} className="rmr-item focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" title={pagesLabel}>
+				{pages.length > 0 ? <PanelsTopLeft size={18} aria-hidden="true" /> : <FilePlus2 size={18} aria-hidden="true" />}<span className="rmr-label" style={{ flex: 1 }}>{pagesLabel}</span>
+			</Link>
+			{pages.map(page => <Link key={page.pageId} href={routes.page(page.handle)} aria-current={pathname === routes.page(page.handle) ? "page" : undefined} style={pathname === routes.page(page.handle) ? SELECTED_LINK_ITEM_STYLE : LINK_ITEM_STYLE} className="rmr-item focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" title={page.name}>
+				<span aria-hidden="true"><Avatar displayName={page.name} avatarUrl={page.logoUrl} size={22} shape="square" /></span><span className="rmr-label" style={{ flex: 1 }}>{page.name}</span>
+			</Link>)}
+		</section>
+	</>
 }

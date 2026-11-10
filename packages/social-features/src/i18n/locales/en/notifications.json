@@ -15,15 +15,26 @@
     "empty": "No activity yet. Reactions, comments, invitations and mentions will appear here.",
     "loadMore": "Show more activity",
     "loadingMore": "Loading earlier activity…",
-    "seeAll": "See all"
+    "seeAll": "See all",
+    "filters": "Filter notifications",
+    "all": "All",
+    "unread": "Unread",
+    "filterScope": "This filter covers loaded notifications. Later pages may contain more.",
+    "emptyUnread": "No unread notifications among those loaded.",
+    "groups": {
+      "new": "New",
+      "earlier": "Earlier"
+    }
   },
   "reseauNotificationRow": {
     "markRead": "Mark as read",
-    "accept": "Accept",
+    "accept": "Confirm",
     "decline": "Decline",
     "accepted": "Connection accepted.",
     "declined": "Invitation declined.",
-    "alreadyHandled": "Invitation already handled."
+    "alreadyHandled": "Invitation already handled.",
+    "unread": "Unread notification.",
+    "decisionFailed": "Your response could not be saved. Try again."
   },
   "notificationCenterTabs": {
     "unread_one": "{{count}} unread notification",
@@ -40,12 +51,15 @@
     "inviteCancelled": "Invitation cancelled.",
     "unknownActor": "Network member",
     "viewDecisions": "View decisions",
+    "viewReports": "View my reports",
     "sentence": {
       "associationEventReminder": "Reminder: an event you registered for is approaching.",
       "membershipChanged": "Your network membership has changed.",
       "badgeChanged": "Your badges have changed.",
       "moderationDecision": "A moderation decision concerns you. View your decisions and appeals.",
       "moderationDecisionPage": "A moderation decision concerns the page {{page}}. View its decisions and appeals.",
+      "reportReceived": "Your report has been received. You will be told the decision.",
+      "reportDecided": "A decision has been made on your report.",
       "pagePost": "A page you follow published a post.",
       "pagePostNamed": "{{page}} posted.",
       "albumPublished": "{{actor}} published an album.",
@@ -65,6 +79,7 @@
       "contextualClosed": "{{actor}} closed a request conversation.",
       "contextualClosedSystem": "A request conversation was closed.",
       "commerce": {
+        "followupUpdated": "Your service request has an update. Open it to review.",
         "quoteReceived": "A quote is waiting for your service request.",
         "quoteRevised": "A revised quote is waiting for your service request.",
         "bookingConfirmed": "Your appointment is confirmed by the professional.",

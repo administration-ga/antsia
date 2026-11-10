@@ -1,0 +1,49 @@
+{
+  "title": "Prepare my services in PRO.GA",
+  "lead": "Check your activity preparation and continue managing it in the authorized PRO.GA screens.",
+  "read": "Check my preparation",
+  "refresh": "Check again",
+  "loading": "Reading your preparation in PRO.GA…",
+  "saveFirst": "Save your changes before checking PRO.GA access.",
+  "offline": "Reconnect, then check your preparation again.",
+  "unavailable": "Preparation for this activity is currently unavailable.",
+  "checkedAt": "Checked on {{date}}",
+  "validUntil": "Access checked until {{date}}",
+  "expired": "This check has expired. Check again before opening PRO.GA.",
+  "catalog": {
+    "title": "Public catalog",
+    "published": "Public version {{version}} available",
+    "unpublished": "No public version available"
+  },
+  "services": {
+    "title": "Service permission in PRO.GA",
+    "enabled": "Enabled in PRO.GA",
+    "disabled": "Disabled in PRO.GA"
+  },
+  "capabilities": {
+    "catalog": "Catalog and offers",
+    "quotes": "Quotes",
+    "agenda": "Agenda",
+    "fixed_packages": "Packages"
+  },
+  "accessAllowed": "PRO.GA has authorized access to this screen.",
+  "accessUnavailable": "Screen access is unavailable.",
+  "missingTitle": "Items to complete",
+  "missing": {
+    "module_unavailable": "Module unavailable.",
+    "task_denied": "You are not authorized for this task.",
+    "permission_missing": "A required permission is missing.",
+    "catalog_unpublished": "The catalog has not been published.",
+    "service_disabled": "Services are disabled.",
+    "verification_required": "Verification is required."
+  },
+  "targets": {
+    "catalog": "Open catalog in PRO.GA",
+    "new_offer": "Create an offer in PRO.GA",
+    "quotes": "Open quotes in PRO.GA",
+    "agenda": "Open agenda in PRO.GA",
+    "agenda_services": "Set up agenda services",
+    "agenda_resources": "Set up agenda resources"
+  },
+  "accessExpired": "Access needs to be checked again."
+}

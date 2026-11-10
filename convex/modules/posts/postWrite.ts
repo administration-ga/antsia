@@ -18,7 +18,7 @@ import type { ProvinceSlug } from "@antsia/social-domain/provinces"
 import { extractHashtags } from "@antsia/social-domain/richText"
 import { buildSearchableText } from "@antsia/social-domain/searchText"
 
-import { moderateContentWrite, moderatePageContentWrite } from "../moderation/policy"
+import { moderateContentWrite, moderateOwnedContentWrite, moderatePageContentWrite } from "../moderation/policy"
 import type { Doc, Id } from "../../_generated/dataModel"
 import type { MutationCtx } from "../../_generated/server"
 import { checked, notFound } from "../../lib/errors"
@@ -36,6 +36,8 @@ import { purgeMaterializedPost, schedulePostFeed } from "./feedMaterialization"
 import { getRootNetwork } from "../../lib/access"
 import { pageEventAccess } from "../events/pageEventAccess"
 import { canReadPageEventGalleryPost } from "../events/pageEventGalleryAccess"
+import { readablePublishedArticle } from "../editorial/read"
+import { requireEditorialRole } from "../editorial/access"
 
 export type PostWriteInput = {
   network: Doc<"networks">
@@ -63,6 +65,8 @@ export type PostWriteInput = {
   pageId?: Id<"pages">
   /** DG-023 : galerie collective, distincte de l'annonce eventId. L'acteur de dépôt n'en est pas propriétaire. */
   pageEventGalleryId?: Id<"events">
+  /** MP13 : article publié et habilitation publisher déjà admis ; aucune copie du texte dans le post. */
+  editorialArticleId?: Id<"editorialArticles">
 }
 
 /** Lisible depuis la racine : née à la racine, ou `root`. */
@@ -134,6 +138,12 @@ export async function notifyMentions(
  */
 export async function writePost(ctx: MutationCtx, input: PostWriteInput): Promise<{ postId: Id<"posts"> }> {
   if (!hasNativePostAuthor(input)) return notFound()
+  if (input.editorialArticleId !== undefined) {
+    if (!input.pageId || input.body !== "" || input.audience !== "public" || input.visibility !== "network" || input.sharedPostId !== undefined || input.groupId !== undefined || input.eventId !== undefined || input.liveSessionId !== undefined || input.pageEventGalleryId !== undefined || input.media?.length || input.reach !== undefined || input.country !== undefined || input.province !== undefined) return notFound()
+    const live = await readablePublishedArticle(ctx, { networkId: input.network._id, readerPersonId: input.authorPersonId }, input.editorialArticleId)
+    if (!live || live.page._id !== input.pageId) return notFound()
+    await requireEditorialRole(ctx, { networkId: input.network._id, personId: input.authorPersonId }, input.pageId, ["publisher"])
+  }
   if (input.pageEventGalleryId !== undefined) {
     const event = await ctx.db.get(input.pageEventGalleryId)
     if (!event || !input.pageId || input.eventId !== undefined || input.liveSessionId !== undefined || input.province !== undefined || input.country !== undefined || input.reach !== "diaspora" || !input.media?.length) return notFound()
@@ -171,12 +181,15 @@ export async function writePost(ctx: MutationCtx, input: PostWriteInput): Promis
     ...(input.eventId ? { eventId: input.eventId } : {}),
     ...(input.liveSessionId ? { liveSessionId: input.liveSessionId } : {}),
     ...(input.pageId ? { pageId: input.pageId } : {}),
+    ...(input.editorialArticleId ? { editorialArticleId: input.editorialArticleId } : {}),
     publishedAt: now,
     createdAt: now,
     updatedAt: now,
   }
   const postId = await ctx.db.insert("posts", doc)
-  const admitted = input.pageEventGalleryId !== undefined && input.pageId !== undefined
+  const admitted = input.editorialArticleId !== undefined && input.pageId !== undefined
+    ? await moderateOwnedContentWrite(ctx, { networkId: input.network._id, owner: { pageId: input.pageId }, kind: "post", id: postId, text: input.body })
+    : input.pageEventGalleryId !== undefined && input.pageId !== undefined
     ? await moderatePageContentWrite(ctx, { networkId: input.network._id, pageId: input.pageId, kind: "post", id: postId, text: input.body })
     : await moderateContentWrite(ctx, { networkId: input.network._id, ownerPersonId: input.authorPersonId, kind: "post", id: postId, text: input.body })
   if (!admitted) return { postId }

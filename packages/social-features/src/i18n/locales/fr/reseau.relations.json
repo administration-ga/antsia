@@ -188,5 +188,16 @@
       "openFeed": "Ouvrir le fil",
       "seeSuggestions": "Voir les suggestions"
     }
+  },
+  "suggestionRelation": {
+    "follow": "Suivre",
+    "followLabel": "Suivre {{name}}",
+    "followBack": "Suivre en retour",
+    "followBackLabel": "Suivre {{name}} en retour",
+    "following": "Suivi",
+    "followingLabel": "Vous suivez {{name}} : ne plus suivre",
+    "followed": "Vous suivez {{name}}.",
+    "unfollowed": "Vous ne suivez plus {{name}}.",
+    "followFailed": "Le suivi n'a pas pu être enregistré."
   }
 }

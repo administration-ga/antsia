@@ -43,7 +43,7 @@ import type { NotificationTargets } from "./notification-targets"
 
 /**
  * Deux poses, deux hôtes. `"chrome"` = la barre de la coque (pastille
- * absolue, 38 px, mêmes jetons que ses voisines) ; `"reseau"` = l'en-tête
+ * absolue, 44 px, mêmes jetons que ses voisines) ; `"reseau"` = l'en-tête
  * mobile du réseau, qui a sa propre facture d'onglets (`.rm-tab`, 44 px).
  */
 export type NotificationBellVariant = "chrome" | "reseau"
@@ -92,7 +92,7 @@ function noCardHost(): symbol | null {
 }
 
 const CHROME_CLASS =
-	"relative grid size-[38px] place-items-center rounded-[var(--esp-header-icon-radius,var(--esp-r-chrome))] bg-[var(--esp-header-icon-bg,var(--esp-neutral-chip))] text-muted-foreground transition-colors hover:bg-[var(--esp-neutral-hover)] hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
+	"relative grid size-11 place-items-center rounded-[var(--esp-header-icon-radius,var(--esp-r-chrome))] bg-[var(--esp-header-icon-bg,var(--esp-neutral-chip))] text-muted-foreground transition-colors hover:bg-[var(--esp-neutral-hover)] hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
 
 export function NotificationBell({
 	fullHref,
@@ -164,7 +164,7 @@ export function NotificationBell({
 						{badge ? (
 							<span
 								aria-hidden="true"
-								className="absolute -top-1.5 -right-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[var(--role-react-fill,var(--destructive))] px-1 text-[9px] font-bold tabular-nums text-[color:var(--role-react-on,var(--destructive-foreground))]"
+								className="absolute -top-1 -right-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[var(--role-react-fill,var(--destructive))] px-1 text-[10.5px] font-bold tabular-nums text-[color:var(--role-react-on,var(--destructive-foreground))]"
 							>
 								{badge}
 							</span>

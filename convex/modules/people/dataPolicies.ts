@@ -57,11 +57,22 @@ export const DATA_TABLE_POLICIES: Record<string, { shared?: boolean; owners?: re
   // un message en voix de personne est à son auteur, en voix de page il reste à la page (le
   // signataire n'en est qu'une référence d'audit, anonymisée) ; l'état personnel suit la personne
   // et son fil ; la politique est une configuration.
-  contextualThreads: {owners: [], parents: ["serviceRequestId", "mentoringRequestId", "jobApplicationId"]},
+  contextualThreads: {owners: [], parents: ["serviceRequestId", "mentoringRequestId", "jobApplicationId", "professionalCollaborationId"]},
   contextualMessages: {owners: ["authorPersonId"], parents: ["threadId"]},
   contextualPersonStates: {owners: ["personId"], parents: ["threadId"]},
   contextualPolicies: {shared: true},
   personalThreads: {shared: true},
+  // Presse : contenu de page ; la signature technique ne donne pas la propriété du contenu collectif.
+  editorialMedia: {owners: []},
+  editorialGrants: {owners: ["personId"]},
+  editorialArticles: {owners: []},
+  editorialVersions: {owners: []},
+  editorialEvents: {owners: []},
+  editorialSocialLinks: {owners: []},
+  editorialAssets: {owners: ["uploadedByPersonId"]},
+  professionalProfiles: {owners: ["personId"]},
+  // La proposition et son contexte privé disparaissent avec l'une des parties.
+  professionalCollaborations: {owners: ["fromPersonId", "toPersonId"]},
   personalMessages: {owners: ["senderPersonId"]},
   personalMessageReactions: {parents: ["messageId"]},
   personalTyping: {},
@@ -108,6 +119,7 @@ export const DATA_TABLE_POLICIES: Record<string, { shared?: boolean; owners?: re
   shopPaymentRequests: {owners: ["personId"]},
   shopPurchaseSnapshots: {owners: ["personId"]},
   shopPurchaseRequests: {owners: ["personId"]},
+  commerceCatalogIndexes: {shared: true},
   commerceCatalogMappings: {shared: true},
   commerceCatalogHeads: {parents: ["shopId"]},
   commerceCatalogMediaAssets: {parents: ["headId"]},
@@ -118,10 +130,13 @@ export const DATA_TABLE_POLICIES: Record<string, { shared?: boolean; owners?: re
   commerceApplicationSubjects: {owners: ["personId"]},
   commerceApplicationFiles: {owners: ["personId"]},
   commerceApplications: {owners: ["personId"]},
+  commerceApplicationIntentFences: {owners: ["personId"]},
   // P14 : politique collective ; demandes de services et commandes signées = données du seul acheteur.
   commerceServicePolicies: {shared: true},
   commerceServiceRequests: {owners: ["personId"]},
   commerceServiceCommands: {owners: ["personId"]},
+  commerceServiceFollowupNotices: {owners: ["personId"], parents: ["requestId"]},
+  serviceClientIntentFences: {owners: ["personId"]},
   albums: {owners: ["ownerPersonId"]},
   albumItems: {owners: ["ownerPersonId"],parents: ["albumId"]},
   calls: {owners: ["createdByPersonId","calleePersonId"]},

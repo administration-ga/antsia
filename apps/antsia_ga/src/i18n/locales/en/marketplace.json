@@ -1,0 +1,141 @@
+{
+  "title": "Marketplace",
+  "lead": "Discover products, shops and services within your network.",
+  "manageActivity": "Create or manage my activity",
+  "carts": "My baskets",
+  "views": {
+    "label": "Explore the marketplace",
+    "products": "Products",
+    "shops": "Shops",
+    "services": "Services"
+  },
+  "filters": {
+    "title": "Filters and search",
+    "open": "Search and filter",
+    "active": "Active filters",
+    "query": "What are you looking for?",
+    "queryHint": "Up to 120 characters and 16 words.",
+    "categories": "Departments and categories",
+    "brand": "Brands",
+    "material": "Materials",
+    "color": "Colours",
+    "audience": "For whom",
+    "serviceMode": "Service delivery",
+    "add": "Add",
+    "addValue": "Add a value to {{facet}}",
+    "remove": "Remove {{value}}",
+    "multipleHint": "Up to 6 values per filter. Results may match any one of these values.",
+    "minPrice": "Minimum price (XAF)",
+    "maxPrice": "Maximum price (XAF)",
+    "priceHint": "Displayed prices are indicative; quote-based offers remain labelled.",
+    "sort": "Sort",
+    "apply": "Show results",
+    "reset": "Reset all",
+    "invalid": "Check the filters: categories, prices and values must be compatible.",
+    "queryInvalid": "Enter a search of up to 120 characters and 16 words.",
+    "facetInvalid": "Add up to 6 distinct valid values. Languages: for example fr or en; locations: up to 120 characters.",
+    "priceInvalid": "Enter a non-negative whole amount.",
+    "commercialMode": "Service arrangements",
+    "languageCode": "Languages",
+    "serviceZone": "Locations in Gabon",
+    "minDurationMinutes": "Minimum duration (minutes)",
+    "maxDurationMinutes": "Maximum duration (minutes)",
+    "durationHint": "From 1 to 43,200 minutes, using the published duration.",
+    "durationInvalid": "Enter a whole duration from 1 to 43,200 minutes.",
+    "chooseLanguage": "Choose a language",
+    "otherLanguageHint": "For another language or regional variant, enter its code, such as fr, en or fr-GA."
+  },
+  "sorts": {
+    "newest": "Newest",
+    "price_asc": "Price: low to high",
+    "price_desc": "Price: high to low",
+    "relevance": "Relevance"
+  },
+  "results": {
+    "title": "Results",
+    "loading": "Searching…",
+    "refreshing": "Updating results…",
+    "building": "The catalogue is being prepared. Please return shortly.",
+    "empty": "No results match these filters. You can change your search.",
+    "window": "This page has no eligible results. The next page may contain some.",
+    "filtered": "This page shows only currently accessible results. No overall total is claimed.",
+    "failed": "The marketplace cannot be loaded right now.",
+    "retry": "Try again",
+    "invalid": "This search link is not valid.",
+    "restart": "Start a new search",
+    "pagination": "Marketplace pages",
+    "first": "First page",
+    "next": "Next page"
+  },
+  "demo": {
+    "title": "Demo selection",
+    "notice": "Fictional offers to explore the interface. This limited selection is separate from the general catalogue and cannot be purchased.",
+    "unavailable": "The demo selection could not be loaded.",
+    "loading": "Loading the demo selection…"
+  },
+  "commercialModes": {
+    "quote": "By quote",
+    "booking": "By appointment",
+    "fixed_order": "Service order"
+  },
+  "languageNames": {
+    "fr": "French",
+    "en": "English",
+    "es": "Spanish",
+    "pt": "Portuguese",
+    "ar": "Arabic",
+    "zh": "Chinese"
+  },
+  "home": {
+    "greeting": "Hello {{name}}",
+    "cart_one": "My baskets: {{count}} line",
+    "cart_other": "My baskets: {{count}} lines",
+    "searchLabel": "Search for products in the marketplace",
+    "searchSuggestion": "I’m looking for “{{term}}”",
+    "pills": {
+      "label": "Marketplace departments",
+      "home": "Home"
+    },
+    "filter": "Filter",
+    "filterCount": "Filter ({{count}})",
+    "close": "Close",
+    "backToTop": "Back to the top of the page",
+    "seeAll": "See all",
+    "sections": {
+      "shops": "Shops",
+      "providers": "Service providers",
+      "newOffers": "New arrivals",
+      "services": "Services",
+      "demoProducts": "Demo products",
+      "demoServices": "Demo services"
+    },
+    "noShops": "No storefront has been published in your network yet.",
+    "sectionFailed": "This section cannot be loaded right now.",
+    "sellerLead": "Do you offer products or services?"
+  },
+  "food": {
+    "title": "Food and restaurants",
+    "lead": "Restaurants, caterers and grocers in the network. Order from a place, then pay on handover.",
+    "allMarketplace": "The whole marketplace",
+    "retry": "Retry",
+    "empty": "No food or restaurant place is open in this network yet.",
+    "openActivity": "Open my business",
+    "shops": "Places",
+    "offers": "To order",
+    "demoOffers": "Shop examples — demo",
+    "specials": "Today’s specials",
+    "categories": {
+      "label": "Food categories",
+      "all": "All products",
+      "lead": "Browse the categories published by businesses in PRO.GA."
+    },
+    "catalog": {
+      "empty": "No published product is available in this category.",
+      "failed": "Food products cannot be loaded right now.",
+      "building": "The food product index is being prepared.",
+      "pagination": "Food product pages",
+      "invalid": "This food category link is not valid.",
+      "restart": "View all food products"
+    }
+  }
+}

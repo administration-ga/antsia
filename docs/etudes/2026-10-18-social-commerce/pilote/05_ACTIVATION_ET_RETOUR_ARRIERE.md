@@ -1,5 +1,52 @@
 # 05 — Activation progressive et retour arrière, par capacité
 
+> **20 octobre 2026 — aucune activation autorisée ou effectuée dans cette reprise.** La matrice
+> du [document 01](01_VERSIONS_CANDIDATES.md#actualisation-du-20-octobre-2026) prépare NO GO.
+> Les tableaux du 19 octobre ci-dessous restent historiques : leurs portes « ouvrables » ne
+> tiennent pas compte à elles seules des registres fermés et des dépendances actuelles.
+
+Ce NO GO porte sur la candidate issue de cette reprise ; aucune disponibilité ou configuration
+de production d’une autre session n’est observée. Les registres décrits sont ceux des sources,
+sans requête ni activation sur un déploiement.
+
+## Addendum courant : fermeture des nouveaux effets et continuité
+
+P16 ajoute un registre pur fermé, sans bascule d’environnement : côté ANTSIA, admission
+automatique de vitrine, paiements, services et candidatures ; côté PRO.GA, services,
+candidatures et nouvelles copies de CV. Une valeur `enabled=true` ancienne ne les ouvre pas.
+Une ancienne politique de vitrine `auto_verified` est effectivement lue en revue. La future
+réouverture exige les décisions documentées, la correction des dépendances et la recette,
+puis une évolution contrôlée des sources ; aucune commande de configuration n’est proposée ici.
+
+| Capacité | Maintien fermé / retour arrière préparé, non exécuté | Continuité à préserver |
+|---|---|---|
+| UI Web et native | Ne publier aucun nouveau candidat non validé ; ne pas transformer une correction de source en preuve de retrait d’un binaire déjà distribué | Sessions et contenus existants ; aucune purge pour revenir à une présentation |
+| Vitrine/catalogue/contact | Politiques et consentements existants restent les portes ; préserver le verrou d’automatisation P16 ; les consoles ajoutées par les finitions ne sont pas des validations | Tombes/révisions, reçus, retraits CRM et support privé des engagements ; une fermeture P10 n’ouvre pas ses anciennes conversations |
+| Préparation et paiement | Fermer les nouvelles préparations par leurs politiques ; garder le registre paiement P16 fermé ; aucun débit pour tester | Statut/libération/expiration des réservations, consultation et rapprochement des opérations existantes, remboursements sous leur autorité historique ; aucun succès fabriqué |
+| Services | Garder les nouvelles admissions fermées ; aucune ouverture indirecte de paiement manuel/acompte par commande ou facture issue d’ANTSIA | Demandes retrouvées, résultats historiques, preuve contractuelle, annulation/changement admissibles et rendez-vous encore tenus ; une réponse inconnue n’est pas une absence |
+| Emploi et CV | Garder candidatures/copies nouvelles fermées ; retirer une publication par les consentements/mandats normaux | Suivi et retrait existants, purge privée `pending/failed` avec référence conservée ; accès révoqué sans promesse de suppression physique |
+| Appels natifs | Conserver l’activation explicite désactivée et aucune application native active ajoutée au registre ; une configuration absente doit rester indisponible | Fermeture locale/OS, arrêt effectif des pistes et révocation sous la bonne liaison à éprouver ; ne pas changer l’accessibilité SecureStore pour contourner le verrouillage |
+
+P17c est désormais source : module système local, client et moteur raccordés. Le flag natif
+reste désactivé par défaut ; identités détenues, APNs/Firebase/LiveKit, résolution des dépendances,
+compilation et [preuves physiques P17d](../../../recette/antsia-native-p17d/README.md) manquent.
+Aucun retour arrière distant d’un binaire n’est attesté. Ne pas réutiliser des identités ou
+secrets d’un autre produit. [P18 natif](../rapports/P18_REPRISE_2026-10-20.md) est raccordé
+sans mesures ; ses améliorations ne lèvent aucun gate.
+
+Les invariants et objectifs du §6 historique sont des **critères proposés**, pas des mesures
+obtenues. Les seuils d’exploitation chiffrés restent à fixer à partir d’observations et d’une
+décision ; les rôles génériques du §2 ne désignent aucune personne ni astreinte effectivement
+mobilisée. Avant ouverture, faire admettre une voie de support et prouver ces continuités,
+y compris la limite toujours ouverte du membre suspendu et l’effacement général PRO.GA.
+
+Sources : [P16](../rapports/P16_REPRISE_2026-10-20.md),
+[P17c](../rapports/P17C_REPRISE_2026-10-20.md),
+[finitions](../rapports/FINITIONS_TECHNIQUES.md),
+[bilan P19](../rapports/P19_REPRISE_2026-10-20.md).
+
+## Plan historique du 19 octobre (conservé)
+
 19 octobre 2026, lot P19. **Aucune capacité n'est ouverte et aucune ne doit l'être sur la foi de ce
 document.** Toutes les politiques commerciales sont fermées par défaut dans le code. Chaque
 ouverture suppose : un `verify` vert, la recette de la capacité jouée (verdict « observé en

@@ -1,0 +1,49 @@
+{
+  "title": "Préparer mes services dans PRO.GA",
+  "lead": "Consultez la préparation de votre activité et poursuivez sa gestion dans les écrans PRO.GA autorisés.",
+  "read": "Vérifier ma préparation",
+  "refresh": "Vérifier à nouveau",
+  "loading": "Lecture de votre préparation dans PRO.GA…",
+  "saveFirst": "Enregistrez vos modifications avant de vérifier les accès à PRO.GA.",
+  "offline": "Reconnectez-vous puis vérifiez à nouveau votre préparation.",
+  "unavailable": "La préparation de cette activité n’est pas accessible actuellement.",
+  "checkedAt": "État vérifié le {{date}}",
+  "validUntil": "Accès vérifiés jusqu’au {{date}}",
+  "expired": "Cette vérification a expiré. Vérifiez à nouveau avant d’ouvrir PRO.GA.",
+  "catalog": {
+    "title": "Catalogue public",
+    "published": "Version publique {{version}} disponible",
+    "unpublished": "Aucune version publique disponible"
+  },
+  "services": {
+    "title": "Autorisation des services dans PRO.GA",
+    "enabled": "Activée dans PRO.GA",
+    "disabled": "Désactivée dans PRO.GA"
+  },
+  "capabilities": {
+    "catalog": "Catalogue et offres",
+    "quotes": "Devis",
+    "agenda": "Agenda",
+    "fixed_packages": "Forfaits"
+  },
+  "accessAllowed": "Accès à l’écran autorisé par PRO.GA.",
+  "accessUnavailable": "Accès à l’écran non disponible.",
+  "missingTitle": "Éléments à compléter",
+  "missing": {
+    "module_unavailable": "Module non disponible.",
+    "task_denied": "Cette tâche ne vous est pas autorisée.",
+    "permission_missing": "Une permission nécessaire manque.",
+    "catalog_unpublished": "Le catalogue n’est pas publié.",
+    "service_disabled": "Les services sont désactivés.",
+    "verification_required": "Une vérification est nécessaire."
+  },
+  "targets": {
+    "catalog": "Ouvrir le catalogue dans PRO.GA",
+    "new_offer": "Créer une offre dans PRO.GA",
+    "quotes": "Ouvrir les devis dans PRO.GA",
+    "agenda": "Ouvrir l’agenda dans PRO.GA",
+    "agenda_services": "Configurer les prestations de l’agenda",
+    "agenda_resources": "Configurer les ressources de l’agenda"
+  },
+  "accessExpired": "Accès à vérifier à nouveau."
+}

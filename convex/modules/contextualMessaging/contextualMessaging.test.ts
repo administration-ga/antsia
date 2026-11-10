@@ -9,7 +9,7 @@
  * À la réouverture des contrôles : `bunx vitest run --config convex/vitest.config.ts modules/contextualMessaging`.
  */
 import { engineErrorAppRule, engineErrorCode, engineErrorRule } from "@antsia/social-contracts/errors"
-import { CONTEXTUAL_KINDS, CONTEXTUAL_TEXT_MAX } from "@antsia/social-domain/contextualMessaging"
+import { CONTEXTUAL_SUPPORTED_KINDS, CONTEXTUAL_TEXT_MAX } from "@antsia/social-domain/contextualMessaging"
 import { makeFunctionReference, type PaginationOptions, type PaginationResult } from "convex/server"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
@@ -60,7 +60,7 @@ const fakes = vi.hoisted(() => {
   })
   return {
     objects,
-    registry: { diasporaServiceRequest: resolver("diasporaServiceRequest"), diasporaMentoring: resolver("diasporaMentoring"), diasporaJobApplication: resolver("diasporaJobApplication") },
+    registry: { diasporaServiceRequest: resolver("diasporaServiceRequest"), diasporaMentoring: resolver("diasporaMentoring"), diasporaJobApplication: resolver("diasporaJobApplication"), professionalCollaboration: resolver("professionalCollaboration") },
   }
 })
 
@@ -117,7 +117,7 @@ async function caught(work: Promise<unknown>): Promise<unknown> {
 }
 
 /** Un identifiant de forme valide pour la table, sans ligne : seul le registre de test le connaît. */
-function fakeId<Table extends "serviceRequests" | "mentoringRequests" | "jobApplications">(table: Table): Id<Table> {
+function fakeId<Table extends "serviceRequests" | "mentoringRequests" | "jobApplications" | "professionalCollaborations">(table: Table): Id<Table> {
   sequence += 1
   return `${900_000 + sequence}${table}` as Id<Table>
 }
@@ -143,7 +143,7 @@ async function fixture({ openPolicies = true }: { openPolicies?: boolean } = {})
     const id = await ctx.db.insert("pages", { networkId: root, handle: "ctx-salon", name: "Salon de recette", ownerKind: "company", trust: "community", trustRank: 1, visibility: "network", onRoot: true, status: "active", createdByPersonId: admin.personId, searchText: "salon recette", createdAt: NOW, updatedAt: NOW })
     await ctx.db.insert("pageSignatories", { networkId: root, pageId: id, personId: admin.personId, role: "admin", acceptedAt: NOW, createdAt: NOW, updatedAt: NOW })
     await ctx.db.insert("pageSignatories", { networkId: root, pageId: id, personId: teammate.personId, role: "signatory", acceptedAt: NOW, createdAt: NOW, updatedAt: NOW })
-    if (openPolicies) for (const kind of CONTEXTUAL_KINDS) await ctx.db.insert("contextualPolicies", { networkId: root, kind, enabled: true, updatedAt: NOW })
+    if (openPolicies) for (const kind of CONTEXTUAL_SUPPORTED_KINDS) await ctx.db.insert("contextualPolicies", { networkId: root, kind, enabled: true, updatedAt: NOW })
     return id
   })
   return { t, root, child: testClosed, requester, admin, teammate, mentor, stranger, pageId }
@@ -206,6 +206,21 @@ async function noticesFor(f: Fixture, personId: Id<"persons">): Promise<Doc<"not
 // ═══════════════════════════════════════════════════════════════
 
 describe("CC-2b — accès et réseau", () => {
+  it("MP09 : le nouveau contexte reste soumis à la politique, aux parties et à sa référence propre", async () => {
+    const f = await fixture({ openPolicies: false })
+    const ref = { kind: "professionalCollaboration", id: fakeId("professionalCollaborations") } as const
+    fakes.objects.set(ref.id, { snapshot: { ...snapshotOf(f, { personId: f.mentor.personId }, "open", false), callsEngaged: false, attachments: { requester: false, responder: false } }, hiddenFrom: new Set() })
+    expect(await f.t.run(ctx => openContextualConversation(ctx, ref))).toEqual({ opened: false })
+    await f.t.run(async ctx => { await ctx.db.insert("contextualPolicies", { networkId: f.root, kind: "professionalCollaboration", enabled: true, updatedAt: NOW }) })
+    const threadId = await opened(f, ref)
+    expect(await f.stranger.as.query(getThread, { networkId: f.root, threadId })).toBeNull()
+    await say(f, f.requester, threadId, "Projet accepté", "professional-intent-01")
+    expect(await count(f, "personalThreads")).toBe(0)
+    expect(await count(f, "connections")).toBe(0)
+    await f.t.run(async ctx => { await ctx.db.patch(threadId, { mentoringRequestId: fakeId("mentoringRequests") }) })
+    expect(await f.requester.as.query(getThread, { networkId: f.root, threadId })).toBeNull()
+  })
+
   it("N01 : un tiers lit `null` et écrit `notFound`, comme pour un identifiant inventé, sans aucun effet", async () => {
     const f = await fixture()
     const ref = service(f)
@@ -737,7 +752,7 @@ describe("CC-2b — export et effacement", () => {
   })
 
   it("N40 / N42 : le fil suit son objet ; messages des deux côtés, états personnels et états de modération suivent le fil", () => {
-    expect(DATA_TABLE_POLICIES.contextualThreads).toEqual({ owners: [], parents: ["serviceRequestId", "mentoringRequestId", "jobApplicationId"] })
+    expect(DATA_TABLE_POLICIES.contextualThreads).toEqual({ owners: [], parents: ["serviceRequestId", "mentoringRequestId", "jobApplicationId", "professionalCollaborationId"] })
     expect(DATA_TABLE_POLICIES.contextualMessages?.parents).toEqual(["threadId"])
     expect(DATA_TABLE_POLICIES.contextualPersonStates?.parents).toEqual(["threadId"])
     expect(DATA_TABLE_POLICIES.moderationContentStates?.parents).toContain("targetId")
@@ -792,6 +807,7 @@ describe("CC-2b — politique, listes, non-régression", () => {
       { kind: "diasporaServiceRequest", enabled: true, updatedAt: NOW },
       { kind: "diasporaMentoring", enabled: false, updatedAt: null },
       { kind: "diasporaJobApplication", enabled: false, updatedAt: null },
+      { kind: "professionalCollaboration", enabled: false, updatedAt: null },
     ])
     const audit = await f.t.run(async (ctx) => (await ctx.db.query("engineAudit").take(100)).filter((row) => row.action === "contextual.policy_set"))
     expect(audit).toHaveLength(1)

@@ -1,4 +1,13 @@
 {
+  "dailySpecial": {
+    "label": "Plat du jour",
+    "cardLabel": "Plat du jour : {{title}}, chez {{shop}}",
+    "order": "Commander",
+    "untilMidnight": "Jusqu’à minuit à Libreville",
+    "onQuote": "Sur devis",
+    "priceRange": "De {{min}} à {{max}}",
+    "priceUnit": "{{amount}} / {{unit}}"
+  },
   "storiesTray": {
     "unknownAuthor": "Membre du réseau",
     "age": {
@@ -91,6 +100,11 @@
     "backToFeed": "Revenir au fil",
     "imageAlt": "Actu de {{name}}",
     "play": "Lire la vidéo",
+    "playbackControls": "Lecture des Stories",
+    "previous": "Précédente",
+    "next": "Suivante",
+    "pause": "Pause",
+    "resume": "Reprendre",
     "unmute": "Activer le son",
     "mute": "Couper le son",
     "seenBy_one": "Vu par {{count}} personne",

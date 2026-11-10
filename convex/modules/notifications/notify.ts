@@ -32,7 +32,7 @@ import { serviceNoticeAdmission } from "../diaspora/serviceNotifications"
 import { communityNoticeAdmission } from "../diaspora/communityNotifications"
 import { commerceNoticeAdmission } from "./commerceAccess"
 import { enqueueNotificationPush } from "./deliveries"
-import { moderationNoticeRecipient } from "./policy"
+import { isReporterNoticeKind, moderationNoticeRecipient, reporterNoticeRecipient } from "./policy"
 import type { notificationSubjectValidator } from "./tables"
 import { type DiasporaCommunityNotificationKind, type DiasporaServiceNotificationKind, isDiasporaCommunityNotificationKind, isDiasporaServiceNotificationKind } from "./tables"
 
@@ -163,11 +163,14 @@ export async function notifyPerson(ctx: Pick<MutationCtx, "db"> & Partial<Pick<M
   if (input.kind === "association_event_reminder" && (input.actorPersonId !== undefined || !input.subject || !("event" in input.subject) || !(await pageEventReminderVisible(ctx, input.networkId, input.subject.event, input.recipientPersonId)))) return null
   const moderationNotice = input.kind === "moderation_decision"
   if (moderationNotice && (!input.subject || !("report" in input.subject) || input.actorPersonId !== undefined || !(await moderationNoticeRecipient(ctx, input.networkId, input.recipientPersonId, input.subject.report)))) return null
+  // SU01d : l'accusé de réception et la décision vont au seul DÉCLARANT du dossier, sans acteur (le modérateur ne se nomme pas).
+  const reporterNotice = isReporterNoticeKind(input.kind)
+  if (reporterNotice && (!input.subject || !("report" in input.subject) || input.actorPersonId !== undefined || !(await reporterNoticeRecipient(ctx, input.networkId, input.recipientPersonId, input.subject.report)))) return null
   if (input.actorPersonId !== undefined) {
     if (input.actorPersonId === input.recipientPersonId) return null
     if (await isBlockedBetween(ctx, input.actorPersonId, input.recipientPersonId)) return null
   }
-  if (!moderationNotice && !(await isActiveMember(ctx, input.networkId, input.recipientPersonId))) return null
+  if (!moderationNotice && !reporterNotice && !(await isActiveMember(ctx, input.networkId, input.recipientPersonId))) return null
   const dedupKey = notificationDedupKey(input.kind, subjectOf(input.subject), input.actorPersonId ?? null)
   const now = Date.now()
   const existing = await ctx.db

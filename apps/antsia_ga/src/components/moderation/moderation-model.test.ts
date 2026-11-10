@@ -1,5 +1,18 @@
 import { describe, expect, it } from "vitest"
-import { createModerationLock, moderationDecisionInput, moderationDecisionSchema, moderationUntil, moderationWindow } from "./moderation-model"
+import { createModerationLock, deadlineCountdown, moderationDecisionInput, moderationDecisionSchema, moderationUntil, moderationWindow } from "./moderation-model"
+
+describe("SU01d — chronomètre des délais légaux", () => {
+  const due = Date.UTC(2026, 9, 24, 20, 0)
+  it("dit le reste en heures et minutes entières, arrondi vers le bas", () => {
+    expect(deadlineCountdown(due, due - (5 * 60 + 12) * 60_000 - 30_000)).toEqual({ overdue: false, hours: 5, minutes: 12 })
+    expect(deadlineCountdown(due, due - 59_999)).toEqual({ overdue: false, hours: 0, minutes: 0 })
+    expect(deadlineCountdown(due, due)).toEqual({ overdue: false, hours: 0, minutes: 0 })
+  })
+  it("dit le retard d'au moins une minute dès que l'échéance est passée", () => {
+    expect(deadlineCountdown(due, due + 1)).toEqual({ overdue: true, hours: 0, minutes: 1 })
+    expect(deadlineCountdown(due, due + (2 * 60 + 5) * 60_000)).toEqual({ overdue: true, hours: 2, minutes: 5 })
+  })
+})
 
 describe("modération nationale : capacité et gestes", () => {
   const capacity = { networkWide: false, teams: [{ teamId: "allowed" }] }

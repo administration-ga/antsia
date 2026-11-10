@@ -19,6 +19,21 @@
 @source "../../../../packages/ui/src";
 @source "../../../../packages/social-features/src";
 
+/* La gouttière des pages (décision du propriétaire du 22/10/2026) : au bureau,
+   la marge extérieure vaut l'écart entre les colonnes, et la barre du haut comme
+   le bandeau démo s'y alignent. Un seul jeton du thème Tailwind (`px-gutter`,
+   `gap-gutter`), relu par la coque des membres (`member-navigation-styles.tsx`)
+   et par la page réseau du moteur (`reseau-adaptive-styles.ts`) : 16 px, puis
+   24 px dès 1 200 px. `static` : ces deux feuilles le lisent hors des classes. */
+@theme static {
+  --spacing-gutter: 16px;
+}
+@media (min-width: 1200px) {
+  :root {
+    --spacing-gutter: 24px;
+  }
+}
+
 /* P18b (A13, WCAG 2.4.11) : un élément focalisé ou visé par une ancre ne passe
    plus sous les barres fixes. En haut, la barre de membre collante (jeton du
    thème) ; sous 960 px, la barre des destinations, sa marge basse et la zone
@@ -86,3 +101,39 @@ html {
   --error-border: var(--danger-100);
   --error-text: var(--danger-700);
 }
+
+/* Écrans de la marketplace (MP01–MP13, ADR-0034) : mise en page et titres propres à
+   ces écrans, en valeurs fixes ; le système commun et les autres écrans n'en dépendent pas. */
+.mp-page { display: grid; gap: 24px; min-width: 0; }
+.mp-page-header { display: grid; gap: 8px; min-width: 0; }
+.mp-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.015em;
+}
+.mp-subtitle, .mp-page h2 {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+.mp-page h3 {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+.mp-copy { font-size: 15px; line-height: 1.5; }
+.mp-panel {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--esp-surface-border, var(--border));
+  border-radius: var(--ui2-card-radius, 1rem);
+  background: var(--card);
+  color: var(--card-foreground);
+}
+.mp-form-grid { display: grid; gap: 16px; min-width: 0; }

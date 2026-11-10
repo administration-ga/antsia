@@ -8,6 +8,7 @@ import { useTranslation } from "react-i18next"
 
 import { type DemoAccount, forgetDemoAccount, rememberDemoAccount } from "@/lib/demo-accounts"
 import { routes } from "@/lib/routes"
+import { browserAppPath } from "@/lib/app-path"
 
 /** Le code enregistré par l'envoi se relit aussitôt ; quelques essais couvrent le délai du backend local. */
 const CODE_READS = 8
@@ -23,13 +24,14 @@ function wait(ms: number): Promise<void> {
 }
 
 /**
- * Comptes de DÉMONSTRATION — développement local seulement : le catalogue est
- * vide ailleurs, et le panneau ne s'affiche pas. Un appui entre par le VRAI
- * parcours OTP : envoi du code, lecture du code local (celui que l'écran de
- * connexion affiche déjà en développement), vérification ; puis l'accueil réel
+ * Comptes de DÉMONSTRATION — développement local, ou déploiement de
+ * démonstration déclaré (`shared` : comptes partagés par tous les visiteurs) :
+ * le catalogue est vide ailleurs, et le panneau ne s'affiche pas. Un appui entre
+ * par le VRAI parcours OTP : envoi du code, lecture du code de l'adresse réservée
+ * (le serveur ne le rend qu'ici), vérification ; puis l'accueil réel
  * (`/bienvenue`), où l'automate prépare le compte en son acteur.
  */
-export function DemoAccountsPanel({ authClient }: { authClient: IdentityAuthClient }) {
+export function DemoAccountsPanel({ authClient, shared = false }: { authClient: IdentityAuthClient; shared?: boolean }) {
   const { t } = useTranslation("antsia")
   const convex = useConvex()
   const accounts = useQuery(api.modules.platform.demoAccounts.catalogue, {})
@@ -52,7 +54,7 @@ export function DemoAccountsPanel({ authClient }: { authClient: IdentityAuthClie
       }
       if (code === null) throw new Error("code")
       if (refused(await authClient.signIn.emailOtp({ email: account.email, otp: code }))) throw new Error("verify")
-      window.location.assign(routes.welcome())
+      window.location.assign(browserAppPath(routes.welcome()))
     } catch {
       forgetDemoAccount()
       setPending(null)
@@ -63,7 +65,7 @@ export function DemoAccountsPanel({ authClient }: { authClient: IdentityAuthClie
   return (
     <section aria-labelledby={titleId} className="mt-5 rounded-[var(--ui2-card-radius,1rem)] border border-dashed border-border p-4 text-left">
       <h3 id={titleId} className="text-sm font-semibold">{t("demo.title")}</h3>
-      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{t("demo.lead")}</p>
+      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{t(shared ? "demo.leadShared" : "demo.lead")}</p>
       <ul className="mt-3 grid gap-2">
         {accounts.map((account) => (
           <li key={account.actor}>

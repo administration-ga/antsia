@@ -22,8 +22,9 @@ export const ENGINE_ERROR_CODES = [
   "policyRefused",
   "consentRequired",
   "profileRequired",
-  // Garde des fichiers : un fichier RETENU (analyse en cours, ou bloqué).
+  // Garde des fichiers : un fichier RETENU (analyse en cours, analyse impossible, ou bloqué).
   "fileScanPending",
+  "fileScanUnavailable",
   "fileQuarantined",
   // Groupe thématique : la fiche est découvrable, agir y exige d'en être membre — et parfois un rôle.
   "groupMembershipRequired",

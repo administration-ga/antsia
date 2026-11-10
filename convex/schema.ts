@@ -30,6 +30,10 @@ import { operationalTables } from "./modules/platform/operationalTables"
 import { postsTables } from "./modules/posts/tables"
 import { feedTables } from "./modules/posts/feedTables"
 import { publicTables } from "./modules/public/tables"
+import { editorialTables } from "./modules/editorial/tables"
+import { editorialAssetTables } from "./modules/editorial/assetTables"
+import { editorialSocialTables } from "./modules/editorial/socialTables"
+import { professionalsTables } from "./modules/professionals/tables"
 import { shopsTables } from "./modules/shops/tables"
 import { commerceLinkTables } from "./modules/shops/commerceLinkTables"
 import { catalogTables } from "./modules/shops/catalogTables"
@@ -64,6 +68,10 @@ export default defineSchema(
     ...postsTables,
     ...feedTables,
     ...publicTables,
+    ...professionalsTables,
+    ...editorialTables,
+    ...editorialAssetTables,
+    ...editorialSocialTables,
     ...engagementTables,
     ...filesTables,
     ...federationTables,

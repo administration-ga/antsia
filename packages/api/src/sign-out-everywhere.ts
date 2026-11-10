@@ -1,7 +1,8 @@
 // Dupliqué de socle/packages/api/src/sign-out-everywhere.ts @ 25398f565 — adaptations : résultats Better Auth inspectés, requêtes bornées et annulables, état personnel du moteur actuel/ancien et deux clés de session de cette origine, nettoyage de l'atome et rappels locaux ; verrou partagé entre entrées du bundle jusqu'à la navigation complète ; aucun état d'un autre produit ni préférence de thème/langue effacé.
 import { CROSS_DOMAIN_COOKIE_KEY, CROSS_DOMAIN_SESSION_DATA_KEY } from "./cross-domain-session-bootstrap"
 
-export type AuthRequestOptions = { fetchOptions?: { throw?: boolean; signal?: AbortSignal } }
+/** `headers` : la langue affichée accompagne une demande de code (`Accept-Language`, composée par le moteur). */
+export type AuthRequestOptions = { fetchOptions?: { throw?: boolean; signal?: AbortSignal; headers?: Record<string, string> } }
 
 /** Contrat structurel satisfait par EngineAuthClient, injectable sans navigateur. */
 export type SignOutCapableClient = {

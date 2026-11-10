@@ -113,6 +113,7 @@ export const pushCredentialValidator = v.union(
   v.object({ provider: v.literal("expo"), token: v.string() }),
   v.object({ provider: v.literal("fcm"), token: v.string() }),
   v.object({ provider: v.literal("apns"), token: v.string() }),
+  v.object({ provider: v.literal("apns_voip"), token: v.string() }),
 )
 export const deliveryStateValidator = v.union(v.literal("queued"), v.literal("delivering"), v.literal("accepted"), v.literal("sent"), v.literal("unavailable"), v.literal("failed"), v.literal("cancelled"))
 
@@ -211,6 +212,8 @@ export const notificationsTables = {
     failureCount: v.number(),
     /** L’appareil ne reçoit rien après révocation de sa session PA4. */
     sessionId: v.optional(v.string()),
+    nativeBindingId: v.optional(v.string()),
+    sessionGeneration: v.optional(v.string()),
   })
     .index("by_provider_hash", ["provider", "credentialHash"])
     .index("by_network_person_active", ["networkId", "personId", "active"]),
@@ -225,6 +228,8 @@ export const notificationsTables = {
     networkId: v.id("networks"), recipientPersonId: v.id("persons"), channel: v.union(v.literal("push"), v.literal("digest"), v.literal("call")),
     notificationId: v.optional(v.id("notifications")), callId: v.optional(v.id("calls")),
     subscriptionId: v.optional(v.id("pushSubscriptions")), applicationId: v.string(),
+    /** Incarnation privée figée à l'admission ; une réinscription n'adopte pas les anciens jobs. */
+    nativeBindingId: v.optional(v.string()), sessionGeneration: v.optional(v.string()), nativeExpiresAt: v.optional(v.number()),
     category: notificationCategoryValidator, dedupKey: v.string(), weekStart: v.number(),
     state: deliveryStateValidator, attempts: v.number(), nextAttemptAt: v.number(),
     leaseUntil: v.optional(v.number()), leaseToken: v.optional(v.string()),

@@ -31,6 +31,7 @@
  * ou une relecture ferme les lignes jusqu'à la prochaine réponse autorisée.
  */
 
+import { themedActionStyle } from "../themed-action-style"
 import { useViewerTimeZone } from "@antsia/api/viewer-preferences"
 import { api, type Id } from "@antsia/api/engine"
 import { useAuthenticatedPaginatedQuery } from "@antsia/api/hooks"
@@ -407,7 +408,7 @@ function EventCard({
               <Button size="sm" variant="commerce" disabled={busy} onClick={() => onRespond("accepted")}>
                 {t("evenementsPanel.card.accept")}
               </Button>
-              <Button size="sm" variant="ghost" disabled={busy} onClick={() => onRespond("declined")}>
+              <Button style={themedActionStyle("danger", "ghost")} size="sm" variant="danger" disabled={busy} onClick={() => onRespond("declined")}>
                 {t("evenementsPanel.card.decline")}
               </Button>
             </>
@@ -437,7 +438,7 @@ function EventCard({
                   </Button>
                 </>
               ) : (
-                <Button size="sm" variant="ghost" disabled={busy} onClick={onAskCancel}>
+                <Button style={themedActionStyle("danger", "ghost")} size="sm" variant="danger" disabled={busy} onClick={onAskCancel}>
                   {t("evenementsPanel.card.askCancel")}
                 </Button>
               )}
@@ -605,7 +606,7 @@ function CreateEventCard({ timeZone, onCreated, onCancel }: { timeZone: string; 
           <TextArea rows={3} value={description} maxLength={EVENT_DESCRIPTION_MAX_LENGTH} onChange={(change) => setDescription(change.target.value)} />
         </Field>
         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-          <Button type="button" variant="ghost" disabled={submitting} onClick={onCancel}>
+          <Button style={themedActionStyle("cancel", "ghost")} type="button" variant="outline" disabled={submitting} onClick={onCancel}>
             {t("evenementsPanel.composer.cancel")}
           </Button>
           <Button type="submit" disabled={submitting || validateEventTitle(title, t) !== null}>

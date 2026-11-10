@@ -15,7 +15,34 @@ reste, antérieure et hors commerce. Une compilation et des tests verts ne valen
 recettes réelles, configurations, activations et décisions du propriétaire restent ouvertes
 ([pilote/](pilote/), [EXECUTION.md](EXECUTION.md)).
 
+**Reprise P14 du 20 octobre 2026.** Les corrections de reprise des intentions, d’accord sur les
+services et de conservation des engagements sont décrites dans le
+[bilan daté P14](rapports/P14_REPRISE_2026-10-20.md). Ces changements sont en sources,
+sans nouvelles vérifications ; les résultats du 19 octobre ci-dessus ne les couvrent pas.
+
+**Reprise P15 du 20 octobre 2026.** Les corrections des candidatures privées, de leur
+reprise et de la délivrance des CV sont décrites dans le
+[bilan daté P15](rapports/P15_REPRISE_2026-10-20.md). Les scénarios sont écrits seulement ;
+la conservation, la recette croisée et l’activation restent ouvertes.
+
+**Reprise P16 du 20 octobre 2026.** Le [bilan confiance et données](rapports/P16_REPRISE_2026-10-20.md)
+complète l’inventaire P14/P15 et la matrice de menaces. Les corrections et verrous d’activation
+restent en sources, sans nouvelles vérifications ; P16 n’est pas déclaré éprouvé.
+
 ## La proposition
+
+**Complément UX du 20 octobre 2026 — captures et vidéos mobiles.** Le
+[dossier noms et expérience responsive](../2026-10-20-experience-sociale-responsive/README.md)
+analyse les références fournies et adapte les parcours à téléphone, tablette et ordinateur.
+Il découpe huit lots U01–U08, sans renuméroter P00–P19. U01 est raccordé en source ANTSIA
+(Direct, En live, Stories, Replays, Accueil, Explorer, Mon réseau, Enregistrés), sans contrôle
+exécuté ni rendu constaté. Les autres lots sont planifiés ; les preuves historiques ci-dessous
+ne les valident pas.
+
+**Suite U02** : la [navigation responsive](../2026-10-20-experience-sociale-responsive/rapports/U02_NAVIGATION_RESPONSIVE_2026-10-20.md)
+est raccordée en source Web : barre téléphone sous 768 px, rail compact jusqu'à 1199 px puis
+nommé dès 1200 px, accès Boutiques et cadre Messages. Créer est conservé jusqu'au vrai Clips U04.
+Scénarios écrits seulement, rendu non constaté ; U03–U08 restent planifiés.
 
 **ANTSIA devient le lieu où l'on découvre les personnes, leurs contenus et leurs offres, où l'on discute et où l'on achète. PRO.GA demeure le système qui gère l'activité.** Le propriétaire a confirmé que le système évoqué oralement sous le nom « Pro.gram » est bien PRO.GA.
 
@@ -71,6 +98,27 @@ Chaque fichier contient un prompt copiable, ses dépendances, son périmètre et
 La première tranche visible recommandée est **P01–P05 après P00**. La définition des contrats P06 peut avancer en parallèle avec des propriétaires distincts. L'activation commerciale attend la liaison, le catalogue, les autorisations et les preuves de paiement prévues.
 
 ## Ce qui est livré et ce qui reste à exécuter
+
+Reprise native du 20 octobre : [cadrage P17](rapports/P17_PLAN_REPRISE_2026-10-20.md),
+[sources P17b](rapports/P17B_REPRISE_2026-10-20.md) et
+[sources P17c](rapports/P17C_REPRISE_2026-10-20.md). Le client Expo, son fil, sa messagerie
+personnelle, l’hôte média et les notifications d’appel sont raccordés en source. Installation,
+compilation, configuration Apple/Firebase, IDN natif et recette appareil restent ouverts.
+P17c conserve les appels natifs fermés par défaut ; aucune vérification relancée.
+
+Suite autorisée sans nouvel accord : [P17d](rapports/P17D_REPRISE_2026-10-20.md) prépare le
+registre de preuves physiques et son lecteur, [P18](rapports/P18_REPRISE_2026-10-20.md)
+apporte les corrections natives d’accessibilité/sobriété, puis
+[P19](rapports/P19_REPRISE_2026-10-20.md) actualise le dossier pilote. Les essais, mesures,
+compilations et le pilote réel restent non exécutés. Cette continuation ne vaut aucune
+activation ou publication ; [réservations](rapports/P17D_P18_P19_PLAN_REPRISE_2026-10-20.md).
+
+L'enchaînement des [correctifs P19](rapports/P19_CORRECTIFS_AUTOMATIQUES_2026-10-20.md) ajoute
+les annonces accessibles d'achats/candidatures, la documentation des routes machine et une
+admission durable des copies CV. La [suite DP-39](rapports/P19_AVIS_SERVICES_2026-10-20.md)
+traite un avis privé de relecture des services, sous un profil distinct de PUBLIC. Les sources
+et scénarios restent non exécutés ; gates P16, données, environnements et travaux de l'autre
+session sont préservés. Le bilan documentaire P19 précédent reste historique.
 
 Livré : étude sourcée, audits locaux, charte proposée avec seize calculs de contraste, parcours et schémas, architecture d'échange, plan de recette, vingt prompts et traçabilité des exigences.
 

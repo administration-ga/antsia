@@ -2,6 +2,10 @@
 
 Date : 18 octobre 2026. **Verdict : sources raccordées ; tests écrits, non exécutés ; recette ouverte.**
 
+> Reprise du 20 octobre : voir le [bilan daté](P15_REPRISE_2026-10-20.md) pour les corrections
+> de reprise, de session, de délivrance des CV et de progression des retraits. Le présent rapport
+> conserve l’état initial du lot et ne constitue pas une validation des changements ultérieurs.
+
 Décision du propriétaire (18/10/2026, ~22 h) : « Continuer sans vérifier ». Aucun codegen, test,
 typage, lint, build, serveur, navigateur, commande Convex ni installation n'a été lancé dans les
 deux dépôts. Tous les tests cités sont **écrits, non exécutés** ; aucun résultat n'est annoncé.

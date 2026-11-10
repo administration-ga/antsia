@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/ui-v2/src/components/form.tsx @ ad2e7fdc2 — adaptations : ombre du curseur de l'interrupteur (noir à 20 %) → jeton `--shadow-knob` (aucune couleur hors des jetons) ; texte d'erreur et astérisque à l'encre de danger `--role-danger-ink` quand le thème la déclare (ADR-0027), `--danger-500` en repli ; aplats d'identité et leur texte selon les chartes (`--esp-identity-fill`, `--primary-fill-on`, pastille tonale des états actifs ; ADR-0027), facture d'origine en repli.
+// Dupliqué de socle/packages/ui-v2/src/components/form.tsx @ ad2e7fdc2 — adaptations : ombre du curseur de l'interrupteur (noir à 20 %) → jeton `--shadow-knob` (aucune couleur hors des jetons) ; texte d'erreur et astérisque à l'encre de danger `--role-danger-ink` quand le thème la déclare (ADR-0027), `--danger-500` en repli ; aplats d'identité et leur texte selon les chartes (`--esp-identity-fill`, `--primary-fill-on`, pastille tonale des états actifs ; ADR-0027), facture d'origine en repli. champs et choix radio raccordés au rayon opt-in ANTSIA (`--esp-input-radius`), 6 px ailleurs.
 "use client"
 
 import {
@@ -107,7 +107,8 @@ export const Field = ({ label, hint, error, required, children, htmlFor }: Field
 
 const INPUT_BASE: CSSProperties = {
   fontFamily: "inherit",
-  fontSize: 14,
+  fontSize: "var(--esp-field-font-size, 14px)",
+  lineHeight: "var(--esp-field-line-height, normal)",
   color: "var(--ink-900)",
   padding: "8px 12px",
   // Jeton et non valeur en dur : un style EN LIGNE l'emporte sur toute feuille
@@ -116,7 +117,7 @@ const INPUT_BASE: CSSProperties = {
   minHeight: "var(--ui2-field-min-h, 38px)",
   background: "var(--ink-0)",
   border: "1px solid var(--ink-300)",
-  borderRadius: 6,
+  borderRadius: "var(--esp-input-radius, 6px)",
   outline: "none",
   width: "100%",
   transition: "border-color .12s, box-shadow .12s",
@@ -164,7 +165,7 @@ export const TextArea = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<H
       <textarea
         ref={ref}
         {...rest}
-        style={{ ...INPUT_BASE, minHeight: 100, resize: "vertical", ...style }}
+        style={{ ...INPUT_BASE, minHeight: "var(--esp-textarea-min-height, 100px)", resize: "vertical", ...style }}
       />
     )
   },
@@ -266,7 +267,7 @@ export const Radio = ({ checked, onChange, label, id, hint, name, value }: Radio
       gap: 10,
       cursor: "pointer",
       padding: "10px 12px",
-      borderRadius: 6,
+      borderRadius: "var(--esp-input-radius, 6px)",
       border: `1px solid ${checked ? "var(--primary-500)" : "var(--ink-200)"}`,
       background: checked ? "var(--primary-50)" : "var(--ink-0)",
       transition: "border-color .12s, background .12s",

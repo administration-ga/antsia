@@ -1,5 +1,36 @@
 # Guide de l'acheteur et du client — pilote ANTSIA
 
+> **Mise à jour du 20 octobre 2026.** Aucun pilote n’est conduit ni capacité ouverte dans cette
+> reprise. Paiements et nouveaux engagements de services restent fermés par P16 dans les sources ; une ancienne
+> politique activée ne les rend pas disponibles. Les étapes historiques qui suivent décrivent
+> un parcours cible, sans autoriser un achat ou une transaction.
+
+Cet état concerne la candidate de cette reprise, sans observation de production publiée ailleurs.
+
+### Reprise d’une demande et suivi existant
+
+Après une panne ou une réponse inconnue, ouvrir le suivi existant plutôt que recréer l’engagement.
+La reprise P14 retrouve l’intention ou exige une absence et sa clôture certaine avant un nouvel
+accord. Une indisponibilité de la consultation ne signifie pas que la demande n’existe pas.
+Une nouvelle version de devis, un créneau ou une révision différente exigent un nouvel accord ;
+un statut « accepté » choisi par un employé ne remplace pas votre preuve d’accord.
+
+Le retrait de boutique et la fermeture de nouvelles admissions doivent préserver le suivi privé,
+les libérations, annulations et demandes de remboursement déjà admissibles. Cela ne prouve
+ni un paiement ni un remboursement effectué. Les avis de service restent connus après ouverture
+de **Mes demandes**, sans nouveau canal asynchrone acquis par cette reprise.
+
+Un client téléphone natif est écrit, mais aucun binaire ni appareil n’est validé. Le commerce
+natif complet et la réponse d’appel authentifiée avant déverrouillage ne sont pas promis.
+L’effacement social ne certifie aucune suppression financière ou générale dans PRO.GA ; ne pas
+effacer une référence pour tenter de faire disparaître une réponse encore incertaine.
+
+[État actuel des capacités](../01_VERSIONS_CANDIDATES.md#actualisation-du-20-octobre-2026),
+[support](PROCEDURES_SUPPORT.md), [P14](../../rapports/P14_REPRISE_2026-10-20.md),
+[P16](../../rapports/P16_REPRISE_2026-10-20.md).
+
+### Guide historique du 19 octobre (conservé)
+
 > **Avant de lire.** Ce guide décrit le fonctionnement prévu par le code livré les 18 et 19 octobre
 > 2026. Rien n'est encore vérifié ni ouvert. Chaque partie indique sa **disponibilité**. **Le
 > paiement n'est pas disponible dans ce pilote** : aucun argent réel ne doit être engagé.

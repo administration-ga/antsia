@@ -11,7 +11,7 @@ import { COMMERCE_COMMAND_SCOPES, type CommerceCommandRequest } from "@antsia/so
 import { COMMERCE_COMMAND_CONTRACT } from "@antsia/social-domain/commerce/primitives"
 import { COMMERCE_INQUIRY_CONSENT_VERSION } from "@antsia/social-domain/commerce-inquiry"
 import {
-  COMMERCE_SERVICE_CONSENTS, COMMERCE_SERVICE_CONTROL_CONTRACT, COMMERCE_SERVICE_TIME_ZONE,
+  COMMERCE_SERVICE_CONSENTS, COMMERCE_SERVICE_CONTROL_CONTRACT, COMMERCE_SERVICE_CONTROL_CONTRACT_V2, COMMERCE_SERVICE_TIME_ZONE,
   commerceServiceCancelDecision, commerceServiceChangeDecision,
   type CommerceServiceBookingView, type CommerceServiceControlRequest,
 } from "@antsia/social-domain/commerce-services"
@@ -31,10 +31,10 @@ export const SERVICE_COMMANDS_PER_REQUEST_MAX = 20
 /** Une demande restée sans effet chez PRO.GA se ferme d'elle-même après sept jours. */
 export const SERVICE_PENDING_MAX_MS = 7 * 24 * 60 * 60_000
 
-export const SERVICE_COMMAND_KINDS = ["inquiry", "quote_accept", "booking", "reschedule", "cancel", "order"] as const
+export const SERVICE_COMMAND_KINDS = ["inquiry", "quote_accept", "quote_reject", "booking", "reschedule", "cancel", "order"] as const
 export type ServiceCommandKind = (typeof SERVICE_COMMAND_KINDS)[number]
 export const SERVICE_COMMAND_OPERATIONS = {
-  inquiry: "inquiry.submit", quote_accept: "quote.accept", booking: "booking.request",
+  inquiry: "inquiry.submit", quote_accept: "quote.accept", quote_reject: "service.quote.reject", booking: "booking.request",
   reschedule: "booking.reschedule.request", cancel: "booking.cancel.request", order: "service.order.request",
 } as const
 /** Commandes P06 (point `/commerce/v1/commands`) ; les autres passent par le contrôle jumeau. */
@@ -43,6 +43,7 @@ export const SERVICE_P06_KINDS: readonly ServiceCommandKind[] = ["inquiry", "quo
 export const SERVICE_CONSENT_VERSIONS = {
   inquiry: COMMERCE_INQUIRY_CONSENT_VERSION,
   quote_accept: COMMERCE_SERVICE_CONSENTS.quote_acceptance.textVersion,
+  quote_reject: COMMERCE_SERVICE_CONSENTS.quote_rejection.textVersion,
   booking: COMMERCE_SERVICE_CONSENTS.booking.textVersion,
   reschedule: COMMERCE_SERVICE_CONSENTS.booking_change.textVersion,
   cancel: COMMERCE_SERVICE_CONSENTS.booking_cancel.textVersion,
@@ -78,6 +79,8 @@ export const serviceOrderSnapshotValidator = v.object({
   updatedAt: v.number(), observedAt: v.number(),
 })
 export type ServiceOrderSnapshot = Infer<typeof serviceOrderSnapshotValidator>
+export const serviceRejectedQuoteValidator = v.object({ quoteRef: v.string(), quoteVersion: v.number(), rejectedAt: v.number() })
+export const serviceControlContractValidator = v.union(v.literal(COMMERCE_SERVICE_CONTROL_CONTRACT), v.literal(COMMERCE_SERVICE_CONTROL_CONTRACT_V2))
 export const serviceAcceptedQuoteValidator = v.object({
   quoteRef: v.string(), quoteVersion: v.number(), acceptedTotal: serviceMoneyValidator, acceptedAt: v.number(), orderRef: v.union(v.string(), v.null()),
 })
@@ -98,9 +101,10 @@ export const serviceRequestValidator = v.object({
   chosenAttachmentCount: v.union(v.number(), v.null()), serviceLabel: v.union(v.string(), v.null()),
   booking: v.union(serviceBookingSnapshotValidator, v.null()), pendingReplacement: v.union(serviceBookingSnapshotValidator, v.null()),
   order: v.union(serviceOrderSnapshotValidator, v.null()), acceptedQuote: v.union(serviceAcceptedQuoteValidator, v.null()),
+  rejectedQuote: v.optional(serviceRejectedQuoteValidator),
   lastCommand: v.union(serviceCommandSummaryValidator, v.null()),
   canChange: v.boolean(), canCancel: v.boolean(), consentVersions: v.object({
-    inquiry: v.string(), quote_accept: v.string(), booking: v.string(), reschedule: v.string(), cancel: v.string(), order: v.string(),
+    inquiry: v.string(), quote_accept: v.string(), quote_reject: v.string(), booking: v.string(), reschedule: v.string(), cancel: v.string(), order: v.string(),
   }),
   paymentAvailable: v.literal(false),
 })
@@ -111,6 +115,14 @@ export const serviceActionResultValidator = v.union(
   v.object({ outcome: v.union(v.literal("unavailable"), v.literal("refused")) }),
 )
 export type ServiceActionResult = Infer<typeof serviceActionResultValidator>
+
+export const serviceStopIntentValidator = v.union(
+  v.object({ outcome: v.literal("request"), requestRowId: v.string() }),
+  v.object({ outcome: v.literal("stopped") }),
+)
+export const serviceIntentLookupValidator = v.union(serviceStopIntentValidator, v.object({ outcome: v.literal("absent") }))
+export type ServiceIntentLookup = Infer<typeof serviceIntentLookupValidator>
+export type ServiceStopIntentResult = Infer<typeof serviceStopIntentValidator>
 
 const bookableValidator = v.object({
   serviceRef: v.string(), label: v.string(), description: v.union(v.string(), v.null()), durationMinutes: v.number(),
@@ -138,7 +150,7 @@ export type ServiceSlotsResult = Infer<typeof serviceSlotsResultValidator>
 const quoteSummaryFields = {
   quoteRef: v.string(), inquiryRef: v.union(v.string(), v.null()), reference: v.string(), title: v.string(), version: v.number(),
   total: serviceMoneyValidator, validUntil: v.union(v.number(), v.null()), state: serviceQuoteStateValidator, sentAt: v.union(v.number(), v.null()),
-  current: v.boolean(), acceptable: v.boolean(), clientAcceptance: v.union(v.null(), v.object({ acceptedAt: v.number(), quoteVersion: v.number(), acceptedTotal: serviceMoneyValidator, orderRef: v.union(v.string(), v.null()) })),
+  current: v.boolean(), acceptable: v.boolean(), rejectable: v.boolean(), clientRejection: v.union(v.null(), v.object({ quoteVersion: v.number(), rejectedAt: v.number() })), clientAcceptance: v.union(v.null(), v.object({ acceptedAt: v.number(), quoteVersion: v.number(), acceptedTotal: serviceMoneyValidator, orderRef: v.union(v.string(), v.null()) })),
 }
 export const serviceQuotesResultValidator = v.union(
   v.object({ outcome: v.literal("ready"), quotes: v.array(v.object(quoteSummaryFields)), truncated: v.boolean() }),
@@ -147,7 +159,7 @@ export const serviceQuotesResultValidator = v.union(
 export type ServiceQuotesResult = Infer<typeof serviceQuotesResultValidator>
 export const serviceQuoteResultValidator = v.union(
   v.object({
-    outcome: v.literal("ready"), consentTextVersion: v.string(),
+    outcome: v.literal("ready"), consentTextVersion: v.string(), rejectionConsentTextVersion: v.optional(v.string()),
     quote: v.object({
       ...quoteSummaryFields, notes: v.union(v.string(), v.null()), sellerLabel: v.union(v.string(), v.null()),
       lines: v.array(v.object({ label: v.string(), quantity: v.number(), unitAmount: serviceMoneyValidator, lineAmount: serviceMoneyValidator })),
@@ -214,11 +226,14 @@ export function p06ResponseRequest(row: CommandRow): CommerceCommandRequest | nu
 /** Même principe pour les extensions du contrat de contrôle. */
 export function controlResponseRequest(row: CommandRow): CommerceServiceControlRequest | null {
   // Enveloppe typée : le contrat reste le littéral du contrat de contrôle, jamais une chaîne libre.
-  const base: Omit<CommerceServiceControlRequest, "operation" | "payload"> = {
+  const base = {
     contract: COMMERCE_SERVICE_CONTROL_CONTRACT, version: 1 as const, requestId: row.requestId, source: row.source, environment: row.environment,
     issuedAt: row.issuedAt, expiresAt: row.expiresAt, shopRef: row.shopRef, subject: { kind: "buyer" as const, ref: row.subjectRef, authVerifiedAt: row.issuedAt },
-  }
+  } satisfies Omit<CommerceServiceControlRequest, "operation" | "payload">
   const consent = (purpose: string) => ({ givenAt: row.consentedAt, purpose, textVersion: row.consentTextVersion })
+  if (row.kind === "quote_reject" && row.quoteRef && row.quoteVersion !== undefined) {
+    return { ...base, contract: COMMERCE_SERVICE_CONTROL_CONTRACT_V2, operation: "service.quote.reject", payload: { quoteRef: row.quoteRef, quoteVersion: row.quoteVersion, consent: consent(COMMERCE_SERVICE_CONSENTS.quote_rejection.purpose) } }
+  }
   if (row.kind === "reschedule" && row.appointmentRef && row.expectedRevision !== undefined && row.slotStartAt !== undefined && row.slotEndAt !== undefined) {
     return { ...base, operation: "booking.reschedule.request", payload: { appointmentRef: row.appointmentRef, consent: consent(COMMERCE_SERVICE_CONSENTS.booking_change.purpose),
       expectedRevision: row.expectedRevision, slot: { endAt: row.slotEndAt, startAt: row.slotStartAt, timeZone: COMMERCE_SERVICE_TIME_ZONE } } }
@@ -259,6 +274,7 @@ export function projectServiceRequest(row: Doc<"commerceServiceRequests">, lastC
     chosenAttachmentCount: row.chosenAttachmentCount ?? null, serviceLabel: row.serviceLabel ?? null,
     booking: row.booking ?? null, pendingReplacement: row.pendingReplacement ?? null, order: row.order ?? null, acceptedQuote: row.acceptedQuote ?? null,
     lastCommand: commandSummary(lastCommand, nowMs),
+    ...(row.rejectedQuote ? { rejectedQuote: { ...row.rejectedQuote } } : {}),
     canChange: controls.change && open && !busy && row.pendingReplacement === undefined && bookingCanChange(row.booking, nowMs),
     canCancel: controls.cancel && open && !busy && bookingCanCancel(row.booking, nowMs),
     consentVersions: { ...SERVICE_CONSENT_VERSIONS }, paymentAvailable: false,

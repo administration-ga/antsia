@@ -1,17 +1,25 @@
 /**
  * Manifeste de la tranche `diaspora` — ce qu'elle apporte au moteur, en un lieu :
- * le réseau qu'elle gouverne, ses tables, les seaux de débit qu'elle consomme, les
- * finalités de consentement qu'elle lit, les contrats qu'elle consomme, et son
- * passage planifié. Aucune fonction ici ; le test de la tranche vérifie que ce
- * manifeste dit vrai (tables du schéma, seaux du moteur).
+ * le réseau qu'elle gouverne, l'application qui le sert et sa marque, ses tables,
+ * les seaux de débit qu'elle consomme, les finalités de consentement qu'elle lit,
+ * les contrats qu'elle consomme, et son passage planifié. Aucune fonction ici ; le
+ * test de la tranche vérifie que ce manifeste dit vrai (tables du schéma, seaux du
+ * moteur, application du catalogue).
  */
-import { ATTESTATION_CONTRACT, DIASPORALE_NETWORK_SLUG, DIASPORALE_SLICE } from "@diasporale/domain"
+import { ATTESTATION_CONTRACT, DIASPORALE_NETWORK_SEED, DIASPORALE_NETWORK_SLUG, DIASPORALE_SLICE } from "@diasporale/domain"
 
 import type { RateLimitBucket } from "../../lib/rateLimit"
 
 export const DIASPORA_SLICE_MANIFEST = {
   slice: DIASPORALE_SLICE,
   network: DIASPORALE_NETWORK_SLUG,
+  /**
+   * L'application du catalogue (`deploy/catalog.json`) qui sert le réseau, et le
+   * nom du réseau dans les messages que le moteur envoie à qui vient d'elle (code
+   * de connexion, `betterAuth/delivery`).
+   */
+  application: "diasporale_com",
+  brand: DIASPORALE_NETWORK_SEED.name,
   tables: [
     "countryHubs",
     "sponsorships",

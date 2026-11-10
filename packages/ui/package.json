@@ -12,7 +12,8 @@
     "./espace-kit": "./src/espace-kit/index.ts",
     "./styles.css": "./src/styles.css",
     "./themes/*.css": "./src/themes/*.css",
-    "./lib/*": "./src/lib/*.ts"
+    "./lib/*": "./src/lib/*.ts",
+    "./themes/antsia-native": "./src/themes/antsia-native.ts"
   },
   "scripts": {
     "typecheck": "tsgo --noEmit -p tsconfig.json",

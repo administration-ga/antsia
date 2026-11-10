@@ -174,6 +174,11 @@ export function ReseauMobileCreateButton({ onSelect, handle = null }: ReseauMobi
         aria-expanded={open}
         className="fixed right-4 z-40 flex min-h-11 min-w-11 items-center gap-1.5 rounded-full border border-border bg-primary px-4 py-2.5 font-bold text-[13px] text-primary-foreground shadow-lg print:hidden"
         style={{
+          background: "var(--esp-primitive-identity-fill, var(--primary))",
+          color: "var(--esp-primitive-fill-on, var(--primary-foreground))",
+          borderRadius: "var(--esp-fab-radius, 999px)",
+          borderColor: "var(--esp-primitive-surface-border, var(--border))",
+          boxShadow: "var(--esp-fab-shadow, var(--shadow-lg))",
           // Au-dessus de la barre : sa hauteur MESURÉE, plus le retrait que
           // la barre prend elle-même du bas (0,75 rem + zone sûre), plus
           // l'espace entre les deux surfaces.

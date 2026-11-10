@@ -16,13 +16,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { api, internal } from "../../_generated/api"
 import type { Id } from "../../_generated/dataModel"
 import { SEED_CONFIRMATION } from "../../seeds/foundations"
-import { createTestOperatorProof, testConvex } from "../../test.setup"
-import { exportableRecord, type DataRecord } from "../people/dataInventory"
+import { createTestOperatorProof, createTestSession, testConvex } from "../../test.setup"
+import { directlyOwned, exportableRecord, type DataRecord } from "../people/dataInventory"
 import { readCommerceLinkConfig } from "./commerceLinkConfig"
 import { sha256Hex } from "./commerceLinkCrypto"
 import { SHOP_PUBLIC_LISTING_TEXT_VERSION } from "./rules"
 import { revokeServicesForPerson } from "./serviceLifecycle"
-import type { ServiceActionResult, ServiceOptionsResult, ServiceQuoteResult, ServiceRequestDto, ServiceSlotsResult } from "./serviceRules"
+import type { ServiceDelivery } from "./serviceFlow"
+import type { ServiceActionResult, ServiceIntentLookup, ServiceOptionsResult, ServiceQuoteResult, ServiceRequestDto, ServiceSlotsResult, ServiceStopIntentResult } from "./serviceRules"
 
 const NOW = Date.UTC(2026, 9, 18, 12)
 const HOUR = 3_600_000
@@ -54,6 +55,15 @@ const acceptQuote = makeFunctionReference<"action", Net & { requestRowId: string
 const orderService = makeFunctionReference<"action", Net & { handle: string; offerRef: string; quantity: number; expectedUnitAmount: Money; expectedCatalogRevision: number; consentTextVersion: string; clientRequestId: string; existingRequestRowId?: string }, ServiceActionResult>("modules/shops/serviceActions:orderService")
 const myRequest = makeFunctionReference<"query", Net & { requestRowId: string }, ServiceRequestDto | null>("modules/shops/services:myRequest")
 const expirePrivate = makeFunctionReference<"mutation", { commandId: string }, null>("modules/shops/serviceFlow:expirePrivate")
+const findIntent = makeFunctionReference<"query", Net & { clientRequestId: string }, ServiceIntentLookup>("modules/shops/services:findByClientRequestId")
+const stopIntent = makeFunctionReference<"mutation", Net & { clientRequestId: string }, ServiceStopIntentResult>("modules/shops/services:stopClientIntent")
+const admitLookup = makeFunctionReference<"mutation", Net & { requestRowId: string; requestId: string; leaseToken: string; configFingerprint: string; resend: boolean }, ServiceDelivery | null>("modules/shops/serviceFlow:admitLookup")
+const authorizeDelivery = makeFunctionReference<"mutation", Net & { delivery: ServiceDelivery; configFingerprint: string }, boolean>("modules/shops/serviceFlow:authorize")
+const finishDelivery = makeFunctionReference<"mutation", Net & { delivery: ServiceDelivery; rawResponse?: string; httpStatus?: number }, ServiceActionResult>("modules/shops/serviceFlow:finish")
+const admitQuote = makeFunctionReference<"mutation", Net & {
+  handle: string; offerRef: string; threadId: Id<"commercialThreads">; need: string; attachmentMessageIds: Id<"commercialMessages">[]; consentTextVersion: string;
+  requestRowId: string; commandId: string; requestId: string; leaseToken: string; configFingerprint: string; clientRequestId: string;
+}, ServiceDelivery | ServiceActionResult>("modules/shops/serviceFlow:admitQuoteRequest")
 const discoverAvailability = makeFunctionReference<"query", Net, { available: boolean }>("modules/shops/services:discoverAvailability")
 const discoverServices = makeFunctionReference<"query", Net & { paginationOpts: { cursor: string | null; numItems: number } }, { page: Array<{ offerRef: string; kind: string }>; isDone: boolean; continueCursor: string }>("modules/shops/services:discoverServices")
 
@@ -87,6 +97,7 @@ async function fixture({ openPolicy = true }: { openPolicy?: boolean } = {}) {
   const config = await readCommerceLinkConfig()
   if (!config) throw new Error("Configuration de fixture absente")
   const shop = await t.run(async (ctx) => {
+    await ctx.db.insert("commerceCatalogIndexes", { networkId: root, version: 2, generation: 1, status: "ready", updatedAt: NOW })
     const pageId = await ctx.db.insert("pages", { networkId: root, handle: "salon-test", name: "Salon de recette", description: "Prestations de recette", ownerKind: "company", trust: "community", trustRank: 1, visibility: "network", onRoot: true, status: "active", createdByPersonId: owner.personId, searchText: "salon recette", createdAt: NOW, updatedAt: NOW })
     await ctx.db.insert("pageSignatories", { networkId: root, pageId, personId: owner.personId, role: "admin", acceptedAt: NOW, createdAt: NOW, updatedAt: NOW })
     const shopId = await ctx.db.insert("shops", { networkId: root, pageId, preparedByPersonId: owner.personId, model: "quote_services", storefront: "published", visibility: "network", publicConsentAt: NOW, publicConsentTextVersion: SHOP_PUBLIC_LISTING_TEXT_VERSION, publicConsentByPersonId: owner.personId, publishedAt: NOW, createdAt: NOW, updatedAt: NOW })
@@ -362,7 +373,8 @@ describe("P14 — rendez-vous", () => {
     if (result.outcome !== "request") throw new Error("Résultat attendu")
     p.state.timeout = false; p.state.forget = false
     vi.setSystemTime(NOW + 2 * 60_000)
-    const later = f.t.withIdentity({ subject: "services-buyer-fixture" })
+    const sessionId = await createTestSession(f.t, "services-buyer-fixture")
+    const later = f.t.withIdentity({ subject: "services-buyer-fixture", sessionId })
     await later.action(retry, { networkId: f.root, requestRowId: result.requestRowId })
     expect(await requestRow(f, result.requestRowId)).toMatchObject({ state: "active", booking: { appointmentRef: APPOINTMENT } })
     expect(p06(p, "booking.request")).toHaveLength(1)
@@ -435,6 +447,17 @@ describe("P14 — rendez-vous", () => {
 /** Conversation commerciale P10 déjà ACCEPTÉE par la boutique (prérequis d'une demande de devis). */
 async function quoteThread(f: Fixture) {
   return await f.t.run(async (ctx) => ctx.db.insert("commercialThreads", { networkId: f.root, shopId: f.shopId, requesterPersonId: f.buyer.personId, offerRef: OFFER, conversationRef: `antsia:conv:${"c".repeat(64)}`, state: "accepted", revision: 2, buyerCallsAllowed: false, createdAt: NOW, updatedAt: NOW, lastMessageAt: NOW }))
+}
+
+async function admittedQuote(f: Fixture, threadId: Id<"commercialThreads">, attachmentMessageIds: Id<"commercialMessages">[] = []) {
+  const config = (await readCommerceLinkConfig())!
+  const delivery = await f.buyer.as.mutation(admitQuote, {
+    networkId: f.root, handle: "salon-test", offerRef: OFFER, threadId, need: "Une coupe", attachmentMessageIds, consentTextVersion: COMMERCE_INQUIRY_CONSENT_VERSION,
+    requestRowId: "service-admitted-row-0001", commandId: "service-admitted-command-0001", requestId: "service-admitted-request-0001",
+    leaseToken: "a".repeat(43), configFingerprint: config.fingerprint, clientRequestId: "service-admitted-client-0001",
+  })
+  if (!("commandId" in delivery)) throw new Error("Admission de devis attendue")
+  return { delivery, config, requestRowId: "service-admitted-row-0001" }
 }
 
 describe("P14 — devis et prestation à tarif fixe", () => {
@@ -556,6 +579,217 @@ describe("P14 — rubrique Services de Découvrir", () => {
     await f.owner.as.mutation(servicePolicy, { networkId: f.root, enabled: false, reason: "Fermeture fictive des services pour la recette" })
     expect(await f.buyer.as.query(discoverAvailability, { networkId: f.root })).toEqual({ available: false })
     expect((await f.buyer.as.query(discoverServices, { networkId: f.root, paginationOpts: { cursor: null, numItems: 8 } })).page).toEqual([])
+  })
+})
+
+// Reprise du 20/10 : scénarios écrits uniquement, aucun contrôle exécuté.
+describe("P14 — clés clôturées, reconnexion et autorité au dernier instant", () => {
+  it("absence certaine puis clôture idempotente : l'ancienne clé ne peut plus créer de rendez-vous", async () => {
+    const f = await fixture(), p = peer(), intent = bookIntent(f)
+    const key = { networkId: f.root, clientRequestId: intent.clientRequestId }
+    expect(await f.buyer.as.query(findIntent, key)).toEqual({ outcome: "absent" })
+    expect(await f.buyer.as.mutation(stopIntent, key)).toEqual({ outcome: "stopped" })
+    expect(await f.buyer.as.mutation(stopIntent, key)).toEqual({ outcome: "stopped" })
+    expect(await f.buyer.as.query(findIntent, key)).toEqual({ outcome: "stopped" })
+    expect(await f.buyer.as.action(book, intent)).toEqual({ outcome: "refused" })
+    expect(p.sent).toHaveLength(0)
+    const fences = await f.t.run(async (ctx) => await ctx.db.query("serviceClientIntentFences").withIndex("by_client", (q) => q.eq("personId", f.buyer.personId).eq("networkId", f.root).eq("clientRequestId", intent.clientRequestId)).take(2))
+    expect(fences).toHaveLength(1)
+    expect(directlyOwned("serviceClientIntentFences", fences[0]! as unknown as DataRecord, String(f.buyer.personId))).toBe(true)
+    expect(directlyOwned("serviceClientIntentFences", fences[0]! as unknown as DataRecord, String(f.owner.personId))).toBe(false)
+    expect(exportableRecord("serviceClientIntentFences", fences[0]! as unknown as DataRecord, String(f.buyer.personId))).toBeNull()
+    vi.setSystemTime(NOW + 100 * 24 * HOUR)
+    const sessionId = await createTestSession(f.t, "services-buyer-fixture")
+    expect(await f.t.withIdentity({ subject: "services-buyer-fixture", sessionId }).query(findIntent, key)).toEqual({ outcome: "stopped" })
+  })
+
+  it("une commande admise reste prioritaire : stop ne modifie ni son incertitude ni ses octets", async () => {
+    const f = await fixture(), p = peer(), intent = bookIntent(f)
+    p.state.timeout = true
+    const result = await f.buyer.as.action(book, intent)
+    if (result.outcome !== "request") throw new Error("Demande attendue")
+    const before = await commands(f, result.requestRowId), calls = p.sent.length
+    const key = { networkId: f.root, clientRequestId: intent.clientRequestId }
+    expect(await f.buyer.as.query(findIntent, key)).toEqual({ outcome: "request", requestRowId: result.requestRowId })
+    expect(await f.buyer.as.mutation(stopIntent, key)).toEqual({ outcome: "request", requestRowId: result.requestRowId })
+    expect(await commands(f, result.requestRowId)).toEqual(before)
+    expect(p.sent).toHaveLength(calls)
+  })
+
+  it("la clé est privée au propriétaire : une clôture étrangère ne ferme pas sa demande", async () => {
+    const f = await fixture(), p = peer()
+    const stranger = await member(f.t, f.root, "services-intent-stranger", "services-intent-stranger")
+    const key = { networkId: f.root, clientRequestId: "service-private-key-0001" }
+    expect(await stranger.as.mutation(stopIntent, key)).toEqual({ outcome: "stopped" })
+    expect(await f.buyer.as.query(findIntent, key)).toEqual({ outcome: "absent" })
+    const result = await f.buyer.as.action(book, bookIntent(f, key.clientRequestId))
+    expect(result).toMatchObject({ outcome: "request", state: "accepted" })
+    expect(await stranger.as.query(findIntent, key)).toEqual({ outcome: "stopped" })
+    expect(p06(p, "booking.request")).toHaveLength(1)
+  })
+
+  it("la clôture couvre aussi une annulation non encore admise, sans annuler le rendez-vous", async () => {
+    const f = await fixture(), p = peer(), requestRowId = await booked(f, p)
+    const row = await f.buyer.as.query(myRequest, { networkId: f.root, requestRowId })
+    const key = { networkId: f.root, clientRequestId: "service-cancel-stopped-0001" }
+    await f.buyer.as.mutation(stopIntent, key)
+    const calls = p.sent.length
+    expect(await f.buyer.as.action(cancel, { ...key, requestRowId, expectedRevision: row!.booking!.revision!, consentTextVersion: COMMERCE_SERVICE_CONSENTS.booking_cancel.textVersion })).toEqual({ outcome: "refused" })
+    expect((await requestRow(f, requestRowId))?.booking).toEqual(row!.booking)
+    expect(p.sent).toHaveLength(calls)
+  })
+
+  it("nouvelle vraie session : consultation puis renvoi des octets initiaux, sans renouveler le consentement", async () => {
+    const f = await fixture(), p = peer()
+    p.state.timeout = true
+    const result = await f.buyer.as.action(book, bookIntent(f))
+    if (result.outcome !== "request") throw new Error("Demande attendue")
+    const [before] = await commands(f, result.requestRowId), original = p06(p, "booking.request")[0]!.raw
+    const sessionId = await createTestSession(f.t, "services-buyer-fixture")
+    const later = f.t.withIdentity({ subject: "services-buyer-fixture", sessionId })
+    p.state.timeout = false
+    await later.action(retry, { networkId: f.root, requestRowId: result.requestRowId })
+    const [after] = await commands(f, result.requestRowId)
+    expect(p06(p, "booking.request").map((send) => send.raw)).toEqual([original, original])
+    expect(after).toMatchObject({ sessionDigest: before!.sessionDigest, requestId: before!.requestId, bodySha256: before!.bodySha256, issuedAt: before!.issuedAt, expiresAt: before!.expiresAt, consentedAt: before!.consentedAt, lookupSessionDigest: await sha256Hex(sessionId) })
+    expect(after?.sessionDigest).not.toBe(await sha256Hex(sessionId))
+    expect(after?.leaseSessionDigest).toBeUndefined()
+  })
+
+  it("une autre session de la même personne ne peut ni autoriser ni terminer un bail déjà pris", async () => {
+    const f = await fixture(), p = peer()
+    p.state.timeout = true
+    const result = await f.buyer.as.action(book, bookIntent(f))
+    if (result.outcome !== "request") throw new Error("Demande attendue")
+    const config = (await readCommerceLinkConfig())!
+    const delivery = await f.buyer.as.mutation(admitLookup, { networkId: f.root, requestRowId: result.requestRowId, requestId: "service-lookup-lease-0001", leaseToken: "a".repeat(43), configFingerprint: config.fingerprint, resend: false })
+    if (!delivery) throw new Error("Bail attendu")
+    const response = await p.fetcher("http://localhost:4010/commerce/v1/commands", { body: delivery.rawBody })
+    const sessionId = await createTestSession(f.t, "services-buyer-fixture"), later = f.t.withIdentity({ subject: "services-buyer-fixture", sessionId })
+    expect(await later.mutation(authorizeDelivery, { networkId: f.root, delivery, configFingerprint: config.fingerprint })).toBe(false)
+    expect(await later.mutation(finishDelivery, { networkId: f.root, delivery, httpStatus: response.status, rawResponse: await response.text() })).toEqual({ outcome: "refused" })
+    expect((await commands(f, result.requestRowId))[0]?.lookupState).toBeUndefined()
+  })
+
+  it("un transport indisponible après expiration ne prouve jamais l'absence d'effet", async () => {
+    const f = await fixture(), p = peer()
+    p.state.timeout = true
+    const result = await f.buyer.as.action(book, bookIntent(f))
+    if (result.outcome !== "request") throw new Error("Demande attendue")
+    vi.setSystemTime(NOW + 10 * 60_000)
+    p.fetcher.mockRejectedValue(new Error("Transport absent"))
+    await f.buyer.as.action(retry, { networkId: f.root, requestRowId: result.requestRowId })
+    expect((await commands(f, result.requestRowId))[0]?.state).toBe("unknown")
+    expect((await requestRow(f, result.requestRowId))?.state).toBe("pending")
+    expect(p06(p, "booking.request")).toHaveLength(1)
+  })
+
+  it("une nouvelle consultation sans réponse ne réutilise pas l'ancien unknown, même récent", async () => {
+    const f = await fixture(), p = peer()
+    p.state.timeout = true
+    const result = await f.buyer.as.action(book, bookIntent(f))
+    if (result.outcome !== "request") throw new Error("Demande attendue")
+    const config = (await readCommerceLinkConfig())!, base = { networkId: f.root, requestRowId: result.requestRowId, configFingerprint: config.fingerprint }
+    const first = await f.buyer.as.mutation(admitLookup, { ...base, requestId: "service-lookup-valid-0001", leaseToken: "a".repeat(43), resend: false })
+    if (!first) throw new Error("Consultation attendue")
+    const response = await p.fetcher("http://localhost:4010/commerce/v1/commands", { body: first.rawBody })
+    await f.buyer.as.mutation(finishDelivery, { networkId: f.root, delivery: first, httpStatus: response.status, rawResponse: await response.text() })
+    expect((await commands(f, result.requestRowId))[0]?.lookupState).toBe("unknown")
+    const second = await f.buyer.as.mutation(admitLookup, { ...base, requestId: "service-lookup-lost-0002", leaseToken: "b".repeat(43), resend: false })
+    if (!second) throw new Error("Consultation attendue")
+    await f.buyer.as.mutation(finishDelivery, { networkId: f.root, delivery: second })
+    expect(await f.buyer.as.mutation(admitLookup, { ...base, requestId: "service-lookup-resend-0003", leaseToken: "c".repeat(43), resend: true })).toBeNull()
+    expect((await commands(f, result.requestRowId))[0]?.lookupSessionDigest).toBeUndefined()
+    expect(p06(p, "booking.request")).toHaveLength(1)
+  })
+
+  it.each(["requested", "blocked"] as const)("conversation %s après timeout : consultation permise, aucun renvoi de devis", async (state) => {
+    const f = await fixture(), p = peer(), threadId = await quoteThread(f)
+    p.state.timeout = true
+    const result = await f.buyer.as.action(requestQuote, { networkId: f.root, handle: "salon-test", offerRef: OFFER, threadId, need: "Coupe", attachmentMessageIds: [], consentTextVersion: COMMERCE_INQUIRY_CONSENT_VERSION, clientRequestId: "service-quote-recheck-0001" })
+    if (result.outcome !== "request") throw new Error("Demande attendue")
+    await f.t.run(async (ctx) => await ctx.db.patch(threadId, { state }))
+    p.state.timeout = false
+    await f.buyer.as.action(retry, { networkId: f.root, requestRowId: result.requestRowId })
+    expect(p06(p, "request.status")).toHaveLength(1)
+    expect(p06(p, "inquiry.submit")).toHaveLength(1)
+    expect((await commands(f, result.requestRowId))[0]?.state).toBe("unknown")
+  })
+
+  it("blocage de paire même si l'état du fil reste accepté : aucun envoi autorisé", async () => {
+    const f = await fixture(), threadId = await quoteThread(f)
+    const { delivery, config } = await admittedQuote(f, threadId)
+    expect(await f.buyer.as.mutation(authorizeDelivery, { networkId: f.root, delivery, configFingerprint: config.fingerprint })).toBe(true)
+    await f.t.run(async (ctx) => await ctx.db.insert("commercialBlocks", { networkId: f.root, threadId, personId: f.owner.personId, shopId: f.shopId, requesterPersonId: f.buyer.personId, side: "shop", createdAt: NOW }))
+    expect(await f.buyer.as.mutation(authorizeDelivery, { networkId: f.root, delivery, configFingerprint: config.fingerprint })).toBe(false)
+  })
+
+  it.each(["deleted", "quarantined"] as const)("pièce %s depuis l'admission : ni envoi ni application de la réponse", async (change) => {
+    const f = await fixture(), p = peer(), threadId = await quoteThread(f)
+    const storageId = await f.t.run(async (ctx) => await ctx.storage.store(new Blob(["demande privée"], { type: "text/plain" })))
+    const { messageId, scanId } = await f.t.run(async (ctx) => {
+      const scanId = await ctx.db.insert("fileScans", { storageId, networkId: f.root, uploadedByPersonId: f.buyer.personId, source: "message", status: "clean", attempts: 1, createdAt: NOW, updatedAt: NOW })
+      const messageId = await ctx.db.insert("commercialMessages", { networkId: f.root, threadId, senderPersonId: f.buyer.personId, senderKind: "requester", attachmentFiles: [{ storageId, filename: "besoin.txt", mimeType: "text/plain", sizeBytes: 15 }], idempotencyKey: "service-attachment-0001", digest: "d".repeat(64), createdAt: NOW })
+      return { messageId, scanId }
+    })
+    const { delivery, config, requestRowId } = await admittedQuote(f, threadId, [messageId])
+    expect(await f.buyer.as.mutation(authorizeDelivery, { networkId: f.root, delivery, configFingerprint: config.fingerprint })).toBe(true)
+    const response = await p.fetcher("http://localhost:4010/commerce/v1/commands", { body: delivery.rawBody })
+    await f.t.run(async (ctx) => {
+      if (change === "deleted") await ctx.db.patch(messageId, { deletedAt: NOW })
+      else await ctx.db.patch(scanId, { status: "infected" })
+    })
+    expect(await f.buyer.as.mutation(authorizeDelivery, { networkId: f.root, delivery, configFingerprint: config.fingerprint })).toBe(false)
+    expect(await f.buyer.as.mutation(finishDelivery, { networkId: f.root, delivery, rawResponse: await response.text(), httpStatus: response.status })).toEqual({ outcome: "refused" })
+    expect((await requestRow(f, requestRowId))?.inquiryRef).toBeUndefined()
+    expect((await commands(f, requestRowId))[0]?.state).toBe("unknown")
+    expect(delivery.rawBody).not.toContain(String(messageId))
+    expect(delivery.rawBody).not.toContain(String(storageId))
+  })
+
+  it("conversation retirée pendant l'échange : réponse directe refusée, reçu historique encore consultable", async () => {
+    const f = await fixture(), p = peer(), threadId = await quoteThread(f)
+    const { delivery, requestRowId } = await admittedQuote(f, threadId)
+    const response = await p.fetcher("http://localhost:4010/commerce/v1/commands", { body: delivery.rawBody })
+    await f.t.run(async (ctx) => await ctx.db.patch(threadId, { state: "closed" }))
+    expect(await f.buyer.as.mutation(finishDelivery, { networkId: f.root, delivery, rawResponse: await response.text(), httpStatus: response.status })).toEqual({ outcome: "refused" })
+    expect((await requestRow(f, requestRowId))?.inquiryRef).toBeUndefined()
+    p.state.forget = false
+    await f.buyer.as.action(retry, { networkId: f.root, requestRowId })
+    expect((await requestRow(f, requestRowId))?.inquiryRef).toBe(INQUIRY)
+    expect(p06(p, "inquiry.submit")).toHaveLength(1)
+  })
+
+  it("TTL privé : pièces sélectionnées et preuves de bail expurgées, aucune référence dans l'export", async () => {
+    const f = await fixture(), threadId = await quoteThread(f)
+    const { delivery, requestRowId } = await admittedQuote(f, threadId)
+    const [command] = await commands(f, requestRowId)
+    expect(command?.inquiryAttachmentMessageIds).toEqual([])
+    expect(command?.leaseSessionDigest).toBeDefined()
+    const projected = exportableRecord("commerceServiceCommands", command! as unknown as DataRecord, String(f.buyer.personId))
+    for (const field of ["inquiryAttachmentMessageIds", "sessionDigest", "leaseSessionDigest", "lookupSessionDigest"]) expect(projected).not.toHaveProperty(field)
+    vi.setSystemTime(NOW + 30 * 60_000 + 1)
+    await f.t.mutation(expirePrivate, { commandId: delivery.commandId })
+    const [purged] = await commands(f, requestRowId)
+    for (const field of ["rawBody", "leaseToken", "leaseUntil", "leaseSessionDigest", "lookupSessionDigest", "inquiryAttachmentMessageIds"] as const) expect(purged?.[field]).toBeUndefined()
+    expect(purged?.sessionDigest).toBe(command?.sessionDigest)
+    expect(purged?.state).toBe("unknown")
+  })
+
+  it("ancienne demande sans preuve des pièces : reçu consultable, aucun renvoi même sans pièce déclarée", async () => {
+    const f = await fixture(), p = peer(), threadId = await quoteThread(f)
+    p.state.timeout = true
+    const result = await f.buyer.as.action(requestQuote, { networkId: f.root, handle: "salon-test", offerRef: OFFER, threadId, need: "Coupe", attachmentMessageIds: [], consentTextVersion: COMMERCE_INQUIRY_CONSENT_VERSION, clientRequestId: "service-quote-legacy-0001" })
+    if (result.outcome !== "request") throw new Error("Demande attendue")
+    const [command] = await commands(f, result.requestRowId)
+    await f.t.run(async (ctx) => await ctx.db.patch(command!._id, { inquiryAttachmentMessageIds: undefined }))
+    p.state.timeout = false
+    await f.buyer.as.action(retry, { networkId: f.root, requestRowId: result.requestRowId })
+    expect(p06(p, "inquiry.submit")).toHaveLength(1)
+    // Le bail refusé expire ; un reçu réellement enregistré reste consultable ensuite.
+    vi.setSystemTime(NOW + 31_000); p.state.forget = false
+    await f.buyer.as.action(retry, { networkId: f.root, requestRowId: result.requestRowId })
+    expect((await requestRow(f, result.requestRowId))?.inquiryRef).toBe(INQUIRY)
   })
 })
 
@@ -732,3 +966,10 @@ describe("P14B — avis commerce des services", () => {
     expect(await jobsOf(g, quiet[0]!._id)).toEqual([])
   })
 })
+
+// P16 : validation fictive EN TEST pour préserver les scénarios historiques.
+// Aucun contournement d'environnement ni activation en source applicative.
+vi.mock("./commerceActivation", async (importOriginal) => ({
+  ...await importOriginal<typeof import("./commerceActivation")>(),
+  commerceActivationReady: () => true,
+}))

@@ -1,0 +1,6 @@
+{
+  "ios": {
+    "NSMicrophoneUsageDescription": "ANTSIA utilise le microphone lorsque vous répondez ou lancez un appel.",
+    "NSCameraUsageDescription": "ANTSIA utilise la caméra uniquement lorsque vous choisissez un appel vidéo."
+  }
+}

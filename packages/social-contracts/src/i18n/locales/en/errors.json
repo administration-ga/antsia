@@ -12,6 +12,7 @@
   "consentRequired": "Your consent is required to continue.",
   "profileRequired": "First choose your handle and display name.",
   "fileScanPending": "Security scan in progress: the file will be available in a few moments.",
+  "fileScanUnavailable": "The security scan could not be completed. The file remains unavailable until it has been checked.",
   "fileQuarantined": "This file was blocked by the security scan.",
   "groupMembershipRequired": "Join this group to access its posts.",
   "groupRoleRequired": "Your role in this group does not allow this action.",

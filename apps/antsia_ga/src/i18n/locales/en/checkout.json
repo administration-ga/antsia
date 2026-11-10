@@ -22,6 +22,8 @@
   "fulfillment": "Fulfillment method",
   "pickup": "Collect from an establishment",
   "seller_delivery": "Seller delivery",
+  "pickupPoints_one": "{{count}} collection establishment",
+  "pickupPoints_other": "{{count}} collection establishments",
   "establishment": "Collection establishment",
   "country": "Delivery country",
   "gabon": "Gabon",

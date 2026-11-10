@@ -1,0 +1,19 @@
+{
+  "storefront": {
+    "offers": "Voir les offres",
+    "existingConversation": "Retrouver mon échange",
+    "manageHint": "Gérez ici votre vitrine ANTSIA. Le catalogue et la gestion de votre entreprise restent dans PRO.GA, selon votre liaison et vos droits."
+  },
+  "contact": {
+    "requesterContext": "Votre échange avec cette boutique",
+    "shopContext": "Boîte de la boutique",
+    "partialEmpty": "Aucun échange dans cette fenêtre. La suivante peut en contenir.",
+    "teamContext": "Les membres répondent au nom de cette boutique selon les droits acceptés. Leur compte personnel reste distinct.",
+    "offline": "Connexion interrompue. Votre texte reste dans ce formulaire ; aucun nouvel envoi n'est lancé.",
+    "review": "La connexion est revenue. Relisez la disponibilité avant d'envoyer votre demande.",
+    "refresh": "Relire la disponibilité",
+    "uncertain": "L'enregistrement de votre demande n'est pas confirmé. Recherchez d'abord l'échange ; s'il est encore absent, reprenez exactement le même texte.",
+    "retrySame": "Reprendre le même envoi",
+    "existingState": "État de l'échange : {{state}}"
+  }
+}

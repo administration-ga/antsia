@@ -2,7 +2,7 @@ import type { EffectCallback, ReactNode, SetStateAction } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import type { ConvexReactClient } from "convex/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import type { RefreshableCrossDomainAuthClient, SessionBootstrapResult } from "./cross-domain-session-bootstrap"
+import type { CrossDomainStorage, RefreshableCrossDomainAuthClient, SessionBootstrapResult } from "./cross-domain-session-bootstrap"
 
 type AnonymousAuth = {
   isLoading: boolean
@@ -61,11 +61,11 @@ let authClient: RefreshableCrossDomainAuthClient
 let client: ConvexReactClient
 const clearAuth = vi.fn()
 
-function render(initialToken?: string | null): string {
+function render(initialToken?: string | null, storage?: CrossDomainStorage): string {
   state.index = 0
   state.effects = []
   return renderToStaticMarkup(
-    <StableConvexBetterAuthProvider client={client} authClient={authClient} initialToken={initialToken} labels={labels}>
+    <StableConvexBetterAuthProvider client={client} authClient={authClient} initialToken={initialToken} labels={labels} storage={storage}>
       <div>Contenu de l'application</div>
     </StableConvexBetterAuthProvider>,
   )
@@ -93,6 +93,28 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals())
 
 describe("StableConvexBetterAuthProvider — fermeture anonyme", () => {
+  it("transmet la vue de stockage au bootstrap et conserve l'unicité pour ce scope", async () => {
+    const storage = { getItem: vi.fn(() => null), setItem: vi.fn() }
+    render(undefined, storage)
+    await runEffects()
+    render(undefined, storage)
+    await runEffects()
+    expect(state.bootstrap).toHaveBeenCalledExactlyOnceWith(authClient, { oneTimeToken: null, storage })
+  })
+
+  it("ne réutilise pas le bootstrap d'une autre vue pour le même client", async () => {
+    const first = { getItem: vi.fn(() => null), setItem: vi.fn() }
+    const second = { getItem: vi.fn(() => null), setItem: vi.fn() }
+    state.bootstrap.mockResolvedValueOnce({ kind: "ready", token: "JWT-first" }).mockResolvedValueOnce({ kind: "signed_out", token: null })
+    render(undefined, first)
+    await runEffects()
+    render(undefined, second)
+    await runEffects()
+    expect(state.bootstrap).toHaveBeenCalledTimes(2)
+    expect(state.bootstrap).toHaveBeenNthCalledWith(2, authClient, { oneTimeToken: null, storage: second })
+    expect(render(undefined, second)).toContain('data-provider="anonymous"')
+  })
+
   it("un initialToken:null monte immédiatement le fournisseur anonyme, même avec un cookie résiduel", async () => {
     const html = render(null)
     expect(html).toContain('data-provider="anonymous"')

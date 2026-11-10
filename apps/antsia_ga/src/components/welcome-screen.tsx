@@ -20,7 +20,8 @@ import { engineErrorMessage } from "@/lib/engine-errors"
 import { parseShopContactContinuation, type ShopContactContinuation } from "@/lib/shop-contact-continuation"
 import { parsePublicPostContinuation } from "@/lib/public-post-continuation"
 import { parseNotificationReference } from "@/lib/notification-open"
-import { routes } from "@/lib/routes"
+import { parseSpecializedDestination, type SpecializedDestination } from "@/lib/specialized-navigation"
+import { routes, specializedDestinationPath } from "@/lib/routes"
 import { signOutAndRedirect } from "@/lib/sign-out"
 
 /** La valeur, une fois que la saisie s'est calmée (évite une requête par frappe). */
@@ -33,7 +34,7 @@ function useSettled<T>(value: T, delayMs = 350): T {
   return settled
 }
 
-export function WelcomeScreen({ publicPostId, notificationReference, shopContact }: { publicPostId?: string; notificationReference?: string; shopContact?: ShopContactContinuation } = {}) {
+export function WelcomeScreen({ publicPostId, notificationReference, shopContact, specializedDestination }: { publicPostId?: string; notificationReference?: string; shopContact?: ShopContactContinuation; specializedDestination?: SpecializedDestination } = {}) {
   const { t, i18n } = useTranslation()
   const router = useRouter()
   const [signingOut, setSigningOut] = useState(false)
@@ -46,7 +47,9 @@ export function WelcomeScreen({ publicPostId, notificationReference, shopContact
   const continuationPostId = parsePublicPostContinuation(publicPostId)
   const notification = continuationPostId ? undefined : parseNotificationReference(notificationReference)
   const contact = continuationPostId || notification ? undefined : parseShopContactContinuation(shopContact)
-  const destination = continuationPostId ? routes.memberPost(continuationPostId) : notification ? routes.openNotification(notification) : contact ? routes.shopContact(contact.handle, contact.offerRef) : routes.feed()
+  const space = continuationPostId || notification || contact ? undefined : parseSpecializedDestination(specializedDestination)
+  const destination = continuationPostId ? routes.memberPost(continuationPostId) : notification ? routes.openNotification(notification) : contact ? routes.shopContact(contact.handle, contact.offerRef) : specializedDestinationPath(space) ?? routes.feed()
+  const signInPath = routes.signIn(undefined, continuationPostId, notification, contact, space)
   const recordConsent = useMutation(api.modules.people.consents.recordConsent)
   const publishMyProfile = useMutation(api.modules.people.profile.publishMyProfile)
   const joinNetwork = useMutation(api.modules.people.memberships.joinNetwork)
@@ -84,9 +87,9 @@ export function WelcomeScreen({ publicPostId, notificationReference, shopContact
 
   useEffect(() => {
     if (session.status === "restricted") router.replace(routes.personalControls())
-    else if (session.status === "signedOut") router.replace(routes.signIn(undefined, continuationPostId, notification, contact))
+    else if (session.status === "signedOut") router.replace(signInPath)
     else if (session.status === "member") router.replace(destination)
-  }, [session.status, continuationPostId, notification, contact?.handle, contact?.offerRef, destination, router])
+  }, [session.status, destination, signInPath, router])
 
   const displayName = useSettled(useWatch({ control: form.control, name: "displayName" }))
   const suggestions = useQuery(

@@ -243,8 +243,8 @@ export const grantPageAdmin = operatorMutation({
     const existing = await signatoryRowOf(ctx, page._id, person._id)
     if (existing?.role === "admin") return { invited: existing.acceptedAt === undefined }
     const now = Date.now()
-    if (existing) await ctx.db.patch(existing._id, { role: "admin", updatedAt: now })
-    else await ctx.db.insert("pageSignatories", { networkId: page.networkId, pageId: page._id, personId: person._id, role: "admin", createdAt: now, updatedAt: now })
+    if (existing) await ctx.db.patch(existing._id, { role: "admin", authorityRevision: (existing.authorityRevision ?? 0) + 1, updatedAt: now })
+    else await ctx.db.insert("pageSignatories", { networkId: page.networkId, pageId: page._id, personId: person._id, role: "admin", authorityRevision: 0, createdAt: now, updatedAt: now })
     await appendAudit(ctx, {
       action: "page.signatory_grant",
       capacity: operatorCapacity(ctx.operator),

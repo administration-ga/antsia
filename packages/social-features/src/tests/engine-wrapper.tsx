@@ -5,7 +5,7 @@
  *
  * Fichier de TEST (dossier `tests/`) : jamais importé par une source.
  */
-import { NetworkProvider, type EngineRoutes } from "@antsia/api/network"
+import { NetworkProvider, type EngineNavigation, type EngineNavigationLayout, type EnginePostPresentation, type EngineRoutes, type NetworkContextValue } from "@antsia/api/network"
 import type { Id } from "@antsia/api/engine"
 import { RouterProvider, type RouterApi, type RouterImplementation } from "@antsia/api/routing"
 import { render, type RenderOptions } from "@testing-library/react"
@@ -56,6 +56,12 @@ export function EngineTestWrapper(props: {
   router?: RouterImplementation
   routes?: EngineRoutes
   personId?: Id<"persons">
+  /** La présentation déclarée par l'application (`classic` sans valeur, comme DIASPORALE). */
+  postPresentation?: EnginePostPresentation
+  navigation?: EngineNavigation
+  navigationLayout?: EngineNavigationLayout
+  navigationLabels?: NetworkContextValue["navigationLabels"]
+  PostArticleRenderer?: NetworkContextValue["PostArticleRenderer"]
 }) {
   const i18n = createAppI18n({ locale: "fr", appResources: { fr: {}, en: {} }, defaultNS: "social" })
   return (
@@ -68,6 +74,11 @@ export function EngineTestWrapper(props: {
           charte="antsia"
           routes={props.routes ?? TEST_ROUTES}
           liveAvailable
+          postPresentation={props.postPresentation}
+          navigation={props.navigation}
+          navigationLayout={props.navigationLayout}
+          navigationLabels={props.navigationLabels}
+          PostArticleRenderer={props.PostArticleRenderer}
         >
           {props.children}
         </NetworkProvider>
@@ -77,11 +88,11 @@ export function EngineTestWrapper(props: {
 }
 
 /** `render` de testing-library, dans l'enveloppe du moteur. */
-export function renderWithEngine(ui: ReactElement, options: Omit<RenderOptions, "wrapper"> & { router?: RouterImplementation; personId?: Id<"persons"> } = {}) {
-  const { router, personId, ...rest } = options
+export function renderWithEngine(ui: ReactElement, options: Omit<RenderOptions, "wrapper"> & { router?: RouterImplementation; personId?: Id<"persons">; routes?: EngineRoutes; postPresentation?: EnginePostPresentation; navigation?: EngineNavigation; navigationLayout?: EngineNavigationLayout; navigationLabels?: NetworkContextValue["navigationLabels"]; PostArticleRenderer?: NetworkContextValue["PostArticleRenderer"] } = {}) {
+  const { router, personId, routes, postPresentation, navigation, navigationLayout, navigationLabels, PostArticleRenderer, ...rest } = options
   return render(ui, {
     wrapper: ({ children }) => (
-      <EngineTestWrapper router={router} personId={personId}>
+      <EngineTestWrapper router={router} personId={personId} routes={routes} postPresentation={postPresentation} navigation={navigation} navigationLayout={navigationLayout} navigationLabels={navigationLabels} PostArticleRenderer={PostArticleRenderer}>
         {children}
       </EngineTestWrapper>
     ),

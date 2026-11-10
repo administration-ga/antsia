@@ -1,4 +1,19 @@
 {
+  "recovery": {
+    "offline": "You are offline. Your entries remain on this screen; no upload, submission, withdrawal or retry is sent.",
+    "reviewRequired": "Review the opening, your files or the status before giving new consent.",
+    "review": "Review information",
+    "uncertain": "An application has already been requested. Look up its result before starting again. The recovery index contains no name, motivation or CV.",
+    "lookup": "Look up the submitted application",
+    "stopHint": "No matching application was found. The server must close this key before a new request. An existing application will be opened, never withdrawn by this choice.",
+    "stop": "Close this intention before starting again",
+    "storageUnavailable": "The recovery key cannot be saved or the index is invalid. No new submission is allowed. Open My applications.",
+    "filesStale": "A selected file is no longer ready or available. No file is silently omitted. Review your selection before giving new consent.",
+    "retryChanged": "Retry conditions have changed or an original file is no longer available. Refresh the status before trying again; no reduced application is sent.",
+    "retryTitle": "Explicitly renew this submission",
+    "retryLead": "The absence of the earlier submission was confirmed and its deadline expired. The server will retain exactly the original files and content; an unavailable file blocks renewal.",
+    "consentVersion": "Consent version: {{version}}"
+  },
   "directory": {
     "title": "Jobs",
     "lead": "Job openings published by employers linked to PRO.GA, newest first.",
@@ -125,6 +140,10 @@
     }
   },
   "applications": {
+    "announcements": {
+      "changed": "Application update: {{changes}}.",
+      "remoteUpdated": "Remote withdrawal tracking was updated."
+    },
     "title": "My applications",
     "detailTitle": "My application",
     "detailUnavailable": "This application is not available in your session.",

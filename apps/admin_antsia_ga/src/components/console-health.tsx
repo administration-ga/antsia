@@ -7,6 +7,7 @@ import { Activity, AlertTriangle, RefreshCw } from "lucide-react"
 import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
 
+import { LegalDeadlinesAlert } from "./console-legal-deadlines"
 import { ConsoleDate, controlStyle, LoadingRows, OperationFailure, panelClass, useOperation } from "./console-operation-controls"
 
 const metricKeys = ["members", "openReports", "openAppeals", "pendingFiles", "deadLetters"] as const
@@ -25,6 +26,7 @@ export function HealthPanel({ networkId }: { networkId: Id<"networks"> }) {
   return <section className={`${panelClass} flex min-w-0 flex-col gap-5`}>
     <h2 className="flex items-center gap-2 text-xl font-semibold"><Activity size={22} aria-hidden="true" />{t("health.title")}</h2>
     <p className="text-sm text-muted-foreground">{t("health.lead")}</p>
+    <LegalDeadlinesAlert networkId={networkId} now={clock} />
     {metrics === undefined ? <LoadingRows /> : metrics === null ? <p role="status">{t("health.notGenerated")}</p> : metrics.status === "building" ? <p role="status" className="rounded-lg bg-muted p-4">{t("health.building")}</p> : <>
       {metrics.generatedAt !== null ? <p className="text-sm text-muted-foreground">{t("health.generated")} <ConsoleDate at={metrics.generatedAt} /></p> : <p role="status">{t("health.dateMissing")}</p>}
       <dl className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-3">{metricKeys.map((key) => <div key={key} className="rounded-lg border border-border p-4"><dt className="text-sm text-muted-foreground">{t(`health.metrics.${key}`)}</dt><dd className="mt-2 text-3xl font-semibold tabular-nums">{number.format(metrics.counts[key])}</dd></div>)}</dl>

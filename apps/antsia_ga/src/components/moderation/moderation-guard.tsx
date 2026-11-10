@@ -49,7 +49,7 @@ export function ModerationGuard({ children }: { children: ReactNode }) {
     return () => { window.removeEventListener("beforeunload", beforeUnload); document.removeEventListener("click", click, true); window.removeEventListener("popstate", pop) }
   }, [lock, registry])
   return <Context.Provider value={{ ...registry, pending }}>
-    {dirty || pending ? <p role="status" className="border-b border-border bg-muted px-4 py-3 text-sm">{t(pending ? "moderation.pendingNotice" : "moderation.draftNotice")}</p> : null}
+    {dirty || pending ? <p role="status" className="border-b border-transparent bg-muted px-4 py-3 text-sm">{t(pending ? "moderation.pendingNotice" : "moderation.draftNotice")}</p> : null}
     {children}
   </Context.Provider>
 }

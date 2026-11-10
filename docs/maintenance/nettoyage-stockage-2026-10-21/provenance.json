@@ -1,0 +1,52 @@
+{
+  "preparedAtUtc": "2026-10-21T11:58:20.094546+00:00",
+  "sourcesRetainedLocally": true,
+  "sourcePathsOmittedFromPublicRepository": true,
+  "sources": [
+    {
+      "sourceFile": "final-report.json",
+      "sourceSha256": "7cf877fe6a2874171127c797a05e1d85da4bc136ed894eb875eec266b9f4763b",
+      "projectionFile": "preuves/passe1-final-report.json"
+    },
+    {
+      "sourceFile": "cache-removal.json",
+      "sourceSha256": "3c938d72c4971d1252408172be5197a86382fd20b59eb8f9125d65f170e9e07d",
+      "projectionFile": "preuves/passe1-cache-removal.json"
+    },
+    {
+      "sourceFile": "mcp-stop-result.json",
+      "sourceSha256": "3bb329f41590b1ee32f1e89985e0def7e5371f7575e40b87b0849d0e2debc4d2",
+      "projectionFile": "preuves/passe1-mcp-stop-result.json"
+    },
+    {
+      "sourceFile": "mcp-additional-stopped.json",
+      "sourceSha256": "37b26da0a2d933ce903797c3ef32609ade0205792ee7f049d442c6d7365107a6",
+      "projectionFile": "preuves/passe1-mcp-additional-stopped.json"
+    },
+    {
+      "sourceFile": "baseline.json",
+      "sourceSha256": "827255189f1fe81703de57ccf268fcd253985649db48477e9aa4d11982d4789f",
+      "projectionFile": "preuves/passe2-baseline.json"
+    },
+    {
+      "sourceFile": "installer-removal.json",
+      "sourceSha256": "31baf011291640469972b9d06a343c6fa990ed1c652e53c908b9a0609aa06a7c",
+      "projectionFile": "preuves/passe2-installer-removal.json"
+    },
+    {
+      "sourceFile": "npm-cache-removals.json",
+      "sourceSha256": "89f2468868c186e3094b2c25c97cb59559c312d717d0b69cb919877bc4603909",
+      "projectionFile": "preuves/passe2-npm-cache-removals.json"
+    },
+    {
+      "sourceFile": "old-otp-dependencies-removal.json",
+      "sourceSha256": "763190268f0d890b66e0a74102f57655c21ee0553bf95e60676abc27689ba6da",
+      "projectionFile": "preuves/passe2-old-dependencies-removal.json"
+    },
+    {
+      "sourceFile": "rapport.json",
+      "sourceSha256": "f22ebcaa20725e353d0f7e762f8747f54f9fdee43cbca308a97d02c8369b3f27",
+      "projectionFile": "preuves/passe2-rapport.json"
+    }
+  ]
+}

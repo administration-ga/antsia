@@ -22,6 +22,13 @@ beforeEach(() => {
 })
 
 describe("Profil — l'écran rend chaque entrée du modèle, l'apparence et la sortie", () => {
+  it("le profil publié a son raccourci séparé et n'est pas dupliqué dans l'activité", () => {
+    const html = renderToStaticMarkup(<MemberMeScreen />)
+    expect(hrefsOf(html).filter((href) => href === routes.profile("awa.ndong"))).toHaveLength(1)
+    expect(html).toContain("me.profileHint")
+    expect(html.indexOf("me.profileHint")).toBeLessThan(html.indexOf("me.activityTitle"))
+    expect(hrefsOf(html)).toContain(routes.feedPreferences())
+  })
   it("titre, groupes nommés, toutes les entrées en liens, dans l'ordre du modèle", () => {
     const html = renderToStaticMarkup(<MemberMeScreen />)
     expect(html).toContain("<h1")

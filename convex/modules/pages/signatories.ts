@@ -90,12 +90,12 @@ export const grantPageRole = networkMutation({
         const adminCount = await countLiveAdmins(ctx, page)
         checked(() => assertNotLastAdmin({ role: "admin", nextRole: args.role, adminCount }))
       }
-      await ctx.db.patch(existing._id, { role: args.role, updatedAt: now })
+      await ctx.db.patch(existing._id, { role: args.role, authorityRevision: (existing.authorityRevision ?? 0) + 1, updatedAt: now })
     } else {
       const count = (await signatoryRowsOf(ctx, page._id)).length
       checked(() => assertPageHasRoomForSignatory(count))
       if (page.trust === "official" && !(await hasStrongIdentityFor(ctx, target._id))) return failRule("PAGE_SIGNATORY_IDENTITY_REQUIRED")
-      await ctx.db.insert("pageSignatories", { networkId: page.networkId, pageId: page._id, personId: target._id, role: args.role, grantedByPersonId: ctx.person._id, createdAt: now, updatedAt: now })
+      await ctx.db.insert("pageSignatories", { networkId: page.networkId, pageId: page._id, personId: target._id, role: args.role, authorityRevision: 0, grantedByPersonId: ctx.person._id, createdAt: now, updatedAt: now })
     }
     await appendAudit(ctx, {
       action: "page.signatory_grant",
@@ -184,7 +184,7 @@ export const respondToPageInvitation = networkMutation({
     // L'identité forte se relit à l'acceptation : elle a pu tomber depuis l'invitation.
     if (page.trust === "official" && !(await hasStrongIdentityFor(ctx, ctx.person._id))) return failRule("PAGE_SIGNATORY_IDENTITY_REQUIRED")
     const now = Date.now()
-    await ctx.db.patch(row._id, { acceptedAt: now, updatedAt: now })
+    await ctx.db.patch(row._id, { acceptedAt: now, authorityRevision: (row.authorityRevision ?? 0) + 1, updatedAt: now })
     await refreshReaderContexts(ctx, row.networkId, ctx.person._id)
     return { role: row.role }
   },

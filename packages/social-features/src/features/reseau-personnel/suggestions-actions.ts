@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/suggestions-actions.ts @ ad2e7fdc2 — adaptations : libellés par clés i18n qualifiées (`reseau:suggestionsActions.*`) — `t` ajouté en dernier paramètre de `connectButtonLabel` et `relationActionLabel` (dont `busy` devient obligatoire) ; état relationnel lu sur le catalogue du moteur (`suggestions.suggestions.paginate`) ; vocabulaire « entre agents » retiré (geste réciproque entre personnes).
+// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/suggestions-actions.ts @ ad2e7fdc2 — adaptations : libellés par clés i18n qualifiées (`reseau:suggestionsActions.*`) — `t` ajouté en dernier paramètre de `connectButtonLabel` et `relationActionLabel` (dont `busy` devient obligatoire) ; état relationnel lu sur le catalogue du moteur (`suggestions.suggestions.paginate`) ; vocabulaire « entre agents » retiré (geste réciproque entre personnes) ; étude du 22/10/2026 (ADR-0037) : clé du geste Suivre (`followActionKey` : Suivre, Suivre en retour, Suivi) et cartes retenues après un suivi (`withRetainedSuggestions`).
 /**
  * suggestions-actions — l'état du geste « Se connecter » et le filtrage
  * session-only des modules de découverte, hors du composant.
@@ -87,4 +87,36 @@ export function relationActionDisabled(relationState: SuggestionRelationState, b
  */
 export function offersInvitationAnswer(relationState: SuggestionRelationState): boolean {
   return relationState === "requested_by_them"
+}
+
+/**
+ * Le geste « Suivre » d'une carte de suggestion (ADR-0037), par sa clé
+ * (`reseau:suggestionRelation.<clé>` et `<clé>Label`) : « Suivi » une fois
+ * suivie, « Suivre en retour » quand la personne vous suit déjà, « Suivre » sinon.
+ */
+export type FollowActionKey = "follow" | "followBack" | "following"
+
+export function followActionKey({ following, followsYou }: { following: boolean; followsYou: boolean }): FollowActionKey {
+  if (following) return "following"
+  return followsYou ? "followBack" : "follow"
+}
+
+/** Une carte gardée à l'écran après un suivi, avec la place qu'elle occupait. */
+export type RetainedSuggestion<T extends { handle: string }> = { row: T; index: number }
+
+/**
+ * Les cartes que le catalogue écarte mais que l'écran garde. Le serveur retire
+ * une personne suivie de ses suggestions ; sa carte reste à sa place, le temps du
+ * montage, pour dire « Suivi » et laisser revenir sur le geste. Une personne que
+ * le serveur rend encore n'est jamais doublée.
+ */
+export function withRetainedSuggestions<T extends { handle: string }>(items: readonly T[], retained: readonly RetainedSuggestion<T>[]): T[] {
+  const out = [...items]
+  const present = new Set(items.map((item) => item.handle))
+  for (const { row, index } of [...retained].sort((a, b) => a.index - b.index)) {
+    if (present.has(row.handle)) continue
+    out.splice(Math.min(Math.max(index, 0), out.length), 0, row)
+    present.add(row.handle)
+  }
+  return out
 }

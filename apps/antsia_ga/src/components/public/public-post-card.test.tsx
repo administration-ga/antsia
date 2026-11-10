@@ -57,7 +57,7 @@ describe("carte publique serveur", () => {
     expect(html).toContain("Page suivante")
   })
 
-  it("place identité et origine avant le média, puis les actions avant la légende", () => {
+  it("suit l'ordre des chartes : identité, origine, légende, média posé, puis les actions (ADR-0028)", () => {
     const value: PublicPost = { ...post, author: { ...post.author, displayName: "Atelier partagé", handle: "atelier" }, body: "Une légende lisible", media: [image], shared: null }
     const { article } = renderCard(value)
     const identity = article.querySelector(`a[href="${routes.publicProfile("atelier")}"]`)
@@ -66,9 +66,10 @@ describe("carte publique serveur", () => {
     const actions = article.querySelector('[role="group"][aria-label="Actions de la publication publique"]')
     const caption = Array.from(article.querySelectorAll("p")).find((node) => node.textContent === value.body) ?? null
     expectBefore(identity, origin)
-    expectBefore(origin, media)
+    expectBefore(origin, caption)
+    expectBefore(caption, media)
     expectBefore(media, actions)
-    expectBefore(actions, caption)
+    expect(article.getAttribute("data-post-presentation")).toBe("charte")
     expect(media?.getAttribute("alt")).toBe(image.altText)
     expect(article.querySelector("time")?.getAttribute("datetime")).toBe(new Date(value.publishedAt).toISOString())
   })
@@ -89,7 +90,8 @@ describe("carte publique serveur", () => {
     expect(complete?.querySelector(`a[href="${routes.publicProfile("alice")}"]`)?.textContent).toBe("@alice")
     expect(article.querySelector("script")).toBeNull()
     expect(html).toContain("&lt;script&gt;interdit()&lt;/script&gt;")
-    expectBefore(article.querySelector('[role="group"][aria-label="Actions de la publication publique"]'), details)
+    expectBefore(details, article.querySelector("img"))
+    expectBefore(details, article.querySelector('[role="group"][aria-label="Actions de la publication publique"]'))
   })
 
   it("présente un texte seul intégral avant les actions sans le réduire à un aperçu", () => {

@@ -13,6 +13,7 @@ import { enforceRateLimit } from "../../lib/rateLimit"
 import { requireFederationAdmin } from "../federation/access"
 import { appendAudit, operatorCapacity } from "../platform/audit"
 import { jobPolicyOf } from "./jobAccess"
+import { commerceActivationReady } from "./commerceActivation"
 import { discoverJobs, jobByHandle, jobDtoValidator, jobListValidator, jobsDiscoverable, listShopJobs } from "./jobRead"
 
 export const listForShop = networkQuery({
@@ -45,6 +46,7 @@ export const setPolicy = operatorMutation({
     await enforceRateLimit(ctx, "shop.job.configure", ctx.person._id)
     const reason = checked(() => assertDecisionReason(args.reason, 10))
     if ((await ctx.db.get(args.networkId))?.status !== "active") return notFound()
+    if (args.applicationsEnabled && !commerceActivationReady("applications")) return notFound()
     const previous = await ctx.db.query("commerceJobPolicies").withIndex("by_network", (q) => q.eq("networkId", args.networkId)).unique()
     const fields = { networkId: args.networkId, jobsEnabled: args.jobsEnabled, applicationsEnabled: args.jobsEnabled && args.applicationsEnabled, updatedAt: Date.now(), updatedByPersonId: ctx.person._id }
     if (previous) await ctx.db.patch(previous._id, fields)

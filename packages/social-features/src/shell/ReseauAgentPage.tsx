@@ -41,8 +41,10 @@
  * `SharePostDialog` en est un — il passe par un portail vers `document.body`,
  * et c'est un PRÉREQUIS de cette grille, pas un détail.
  *
- * ⚠️ Les colonnes défilent CHACUNE pour soi : la page se monte dans un
- * conteneur de hauteur DÉFINIE (la zone de contenu de l'application).
+ * ⚠️ Dans la pose HISTORIQUE, les colonnes défilent chacune pour soi : la page
+ * se monte dans un conteneur de hauteur définie. U02, sous opt-in adaptatif,
+ * conserve le document comme défileur des pages ordinaires ; le lecteur immersif
+ * garde son défileur dédié. Les deux feuilles ne changent pas le même consommateur.
  *
  * ── Le 2026-08-19 — en-tête compacte et onglets « chemise » ───────────────
  * Les volets sont rendus par `EspaceDossierTabs` (le kit d'espace,
@@ -54,15 +56,15 @@
  * porte la recherche et la portée.
  */
 
-import { useNetwork, useRoutes } from "@antsia/api/network"
+import { useNetwork, useNetworkNavigationLayout, useRoutes } from "@antsia/api/network"
 import { Alert, Button, Select, SkeletonCard, TextInput } from "@antsia/ui"
 import { EspaceDossierTabs, EspaceKitStyles } from "@antsia/ui/espace-kit"
-import { useIsReseauMobile } from "@antsia/ui/overlay"
 import { Search } from "lucide-react"
 import { Suspense, useCallback } from "react"
 import { useTranslation } from "react-i18next"
 
 import { MessagerieDock } from "../features/messagerie/MessagerieDock"
+import { FeedComposerPrompt } from "./FeedComposerPrompt"
 import { BookmarksPanel } from "../features/reseau-personnel/BookmarksPanel"
 import { EvenementsPanel } from "../features/reseau-personnel/EvenementsPanel"
 import { EvenementsRail } from "../features/reseau-personnel/EvenementsRail"
@@ -109,6 +111,8 @@ import {
 import { isServedReseauTab, servedReseauTab } from "./reseau-menu"
 import { ReseauDesktopIcomLink } from "./ReseauDesktopIcomLink"
 import { ReseauMenuRail } from "./ReseauMenuRail"
+import { RESEAU_ADAPTIVE_CSS } from "./reseau-adaptive-styles"
+import { useLinkedColumnScroll } from "./use-linked-column-scroll"
 
 /** Le paramètre du lecteur plein écran qui positionne l'entrée sur un auteur. */
 const STORIES_AUTHOR_PARAM = "auteur"
@@ -479,7 +483,8 @@ export function ReseauAgentPage() {
  * arbres partagent le hook, ils ne le montent pas ensemble.
  */
 function ReseauAgentPageSwitch() {
-  const mobile = useIsReseauMobile()
+  const { adaptive, mobile } = useNetworkNavigationLayout()
+  const creation = useCreationController()
   if (mobile === null) {
     return (
       <div style={{ display: "grid", gap: 16, padding: "12px 14px" }}>
@@ -488,10 +493,18 @@ function ReseauAgentPageSwitch() {
       </div>
     )
   }
-  return mobile ? <ReseauMobilePage /> : <ReseauAgentPageInner />
+  return (
+    <>
+      {mobile ? <ReseauMobilePage /> : <ReseauAgentPageInner adaptive={adaptive} />}
+      {/* Le champ de fichier doit survivre au remplacement de la coquille,
+          notamment quand le sélecteur natif est encore ouvert. */}
+      <PostComposerSheet open={creation.open === "publication"} onClose={creation.close} />
+    </>
+  )
 }
 
-function ReseauAgentPageInner() {
+function ReseauAgentPageInner({ adaptive }: { adaptive: boolean }) {
+  const { centerRef, contextRef, composerRef, toolsRef } = useLinkedColumnScroll(adaptive)
   const { liveAvailable } = useNetwork()
   const { t } = useTranslation("reseau")
   const routes = useRoutes()
@@ -670,15 +683,17 @@ function ReseauAgentPageInner() {
   return (
     <div
       className="rp-scope"
-      style={{
-        height: "100%",
-      }}
+      data-navigation-layout={adaptive ? "adaptive" : undefined}
+      style={adaptive ? undefined : { height: "100%" }}
     >
       {/* `href` + `precedence` : React 19 hisse la balise dans `<head>` et la
           DÉDOUBLONNE si l'écran se remonte. */}
       <style href="rp-grid" precedence="default">
         {RESEAU_DESKTOP_CSS}
       </style>
+      {/* U02 : une feuille supplémentaire, strictement scoped ; l'historique
+          conserve ses seuils et ses défileurs hors de l'opt-in ANTSIA. */}
+      {adaptive ? <style href="rp-grid-adaptive-u02" precedence="default">{RESEAU_ADAPTIVE_CSS}</style> : null}
       {/* La feuille du kit d'espace — hissée et dédoublonnée par React 19,
           comme la feuille locale ci-dessus (même précédence "default"). */}
       <EspaceKitStyles />
@@ -699,7 +714,7 @@ function ReseauAgentPageInner() {
             reste monté pour préserver son état et ses données, mais le CSS ne
             l'affiche que lorsque la colonne de lecture garde sa largeur à côté
             de lui. */}
-        <aside className="rp-rail-start" aria-label={t("reseauAgentPage.railStartLabel")}>
+        <aside className="rp-rail-start citizen-scrollbar" tabIndex={adaptive ? 0 : undefined} aria-label={t("reseauAgentPage.railStartLabel")}>
           {/* `onCreate` ne sert que la navigation par destinations (P02) : la
               carte « Créer » du rail ouvre les MÊMES surfaces que ce lieu. */}
           <ReseauMenuRail activeTab={shownTab} counts={{ invitations: pendingCount }} onSelectTab={goToTab} onCreate={creation.openCreation} />
@@ -707,13 +722,16 @@ function ReseauAgentPageInner() {
 
         {/* ─── Colonne centrale : l'identité PUIS le volet ouvert, dans un
              seul scroller. ─── */}
-        <div className="rp-main-col citizen-scrollbar" data-volet={shownTab}>
-          <div className="rp-identity-region">
+        <div ref={centerRef} className="rp-main-col citizen-scrollbar" data-volet={shownTab} tabIndex={adaptive ? 0 : undefined} role={adaptive ? "region" : undefined} aria-label={adaptive ? t(currentTab.labelKey) : undefined}>
+          <div ref={composerRef} className="rp-identity-region">
             <div className="rp-identity-main">
               {/* La carte ne porte que l'identité, dans ses trois états —
                   chargement compris : elle ne doit jamais sauter quand la
                   réponse arrive. */}
-              <ProfileMiniCard
+              {/* U09 (épure) : sous l'opt-in adaptatif, la porte de publication
+                  remplace la carte d'identité — Profil, Créer et Messages sont
+                  déjà des destinations du rail. */}
+              {adaptive ? <FeedComposerPrompt onPublish={() => creation.openCreation("publication")} onLive={liveAvailable ? () => creation.openCreation("conference") : null} /> : <ProfileMiniCard
                 cover={showCover(RESEAU_HEADER_VARIANT, shownTab)}
                 action={
                   <div className="rp-profile-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -737,7 +755,7 @@ function ReseauAgentPageInner() {
                     <ReseauDesktopIcomLink />
                   </div>
                 }
-              />
+              />}
             </div>
           </div>
 
@@ -762,7 +780,7 @@ function ReseauAgentPageInner() {
             <div id={PANEL_ID} role="tabpanel" aria-labelledby={`${TAB_ID_PREFIX}${shownTab}`} className="flex min-w-0 flex-col gap-[var(--rp-stack-gap)]">
             {/* La carte de tête du volet ouvert : son titre, sa description, et
                 — sur le fil UNIQUEMENT — la recherche et la portée. */}
-            <section className="rp-volet-head esk-card" aria-label={t(currentTab.labelKey)} data-tools={shownTab === "fil" ? "true" : undefined}>
+            <section ref={toolsRef} className="rp-volet-head esk-card" aria-label={t(currentTab.labelKey)} data-tools={shownTab === "fil" ? "true" : undefined}>
               <h2 className="rp-volet-title">{t(currentTab.labelKey)}</h2>
               {/* La phrase du volet ne sert QUE les volets sans outils. */}
               {shownTab === "fil" ? null : <p className="rp-volet-desc">{t(currentTab.descriptionKey)}</p>}
@@ -789,10 +807,12 @@ function ReseauAgentPageInner() {
                           placeholder={t("reseauAgentPage.searchPlaceholder")}
                           aria-label={t("reseauAgentPage.searchLabel")}
                           style={{
-                            border: "1px solid var(--ink-200)",
-                            // Pastille, comme le sélecteur de portée qui suit
-                            // sur la même ligne.
-                            borderRadius: 999,
+                            // Système épuré (ADR-0027, ADR-0030) : l'angle des champs
+                            // (14 px) et le contour de contrôle à 3:1 (`--input`,
+                            // gardé par décision du propriétaire) ; ailleurs, la
+                            // pastille d'origine.
+                            border: "1px solid var(--input)",
+                            borderRadius: "var(--esp-field-radius, 999px)",
                             background: "var(--ink-100)",
                             minHeight: 52,
                             // ⚠️ Les QUATRE retraits en toutes lettres, jamais le
@@ -842,8 +862,12 @@ function ReseauAgentPageInner() {
                         value={scope}
                         onChange={(event) => goToScope(parseFeedScope(event.target.value))}
                         style={{
-                          borderRadius: 999,
-                          background: "var(--ink-100)",
+                          // Un filtre du fil est une PUCE des chartes (ADR-0030) :
+                          // angle des puces, gris du creux, aucun filet dans les
+                          // thèmes ANTSIA ; la pastille d'origine en repli.
+                          border: "1px solid var(--esp-chip-border, var(--ink-300))",
+                          borderRadius: "var(--esp-chip-radius, 999px)",
+                          background: "var(--esp-chip-bg, var(--ink-100))",
                           paddingTop: 11,
                           paddingBottom: 11,
                           paddingLeft: 16,
@@ -1007,7 +1031,9 @@ function ReseauAgentPageInner() {
         {/* Le premier emplacement est réservé à iCom. Le contenu privé reste
             une surface autonome ; les modules publics suivent dans le même
             scroller et remontent aussitôt que la carte est détachée. */}
-        <aside className="rp-rail-end rp-identity-aside citizen-scrollbar" aria-label={t("reseauAgentPage.railEndLabel")}>
+        <aside ref={contextRef} className="rp-rail-end rp-identity-aside citizen-scrollbar" tabIndex={adaptive ? 0 : undefined} aria-label={t("reseauAgentPage.railEndLabel")}>
+          {/* iCom reste en tête de la colonne droite, y compris sous la navigation adaptative
+              (décision du propriétaire du 22/10, qui revient sur ce retrait d'U09). */}
           <MessagerieDock />
           {rails.suggestions ? <SuggestionsPanel /> : null}
           {rails.pagesToFollow ? <PagesSuggestionsRail /> : null}
@@ -1020,7 +1046,6 @@ function ReseauAgentPageInner() {
           PORTAILLE elle-même vers body (ImmersiveOverlay) : le piège
           `container-type` de `.rp-scope` ne la concerne pas. */}
       <StoryCreateSheet open={creation.open === "actu"} onClose={creation.close} onPublished={creation.close} />
-      <PostComposerSheet open={creation.open === "publication"} onClose={creation.close} />
 
     </div>
   )

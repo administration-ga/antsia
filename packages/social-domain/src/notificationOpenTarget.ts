@@ -9,6 +9,8 @@
  *  - `jobApplication` : la fiche d'une candidature du candidat (« Mes candidatures », P15) ;
  *  - `pageModerationDecisions` : les décisions visant une page dont le lecteur est signataire VIVANT ;
  *  - `personalDecisions` : ses décisions et recours personnels ;
+ *  - `personalReports` (SU01d) : ses signalements, leur échéance et leur issue (accusé de
+ *    réception, décision) ;
  *  - `diasporaServiceNotice` : un avis de mise en relation DIASPORALE, sujet GÉNÉRIQUE (nature +
  *    référence opaque) que l'application DIASPORALE route elle-même ;
  *  - `diasporaCommunityNotice` (19/10/2026) : un avis de la vie communautaire DIASPORALE (entraide,
@@ -26,6 +28,7 @@ export const NOTIFICATION_OPEN_TARGET_KINDS = [
   "jobApplication",
   "pageModerationDecisions",
   "personalDecisions",
+  "personalReports",
   "diasporaServiceNotice",
   "diasporaCommunityNotice",
   "contextualThread",
@@ -54,6 +57,7 @@ export type NotificationOpenTarget =
   | { kind: "jobApplication"; applicationId: string }
   | { kind: "pageModerationDecisions"; pageId: string; pageHandle: string }
   | { kind: "personalDecisions" }
+  | { kind: "personalReports" }
   | {
       kind: "diasporaServiceNotice"
       audience: DiasporaNoticeAudience

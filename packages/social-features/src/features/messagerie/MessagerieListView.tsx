@@ -155,11 +155,12 @@ export function MessagerieListView({
 	const bodyRef = useRef<HTMLDivElement>(null)
 	const restorePosition = useRef(stateScope ? readListState(stateScope).scrollTop : 0)
 	const restoreDepth = useRef(stateScope ? readListState(stateScope).loadedThreadCount : 0)
-	const restoring = useRef(restorePosition.current > 0 || restoreDepth.current > 0)
+	const restoring = useRef(stateScope ? readListState(stateScope).scrollTop > 0 || readListState(stateScope).loadedThreadCount > 0 : false)
 	const threads = source.useThreadsPage()
 	const groupes = source.useGroupThreads()
 	const nonLus = source.useUnreadTotals()
 	const bodyId = useId()
+	const scopeDescriptionId = useId()
 
 	const tous = threads.data ?? []
 	const tousGroupes = groupes.data ?? []
@@ -204,6 +205,15 @@ export function MessagerieListView({
 	useEffect(() => {
 		if (stateScope && !restoring.current && threads.data !== undefined) writeListState(stateScope, { loadedThreadCount: threads.data.length })
 	}, [stateScope, threads.data])
+	useEffect(() => {
+		if (!stateScope || activeKey !== null || threads.isLoading || groupes.isLoading || restoring.current) return
+		const key = readListState(stateScope).returnFocusKey
+		if (key === null) return
+		const row = Array.from(bodyRef.current?.querySelectorAll<HTMLElement>("[data-conversation-key]") ?? []).find((item) => item.dataset.conversationKey === key)
+		if (!row) return
+		row.focus({ preventScroll: true })
+		writeListState(stateScope, { returnFocusKey: null })
+	}, [stateScope, activeKey, threads.data, groupes.data, threads.isLoading, groupes.isLoading])
 	/**
 	 * ⚠️ Les pastilles viennent du SERVEUR, pas de la page chargée (IC-06).
 	 * Additionner les `unreadCount` rendus donnait un chiffre qui variait avec
@@ -380,6 +390,7 @@ export function MessagerieListView({
 								maxLength={commercialActive ? 120 : undefined}
 								placeholder={rechercheLabel}
 								aria-label={rechercheLabel}
+								aria-describedby={destinationMode && !commercialActive && !contextualActive ? scopeDescriptionId : undefined}
 								onChange={(event) => {
 									setRecherche(event.target.value)
 									if (stateScope) writeListState(stateScope, { query: event.target.value, scrollTop: 0 })
@@ -390,7 +401,7 @@ export function MessagerieListView({
 						</div>
 					) : null}
 
-					{destinationMode && !commercialActive && !contextualActive ? <p className="msg-list-scope">{t(threads.hasMore ? "icomViews.loadedWindow" : "icomViews.loadedGroupsWindow")}</p> : null}
+					{destinationMode && !commercialActive && !contextualActive ? <p id={scopeDescriptionId} className="msg-list-scope">{t(threads.hasMore ? "icomViews.loadedWindow" : "icomViews.loadedGroupsWindow")}</p> : null}
 					<div className="msg-body" id={bodyId} ref={bodyRef} onScroll={(event) => {
 						if (stateScope && !restoring.current) writeListState(stateScope, { scrollTop: event.currentTarget.scrollTop })
 					}}>
@@ -470,6 +481,7 @@ export function MessagerieListView({
 													className="msg-row"
 													data-unread={fil.unreadCount > 0 ? "true" : "false"}
 													aria-current={activeKey === cle ? "true" : undefined}
+													data-conversation-key={cle}
 													onClick={() => nav.openConversation(cle)}
 												>
 													<Avatar
@@ -525,6 +537,7 @@ export function MessagerieListView({
 												className="msg-row"
 												data-unread={groupe.unreadCount > 0 ? "true" : "false"}
 												aria-current={activeKey === cle ? "true" : undefined}
+													data-conversation-key={cle}
 												onClick={() => nav.openConversation(cle)}
 											>
 												<GroupeAvatar

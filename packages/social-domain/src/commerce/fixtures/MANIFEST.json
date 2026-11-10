@@ -1,26 +1,34 @@
 {
   "contracts": {
     "PRO-COMMERCE-COMMAND-V1": "1",
-    "PRO-COMMERCE-PUBLIC-V1": "1"
+    "PRO-COMMERCE-PUBLIC-V1": "1",
+    "PRO-COMMERCE-PUBLIC-V2": "1"
   },
   "description": "Empreintes SHA-256 des octets partagés à l'identique par ANTSIA (packages/social-domain/src/commerce) et PRO.GA (packages/pro-domain/src/commerce). Toute modification se fait dans les deux dépôts, ce manifeste compris.",
   "files": {
-    "command.ts": "cdac9a64aa3fc23ac37d0ed57edee02af803ed7641ae0160ad9774e0c035debe",
-    "conformance.ts": "b0417c01dcd4e3e72ccbbc5ce6504f3e79453e0fa11432bc5de0357264df6be6",
+    "catalogFacets.ts": "c66f81a6c15fa7e43be8acd5df74e50125a068899674d11c52b8a00617b1c84c",
+    "command.ts": "2c4b7e7046b7c7226063bacb6bec210e397f709573aa2cd9034dbada5f66b59e",
+    "conformance.ts": "4a6db521c1c9516050498275d1127269fce5958e837f43edc36f9e07ccd11c93",
+    "fixtures/catalog-facets.json": "bbd3a57bca911fd7ec041a4aea728d36be36f6351b31531b06aa724a37408402",
     "fixtures/command-replay.json": "dace73c61146548347d403c73633439b7c2a256b54531c61a733aeec2b8b197f",
     "fixtures/command-requests.json": "8475f0f7a89befe112ec96f80d7dc2e850e9c7f84a1312efbcdaa199823542df",
-    "fixtures/command-responses.json": "5b20a86a25ae2b0398cfe3e00c6a3925f16eea6dc80d1fd2dad61778588c5517",
+    "fixtures/command-responses.json": "5a42dbe592d63348fbba459065fd7ed86b2fb59ec58df37d62d08e3ebfe9dca3",
     "fixtures/lifecycle.json": "5ace1ea9bb7a6940778a5a6ed79c3bdb735f6f9bfd0604d4b5f98529047587a6",
     "fixtures/names.json": "9cbfacf516cadd6d60f38aafb7588e62c9a93df9e0a555e6b24b69486fbb94c2",
+    "fixtures/public-events-v2.json": "8f803faf9fe408dab5bf680426a617f5176ccbe95050727712cf1cbe41607a19",
     "fixtures/public-events.json": "ffecc918b639396b6b0b69d4156085f8a0e0e50922f9a88906561180c67002a2",
     "fixtures/public-revisions.json": "cf14707426c7be14f99f1ec9c2b7b1333e154324f7d56b1c2b0562164771e40c",
     "fixtures/references.json": "f7f3b2ce81b184304523abf41807db8a7944f4dcc3f06bee8bba746487d076ac",
+    "fixtures/service-profile.json": "0b2512cec3cdde619d2c9ad15b2e2225d5ddf7402b50f845fd005f4edf3c8fa3",
     "fixtures/signing.json": "0b45b9cfac5c649f67d2be0eded1d0f9435b269f69e7a6654f7585ec18861b82",
+    "fixtures/storefront-terms.json": "8b3afd331972f4cb128f23692cd9ca4d2d6fede48125c94b68828ab37e30a84d",
     "fixtures/views.json": "a621541e76c552ab7db428d81b212a963815c19f7b24006a7796e8bdaed8cb1d",
-    "index.ts": "cb997093d2e5b2b7a1c4e0a47b4a5b7850945d6bab5a018fe1b812beb7333eab",
+    "index.ts": "453600d6e23bbcac9b0552c96ff12bf49e55b61511bf962c10dd7c3345cd1a82",
     "lifecycle.ts": "0671b32de806ca16486d28787d608beacb8de3dfe369a75b6b0e900efd235725",
-    "primitives.ts": "fcc5560bd6ff34b06640d6c2ecef858de2ec3f41c1085c96bcb2d45df496d30c",
-    "projection.ts": "773b0c92a09dd5c7ed2c4a93dbd82b64f7f6c89971a8b1e113ef13df4c32e9b3"
+    "primitives.ts": "3f0d397d764f76ec62fff62b594ef1c115e10f0b90ff44262e8ed8c473c604a9",
+    "projection.ts": "374d49ba9fd3317e2c64ac1a760ac5b19bc8cfeafe499aaebc2b7a3aeac7ff56",
+    "serviceProfile.ts": "262ac4f60e4d0ecf7cfce883517ca4e2aa25625c67a9dc3aaef3d0845fdb2ff4",
+    "storefrontTerms.ts": "6bc844f83ab69fef4e1a02aaa999fdec854d94f0a871bb1a47c80cac5e166e96"
   },
-  "manifestRevision": 1
+  "manifestRevision": 4
 }

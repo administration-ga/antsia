@@ -1,4 +1,19 @@
 {
+  "recovery": {
+    "offline": "Vous êtes hors ligne. Vos saisies restent dans cet écran ; aucun dépôt, envoi, retrait ou relance n’est effectué.",
+    "reviewRequired": "Relisez l’offre, vos pièces ou le suivi avant de donner un nouvel accord.",
+    "review": "Relire les informations",
+    "uncertain": "Une candidature a déjà été demandée. Recherchez son résultat avant de recommencer. L’index de reprise ne contient ni nom, ni motivation, ni CV.",
+    "lookup": "Rechercher la candidature envoyée",
+    "stopHint": "Aucune candidature correspondante n’a été retrouvée. Le serveur doit clôturer cette clé avant une nouvelle demande. Une candidature déjà créée sera ouverte, jamais retirée par ce choix.",
+    "stop": "Clôturer cette intention avant de recommencer",
+    "storageUnavailable": "La clé de reprise ne peut pas être enregistrée ou l’index est invalide. Aucun nouvel envoi n’est autorisé. Consultez Mes candidatures.",
+    "filesStale": "Une pièce choisie n’est plus prête ou n’est plus disponible. Aucun fichier n’est omis automatiquement. Revoyez votre sélection avant de donner un nouvel accord.",
+    "retryChanged": "Les conditions de relance ont changé ou une pièce d’origine n’est plus disponible. Actualisez le suivi avant de recommencer ; aucun dossier réduit n’est envoyé.",
+    "retryTitle": "Renouveler explicitement cet envoi",
+    "retryLead": "L’absence de l’ancien envoi a été confirmée et son délai a expiré. Le serveur conservera exactement les pièces et le contenu d’origine ; une pièce devenue indisponible ferme ce renouvellement.",
+    "consentVersion": "Version de l’accord : {{version}}"
+  },
   "directory": {
     "title": "Emplois",
     "lead": "Offres d’emploi publiées par des employeurs reliés à PRO.GA, de la plus récente à la plus ancienne.",
@@ -125,6 +140,10 @@
     }
   },
   "applications": {
+    "announcements": {
+      "changed": "Mise à jour de la candidature : {{changes}}.",
+      "remoteUpdated": "Le suivi du retrait distant a été actualisé."
+    },
     "title": "Mes candidatures",
     "detailTitle": "Ma candidature",
     "detailUnavailable": "Cette candidature n’est pas accessible depuis votre session.",

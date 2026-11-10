@@ -8,14 +8,14 @@
  * Ce module n'écrit jamais dans `personalThreads`, `personalMessages`, `connections`, `follows`
  * ni `unreadTotals`.
  */
-import { CONTEXTUAL_CLOSED_CAUSES, CONTEXTUAL_KINDS, CONTEXTUAL_SIDES, CONTEXTUAL_THREAD_STATUSES, CONTEXTUAL_VOICES } from "@antsia/social-domain/contextualMessaging"
+import { CONTEXTUAL_CLOSED_CAUSES, CONTEXTUAL_SUPPORTED_KINDS, CONTEXTUAL_SIDES, CONTEXTUAL_THREAD_STATUSES, CONTEXTUAL_VOICES } from "@antsia/social-domain/contextualMessaging"
 import { defineTable } from "convex/server"
 import { v } from "convex/values"
 
 import { literals } from "../../lib/validators"
 import { storedAttachmentValidator } from "../messaging/tables"
 
-export const contextualKindValidator = literals(CONTEXTUAL_KINDS)
+export const contextualKindValidator = literals(CONTEXTUAL_SUPPORTED_KINDS)
 export const contextualSideValidator = literals(CONTEXTUAL_SIDES)
 export const contextualVoiceValidator = literals(CONTEXTUAL_VOICES)
 export const contextualThreadStatusValidator = literals(CONTEXTUAL_THREAD_STATUSES)
@@ -30,6 +30,7 @@ export const contextualContextValidator = v.union(
   v.object({ kind: v.literal("diasporaServiceRequest"), id: v.id("serviceRequests") }),
   v.object({ kind: v.literal("diasporaMentoring"), id: v.id("mentoringRequests") }),
   v.object({ kind: v.literal("diasporaJobApplication"), id: v.id("jobApplications") }),
+  v.object({ kind: v.literal("professionalCollaboration"), id: v.id("professionalCollaborations") }),
 )
 
 export const contextualMessagingTables = {
@@ -43,6 +44,7 @@ export const contextualMessagingTables = {
     serviceRequestId: v.optional(v.id("serviceRequests")),
     mentoringRequestId: v.optional(v.id("mentoringRequests")),
     jobApplicationId: v.optional(v.id("jobApplications")),
+    professionalCollaborationId: v.optional(v.id("professionalCollaborations")),
     /**
      * Clés d'index recopiées de l'objet, IMMUABLES et SANS autorité : elles servent aux listes.
      * Divergentes de l'objet relu, elles rendent la conversation absente pour tous.
@@ -73,6 +75,7 @@ export const contextualMessagingTables = {
     .index("by_serviceRequest", ["serviceRequestId"])
     .index("by_mentoringRequest", ["mentoringRequestId"])
     .index("by_jobApplication", ["jobApplicationId"])
+    .index("by_professionalCollaboration", ["professionalCollaborationId"])
     .index("by_purgeAt", ["purgeAt"]),
 
   contextualMessages: defineTable({

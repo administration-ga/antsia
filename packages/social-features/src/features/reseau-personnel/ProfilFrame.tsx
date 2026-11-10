@@ -24,6 +24,8 @@
  */
 
 import type { ReactNode } from "react"
+import { useNetwork } from "@antsia/api/network"
+import { PROFILE_ADAPTIVE_CSS } from "./profile-adaptive-styles"
 
 /**
  * La feuille du cadre, HORS du JSX : un littéral enfant de `<style>` passerait
@@ -129,16 +131,19 @@ const PROFIL_FRAME_CSS = `
       `
 
 export function ProfilFrame({ children }: { children: ReactNode }) {
+  const { navigation, navigationLayout } = useNetwork()
+  const adaptive = navigation === "destinations" && navigationLayout === "adaptive"
   return (
     <div
       className="citizen-scrollbar rp-profile-frame"
+      data-profile-layout={adaptive ? "adaptive" : undefined}
       style={{
         display: "flex",
         flexDirection: "column",
         gap: 16,
-        height: "100%",
-        overflowY: "auto",
-        maxWidth: 760,
+        height: adaptive ? "auto" : "100%",
+        overflowY: adaptive ? "visible" : "auto",
+        maxWidth: adaptive ? 1120 : 760,
         marginInline: "auto",
         width: "100%",
       }}
@@ -146,6 +151,7 @@ export function ProfilFrame({ children }: { children: ReactNode }) {
       <style href="rp-profile-frame" precedence="default">
         {PROFIL_FRAME_CSS}
       </style>
+      {adaptive ? <style href="rp-profile-adaptive-u05" precedence="default">{PROFILE_ADAPTIVE_CSS}</style> : null}
       {children}
     </div>
   )

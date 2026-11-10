@@ -1,0 +1,55 @@
+# Dupliqué de socle/ops/clamav/cloudbuild.yaml @ 4e1b625040c5f962f166ed74a691f5cee0126e27 — adaptations : projet explicitement confirmé, tag de contenu manuel, authentification applicative externe, coût borné ANTSIA.
+steps:
+  - name: gcr.io/cloud-builders/gcloud
+    entrypoint: bash
+    args:
+      - -ceu
+      - |
+        test '${_APPROVED_PROJECT}' = '$PROJECT_ID'
+        test '${_IMAGE_TAG}' != 'must-be-set'
+        test -n '${_IMAGE_TAG}'
+        test '${_RUNTIME_SERVICE_ACCOUNT}' != 'must-be-set'
+        test -n '${_RUNTIME_SERVICE_ACCOUNT}'
+  - name: gcr.io/cloud-builders/docker
+    args: ["build", "-t", "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE}:${_IMAGE_TAG}", "."]
+  - name: gcr.io/cloud-builders/docker
+    args: ["push", "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE}:${_IMAGE_TAG}"]
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_SERVICE}
+      - --project=$PROJECT_ID
+      - --image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE}:${_IMAGE_TAG}
+      - --region=${_REGION}
+      - --platform=managed
+      - --service-account=${_RUNTIME_SERVICE_ACCOUNT}
+      - --memory=4Gi
+      - --cpu=1
+      - --concurrency=1
+      - --min=0
+      - --max=1
+      - --min-instances=0
+      - --max-instances=1
+      - --cpu-throttling
+      - --timeout=90
+      - --port=8080
+      - --use-http2
+      - --allow-unauthenticated
+      - --set-secrets=CLAMAV_TOKEN=${_SECRET}:latest
+      - --startup-probe=httpGet.path=/health,httpGet.port=8081,initialDelaySeconds=0,timeoutSeconds=5,periodSeconds=10,failureThreshold=24
+      - --liveness-probe=httpGet.path=/health,httpGet.port=8081,initialDelaySeconds=120,timeoutSeconds=5,periodSeconds=60,failureThreshold=3
+images:
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE}:${_IMAGE_TAG}
+substitutions:
+  _APPROVED_PROJECT: must-be-set
+  _IMAGE_TAG: must-be-set
+  _RUNTIME_SERVICE_ACCOUNT: must-be-set
+  _REGION: europe-west1
+  _REPOSITORY: antsia-services
+  _SERVICE: antsia-clamav-rest
+  _SECRET: antsia-clamav-token
+options:
+  logging: CLOUD_LOGGING_ONLY
+timeout: 1800s

@@ -39,6 +39,16 @@ export function moderationWindow(params: { view?: string | string[]; team?: stri
   return { valid, view: view ?? "reports", team, cursor: typeof cursor === "string" ? cursor : null }
 }
 
+/**
+ * SU01d : le chronomètre d'une échéance légale — le reste en heures et minutes entières (arrondi
+ * vers le bas), ou le retard (arrondi vers le haut : une échéance dépassée l'est d'au moins une minute).
+ */
+export function deadlineCountdown(dueAt: number, now: number): { overdue: boolean; hours: number; minutes: number } {
+  const overdue = now > dueAt
+  const totalMinutes = overdue ? Math.ceil((now - dueAt) / 60_000) : Math.floor((dueAt - now) / 60_000)
+  return { overdue, hours: Math.floor(totalMinutes / 60), minutes: totalMinutes % 60 }
+}
+
 /** Verrou partagé synchrone : deux gestes opposés ne passent pas entre deux rendus. */
 export function createModerationLock() {
   let pending = false

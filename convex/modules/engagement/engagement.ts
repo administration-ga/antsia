@@ -21,7 +21,7 @@ import { reactionKindValidator } from "../../lib/validators"
 import { blockedCounterpartIds, type BoundedIds, isBlockedBetween } from "../graph/graph"
 import { enqueueFanout } from "../notifications/fanout"
 import { miniProfileCache, type PersonMiniProfile, resolveMentionedPersonIds } from "../people/miniProfile"
-import { assertVisiblePost, type ReaderContext } from "../posts/access"
+import { assertPostDiscussionOpen, assertVisiblePost, type ReaderContext } from "../posts/access"
 import { markCommentRemoved } from "../posts/contentRemoval"
 import { applyReactionDelta, countReplies, recordComment } from "../posts/counters"
 import { notifyAboutPost } from "../posts/postNotify"
@@ -91,6 +91,7 @@ export const comment = networkMutation({
     await enforceRateLimit(ctx, "comment.create", ctx.person._id)
     const post = await assertVisiblePost(ctx, readerOf(ctx), args.postId)
     if (post.status !== "published") return notFound()
+    await assertPostDiscussionOpen(ctx, post)
     const body = checked(() => assertPersonalCommentBody(args.body))
 
     // `answered` : la personne dont on a cliqué le commentaire, AVANT l'aplatissement — c'est à elle qu'on répond.
@@ -168,6 +169,7 @@ export const editComment = networkMutation({
     const comment = await ctx.db.get(args.commentId)
     if (!comment || comment.authorPersonId !== ctx.person._id || comment.status !== "published") return notFound()
     const post = await assertVisiblePost(ctx, readerOf(ctx), comment.postId)
+    await assertPostDiscussionOpen(ctx, post)
     const body = checked(() => assertPersonalCommentBody(args.body))
     const mentioned = (await resolveMentionedPersonIds(ctx, post.networkId, body)).filter((id) => id !== ctx.person._id)
     const now = Date.now()

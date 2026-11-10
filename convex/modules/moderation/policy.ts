@@ -115,7 +115,7 @@ export async function setContentModerationStatus(ctx: Pick<MutationCtx, "db">, i
 }
 
 /** DG-016 : écriture collective, budget de la page et politique explicite avant publication. */
-export async function moderatePageContentWrite(ctx: Pick<MutationCtx, "db">, input: { networkId: Id<"networks">; pageId: Id<"pages">; kind: "serviceReviewReply" | "event" | "commerceOffer" | "commerceJob" | "post"; id: string; text: string }): Promise<boolean> {
+export async function moderatePageContentWrite(ctx: Pick<MutationCtx, "db">, input: { networkId: Id<"networks">; pageId: Id<"pages">; kind: "serviceReviewReply" | "event" | "commerceOffer" | "commerceStorefront" | "commerceJob" | "post"; id: string; text: string }): Promise<boolean> {
   const existing = await contentState(ctx, input.kind, input.id)
   if (existing && (existing.networkId !== input.networkId || (existing.ownerPageId !== undefined && existing.ownerPageId !== input.pageId))) return fail("notFound")
   if (existing?.status === "removed") return fail("policyRefused")

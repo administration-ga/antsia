@@ -150,7 +150,7 @@ describe("thème de ma personne", () => {
     // Écrit tel quel, comme un compte qui l'avait choisi avant le 19/10 : le validateur de la table l'accepte.
     await t.run((ctx) => ctx.db.patch(person.personId, { theme: legacy as never }))
     expect((await t.run((ctx) => ctx.db.get(person.personId)))?.theme).toBe(legacy)
-    expect(await person.as.query(api.modules.people.persons.getMyPerson, {})).not.toHaveProperty("theme")
+    expect(await person.as.query(api.modules.people.persons.getMyPerson, {})).toMatchObject({ theme: "gaboma" })
     await expect(person.as.mutation(api.modules.people.preferences.setMyPreferences, { theme: legacy } as never)).rejects.toThrow()
   })
 

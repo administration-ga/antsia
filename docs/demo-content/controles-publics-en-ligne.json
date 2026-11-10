@@ -1,0 +1,35 @@
+{
+  "health": {
+    "status": "ok",
+    "application": "antsia-ga",
+    "version": "demo-animation-20261020-public",
+    "backend": "configured"
+  },
+  "anonymousChecks": [
+    {
+      "path": "/boutiques/epicerie-moussavou-demo",
+      "status": 200,
+      "ssrTitle": "Panier du marché"
+    },
+    {
+      "path": "/boutiques/epicerie-moussavou-demo/catalogue",
+      "status": 200,
+      "ssrTitle": "Savon artisanal"
+    },
+    {
+      "path": "/boutiques/epicerie-moussavou-demo/offres/demo%3Aoffer%3Asac-wax",
+      "status": 200,
+      "ssrTitle": "Sac en wax"
+    },
+    {
+      "path": "/boutiques/studio-objectif-demo",
+      "status": 200,
+      "ssrTitle": "Portrait photo"
+    },
+    {
+      "path": "/boutiques/atelier-tech-demo",
+      "status": 200,
+      "ssrTitle": "Diagnostic informatique"
+    }
+  ]
+}

@@ -27,9 +27,11 @@ export interface ListUiState {
 	view: IcomViewId
 	/** Profondeur réellement chargée, sans aucune copie des conversations. */
 	loadedThreadCount: number
+	/** Référence de ligne uniquement, pour rendre le focus au retour du détail. */
+	returnFocusKey: string | null
 }
 
-const DEFAULT_STATE: ListUiState = Object.freeze({ query: "", filter: "toutes" as const, scrollTop: 0, view: "conversations" as const, loadedThreadCount: 0 })
+const DEFAULT_STATE: ListUiState = Object.freeze({ query: "", filter: "toutes" as const, scrollTop: 0, view: "conversations" as const, loadedThreadCount: 0, returnFocusKey: null })
 
 const states = new Map<string, ListUiState>()
 let sessionOwner: string | null = null

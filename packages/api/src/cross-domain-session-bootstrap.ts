@@ -455,7 +455,9 @@ export async function refreshCrossDomainSession(
 			if (!sessionData) {
 				const error = errorOf(sessionResult);
 				const status = statusOf(error);
-				if (dataOf(sessionResult) == null && (status == null || status === 401)) {
+				// Seule une absence confirmée (ou un refus 401) autorise la purge.
+				// Une erreur sans statut ne prouve pas que la session a disparu.
+				if (dataOf(sessionResult) == null && (error == null || status === 401)) {
 					clearCrossDomainSessionResidue(storage, authClient);
 					return { kind: "signed_out", token: null };
 				}

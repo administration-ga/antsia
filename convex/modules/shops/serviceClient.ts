@@ -5,8 +5,8 @@
  */
 import { COMMERCE_COMMAND_LIMITS } from "@antsia/social-domain/commerce/command"
 import {
-  COMMERCE_SERVICE_CONTROL_MAX_BYTES, COMMERCE_SERVICE_CONTROL_OPERATIONS, COMMERCE_SERVICE_CONTROL_PATHS,
-  COMMERCE_SERVICE_CONTROL_RESPONSE_MAX_BYTES, commerceServiceControlSigningInput, type CommerceServiceControlOperation,
+  COMMERCE_SERVICE_CONTROL_MAX_BYTES, commerceServiceControlOperationAllowed, commerceServiceControlPath, isCommerceServiceControlContract,
+  COMMERCE_SERVICE_CONTROL_RESPONSE_MAX_BYTES, commerceServiceControlSigningInput,
 } from "@antsia/social-domain/commerce-services"
 
 import type { CommerceLinkConfig } from "./commerceLinkConfig"
@@ -49,11 +49,15 @@ export async function sendServiceCommand(config: CommerceLinkConfig, rawBody: st
 export async function sendServiceControl(config: CommerceLinkConfig, rawBody: string, fetcher: typeof fetch = fetch): Promise<ServiceReply | null> {
   if (new TextEncoder().encode(rawBody).byteLength > COMMERCE_SERVICE_CONTROL_MAX_BYTES) return null
   const operation = bodyField(rawBody, "operation")
-  if (!operation || !(COMMERCE_SERVICE_CONTROL_OPERATIONS as readonly string[]).includes(operation)) return null
+  let contract: unknown
+  try { const parsed: unknown = JSON.parse(rawBody); contract = parsed && typeof parsed === "object" && "contract" in parsed ? parsed.contract : null } catch { return null }
+  if (!isCommerceServiceControlContract(contract) || !operation || !commerceServiceControlOperationAllowed(operation, contract)) return null
+  const path = commerceServiceControlPath(operation, contract)
+  if (!path) return null
   const issuedAtMs = Date.now(), nonce = randomLinkToken()
   const input = commerceServiceControlSigningInput({
     bodySha256: await sha256Hex(rawBody), environment: config.environment, issuedAtMs, keyId: config.keyId, nonce,
-    operation: operation as CommerceServiceControlOperation, source: config.source,
+    operation, contract, source: config.source,
   })
   if (!input) return null
   const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(config.signingKey), { name: "HMAC", hash: "SHA-256" }, false, ["sign"])
@@ -62,5 +66,5 @@ export async function sendServiceControl(config: CommerceLinkConfig, rawBody: st
     "Content-Type": "application/json", Accept: "application/json", "X-Pro-Key-Id": config.keyId,
     "X-Pro-Timestamp": String(issuedAtMs), "X-Pro-Nonce": nonce, "X-Pro-Signature": signature,
   }
-  return await post(config, COMMERCE_SERVICE_CONTROL_PATHS[operation as CommerceServiceControlOperation], rawBody, headers, COMMERCE_SERVICE_CONTROL_RESPONSE_MAX_BYTES, fetcher)
+  return await post(config, path, rawBody, headers, COMMERCE_SERVICE_CONTROL_RESPONSE_MAX_BYTES, fetcher)
 }

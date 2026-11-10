@@ -106,6 +106,9 @@ function stateHolds(kind: CommerceNotificationKind, object: NoticeObject, transi
   const onBooking = (suffix: string) => booking !== undefined && transition === `booking:${booking.appointmentRef}:${suffix}`
   const revised = `r${booking?.revision ?? 0}`
   switch (kind) {
+    // DP39 : l'admission de ce signal neutre vérifie sa preuve privée, pas un état de service.
+    case "commerce_service_followup_updated":
+      return false
     case "commerce_service_quote_received":
     case "commerce_service_quote_revised":
       return request.mode === "quote" && request.inquiryRef !== undefined && transition.startsWith("quote:")
@@ -153,8 +156,18 @@ export async function commerceNoticeAdmission(
   const ids = idsOfSubject(subject)
   if (ids === null || !isCommerceNoticeTransition(transition)) return null
   const object = await noticeObject(ctx, networkId, recipientPersonId, kind, ids)
-  if (object === null || !stateHolds(kind, object, transition)) return null
+  if (object === null) return null
+  if (kind === "commerce_service_followup_updated") {
+    if (object.family !== "service" || object.audience !== "client") return null
+    const proof = await ctx.db.query("commerceServiceFollowupNotices").withIndex("by_request_transition", (q) => q.eq("requestId", object.request._id).eq("transition", transition)).unique()
+    if (!proof || proof.networkId !== networkId || proof.personId !== recipientPersonId) return null
+  } else if (!stateHolds(kind, object, transition)) return null
   return { reference: `${object.reference}:${transition}` }
+}
+
+/** DP39 : droit actuel, avant la première écriture de la preuve du signal personnel. */
+export async function serviceFollowupRecipientAllowed(ctx: ReadCtx, row: ServiceRow): Promise<boolean> {
+  return (await noticeObject(ctx, row.networkId, row.personId, "commerce_service_followup_updated", { requestId: row._id })) !== null
 }
 
 /** Garde de LECTURE (cloche, transports, ouverture) : le droit ACTUEL du destinataire sur l'objet. */

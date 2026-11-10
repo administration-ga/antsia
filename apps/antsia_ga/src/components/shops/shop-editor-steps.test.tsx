@@ -15,6 +15,7 @@ vi.mock("@antsia/api/hooks", () => ({ useAuthenticatedConvexQuery: () => ({ data
 vi.mock("@antsia/api/network", () => ({ useNetwork: () => ({ networkId: "network", personId: "person" }) }))
 vi.mock("convex/react", () => ({ useMutation: () => vi.fn(), useConvexAuth: () => ({ isAuthenticated: true }) }))
 vi.mock("./shop-ui", () => ({
+  SHOP_SELECT_CLASS: "",
   ShopFrame: ({ children }: { children: ReactNode }) => <>{children}</>,
   ShopLink: ({ children }: { children: ReactNode }) => <>{children}</>,
   ShopQueryFailure: () => null,
@@ -25,6 +26,7 @@ vi.mock("./shop-presentation-form", () => ({ ShopPresentationForm: () => <sectio
 vi.mock("./shop-publication-form", () => ({
   ShopPublicationForm: ({ onPrepare }: { onPrepare: () => void }) => <section><h2>Publier</h2><button type="button" onClick={onPrepare}>préparer</button></section>,
 }))
+vi.mock("../payment/merchant-payment-preparation-panel", () => ({ MerchantPaymentPreparationPanel: () => <section data-payment-preparation /> }))
 vi.mock("./shop-commerce-link", () => ({ ShopCommerceLink: () => null }))
 vi.mock("./catalog-reconcile-panel", () => ({ CatalogReconcilePanel: () => null }))
 vi.mock("./catalog-post-linker", () => ({ CatalogPostLinker: () => null }))
@@ -62,6 +64,11 @@ afterEach(async () => {
 })
 
 describe("étapes de l'éditeur de boutique (P18b, A14)", () => {
+  it("monte la préparation financière dans la configuration réelle des offres", async () => {
+    await act(async () => button(`3. ${i18n.t("steps.offers")}`)!.click())
+    expect(container.querySelector("[data-payment-preparation]")?.closest("[hidden]")).toBeNull()
+    expect(container.querySelector("[data-payment-preparation]")).not.toBeNull()
+  })
   it("« Ma présentation » depuis le panneau d'activité porte le focus sur le titre du panneau ouvert et l'annonce", async () => {
     const next = [...container.querySelectorAll("form button")].find((node) => node.textContent === i18n.t("steps.presentation"))!
     ;(next as HTMLButtonElement).focus()

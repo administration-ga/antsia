@@ -50,6 +50,8 @@ export const callsTables = {
     callStatus: callStatusValidator,
     /** La salle du serveur multimédia — un nom reconnaissable, jamais une donnée métier. */
     roomName: v.string(),
+    /** Présentation système stable, UUIDv4 réel ; jamais une preuve d'accès. */
+    systemCallUuid: v.optional(v.string()),
     createdByPersonId: v.id("persons"),
     /**
      * Le DESTINATAIRE d'un tête-à-tête, dénormalisé : « ce qui sonne chez moi »
@@ -107,6 +109,10 @@ export const callsTables = {
     callId: v.id("calls"),
     personId: v.id("persons"),
     role: callParticipantRoleValidator,
+    /** Premier appareil gagnant ; privés, jamais rendus dans les DTO ni l'export. */
+    ownerSessionId: v.optional(v.string()), ownerDeviceId: v.optional(v.string()),
+    ownerApplicationId: v.optional(v.string()), ownerBindingId: v.optional(v.string()),
+    ownerKind: v.optional(v.union(v.literal("web"), v.literal("native"))),
     /** Entré dans la salle (décroché, ou rejoint). Absent : pas encore, ou jamais. */
     joinedAt: v.optional(v.number()),
     /** Parti — posé aussi sur TOUTES les lignes d'un appel qui finit (invariant de l'en-tête). */

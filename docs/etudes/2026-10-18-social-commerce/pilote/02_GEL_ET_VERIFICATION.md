@@ -1,5 +1,57 @@
 # 02 — Procédure de gel et de vérification (à exécuter après levée de la décision)
 
+> **20 octobre 2026 — procédure différée, aucune commande exécutée.** La poursuite des lots
+> P17d/P18/P19 n’autorise pas les vérifications. `c4d36f3` est un repère de source, avec un
+> arbre partagé non gelé ; aucun inventaire avant/après ni nouvelle empreinte n’est produit.
+> Les commandes, chiffres et listes ci-dessous restent la procédure et les constats historiques
+> du 19 octobre, à relire sur les instructions et scripts courants avant une future passe autorisée.
+
+### Correctifs P19 poursuivis automatiquement le 20 octobre
+
+Le [rapport des correctifs](../rapports/P19_CORRECTIFS_AUTOMATIQUES_2026-10-20.md) complète les
+relevés historiques ci-dessous : il ne remplace aucun résultat de vérification par une lecture.
+
+| Point historique | État source de cette reprise | Preuve encore attendue |
+|---|---|---|
+| K-06 / DP-34 | `authVerifiedAt` fondé sur `authorizedAt` déjà présent dans les deux transports relus | Scénarios/session/transport sur source identifiée |
+| K-12 / AC03 | Annonces stables achats détaillés et candidatures, liste et fiche individuelle, FR/EN | Tests écrits non exécutés ; lecteur d'écran réel non essayé |
+| K-13 / AC04 / K-21 | Horloge relue ; rayon de portrait déjà adapté au type d'auteur ; index ADR déjà complété | Pas de nouvelle recette ni de conformité supposée |
+| K-16 / AC08 | Routes machine réellement inscrites distinguées des propositions génériques dans OpenAPI | Validation documentaire et recette HTTP différées |
+| CV après interruption | Réservation durable, marqueur exact, bail et reprise ciblée raccordés, gate fermé | MIME réel, concurrence, interruption, pagination et reprise à éprouver ; historique non marqué hors preuve |
+| DP-39 | Suite source par contrat/profil privé de signal de relecture ; [rapport dédié](../rapports/P19_AVIS_SERVICES_2026-10-20.md) | Configuration explicite et preuves de transport/avis non acquises |
+
+Les chiffres K-02, K-08 et K-15 restent historiques ; aucune génération ou suite n'a été
+relancée pour les actualiser. Les sources de DIASPORALE restent à sa session. L'enchaînement
+des corrections n'autorise ni gel effectif, ni activation, ni publication.
+
+### Complément de périmètre pour le futur gel
+
+Inclure les reprises P14/P15/P16, le client `apps/antsia_mobile`, `packages/social-native`,
+les jetons natifs et la chaîne d’appels P17c, puis les corrections P18 natives raccordées.
+Le gel doit être coordonné avec les sessions effectivement actives à ce moment-là, dont
+DIASPORALE ; la liste de sessions du 19 octobre n’en tient pas lieu. Ne pas arrêter un service
+ni reprendre une installation sur la seule foi de cette procédure historique.
+
+- Le lockfile natif n’a pas été actualisé dans P17b/c ; l’installation unique, la compatibilité
+  Expo/React Native/LiveKit et les étapes natives demandent leur propre autorisation et résultat.
+- La liste historique des huit jumeaux et les anciens totaux de tests, tables ou crons ne sont
+  pas réaffirmés comme complets. Aucun hash ni audit de parité n’a été relancé ici.
+- Les corrections K-04/K-07/K-19/K-20 sont décrites en source par les
+  [finitions du 19 octobre](../rapports/FINITIONS_TECHNIQUES.md) ; cela ne les rend pas testées.
+  P14/P15/P16 modifient depuis les gardes et la reprise ; une ligne historique K ne donne
+  ni échec actuel observé ni succès actuel.
+- Les registres fermés P16 font partie de la candidate. Un test métier utilisant un double
+  contrôlé n’autorise pas à les ouvrir dans le runtime pour faciliter la recette.
+- P17d est une [recette physique séparée](../../../recette/antsia-native-p17d/README.md).
+  Un registre déclaré complet, une compilation ou un simulateur ne prouve pas le rendu sur
+  iPhone/Android, la réception verrouillée, la fin des captures ou les budgets P18.
+
+La [reprise P19](../rapports/P19_REPRISE_2026-10-20.md) ne constate ni l’état disque/Node actuel,
+ni des erreurs de typage actuelles, ni l’absence de processus actifs. Ces points restent à
+relever au futur créneau autorisé, sans réutiliser les mesures anciennes comme seuils acquis.
+
+## Procédure historique du 19 octobre (conservée)
+
 19 octobre 2026, lot P19. **Rien de ce document n'a été exécuté.** La procédure s'applique dès que
 le propriétaire lève, par une demande explicite, sa décision du 18/10 « Continuer sans vérifier »
 (DP-01). Elle est conduite par le coordinateur seul, selon les règles de la table de réservation

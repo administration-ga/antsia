@@ -11,6 +11,13 @@ export const commercialCrmTables = {
   commercialCrmTransfers: defineTable({
     networkId: v.id("networks"), personId: v.id("persons"), threadId: v.id("commercialThreads"), shopId: v.id("shops"),
     source: v.string(), environment: v.union(v.literal("sandbox"), v.literal("production")), configFingerprint: v.string(), sessionId: v.optional(v.string()),
+    // Origine figée du consentement ; les anciennes lignes sans liaison ne peuvent plus être envoyées.
+    originLinkRef: v.optional(v.string()), originShopRef: v.optional(v.string()),
+    authorizationAuthUserId: v.optional(v.string()), authorizedAt: v.optional(v.number()), authorizationUntil: v.optional(v.number()),
+    authorizationRequired: v.optional(v.boolean()), leaseSessionId: v.optional(v.string()),
+    unknownConfirmedAt: v.optional(v.number()), unknownRequestSha256: v.optional(v.string()),
+    // Un retrait non confirmé reste dû, même après épuisement d'une série de tentatives.
+    withdrawalNeedsAttention: v.optional(v.boolean()), withdrawalFailures: v.optional(v.number()),
     subjectRef: v.string(), conversationRef: v.string(), requestId: v.string(), requestSha256: v.string(),
     withdrawalBody: v.optional(v.string()), withdrawalExpiresAt: v.optional(v.number()),
     requestExpiresAt: v.number(), rawBody: v.optional(v.string()), idempotencyKey: v.string(), intentionSha256: v.string(),

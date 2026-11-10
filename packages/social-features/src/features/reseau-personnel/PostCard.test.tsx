@@ -197,6 +197,7 @@ describe("PostCard (vérification)", () => {
         timeZone: "Africa/Libreville",
         status: "cancelled",
         myParticipation: "accepted",
+        myParticipationId: "eventParticipants_1" as never,
       },
     }
     renderWithEngine(
@@ -224,6 +225,7 @@ describe("PostCard (vérification)", () => {
       timeZone: "Europe/Paris",
       status: "scheduled",
       myParticipation: null,
+      myParticipationId: null,
     }
     const view = renderWithEngine(<PostCard post={{ ...base, event }} now={1_700_000_060_000} />)
     expect(screen.getByText("Évènement prévu")).toBeTruthy()

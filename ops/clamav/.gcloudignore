@@ -1,0 +1,6 @@
+*
+!Dockerfile
+!.dockerignore
+!server.mjs
+!entrypoint.sh
+!cloudbuild.yaml

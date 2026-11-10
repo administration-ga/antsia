@@ -1,6 +1,7 @@
 "use client"
 
 import { useStableConvexAuth } from "@antsia/api/hooks"
+import { isSigningOutEverywhere } from "@antsia/api/sign-out-everywhere"
 import { ROOT_NETWORK_SLUG } from "@antsia/social-domain/network"
 import { api } from "@convex/_generated/api"
 import type { FunctionReturnType } from "convex/server"
@@ -31,7 +32,10 @@ export function useSessionState(): SessionState {
   const person = useQuery(api.modules.people.persons.getMyPerson, signedIn ? {} : "skip")
   const memberships = useQuery(api.modules.people.memberships.myMemberships, signedIn ? {} : "skip")
 
-  if (auth.isPending) return { status: "loading" }
+  // La révocation retire d'abord les projections privées, avant la purge du
+  // SDK et du reçu HTTP. Aucune porte ne doit alors naviguer vers l'accueil
+  // et remonter un pont qui remplacerait la génération possédée par la sortie.
+  if (isSigningOutEverywhere() || auth.isPending) return { status: "loading" }
   if (auth.isUnauthenticated) return { status: "signedOut" }
   if (root === undefined || person === undefined || memberships === undefined) return { status: "loading" }
   if (root === null) return { status: "rootMissing" }

@@ -201,10 +201,10 @@ describe("StoriesTray — branchement sur le plateau du moteur", () => {
 })
 
 describe("StoriesTray — médaillons déclarés par l'application (ADR-0027)", () => {
-	function ringsTray(onOpen = vi.fn(), onCreate = vi.fn()) {
+	function ringsTray(onOpen = vi.fn(), onCreate = vi.fn(), myAvatarUrl: string | null = null) {
 		return (
 			<NetworkProvider networkId={TEST_NETWORK_ID} personId={TEST_PERSON_ID} slug="stories-rings" charte="antsia" routes={TEST_ROUTES} storiesPresentation="rings">
-				<StoriesTray myHandle="moi" now={BASE} onOpen={onOpen} onCreate={onCreate} />
+				<StoriesTray myHandle="moi" myAvatarUrl={myAvatarUrl} now={BASE} onOpen={onOpen} onCreate={onCreate} />
 			</NetworkProvider>
 		)
 	}
@@ -240,6 +240,123 @@ describe("StoriesTray — médaillons déclarés par l'application (ADR-0027)", 
 		fireEvent.click(screen.getByRole("button", { name: /Awa NDONG/ }))
 		expect(onOpen).toHaveBeenCalledWith("awa")
 		fireEvent.click(tray.querySelector<HTMLButtonElement>(".st-tray-create")!)
+		expect(onCreate).toHaveBeenCalledTimes(1)
+	})
+
+	it("ma série en ligne rejoint « Vous » : une seule tuile, le médaillon l'ouvre, le « + » en crée une", () => {
+		const onOpen = vi.fn()
+		const onCreate = vi.fn()
+		mocks.byInstant.set(BASE, {
+			groups: [
+				group("awa", { unseenCount: 1, author: { ...group("awa").author, displayName: "Awa NDONG" } }),
+				group("moi", { author: { ...group("moi").author, displayName: "OKA Tech" } }),
+			],
+			truncated: false,
+		})
+		renderWithEngine(ringsTray(onOpen, onCreate))
+		const tray = screen.getByRole("group")
+		// « Vous » une seule fois, en tête.
+		expect([...tray.querySelectorAll(".st-ring-name")].map((name) => name.textContent)).toEqual(["Vous", "Awa"])
+		expect(tray.querySelector(".st-tray-create")).toBeNull()
+		// Ma série dans le dégradé du thème, jamais l'anneau pâle.
+		const own = tray.querySelector(".st-ring-own")!
+		expect(own.querySelector(".esp-story-ring")).not.toBeNull()
+		expect(tray.querySelector(".esp-story-ring-self")).toBeNull()
+		expect(own.textContent).toContain("OT")
+		// Deux boutons frères, jamais l'un dans l'autre.
+		const open = screen.getByRole("button", { name: /Votre actu/ })
+		const create = screen.getByRole("button", { name: "Publier une actu" })
+		expect(open.contains(create)).toBe(false)
+		fireEvent.click(open)
+		expect(onOpen).toHaveBeenCalledWith("moi")
+		fireEvent.click(create)
+		expect(onCreate).toHaveBeenCalledTimes(1)
+		expect(onOpen).toHaveBeenCalledTimes(1)
+	})
+
+	it("l'ordre suit l'état vu de chaque auteur", () => {
+		const awa = group("awa", { unseenCount: 1, author: { ...group("awa").author, displayName: "Awa NDONG" } })
+		const eloise = group("eloise", { author: { ...group("eloise").author, displayName: "Éloïse MBA" } })
+		mocks.byInstant.set(BASE, { groups: [awa, eloise], truncated: false })
+		const view = renderWithEngine(ringsTray())
+		expect([...document.querySelectorAll(".st-ring-name")].map((name) => name.textContent)).toEqual(["Vous", "Awa", "Éloïse"])
+
+		mocks.byInstant.set(BASE, { groups: [{ ...awa, unseenCount: 0 }, { ...eloise, unseenCount: 1 }], truncated: false })
+		view.rerender(ringsTray())
+		expect([...document.querySelectorAll(".st-ring-name")].map((name) => name.textContent)).toEqual(["Vous", "Éloïse", "Awa"])
+		const seenAwa = screen.getByRole("button", { name: /Awa NDONG/ })
+		expect(seenAwa.querySelector(".esp-story-ring-seen")).not.toBeNull()
+		expect(screen.getByRole("button", { name: /Éloïse MBA/ }).querySelector(".esp-story-ring")).not.toBeNull()
+	})
+
+	it("« Vous » sans série garde sa photo valide, une silhouette en cas d'erreur et reprend une nouvelle URL", () => {
+		mocks.byInstant.set(BASE, { groups: [], truncated: false })
+		const view = renderWithEngine(ringsTray(vi.fn(), vi.fn(), "/my-portrait"))
+		const create = screen.getByRole("button", { name: "Publier une actu" })
+		expect(create.querySelector("img")).toHaveAttribute("src", "/my-portrait")
+		expect(create.querySelector(".st-tray-disc svg")).toBeNull()
+		expect(document.querySelector(".st-tray-ring")).toBeNull()
+
+		fireEvent.error(create.querySelector("img")!)
+		expect(create.querySelector("img")).toBeNull()
+		expect(create.querySelector(".st-tray-disc svg")).not.toBeNull()
+		view.rerender(ringsTray(vi.fn(), vi.fn(), "/new-portrait"))
+		expect(create.querySelector("img")).toHaveAttribute("src", "/new-portrait")
+		expect([...document.querySelectorAll(".st-ring-name")].map((name) => name.textContent)).toEqual(["Vous"])
+	})
+
+	it("les médaillons emploient le portrait publié et gardent une silhouette à un auteur sans nom", () => {
+		mocks.byInstant.set(BASE, {
+			groups: [
+				group("awa", { author: { ...group("awa").author, displayName: "Awa NDONG", avatarUrl: "/awa-portrait" } }),
+				group(null),
+			],
+			truncated: false,
+		})
+		renderWithEngine(ringsTray())
+		const awa = screen.getByRole("button", { name: /Awa NDONG/ })
+		expect(awa.querySelector("img")).toHaveAttribute("src", "/awa-portrait")
+		const unknown = screen.getByRole("button", { name: /Membre du réseau/ })
+		expect(unknown.querySelector("svg")).not.toBeNull()
+	})
+
+	it("sans droit de créer, ma série garde « Vous » sans « + »", () => {
+		mocks.byInstant.set(BASE, { groups: [group("moi")], truncated: false })
+		renderWithEngine(
+			<NetworkProvider networkId={TEST_NETWORK_ID} personId={TEST_PERSON_ID} slug="stories-rings" charte="antsia" routes={TEST_ROUTES} storiesPresentation="rings">
+				<StoriesTray myHandle="moi" now={BASE} onOpen={vi.fn()} onCreate={vi.fn()} canCreate={false} />
+			</NetworkProvider>,
+		)
+		expect([...document.querySelectorAll(".st-ring-name")].map((name) => name.textContent)).toEqual(["Vous"])
+		expect(document.querySelector(".st-ring-plus")).toBeNull()
+	})
+
+	it("sépare la cible de publication de sa pastille et du bouton de consultation, tous deux accessibles au clavier", () => {
+		const onOpen = vi.fn()
+		const onCreate = vi.fn()
+		mocks.byInstant.set(BASE, { groups: [group("moi")], truncated: false })
+		renderWithEngine(ringsTray(onOpen, onCreate))
+
+		const open = screen.getByRole("button", { name: /Votre actu/ })
+		const create = screen.getByRole("button", { name: "Publier une actu" })
+		const own = document.querySelector(".st-ring-own")!
+		const mark = create.querySelector("span.st-ring-plus")!
+		expect(own.querySelectorAll("button")).toHaveLength(2)
+		expect(own.querySelector("button button")).toBeNull()
+		expect(create.parentElement).toBe(open.parentElement)
+		expect(create).toHaveClass("st-ring-plus-button")
+		expect(create).not.toHaveClass("st-ring-plus")
+		expect(mark).toHaveAttribute("aria-hidden", "true")
+
+		open.focus()
+		expect(open).toHaveFocus()
+		create.focus()
+		expect(create).toHaveFocus()
+		fireEvent.click(mark)
+		expect(onCreate).toHaveBeenCalledTimes(1)
+		expect(onOpen).not.toHaveBeenCalled()
+		fireEvent.click(open)
+		expect(onOpen).toHaveBeenCalledExactlyOnceWith("moi")
 		expect(onCreate).toHaveBeenCalledTimes(1)
 	})
 })

@@ -23,7 +23,7 @@ import { createTestOperatorProof, testConvex } from "../../test.setup"
 import { admitStoredUpload, assertFreshUpload, enqueueScan, findScanByStorageId, registerGeneratedBlob } from "./admission"
 import { EICAR_SIGNATURE } from "./avProviders"
 import { admitPosedUploads } from "./posedUploads"
-import { assertServableStorage, resolveFileDelivery } from "./storageGuard"
+import { assertServableStorage, resolveFileDelivery, withheldCodeOf } from "./storageGuard"
 
 type T = ReturnType<typeof testConvex>
 
@@ -215,6 +215,38 @@ describe("délivrance — FAIL-CLOSED", () => {
     await admit(t, storageId, "application/pdf")
     expect(engineErrorCode(await caught(t.run(async (ctx) => assertServableStorage(ctx as unknown as MutationCtx, storageId))))).toBe("fileScanPending")
   })
+
+  it("une erreur d'analyse se distingue d'un fichier suspect ou infecté, sans délivrer d'URL", async () => {
+    vi.useFakeTimers()
+    const t = testConvex()
+    const storageId = await store(t, PDF, "application/pdf")
+    const { scanId } = await admit(t, storageId, "application/pdf")
+    for (const requiresFullScan of [false, true]) {
+      for (const status of ["error", "suspicious", "infected"] as const) {
+        await t.run(async (ctx) => ctx.db.patch(scanId, { status, requiresFullScan }))
+        const expected = status === "error" ? "fileScanUnavailable" : "fileQuarantined"
+        const delivery = await t.run(async (ctx) => resolveFileDelivery(ctx as unknown as MutationCtx, storageId))
+        expect(delivery).toEqual({ url: null, scan: status })
+        expect(withheldCodeOf(delivery.scan)).toBe(expected)
+        expect(engineErrorCode(await caught(t.run(async (ctx) => assertServableStorage(ctx as unknown as MutationCtx, storageId))))).toBe(expected)
+      }
+    }
+  })
+
+  it("une analyse complète exige toujours un verdict antivirus sain avant de délivrer", async () => {
+    vi.useFakeTimers()
+    const t = testConvex()
+    const storageId = await store(t, PDF, "application/pdf")
+    const { scanId } = await admit(t, storageId, "application/pdf")
+    for (const status of ["clean", "skipped"] as const) {
+      await t.run(async (ctx) => ctx.db.patch(scanId, { status, requiresFullScan: true }))
+      expect(await t.run(async (ctx) => resolveFileDelivery(ctx as unknown as MutationCtx, storageId))).toEqual({ url: null, scan: "error" })
+    }
+    await t.run(async (ctx) => ctx.db.patch(scanId, { status: "clean", av: { provider: "clamav-rest", verdict: "clean" } }))
+    const delivery = await t.run(async (ctx) => resolveFileDelivery(ctx as unknown as MutationCtx, storageId))
+    expect(delivery.scan).toBe("clean")
+    expect(delivery.url).toBeTruthy()
+  })
 })
 
 describe("analyse — verdicts", () => {
@@ -281,6 +313,7 @@ describe("analyse — verdicts", () => {
     await runScan(t, scanId)
     expect(await scanOf(t, storageId)).toMatchObject({ status: "error", verdictReason: "AV_ERROR:provider_unconfigured" })
     expect(await t.run(async (ctx) => resolveFileDelivery(ctx as unknown as MutationCtx, storageId))).toEqual({ url: null, scan: "error" })
+    expect(engineErrorCode(await caught(t.run(async (ctx) => assertServableStorage(ctx as unknown as MutationCtx, storageId))))).toBe("fileScanUnavailable")
     warn.mockRestore()
   })
 })

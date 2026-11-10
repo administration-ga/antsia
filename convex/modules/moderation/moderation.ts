@@ -23,6 +23,7 @@ import { notifyPerson } from "../notifications/notify"
 import { assertVisiblePost, type ReaderContext } from "../posts/access"
 import { markCommentRemoved, markPostRemoved } from "../posts/contentRemoval"
 import { requireReportCapacity } from "./cases"
+import { acknowledgeReport, legalDeadlineColumns, notifyReporterOfDecision } from "./reporterNotices"
 import { contentReportReasonValidator, contentReportStatusValidator } from "./tables"
 
 const readerOf = (ctx: { person: Doc<"persons">; network: Doc<"networks"> }): ReaderContext => ({ personId: ctx.person._id, network: ctx.network })
@@ -64,7 +65,7 @@ async function fileReport(
   const teams = await ctx.db.query("moderationTeams").withIndex("by_network_active", (q) => q.eq("networkId", target.post.networkId).eq("active", true)).take(101)
   if (teams.length > 100) return fail("policyRefused")
   const team = teams.find((row) => row.scope === target.kind) ?? teams.find((row) => row.scope === undefined)
-  const polymorphicId = await ctx.db.insert("reports", { networkId: target.post.networkId, target: polymorphicTarget, targetKind: target.kind, targetId: polymorphicTarget.id, ownerPersonId: comment?.authorPersonId ?? target.post.authorPersonId, reporterPersonId: ctx.person._id, reason, ...(team ? { teamId: team._id } : {}), level: team ? "team" : "network", status: "open", createdAt: now, updatedAt: now })
+  const polymorphicId = await ctx.db.insert("reports", { networkId: target.post.networkId, target: polymorphicTarget, targetKind: target.kind, targetId: polymorphicTarget.id, ownerPersonId: comment?.authorPersonId ?? target.post.authorPersonId, reporterPersonId: ctx.person._id, reporterNetworkId: ctx.networkId, reason, ...legalDeadlineColumns(reason, now), ...(team ? { teamId: team._id } : {}), level: team ? "team" : "network", status: "open", createdAt: now, updatedAt: now })
   const reportId = await ctx.db.insert("contentReports", {
     networkId: target.post.networkId,
     reportId: polymorphicId,
@@ -78,6 +79,8 @@ async function fileReport(
     createdAt: now,
     updatedAt: now,
   })
+  // SU01d (art. 24) : l'accusé de réception part avec la transmission.
+  await acknowledgeReport(ctx, polymorphicId)
   return { reportId, created: true, hidden: true as const }
 }
 
@@ -201,6 +204,8 @@ async function decideReport(
     const linked = await ctx.db.get(report.reportId)
     if (linked?.ownerPersonId) await notifyPerson(ctx, { networkId: linked.networkId, recipientPersonId: linked.ownerPersonId, kind: "moderation_decision", subject: { report: linked._id } })
   }
+  // SU01d (art. 24) : un dossier fermé (classé ou suivi d'effet) est notifié au déclarant ; l'examen n'est pas une décision.
+  if (report.reportId && args.status !== "reviewing") await notifyReporterOfDecision(ctx, report.reportId)
   return {
     action: "moderation.report_decide",
     capacity: args.capacity,

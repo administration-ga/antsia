@@ -10,7 +10,7 @@
  */
 import { normalizeCivilName } from "@antsia/social-domain/civilName"
 import { COMMERCE_JOBS_APPLICATION_CONSENT_VERSION, COMMERCE_JOBS_CANDIDATE_STATES, COMMERCE_JOBS_LIMITS, commerceJobsCandidateState } from "@antsia/social-domain/commerce-jobs"
-import { COMMERCE_COMMAND_LIMITS, COMMERCE_COMMAND_SCOPES, parseCommerceCommandRequest } from "@antsia/social-domain/commerce/command"
+import { COMMERCE_COMMAND_LIMITS, COMMERCE_COMMAND_SCOPES, decideCommerceRetryAfterTimeout, parseCommerceCommandRequest } from "@antsia/social-domain/commerce/command"
 import { COMMERCE_COMMAND_CONTRACT, commerceCanonicalJson } from "@antsia/social-domain/commerce/primitives"
 import { paginationOptsValidator } from "convex/server"
 import { type Infer, v } from "convex/values"
@@ -28,6 +28,7 @@ import { ensureCommerceCandidateSubject } from "./commerceBuyerSubjects"
 import { type CommerceLinkConfig, readCommerceLinkConfig } from "./commerceLinkConfig"
 import { sha256Hex } from "./commerceLinkCrypto"
 import { deliverJobApplicationRef, withdrawJobApplication } from "./jobApplicationLifecycle"
+import { captureJobAuthorization } from "./jobApplicationAuthority"
 import { jobFileScanOf } from "./jobFiles"
 import { type JobReadContext, resolveShopJob } from "./jobRead"
 import { jobApplicationRejectionValidator, jobApplicationStateValidator, jobAttachmentKindValidator, jobFileTransferValidator } from "./jobTables"
@@ -52,6 +53,7 @@ export const myApplicationValidator = v.object({
   rejection: v.union(jobApplicationRejectionValidator, v.null()), remoteUnconfirmed: v.boolean(),
   submittedAt: v.union(v.number(), v.null()), remoteUpdatedAt: v.union(v.number(), v.null()), createdAt: v.number(),
   files: v.array(v.object({ fileId: v.id("commerceApplicationFiles"), kind: jobAttachmentKindValidator, transfer: jobFileTransferValidator })),
+  retryConsentTextVersion: v.union(v.string(), v.null()),
   actions: v.object({ withdraw: v.boolean(), retry: v.boolean(), refresh: v.boolean() }),
 })
 export type MyApplication = Infer<typeof myApplicationValidator>
@@ -63,6 +65,39 @@ export const myApplicationDetailValidator = v.object({
 export const myApplicationsPageValidator = v.object({ page: v.array(myApplicationValidator), isDone: v.boolean(), continueCursor: v.string() })
 const applyResultValidator = v.object({ applicationId: v.id("commerceApplications"), state: jobApplicationStateValidator })
 const stateResultValidator = v.object({ state: jobApplicationStateValidator })
+const applicationIntentValidator = v.object({ outcome: v.literal("application"), applicationId: v.id("commerceApplications") })
+export const jobApplicationStopIntentValidator = v.union(applicationIntentValidator, v.object({ outcome: v.literal("stopped") }))
+export const jobApplicationIntentLookupValidator = v.union(jobApplicationStopIntentValidator, v.object({ outcome: v.literal("absent") }))
+export type JobApplicationIntentLookup = Infer<typeof jobApplicationIntentLookupValidator>
+export type JobApplicationStopIntentResult = Infer<typeof jobApplicationStopIntentValidator>
+const validIntentKey = (key: string) => /^[A-Za-z0-9_-]{16,128}$/u.test(key)
+
+export const findByIdempotencyKey = networkQuery({
+  minStatus: "declaree", args: { idempotencyKey: v.string() }, returns: jobApplicationIntentLookupValidator,
+  handler: async (ctx, args): Promise<JobApplicationIntentLookup> => {
+    if (!validIntentKey(args.idempotencyKey)) return fail("invalidArgument", { field: "idempotencyKey" })
+    if (ctx.person.deletionRequestedAt !== undefined || ctx.person.erasedAt !== undefined) return notFound()
+    const rows = await ctx.db.query("commerceApplications").withIndex("by_person_network_key", (q) => q.eq("personId", ctx.person._id).eq("networkId", ctx.networkId).eq("idempotencyKey", args.idempotencyKey)).take(2)
+    if (rows.length > 1) return fail("conflict")
+    if (rows[0]) return { outcome: "application", applicationId: rows[0]._id }
+    const fence = await ctx.db.query("commerceApplicationIntentFences").withIndex("by_key", (q) => q.eq("personId", ctx.person._id).eq("networkId", ctx.networkId).eq("idempotencyKey", args.idempotencyKey)).first()
+    return fence ? { outcome: "stopped" } : { outcome: "absent" }
+  },
+})
+
+export const stopClientIntent = networkMutation({
+  minStatus: "declaree", writeBucket: "shop.job.intent.stop", args: { idempotencyKey: v.string() }, returns: jobApplicationStopIntentValidator,
+  handler: async (ctx, args): Promise<JobApplicationStopIntentResult> => {
+    if (!validIntentKey(args.idempotencyKey)) return fail("invalidArgument", { field: "idempotencyKey" })
+    if (ctx.person.deletionRequestedAt !== undefined || ctx.person.erasedAt !== undefined) return notFound()
+    const rows = await ctx.db.query("commerceApplications").withIndex("by_person_network_key", (q) => q.eq("personId", ctx.person._id).eq("networkId", ctx.networkId).eq("idempotencyKey", args.idempotencyKey)).take(2)
+    if (rows.length > 1) return fail("conflict")
+    if (rows[0]) return { outcome: "application", applicationId: rows[0]._id }
+    const fence = await ctx.db.query("commerceApplicationIntentFences").withIndex("by_key", (q) => q.eq("personId", ctx.person._id).eq("networkId", ctx.networkId).eq("idempotencyKey", args.idempotencyKey)).first()
+    if (!fence) await ctx.db.insert("commerceApplicationIntentFences", { networkId: ctx.networkId, personId: ctx.person._id, idempotencyKey: args.idempotencyKey, stoppedAt: Date.now() })
+    return { outcome: "stopped" }
+  },
+})
 
 /** Nom civil saisi : forme normale partagée, puis bornes du contrat COMMAND. */
 function civilNameOf(firstName: string, lastName: string): CivilName {
@@ -158,37 +193,49 @@ export const apply = networkMutation({
   returns: applyResultValidator,
   handler: async (ctx, args) => {
     if (args.consentTextVersion !== COMMERCE_JOBS_APPLICATION_CONSENT_VERSION) return fail("consentRequired")
-    if (!/^[A-Za-z0-9_-]{16,128}$/u.test(args.idempotencyKey)) return fail("invalidArgument", { field: "idempotencyKey" })
+    if (!validIntentKey(args.idempotencyKey)) return fail("invalidArgument", { field: "idempotencyKey" })
+    if (ctx.person.deletionRequestedAt !== undefined || ctx.person.erasedAt !== undefined) return notFound()
+    const page = await findPageByHandle(ctx, args.handle)
+    const shop = page ? await shopOfPage(ctx, page._id) : null
+    if (!shop) return notFound()
     const civilName = civilNameOf(args.firstName, args.lastName)
     const motivation = motivationOf(args.motivation)
-    const intention = commerceCanonicalJson({ jobRef: args.jobRef, civilName, fileIds: [...args.fileIds], textVersion: args.consentTextVersion, ...(motivation === undefined ? {} : { motivation }) })
+    const legacyIntention = { jobRef: args.jobRef, civilName, fileIds: [...args.fileIds], textVersion: args.consentTextVersion, ...(motivation === undefined ? {} : { motivation }) }
+    const intention = commerceCanonicalJson({ ...legacyIntention, networkId: ctx.networkId, shopId: shop._id })
     if (intention === null) return fail("invalidArgument")
     const intentionSha256 = await sha256Hex(intention)
     // Rejeu : même clé, même intention → même résultat, même si l'offre a fermé depuis.
-    const previous = await ctx.db.query("commerceApplications").withIndex("by_person_job", (q) => q.eq("personId", ctx.person._id).eq("jobRef", args.jobRef)).take(JOB_APPLICATIONS_PER_JOB_MAX + 1)
-    const replay = previous.find((row) => row.idempotencyKey === args.idempotencyKey)
-    if (replay) return replay.intentionSha256 === intentionSha256 ? { applicationId: replay._id, state: replay.state } : fail("conflict")
+    const keyed = await ctx.db.query("commerceApplications").withIndex("by_person_network_key", (q) => q.eq("personId", ctx.person._id).eq("networkId", ctx.networkId).eq("idempotencyKey", args.idempotencyKey)).take(2)
+    if (keyed.length > 1) return fail("conflict")
+    const replay = keyed[0]
+    if (replay) {
+      const expected = replay.intentionVersion === 2 ? intentionSha256 : await sha256Hex(commerceCanonicalJson(legacyIntention)!)
+      return replay.shopId === shop._id && replay.jobRef === args.jobRef && replay.intentionSha256 === expected
+        ? { applicationId: replay._id, state: replay.state } : fail("conflict")
+    }
+    const fence = await ctx.db.query("commerceApplicationIntentFences").withIndex("by_key", (q) => q.eq("personId", ctx.person._id).eq("networkId", ctx.networkId).eq("idempotencyKey", args.idempotencyKey)).first()
+    if (fence) return fail("policyRefused")
+    const previous = await ctx.db.query("commerceApplications").withIndex("by_person_network_job", (q) => q.eq("personId", ctx.person._id).eq("networkId", ctx.networkId).eq("jobRef", args.jobRef)).take(JOB_APPLICATIONS_PER_JOB_MAX + 1)
     if (previous.length >= JOB_APPLICATIONS_PER_JOB_MAX || previous.some((row) => ACTIVE_STATES.has(row.state))) return fail("policyRefused")
 
-    const page = await findPageByHandle(ctx, args.handle)
-    const shop = page ? await shopOfPage(ctx, page._id) : null
     const resolved = shop ? await applicableJob(ctx, readContext(ctx), shop._id, args.jobRef) : null
     if (!resolved) return notFound()
     const files = await chosenFiles(ctx, ctx.person._id, args.fileIds)
     const config = await readCommerceLinkConfig()
     const identity = await getActiveIdentity(ctx)
+    const authorization = await captureJobAuthorization(ctx, ctx.person._id)
     const { live } = resolved
-    if (!config || !identity || live.mapping.environment !== config.environment || live.link.source !== config.source || live.link.environment !== config.environment) return notFound()
+    if (!config || !identity || !authorization || live.mapping.environment !== config.environment || live.link.source !== config.source || live.link.environment !== config.environment) return notFound()
     const subjectRef = await ensureCommerceCandidateSubject(ctx, { networkId: live.shop.networkId, personId: ctx.person._id, shopId: live.shop._id, source: config.source, environment: config.environment })
     const now = Date.now()
-    const built = await buildRequest({ config, subjectRef, shopRef: live.link.shopRef, jobRef: args.jobRef, civilName, ...(motivation === undefined ? {} : { motivation }), files, consentedAt: now, requestKey: args.idempotencyKey, now })
+    const built = await buildRequest({ config, subjectRef, shopRef: live.link.shopRef, jobRef: args.jobRef, civilName, ...(motivation === undefined ? {} : { motivation }), files, consentedAt: now, requestKey: `${ctx.networkId}:${shop._id}:${args.idempotencyKey}`, now })
     if (await ctx.db.query("commerceApplications").withIndex("by_request", (q) => q.eq("requestId", built.requestId)).first()) return fail("conflict")
     const applicationId = await ctx.db.insert("commerceApplications", {
       networkId: ctx.networkId, personId: ctx.person._id, shopId: live.shop._id, mappingId: live.mapping._id,
       jobRef: args.jobRef, shopRef: live.link.shopRef, linkRef: live.link.linkRef, jobTitle: resolved.job.title,
       source: config.source, environment: config.environment, configFingerprint: config.fingerprint, subjectRef,
       requestId: built.requestId, requestSha256: built.requestSha256, requestExpiresAt: built.requestExpiresAt, rawBody: built.rawBody,
-      idempotencyKey: args.idempotencyKey, intentionSha256, consentTextVersion: COMMERCE_JOBS_APPLICATION_CONSENT_VERSION, consentedAt: now,
+      idempotencyKey: args.idempotencyKey, intentionSha256, intentionVersion: 2, consentTextVersion: COMMERCE_JOBS_APPLICATION_CONSENT_VERSION, consentedAt: now, ...authorization,
       civilName, ...(motivation === undefined ? {} : { motivation }), files: built.files,
       state: "queued", attempts: 0, nextAttemptAt: now, generation: 1, createdAt: now, updatedAt: now,
     })
@@ -203,35 +250,51 @@ export const apply = networkMutation({
  * intention (session revérifiée maintenant, offre toujours ouverte).
  */
 export const retry = networkMutation({
-  writeBucket: "shop.job.apply",
-  args: { applicationId: v.id("commerceApplications") }, returns: stateResultValidator,
+  writeBucket: "shop.job.track",
+  args: { applicationId: v.id("commerceApplications"), consentTextVersion: v.optional(v.string()) }, returns: stateResultValidator,
   handler: async (ctx, args) => {
     const row = await ctx.db.get(args.applicationId)
     if (!row || row.personId !== ctx.person._id || row.networkId !== ctx.networkId) return notFound()
     const now = Date.now()
-    if (row.state !== "failed" || row.revokedAt !== undefined || row.lastOutcome === "rejected" || (row.leaseUntil ?? 0) > now) return { state: row.state }
-    // Les octets envoyés peuvent avoir été reçus : d'abord résoudre leur sort, jamais une seconde demande.
-    if (row.rawBody !== undefined && row.dispatchedAt !== undefined && row.lastOutcome !== "expired") {
-      await ctx.db.patch(row._id, { state: "submitting", attempts: 0, generation: row.generation + 1, nextAttemptAt: now, lastOutcome: undefined, updatedAt: now })
-      await ctx.scheduler.runAfter(0, deliverJobApplicationRef, { applicationId: row._id })
-      return { state: "submitting" as const }
-    }
-    const resolved = await applicableJob(ctx, readContext(ctx), row.shopId, row.jobRef)
+    if (row.revokedAt !== undefined || row.state === "withdrawn" || row.state === "withdrawal_pending" || row.state === "rejected" || row.lastOutcome === "rejected") return { state: row.state }
+    const authorization = await captureJobAuthorization(ctx, ctx.person._id)
     const config = await readCommerceLinkConfig()
-    const identity = await getActiveIdentity(ctx)
-    if (!resolved || !config || !identity || !row.civilName || resolved.live.link.shopRef !== row.shopRef || config.source !== row.source || config.environment !== row.environment) return notFound()
+    if (!authorization || !config || config.source !== row.source || config.environment !== row.environment || config.fingerprint !== row.configFingerprint) return notFound()
+    if (row.state === "submitted") {
+      await ctx.db.patch(row._id, { ...authorization, authorizationRequired: undefined, attempts: 0, generation: row.generation + 1, leaseSessionId: undefined, leaseUntil: undefined, nextAttemptAt: now, updatedAt: now })
+      await ctx.scheduler.runAfter(0, deliverJobApplicationRef, { applicationId: row._id })
+      return { state: "submitted" as const }
+    }
+    // Les octets envoyés peuvent avoir été reçus : d'abord résoudre leur sort, jamais une seconde demande.
+    if (row.lastOutcome !== "expired" && row.rawBody !== undefined) {
+      await ctx.db.patch(row._id, { ...authorization, authorizationRequired: undefined, state: row.dispatchedAt === undefined ? "queued" : "submitting", attempts: 0,
+        generation: row.generation + 1, leaseSessionId: undefined, leaseUntil: undefined, nextAttemptAt: now, lastOutcome: undefined, updatedAt: now })
+      await ctx.scheduler.runAfter(0, deliverJobApplicationRef, { applicationId: row._id })
+      return { state: row.dispatchedAt === undefined ? "queued" as const : "submitting" as const }
+    }
+    // Nouveau corps uniquement sur absence PRO prouvée, après la fenêtre de dérive, avec un NOUVEL accord explicite.
+    if (row.lastOutcome !== "expired" || row.unknownConfirmedAt === undefined || row.unknownRequestSha256 !== row.requestSha256 ||
+      decideCommerceRetryAfterTimeout("unknown", row.requestExpiresAt, now) !== "safe_to_restart") return { state: row.state }
+    if (args.consentTextVersion !== COMMERCE_JOBS_APPLICATION_CONSENT_VERSION) return fail("consentRequired")
+    const resolved = await applicableJob(ctx, readContext(ctx), row.shopId, row.jobRef)
+    if (!resolved || !row.civilName || resolved.live.link.shopRef !== row.shopRef || resolved.live.link.linkRef !== row.linkRef) return notFound()
     const files: Doc<"commerceApplicationFiles">[] = []
     for (const file of row.files) {
       const current = await ctx.db.get(file.fileId)
-      if (current && current.state === "ready" && current.sha256 === file.sha256) files.push(current)
+      if (!current || current.personId !== row.personId || current.state !== "ready" || current.sha256 !== file.sha256 || current.byteSize !== file.byteSize ||
+        file.transfer === "revoked" || file.transfer === "revoke_pending") return fail("policyRefused")
+      files.push(current)
     }
     const chosen = await chosenFiles(ctx, ctx.person._id, files.map((file) => file._id))
-    const built = await buildRequest({ config, subjectRef: row.subjectRef, shopRef: row.shopRef, jobRef: row.jobRef, civilName: row.civilName, ...(row.motivation === undefined ? {} : { motivation: row.motivation }), files: chosen, consentedAt: row.consentedAt, requestKey: `${row.idempotencyKey}:${row.generation + 1}`, now })
+    await enforceRateLimit(ctx, "shop.job.apply", ctx.person._id)
+    const built = await buildRequest({ config, subjectRef: row.subjectRef, shopRef: row.shopRef, jobRef: row.jobRef, civilName: row.civilName, ...(row.motivation === undefined ? {} : { motivation: row.motivation }), files: chosen, consentedAt: now, requestKey: `${row.networkId}:${row.shopId}:${row.idempotencyKey}:${row.generation + 1}`, now })
     if (await ctx.db.query("commerceApplications").withIndex("by_request", (q) => q.eq("requestId", built.requestId)).first()) return fail("conflict")
     await ctx.db.patch(row._id, {
       requestId: built.requestId, requestSha256: built.requestSha256, requestExpiresAt: built.requestExpiresAt, rawBody: built.rawBody,
       configFingerprint: config.fingerprint, files: built.files, state: "queued", lastOutcome: undefined, dispatchedAt: undefined,
-      attempts: 0, generation: row.generation + 1, nextAttemptAt: now, leaseUntil: undefined, updatedAt: now,
+      ...authorization, authorizationRequired: undefined, consentTextVersion: COMMERCE_JOBS_APPLICATION_CONSENT_VERSION, consentedAt: now,
+      unknownConfirmedAt: undefined, unknownRequestSha256: undefined,
+      attempts: 0, generation: row.generation + 1, nextAttemptAt: now, leaseUntil: undefined, leaseSessionId: undefined, updatedAt: now,
     })
     await ctx.scheduler.runAfter(0, deliverJobApplicationRef, { applicationId: row._id })
     return { state: "queued" as const }
@@ -245,10 +308,13 @@ export const refreshStatus = networkMutation({
   handler: async (ctx, args) => {
     const row = await ctx.db.get(args.applicationId)
     if (!row || row.personId !== ctx.person._id || row.networkId !== ctx.networkId) return notFound()
-    if (row.state !== "submitted" || row.revokedAt !== undefined || row.statusRequestedAt !== undefined) return null
+    if (row.state !== "submitted" || row.revokedAt !== undefined) return null
     const now = Date.now()
-    await ctx.db.patch(row._id, { statusRequestedAt: now, ...((row.leaseUntil ?? 0) > now ? {} : { nextAttemptAt: now }), updatedAt: now })
-    if ((row.leaseUntil ?? 0) <= now) await ctx.scheduler.runAfter(0, deliverJobApplicationRef, { applicationId: row._id })
+    const authorization = await captureJobAuthorization(ctx, ctx.person._id)
+    if (!authorization) return notFound()
+    await ctx.db.patch(row._id, { ...authorization, authorizationRequired: undefined, statusRequestedAt: now, attempts: 0, generation: row.generation + 1,
+      leaseUntil: undefined, leaseSessionId: undefined, nextAttemptAt: now, updatedAt: now })
+    await ctx.scheduler.runAfter(0, deliverJobApplicationRef, { applicationId: row._id })
     return null
   },
 })
@@ -279,9 +345,11 @@ async function summaryOf(ctx: Pick<QueryCtx, "db">, row: Application): Promise<M
     rejection: row.rejection ?? null, remoteUnconfirmed: row.remoteUnconfirmed === true,
     submittedAt: row.submittedAt ?? null, remoteUpdatedAt: row.remoteUpdatedAt ?? null, createdAt: row.createdAt,
     files: row.files.map((file) => ({ fileId: file.fileId, kind: file.kind, transfer: file.transfer })),
+    retryConsentTextVersion: row.lastOutcome === "expired" && row.unknownRequestSha256 === row.requestSha256 && row.unknownConfirmedAt !== undefined
+      ? COMMERCE_JOBS_APPLICATION_CONSENT_VERSION : null,
     actions: {
       withdraw: !revoked,
-      retry: row.state === "failed" && row.revokedAt === undefined && row.lastOutcome !== "rejected",
+      retry: !revoked && row.state !== "rejected" && row.lastOutcome !== "rejected" && (row.state === "failed" || row.authorizationRequired === true || (row.authorizationUntil ?? 0) <= Date.now()),
       refresh: row.state === "submitted" && row.statusRequestedAt === undefined,
     },
   }
@@ -316,8 +384,8 @@ export const myApplication = networkQuery({
 export const forJob = networkQuery({
   args: { jobRef: v.string() }, returns: v.union(myApplicationValidator, v.null()),
   handler: async (ctx, args) => {
-    const rows = await ctx.db.query("commerceApplications").withIndex("by_person_job", (q) => q.eq("personId", ctx.person._id).eq("jobRef", args.jobRef)).take(JOB_APPLICATIONS_PER_JOB_MAX + 1)
-    const latest = rows.filter((row) => row.networkId === ctx.networkId).sort((left, right) => right.createdAt - left.createdAt)[0]
+    const rows = await ctx.db.query("commerceApplications").withIndex("by_person_network_job", (q) => q.eq("personId", ctx.person._id).eq("networkId", ctx.networkId).eq("jobRef", args.jobRef)).take(JOB_APPLICATIONS_PER_JOB_MAX + 1)
+    const latest = rows.sort((left, right) => right.createdAt - left.createdAt)[0]
     return latest ? await summaryOf(ctx, latest) : null
   },
 })

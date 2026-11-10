@@ -232,7 +232,7 @@ export function MessagerieGroupeInfos({
 	const generateUploadUrl = useConvexMutationQuery(api.modules.groups.threads.generateGroupAvatarUploadUrl)
 	const inviteUrl = inviteToken === null || shareOrigin.length === 0
 		? null
-		: invitationGroupeHref(inviteToken, routes.messages(), shareOrigin)
+		: invitationGroupeHref(inviteToken, routes.sharePath?.(routes.messages()) ?? routes.messages(), shareOrigin)
 
 	const membres = useMemo(
 		() => membresPages.results.map((membre) => membreDuGroupe(membre, t)),
@@ -548,8 +548,8 @@ export function MessagerieGroupeInfos({
 									>
 										<label className="sr-only" htmlFor="msg-infos-titre-input">{t("messagerieGroupeInfos.nameLabel")}</label>
 										<input id="msg-infos-titre-input" className="msg-infos-input" value={titreEnCours} maxLength={GROUPE_TITRE_MAX} autoFocus onChange={(event) => setTitreEnCours(event.currentTarget.value)} />
-										<button type="submit" className="msg-icon-btn" aria-label={t("messagerieGroupeInfos.saveName")} disabled={renommer.isPending || titreEnCours.trim().length === 0}><Check aria-hidden="true" size={16} /></button>
-										<button type="button" className="msg-icon-btn" aria-label={t("messagerieGroupeInfos.cancel")} onClick={() => setTitreEnCours(null)}><X aria-hidden="true" size={16} /></button>
+										<button data-role="success" type="submit" className="msg-icon-btn" aria-label={t("messagerieGroupeInfos.saveName")} disabled={renommer.isPending || titreEnCours.trim().length === 0}><Check aria-hidden="true" size={16} /></button>
+										<button data-role="cancel" type="button" className="msg-icon-btn" aria-label={t("messagerieGroupeInfos.cancel")} onClick={() => setTitreEnCours(null)}><X aria-hidden="true" size={16} /></button>
 									</form>
 								)}
 
@@ -576,8 +576,8 @@ export function MessagerieGroupeInfos({
 										<label className="sr-only" htmlFor="msg-infos-description-input">{t("messagerieGroupeInfos.descriptionLabel")}</label>
 										<textarea id="msg-infos-description-input" className="msg-infos-input msg-infos-description-input" value={descriptionEnCours} maxLength={GROUP_DESCRIPTION_MAX_LENGTH} autoFocus onChange={(event) => setDescriptionEnCours(event.currentTarget.value)} />
 										<div className="msg-infos-confirm-actions">
-											<button type="submit" className="msg-infos-mini" disabled={changerDescription.isPending}><Check aria-hidden="true" size={15} /> {t("messagerieGroupeInfos.save")}</button>
-											<button type="button" className="msg-infos-mini" onClick={() => setDescriptionEnCours(null)}><X aria-hidden="true" size={15} /> {t("messagerieGroupeInfos.cancel")}</button>
+											<button data-role="success" type="submit" className="msg-infos-mini" disabled={changerDescription.isPending}><Check aria-hidden="true" size={15} /> {t("messagerieGroupeInfos.save")}</button>
+											<button data-role="cancel" type="button" className="msg-infos-mini" onClick={() => setDescriptionEnCours(null)}><X aria-hidden="true" size={15} /> {t("messagerieGroupeInfos.cancel")}</button>
 										</div>
 									</form>
 								) : data.description !== null ? (
@@ -595,7 +595,7 @@ export function MessagerieGroupeInfos({
 									})}
 								</p>
 								{vue.renommer && data.avatarUrl !== null ? (
-									<button type="button" className="msg-infos-mini" disabled={photoPending || changerPhoto.isPending} onClick={() => void agir(() => changerPhoto.mutateAsync({ networkId, threadId: id, storageId: null }), t("messagerieGroupeInfos.photoRemoved"))}>
+									<button data-role="danger" type="button" className="msg-infos-mini" disabled={photoPending || changerPhoto.isPending} onClick={() => void agir(() => changerPhoto.mutateAsync({ networkId, threadId: id, storageId: null }), t("messagerieGroupeInfos.photoRemoved"))}>
 										<ImageMinus aria-hidden="true" size={15} /> {t("messagerieGroupeInfos.removePhoto")}
 									</button>
 								) : null}
@@ -696,7 +696,7 @@ export function MessagerieGroupeInfos({
 																<div className="msg-infos-member-actions">
 																	{membre.actions.promouvoir ? <button type="button" className="msg-infos-mini msg-infos-role-action" aria-label={t("messagerieGroupeInfos.promote", { nom: membre.displayName })} disabled={changerRole.isPending} onClick={() => void agir(() => changerRole.mutateAsync({ networkId, threadId: id, memberPersonId: personId, role: "admin" }), t("messagerieGroupeInfos.promoted", { nom: membre.displayName }))}>{t("messagerieGroupeInfos.promoteShort")}</button> : null}
 																	{membre.actions.retrograder ? <button type="button" className="msg-infos-mini msg-infos-role-action" aria-label={t("messagerieGroupeInfos.demote", { nom: membre.displayName })} disabled={changerRole.isPending} onClick={() => void agir(() => changerRole.mutateAsync({ networkId, threadId: id, memberPersonId: personId, role: "member" }), t("messagerieGroupeInfos.demoted", { nom: membre.displayName }))}>{t("messagerieGroupeInfos.demoteShort")}</button> : null}
-																	{membre.actions.retirer ? <button type="button" className="msg-icon-btn" aria-label={t("messagerieGroupeInfos.removeMember", { nom: membre.displayName })} disabled={retirer.isPending} onClick={() => setRetraitAConfirmer(membre.userId)}><UserMinus aria-hidden="true" size={16} /></button> : null}
+																	{membre.actions.retirer ? <button data-role="danger" type="button" className="msg-icon-btn" aria-label={t("messagerieGroupeInfos.removeMember", { nom: membre.displayName })} disabled={retirer.isPending} onClick={() => setRetraitAConfirmer(membre.userId)}><UserMinus aria-hidden="true" size={16} /></button> : null}
 																</div>
 															</div>
 														</div>
@@ -706,7 +706,7 @@ export function MessagerieGroupeInfos({
 															<p>{phraseDeRetrait(membre.displayName, t)}</p>
 															<div className="msg-infos-confirm-actions">
 																<button type="button" className="msg-infos-mini" data-danger="true" disabled={retirer.isPending} onClick={() => void agir(() => retirer.mutateAsync({ networkId, threadId: id, memberPersonId: personId }), t("messagerieGroupeInfos.removed", { nom: membre.displayName })).then((ok) => { if (ok) setRetraitAConfirmer(null) })}>{retirer.isPending ? t("messagerieGroupeInfos.removing") : t("messagerieGroupeInfos.removeConfirm", { nom: membre.displayName })}</button>
-																<button type="button" className="msg-infos-mini" onClick={() => setRetraitAConfirmer(null)}>{t("messagerieGroupeInfos.cancel")}</button>
+																<button data-role="cancel" type="button" className="msg-infos-mini" onClick={() => setRetraitAConfirmer(null)}>{t("messagerieGroupeInfos.cancel")}</button>
 															</div>
 														</div>
 													) : null}
@@ -745,7 +745,7 @@ export function MessagerieGroupeInfos({
 										<p role="alert">{phraseDEffacement(data.title, t)}</p>
 										<div className="msg-infos-confirm-actions">
 											<button type="button" className="msg-infos-mini" data-danger="true" disabled={effacer.isPending} onClick={() => void agir(() => effacer.mutateAsync({ networkId, threadId: id }), t("messagerieGroupeInfos.cleared")).then((ok) => { if (ok) setConfirmation(null) })}>{effacer.isPending ? t("messagerieGroupeInfos.clearing") : t("messagerieGroupeInfos.confirm")}</button>
-											<button type="button" className="msg-infos-mini" onClick={() => setConfirmation(null)}>{t("messagerieGroupeInfos.cancel")}</button>
+											<button data-role="cancel" type="button" className="msg-infos-mini" onClick={() => setConfirmation(null)}>{t("messagerieGroupeInfos.cancel")}</button>
 										</div>
 									</div>
 								) : null}
@@ -758,7 +758,7 @@ export function MessagerieGroupeInfos({
 												setParti(true)
 												void quitter.mutateAsync({ networkId, threadId: id }).then(() => onLeft()).catch((err: unknown) => { setParti(false); setErreur(messageErreurLisible(err, t)) })
 											}}>{quitter.isPending ? t("messagerieGroupeInfos.leaving") : t("messagerieGroupeInfos.confirm")}</button>
-											<button type="button" className="msg-infos-mini" onClick={() => setConfirmation(null)}>{t("messagerieGroupeInfos.cancel")}</button>
+											<button data-role="cancel" type="button" className="msg-infos-mini" onClick={() => setConfirmation(null)}>{t("messagerieGroupeInfos.cancel")}</button>
 										</div>
 									</div>
 								) : null}
@@ -771,7 +771,7 @@ export function MessagerieGroupeInfos({
 												setParti(true)
 												void supprimer.mutateAsync({ networkId, threadId: id }).then(() => onLeft()).catch((err: unknown) => { setParti(false); setErreur(messageErreurLisible(err, t)) })
 											}}>{supprimer.isPending ? t("messagerieGroupeInfos.deleting") : t("messagerieGroupeInfos.deleteForever")}</button>
-											<button type="button" className="msg-infos-mini" onClick={() => setConfirmation(null)}>{t("messagerieGroupeInfos.cancel")}</button>
+											<button data-role="cancel" type="button" className="msg-infos-mini" onClick={() => setConfirmation(null)}>{t("messagerieGroupeInfos.cancel")}</button>
 										</div>
 									</div>
 								) : null}

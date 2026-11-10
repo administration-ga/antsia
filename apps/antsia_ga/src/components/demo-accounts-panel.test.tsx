@@ -38,17 +38,18 @@ function client() {
   }
 }
 
-async function mount(locale: "fr" | "en" = "fr") {
+async function mount(locale: "fr" | "en" = "fr", shared = false) {
   const i18n = createAppI18n({ locale, appResources, defaultNS: "antsia" })
   container = document.createElement("div")
   document.body.append(container)
   root = createRoot(container)
-  await act(async () => root!.render(<I18nextProvider i18n={i18n}><DemoAccountsPanel authClient={client() as never} /></I18nextProvider>))
+  await act(async () => root!.render(<I18nextProvider i18n={i18n}><DemoAccountsPanel authClient={client() as never} shared={shared} /></I18nextProvider>))
 }
 
 const buttons = () => [...container.querySelectorAll<HTMLButtonElement>("button")]
 
 beforeEach(() => {
+  vi.stubEnv("NEXT_PUBLIC_APP_BASE_PATH", "")
   state.catalogue = [PRESSE, NOUVEAU]
   state.latestOtp.mockReset().mockResolvedValue({ code: "482913", expiresAt: Date.now() + 300_000 })
   state.send.mockReset().mockResolvedValue({ data: { success: true }, error: null })
@@ -63,6 +64,7 @@ afterEach(async () => {
   root = undefined
   container?.remove()
   vi.unstubAllGlobals()
+  vi.unstubAllEnvs()
   window.sessionStorage.clear()
 })
 
@@ -71,6 +73,15 @@ describe("DemoAccountsPanel", () => {
     state.catalogue = []
     await mount()
     expect(container.querySelector("section")).toBeNull()
+  })
+
+  it("sur le site de démonstration, dit que les comptes et contenus sont fictifs et partagés", async () => {
+    await mount("fr", true)
+    expect(container.querySelector("section p")?.textContent).toMatch(/^Site de démonstration : comptes et contenus fictifs, partagés par tous les visiteurs\./)
+    await act(async () => root?.unmount())
+    container.remove()
+    await mount("fr")
+    expect(container.querySelector("section p")?.textContent).toMatch(/^Développement local seulement/)
   })
 
   it("présente chaque acteur avec son nom et son rôle", async () => {
@@ -92,6 +103,16 @@ describe("DemoAccountsPanel", () => {
     // L'acteur attend l'automate d'accueil, dans cet onglet seulement.
     expect(pendingDemoAccount()).toEqual(PRESSE)
     expect(window.sessionStorage.getItem(DEMO_ACCOUNT_KEY)).not.toBeNull()
+  })
+
+  it("garde le parcours OTP du build démo sous /demo après authentification", async () => {
+    vi.stubEnv("NEXT_PUBLIC_APP_BASE_PATH", "/demo")
+    vi.stubEnv("NEXT_PUBLIC_CONVEX_URL", "https://vivid-hedgehog-655.convex.cloud")
+    await mount()
+    await act(async () => buttons()[0]!.click())
+    expect(state.send).toHaveBeenCalledExactlyOnceWith({ email: PRESSE.email, type: "sign-in" })
+    expect(state.verify).toHaveBeenCalledExactlyOnceWith({ email: PRESSE.email, otp: "482913" })
+    expect(state.assign).toHaveBeenCalledExactlyOnceWith("/demo/bienvenue")
   })
 
   it("un refus d'authentification n'ouvre rien, oublie l'acteur et le dit", async () => {

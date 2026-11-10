@@ -1,6 +1,7 @@
 /** PA8 : extrait d'une cible assignée, jamais une porte sur son contexte privé. */
 import type { PostMediaDto } from "@antsia/social-contracts/media"
 import { parseCommercePublicBody } from "@antsia/social-domain/commerce/projection"
+import { COMMERCE_STOREFRONT_TERMS_MAX_BYTES } from "@antsia/social-domain/commerce/storefrontTerms"
 import type { ContextualKind } from "@antsia/social-domain/contextualMessaging"
 import { v } from "convex/values"
 
@@ -8,6 +9,7 @@ import type { Id } from "../../_generated/dataModel"
 import type { QueryCtx } from "../../_generated/server"
 import { notFound } from "../../lib/errors"
 import { networkQuery } from "../../lib/functions"
+import { getRootNetwork } from "../../lib/access"
 import { postMediaDtoValidator, resolvePostMediaDtos } from "../media/media"
 import { isPublishedPerson } from "../people/miniProfile"
 import { liveCatalogMapping } from "../shops/catalogAccess"
@@ -16,20 +18,37 @@ import { diasporaModerationExcerpt } from "../diaspora/moderationTargets"
 import { contextualKindValidator } from "../contextualMessaging/tables"
 import { requireReportCapacity, teamCapacity } from "./cases"
 import { contentState } from "./policy"
+import { professionalReviewSource } from "./professionalReviewSource"
+import { editorialMediaReviewSource, editorialReviewSource } from "./editorialReviewSource"
 import { moderationSurfaceValidator, moderationTargetValidator } from "./tables"
+import { commerceOfferModerationText } from "./commerceOfferText"
 import type { ModerationTarget } from "./targets"
+import { resolveDailySpecialSource } from "../stories/dailySpecialSource"
 
 /**
  * `context` (CC-2b) : la NATURE d'un message contextuel, dérivée du fil côté serveur (jamais de la
  * personne qui signale) — le guichet affiche « contextualMessage · <nature> ». Absent ailleurs.
  */
-type Preview = { kind: ModerationTarget["kind"]; available: boolean; title: string | null; body: string | null; media: PostMediaDto[]; context?: { kind: ContextualKind } | null }
+type Preview = { kind: ModerationTarget["kind"]; available: boolean; title: string | null; body: string | null; media: PostMediaDto[]; context?: { kind: ContextualKind } | null; sourceRevision?: number; sourceDigest?: string }
 const excerpt = (value: string | undefined, maximum = 4_000) => value ? value.slice(0, maximum) : null
 
 /** Aucun stockage brut, auteur, contact, participant ou contenu voisin ne sort. */
-async function targetPreview(ctx: QueryCtx, networkId: Id<"networks">, target: ModerationTarget): Promise<Preview> {
+async function targetPreview(ctx: QueryCtx, networkId: Id<"networks">, target: ModerationTarget, readerPersonId: Id<"persons">): Promise<Preview> {
   const empty: Preview = { kind: target.kind, available: false, title: null, body: null, media: [] }
   switch (target.kind) {
+    case "editorialMedia": {
+      const source = await editorialMediaReviewSource(ctx, networkId, target.id)
+      return source ? { ...empty, available: true, ...source } : empty
+    }
+    case "editorialVersion": {
+      const source = await editorialReviewSource(ctx, networkId, target.id)
+      return source ? { ...empty, available: true, ...source } : empty
+    }
+    case "professionalProfile":
+    case "professionalCollaboration": {
+      const source = await professionalReviewSource(ctx, networkId, target)
+      return source ? { ...empty, available: true, ...source } : empty
+    }
     case "post": {
       const row = await ctx.db.get(target.id)
       if (!row || row.networkId !== networkId) return empty
@@ -79,7 +98,14 @@ async function targetPreview(ctx: QueryCtx, networkId: Id<"networks">, target: M
     }
     case "story": {
       const row = await ctx.db.get(target.id)
-      if (!row || row.networkId !== networkId || row.expiresAt <= Date.now() || row.removedAt !== undefined) return empty
+      const now = Date.now()
+      if (!row || row.networkId !== networkId || row.expiresAt <= now || row.removedAt !== undefined) return empty
+      if (row.media.kind === "daily_special") {
+        const network = await ctx.db.get(networkId), root = await getRootNetwork(ctx)
+        if (!network || !root) return empty
+        const source = await resolveDailySpecialSource(ctx, { network, root, readerPersonId }, { shopId: row.media.shopId, authorPersonId: row.authorPersonId, now, reference: row.media })
+        return source ? { ...empty, available: true, title: source.dailySpecial.title, media: [source.media] } : empty
+      }
       return { ...empty, available: true, body: excerpt(row.caption), media: await resolvePostMediaDtos(ctx, [row.media]) }
     }
     case "album": {
@@ -99,6 +125,21 @@ async function targetPreview(ctx: QueryCtx, networkId: Id<"networks">, target: M
       if (!review || review.networkId !== networkId || review.pageId !== row.pageId || review.status !== "active") return empty
       return { ...empty, available: true, body: excerpt(row.body) }
     }
+    case "commerceStorefront": {
+      const head = await ctx.db.get(target.id)
+      if (!head || head.networkId !== networkId || head.objectKind !== "shop" || head.sequence !== "catalog" || head.state !== "active") return empty
+      const live = await liveCatalogMapping(ctx, networkId, head.shopId)
+      if (!live || live.parentHead?._id !== head._id || head.mappingId !== live.mapping._id || head.mappingGeneration !== live.mapping.generation) return empty
+      const parsed = parseCommercePublicBody(head.body, Date.now())
+      if (!parsed.ok || !live.emitter.allowedContracts.includes(parsed.value.contract) || (parsed.value.payload.type !== "shop.published" && parsed.value.payload.type !== "shop.updated") || parsed.value.payload.linkRef !== live.link.linkRef) return empty
+      const terms = parsed.value.payload.storefrontTerms
+      if (!terms) return empty
+      // Toutes les clauses textuelles sont relues : le contrat borne le document à 8 KiB,
+      // auxquels s'ajoutent au plus 46 séparateurs de quatre octets. Aucune fin tronquée.
+      const body = [...(terms.pickup?.points.map(point => point.label) ?? []), terms.delivery?.label, ...(terms.delivery?.localities ?? []), ...(terms.fees?.map(fee => fee.label) ?? []), terms.returns?.summary, terms.warranty?.summary].filter(Boolean).join(" · ")
+      if (new TextEncoder().encode(body).byteLength > COMMERCE_STOREFRONT_TERMS_MAX_BYTES + 46 * 4) return empty
+      return { ...empty, available: true, title: excerpt(live.page.name, 200), body, sourceRevision: head.revision, sourceDigest: head.digest }
+    }
     case "commerceOffer": {
       const head = await ctx.db.get(target.id)
       if (!head || head.networkId !== networkId || head.objectKind !== "offer" || head.sequence !== "catalog" || head.state !== "active") return empty
@@ -110,7 +151,7 @@ async function targetPreview(ctx: QueryCtx, networkId: Id<"networks">, target: M
       const parsed = parseCommercePublicBody(head.body, Date.now())
       if (!parsed.ok || (parsed.value.payload.type !== "offer.published" && parsed.value.payload.type !== "offer.updated")) return empty
       // Le contenu public assigné, sans corps signé, refs privées ni stockage voisin.
-      return { ...empty, available: true, title: parsed.value.payload.title, body: parsed.value.payload.description }
+      return { ...empty, available: true, title: parsed.value.payload.title, body: commerceOfferModerationText(parsed.value.payload), sourceRevision: head.revision, sourceDigest: head.digest }
     }
     case "commerceJob": {
       // P15 : l'extrait public de l'incarnation courante ; jamais une candidature ni le corps signé.
@@ -135,13 +176,13 @@ async function targetPreview(ctx: QueryCtx, networkId: Id<"networks">, target: M
 
 export const preview = networkQuery({
   args: { reportId: v.optional(v.id("reports")), target: v.optional(moderationTargetValidator) },
-  returns: v.object({ kind: moderationSurfaceValidator, available: v.boolean(), title: v.union(v.string(), v.null()), body: v.union(v.string(), v.null()), media: v.array(postMediaDtoValidator), context: v.optional(v.union(v.object({ kind: contextualKindValidator }), v.null())) }),
+  returns: v.object({ kind: moderationSurfaceValidator, available: v.boolean(), title: v.union(v.string(), v.null()), body: v.union(v.string(), v.null()), media: v.array(postMediaDtoValidator), context: v.optional(v.union(v.object({ kind: contextualKindValidator }), v.null())), sourceRevision: v.optional(v.number()), sourceDigest: v.optional(v.string()) }),
   handler: async (ctx, args): Promise<Preview> => {
     if ((args.reportId === undefined) === (args.target === undefined)) return notFound()
     if (args.reportId !== undefined) {
       const report = await ctx.db.get(args.reportId)
       if (!report || report.networkId !== ctx.networkId || (report.status !== "open" && report.status !== "reviewing") || !await requireReportCapacity(ctx, ctx, report)) return notFound()
-      return await targetPreview(ctx, ctx.networkId, report.target)
+      return await targetPreview(ctx, ctx.networkId, report.target, ctx.person._id)
     }
     const target = args.target
     if (!target) return notFound()
@@ -151,6 +192,6 @@ export const preview = networkQuery({
     if (teams.length > 100) return notFound()
     const team = teams.find((row) => row.scope === target.kind) ?? teams.find((row) => row.scope === undefined)
     if (!await teamCapacity(ctx, ctx, target.kind, team?._id)) return notFound()
-    return await targetPreview(ctx, ctx.networkId, target)
+    return await targetPreview(ctx, ctx.networkId, target, ctx.person._id)
   },
 })

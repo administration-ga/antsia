@@ -123,7 +123,7 @@ export function MessagerieGroupeInvitations({ nav }: { nav: MessagerieNav }) {
 									})}
 									title={t("messagerieGroupeInvitations.joinTitle")}
 									// Rejoindre : encre des relations (ADR-0027).
-									style={{ color: "var(--role-social-ink, currentColor)" }}
+									style={{ background: "var(--esp-action-success-fill, transparent)", color: "var(--esp-action-success-on, var(--role-social-ink, currentColor))" }}
 									disabled={repondre.isPending}
 									onClick={() => repondreA(invite.threadId, true)}
 								>

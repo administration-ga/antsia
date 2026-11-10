@@ -115,4 +115,14 @@ describe("liste P05 déclarée par ANTSIA", () => {
 		expect(screen.queryByRole("button", { name: /Non lues/ })).toBeNull()
 		expect(screen.queryByText(/50 premiers renvoyés par le serveur/)).toBeNull()
 	})
+
+	it("rend le focus à la ligne mémorisée sans changer recherche ou position", () => {
+		writeListState(scope, { returnFocusKey: "chat:unread", query: "atelier", scrollTop: 0 })
+		renderWithEngine(<MessagerieListView variant="page" nav={nav} unread={99} source={source()} destinationMode stateScope={scope} />)
+		expect(document.activeElement).toBe(screen.getByRole("button", { name: /Atelier individuel/ }))
+		expect(readListState(scope)).toMatchObject({ returnFocusKey: null, query: "atelier" })
+		const search = screen.getByRole("searchbox")
+		const description = document.getElementById(search.getAttribute("aria-describedby") ?? "")
+		expect(description?.textContent).toContain("50 premiers")
+	})
 })

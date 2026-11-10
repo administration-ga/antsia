@@ -1,0 +1,8 @@
+{
+  "name": "antsia-call-system",
+  "version": "0.1.0",
+  "private": true,
+  "license": "AGPL-3.0-or-later",
+  "description": "Pont système local ANTSIA CallKit et Core-Telecom, sans autorité de session.",
+  "main": "src/index.ts"
+}
