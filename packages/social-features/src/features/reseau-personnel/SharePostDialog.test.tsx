@@ -118,6 +118,17 @@ describe("SharePostDialog", () => {
     expect(screen.queryByRole("dialog")).toBeNull()
   })
 
+  it.each([
+    { locale: "fr" as const, quote: "Partager dans mon fil", share: "Partager", said: "Partage en relecture : visible de vous seul pour l'instant." },
+    { locale: "en" as const, quote: "Share to my feed", share: "Share", said: "Share under review: only you can see it for now." },
+  ])("FD-04 ($locale) : un partage retenu en relecture se dit tel quel, jamais « partagé »", async ({ locale, quote, share, said }) => {
+    mocks.publish.mockResolvedValueOnce({ postId: "posts_2", created: true, moderation: "pending_review" })
+    await openDialog({ locale })
+    fireEvent.click(screen.getByRole("button", { name: quote }))
+    fireEvent.click(screen.getByRole("button", { name: share }))
+    await waitFor(() => expect(toast.success).toHaveBeenCalledExactlyOnceWith(said))
+  })
+
   it("une application sans route de publication conserve son formulaire de citation", async () => {
     await openDialog({ withRoute: false })
     expect(screen.queryByRole("button", { name: "Copier le lien" })).toBeNull()

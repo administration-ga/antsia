@@ -19,7 +19,7 @@
  * la VISIBILITÉ réseau (`network` ou `root`, `./visibility.ts`) : la seconde
  * dit dans quels réseaux une publication existe, la première qui l'y lit.
  */
-import { DomainViolation, megabytes } from "./violation"
+import { type DomainRule, DomainViolation, megabytes } from "./violation"
 
 export const PERSONAL_POST_MAX_LENGTH = 2000
 
@@ -263,6 +263,28 @@ export function assertPostReach(input: { reach?: string; country?: string; reach
   if (input.reach !== undefined && !input.reachValues.includes(input.reach)) throw new DomainViolation("POST_REACH_INVALID")
   if (input.reach === REACH_REQUIRING_COUNTRY && country === undefined) throw new DomainViolation("POST_COUNTRY_REQUIRED")
   return { ...(input.reach !== undefined ? { reach: input.reach } : {}), ...(country !== undefined ? { country } : {}) }
+}
+
+/**
+ * Les refus d'une RÈGLE DE PLACEMENT (HB-03, issue antsia#96) : la tranche qui
+ * gouverne un réseau (`networks.managedBy`) juge où une publication peut aller
+ * — une publication locale va dans le pays de son auteur ou de sa page, et
+ * seulement si ce pays est ouvert et admis. Ensemble FERMÉ, sous-ensemble des
+ * règles du domaine : le serveur les lève en `invalidArgument` portant
+ * `{ rule }`, l'écran les traduit (`rules.<code>`, fr et en).
+ */
+export const POST_PLACEMENT_REFUSALS = [
+  /** Le pays n'est pas celui de l'auteur (ou de la page qui publie). */
+  "POST_PLACEMENT_NOT_OWN_COUNTRY",
+  /** Le pays n'est pas (encore) ouvert aux publications locales. */
+  "POST_PLACEMENT_COUNTRY_NOT_OPEN",
+  /** Le code n'est pas un pays admis par le réseau (pays de résidence reconnu). */
+  "POST_PLACEMENT_COUNTRY_NOT_ADMITTED",
+] as const satisfies readonly DomainRule[]
+export type PostPlacementRefusal = (typeof POST_PLACEMENT_REFUSALS)[number]
+
+export function isPostPlacementRefusal(value: unknown): value is PostPlacementRefusal {
+  return typeof value === "string" && (POST_PLACEMENT_REFUSALS as readonly string[]).includes(value)
 }
 
 /**

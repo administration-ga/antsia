@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/betterAuth/auth.ts @ ad2e7fdc2 — adaptations : PA4, IDN avec PKCE et preuve serveur minimale, comptes légers par OTP e-mail/SMS, aucune route de mot de passe ; origines du catalogue et de l'environnement ; session sept jours et JWT trente minutes avec sessionId contrôlé côté serveur ; OTT trois minutes ; délivrance locale bornée ou transport configuré, erreurs et limitation de débit du moteur.
+// Dupliqué de socle/convex/betterAuth/auth.ts @ ad2e7fdc2 — adaptations : PA4, IDN avec PKCE et preuve serveur minimale, comptes légers par OTP e-mail/SMS, aucune route de mot de passe ; origines du catalogue et de l'environnement ; session sept jours et JWT trente minutes avec sessionId contrôlé côté serveur ; OTT trois minutes ; délivrance locale bornée ou transport configuré, erreurs et limitation de débit du moteur ; refus ou abandon chez IDN renvoyé à la porte de départ de confiance (issue #122).
 /**
  * Better Auth du moteur — l'émetteur UNIQUE des jetons Convex (ADR-0002).
  *
@@ -22,6 +22,7 @@ import type { DataModel } from "../_generated/dataModel"
 import authConfig from "../auth.config"
 import { devToolsAllowed } from "../lib/devTools"
 import { deliverOtp, type OtpRequest } from "./delivery"
+import { idnRefusalReturn } from "./idnRefusalReturn"
 import { isNativeIdnOAuth, nativeIdn } from "./nativeIdn"
 import { authenticationConfiguration, idnConfiguration, idnProfileProof, isE164Phone, trustedOrigins } from "./settings"
 
@@ -282,6 +283,8 @@ export const createAuth = (ctx: GenericCtx<DataModel>, requestOrigin?: string | 
       bearer(),
       ...(idnProvider.length ? [genericOAuth({ config: idnProvider })] : []),
       rateLimitPlugin(ctx),
+      // Après la garde d'origine, avant le rappel générique : un refus chez IDN revient à la porte de départ de confiance.
+      ...(idnProvider.length ? [idnRefusalReturn()] : []),
       emailOTP({
         otpLength: 6,
         expiresIn: OTP_TTL_SECONDS,

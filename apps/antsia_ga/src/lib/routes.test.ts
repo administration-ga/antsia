@@ -18,6 +18,7 @@ describe("routes et mesure facultative", () => {
     expect(routes.cart()).toBe("/panier")
     expect(routes.purchases()).toBe("/mes-achats")
     expect(routes.purchase("x/y?z")).toBe("/mes-achats/x%2Fy%3Fz")
+    expect(routes.savedOffers()).toBe("/mes-favoris")
     expect(routes.tag("école & mer")).toBe("/tags/%C3%A9cole%20%26%20mer")
     const tag = new URL(routes.memberTag("école & mer"), "https://example.test")
     expect(tag.searchParams.get("tag")).toBe("école & mer")
@@ -121,7 +122,7 @@ describe("navigation par destinations (P02)", () => {
       expect(memberDestinationFor(url.pathname, url.searchParams)).toEqual({ id: "decouvrir", current: "section" })
     }
     expect(memberDestinationFor(routes.feedPreferences(), query(""))).toEqual({ id: "profil", current: "section" })
-    for (const href of [routes.cart(), routes.purchases(), routes.purchase("private-purchase")]) expect(memberDestinationFor(href, query(""))).toEqual({ id: "profil", current: "section" })
+    for (const href of [routes.cart(), routes.purchases(), routes.purchase("private-purchase"), routes.savedOffers()]) expect(memberDestinationFor(href, query(""))).toEqual({ id: "profil", current: "section" })
     expect(memberDestinationFor(routes.moderation(), query("vue=reports"))).toEqual({ id: "profil", current: "section" })
     for (const href of [routes.myShops(), routes.shopEditor("shop-id"), routes.myOrders(), routes.checkoutAttempt("attempt-id"), routes.paymentList(), routes.paymentAttempt("payment-id"), routes.paymentReturn("payment-id")]) {
       expect(memberDestinationFor(href, query(""))).toEqual({ id: "profil", current: "section" })

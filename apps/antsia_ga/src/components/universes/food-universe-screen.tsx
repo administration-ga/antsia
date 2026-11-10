@@ -11,6 +11,7 @@ import { Suspense, useId } from "react"
 import { useTranslation } from "react-i18next"
 
 import { OfferQuickAdd } from "@/components/cart/offer-quick-add"
+import { SaveOfferButton } from "@/components/shops/save-offer-button"
 import { OfferCards, SHOWCASE_GRID } from "@/components/marketplace/marketplace-home"
 import { MemberPage } from "@/components/member-chrome"
 import { ShopShowcaseCard, type ShowcaseStorefront } from "@/components/marketplace/shop-showcase-card"
@@ -127,7 +128,7 @@ function FoodCatalog({ search }: { search: FoodUniverseSearch }) {
       : result.indexStatus !== "ready" ? <div className="grid justify-items-start gap-3"><p role="status">{t("food.catalog.building")}</p><Button variant="outline" pending={query.isFetching} onClick={() => { void query.refetch() }}>{t("results.retry")}</Button></div>
       : <div className="grid min-w-0 gap-4" aria-busy={query.isFetching || undefined}>
         {query.isFetching ? <p role="status" className="text-sm text-muted-foreground">{t("results.refreshing")}</p> : null}
-        {result.page.length ? <ul className={OFFER_GRID}>{result.page.map((offer, index) => <li key={offer.offerRef} className="min-w-0"><OfferCard offer={offer} eager={index === 0} audience="member" locale={i18n.resolvedLanguage ?? "fr"} t={(key, options) => shopT(key, options)} action={<OfferQuickAdd offer={offer} />} /></li>)}</ul> : <p role="status">{t(result.isDone ? "food.catalog.empty" : "results.window")}</p>}
+        {result.page.length ? <ul className={OFFER_GRID}>{result.page.map((offer, index) => <li key={offer.offerRef} className="min-w-0"><OfferCard offer={offer} eager={index === 0} audience="member" locale={i18n.resolvedLanguage ?? "fr"} t={(key, options) => shopT(key, options)} action={<OfferQuickAdd offer={offer} />} save={<SaveOfferButton offer={offer} />} /></li>)}</ul> : <p role="status">{t(result.isDone ? "food.catalog.empty" : "results.window")}</p>}
         {result.filteredWindow ? <p className="text-sm text-muted-foreground">{t("results.filtered")}</p> : null}
         {search.cursor !== null || !result.isDone && result.continueCursor ? <nav aria-label={t("food.catalog.pagination")} className="flex min-w-0 flex-wrap items-center justify-between gap-3">
           {search.cursor ? <Link href={routes.foodUniverse({ ...search, cursor: null })} prefetch={false} className={SHOP_ACTION_CLASS}>{t("results.first")}</Link> : <span />}

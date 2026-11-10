@@ -56,6 +56,8 @@
       "associationEventReminder": "Reminder: an event you registered for is approaching.",
       "associationEventCancelled": "An event you registered or are waitlisted for has been cancelled.",
       "associationEventSeatConfirmed": "A place opened up: your registration for an event is confirmed.",
+      "pageSignatoryInvite": "You have been invited to sign for a page. Open it to respond.",
+      "pageClaimDecided": "A decision has been made on your request about a page. Open the page to read it.",
       "membershipChanged": "Your network membership has changed.",
       "badgeChanged": "Your badges have changed.",
       "moderationDecision": "A moderation decision concerns you. View your decisions and appeals.",

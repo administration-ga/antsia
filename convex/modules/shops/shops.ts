@@ -53,6 +53,7 @@ import {
 } from "./access"
 import { admitStorefront } from "./decisions"
 import { liveShopCommerceLink, revokeShopCommerceLink } from "./commerceLinkLifecycle"
+import { purgeSavedOffersForShop } from "./savedOffers"
 import { closeDailySpecialStory } from "../stories/dailySpecialSource"
 import {
   checkShopDescription,
@@ -562,6 +563,8 @@ export const discardShop = networkMutation({
     await revokeShopCommerceLink(ctx, ctx.networkId, shop._id)
     await ctx.db.delete(shop._id)
     if (!page && shop.draftLogoStorageId !== undefined) await purgePageImage(ctx, shop.draftLogoStorageId)
+    // CM-09 : les favoris qui désignaient ses offres partent avec elle, par lots bornés.
+    await purgeSavedOffersForShop(ctx, shop._id)
     return { discarded: true as const }
   },
 })

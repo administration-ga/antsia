@@ -364,6 +364,8 @@ export function resolutionSentence(kind: string, resolution: string, t: TFunctio
     case "group_added":
     case "thematic_group_invite":
     case "event_invite":
+    // PG-01 : l'invitation à signer pour une page (acceptée, déclinée, retirée par la page).
+    case "page_signatory_invite":
       switch (resolution) {
         case "accepted":
           return t("reseau:shared.resolution.accepted")

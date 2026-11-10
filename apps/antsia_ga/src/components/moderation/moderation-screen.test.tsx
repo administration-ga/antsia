@@ -17,6 +17,7 @@ vi.mock("./deadline-queue", () => ({ DeadlineQueue: () => <p>file-prioritaire</p
 vi.mock("./moderation-forms", () => ({ PendingDecision: () => null }))
 vi.mock("./network-appeals", () => ({ NetworkAppealRows: () => <p>recours</p> }))
 vi.mock("./moderation-settings", () => ({ ModerationSettings: () => <p>ecran-des-reglages</p> }))
+vi.mock("./page-claims", () => ({ PageClaimRows: () => <p>file-des-revendications</p> }))
 
 import { ModerationScreen } from "./moderation-screen"
 
@@ -45,5 +46,24 @@ describe("MC-02 — onglet des réglages de modération", () => {
     expect(settings).not.toContain("file-prioritaire")
     // Une équipe ou un curseur dans l'adresse ne s'appliquent pas aux réglages.
     expect(renderToStaticMarkup(<ModerationScreen search={{ view: "settings", team: "team" }} />)).toContain("moderation.invalidSelection")
+  })
+})
+
+describe("PG-01 — onglet des revendications de pages", () => {
+  it("un modérateur du réseau a l'onglet ; la vue montre la file sans choix d'équipe ni file prioritaire", () => {
+    state.capacity = moderator
+    expect(renderToStaticMarkup(<ModerationScreen search={{}} />)).toContain("moderation.claims")
+    const claims = renderToStaticMarkup(<ModerationScreen search={{ view: "claims" }} />)
+    expect(claims).toContain("file-des-revendications")
+    expect(claims).not.toContain("moderation.team")
+    expect(claims).not.toContain("file-prioritaire")
+  })
+
+  it("une équipe seule n'a pas l'onglet, et l'adresse directe est refusée", () => {
+    state.capacity = { networkWide: false, canReviewAppeals: false, canManagePolicy: false, teams: [{ teamId: "team", name: "Équipe", scope: null }] }
+    expect(renderToStaticMarkup(<ModerationScreen search={{ team: "team" }} />)).not.toContain("moderation.claims")
+    const direct = renderToStaticMarkup(<ModerationScreen search={{ view: "claims" }} />)
+    expect(direct).toContain("moderation.invalidSelection")
+    expect(direct).not.toContain("file-des-revendications")
   })
 })

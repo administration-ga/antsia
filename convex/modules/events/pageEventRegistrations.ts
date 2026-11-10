@@ -11,6 +11,7 @@ import { isDiasporaNetwork } from "../diaspora/facts"
 import { isFederatedPage } from "../federation/mirrorAccess"
 import { contentState } from "../moderation/policy"
 import { readablePageOrNull } from "../pages/access"
+import { isClosedByBlocksAmong, livePageSignatoryIds } from "../pages/closedByBlocks"
 import { notifyPerson } from "../notifications/notify"
 import { engineCounters } from "../posts/counters"
 import { participationOf, recordParticipation } from "./events"
@@ -60,6 +61,12 @@ async function removeFromWaitlist(ctx: MutationCtx, row: Doc<"eventParticipants"
  * confirmée », dans la transaction de sa promotion (au plus un lot de file par transaction) —
  * sauf l'auteur du geste en cours (`actorPersonId`), qui voit sa place à l'écran : la personne
  * qui s'inscrit et obtient d'emblée une place n'est pas avisée de son propre geste.
+ *
+ * Issue antsia#141 : un candidat à qui la page est désormais FERMÉE par les blocages (tous ses
+ * signataires vivants en blocage avec lui, `pages/closedByBlocks`) n'est ni promu ni avisé. Comme
+ * tout candidat qui a perdu son droit à la place, il quitte la file sans bruit (ligne gardée,
+ * déclinée) : resté en attente, il occuperait la tête de la file, relue à chaque passage. Une
+ * place DÉJÀ confirmée n'est pas touchée ; la personne peut toujours l'annuler.
  */
 export async function fillPageEventSeatsNow(ctx: MutationCtx, networkId: Id<"networks">, eventId: Id<"events">, actorPersonId?: Id<"persons">): Promise<void> {
   const event = await ctx.db.get(eventId)
@@ -79,6 +86,8 @@ export async function fillPageEventSeatsNow(ctx: MutationCtx, networkId: Id<"net
     .withIndex("by_event_status_pageRegistrationSequence", (q) => q.eq("eventId", eventId).eq("status", "pending").gt("pageRegistrationSequence", 0))
     .order("asc").take(ASSOCIATION_EVENT_WAITLIST_BATCH_SIZE)
   let processed = 0
+  // Les signataires vivants de la page, lus une fois par passage (au premier candidat admissible).
+  let liveSignatories: Id<"persons">[] | null = null
   for (const candidate of candidates) {
     if (capacity !== null && confirmedCount >= capacity) break
     // Une ligne corrompue d'un autre réseau ne peut jamais être altérée ou promue.
@@ -87,7 +96,11 @@ export async function fillPageEventSeatsNow(ctx: MutationCtx, networkId: Id<"net
     const access = person && person.erasedAt === undefined && person.deletionRequestedAt === undefined &&
       await memberHasStatus(ctx, networkId, candidate.personId, "declaree")
       ? await pageEventAccess(ctx, event, candidate.personId) : null
-    const accepted = access?.moderation === "published"
+    let accepted = access?.moderation === "published"
+    if (accepted) {
+      liveSignatories ??= await livePageSignatoryIds(ctx, page)
+      accepted = !(await isClosedByBlocksAmong(ctx, liveSignatories, candidate.personId))
+    }
     await ctx.db.patch(candidate._id, { status: accepted ? "accepted" : "declined", eventStartAt: event.startAt, respondedAt: Date.now() })
     await recordParticipation(ctx, candidate, accepted)
     await removeFromWaitlist(ctx, candidate)

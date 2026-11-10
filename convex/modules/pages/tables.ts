@@ -137,9 +137,17 @@ export const pagesTables = {
     decidedByPersonId: v.optional(v.id("persons")),
     decisionReason: v.optional(v.string()),
     decidedAt: v.optional(v.number()),
+    /**
+     * PG-01 : l'échéance de conservation des pièces d'une revendication TRANCHÉE (décision +
+     * `PAGE_CLAIM_EVIDENCE_RETENTION_MS`) ; retirée une fois les pièces purgées. Absente : rien à
+     * purger (demande en attente, retirée, ou tranchée avant ce lot).
+     */
+    evidencePurgeAt: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
+    // PG-01 : les pièces dont la conservation est échue, pour la purge bornée.
+    .index("by_evidencePurgeAt", ["evidencePurgeAt"])
     // La file de la modération d'un réseau.
     .index("by_network_status_createdAt", ["networkId", "status", "createdAt"])
     // Une revendication en cours par (page, demandeur).

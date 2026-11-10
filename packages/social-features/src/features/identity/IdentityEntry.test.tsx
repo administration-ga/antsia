@@ -48,6 +48,18 @@ describe("IdentityEntry — portes et disponibilité", () => {
     expect(onAuthenticated).not.toHaveBeenCalled()
   })
 
+  it("IDN reçoit la porte d'erreur injectée, et aucune quand l'application n'en donne pas", async () => {
+    const withDoor = mount({ errorCallbackURL: "/entrer" })
+    fireEvent.click(screen.getByRole("button", { name: "Continuer avec mon identité IDN" }))
+    await waitFor(() => expect(withDoor.authClient.signIn.oauth2).toHaveBeenCalledOnce())
+    expect(withDoor.authClient.signIn.oauth2).toHaveBeenCalledWith(expect.objectContaining({ providerId: "idn", callbackURL: "/bienvenue", errorCallbackURL: "/entrer" }))
+    withDoor.unmount()
+    const bare = mount()
+    fireEvent.click(screen.getByRole("button", { name: "Continuer avec mon identité IDN" }))
+    await waitFor(() => expect(bare.authClient.signIn.oauth2).toHaveBeenCalledOnce())
+    expect(bare.authClient.signIn.oauth2).toHaveBeenCalledWith(expect.not.objectContaining({ errorCallbackURL: expect.anything() }))
+  })
+
   it("IDN non configuré explique son indisponibilité et ne lance rien", () => {
     const { authClient } = mount({ configuration: { ...configuration, idn: false } })
     const button = screen.getByRole("button", { name: "Continuer avec mon identité IDN" })
