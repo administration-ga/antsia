@@ -102,6 +102,8 @@ export function exportableRecord(table: string, row: DataRecord, personId: strin
     if (row.toPersonId === personId) return { ...projectedRecord(row, [...RECORD_METADATA, "respondedAt", ...(row.cancelledByPersonId === personId ? ["cancelledAt"] : [])]), ...(["accepted", "declined"].includes(String(row.status)) ? { decision: row.status } : {}) }
     return null
   }
+  // CM-09 : un favori s'exporte à sa seule personne — la boutique et la référence de l'offre, jamais le contenu de l'offre.
+  if (table === "savedOffers") return row.personId === personId ? projectedRecord(row, [...RECORD_METADATA, "shopId", "offerRef"]) : null
   // P13 : le suivi personnel n'exporte ni texte de support, ni octets signés, ni sujet/session.
   if (table === "shopPurchaseRequests") return null
   if (table === "shopPurchaseSnapshots") {

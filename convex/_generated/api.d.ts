@@ -448,6 +448,8 @@ import type * as modules_shops_purchases from "../modules/shops/purchases.js";
 import type * as modules_shops_purchasesActions from "../modules/shops/purchasesActions.js";
 import type * as modules_shops_purchasesClient from "../modules/shops/purchasesClient.js";
 import type * as modules_shops_rules from "../modules/shops/rules.js";
+import type * as modules_shops_savedOfferTables from "../modules/shops/savedOfferTables.js";
+import type * as modules_shops_savedOffers from "../modules/shops/savedOffers.js";
 import type * as modules_shops_serviceAccess from "../modules/shops/serviceAccess.js";
 import type * as modules_shops_serviceActions from "../modules/shops/serviceActions.js";
 import type * as modules_shops_serviceClient from "../modules/shops/serviceClient.js";
@@ -926,6 +928,8 @@ declare const fullApi: ApiFromModules<{
   "modules/shops/purchasesActions": typeof modules_shops_purchasesActions;
   "modules/shops/purchasesClient": typeof modules_shops_purchasesClient;
   "modules/shops/rules": typeof modules_shops_rules;
+  "modules/shops/savedOfferTables": typeof modules_shops_savedOfferTables;
+  "modules/shops/savedOffers": typeof modules_shops_savedOffers;
   "modules/shops/serviceAccess": typeof modules_shops_serviceAccess;
   "modules/shops/serviceActions": typeof modules_shops_serviceActions;
   "modules/shops/serviceClient": typeof modules_shops_serviceClient;

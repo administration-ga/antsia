@@ -121,6 +121,8 @@ export const DATA_TABLE_POLICIES: Record<string, { shared?: boolean; owners?: re
   shopPaymentRequests: {owners: ["personId"]},
   shopPurchaseSnapshots: {owners: ["personId"]},
   shopPurchaseRequests: {owners: ["personId"]},
+  // CM-09 : un favori d'offre est à la seule personne (références seules) et suit aussi sa boutique.
+  savedOffers: {owners: ["personId"], parents: ["shopId"]},
   commerceCatalogIndexes: {shared: true},
   commerceCatalogMappings: {shared: true},
   commerceCatalogHeads: {parents: ["shopId"]},
