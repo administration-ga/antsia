@@ -1,13 +1,15 @@
-// Dupliqué de socle/packages/agent-features/src/features/stories/story-video-probe.ts @ ad2e7fdc2 — adaptations : aucune dans le code (câblage DOM, échecs signalés par des codes internes jamais affichés) ; en-tête de provenance.
+// Dupliqué de socle/packages/agent-features/src/features/stories/story-video-probe.ts @ ad2e7fdc2 — adaptations : câblage DOM inchangé (échecs signalés par des codes internes jamais affichés) ; en-tête de provenance ; SD-03 : module renommé `video-upload-probe` et sorti des Stories (`features/video-upload`), ANNULATION de la conversion par un `AbortSignal` facultatif (`TranscodeOptions.signal`, échec nommé `TRANSCODE_ABORTED`, ressources libérées), nettoyage aussi quand l'arrêt de l'enregistreur échoue.
 "use client"
 
 /**
- * story-video-probe — la MAIN d'œuvre vidéo du composeur d'actu : sonder un
- * fichier, et le CONVERTIR vers MP4/WebM quand la politique le demande.
+ * video-upload-probe — la MAIN d'œuvre vidéo des composeurs (Story,
+ * publication) : sonder un fichier, et le CONVERTIR vers MP4/WebM quand la
+ * politique le demande.
  *
- * Les DÉCISIONS vivent dans `story-video-policy.ts` (pur, testé) ; ce module
- * n'est que du câblage DOM — `agent-features` tourne en environnement node
- * sans testing-library, il est donc documenté plutôt que testé, et il reste
+ * Les DÉCISIONS vivent dans `video-upload-policy.ts` (pur, testé) et
+ * l'enchaînement dans `video-preparation.ts` (testé avec un environnement
+ * simulé) ; ce module n'est que du câblage DOM — jsdom n'a ni décodeur vidéo
+ * ni `MediaRecorder`, il est donc documenté plutôt que testé, et il reste
  * VOLONTAIREMENT bête : pas d'état, pas de retry, une promesse par geste.
  *
  * ── La conversion, en une phrase ─────────────────────────────────────────
@@ -21,16 +23,16 @@
  * ⚠️ La conversion coûte le TEMPS RÉEL de la vidéo, et l'onglet doit rester
  * visible : une fenêtre masquée suspend `requestAnimationFrame`, le canvas
  * cesse d'être redessiné, et l'enregistrement continue sur une image figée
- * sans qu'aucune erreur ne le dise. C'est `storyVideoPlan` qui borne l'attente
- * (`STORY_TRANSCODE_MAX_DURATION_MS`) ; ce module ne fait qu'appliquer la
- * ceinture qu'on lui passe.
+ * sans qu'aucune erreur ne le dise. C'est `videoUploadPlan` qui borne l'attente
+ * (`VIDEO_TRANSCODE_MAX_DURATION_MS`) ; ce module ne fait qu'appliquer la
+ * ceinture qu'on lui passe — et s'arrêter quand on l'annule (`signal`).
  *
  * ⚠️ À n'appeler que depuis une chaîne de GESTE utilisateur (le choix de
  * fichier) : `video.play()` et `AudioContext.resume()` l'exigent.
  */
 
-import { sniffMp4VideoCodecs } from "./story-video-codecs"
-import type { StoryVideoProbe } from "./story-video-policy"
+import { sniffMp4VideoCodecs } from "./video-upload-codecs"
+import type { VideoUploadProbe } from "./video-upload-policy"
 
 /**
  * Les codecs vidéo d'un FICHIER mp4, par tranches (`File.slice`) — le `moov`
@@ -50,7 +52,15 @@ export function sniffFileMp4VideoCodecs(
 /** Grand côté maximal du rendu converti — au-delà, l'encodage temps réel rame. */
 const TRANSCODE_MAX_EDGE_PX = 1_280
 
-/** Ce que la politique a calculé pour cette vidéo-ci (cf. `storyVideoPlan`). */
+/** L'échec d'une conversion ANNULÉE — un code interne, jamais affiché. */
+export const TRANSCODE_ABORTED = "transcode:aborted"
+
+/** Cette erreur dit-elle qu'on a annulé la conversion (et non qu'elle a échoué) ? */
+export function isTranscodeAborted(error: unknown): boolean {
+	return error instanceof Error && error.message === TRANSCODE_ABORTED
+}
+
+/** Ce que la politique a calculé pour cette vidéo-ci (cf. `videoUploadPlan`). */
 export interface TranscodeOptions {
 	/** Le conteneur cible, tel que `MediaRecorder.isTypeSupported` l'accepte. */
 	targetMime: string
@@ -58,6 +68,8 @@ export interface TranscodeOptions {
 	videoBitsPerSecond: number
 	/** La ceinture : au-delà, on arrête, même si la source continue. */
 	hardStopMs: number
+	/** L'annulation par la personne : on s'arrête, on libère tout, on rejette. */
+	signal?: AbortSignal
 }
 
 function releaseVideo(node: HTMLVideoElement): void {
@@ -79,14 +91,14 @@ function releaseVideo(node: HTMLVideoElement): void {
 export function probeVideoFile(
 	objectUrl: string,
 	timeoutMs = 8_000,
-): Promise<StoryVideoProbe> {
+): Promise<VideoUploadProbe> {
 	return new Promise((resolve) => {
 		const node = document.createElement("video")
 		node.preload = "metadata"
 		node.muted = true
 
 		let settled = false
-		const settle = (probe: StoryVideoProbe) => {
+		const settle = (probe: VideoUploadProbe) => {
 			if (settled) return
 			settled = true
 			clearTimeout(timer)
@@ -131,14 +143,16 @@ function baseMime(mimeType: string): string {
 
 /**
  * Convertit la vidéo de l'objectURL vers la cible du plan. Rejette sur tout
- * échec — l'appelant refuse alors le fichier avec la phrase de la politique.
+ * échec — l'appelant refuse alors le fichier avec la phrase de la politique —,
+ * et par `TRANSCODE_ABORTED` quand `signal` est annulé.
  */
 export async function transcodeVideo(
 	objectUrl: string,
 	options: TranscodeOptions,
 	onProgress?: (fraction: number) => void,
 ): Promise<TranscodeResult> {
-	const { targetMime, videoBitsPerSecond, hardStopMs } = options
+	const { targetMime, videoBitsPerSecond, hardStopMs, signal } = options
+	if (signal?.aborted) throw new Error(TRANSCODE_ABORTED)
 	const source = document.createElement("video")
 	source.playsInline = true
 	// PAS de `muted` : l'audio doit exister pour être capturé. Le graphe
@@ -146,10 +160,25 @@ export async function transcodeVideo(
 	source.src = objectUrl
 
 	await new Promise<void>((resolve, reject) => {
-		source.addEventListener("loadedmetadata", () => resolve(), { once: true })
+		const onAbort = () => {
+			releaseVideo(source)
+			reject(new Error(TRANSCODE_ABORTED))
+		}
+		signal?.addEventListener("abort", onAbort, { once: true })
+		source.addEventListener(
+			"loadedmetadata",
+			() => {
+				signal?.removeEventListener("abort", onAbort)
+				resolve()
+			},
+			{ once: true },
+		)
 		source.addEventListener(
 			"error",
-			() => reject(new Error("transcode:metadata")),
+			() => {
+				signal?.removeEventListener("abort", onAbort)
+				reject(new Error("transcode:metadata"))
+			},
 			{ once: true },
 		)
 	})
@@ -162,7 +191,10 @@ export async function transcodeVideo(
 	canvas.width = Math.max(2, Math.round(source.videoWidth * scale))
 	canvas.height = Math.max(2, Math.round(source.videoHeight * scale))
 	const context = canvas.getContext("2d")
-	if (context === null) throw new Error("transcode:canvas")
+	if (context === null) {
+		releaseVideo(source)
+		throw new Error("transcode:canvas")
+	}
 
 	const audioContext = new AudioContext()
 	const audioSource = audioContext.createMediaElementSource(source)
@@ -194,7 +226,21 @@ export async function transcodeVideo(
 	return await new Promise<TranscodeResult>((resolve, reject) => {
 		let frame = 0
 		let stopped = false
+		let cancelled = false
+		let settled = false
 		let recordedMs = 0
+
+		/** Une seule issue, quel que soit l'ordre des évènements. */
+		const settle = (outcome: () => void) => {
+			if (settled) return
+			settled = true
+			signal?.removeEventListener("abort", onAbort)
+			outcome()
+		}
+		const fail = (code: string) => {
+			cleanup()
+			settle(() => reject(new Error(cancelled ? TRANSCODE_ABORTED : code)))
+		}
 
 		const stop = () => {
 			if (stopped) return
@@ -204,9 +250,21 @@ export async function transcodeVideo(
 			try {
 				recorder.stop()
 			} catch {
-				reject(new Error("transcode:stop"))
+				fail("transcode:stop")
 			}
 		}
+
+		// L'annulation passe par l'arrêt ordinaire : l'enregistreur s'arrête,
+		// les pistes sont coupées, et l'issue est un rejet nommé.
+		function onAbort() {
+			cancelled = true
+			if (stopped) {
+				fail(TRANSCODE_ABORTED)
+				return
+			}
+			stop()
+		}
+		signal?.addEventListener("abort", onAbort, { once: true })
 
 		const draw = () => {
 			if (stopped) return
@@ -230,36 +288,36 @@ export async function transcodeVideo(
 
 		recorder.addEventListener("stop", () => {
 			cleanup()
-			if (chunks.length === 0) {
-				reject(new Error("transcode:empty"))
+			if (cancelled) {
+				settle(() => reject(new Error(TRANSCODE_ABORTED)))
 				return
 			}
-			resolve({
-				blob: new Blob(chunks, { type: baseMime(recorder.mimeType || targetMime) }),
-				mimeType: baseMime(recorder.mimeType || targetMime),
-				durationMs: recordedMs,
-			})
+			if (chunks.length === 0) {
+				settle(() => reject(new Error("transcode:empty")))
+				return
+			}
+			settle(() =>
+				resolve({
+					blob: new Blob(chunks, { type: baseMime(recorder.mimeType || targetMime) }),
+					mimeType: baseMime(recorder.mimeType || targetMime),
+					durationMs: recordedMs,
+				}),
+			)
 		})
-		recorder.addEventListener("error", () => {
-			cleanup()
-			reject(new Error("transcode:recorder"))
-		})
+		recorder.addEventListener("error", () => fail("transcode:recorder"))
 		source.addEventListener("ended", stop, { once: true })
-		source.addEventListener(
-			"error",
-			() => {
-				cleanup()
-				reject(new Error("transcode:source"))
-			},
-			{ once: true },
-		)
+		source.addEventListener("error", () => fail("transcode:source"), {
+			once: true,
+		})
 
+		if (signal?.aborted) {
+			cancelled = true
+			fail(TRANSCODE_ABORTED)
+			return
+		}
 		source.currentTime = 0
 		recorder.start(250)
 		frame = requestAnimationFrame(draw)
-		source.play().catch(() => {
-			cleanup()
-			reject(new Error("transcode:autoplay"))
-		})
+		source.play().catch(() => fail("transcode:autoplay"))
 	})
 }

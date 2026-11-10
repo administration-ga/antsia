@@ -49,12 +49,13 @@ import {
   POST_IMAGE_MIME_TYPES,
   POST_MEDIA_MAX_COUNT,
   POST_VIDEO_MAX_BYTES,
-  POST_VIDEO_MIME_TYPES,
+  POST_VIDEO_UPLOAD_MIME_TYPES,
 } from "@antsia/social-domain/content"
 import type { TFunction } from "i18next"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { isPreparedImage } from "../media-upload"
+import { measuredVideoDuration } from "../video-upload/video-preparation"
 import {
   postDraftKey,
   unrecoverableMedia,
@@ -91,13 +92,18 @@ export interface DraftMedia {
   fileName: string
   mimeType: string
   sizeBytes: number
+  /** SD-03 : la durée MESURÉE d'une vidéo préparée, déclarée au serveur. */
+  durationMs?: number
   upload: PostDraftUpload
 }
 
-/** Ce que le composeur ACCEPTE dans son sélecteur de fichiers. */
+/**
+ * Ce que le brouillon accepte TEL QUEL. SD-03 : le composeur de publication
+ * ouvre son sélecteur à toute vidéo et la prépare (conversion) AVANT `add`.
+ */
 export const MEDIA_ACCEPT = [
   ...POST_IMAGE_MIME_TYPES,
-  ...POST_VIDEO_MIME_TYPES,
+  ...POST_VIDEO_UPLOAD_MIME_TYPES,
 ].join(",")
 
 /** Ce qu'un sélecteur d'IMAGES SEULES accepte — les albums (ADR-0145). */
@@ -138,7 +144,7 @@ export function rejectionFor(
 ): string | null {
   const maxCount = limits?.maxCount ?? POST_MEDIA_MAX_COUNT
   const isImage = (POST_IMAGE_MIME_TYPES as readonly string[]).includes(file.type)
-  const isVideo = (POST_VIDEO_MIME_TYPES as readonly string[]).includes(file.type)
+  const isVideo = (POST_VIDEO_UPLOAD_MIME_TYPES as readonly string[]).includes(file.type)
 
   if (limits?.imagesOnly === true) {
     if (!isImage) return t("reseau:useMediaDraft.rejection.notImage", { name: file.name })
@@ -180,6 +186,8 @@ export interface UploadedMedia {
   mimeType: string
   sizeBytes: number
   altText?: string
+  /** SD-03 : la durée mesurée d'une vidéo — le serveur la borne (durée DÉCLARÉE). */
+  durationMs?: number
 }
 
 /** Le genre d'un fichier accepté — la seule lecture de son type MIME. */
@@ -190,13 +198,17 @@ function kindOf(file: File): DraftMediaKind {
 }
 
 function metaOf(file: File, localId: string): PostDraftMedia {
+  const kind = kindOf(file)
+  // SD-03 : une vidéo préparée porte sa durée mesurée (`rememberVideoDuration`).
+  const durationMs = kind === "video" ? measuredVideoDuration(file) : undefined
   return {
     localId,
-    kind: kindOf(file),
+    kind,
     altText: "",
     fileName: file.name,
     mimeType: file.type,
     sizeBytes: file.size,
+    ...(durationMs !== undefined ? { durationMs } : {}),
     upload: { status: "pending" },
   }
 }
@@ -250,6 +262,7 @@ export function useMediaDraft(
       fileName: item.fileName,
       mimeType: item.mimeType,
       sizeBytes: item.sizeBytes,
+      ...(item.durationMs !== undefined ? { durationMs: item.durationMs } : {}),
       upload: item.upload,
     }))
   }, [key, localItems, storedMedia])
@@ -431,6 +444,11 @@ export function useMediaDraft(
           sizeBytes: item.sizeBytes,
           ...(item.altText.trim().length > 0
             ? { altText: item.altText.trim() }
+            : {}),
+          // SD-03 : la DURÉE, elle, ne se relit pas au stockage — le serveur
+          // ne peut que borner celle que l'on déclare.
+          ...(item.kind === "video" && item.durationMs !== undefined
+            ? { durationMs: item.durationMs }
             : {}),
         }
         if (item.upload.status === "uploaded") {

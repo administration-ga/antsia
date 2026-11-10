@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { notificationDedupKey, notificationResolutionPrefix, notificationSubjectKey } from "./notifications"
+import { ASSOCIATION_EVENT_NOTICE_KINDS, isAssociationEventNoticeKind, NOTIFICATION_KINDS, notificationDedupKey, notificationResolutionPrefix, notificationSubjectKey } from "./notifications"
 
 describe("cloche — clés de dédoublonnage et de résolution", () => {
   it("le sujet s'écrit `nature:identifiant`, l'absence `-`", () => {
@@ -38,5 +38,22 @@ describe("cloche — clés de dédoublonnage et de résolution", () => {
     expect(notificationDedupKey("moderation_decision", { kind: "report", id: "r1" }, null)).toBe("moderation_decision|report:r1|-")
     expect(notificationDedupKey("membership_changed", null, null)).toBe("membership_changed|-|-")
     expect(notificationDedupKey("badge_changed", null, null)).toBe("badge_changed|-|-")
+  })
+})
+
+describe("avis d'un événement de page (DG-023, EV-03)", () => {
+  it("rappel, annulation et place confirmée : trois genres du domaine commun, et eux seuls", () => {
+    expect([...ASSOCIATION_EVENT_NOTICE_KINDS]).toEqual(["association_event_reminder", "association_event_cancelled", "association_event_seat_confirmed"])
+    for (const kind of ASSOCIATION_EVENT_NOTICE_KINDS) {
+      expect((NOTIFICATION_KINDS as readonly string[]).includes(kind), kind).toBe(true)
+      expect(isAssociationEventNoticeKind(kind), kind).toBe(true)
+    }
+    for (const kind of ["event_invite", "aid_mission_signup", "toString", ""]) expect(isAssociationEventNoticeKind(kind), kind).toBe(false)
+  })
+
+  it("la clé désigne l'événement et le destinataire seul, sans acteur : un rejeu retrouve la même ligne", () => {
+    const event = { kind: "event", id: "ev1" } as const
+    expect(notificationDedupKey("association_event_cancelled", event, null)).toBe("association_event_cancelled|event:ev1|-")
+    expect(notificationDedupKey("association_event_seat_confirmed", event, null)).toBe("association_event_seat_confirmed|event:ev1|-")
   })
 })

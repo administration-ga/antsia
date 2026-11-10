@@ -252,6 +252,26 @@ describe("sérialisation VERSIONNÉE", () => {
     expect(parseDrafts(serializeDrafts(state))).toEqual(state)
   })
 
+  it("SD-03 — garde la durée mesurée d'une vidéo, oublie une durée illisible, n'en invente pas pour une image", () => {
+    const video = (localId: string, durationMs: unknown) => ({
+      ...media(localId, { kind: "video", fileName: `${localId}.mp4`, mimeType: "video/mp4" }),
+      durationMs,
+    })
+    const raw = JSON.stringify({
+      v: POST_DRAFT_SERIAL_VERSION,
+      composerOpen: false,
+      drafts: { feed: { ...emptyDraft("k"), media: [video("v1", 12_401), video("v2", "long"), video("v3", -5), { ...media("i1"), durationMs: 3_000 }] } },
+    })
+    const kept = parseDrafts(raw).drafts.feed?.media ?? []
+    expect(kept.map((item) => [item.localId, item.durationMs])).toEqual([
+      ["v1", 12_401],
+      ["v2", undefined],
+      ["v3", undefined],
+      ["i1", undefined],
+    ])
+    expect(kept[1]).not.toHaveProperty("durationMs")
+  })
+
   it("refuse une version antérieure, et retombe sur l'état neuf", () => {
     const ancien = JSON.stringify({
       v: POST_DRAFT_SERIAL_VERSION - 1,

@@ -50,6 +50,12 @@ describe("routes et mesure facultative", () => {
     expect(appeal.searchParams.has("equipe")).toBe(false)
     expect(appeal.searchParams.get("curseur")).toBe("opaque")
   })
+  it("MC-02 : la vue des réglages de modération ne transporte jamais un filtre d'équipe", () => {
+    const settings = new URL(routes.moderationView("settings", "foreign", "opaque"), "https://example.test")
+    expect(settings.pathname).toBe(routes.moderation())
+    expect(settings.searchParams.get("vue")).toBe("settings")
+    expect(settings.searchParams.has("equipe")).toBe(false)
+  })
   it("les réglages du moteur (rail, menu, rappel du profil) mènent à la page Paramètres, rangée sous Profil", () => {
     expect(engineRoutes.settings?.()).toBe(routes.settings())
     expect(routes.settings()).not.toBe(routes.personalControls())

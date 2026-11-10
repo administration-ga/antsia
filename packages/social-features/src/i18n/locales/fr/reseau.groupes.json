@@ -45,11 +45,16 @@
       "candidates": {
         "title": "Relations indisponibles",
         "message": "Vos relations n'ont pas pu être chargées."
+      },
+      "transfer": {
+        "title": "Modérateurs indisponibles",
+        "message": "La liste des modérateurs n'a pas pu être chargée."
       }
     },
     "join": {
       "acceptInvite": "Accepter l'invitation",
-      "join": "Rejoindre"
+      "join": "Rejoindre",
+      "readRules": "Lire les règles"
     },
     "invitesBanner_one": "{{count}} invitation de groupe en attente",
     "invitesBanner_many": "{{count}} invitations de groupe en attente",
@@ -101,7 +106,22 @@
       "removeFailed": "Le retrait a échoué.",
       "pinned": "Publication épinglée en tête du groupe.",
       "pinFailed": "L'épinglage a échoué.",
-      "postRemoved": "Publication retirée du groupe."
+      "postRemoved": "Publication retirée du groupe.",
+      "rulesAccepted": "Règles acceptées.",
+      "rulesAcceptFailed": "L'acceptation des règles n'a pas pu être enregistrée.",
+      "rulesSaved": "Règles enregistrées : version n° {{version}}.",
+      "rulesRemoved": "Règles retirées : l'adhésion est de nouveau libre.",
+      "rulesUnchanged": "Les règles n'ont pas changé.",
+      "rulesFailed": "Les règles n'ont pas pu être enregistrées.",
+      "transferred": "Propriété transmise. Vous êtes désormais modérateur du groupe.",
+      "transferFailed": "Le transfert de propriété a échoué.",
+      "closed": "Groupe fermé.",
+      "closeFailed": "La fermeture a échoué.",
+      "archived": "Groupe archivé.",
+      "archiveFailed": "L'archivage a échoué.",
+      "deleted": "Groupe supprimé.",
+      "deletePending": "Suppression lancée : elle se termine en arrière-plan.",
+      "deleteFailed": "La suppression a échoué."
     },
     "directory": {
       "mine": "Mes groupes",
@@ -139,7 +159,76 @@
       "pinnedBadge": "Épinglée",
       "unpin": "Dés-épingler",
       "joinToRead": "Rejoignez ce groupe pour lire et publier ses contributions.",
-      "morePosts": "Voir plus de publications"
+      "morePosts": "Voir plus de publications",
+      "manage": "Gérer le groupe",
+      "hideManage": "Masquer la gestion",
+      "showRules": "Voir les règles",
+      "hideRules": "Masquer les règles"
+    },
+    "state": {
+      "closed": "Ce groupe est fermé : on ne peut plus le rejoindre ni y publier, et ses publications ne sont plus affichées.",
+      "archived": "Ce groupe est archivé : il est fermé et retiré de la découverte, et ses publications ne sont plus affichées."
+    },
+    "rules": {
+      "title": "Règles du groupe",
+      "lead": "Fixées par le propriétaire du groupe. Chaque personne les accepte en entrant.",
+      "updatedOn": "Mises à jour le {{date}}.",
+      "accept": "J'ai lu les règles de ce groupe et je m'engage à les respecter.",
+      "acceptHint": "Cochez la case pour pouvoir rejoindre le groupe.",
+      "changedTitle": "Les règles du groupe ont changé",
+      "changedLead": "Vous restez membre. Prenez connaissance de la nouvelle version :",
+      "acknowledge": "J'ai lu les nouvelles règles"
+    },
+    "manage": {
+      "title": "Gérer le groupe",
+      "lead": "Ces gestes sont réservés au propriétaire du groupe.",
+      "frozen": "Ce groupe n'est plus actif : ses règles et ses rôles sont figés. Il reste possible de l'archiver ou de le supprimer.",
+      "back": "Revenir",
+      "rules": {
+        "title": "Règles du groupe",
+        "hint": "Ce sont vos règles, pas celles de la plateforme. Chaque personne les voit et les accepte avant de rejoindre ; une nouvelle version est montrée aux membres actuels, qui restent membres.",
+        "label": "Texte des règles",
+        "placeholder": "Par exemple : restez courtois, pas de publicité, publiez en lien avec le thème du groupe.",
+        "current": "Version n° {{version}} en vigueur depuis le {{date}}.",
+        "none": "Aucune règle pour l'instant : l'adhésion est libre.",
+        "count": "{{count}} / {{max}} caractères",
+        "save": "Enregistrer les règles",
+        "saving": "Enregistrement…",
+        "remove": "Retirer les règles"
+      },
+      "transfer": {
+        "title": "Transmettre la propriété",
+        "hint": "Le nouveau propriétaire est un modérateur actif du groupe. Vous deviendrez modérateur, et pourrez alors quitter le groupe.",
+        "legend": "Choisir le nouveau propriétaire",
+        "empty": "Aucun modérateur ne peut recevoir la propriété pour l'instant. Nommez d'abord un modérateur : « Voir les membres », puis « Promouvoir ».",
+        "truncated": "Seuls les {{max}} premiers modérateurs sont proposés.",
+        "submit": "Transmettre la propriété",
+        "confirmStatus": "Confirmez le transfert de propriété, ou revenez en arrière.",
+        "confirmText": "Transmettre la propriété de « {{group}} » à {{name}} ? Vous deviendrez modérateur : seul le nouveau propriétaire pourra ensuite gérer le groupe.",
+        "confirm": "Confirmer le transfert"
+      },
+      "close": {
+        "title": "Fermer le groupe",
+        "hint": "Fermer gèle le groupe : plus aucune adhésion, invitation, publication ni modération, et ses publications ne sont plus affichées. La fermeture est définitive ; l'archivage et la suppression restent possibles.",
+        "ask": "Fermer le groupe",
+        "confirmStatus": "Confirmez la fermeture du groupe, ou revenez en arrière.",
+        "confirm": "Confirmer la fermeture"
+      },
+      "archive": {
+        "title": "Archiver le groupe",
+        "hint": "Archiver ferme le groupe et le retire de la découverte, sans rien supprimer. L'archivage est définitif ; la suppression reste possible.",
+        "ask": "Archiver le groupe",
+        "confirmStatus": "Confirmez l'archivage du groupe, ou revenez en arrière.",
+        "confirm": "Confirmer l'archivage"
+      },
+      "delete": {
+        "title": "Supprimer le groupe",
+        "hint": "La suppression efface définitivement le groupe, ses règles, ses publications avec leurs réactions, commentaires et médias, ses membres et ses invitations. Elle ne peut pas être annulée.",
+        "label": "Saisissez le nom du groupe pour confirmer : {{name}}",
+        "mismatch": "Le nom saisi ne correspond pas au nom du groupe.",
+        "submit": "Supprimer définitivement",
+        "submitting": "Suppression…"
+      }
     },
     "members": {
       "title": "Membres",

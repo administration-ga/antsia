@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/post-overflow.ts @ ad2e7fdc2 — adaptations : libellés et indications par l'i18n — `overflowEntriesFor` et `undoLabelFor` reçoivent `t` en DERNIER paramètre (clés qualifiées `reseau:postOverflow.*`) et rendent toujours des textes (forme de `PostOverflowEntry` inchangée) ; ajout de `postEngineErrorText(error, fallbackKey, t)`, le texte d'un refus du moteur pour tous les gestes sur une publication (règle du domaine, sinon code, sinon la phrase de l'écran) ; la PAGE est celle du moteur (institution, association, entreprise, média, communauté) au lieu d'une administration, la sourdine vise une personne (`targetPersonId`).
+// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/post-overflow.ts @ ad2e7fdc2 — adaptations : libellés et indications par l'i18n — `overflowEntriesFor` et `undoLabelFor` reçoivent `t` en DERNIER paramètre (clés qualifiées `reseau:postOverflow.*`) et rendent toujours des textes (forme de `PostOverflowEntry` inchangée) ; ajout de `postEngineErrorText(error, fallbackKey, t)`, le texte d'un refus du moteur pour tous les gestes sur une publication (règle du domaine, sinon code, sinon la phrase de l'écran) ; la PAGE est celle du moteur (institution, association, entreprise, média, communauté) au lieu d'une administration, la sourdine vise une personne (`targetPersonId`) ; « Bloquer l'auteur » (PF-01), pour une personne seulement (`canBlockAuthor`), avant « Signaler ».
 /**
  * post-overflow — ce que le menu « … » d'une publication propose, et à qui.
  *
@@ -42,6 +42,7 @@ export type PostOverflowAction =
 	| "notify"
 	| "hide"
 	| "mute_author"
+	| "block_author"
 	| "report"
 	| "remove"
 
@@ -85,6 +86,12 @@ export interface PostOverflowInput {
 	 * lorsqu'il existe une file pour l'instruire.
 	 */
 	canReport: boolean
+	/**
+	 * Bloquer l'auteur (PF-01) se propose-t-il ? Seulement pour une PERSONNE
+	 * native identifiée : une page ne se bloque pas (on s'en désabonne), et un
+	 * reflet sans signataire local n'a personne à bloquer. Absent : non.
+	 */
+	canBlockAuthor?: boolean
 }
 
 /**
@@ -168,6 +175,16 @@ export function overflowEntriesFor(
 			label: t("reseau:postOverflow.muteAuthor.label", { name: input.authorName }),
 			hint: t("reseau:postOverflow.muteAuthor.hint"),
 			grave: false,
+		})
+	}
+	// Bloquer est un geste GRAVE (confirmé ensuite), rangé avec le signalement en
+	// fin de menu ; « Signaler » reste la dernière entrée, atteinte par Flèche haut.
+	if (canMuteAuthor && input.canBlockAuthor === true) {
+		others.push({
+			id: "block_author",
+			label: t("reseau:postOverflow.blockAuthor.label", { name: input.authorName }),
+			hint: t("reseau:postOverflow.blockAuthor.hint"),
+			grave: true,
 		})
 	}
 	if (input.canReport) {

@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/iappel/IappelJournal.tsx @ ad2e7fdc2 — adaptations : journal du moteur (`calls.history.listCallHistory` du réseau courant, `{ calls, truncated }`) passé tel quel à `groupCallJournal` — le serveur a classé, l'identité du lecteur n'est plus lue (`users.getMe` retiré) ; acquittement par `calls.preferences.markJournalSeen` (sur soi) ; branche poste élaguée (prop `scope`, fonction, renvoi au secrétariat, appel prioritaire, raisons « hors horaires » et « secrétariat indisponible ») ; correspondant nommé par son libellé (`counterpartLabel`, nom neutre traduit) ; libellés traduits (i18n `iappel`), dates dans la langue courante. ; PA6 : préférence de fuseau injectée, calendrier grégorien et caches langue/fuseau. ; CC-5 : une ligne d'appel contextuel se rappelle et s'écrit par sa conversation (`onContextualOpen`), jamais par l'appel personnel. ; couleurs par fonction (ADR-0027) : « Écrire à » en tonal des messages (`data-role="message"`, feuille de la messagerie), facture d'origine en repli.
+// Dupliqué de socle/packages/agent-features/src/features/iappel/IappelJournal.tsx @ ad2e7fdc2 — adaptations : journal du moteur (`calls.history.listCallHistory` du réseau courant, `{ calls, truncated }`) passé tel quel à `groupCallJournal` — le serveur a classé, l'identité du lecteur n'est plus lue (`users.getMe` retiré) ; acquittement par `calls.preferences.markJournalSeen` (sur soi) ; branche poste élaguée (prop `scope`, fonction, renvoi au secrétariat, appel prioritaire, raisons « hors horaires » et « secrétariat indisponible ») ; correspondant nommé par son libellé (`counterpartLabel`, nom neutre traduit) ; libellés traduits (i18n `iappel`), dates dans la langue courante. ; PA6 : préférence de fuseau injectée, calendrier grégorien et caches langue/fuseau. ; CC-5 : une ligne d'appel contextuel se rappelle et s'écrit par sa conversation (`onContextualOpen`), jamais par l'appel personnel. ; couleurs par fonction (ADR-0027) : « Écrire à » en tonal des messages (`data-role="message"`, feuille de la messagerie), facture d'origine en repli. ; IC-02 : filtre « Messages vocaux » (messagerie vocale reçue, `IappelVoicemails`, non-écoutés comptés), absent du journal d'iCom Pro.
 "use client"
 
 /**
@@ -15,6 +15,11 @@
  * chaque rendu — ce composant reste monté tant que l'écran est affiché, et
  * React le re-rend pour des raisons qui n'ont rien à voir avec la lecture du
  * journal (une frappe au clavier ailleurs dans la page, par exemple).
+ *
+ * IC-02 : le filtre « Messages vocaux » rend la messagerie vocale REÇUE
+ * (`IappelVoicemails`) — la promesse de l'enregistreur (« il le retrouvera dans
+ * son journal d'appels ») tenue. Un message vocal est personnel : le journal
+ * d'iCom Pro n'a ni ce filtre ni sa souscription.
  */
 
 import { api } from "@antsia/api/engine"
@@ -39,9 +44,12 @@ import {
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { useTranslation } from "react-i18next"
 
+import { formatUnreadBadge } from "../reseau-personnel/shared"
 import { groupCallJournal, journalOfFamily, type CallJournalFamily, type JournalEntry } from "./call-journal"
 import { scopeBadgeLabel } from "./call-peer"
 import { formatClockTime, formatElapsed } from "./call-timer"
+import { IappelVoicemails } from "./IappelVoicemails"
+import { useVoicemailInbox } from "./use-voicemail-inbox"
 
 export interface IappelJournalProps {
 	/** Contrôles de niveau posés avant Tous / Manqués, dans la même rangée. */
@@ -67,7 +75,7 @@ export interface IappelJournalProps {
 	family?: CallJournalFamily
 }
 
-type JournalFilter = "all" | "missed"
+type JournalFilter = "all" | "missed" | "voicemail"
 
 /**
  * L'intitulé du jour d'une ligne : « Aujourd'hui », « Hier », sinon la date en
@@ -174,7 +182,12 @@ export function IappelJournal({
 	const { t, i18n } = useTranslation("iappel")
 	const timeZone = useViewerTimeZone()
 	const { networkId } = useNetwork()
-	const [filter, setFilter] = useState<JournalFilter>("all")
+	const [chosenFilter, setFilter] = useState<JournalFilter>("all")
+	// IC-02 : la messagerie vocale est personnelle — jamais dans le journal d'iCom Pro.
+	const voicemailsAvailable = family !== "pro"
+	const voicemails = useVoicemailInbox(voicemailsAvailable)
+	const filter: JournalFilter = chosenFilter === "voicemail" && !voicemailsAvailable ? "all" : chosenFilter
+	const unheardBadge = formatUnreadBadge(voicemails.unreadCount)
 
 	const history = useAuthenticatedConvexQuery(api.modules.calls.history.listCallHistory, { networkId })
 	const markJournalSeen = useMutation(api.modules.calls.preferences.markJournalSeen)
@@ -233,9 +246,29 @@ export function IappelJournal({
 						</span>
 					) : null}
 				</button>
+				{voicemailsAvailable ? (
+					<button
+						type="button"
+						className="msg-filter-btn"
+						aria-pressed={filter === "voicemail"}
+						onClick={() => setFilter("voicemail")}
+					>
+						{t("iappelVoicemails.filter")}
+						{unheardBadge !== null ? (
+							<span className="msg-filter-count">
+								<span aria-hidden="true">{unheardBadge}</span>
+								<span className="sr-only">
+									{t("messagerie:icomMobileTabs.unheardVoicemails", { count: voicemails.unreadCount })}
+								</span>
+							</span>
+						) : null}
+					</button>
+				) : null}
 			</div>
 
-			{isLoading ? (
+			{filter === "voicemail" ? (
+				<IappelVoicemails inbox={voicemails} />
+			) : isLoading ? (
 				<p className="icom-relations-empty">{t("iappelJournal.loading")}</p>
 			) : entries.length === 0 ? (
 				<p className="icom-relations-empty">

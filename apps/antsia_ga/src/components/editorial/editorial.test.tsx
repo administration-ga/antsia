@@ -29,6 +29,7 @@ vi.mock("@/components/member-chrome", () => ({ MemberPage: ({ children }: { chil
 
 import { appResources } from "@/i18n/resources"
 import { routes } from "@/lib/routes"
+import { testPrepareImage } from "@antsia/social-features/tests/image-runtime"
 import { EditorialArticleEditor, EditorialArticleForm, EditorialImageLibrary } from "./article-editor"
 import { EditorialConfigForm, EditorialConfigScreen } from "./config-screen"
 import { EditorialCreateArticle, MediaHomeScreen } from "./desk-screen"
@@ -244,15 +245,30 @@ describe("MP12 — images créditées et garde de délivrance", () => {
   })
   it("requiert description, crédit et droits avant upload, puis attend les assets relus sans blob local", async () => {
     const fetcher = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ storageId: "storage-a" }), { status: 200 }))
-    await render(<EditorialImageLibrary pageId={pageId} assets={[]} loading={false} unavailable={false} disabled={false} canAdd onAdd={vi.fn()} refresh={async () => true} />)
+    // PF-03 : la préparation réelle des photos, sur un décodeur et un canvas simulés (`jsdom` n'en a pas).
+    const prepareImage = testPrepareImage({ width: 1600, height: 900 })
+    await render(<EditorialImageLibrary pageId={pageId} assets={[]} loading={false} unavailable={false} disabled={false} canAdd onAdd={vi.fn()} refresh={async () => true} prepareImage={prepareImage} />)
     const file = container.querySelector<HTMLInputElement>('input[type="file"]')!
-    await act(async () => { Object.defineProperty(file, "files", { value: [new File(["pixels"], "photo.png", { type: "image/png" })], configurable: true }); file.dispatchEvent(new Event("change", { bubbles: true })) })
+    const chosen = new File(["pixels"], "photo.png", { type: "image/png" })
+    await act(async () => { Object.defineProperty(file, "files", { value: [chosen], configurable: true }); file.dispatchEvent(new Event("change", { bubbles: true })) })
+    expect(prepareImage.runtime.decoded).toEqual([chosen])
     await input("altText", "La rédaction"); await input("credit", "Photographe autorisé"); await submit()
     expect(mocks.mutations.uploadUrl).not.toHaveBeenCalled(); expect(fetcher).not.toHaveBeenCalled()
     await click(container.querySelector('[name="rightsConsent"]')); await submit()
     expect(mocks.mutations.attach).toHaveBeenCalledWith({ networkId: "network-a", pageId, storageId: "storage-a", mimeType: "image/png", altText: "La rédaction", credit: "Photographe autorisé", rightsConsentTextVersion: "2026-10-21-mp12-editorial-image-v1" })
+    // Le blob déposé est l'image préparée, jamais le fichier choisi.
+    expect((fetcher.mock.calls[0]?.[1] as RequestInit).body).not.toBe(chosen)
     expect(container.querySelector("img")).toBeNull()
     expect(container.querySelector<HTMLInputElement>('[name="rightsConsent"]')!.checked).toBe(false)
+  })
+  it("PF-03 : une illustration dont la préparation échoue n'est pas envoyée ; le refus est dit", async () => {
+    const fetcher = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ storageId: "storage-a" }), { status: 200 }))
+    await render(<EditorialImageLibrary pageId={pageId} assets={[]} loading={false} unavailable={false} disabled={false} canAdd onAdd={vi.fn()} refresh={async () => true} prepareImage={testPrepareImage({ output: null })} />)
+    const file = container.querySelector<HTMLInputElement>('input[type="file"]')!
+    await act(async () => { Object.defineProperty(file, "files", { value: [new File(["pixels"], "photo.jpg", { type: "image/jpeg" })], configurable: true }); file.dispatchEvent(new Event("change", { bubbles: true })) })
+    expect(container.textContent).toContain("La préparation de « photo.jpg » a échoué : cette photo ne sera pas envoyée.")
+    await input("altText", "La rédaction"); await input("credit", "Photographe autorisé"); await click(container.querySelector('[name="rightsConsent"]')); await submit()
+    expect(mocks.mutations.uploadUrl).not.toHaveBeenCalled(); expect(fetcher).not.toHaveBeenCalled()
   })
   it("traduit la rédaction en anglais sans clés techniques", async () => {
     await render(<MediaHomeScreen />, "en")

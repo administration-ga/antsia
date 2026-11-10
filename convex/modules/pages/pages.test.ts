@@ -7,6 +7,7 @@ import { api, internal } from "../../_generated/api"
 import type { Id } from "../../_generated/dataModel"
 import { SEED_CONFIRMATION } from "../../seeds/foundations"
 import { createTestOperatorProof, testConvex } from "../../test.setup"
+import type { DeclaredMedia } from "../media/media"
 
 type T = ReturnType<typeof testConvex>
 type Person = { as: ReturnType<T["withIdentity"]>; personId: Id<"persons">; handle: string }
@@ -117,7 +118,7 @@ async function addSignatory(owner: Person, person: Person, networkId: Id<"networ
   await person.as.mutation(SIG.respondToPageInvitation, { networkId, pageId, accept: true })
 }
 
-async function publishAs(person: Person, networkId: Id<"networks">, pageId: Id<"pages">, body: string, extra: { audience?: "public" | "followers"; reach?: string; idempotencyKey?: string } = {}) {
+async function publishAs(person: Person, networkId: Id<"networks">, pageId: Id<"pages">, body: string, extra: { audience?: "public" | "followers"; reach?: string; idempotencyKey?: string; media?: DeclaredMedia[] } = {}) {
   vi.setSystemTime(Date.now() + 1000)
   return await person.as.mutation(P.publishAsPage, { networkId, pageId, body, ...extra })
 }
@@ -364,6 +365,16 @@ describe("publier au nom d'une page", () => {
     expect(await ruleOf(alice.as.mutation(POSTS.pinOnMyWall, { networkId: root, postId }))).toBe("POST_PIN_PAGE")
     expect((await bob.as.query(POSTS.personPosts, { networkId: root, handle: "alice" })).items.map((item) => item._id)).toEqual([own.postId])
     expect((await alice.as.query(POSTS.paginateMyPosts, { networkId: root, paginationOpts: { numItems: 10, cursor: null } })).page.map((row) => row.postId)).toEqual([own.postId])
+  })
+
+  it("SD-03 — la vidéo d'une page suit les bornes d'une publication : ni .mov neuf, ni durée déclarée au-delà de cinq minutes", async () => {
+    const t = testConvex()
+    const { root, alice, pageId } = await pageWithPost(t)
+    const mov = await storeBlob(t, "video/quicktime")
+    expect(await ruleOf(publishAs(alice, root, pageId, "Clip", { media: [{ storageId: mov, kind: "video", mimeType: "video/quicktime", sizeBytes: 64 }] }))).toBe("UPLOAD_TYPE_NOT_ALLOWED")
+    const mp4 = await storeBlob(t, "video/mp4")
+    expect(await ruleOf(publishAs(alice, root, pageId, "Long", { media: [{ storageId: mp4, kind: "video", mimeType: "video/mp4", sizeBytes: 64, durationMs: 5 * 60_000 + 1 }] }))).toBe("POST_VIDEO_TOO_LONG")
+    expect((await publishAs(alice, root, pageId, "Court", { media: [{ storageId: mp4, kind: "video", mimeType: "video/mp4", sizeBytes: 64, durationMs: 30_000 }] })).created).toBe(true)
   })
 })
 

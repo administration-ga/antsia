@@ -13,6 +13,7 @@ import { useEffect, useId, useRef, useState } from "react"
 import { useForm, useWatch } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 import { z } from "zod"
+import { imagePreparationRefusalText, isPreparedImage, prepareImageForUpload, type PrepareImage } from "@antsia/social-features/media-upload"
 
 import { Button, Card, Field, TextArea, TextInput } from "@/components/shared/controls"
 import { useShopDirtyGuard } from "@/components/shops/shop-ui"
@@ -120,8 +121,13 @@ function EditorialHistoricalVersion({ version, pageId, available, mediaName, byl
   return <details className="min-w-0 rounded-lg border border-border p-3" onToggle={event => setOpen(event.currentTarget.open)}><summary className="min-h-11 cursor-pointer rounded-lg py-2 font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{t("history.version", { version: version.versionNumber })} · {version.title}</summary>{open && available ? <div className="grid min-w-0 gap-3 pt-3"><p className="text-sm text-muted-foreground">{t("history.created", { date: new Intl.DateTimeFormat(i18n.resolvedLanguage === "en" ? "en" : "fr", { dateStyle: "medium", timeStyle: "short" }).format(version.createdAt) })}</p>{version.moderationStatus === "pending_review" || version.moderationStatus === "removed" ? <p role="status">{t(`history.${version.moderationStatus}`)}</p> : null}<EditorialDraftPreview value={editorialDraftValues(version)} mediaName={mediaName} assets={assets} bylines={bylines} title={t("history.preview")} hint={t("history.readOnly")} /></div> : null}</details>
 }
 
-export function EditorialImageLibrary({ pageId, assets, loading, unavailable, disabled, canAdd, onAdd, refresh }: {
+/** PF-03 : la préparation du navigateur (ré-encodée, 2 048 px au plus, sans métadonnées, échec fermé). */
+const prepareInBrowser: PrepareImage = file => prepareImageForUpload(file)
+
+export function EditorialImageLibrary({ pageId, assets, loading, unavailable, disabled, canAdd, onAdd, refresh, prepareImage = prepareInBrowser }: {
   pageId: Id<"pages">; assets: EditorialAssetView[]; loading: boolean; unavailable: boolean; disabled: boolean; canAdd: boolean; onAdd: (assetId: string) => void; refresh: () => Promise<boolean>;
+  /** La préparation des photos (injectable : `jsdom` n'a pas de canvas). */
+  prepareImage?: PrepareImage;
 }) {
   const { networkId } = useNetwork()
   const { t } = useTranslation("editorial")
@@ -132,15 +138,19 @@ export function EditorialImageLibrary({ pageId, assets, loading, unavailable, di
   const input = useRef<HTMLInputElement>(null)
   const [file, setFile] = useState<File | null>(null)
   const [fileError, setFileError] = useState(false)
+  // PF-03 : l'illustration choisie est préparée AVANT de devenir le fichier à envoyer ; seule l'image préparée part.
+  const [preparing, setPreparing] = useState(false)
+  const [preparationRefusal, setPreparationRefusal] = useState<string | null>(null)
+  const selection = useRef(0)
   const [uploaded, setUploaded] = useState(false)
   const form = useForm<EditorialImageValues>({ resolver: zodResolver(editorialImageSchema(key => t(key))), defaultValues: { altText: "", credit: "", rightsConsent: false } })
   const watched = useWatch({ control: form.control })
   const stamp = JSON.stringify([watched.altText, watched.credit, file?.name, file?.size, file?.lastModified, operation.generation])
   const { setValue } = form
   useEffect(() => { setValue("rightsConsent", false) }, [stamp, setValue])
-  const locked = disabled || operation.pending || !operation.online || operation.needsReview
+  const locked = disabled || operation.pending || !operation.online || operation.needsReview || preparing
   return <Card><div className="grid min-w-0 gap-4"><h2 className="mp-subtitle">{t("images.title")}</h2><p className="text-sm text-muted-foreground">{t("images.lead")}</p><EditorialOperationStatus operation={operation} />{loading ? <p role="status">{t("status.loading")}</p> : unavailable ? <EditorialUnavailable /> : assets.length ? <div className="grid min-w-0 gap-4 sm:grid-cols-2 lg:grid-cols-3">{assets.map(asset => <figure key={asset.assetId} className="grid min-w-0 content-start gap-2 rounded-lg border border-border p-3"><GuardedEditorialImage asset={asset} /><figcaption className="grid gap-1 text-sm"><p>{asset.altText}</p><p className="text-muted-foreground">{asset.credit}</p></figcaption><Button type="button" variant="outline" disabled={locked || !canAdd} onClick={() => onAdd(asset.assetId)}>{t("images.add")}</Button></figure>)}</div> : <p>{t("images.empty")}</p>}{!canAdd ? <p role="status">{t("images.limit")}</p> : null}<form className="grid min-w-0 gap-4 border-t border-border pt-4" noValidate onSubmit={event => { void form.handleSubmit(async values => {
-    if (locked || !file) return
+    if (locked || !file || !isPreparedImage(file)) return
     const generation = operation.generation
     const result = await operation.run(async () => {
       const url = await uploadUrl({ networkId, pageId })
@@ -152,10 +162,19 @@ export function EditorialImageLibrary({ pageId, assets, loading, unavailable, di
       return attach({ networkId, pageId, storageId: parsed.storageId as Id<"_storage">, mimeType: file.type, altText: values.altText, credit: values.credit, rightsConsentTextVersion: EDITORIAL_IMAGE_CONSENT_VERSION })
     })
     if (result) { setFile(null); if (input.current) input.current.value = ""; form.reset({ altText: "", credit: "", rightsConsent: false }); setUploaded(true); await refresh() }
-  })(event) }}><fieldset disabled={operation.pending || disabled} className="grid min-w-0 gap-3"><Field id={`${id}-file`} label={t("images.pick")} hint={t("images.fileHint")} error={fileError ? t("images.invalid") : undefined}><input id={`${id}-file`} ref={input} type="file" accept={UPLOAD_USAGES.editorial_image.mimeTypes.join(",")} className="min-h-11 w-full rounded-lg border border-input bg-muted p-3 text-sm" aria-describedby={`${id}-file-hint`} onChange={event => {
+  })(event) }}><fieldset disabled={operation.pending || disabled || preparing} className="grid min-w-0 gap-3"><Field id={`${id}-file`} label={t("images.pick")} hint={t("images.fileHint")} error={preparationRefusal ?? (fileError ? t("images.invalid") : undefined)}><input id={`${id}-file`} ref={input} type="file" accept={UPLOAD_USAGES.editorial_image.mimeTypes.join(",")} className="min-h-11 w-full rounded-lg border border-input bg-muted p-3 text-sm" aria-describedby={`${id}-file-hint`} onChange={event => {
     const next = event.target.files?.[0] ?? null
     const valid = !!next && isMimeAllowedForUsage("editorial_image", next.type) && next.size > 0 && next.size <= UPLOAD_USAGES.editorial_image.maxBytes
-    setFile(valid ? next : null); setFileError(!!next && !valid); setUploaded(false); setValue("rightsConsent", false)
+    setFile(null); setFileError(!!next && !valid); setPreparationRefusal(null); setUploaded(false); setValue("rightsConsent", false)
+    const turn = ++selection.current
+    if (!next || !valid) return
+    setPreparing(true)
+    void prepareImage(next).catch(() => ({ ok: false as const, refusal: "unreadable" as const })).then(result => {
+      if (turn !== selection.current) return
+      if (!result.ok) { setPreparationRefusal(imagePreparationRefusalText(result.refusal, next.name, t)); return }
+      const fits = isMimeAllowedForUsage("editorial_image", result.file.type) && result.file.size > 0 && result.file.size <= UPLOAD_USAGES.editorial_image.maxBytes
+      if (fits) setFile(result.file); else setFileError(true)
+    }).finally(() => { if (turn === selection.current) setPreparing(false) })
   }} /></Field><Field id={`${id}-alt`} label={t("images.alt")} hint={t("images.altHint")} error={form.formState.errors.altText?.message}><TextInput id={`${id}-alt`} maxLength={300} aria-describedby={`${id}-alt-hint`} {...form.register("altText")} /></Field><Field id={`${id}-credit`} label={t("images.credit")} hint={t("images.creditHint")} error={form.formState.errors.credit?.message}><TextInput id={`${id}-credit`} maxLength={200} aria-describedby={`${id}-credit-hint`} {...form.register("credit")} /></Field><label className="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" className="size-5 accent-primary" {...form.register("rightsConsent")} /><span>{t("images.consent")}</span></label><p className="text-xs text-muted-foreground">{t("config.consentVersion", { version: EDITORIAL_IMAGE_CONSENT_VERSION })}</p>{form.formState.errors.rightsConsent?.message ? <p role="alert">{form.formState.errors.rightsConsent.message}</p> : null}<Button type="submit" pending={operation.pending} disabled={locked || !file}>{t("images.upload")}</Button></fieldset></form>{uploaded ? <p role="status">{t("images.uploaded")}</p> : null}<Button type="button" variant="outline" pending={operation.pending} disabled={!operation.online || disabled} onClick={() => { void operation.run(async () => ({ ready: await refresh() })).then(value => { if (value?.ready) operation.markReviewed() }) }}>{t("images.refresh")}</Button></div></Card>
 }
 

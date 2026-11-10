@@ -1,5 +1,5 @@
 /** DG-023 : galerie collective, dépôt atomique et audience actuelle de l'événement. */
-import { assertPostContent, assertPostMedia } from "@antsia/social-domain/content"
+import { assertPostContent, assertPostMedia, assertPostVideoDuration } from "@antsia/social-domain/content"
 import { isAssociationEventGalleryOpen } from "../diaspora/associationEventRules"
 import { paginationOptsValidator } from "convex/server"
 import { v } from "convex/values"
@@ -91,6 +91,8 @@ export const publish = networkMutation({
     if (args.media.length === 0) return failAppRule("association_event_gallery_media_required")
     // Juger la forme et le texte AVANT toute consommation d'un dépôt neuf.
     checked(() => assertPostMedia(args.media))
+    // SD-03 : la durée DÉCLARÉE d'une vidéo, même borne qu'une publication.
+    checked(() => assertPostVideoDuration(args.media))
     const body = checked(() => assertPostContent({ body: args.body, mediaCount: args.media.length, isShare: false }))
     const existing = await ctx.db.query("posts")
       .withIndex("by_network_eventGallery_key", (q) => q.eq("networkId", ctx.networkId).eq("pageEventGalleryId", found.event._id).eq("idempotencyKey", key)).unique()

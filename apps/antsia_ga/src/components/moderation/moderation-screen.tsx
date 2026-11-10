@@ -15,6 +15,7 @@ import { DeadlineQueue, ReportArticle } from "./deadline-queue"
 import { ModerationGuard, useModerationGuard } from "./moderation-guard"
 import { PendingDecision } from "./moderation-forms"
 import { moderationWindow, type ModerationView } from "./moderation-model"
+import { ModerationSettings } from "./moderation-settings"
 import { NetworkAppealRows } from "./network-appeals"
 
 export type ModerationSearch = { view?: string | string[]; team?: string | string[]; cursor?: string | string[] }
@@ -38,25 +39,27 @@ function ModerationContent({ search }: { search: ModerationSearch }) {
   const navigate = (view: ModerationView, teamId?: string, cursor?: string) => { if (guard.canLeave()) router.push(routes.moderationView(view, teamId, cursor)) }
   const views: ModerationView[] = ["reports", "pending"]
   if (capacity.data.canReviewAppeals) views.push("appeals")
+  // MC-02 : l'onglet des réglages n'existe que pour la capacité serveur dédiée (administrateur du réseau).
+  if (capacity.data.canManagePolicy) views.push("settings")
 
   return <div className="flex flex-col gap-5 pb-[env(safe-area-inset-bottom)]">
     <header className="flex flex-col gap-2"><h1 className="text-2xl font-semibold">{t("moderation.title")}</h1><p className="text-sm text-muted-foreground">{t("moderation.lead")}</p></header>
-    {window.view !== "appeals" ? <Field id={id} label={t("moderation.team")}>
+    {window.view !== "appeals" && window.view !== "settings" ? <Field id={id} label={t("moderation.team")}>
       <select id={id} value={window.team ?? ""} disabled={guard.pending} className="min-h-11 w-full rounded-lg border border-input bg-background px-3 text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onChange={(event) => navigate(window.view, event.target.value || undefined)}>
         <option value="" disabled={!capacity.data.networkWide}>{t(capacity.data.networkWide ? "moderation.networkWide" : "moderation.chooseTeam")}</option>
         {capacity.data.teams.map((item) => <option key={item.teamId} value={item.teamId}>{item.name} — {t(item.scope ? `moderation.surfaces.${item.scope}` : "moderation.allSurfaces")}</option>)}
       </select>
     </Field> : null}
     <nav aria-label={t("moderation.views")} className="flex flex-wrap gap-2">
-      {views.map((view) => <Button key={view} variant={window.view === view ? "primary" : "outline"} aria-current={window.view === view ? "page" : undefined} disabled={guard.pending} onClick={() => navigate(view, view === "appeals" ? undefined : window.team)}>{t(`moderation.${view}`)}</Button>)}
+      {views.map((view) => <Button key={view} variant={window.view === view ? "primary" : "outline"} aria-current={window.view === view ? "page" : undefined} disabled={guard.pending} onClick={() => navigate(view, view === "appeals" || view === "settings" ? undefined : window.team)}>{t(`moderation.${view}`)}</Button>)}
     </nav>
     {/* SU01d : la file prioritaire des délais légaux précède la file ordinaire des signalements. */}
     {window.valid && window.view === "reports" ? <DeadlineQueue key={`deadlines:${window.team ?? "network"}`} teamId={team?.teamId} /> : null}
-    {!window.valid ? <p role="alert" className="rounded-xl border border-border bg-muted p-4">{t("moderation.invalidSelection")}</p> : window.view === "appeals" ? <NetworkAppealRows key={`appeals:${window.cursor ?? "first"}`} cursor={window.cursor} onFirst={() => navigate("appeals")} onNext={(cursor) => navigate("appeals", undefined, cursor)} /> : <ModerationRows key={`${window.view}:${window.team ?? "network"}:${window.cursor ?? "first"}`} view={window.view} teamId={team?.teamId} cursor={window.cursor} onFirst={() => navigate(window.view, window.team)} onNext={(cursor) => navigate(window.view, window.team, cursor)} />}
+    {!window.valid ? <p role="alert" className="rounded-xl border border-border bg-muted p-4">{t("moderation.invalidSelection")}</p> : window.view === "settings" ? <ModerationSettings /> : window.view === "appeals" ? <NetworkAppealRows key={`appeals:${window.cursor ?? "first"}`} cursor={window.cursor} onFirst={() => navigate("appeals")} onNext={(cursor) => navigate("appeals", undefined, cursor)} /> : <ModerationRows key={`${window.view}:${window.team ?? "network"}:${window.cursor ?? "first"}`} view={window.view} teamId={team?.teamId} cursor={window.cursor} onFirst={() => navigate(window.view, window.team)} onNext={(cursor) => navigate(window.view, window.team, cursor)} />}
   </div>
 }
 
-function ModerationRows({ view, teamId, cursor, onFirst, onNext }: { view: Exclude<ModerationView, "appeals">; teamId?: Id<"moderationTeams">; cursor: string | null; onFirst: () => void; onNext: (cursor: string) => void }) {
+function ModerationRows({ view, teamId, cursor, onFirst, onNext }: { view: Exclude<ModerationView, "appeals" | "settings">; teamId?: Id<"moderationTeams">; cursor: string | null; onFirst: () => void; onNext: (cursor: string) => void }) {
   const { t } = useTranslation("memberNetwork")
   const { networkId } = useNetwork()
   const guard = useModerationGuard()

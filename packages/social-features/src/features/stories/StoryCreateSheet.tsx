@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/stories/StoryCreateSheet.tsx @ ad2e7fdc2 — adaptations : branché sur `stories.stories.publish` et `media.media.generateUploadUrl` (usage `story_media`) du moteur, réseau de `useNetwork()` ; champ « Où l'afficher », origine du composeur (propriété `origin`) et invite croisée retirés avec les surfaces (ADR-0079 du socle) — le moteur n'a qu'une surface et une seule borne vidéo ; audiences lues dans `AUDIENCE_OPTIONS` du réseau par leurs clés ; libellés, refus et toasts traduits (clés `stories:storyCreateSheet.*`), refus du moteur dits par leur code (`storyEngineErrorText`) ; pourcentage de conversion mis en forme par `Intl` dans la langue courante ; SD-02 : une photo passe par le module partagé `features/media-upload` (ré-encodée, 2 048 px au plus, sans métadonnées, échec fermé) avant d'être retenue, son poids est annoncé avant l'envoi, et l'envoi refuse toute image qui n'en sort pas (`isPreparedImage`) ; préparation injectable (`prepareImage`).
+// Dupliqué de socle/packages/agent-features/src/features/stories/StoryCreateSheet.tsx @ ad2e7fdc2 — adaptations : branché sur `stories.stories.publish` et `media.media.generateUploadUrl` (usage `story_media`) du moteur, réseau de `useNetwork()` ; champ « Où l'afficher », origine du composeur (propriété `origin`) et invite croisée retirés avec les surfaces (ADR-0079 du socle) — le moteur n'a qu'une surface et une seule borne vidéo ; audiences lues dans `AUDIENCE_OPTIONS` du réseau par leurs clés ; libellés, refus et toasts traduits (clés `stories:storyCreateSheet.*`), refus du moteur dits par leur code (`storyEngineErrorText`) ; pourcentage de conversion mis en forme par `Intl` dans la langue courante ; SD-02 : une photo passe par le module partagé `features/media-upload` (ré-encodée, 2 048 px au plus, sans métadonnées, échec fermé) avant d'être retenue, son poids est annoncé avant l'envoi, et l'envoi refuse toute image qui n'en sort pas (`isPreparedImage`) ; préparation injectable (`prepareImage`) ; SD-03 : politique et sonde vidéo lues dans le module partagé `features/video-upload` (`videoUploadPlan` sous les bornes d'une Story, `STORY_VIDEO_UPLOAD_LIMITS`), textes de préparation vidéo partagés avec le composeur de publication (`reseau:videoPreparation.*`).
 "use client"
 
 /**
@@ -6,7 +6,7 @@
  * facultative, une audience.
  *
  * ⚠️ La vidéo a ses BORNES (`STORY_VIDEO_LIMITS`, domaine du moteur) : le
- * fichier est jugé au moment du choix (`storyDraftFrom` / `storyVideoPlan`),
+ * fichier est jugé au moment du choix (`storyDraftFrom` / `videoUploadPlan`),
  * et le serveur, qui relit le stockage, reste l'arbitre.
  *
  * ⚠️ `ImmersiveOverlay` et non un `Sheet`, pour la même raison que
@@ -75,14 +75,15 @@ import {
 	type StoryDraft,
 } from "./story-create"
 import {
-	STORY_TRANSCODE_TARGETS,
-	storyVideoPlan,
-} from "./story-video-policy"
+	STORY_VIDEO_UPLOAD_LIMITS,
+	VIDEO_TRANSCODE_TARGETS,
+	videoUploadPlan,
+} from "../video-upload/video-upload-policy"
 import {
 	probeVideoFile,
 	sniffFileMp4VideoCodecs,
 	transcodeVideo,
-} from "./story-video-probe"
+} from "../video-upload/video-upload-probe"
 
 /** Le marqueur d'un téléversement refusé par le stockage (jamais affiché). */
 const UPLOAD_FAILED = "upload"
@@ -233,17 +234,18 @@ function StoryCreateForm({
 					? await sniffFileMp4VideoCodecs(chosen)
 					: null
 			if (token !== prepToken.current) return
-			const plan = storyVideoPlan(
+			const plan = videoUploadPlan(
 				{
 					fileName: chosen.name,
 					mimeType: chosen.type,
 					probe,
 					containerCodecs,
-					recorderTargets: STORY_TRANSCODE_TARGETS.filter(
+					recorderTargets: VIDEO_TRANSCODE_TARGETS.filter(
 						(target) =>
 							typeof MediaRecorder !== "undefined" &&
 							MediaRecorder.isTypeSupported(target),
 					),
+					limits: STORY_VIDEO_UPLOAD_LIMITS,
 				},
 				t,
 			)
@@ -290,7 +292,7 @@ function StoryCreateForm({
 			if (!isStoryDraftReady(convertedVerdict)) {
 				setVideoPrep(null)
 				setDraft({
-					error: t("storyCreateSheet.convertedTooLarge", {
+					error: t("reseau:videoPreparation.convertedTooLarge", {
 						reason: convertedVerdict.error,
 					}),
 				})
@@ -307,7 +309,7 @@ function StoryCreateForm({
 			if (token !== prepToken.current) return
 			releaseUrl(sourceUrl)
 			setVideoPrep(null)
-			setDraft({ error: t("storyCreateSheet.conversionFailed") })
+			setDraft({ error: t("reseau:videoPreparation.conversionFailed") })
 		}
 	}
 
@@ -578,10 +580,10 @@ function StoryCreateForm({
 						}}
 					>
 						{videoPrep.phase === "sonde" ? (
-							t("storyCreateSheet.probing")
+							t("reseau:videoPreparation.probing")
 						) : (
 							<>
-								{t("storyCreateSheet.converting")}{" "}
+								{t("reseau:videoPreparation.converting")}{" "}
 								<span style={{ fontFamily: "var(--font-mono)" }}>
 									{new Intl.NumberFormat(i18n.language, {
 										style: "percent",
@@ -589,7 +591,7 @@ function StoryCreateForm({
 									}).format(videoPrep.progress)}
 								</span>
 								<span style={{ display: "block" }}>
-									{t("storyCreateSheet.keepTabVisible")}
+									{t("reseau:videoPreparation.keepTabVisible")}
 								</span>
 							</>
 						)}

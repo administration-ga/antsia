@@ -8,6 +8,8 @@ import {
   assertPersonalEventTitle,
   assertPersonalEventWindow,
   canRespondToPersonalEvent,
+  isPageEventCancellationReason,
+  PAGE_EVENT_CANCELLATION_REASONS,
   PERSONAL_EVENT_MAX_DURATION_MS,
   PERSONAL_EVENT_TITLE_MAX_LENGTH,
 } from "./events"
@@ -44,5 +46,16 @@ describe("évènements personnels — asserts du domaine", () => {
     expect(canRespondToPersonalEvent({ eventStatus: "scheduled", isOwnParticipation: true })).toBe(true)
     expect(canRespondToPersonalEvent({ eventStatus: "cancelled", isOwnParticipation: true })).toBe(false)
     expect(canRespondToPersonalEvent({ eventStatus: "scheduled", isOwnParticipation: false })).toBe(false)
+  })
+})
+
+describe("évènements de page — motif d'annulation (EV-03)", () => {
+  it("liste fermée de quatre motifs courts, sans texte libre", () => {
+    expect([...PAGE_EVENT_CANCELLATION_REASONS]).toEqual(["venue_unavailable", "weather", "organizer_unavailable", "other"])
+    for (const reason of PAGE_EVENT_CANCELLATION_REASONS) expect(isPageEventCancellationReason(reason)).toBe(true)
+  })
+
+  it("refuse tout ce qui n'est pas un motif de la liste, sans normaliser", () => {
+    for (const value of ["", "Weather", " weather", "pluie", "toString", null, undefined, 3, {}]) expect(isPageEventCancellationReason(value)).toBe(false)
   })
 })
