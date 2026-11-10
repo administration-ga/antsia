@@ -105,6 +105,10 @@
       "label": "Ne plus voir les publications de {{name}}",
       "hint": "Uniquement dans votre fil. La personne reste trouvable, et vous pouvez toujours vous écrire."
     },
+    "blockAuthor": {
+      "label": "Bloquer {{name}}",
+      "hint": "Vous ne vous verrez plus, dans aucun réseau. La personne n'est pas prévenue."
+    },
     "report": {
       "label": "Signaler",
       "hint": "Transmis à la modération de la plateforme. La publication quitte aussitôt votre fil."

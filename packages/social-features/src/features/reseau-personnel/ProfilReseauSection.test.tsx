@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/ProfilReseauSection.test.tsx @ ad2e7fdc2 — adaptations : rendu dans l'enveloppe du moteur (`renderWithEngine` : i18n française, réseau et adresses de test, routeur en mémoire dont on relit les navigations) ; ma personne moquée sur `people.persons.getMyPerson` (`published`, `handle`) au lieu de `getMyProfile` + `users.getMe` ; copie lue par `visibilityFacts(t)` / `visibilityActions(t)` ; aperçu « vu par les membres du réseau » vers l'adresse de MA fiche composée par les routes injectées ; le cas « panne du compte » (photo du compte, retirée avec `getMe`) devient « une panne du profil ne masque pas l'éditeur et n'offre aucun aperçu » ; cas neuf : pas d'aperçu d'un profil RETIRÉ (identifiant gardé, fiche fermée).
+// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/ProfilReseauSection.test.tsx @ ad2e7fdc2 — adaptations : rendu dans l'enveloppe du moteur (`renderWithEngine` : i18n française, réseau et adresses de test, routeur en mémoire dont on relit les navigations) ; ma personne moquée sur `people.persons.getMyPerson` (`published`, `handle`) au lieu de `getMyProfile` + `users.getMe` ; copie lue par `visibilityFacts(t)` / `visibilityActions(t)` ; aperçu « vu par les membres du réseau » vers l'adresse de MA fiche composée par les routes injectées ; le cas « panne du compte » (photo du compte, retirée avec `getMe`) devient « une panne du profil ne masque pas l'éditeur et n'offre aucun aperçu » ; cas neuf : pas d'aperçu d'un profil RETIRÉ (identifiant gardé, fiche fermée) ; cas neuf : « Personnes bloquées » montée après mes listes (PF-01).
 // @vitest-environment jsdom
 
 import { cleanup, screen } from "@testing-library/react"
@@ -35,6 +35,8 @@ vi.mock("./ProfilePublicationCard", () => ({
   ProfilePublicationCard: () => <div data-testid="publication-card" />,
 }))
 vi.mock("./PrivacyLists", () => ({ PrivacyLists: () => <div data-testid="privacy" /> }))
+// La liste des blocages a son propre test : ici, on prouve qu'elle est MONTÉE (PF-01).
+vi.mock("./BlockedPeopleSection", () => ({ BlockedPeopleSection: () => <div data-testid="blocked-people" /> }))
 
 import { visibilityActions, visibilityFacts } from "./profile-visibility-copy"
 import { ProfilReseauSection } from "./ProfilReseauSection"
@@ -99,6 +101,13 @@ describe("ProfilReseauSection — la confidentialité en trois faits (X-07)", ()
     expect(screen.queryByRole("button", { name: /vu par les membres du réseau/i })).toBeNull()
   })
 
+  it("monte « Personnes bloquées » juste après mes listes de confidentialité (PF-01)", () => {
+    renderWithEngine(<ProfilReseauSection />)
+    const privacy = screen.getByTestId("privacy")
+    const blocked = screen.getByTestId("blocked-people")
+    expect(privacy.compareDocumentPosition(blocked) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
   it("une panne du profil ne masque pas l'éditeur et n'offre aucun aperçu mort", () => {
     // L'éditeur dit lui-même la panne (sa propre lecture) ; la section ne
     // promet rien qu'elle ne sait pas.
@@ -106,6 +115,7 @@ describe("ProfilReseauSection — la confidentialité en trois faits (X-07)", ()
     renderWithEngine(<ProfilReseauSection />)
     expect(screen.getByTestId("publication-card")).toBeTruthy()
     expect(screen.getByTestId("privacy")).toBeTruthy()
+    expect(screen.getByTestId("blocked-people")).toBeTruthy()
     expect(screen.queryByRole("button", { name: /vu par les membres du réseau/i })).toBeNull()
   })
 })

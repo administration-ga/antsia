@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/PostOverflowMenu.tsx @ ad2e7fdc2 — adaptations : marques et sourdine du moteur avec le réseau courant (`marks.marks.*`, `useNetwork().networkId`) ; la sourdine vise une PERSONNE (prop `authorPersonId: Id<"persons">` au lieu de `authorUserId`, argument `targetPersonId`) ; identifiant `Id<"posts">` ; entrées du menu, toasts et noms accessibles par l'i18n (`overflowEntriesFor(…, t)`, `undoLabelFor(…, t)`, clés `reseau:postOverflowMenu.*`) ; refus du moteur dit par son code (`postEngineErrorText`) ; ombre par le jeton `--shadow-xl` au lieu d'une couleur littérale ; position et bascule inchangées ; P18b (A01) : focus porté dans le menu à l'ouverture (première entrée, dernière par Flèche haut sur le bouton), tabindex itinérant (flèches, Début, Fin), Échap et Tab ferment en rendant le focus au bouton, le menu suit son bouton au défilement tant que celui-ci reste visible au lieu de se fermer au moindre défilement. ; ADR-0028 : la présentation « charte » suit aussi son bouton au défilement.
+// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/PostOverflowMenu.tsx @ ad2e7fdc2 — adaptations : marques et sourdine du moteur avec le réseau courant (`marks.marks.*`, `useNetwork().networkId`) ; la sourdine vise une PERSONNE (prop `authorPersonId: Id<"persons">` au lieu de `authorUserId`, argument `targetPersonId`) ; identifiant `Id<"posts">` ; entrées du menu, toasts et noms accessibles par l'i18n (`overflowEntriesFor(…, t)`, `undoLabelFor(…, t)`, clés `reseau:postOverflowMenu.*`) ; refus du moteur dit par son code (`postEngineErrorText`) ; ombre par le jeton `--shadow-xl` au lieu d'une couleur littérale ; position et bascule inchangées ; P18b (A01) : focus porté dans le menu à l'ouverture (première entrée, dernière par Flèche haut sur le bouton), tabindex itinérant (flèches, Début, Fin), Échap et Tab ferment en rendant le focus au bouton, le menu suit son bouton au défilement tant que celui-ci reste visible au lieu de se fermer au moindre défilement. ; ADR-0028 : la présentation « charte » suit aussi son bouton au défilement ; « Bloquer l'auteur » (PF-01) ouvre la brique commune `BlockPersonDialog`, un seul filet avant les gestes graves.
 "use client"
 
 /**
@@ -32,6 +32,7 @@ import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
 import type { AuthorKind } from "./author-link"
+import { BlockPersonDialog } from "./BlockPersonDialog"
 import {
 	overflowEntriesFor,
 	postEngineErrorText,
@@ -121,6 +122,10 @@ export function PostOverflowMenu({
 	const itemRefs = useRef<(HTMLButtonElement | null)[]>([])
 	/** L'entrée à focaliser dès que le menu existe dans le DOM. */
 	const pendingFocus = useRef<"first" | "last" | null>(null)
+	/** La confirmation de « Bloquer l'auteur » (PF-01), montée hors du menu refermé. */
+	const [confirmingBlock, setConfirmingBlock] = useState(false)
+	/** Bloquer vise une PERSONNE native : ni une page, ni un reflet sans signataire. */
+	const canBlockAuthor = !isOwn && authorPersonId !== null && authorKind !== "page"
 
 	const toggleMark = useMutation(api.modules.marks.marks.toggleMark)
 	const hidePost = useMutation(api.modules.marks.marks.hidePost)
@@ -326,6 +331,10 @@ export function PostOverflowMenu({
 			return
 		}
 		if (action === "report") { onReport(); return }
+		if (action === "block_author") {
+			if (canBlockAuthor) setConfirmingBlock(true)
+			return
+		}
 		if (action === "bookmark" || action === "notify") {
 			void toggleMark({ networkId, postId, kind: action })
 				.then((result) => {
@@ -380,6 +389,7 @@ export function PostOverflowMenu({
 			authorName,
 			authorKind,
 			canReport: true,
+			canBlockAuthor,
 		},
 		t
 	)
@@ -493,7 +503,7 @@ export function PostOverflowMenu({
 						>
 							{entries.map((entry, index) => (
 								<div key={entry.id} role="none">
-									{entry.grave && index > 0 ? (
+									{entry.grave && index > 0 && entries[index - 1]?.grave !== true ? (
 										<div className="rp-of-sep" aria-hidden="true" />
 									) : null}
 									<button
@@ -516,6 +526,17 @@ export function PostOverflowMenu({
 						document.body
 					)
 				: null}
+
+			{/* La brique commune du blocage : confirmation, moteur, toast. La
+			    publication quitte ensuite le fil d'elle-même (lecture re-gardée). */}
+			{confirmingBlock && authorPersonId !== null ? (
+				<BlockPersonDialog
+					mode="block"
+					targetPersonId={authorPersonId}
+					name={authorName}
+					onClose={() => setConfirmingBlock(false)}
+				/>
+			) : null}
 		</>
 	)
 }

@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/ProfilPersonnePage.test.tsx @ ad2e7fdc2 — adaptations : rendu dans l'enveloppe du moteur (`renderWithEngine` : i18n française, réseau et adresses de test, routeur en mémoire dont on relit l'adresse et les navigations) ; fonctions du moteur moquées (`people.profile.getPublicProfile` au DTO du moteur — `personId`, `avatar`/`cover` servis par la garde, `isMe` —, `posts.posts.personPosts` clé `_id`, `graph.connections.*`, `graph.follows.*`, `calls.direct.callMember`) ; « c'est moi » lu dans `isMe` au lieu de `getMyProfile` ; résumé iProfil retiré (cas « Mon iProfil professionnel » sans objet) ; aperçu « vu par les membres du réseau » qui ramène à MA fiche (adresse des routes de test) ; kit d'espace simulé à part (`@antsia/ui/espace-kit`, témoin ARIA fidèle du tablist) ; albums simulés par le barrel de leur tranche (constantes d'adresse réelles du modèle pur) ; cas neufs : invitation reçue acceptée sur la fiche, demande et suivi par personne et réseau, refus du moteur dit par son code, « Écrire » (brouillon iCom, adresse de messagerie au téléphone) et « Appeler » (fenêtre sortante, écran de refus) réservés aux relations, publication épinglée en tête du mur et « Désépingler » sur ma fiche, gestion de mon profil ouverte par « Modifier mon profil » ou `?gerer=1` (jamais en aperçu), mon profil retiré qui ramène à sa gestion au lieu du refus.
+// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/ProfilPersonnePage.test.tsx @ ad2e7fdc2 — adaptations : rendu dans l'enveloppe du moteur (`renderWithEngine` : i18n française, réseau et adresses de test, routeur en mémoire dont on relit l'adresse et les navigations) ; fonctions du moteur moquées (`people.profile.getPublicProfile` au DTO du moteur — `personId`, `avatar`/`cover` servis par la garde, `isMe` —, `posts.posts.personPosts` clé `_id`, `graph.connections.*`, `graph.follows.*`, `calls.direct.callMember`) ; « c'est moi » lu dans `isMe` au lieu de `getMyProfile` ; résumé iProfil retiré (cas « Mon iProfil professionnel » sans objet) ; aperçu « vu par les membres du réseau » qui ramène à MA fiche (adresse des routes de test) ; kit d'espace simulé à part (`@antsia/ui/espace-kit`, témoin ARIA fidèle du tablist) ; albums simulés par le barrel de leur tranche (constantes d'adresse réelles du modèle pur) ; cas neufs : invitation reçue acceptée sur la fiche, demande et suivi par personne et réseau, refus du moteur dit par son code, « Écrire » (brouillon iCom, adresse de messagerie au téléphone) et « Appeler » (fenêtre sortante, écran de refus) réservés aux relations, publication épinglée en tête du mur et « Désépingler » sur ma fiche, gestion de mon profil ouverte par « Modifier mon profil » ou `?gerer=1` (jamais en aperçu), mon profil retiré qui ramène à sa gestion au lieu du refus ; se protéger (PF-01) : menu « … » de la fiche d'autrui (blocage confirmé, retour aux Relations), « Débloquer » dans l'état `blocked_by_me` et sur la fiche refusée d'une personne que j'ai bloquée, refus indistinct sinon.
 // @vitest-environment jsdom
 
 /**
@@ -23,7 +23,7 @@
  * publication épinglée tient la tête du mur, et ma fiche porte la gestion de
  * mon profil.
  */
-import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react"
+import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react"
 import type { ButtonHTMLAttributes, ReactNode } from "react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
@@ -48,6 +48,8 @@ const mocks = vi.hoisted(() => {
     queries: {} as Record<string, QueryMock>,
     /** Tout ce qui a été DEMANDÉ au serveur — l'aperçu ne doit rien y ajouter. */
     args: [] as unknown[],
+    /** Chaque lecture, avec SA référence : distinguer deux requêtes aux mêmes arguments. */
+    reads: [] as { query: string; args: unknown }[],
     mutations,
     /** Une mutation par référence, créée à la demande et remise à zéro entre deux cas. */
     mutation: (reference: string) =>
@@ -89,9 +91,13 @@ vi.mock("@antsia/api/engine", () => ({
           connectionWith: "connectionWith",
           requestConnection: "requestConnection",
           respondToConnection: "respondToConnection",
+          blockPerson: "blockPerson",
+          unblockPerson: "unblockPerson",
         },
         follows: { isFollowing: "isFollowing", follow: "follow", unfollow: "unfollow" },
+        blocks: { myBlockByHandle: "myBlockByHandle" },
       },
+      marks: { marks: { isAuthorMuted: "isAuthorMuted", muteAuthor: "muteAuthor", unmuteAuthor: "unmuteAuthor" } },
       calls: { direct: { callMember: "callMember" } },
     },
   },
@@ -114,6 +120,7 @@ function cleDeQuery(query: string, args: unknown): string {
 vi.mock("@antsia/api/hooks", () => ({
   useAuthenticatedConvexQuery: (query: string, args: unknown) => {
     mocks.args.push(args)
+    mocks.reads.push({ query, args })
     if (args === "skip") return { ...ok(undefined), isPending: true }
     // Pas de repli sur la clé nue quand un curseur est présent : ce serait
     // servir la PREMIÈRE page à la seconde, donc un doublon invisible.
@@ -234,6 +241,25 @@ vi.mock("@antsia/ui", () => ({
  */
 vi.mock("@antsia/ui/espace-kit", () => ({
   EspaceKitStyles: () => null,
+  // La boîte de confirmation du blocage (PF-01) : un témoin qui garde son nom,
+  // sa description et ses actions — sa construction a son propre test.
+  EspaceDialog: ({
+    title,
+    description,
+    footer,
+    children,
+  }: {
+    title: string
+    description?: string
+    footer?: ReactNode
+    children: ReactNode
+  }) => (
+    <div role="dialog" aria-label={title}>
+      <p>{description}</p>
+      {children}
+      {footer}
+    </div>
+  ),
   EspaceDossierTabs: ({
     tabs,
     current,
@@ -295,6 +321,7 @@ function rendre(handle = "awa", search = "") {
 beforeEach(() => {
   mocks.queries = {}
   mocks.args = []
+  mocks.reads = []
   for (const reference of Object.keys(mocks.mutations)) delete mocks.mutations[reference]
   mocks.mobile = false
   mocks.openDraft.mockReset()
@@ -1085,3 +1112,102 @@ describe("ProfilPersonnePage — joindre une relation (iCom)", () => {
     expect(mocks.toastError).not.toHaveBeenCalled()
   })
 })
+
+describe("ProfilPersonnePage — se protéger depuis la fiche (PF-01)", () => {
+  beforeEach(() => {
+    mocks.queries.getPublicProfile = ok(PERSON)
+    mocks.queries.personPosts = ok({ items: [], nextCursor: null })
+    mocks.queries.isFollowing = ok(false)
+    mocks.queries.connectionWith = ok({ state: "none" })
+  })
+
+  it("la fiche d'autrui porte le menu « … » de la personne ; ni ma fiche ni son aperçu", () => {
+    const premier = rendre()
+    expect(screen.getByRole("button", { name: "Autres actions sur le profil de Awa Ndong" })).toBeTruthy()
+    premier.unmount()
+
+    mocks.queries.getPublicProfile = ok(MOI)
+    const second = rendre()
+    expect(screen.queryByRole("button", { name: /Autres actions sur le profil/ })).toBeNull()
+    second.unmount()
+
+    rendre("awa", "apercu=1")
+    expect(screen.queryByRole("button", { name: /Autres actions sur le profil/ })).toBeNull()
+  })
+
+  it("bloquer depuis le menu : confirmation, moteur, puis retour au volet Relations", async () => {
+    mocks.queries.isAuthorMuted = ok(false)
+    const { router } = rendre()
+    fireEvent.click(screen.getByRole("button", { name: "Autres actions sur le profil de Awa Ndong" }))
+    fireEvent.click(screen.getByRole("menuitem", { name: /Bloquer @awa/ }))
+    const dialog = screen.getByRole("dialog", { name: "Bloquer Awa Ndong ?" })
+    expect(mocks.mutations.blockPerson).not.toHaveBeenCalled()
+    fireEvent.click(within(dialog).getByRole("button", { name: "Bloquer" }))
+    await waitFor(() =>
+      expect(mocks.mutations.blockPerson).toHaveBeenCalledWith({ networkId: TEST_NETWORK_ID, targetPersonId: "persons_awa" }),
+    )
+    await waitFor(() => expect(mocks.toastSuccess).toHaveBeenCalledWith("Vous avez bloqué Awa Ndong."))
+    expect(router.calls).toContainEqual({ method: "push", href: reseauAgentHref("relations", TEST_ROUTES.home()) })
+  })
+
+  it("état blocked_by_me : « Débloquer » remplace « Bloqué », confirmé, sans rien suivre ni demander", async () => {
+    mocks.queries.connectionWith = ok({ state: "blocked_by_me", connectionId: null })
+    rendre()
+    expect(screen.queryByRole("button", { name: "Bloqué" })).toBeNull()
+    fireEvent.click(screen.getByRole("button", { name: "Débloquer" }))
+    const dialog = screen.getByRole("dialog", { name: "Débloquer Awa Ndong ?" })
+    fireEvent.click(within(dialog).getByRole("button", { name: "Débloquer" }))
+    await waitFor(() =>
+      expect(mocks.mutations.unblockPerson).toHaveBeenCalledWith({ networkId: TEST_NETWORK_ID, targetPersonId: "persons_awa" }),
+    )
+    expect(mocks.mutations.requestConnection).not.toHaveBeenCalled()
+    expect(mocks.mutations.follow).not.toHaveBeenCalled()
+  })
+
+  it("fiche refusée d'une personne que J'AI bloquée : je le lis et je peux débloquer d'ici", async () => {
+    mocks.queries.getPublicProfile = ok(null)
+    mocks.queries.myBlockByHandle = ok({ targetPersonId: "persons_awa" })
+    rendre()
+    expect(mocks.reads).toContainEqual({ query: "myBlockByHandle", args: { networkId: TEST_NETWORK_ID, handle: "awa" } })
+    expect(screen.getByRole("heading", { name: "Vous avez bloqué @awa" })).toBeTruthy()
+    expect(screen.queryByText(/n'est pas accessible/)).toBeNull()
+    fireEvent.click(screen.getByRole("button", { name: "Débloquer" }))
+    fireEvent.click(within(screen.getByRole("dialog", { name: "Débloquer @awa ?" })).getByRole("button", { name: "Débloquer" }))
+    await waitFor(() =>
+      expect(mocks.mutations.unblockPerson).toHaveBeenCalledWith({ networkId: TEST_NETWORK_ID, targetPersonId: "persons_awa" }),
+    )
+  })
+
+  it("fiche refusée sans blocage de ma part : le refus indistinct, mot pour mot", () => {
+    mocks.queries.getPublicProfile = ok(null)
+    mocks.queries.myBlockByHandle = ok(null)
+    rendre()
+    expect(screen.getByText(/n'est pas accessible/)).toBeTruthy()
+    expect(screen.queryByText(/Vous avez bloqué/)).toBeNull()
+    expect(screen.queryByRole("button", { name: "Débloquer" })).toBeNull()
+  })
+
+  it("le temps de savoir si le refus vient de mon blocage, rien n'est affirmé", () => {
+    mocks.queries.getPublicProfile = ok(null)
+    mocks.queries.myBlockByHandle = { ...ok(undefined), isPending: true, isFetching: true, fetchStatus: "fetching" }
+    rendre()
+    expect(screen.getAllByTestId("skeleton").length).toBeGreaterThan(0)
+    expect(screen.queryByText(/n'est pas accessible/)).toBeNull()
+    expect(screen.queryByText(/Vous avez bloqué/)).toBeNull()
+  })
+
+  it("une lecture de mon blocage en échec retombe sur le refus indistinct", () => {
+    mocks.queries.getPublicProfile = ok(null)
+    mocks.queries.myBlockByHandle = err()
+    rendre()
+    expect(screen.getByText(/n'est pas accessible/)).toBeTruthy()
+  })
+
+  it("sur une fiche ouverte, la lecture de mon blocage n'est jamais demandée", () => {
+    rendre()
+    const reads = mocks.reads.filter((read) => read.query === "myBlockByHandle")
+    expect(reads.length).toBeGreaterThan(0)
+    expect(reads.every((read) => read.args === "skip")).toBe(true)
+  })
+})
+
