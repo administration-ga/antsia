@@ -1,6 +1,7 @@
 /**
  * Adhésion à DIASPORALE — entrer, parrainer, retirer un parrainage, quitter
- * (DIASPORALE PD1, cahier DIASPORALE §6.2, EXF-DG-04, arbitrage A3).
+ * (DIASPORALE PD1, cahier DIASPORALE §6.2, EXF-DG-04, arbitrage A3) ; nommer les
+ * responsables du réseau (MD-01, LX-03 : le rôle vit sur l'adhésion).
  *
  * Le réseau est GOUVERNÉ par cette tranche (`managedBy = "diaspora"`) : les
  * chemins génériques du moteur le refusent, car ils ignorent la nationalité
@@ -49,6 +50,7 @@ import { admitToNetwork, setMembershipStatus, writeNetworkFacet } from "../peopl
 import { notifyPerson } from "../notifications/notify"
 import { appendAudit, networkRoleCapacity } from "../platform/audit"
 import { findPublishedPersonByHandle } from "../people/miniProfile"
+import { networkRoleAuditEntry, setMembershipRole } from "../people/networkRoles"
 import { hasStrongIdentityFor, liveIdentityLinks } from "../people/persons"
 import {
   activeFoundingAdmissionOf,
@@ -312,8 +314,43 @@ export const revokeSponsorship = networkMutation({
 })
 
 /**
+ * MD-01 et LX-03 — l'administration du réseau nomme (`network_admin`,
+ * `network_moderator`), change ou retire (`member`) le rôle de réseau d'un
+ * membre, motif à l'appui. La décision passe par l'aide du moteur
+ * (`people/networkRoles.setMembershipRole`, EX-08, issue 98), qui tient pour
+ * tous les chemins : jamais d'adhésion créée, adhésion active « déclarée » au
+ * moins pour nommer, dernier administrateur actif gardé (`NETWORK_LAST_ADMIN`),
+ * au plus cent titulaires d'un rôle (`policyRefused`). Elle entre au journal du
+ * moteur dans la même transaction (`membership.role_set`, qualité
+ * `network_admin`) ; un rôle déjà posé n'écrit rien. Les gardes du moteur
+ * relisent le rôle à chaque appel : la file, les recours et `/pilote` s'ouvrent
+ * ou se ferment au geste suivant de la personne.
+ * Tout autre membre (modération du réseau comprise) : le refus indistinct, avant
+ * tout jugement des arguments. Le premier administrateur est posé par un
+ * opérateur de plateforme, à la console (`platform/networkRoles.setNetworkRole`).
+ */
+export const setResponsibleRole = networkMutation({
+  minStatus: "declaree",
+  writeBucket: "diaspora.moderation.decide",
+  args: { personId: v.id("persons"), role: membershipRoleValidator, reason: v.string() },
+  returns: v.object({ role: membershipRoleValidator, changed: v.boolean() }),
+  handler: async (ctx, args) => {
+    assertDiasporaNetwork(ctx.network)
+    if (ctx.membership.role !== "network_admin") return notFound()
+    const reason = checked(() => assertDecisionReason(args.reason, MODERATION_REASON_MIN))
+    const change = await setMembershipRole(ctx, { network: ctx.network, personId: args.personId, role: args.role })
+    // La décision entre au journal du moteur, dans la même transaction (rien si le rôle était déjà le sien).
+    if (change.changed) {
+      await appendAudit(ctx, networkRoleAuditEntry({ networkId: ctx.networkId, change, actor: { personId: ctx.person._id, capacity: "network_admin" }, reason }))
+    }
+    return { role: change.to, changed: change.changed }
+  },
+})
+
+/**
  * Quitter DIASPORALE (l'adhésion ANTSIA reste) ; le parrainage reçu et l'admission
- * fondatrice s'éteignent avec le départ (leur journal reste).
+ * fondatrice s'éteignent avec le départ (leur journal reste), et le rôle de réseau
+ * avec lui (moteur, EX-08).
  */
 export const leaveDiasporale = networkMutation({
   minStatus: "en_attente",
