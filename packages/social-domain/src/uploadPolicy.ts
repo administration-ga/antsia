@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/lib/uploadPolicy.ts @ ad2e7fdc2 — adaptations : partie PURE seulement (registre des usages, normalisations, recoupement déclaré ↔ stocké), la lecture de `_storage` reste au backend (`convex/lib/uploadPolicy.ts`) ; usages SOCIAUX seulement (D36 : `media_social` avec GIF, `avatar`, `cover`, `page_logo`, `page_banner`, `page_claim_evidence`, `album_image`, `story_media`, `chat_attachment`, `voice`, `live_recording`), les usages des publications, stories et avatars DÉRIVÉS des constantes du domaine (une seule source : le socle les laissait diverger, d'où l'exception `media_social`) ; libellés retirés ; refus à code de règle (`DomainViolation`) au lieu de chaînes `UPLOAD_*:usage`.
+// Dupliqué de socle/convex/lib/uploadPolicy.ts @ ad2e7fdc2 — adaptations : partie PURE seulement (registre des usages, normalisations, recoupement déclaré ↔ stocké), la lecture de `_storage` reste au backend (`convex/lib/uploadPolicy.ts`) ; usages SOCIAUX seulement (D36 : `media_social` avec GIF, `avatar`, `cover`, `page_logo`, `page_banner`, `page_claim_evidence`, `album_image`, `story_media`, `chat_attachment`, `voice`, `live_recording`), les usages des publications, stories et avatars DÉRIVÉS des constantes du domaine (une seule source : le socle les laissait diverger, d'où l'exception `media_social`) ; libellés retirés ; refus à code de règle (`DomainViolation`) au lieu de chaînes `UPLOAD_*:usage` ; EX-17 : usages produits par le serveur nommés (`SERVER_PRODUCED_UPLOAD_USAGES`), tout autre usage borné au plafond d'analyse de la garde (test du registre).
 /**
  * Politique de dépôt de fichiers — les règles pures.
  *
@@ -86,6 +86,16 @@ export const UPLOAD_USAGES = {
 export type UploadUsage = keyof typeof UPLOAD_USAGES
 
 export const UPLOAD_USAGE_NAMES = Object.keys(UPLOAD_USAGES) as UploadUsage[]
+
+/**
+ * Les usages dont le fichier est PRODUIT par la plateforme, jamais déposé par
+ * un membre (aucune URL de dépôt n'en est délivrée à un client). Eux seuls
+ * dépassent le plafond d'analyse de la garde (`FILE_GUARD_MAX_INSPECT_BYTES`) :
+ * au-delà, le fichier est inscrit `skipped:server_generated`. Tout autre usage
+ * reste en deçà — décision du propriétaire du 9/11/2026 (EX-17), vérifiée par
+ * le test du registre ; l'admission refuse de toute façon un dépôt plus lourd.
+ */
+export const SERVER_PRODUCED_UPLOAD_USAGES = ["live_recording"] as const satisfies readonly UploadUsage[]
 
 /** Métadonnées déclarées par le client. Ce qui n'est pas déclaré est LU dans le stockage. */
 export type DeclaredUpload<StorageId extends string = string> = {

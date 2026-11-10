@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/modules/fileGuard/verdict.ts @ ad2e7fdc2 — adaptations : aucune (copie textuelle ; `Finding` vient de `./policy`, qui le réexporte du domaine).
+// Dupliqué de socle/convex/modules/fileGuard/verdict.ts @ ad2e7fdc2 — adaptations : `Finding` vient de `./policy`, qui le réexporte du domaine ; EX-17 : un antivirus qui SAUTE le fichier (au-delà de son propre plafond, `FILE_SCAN_MAX_BYTES`) ne rend pas un verdict sain — `error`, fail-closed, comme un antivirus en panne.
 /**
  * Sentinelle fichiers — le VERDICT, règle pure (ADR-0160, D4).
  *
@@ -11,9 +11,10 @@
  * Ordre, du plus grave au plus bénin :
  *   1. antivirus `infected`, ou un signal `critical`   → `infected`
  *   2. un signal `warning`                              → `suspicious`
- *   3. antivirus `error` sans autre signal              → `error`
+ *   3. antivirus `error` ou `skipped` sans autre signal → `error`
  *      (fail-closed : bloqué, RE-tenté par le sweeper, libérable par un
- *      humain — un moteur en panne ne rend pas un fichier sain)
+ *      humain — un moteur en panne ne rend pas un fichier sain, et un
+ *      fichier que l'antivirus n'a pas lu non plus : EX-17)
  *   4. sinon                                            → `clean`
  */
 import type { Finding } from "./policy"
@@ -57,6 +58,9 @@ export function decideVerdict(input: {
   }
   if (av?.verdict === "error") {
     return { status: "error", reason: `AV_ERROR:${av.detail ?? av.provider}` }
+  }
+  if (av?.verdict === "skipped") {
+    return { status: "error", reason: `AV_SKIPPED:${av.detail ?? av.provider}` }
   }
   return { status: "clean", reason: "OK" }
 }

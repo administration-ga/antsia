@@ -85,7 +85,8 @@ export const AVATAR_MAX_BYTES = 5 * 1024 * 1024
 export const AVATAR_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"] as const
 
 export const POST_IMAGE_MAX_BYTES = 20 * 1024 * 1024
-export const POST_VIDEO_MAX_BYTES = 100 * 1024 * 1024
+/** Décision du propriétaire du 9/11/2026 (EX-17) : 60 Mio, le plafond d'analyse de la garde des fichiers — jamais au-delà. */
+export const POST_VIDEO_MAX_BYTES = 60 * 1024 * 1024
 export const POST_MEDIA_MAX_COUNT = 4
 export const POST_MEDIA_ALT_MAX_LENGTH = 300
 export const POST_IMAGE_MIME_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"] as const

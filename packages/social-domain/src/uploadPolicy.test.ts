@@ -2,8 +2,9 @@
 import { describe, expect, it } from "vitest"
 
 import { AVATAR_MAX_BYTES, POST_IMAGE_MAX_BYTES, POST_VIDEO_MAX_BYTES } from "./content"
+import { FILE_GUARD_MAX_INSPECT_BYTES } from "./filePolicy"
 import { STORY_VIDEO_MAX_BYTES } from "./stories"
-import { checkStoredUpload, isMimeAllowedForUsage, normalizeMimeType, normalizeSha256, UPLOAD_USAGE_NAMES, UPLOAD_USAGES } from "./uploadPolicy"
+import { checkStoredUpload, isMimeAllowedForUsage, normalizeMimeType, normalizeSha256, SERVER_PRODUCED_UPLOAD_USAGES, UPLOAD_USAGE_NAMES, UPLOAD_USAGES } from "./uploadPolicy"
 import { DomainViolation } from "./violation"
 
 const STORAGE_ID = "kg2fake000000000000000000000"
@@ -141,5 +142,24 @@ describe("registre des usages", () => {
     expect(UPLOAD_USAGES.story_media.maxBytes).toBe(STORY_VIDEO_MAX_BYTES)
     expect(isMimeAllowedForUsage("story_media", "video/quicktime")).toBe(false)
     expect(UPLOAD_USAGES.avatar.maxBytes).toBe(AVATAR_MAX_BYTES)
+  })
+
+  it("EX-17 — aucun usage de membre ne dépasse le plafond d'analyse de la garde ; seul le serveur va au-delà", () => {
+    const serverProduced: readonly string[] = SERVER_PRODUCED_UPLOAD_USAGES
+    for (const usage of UPLOAD_USAGE_NAMES) {
+      if (serverProduced.includes(usage)) continue
+      expect(UPLOAD_USAGES[usage].maxBytes, `${usage} dépasse le plafond d'analyse`).toBeLessThanOrEqual(FILE_GUARD_MAX_INSPECT_BYTES)
+    }
+    // L'exception est nommée, et elle est réelle : sans elle, la liste serait vide de sens.
+    expect(serverProduced).toEqual(["live_recording"])
+    expect(UPLOAD_USAGES.live_recording.maxBytes).toBeGreaterThan(FILE_GUARD_MAX_INSPECT_BYTES)
+  })
+
+  it("EX-17 — la vidéo de publication est bornée à 60 Mio, et le dépôt d'un média social avec elle", () => {
+    expect(POST_VIDEO_MAX_BYTES).toBe(60 * 1024 * 1024)
+    expect(UPLOAD_USAGES.media_social.maxBytes).toBe(FILE_GUARD_MAX_INSPECT_BYTES)
+    const over = { contentType: "video/mp4", size: FILE_GUARD_MAX_INSPECT_BYTES + 1, sha256: "f".repeat(64) }
+    expect(violationOf(() => checkStoredUpload({ storageId: STORAGE_ID, usage: "media_social" }, over))).toMatchObject({ code: "UPLOAD_SIZE_OUT_OF_RANGE", params: { maxMegabytes: 60 } })
+    expect(checkStoredUpload({ storageId: STORAGE_ID, usage: "media_social" }, { ...over, size: FILE_GUARD_MAX_INSPECT_BYTES }).sizeBytes).toBe(FILE_GUARD_MAX_INSPECT_BYTES)
   })
 })

@@ -36,6 +36,7 @@ import {
   PERSONAL_REACH_AUDIENCES,
   PERSONAL_REACTION_KINDS,
   POST_IMAGE_MAX_BYTES,
+  POST_VIDEO_MAX_BYTES,
 } from "./content"
 import { DomainViolation } from "./violation"
 
@@ -232,6 +233,12 @@ describe("médias", () => {
     expect(() => assertPostMedia([{ ...image, sizeBytes: POST_IMAGE_MAX_BYTES + 1 }])).toThrow(DomainViolation)
     expect(() => assertPostMedia([{ ...image, sizeBytes: 0 }])).toThrow(DomainViolation)
     expect(violationOf(() => assertPostMedia([{ ...image, sizeBytes: POST_IMAGE_MAX_BYTES + 1 }]))?.params).toEqual({ maxMegabytes: 20 })
+  })
+
+  it("EX-17 — une vidéo de publication va jusqu'à 60 Mio, pas un octet de plus", () => {
+    expect(() => assertPostMedia([{ ...video, sizeBytes: POST_VIDEO_MAX_BYTES }])).not.toThrow()
+    expect(violationOf(() => assertPostMedia([{ ...video, sizeBytes: POST_VIDEO_MAX_BYTES + 1 }]))).toMatchObject({ code: "POST_MEDIA_TOO_LARGE", params: { maxMegabytes: 60 } })
+    expect(() => assertPostMedia([{ ...video, sizeBytes: 100 * 1024 * 1024 }])).toThrow(DomainViolation)
   })
 
   it("borne le texte alternatif", () => {
