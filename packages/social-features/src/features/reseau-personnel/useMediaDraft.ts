@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/useMediaDraft.ts @ ad2e7fdc2 — adaptations : bornes et types lus dans le domaine du moteur (`@antsia/social-domain/content`) ; refus et erreurs par l'i18n — `rejectionFor(file, existing, limits, t)` reçoit `t` en DERNIER paramètre (clés qualifiées `reseau:useMediaDraft.*`, `limits` devient un paramètre explicite, éventuellement `undefined`), le poids maximal se dit depuis la borne du domaine, les erreurs levées par `upload` sont traduites par la langue de l'écran ; identifiant de stockage TYPÉ (`UploadedMedia.storageId: Id<"_storage">`) au lieu d'une chaîne ; API du hook inchangée.
+// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/useMediaDraft.ts @ ad2e7fdc2 — adaptations : bornes et types lus dans le domaine du moteur (`@antsia/social-domain/content`) ; refus et erreurs par l'i18n — `rejectionFor(file, existing, limits, t)` reçoit `t` en DERNIER paramètre (clés qualifiées `reseau:useMediaDraft.*`, `limits` devient un paramètre explicite, éventuellement `undefined`), le poids maximal se dit depuis la borne du domaine, les erreurs levées par `upload` sont traduites par la langue de l'écran ; identifiant de stockage TYPÉ (`UploadedMedia.storageId: Id<"_storage">`) au lieu d'une chaîne ; API du hook inchangée ; FP-01 : une image qui ne sort pas du module de préparation (`features/media-upload`, `isPreparedImage`) est refusée à l'ajout comme à l'envoi — aucune photo ne part avec ses métadonnées.
 "use client"
 
 /**
@@ -35,6 +35,12 @@
  *    n'accepte d'ailleurs qu'un dépôt frais par média.
  *  · **Un média sans fichier ET sans téléversement n'est pas publiable** :
  *    `unrecoverable` le nomme, l'écran demande de le resélectionner.
+ *
+ * ⚠️ UNE IMAGE BRUTE NE PASSE PAS (lot FP-01). Toute image ajoutée doit sortir
+ * du module de préparation (`features/media-upload` : ré-encodée, 2 048 px au
+ * plus, sans métadonnées) ; une autre est refusée à `add`, et `upload` refuse
+ * encore d'envoyer une image qui n'en sortirait pas. Le composeur prépare les
+ * photos AVANT `add` ; l'album aussi, par son propre plan.
  */
 
 import type { Id } from "@antsia/api/engine"
@@ -43,11 +49,13 @@ import {
   POST_IMAGE_MIME_TYPES,
   POST_MEDIA_MAX_COUNT,
   POST_VIDEO_MAX_BYTES,
-  POST_VIDEO_MIME_TYPES,
+  POST_VIDEO_UPLOAD_MIME_TYPES,
 } from "@antsia/social-domain/content"
 import type { TFunction } from "i18next"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
+import { isPreparedImage } from "../media-upload"
+import { measuredVideoDuration } from "../video-upload/video-preparation"
 import {
   postDraftKey,
   unrecoverableMedia,
@@ -84,13 +92,18 @@ export interface DraftMedia {
   fileName: string
   mimeType: string
   sizeBytes: number
+  /** SD-03 : la durée MESURÉE d'une vidéo préparée, déclarée au serveur. */
+  durationMs?: number
   upload: PostDraftUpload
 }
 
-/** Ce que le composeur ACCEPTE dans son sélecteur de fichiers. */
+/**
+ * Ce que le brouillon accepte TEL QUEL. SD-03 : le composeur de publication
+ * ouvre son sélecteur à toute vidéo et la prépare (conversion) AVANT `add`.
+ */
 export const MEDIA_ACCEPT = [
   ...POST_IMAGE_MIME_TYPES,
-  ...POST_VIDEO_MIME_TYPES,
+  ...POST_VIDEO_UPLOAD_MIME_TYPES,
 ].join(",")
 
 /** Ce qu'un sélecteur d'IMAGES SEULES accepte — les albums (ADR-0145). */
@@ -131,7 +144,7 @@ export function rejectionFor(
 ): string | null {
   const maxCount = limits?.maxCount ?? POST_MEDIA_MAX_COUNT
   const isImage = (POST_IMAGE_MIME_TYPES as readonly string[]).includes(file.type)
-  const isVideo = (POST_VIDEO_MIME_TYPES as readonly string[]).includes(file.type)
+  const isVideo = (POST_VIDEO_UPLOAD_MIME_TYPES as readonly string[]).includes(file.type)
 
   if (limits?.imagesOnly === true) {
     if (!isImage) return t("reseau:useMediaDraft.rejection.notImage", { name: file.name })
@@ -156,6 +169,16 @@ export function rejectionFor(
   return null
 }
 
+/**
+ * Le refus d'une IMAGE qui n'est pas sortie du module de préparation, ou
+ * `null` (une vidéo, ou une image préparée). Le type déclaré suffit à dire
+ * « image » : c'est la lecture que fait `kindOf`.
+ */
+function unpreparedRefusal(file: File, t: TFunction): string | null {
+  if (!(POST_IMAGE_MIME_TYPES as readonly string[]).includes(file.type)) return null
+  return isPreparedImage(file) ? null : t("reseau:mediaPreparation.notPrepared", { name: file.name })
+}
+
 export interface UploadedMedia {
   /** L'identifiant rendu par le STOCKAGE à son dépôt — jamais fabriqué ici. */
   storageId: Id<"_storage">
@@ -163,6 +186,8 @@ export interface UploadedMedia {
   mimeType: string
   sizeBytes: number
   altText?: string
+  /** SD-03 : la durée mesurée d'une vidéo — le serveur la borne (durée DÉCLARÉE). */
+  durationMs?: number
 }
 
 /** Le genre d'un fichier accepté — la seule lecture de son type MIME. */
@@ -173,13 +198,17 @@ function kindOf(file: File): DraftMediaKind {
 }
 
 function metaOf(file: File, localId: string): PostDraftMedia {
+  const kind = kindOf(file)
+  // SD-03 : une vidéo préparée porte sa durée mesurée (`rememberVideoDuration`).
+  const durationMs = kind === "video" ? measuredVideoDuration(file) : undefined
   return {
     localId,
-    kind: kindOf(file),
+    kind,
     altText: "",
     fileName: file.name,
     mimeType: file.type,
     sizeBytes: file.size,
+    ...(durationMs !== undefined ? { durationMs } : {}),
     upload: { status: "pending" },
   }
 }
@@ -233,6 +262,7 @@ export function useMediaDraft(
       fileName: item.fileName,
       mimeType: item.mimeType,
       sizeBytes: item.sizeBytes,
+      ...(item.durationMs !== undefined ? { durationMs: item.durationMs } : {}),
       upload: item.upload,
     }))
   }, [key, localItems, storedMedia])
@@ -254,7 +284,7 @@ export function useMediaDraft(
         setLocalItems((current) => {
           const next = [...current]
           for (const file of files) {
-            const refusal = rejectionFor(file, next, limits, t)
+            const refusal = rejectionFor(file, next, limits, t) ?? unpreparedRefusal(file, t)
             if (refusal) {
               setRejection(refusal)
               continue
@@ -284,7 +314,7 @@ export function useMediaDraft(
       const existing = [...storedMedia]
       const accepted: { meta: PostDraftMedia; file: File; previewUrl: string }[] = []
       for (const file of files) {
-        const refusal = rejectionFor(file, existing, limits, t)
+        const refusal = rejectionFor(file, existing, limits, t) ?? unpreparedRefusal(file, t)
         if (refusal) {
           setRejection(refusal)
           continue
@@ -415,6 +445,11 @@ export function useMediaDraft(
           ...(item.altText.trim().length > 0
             ? { altText: item.altText.trim() }
             : {}),
+          // SD-03 : la DURÉE, elle, ne se relit pas au stockage — le serveur
+          // ne peut que borner celle que l'on déclare.
+          ...(item.kind === "video" && item.durationMs !== undefined
+            ? { durationMs: item.durationMs }
+            : {}),
         }
         if (item.upload.status === "uploaded") {
           // Relu du brouillon persisté (une chaîne) : c'est l'identifiant que le
@@ -424,6 +459,13 @@ export function useMediaDraft(
         }
         if (item.file === null) {
           throw new Error(t("reseau:useMediaDraft.error.reselect", { name: item.fileName }))
+        }
+        // ÉCHEC FERMÉ : une image qui ne sort pas du module de préparation ne
+        // part pas, même si elle est entrée par un chemin qui l'aurait oubliée.
+        const unprepared = item.kind === "image" ? unpreparedRefusal(item.file, t) : null
+        if (unprepared !== null) {
+          markFailed(item.localId)
+          throw new Error(unprepared)
         }
         const url = await generateUrl()
         let response: Response

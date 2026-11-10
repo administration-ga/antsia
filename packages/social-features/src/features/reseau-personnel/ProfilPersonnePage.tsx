@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/ProfilPersonnePage.tsx @ ad2e7fdc2 — adaptations : fiche lue DANS le réseau courant (`people.profile.getPublicProfile({ networkId, handle })`, « c'est moi » rendu par le moteur `isMe`, photo et couverture servies par la garde des fichiers, une image retenue retombe sur le repli) ; mur par `posts.posts.personPosts` (réseau, curseur `Id<"posts">`, clé `_id`) et publication ÉPINGLÉE rendue en tête du mur (le moteur la sort de la liste ; « Désépingler » par `posts.posts.unpinMyWall` sur ma fiche) ; relation par `graph.connections.connectionWith` (personne), demande par `requestConnection` et réponse à une invitation reçue sur la fiche même (`respondToConnection`) ; suivi par `graph.follows.{isFollowing, follow, unfollow}` (personne) ; une relation se joint d'ici — « Écrire » ouvre le brouillon iCom (`dockStore.openDraft`, et l'adresse de la messagerie de l'application au téléphone) et « Appeler » passe par `useRingRelation` de la brique d'appel (`calls.direct.callMember`, puis le magasin d'appel : fenêtre sortante, ou écran de refus) ; section professionnelle RETIRÉE (résumé iProfil, « Mon dossier iProfil », `iProfiles.getMyIProfil`) ; « Modifier mon profil » ouvre la gestion de MON profil sur ma fiche (`ProfilReseauSection`, ouverte d'emblée par `?gerer=1`) au lieu des paramètres de l'espace, et un profil que j'ai retiré m'y ramène au lieu du refus ; adresses composées par `useRoutes()` (profil, page réseau, messagerie) — aucune route en dur ; aperçu « vu par les membres du réseau » avec retour sur ma fiche ; textes par l'i18n (`reseau:profilPersonnePage.*`, modules purs appelés avec `t`) ; kit d'espace (onglets, styles) par `@antsia/ui/espace-kit` ; albums par le barrel de leur tranche (`features/reseau-albums`) ; couleurs par fonction (ADR-0027) : Se connecter et Accepter en `social`, Suivre en `social` (neutre une fois suivi), Écrire en `message` tonal, géométrie `RESEAU_ACTION_SHAPE_STYLE`.
+// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/ProfilPersonnePage.tsx @ ad2e7fdc2 — adaptations : fiche lue DANS le réseau courant (`people.profile.getPublicProfile({ networkId, handle })`, « c'est moi » rendu par le moteur `isMe`, photo et couverture servies par la garde des fichiers, une image retenue retombe sur le repli) ; mur par `posts.posts.personPosts` (réseau, curseur `Id<"posts">`, clé `_id`) et publication ÉPINGLÉE rendue en tête du mur (le moteur la sort de la liste ; « Désépingler » par `posts.posts.unpinMyWall` sur ma fiche) ; relation par `graph.connections.connectionWith` (personne), demande par `requestConnection` et réponse à une invitation reçue sur la fiche même (`respondToConnection`) ; suivi par `graph.follows.{isFollowing, follow, unfollow}` (personne) ; une relation se joint d'ici — « Écrire » ouvre le brouillon iCom (`dockStore.openDraft`, et l'adresse de la messagerie de l'application au téléphone) et « Appeler » passe par `useRingRelation` de la brique d'appel (`calls.direct.callMember`, puis le magasin d'appel : fenêtre sortante, ou écran de refus) ; section professionnelle RETIRÉE (résumé iProfil, « Mon dossier iProfil », `iProfiles.getMyIProfil`) ; « Modifier mon profil » ouvre la gestion de MON profil sur ma fiche (`ProfilReseauSection`, ouverte d'emblée par `?gerer=1`) au lieu des paramètres de l'espace, et un profil que j'ai retiré m'y ramène au lieu du refus ; adresses composées par `useRoutes()` (profil, page réseau, messagerie) — aucune route en dur ; aperçu « vu par les membres du réseau » avec retour sur ma fiche ; textes par l'i18n (`reseau:profilPersonnePage.*`, modules purs appelés avec `t`) ; kit d'espace (onglets, styles) par `@antsia/ui/espace-kit` ; albums par le barrel de leur tranche (`features/reseau-albums`) ; couleurs par fonction (ADR-0027) : Se connecter et Accepter en `social`, Suivre en `social` (neutre une fois suivi), Écrire en `message` tonal, géométrie `RESEAU_ACTION_SHAPE_STYLE` ; se protéger (PF-01) : menu « … » de la fiche d'autrui (sourdine, blocage confirmé par `BlockPersonDialog`), « Débloquer » à la place de « Bloqué » et sur la fiche refusée d'une personne que j'ai bloquée (`graph.blocks.myBlockByHandle`).
 "use client"
 
 /**
@@ -61,8 +61,15 @@
  * Identifiant inconnu, profil retiré, non-membre, blocage dans un sens ou
  * dans l'autre : le serveur rend `null` et un mur vide, sans les distinguer.
  * L'écran ne les distingue pas davantage — une phrase unique, qui ne dit pas
- * si la personne existe. Seule exception, sans fuite : MON identifiant, quand
- * j'ai retiré mon profil, me ramène à sa gestion pour le republier.
+ * si la personne existe. Deux exceptions, sans fuite : MON identifiant, quand
+ * j'ai retiré mon profil, me ramène à sa gestion pour le republier ; la fiche
+ * d'une personne que J'AI bloquée me le dit et m'offre de débloquer
+ * (`graph.blocks.myBlockByHandle` ne répond qu'à l'auteur du blocage).
+ *
+ * ── Se protéger (PF-01) ───────────────────────────────────────────────────
+ * Sur la fiche d'autrui, le menu « … » (`ProfileOverflowMenu`) met en
+ * sourdine ou bloque ; la confirmation est la brique commune
+ * `BlockPersonDialog`. Bloquer ramène au volet Relations.
  */
 
 import { COMPACT_SOCIAL_ACTION_STYLE } from "../social-action-style"
@@ -104,6 +111,8 @@ import {
 } from "../reseau-albums"
 import { useConnectionRequest } from "./use-connection-request"
 import { Avatar } from "./Avatar"
+import { BlockPersonDialog } from "./BlockPersonDialog"
+import { ProfileOverflowMenu } from "./ProfileOverflowMenu"
 import {
   RESEAU_CARD_STYLE,
   RESEAU_PRIMARY_ACTION_STYLE,
@@ -340,6 +349,15 @@ function ProfilPersonnePageInner({ handle }: ProfilPersonnePageProps) {
     api.modules.graph.follows.isFollowing,
     otherPersonId ? { networkId, targetPersonId: otherPersonId } : "skip"
   )
+  /**
+   * Sur une fiche REFUSÉE seulement : est-ce MOI qui ai bloqué cette personne ?
+   * Le moteur ne répond qu'à l'auteur du blocage (aucun oracle pour quiconque
+   * d'autre) ; l'auteur peut alors le lever d'ici (PF-01).
+   */
+  const myBlock = useAuthenticatedConvexQuery(
+    api.modules.graph.blocks.myBlockByHandle,
+    profile.data === null ? { networkId, handle } : "skip"
+  )
 
   const profileEtat = etatDeQuery(profile, profile.data ? 1 : 0)
 
@@ -385,6 +403,26 @@ function ProfilPersonnePageInner({ handle }: ProfilPersonnePageProps) {
             {t("profilPersonnePage.retired.title")}
           </h1>
           <ProfilReseauSection />
+        </ProfilFrame>
+      )
+    }
+    // Le temps de savoir si le refus vient de MON blocage : rien à affirmer.
+    if (myBlock.data === undefined && !myBlock.isError) {
+      return (
+        <ProfilFrame>
+          <SkeletonCard />
+        </ProfilFrame>
+      )
+    }
+    /*
+     * MON blocage : la fiche reste fermée (refus dans les deux sens), mais son
+     * auteur sait déjà ce qu'il en est — rien ne fuit à lui dire, et il peut le
+     * lever d'ici. La personne bloquée, elle, lit le refus indistinct ci-dessous.
+     */
+    if (myBlock.data) {
+      return (
+        <ProfilFrame>
+          <BlockedByMeCard handle={handle.trim().toLowerCase()} targetPersonId={myBlock.data.targetPersonId} />
         </ProfilFrame>
       )
     }
@@ -518,6 +556,8 @@ function ProfilPersonnePageInner({ handle }: ProfilPersonnePageProps) {
               <>
                 <ConnectionButton
                   handle={person.handle}
+                  targetPersonId={person.personId}
+                  displayName={person.displayName}
                   view={relation.data}
                 />
                 <FollowButton
@@ -527,6 +567,15 @@ function ProfilPersonnePageInner({ handle }: ProfilPersonnePageProps) {
                 />
                 {relation.data?.state === "connected" ? (
                   <ContactButtons person={person} />
+                ) : null}
+                {/* Sourdine et blocage (PF-01) : jamais en aperçu de MA fiche — la
+                    question n'aurait pas de réponse, comme pour la relation. */}
+                {otherPersonId !== undefined ? (
+                  <ProfileOverflowMenu
+                    targetPersonId={otherPersonId}
+                    handle={person.handle}
+                    displayName={person.displayName}
+                  />
                 ) : null}
               </>
             )}
@@ -881,6 +930,57 @@ function EmptyWallNote({ text }: { text: string }) {
   )
 }
 
+/**
+ * La fiche d'une personne que J'AI bloquée (PF-01) : fermée comme pour tout le
+ * monde, avec, pour son seul auteur, le geste qui lève le blocage. Débloquer
+ * relit la fiche d'elle-même (requêtes réactives) : ouverte si rien d'autre ne
+ * la ferme, sinon le refus indistinct.
+ */
+function BlockedByMeCard({ handle, targetPersonId }: { handle: string; targetPersonId: Id<"persons"> }) {
+  const { t } = useTranslation("reseau")
+  const router = useRouter()
+  const routes = useRoutes()
+  const [confirming, setConfirming] = useState(false)
+  return (
+    <Card style={RESEAU_CARD_STYLE}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <h1 style={{ margin: 0, fontSize: 18, color: "var(--ink-900)" }}>
+          {t("profilPersonnePage.blockedByMe.title", { handle })}
+        </h1>
+        <p style={{ margin: 0, fontSize: 14, color: "var(--ink-600)" }}>
+          {t("profilPersonnePage.blockedByMe.message")}
+        </p>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+          <Button
+            variant="secondary"
+            icon="shieldAlert"
+            style={RESEAU_SECONDARY_ACTION_STYLE}
+            onClick={() => setConfirming(true)}
+          >
+            {t("profilPersonnePage.blockedByMe.unblock")}
+          </Button>
+          <Button
+            variant="secondary"
+            icon="arrowLeft"
+            style={RESEAU_SECONDARY_ACTION_STYLE}
+            onClick={() => router.push(reseauAgentHref("relations", routes.home()))}
+          >
+            {t("profilPersonnePage.refused.back")}
+          </Button>
+        </div>
+      </div>
+      {confirming ? (
+        <BlockPersonDialog
+          mode="unblock"
+          targetPersonId={targetPersonId}
+          name={`@${handle}`}
+          onClose={() => setConfirming(false)}
+        />
+      ) : null}
+    </Card>
+  )
+}
+
 /** Le texte d'un refus de geste, tel qu'on peut le montrer. */
 function gestureErrorText(err: unknown, fallback: string, t: TFunction): string {
   return profileErrorText(err, `reseau:profilPersonnePage.toast.${fallback}`, t)
@@ -895,9 +995,13 @@ function gestureErrorText(err: unknown, fallback: string, t: TFunction): string 
  */
 function ConnectionButton({
   handle,
+  targetPersonId,
+  displayName,
   view,
 }: {
   handle: string
+  targetPersonId: Id<"persons">
+  displayName: string
   /** `undefined` (ou `null`) tant que l'état n'est pas connu : aucun bouton. */
   view: ConnectionView | null | undefined
 }) {
@@ -908,6 +1012,7 @@ function ConnectionButton({
   const router = useRouter()
   const respond = useMutation(api.modules.graph.connections.respondToConnection)
   const [pending, setPending] = useState(false)
+  const [confirmingUnblock, setConfirmingUnblock] = useState(false)
 
   if (view === undefined || view === null) return null
 
@@ -974,15 +1079,27 @@ function ConnectionButton({
       )
     }
     case "blocked_by_me":
+      // MON blocage se lève d'ici, après confirmation (PF-01) ; un blocage de
+      // l'autre ne se lit jamais ainsi (le moteur rend alors `none`).
       return (
-        <Button
-          variant="ghost"
-          icon="shieldAlert"
-          disabled
-          style={{ ...RESEAU_SECONDARY_ACTION_STYLE, ...COMPACT_SOCIAL_ACTION_STYLE }}
-        >
-          {t("profilPersonnePage.connection.blocked")}
-        </Button>
+        <>
+          <Button
+            variant="secondary"
+            icon="shieldAlert"
+            style={{ ...RESEAU_SECONDARY_ACTION_STYLE, ...COMPACT_SOCIAL_ACTION_STYLE }}
+            onClick={() => setConfirmingUnblock(true)}
+          >
+            {t("profilPersonnePage.connection.unblock")}
+          </Button>
+          {confirmingUnblock ? (
+            <BlockPersonDialog
+              mode="unblock"
+              targetPersonId={targetPersonId}
+              name={displayName}
+              onClose={() => setConfirmingUnblock(false)}
+            />
+          ) : null}
+        </>
       )
     case "none":
     case "declined":

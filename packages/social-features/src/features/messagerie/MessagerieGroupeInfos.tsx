@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/messagerie/MessagerieGroupeInfos.tsx @ ad2e7fdc2 — adaptations : fonctions du moteur `groups.threads.*`, `groups.invites.*`, `groups.cascade.deleteGroup` (réseau courant, membre visé par sa PERSONNE `memberPersonId`) ; la fiche (`getGroupThread`) ne porte plus les membres : membres et invitations en attente lus par `paginateGroupMembers` et `paginateGroupPendingInvites`, chargés jusqu'au bout (borné par le plafond de structure) et places comptées sur l'effectif du serveur ; noms par le contrat `counterpartLabel` (nom nul = libellé neutre) ; photo déposée par `generateGroupAvatarUploadUrl` et posée avec son type, refusée par `refusPhotoDeGroupe` ; ressources lues dans le DTO des messages du moteur (`content`, `attachmentFiles`) ; lien d'invitation sur la base `useRoutes().messages()` ; recherche de relations sans langue écrite en dur (`normaliseRecherche`) ; échec de copie du lien dit tel quel (le socle le noyait dans le refus générique) ; dates dans la langue courante ; textes traduits (i18n `messagerie`, clés `messagerieGroupeInfos.…`) ; « Groupe iCom » et « espace agent » deviennent « réseau » ; code QR sans couleur littérale (encre héritée, fond transparent). ; PA6 : dates et jours civils dans le fuseau personnel du lecteur (repli appareil).
+// Dupliqué de socle/packages/agent-features/src/features/messagerie/MessagerieGroupeInfos.tsx @ ad2e7fdc2 — adaptations : fonctions du moteur `groups.threads.*`, `groups.invites.*`, `groups.cascade.deleteGroup` (réseau courant, membre visé par sa PERSONNE `memberPersonId`) ; la fiche (`getGroupThread`) ne porte plus les membres : membres et invitations en attente lus par `paginateGroupMembers` et `paginateGroupPendingInvites`, chargés jusqu'au bout (borné par le plafond de structure) et places comptées sur l'effectif du serveur ; noms par le contrat `counterpartLabel` (nom nul = libellé neutre) ; photo déposée par `generateGroupAvatarUploadUrl` et posée avec son type, refusée par `refusPhotoDeGroupe` ; ressources lues dans le DTO des messages du moteur (`content`, `attachmentFiles`) ; lien d'invitation sur la base `useRoutes().messages()` ; recherche de relations sans langue écrite en dur (`normaliseRecherche`) ; échec de copie du lien dit tel quel (le socle le noyait dans le refus générique) ; dates dans la langue courante ; textes traduits (i18n `messagerie`, clés `messagerieGroupeInfos.…`) ; « Groupe iCom » et « espace agent » deviennent « réseau » ; code QR sans couleur littérale (encre héritée, fond transparent). ; PA6 : dates et jours civils dans le fuseau personnel du lecteur (repli appareil) ; PF-03 : la photo choisie passe par la préparation des photos (`preparerPhotoDeGroupe` : ré-encodée, 1 024 px au plus, sans métadonnées, échec fermé) — seule l'image préparée est déposée et déclarée.
 "use client"
 
 /**
@@ -56,7 +56,7 @@ import { Avatar } from "../reseau-personnel/Avatar"
 import {
 	GROUPE_PHOTO_ACCEPT,
 	GROUPE_TITRE_MAX,
-	refusPhotoDeGroupe,
+	preparerPhotoDeGroupe,
 } from "./groupe-composeur"
 import {
 	convieDuGroupe,
@@ -296,16 +296,18 @@ export function MessagerieGroupeInfos({
 		}
 	}
 
-	async function televerserPhoto(file: File) {
-		const refus = refusPhotoDeGroupe(file, t)
-		if (refus !== null) {
-			setErreur(refus)
-			return
-		}
+	async function televerserPhoto(choisie: File) {
 		setPhotoPending(true)
 		setErreur(null)
 		setNotice(null)
 		try {
+			// PF-03 : seule l'image PRÉPARÉE (sans métadonnées) part ; un refus est dit.
+			const preparation = await preparerPhotoDeGroupe(choisie, t)
+			if (!preparation.ok) {
+				setErreur(preparation.refus)
+				return
+			}
+			const file = preparation.file
 			const uploadUrl = await generateUploadUrl.mutateAsync({ networkId })
 			const response = await fetch(uploadUrl, {
 				method: "POST",

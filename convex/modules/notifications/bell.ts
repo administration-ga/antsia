@@ -8,7 +8,7 @@
  */
 import { type ConnectionInviteState, pendingStateOf } from "@antsia/social-domain/connectionState"
 import type { FileScanStatus } from "@antsia/social-domain/filePolicy"
-import { NOTIFICATION_UNREAD_CAP, type NotificationKind, type NotificationResolution, type NotificationSubject } from "@antsia/social-domain/notifications"
+import { isAssociationEventNoticeKind, NOTIFICATION_UNREAD_CAP, type NotificationKind, type NotificationResolution, type NotificationSubject } from "@antsia/social-domain/notifications"
 import { type CommerceNotificationKind, isCommerceNotificationKind } from "@antsia/social-domain/commerceNotifications"
 import { isContextualNotificationKind } from "@antsia/social-domain/contextualMessaging"
 import type { NotificationOpenTarget } from "@antsia/social-domain/notificationOpenTarget"
@@ -59,7 +59,11 @@ export type NotificationDto = {
    * ni contenu, ni modérateur) ; sinon `null`, comme avant.
    */
   page: PageCard | null
-  /** Référence de page relue, uniquement pour un rappel encore accessible. */
+  /**
+   * Avis d'un événement de page (rappel ; EV-03 : annulation, place confirmée) : l'événement et
+   * l'adresse de sa page, de quoi ouvrir la fiche ; présent pour ces genres seulement. Aucun titre,
+   * lieu, date ni motif.
+   */
   associationEvent?: { eventId: Id<"events">; pageHandle: string } | null
   /**
    * Tranche `diaspora` (mise en relation) : à qui parle l'avis et ce qu'il désigne —
@@ -95,7 +99,7 @@ async function toDto(ctx: Pick<QueryCtx, "db" | "storage">, me: Id<"persons">, r
   const page = row.kind === "page_post" && row.subjectPostId ? await pageOfPost(ctx, row.subjectPostId, pageOf) : decisionPage ? await pageOf(decisionPage._id) : null
   const inviteState = row.kind === "connection_request" && row.subjectConnectionId ? pendingStateOf(await ctx.db.get(row.subjectConnectionId), me) : null
   const scan = row.kind === "file_withheld" && row.subjectFileScanId ? await ctx.db.get(row.subjectFileScanId) : null
-  const event = row.kind === "association_event_reminder" && row.subjectEventId ? await ctx.db.get(row.subjectEventId) : null
+  const event = isAssociationEventNoticeKind(row.kind) && row.subjectEventId ? await ctx.db.get(row.subjectEventId) : null
   const eventPage = event?.organizerPageId ? await ctx.db.get(event.organizerPageId) : null
   return {
     notificationId: row._id,
@@ -108,7 +112,7 @@ async function toDto(ctx: Pick<QueryCtx, "db" | "storage">, me: Id<"persons">, r
     fileScanStatus: scan?.status ?? null,
     actor: actor ? { personId: actor.personId, displayName: actor.displayName, handle: actor.handle, avatarUrl: actor.avatarUrl, badges: actor.badges } : null,
     page,
-    ...(row.kind === "association_event_reminder" ? { associationEvent: event && eventPage ? { eventId: event._id, pageHandle: eventPage.handle } : null } : {}),
+    ...(isAssociationEventNoticeKind(row.kind) ? { associationEvent: event && eventPage ? { eventId: event._id, pageHandle: eventPage.handle } : null } : {}),
     ...(isDiasporaServiceNotificationKind(row.kind) ? { serviceNotice: await serviceNoticeView(ctx, row) } : {}),
     ...(isDiasporaCommunityNotificationKind(row.kind) ? { communityNotice: await communityNoticeView(ctx, row) } : {}),
     // P14B : destination typée relue (avis commerce, décision de modération) ; SU01d : avis au déclarant.
@@ -128,7 +132,8 @@ export const paginateNotifications = networkQuery({
     const caches: DtoCaches = { profileOf: miniProfileCache(ctx), pageOf: pageCardCache(ctx) }
     const page: NotificationDto[] = []
     for (const row of result.page) {
-      if (row.kind === "association_event_reminder" && !(await notificationStillVisible(ctx, row))) continue
+      // Un avis d'événement de page (rappel, annulation, place confirmée) devenu illisible ne se présente plus.
+      if (isAssociationEventNoticeKind(row.kind) && !(await notificationStillVisible(ctx, row))) continue
       // Un avis de mise en relation devenu illisible (rôle retiré, sortie, suspension) ne se présente plus.
       if (isDiasporaServiceNotificationKind(row.kind) && !(await notificationStillVisible(ctx, row))) continue
       // De même pour un avis communautaire dont l'objet ne se lit plus.
@@ -156,7 +161,7 @@ export const unreadCount = networkQuery({
       .withIndex("by_network_recipient_readAt_createdAt", (q) => q.eq("networkId", ctx.networkId).eq("recipientPersonId", ctx.person._id).eq("readAt", undefined))
       .take(NOTIFICATION_UNREAD_CAP + 1)
     let visible = 0
-    for (const row of unread) if (row.kind !== "association_event_reminder" || await notificationStillVisible(ctx, row)) visible += 1
+    for (const row of unread) if (!isAssociationEventNoticeKind(row.kind) || await notificationStillVisible(ctx, row)) visible += 1
     // Les avis de mise en relation, comptés ci-dessus, sortent du décompte quand ils ne se lisent plus.
     for (const row of unread) if (isDiasporaServiceNotificationKind(row.kind) && !(await notificationStillVisible(ctx, row))) visible -= 1
     // De même pour les avis communautaires.

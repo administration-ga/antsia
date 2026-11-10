@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { createModerationLock, deadlineCountdown, moderationDecisionInput, moderationDecisionSchema, moderationUntil, moderationWindow } from "./moderation-model"
+import { blockedTermSchema, createModerationLock, deadlineCountdown, moderationDecisionInput, moderationDecisionSchema, moderationPolicyFormValues, moderationPolicyInput, moderationPolicySchema, moderationUntil, moderationWindow } from "./moderation-model"
 
 describe("SU01d — chronomètre des délais légaux", () => {
   const due = Date.UTC(2026, 9, 24, 20, 0)
@@ -50,5 +50,35 @@ describe("modération nationale : capacité et gestes", () => {
   it("un classement sans suite ne transporte aucune sanction ni date résiduelle", () => {
     expect(moderationDecisionInput({ action: "dismissed", reason: "  Contexte relu.  ", until: "arbitrary" })).toEqual({ decision: "dismissed", reason: "Contexte relu.", sanctions: [] })
     expect(moderationDecisionInput({ action: "warning", reason: "Contexte relu.", until: "" }).sanctions).toEqual([{ kind: "warning" }])
+  })
+})
+
+describe("MC-02 — réglages de modération du réseau", () => {
+  it("la vue des réglages exige la capacité serveur dédiée, sans équipe ni curseur", () => {
+    const moderator = { networkWide: true, canReviewAppeals: false, canManagePolicy: false, teams: [{ teamId: "allowed" }] }
+    expect(moderationWindow({ view: "settings" }, moderator).valid).toBe(false)
+    const admin = { ...moderator, canReviewAppeals: true, canManagePolicy: true }
+    expect(moderationWindow({ view: "settings" }, admin)).toEqual({ valid: true, view: "settings", team: undefined, cursor: null })
+    expect(moderationWindow({ view: "settings", team: "allowed" }, admin).valid).toBe(false)
+    expect(moderationWindow({ view: "settings", cursor: "opaque" }, admin).valid).toBe(false)
+  })
+  it("le formulaire part des défauts, saisit la fenêtre en secondes et rend des millisecondes au moteur", () => {
+    const values = moderationPolicyFormValues({ preReview: false, maxLinks: 2, maxWrites: 30, windowMs: 60_000 })
+    expect(values).toEqual({ preReview: false, maxLinks: 2, maxWrites: 30, windowSeconds: 60, reason: "" })
+    expect(moderationPolicyInput("post", { ...values, windowSeconds: 90, reason: "  Motif.  " })).toEqual({ surface: "post", preReview: false, maxLinks: 2, maxWrites: 30, windowMs: 90_000, reason: "Motif." })
+  })
+  it("les bornes du formulaire sont celles du moteur, motif compris", () => {
+    const schema = moderationPolicySchema({ reason: "reason", maxLinks: "links", maxWrites: "writes", window: "window" })
+    const valid = { preReview: false, maxLinks: 2, maxWrites: 30, windowSeconds: 60, reason: "Motif motivé" }
+    expect(schema.safeParse(valid).success).toBe(true)
+    for (const wrong of [{ maxLinks: 21 }, { maxLinks: -1 }, { maxWrites: 0 }, { maxWrites: 101 }, { windowSeconds: 0 }, { windowSeconds: 86_401 }, { maxLinks: Number.NaN }, { maxLinks: 1.5 }, { reason: "ab" }]) {
+      expect(schema.safeParse({ ...valid, ...wrong }).success).toBe(false)
+    }
+  })
+  it("un mot bloqué se juge normalisé", () => {
+    const schema = blockedTermSchema({ term: "term", reason: "reason" })
+    expect(schema.safeParse({ term: "  ARNÂQUE ", reason: "Motif motivé" }).success).toBe(true)
+    expect(schema.safeParse({ term: " é ", reason: "Motif motivé" }).success).toBe(false)
+    expect(schema.safeParse({ term: "x".repeat(81), reason: "Motif motivé" }).success).toBe(false)
   })
 })

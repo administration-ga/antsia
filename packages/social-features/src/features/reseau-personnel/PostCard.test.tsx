@@ -127,6 +127,8 @@ describe("PostCard (vérification)", () => {
       "Être averti des commentaires",
       "Masquer cette publication",
       "Ne plus voir les publications de Awa",
+      // PF-01 : bloquer l'auteur, une personne, avant « Signaler ».
+      "Bloquer Awa",
       "Signaler",
     ])
     fireEvent.click(screen.getByText("Ne plus voir les publications de Awa"))

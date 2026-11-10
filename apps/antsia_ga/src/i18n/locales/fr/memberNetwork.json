@@ -155,6 +155,7 @@
       "overturn": "Annuler avec ce motif"
     },
     "appeals": "Recours réseau",
+    "settings": "Réglages",
     "appealScope": "Recours transmis au niveau réseau après une décision d’équipe. Le moteur impose un décideur indépendant.",
     "appealTitle": "Recours à réexaminer",
     "appealReason": "Motif du recours : {{reason}}",
@@ -195,6 +196,50 @@
       "acknowledged": "Accusé de réception envoyé le {{date}}",
       "notAcknowledged": "Accusé de réception non remis",
       "ordinaryTitle": "Autres signalements"
+    },
+    "policy": {
+      "title": "Relecture, liens et cadence",
+      "lead": "Pour chaque surface, choisissez quand une écriture passe en relecture avant d’être visible : toujours (relecture préalable), au-delà d’un nombre de liens, ou au-delà d’un nombre d’écritures du même membre dans une fenêtre de temps, toutes surfaces confondues. Chaque changement est motivé, inscrit au journal des décisions et vaut pour les écritures suivantes.",
+      "exceptions": "Sans réglage, les offres et conditions de boutique, les offres d’emploi, les avis de prestation et leurs réponses, les évènements de page et les publications de leurs galeries attendent une relecture. Les contenus propres à DIASPORALE (entraide, mentorat, kit d’arrivée, emploi) sont publiés sans contrôle automatique.",
+      "surface": "Surface réglée",
+      "configuredSuffix": " (réglée)",
+      "explicit": "Réglage posé le {{date}}.",
+      "withoutDefaults": "Aucun réglage posé : les défauts du moteur s’appliquent (relecture préalable : {{review}} ; {{links}} liens au plus ; {{writes}} écritures par {{seconds}} s).",
+      "withoutHeld": "Aucun réglage posé : chaque contenu de cette surface attend une relecture avant d’être visible.",
+      "withoutUnchecked": "Aucun réglage posé : les contenus de cette surface sont publiés sans contrôle automatique.",
+      "reviewOn": "oui",
+      "reviewOff": "non",
+      "formLabel": "Réglage de la surface : {{surface}}",
+      "preReview": "Relecture préalable de chaque écriture",
+      "maxLinks": "Plafond de liens",
+      "maxLinksHint": "Au-delà de ce nombre de liens, l’écriture passe en relecture.",
+      "maxLinksInvalid": "Saisissez un nombre entier de {{min}} à {{max}}.",
+      "maxWrites": "Cadence : écritures admises",
+      "maxWritesHint": "Au-delà, l’écriture suivante du même membre passe en relecture.",
+      "maxWritesInvalid": "Saisissez un nombre entier de {{min}} à {{max}}.",
+      "window": "Fenêtre de cadence (secondes)",
+      "windowHint": "Durée sur laquelle les écritures du membre sont comptées.",
+      "windowInvalid": "Saisissez un nombre entier de secondes de {{min}} à {{max}}.",
+      "save": "Enregistrer le réglage",
+      "configuredTitle": "Surfaces réglées",
+      "noneConfigured": "Aucune surface n’a encore de réglage : les règles ci-dessus s’appliquent.",
+      "summary": "{{surface}} — relecture préalable : {{review}} ; {{links}} liens au plus ; {{writes}} écritures par {{seconds}} s."
+    },
+    "terms": {
+      "title": "Mots bloqués",
+      "lead": "Une écriture qui contient l’un de ces mots passe en relecture avant d’être visible, sur toutes les surfaces du réseau. Majuscules et accents ne comptent pas. {{max}} mots actifs au plus.",
+      "term": "Mot ou expression",
+      "termHint": "De {{min}} à {{max}} caractères, accents et espaces superflus retirés.",
+      "termInvalid": "Le mot doit contenir de {{min}} à {{max}} caractères.",
+      "add": "Ajouter le mot",
+      "addLabel": "Ajouter un mot bloqué",
+      "listTitle": "Mots actifs",
+      "empty": "Aucun mot bloqué.",
+      "remove": "Retirer",
+      "removeLabel": "Retirer le mot « {{term}} »",
+      "confirmRemove": "Confirmer le retrait",
+      "cancel": "Annuler",
+      "pagination": "Pagination des mots bloqués"
     }
   }
 }

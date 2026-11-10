@@ -111,6 +111,8 @@ export interface PostDraftMedia {
   fileName: string
   mimeType: string
   sizeBytes: number
+  /** SD-03 : la durée mesurée d'une vidéo — elle survit au rechargement, comme le nom. */
+  durationMs?: number
   upload: PostDraftUpload
 }
 
@@ -424,6 +426,15 @@ function parseMedia(value: unknown): PostDraftMedia | null {
   if (typeof record.mimeType !== "string") return null
   if (typeof record.sizeBytes !== "number" || !Number.isFinite(record.sizeBytes))
     return null
+  // SD-03 : une durée relue illisible est oubliée, jamais inventée — la vidéo
+  // part alors sans durée déclarée, comme d'un front antérieur.
+  const durationMs =
+    record.kind === "video" &&
+    typeof record.durationMs === "number" &&
+    Number.isFinite(record.durationMs) &&
+    record.durationMs >= 0
+      ? record.durationMs
+      : undefined
   return {
     localId: record.localId,
     kind: record.kind,
@@ -431,6 +442,7 @@ function parseMedia(value: unknown): PostDraftMedia | null {
     fileName: record.fileName,
     mimeType: record.mimeType,
     sizeBytes: record.sizeBytes,
+    ...(durationMs !== undefined ? { durationMs } : {}),
     upload,
   }
 }

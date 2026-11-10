@@ -75,5 +75,7 @@ export const graphTables = {
   })
     .index("by_network_follower_target", ["networkId", "followerPersonId", "targetPersonId"])
     .index("by_network_follower_createdAt", ["networkId", "followerPersonId", "createdAt"])
-    .index("by_network_target_createdAt", ["networkId", "targetPersonId", "createdAt"]),
+    .index("by_network_target_createdAt", ["networkId", "targetPersonId", "createdAt"])
+    // L'abonnement d'une personne à une autre dans TOUS les réseaux : bloquer le retire partout (PF-01, D1).
+    .index("by_follower_target", ["followerPersonId", "targetPersonId"]),
 }

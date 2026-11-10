@@ -106,7 +106,7 @@ export function storyDurationLabel(ms: number, t: TFunction): string {
  * large que la liste serveur (`STORY_VIDEO_MIME_TYPES` : MP4/WebM), et c'est
  * voulu : le composeur SONDE puis CONVERTIT les autres conteneurs (.mov
  * d'iPhone en tête) vers MP4/WebM avant le téléversement (« on doit pouvoir
- * tout lire »). C'est `storyVideoPlan` (story-video-policy.ts) qui refuse ce
+ * tout lire »). C'est `videoUploadPlan` (`features/video-upload`) qui refuse ce
  * qui ne se convertit pas.
  */
 export function storyDraftFrom(file: StoryFileLike, t: TFunction): StoryDraft {

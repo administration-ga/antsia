@@ -11,6 +11,7 @@ import { canParticipateConversationCall, conversationCallInJournal } from "../ca
 import { canReadContextualThread } from "../contextualMessaging/access"
 import { canSeeAlbum } from "../albums/access"
 import { pageEventReminderVisible } from "../events/pageEventReminderAccess"
+import { isPageEventOutcomeNoticeKind, pageEventNoticeVisible } from "../events/pageEventNoticeAccess"
 import { isBlockedBetween } from "../graph/graph"
 import { liveMembershipOrNull } from "../groups/access"
 import { directReplayAccessDecision, directSessionAccessDecision } from "../live/access"
@@ -72,6 +73,8 @@ export async function notificationStillVisible(ctx: ReadCtx, row: Doc<"notificat
   // CC-2b : relecture complète du fil contextuel pour le destinataire (cloche, transport, ouverture).
   if (isContextualNotificationKind(row.kind)) return row.subjectContextualThreadId !== undefined && await canReadContextualThread(ctx, row.networkId, row.recipientPersonId, row.subjectContextualThreadId)
   if (row.kind === "association_event_reminder") return row.actorPersonId === undefined && row.subjectEventId !== undefined && await pageEventReminderVisible(ctx, row.networkId, row.subjectEventId, row.recipientPersonId)
+  // EV-03 : même relecture qu'à l'écriture (accès à l'événement, réseau, état annoncé), pour la cloche et les transports.
+  if (isPageEventOutcomeNoticeKind(row.kind)) return row.actorPersonId === undefined && row.subjectEventId !== undefined && await pageEventNoticeVisible(ctx, row.networkId, row.subjectEventId, row.recipientPersonId, row.kind)
   if (row.kind === "moderation_decision") return row.subjectReportId !== undefined && await moderationNoticeRecipient(ctx, row.networkId, row.recipientPersonId, row.subjectReportId)
   if (isReporterNoticeKind(row.kind)) return row.actorPersonId === undefined && row.subjectReportId !== undefined && await reporterNoticeRecipient(ctx, row.networkId, row.recipientPersonId, row.subjectReportId)
   if (!(await isActiveMember(ctx, row.networkId, row.recipientPersonId))) return false

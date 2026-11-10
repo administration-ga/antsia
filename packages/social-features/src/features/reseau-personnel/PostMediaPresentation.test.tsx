@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from "vitest"
 
 import { createAppI18n } from "../../i18n"
 import { PostMedia } from "./PostMedia"
+import { FeedLeadMediaScope, PostMediaPresentation } from "./PostMediaPresentation"
 import { frameRatioFor, intrinsicRatio } from "./post-media-frame"
 
 const first: PostMediaDto = { kind: "image", mimeType: "image/jpeg", url: "https://media.example/first.jpg", withheld: null, altText: "Première image", width: 800, height: 1000 }
@@ -121,5 +122,46 @@ describe("Médias P03", () => {
     view.replace([{ ...video, url: "https://media.example/next.mp4" }])
     player = view.container.querySelector("video")!
     expect(player).toHaveAttribute("src", "https://media.example/next.mp4")
+  })
+})
+
+describe("FP-01 — la première image du fil part tout de suite, les autres attendent", () => {
+  function renderLead(media: readonly PostMediaDto[], lead: boolean | undefined, primary = true) {
+    const i18n = createAppI18n({ locale: "fr", appResources: { fr: {}, en: {} }, defaultNS: "social" })
+    const body = <PostMediaPresentation media={media} bleed={null} primary={primary} inset />
+    return render(<I18nextProvider i18n={i18n}>{lead === undefined ? body : <FeedLeadMediaScope lead={lead}>{body}</FeedLeadMediaScope>}</I18nextProvider>)
+  }
+
+  const images = (view: ReturnType<typeof render>) => [...view.container.querySelectorAll("img")]
+
+  it("la photo seule de la publication de tête : chargement immédiat, priorité haute", () => {
+    const [image] = images(renderLead([first], true))
+    expect(image).toHaveAttribute("loading", "eager")
+    expect(image).toHaveAttribute("fetchpriority", "high")
+  })
+
+  it("la galerie de tête : sa PREMIÈRE image seule en priorité, les suivantes paresseuses", () => {
+    const [one, two] = images(renderLead([first, second], true))
+    expect(one).toHaveAttribute("loading", "eager")
+    expect(one).toHaveAttribute("fetchpriority", "high")
+    expect(two).toHaveAttribute("loading", "lazy")
+    expect(two).not.toHaveAttribute("fetchpriority")
+  })
+
+  it("toute autre publication, et hors du fil : paresseuses, sans priorité", () => {
+    for (const lead of [false, undefined]) {
+      const view = renderLead([first, second], lead)
+      for (const image of images(view)) {
+        expect(image).toHaveAttribute("loading", "lazy")
+        expect(image).not.toHaveAttribute("fetchpriority")
+      }
+      view.unmount()
+    }
+  })
+
+  it("une publication CITÉE dans celle de tête reste paresseuse (ses médias ne sont pas les siens)", () => {
+    const [image] = images(renderLead([first], true, false))
+    expect(image).toHaveAttribute("loading", "lazy")
+    expect(image).not.toHaveAttribute("fetchpriority")
   })
 })

@@ -449,14 +449,15 @@ describe("ProfilPagePage — gérer la page (administrateur vivant)", () => {
     expect(within(management).getByRole("region", { name: "Demander la vérification" })).toBeTruthy()
   })
 
-  it("refuse une image hors de la liste blanche AVANT tout dépôt", () => {
+  it("refuse une image hors de la liste blanche AVANT tout dépôt", async () => {
     mocks.getPage.data = pageDto({}, { role: "admin" })
     renderWithEngine(<ProfilPagePage handle="ambassade-ga" />)
     fireEvent.click(screen.getByRole("button", { name: "Gérer la page" }))
 
     const pdf = new File(["x"], "logo.pdf", { type: "application/pdf" })
     fireEvent.change(screen.getByLabelText("Choisir un logo"), { target: { files: [pdf] } })
-    expect(screen.getByRole("alert").textContent).toContain("Ce type de fichier n'est pas accepté ici.")
+    // Le refus passe par la préparation des images (PF-03), asynchrone : il est dit avant tout dépôt.
+    expect((await screen.findByRole("alert")).textContent).toContain("Ce type de fichier n'est pas accepté ici.")
     expect(mutation("generatePageImageUploadUrl")).not.toHaveBeenCalled()
   })
 

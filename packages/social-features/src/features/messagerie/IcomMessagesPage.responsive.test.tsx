@@ -23,6 +23,8 @@ vi.mock("./dock-store", () => ({ useDockState: () => ({}) }))
 vi.mock("./messagerie-dock", async original => ({ ...(await original<typeof import("./messagerie-dock")>()), draftTextFor: () => "Brouillon en mémoire" }))
 vi.mock("./use-infos-panneau", () => ({ useInfosPanneau: () => ({ ouvert: false, ouvrir: vi.fn(), fermer: vi.fn() }) }))
 vi.mock("./messagerie-source", () => ({ SOURCE_AGENT: { useUnreadTotals: () => ({ total: { total: 0 } }) } }))
+// IC-02 : la messagerie vocale reçue (pastille de la vue Appels), hors du sujet de ce fichier.
+vi.mock("../iappel/use-voicemail-inbox", () => ({ useVoicemailInbox: () => ({ items: [], unreadCount: 0, truncated: false, isLoading: false, isError: false }) }))
 vi.mock("./messagerie-styles", () => ({ MessagerieStyles: () => null }))
 vi.mock("../../shell/mobile/mobile-styles", () => ({ ReseauMobileStyles: () => null }))
 vi.mock("../../shell/mobile/IcomMobileTabBar", () => ({ IcomMobileTabBar: () => <nav aria-label="Barre iCom historique" /> }))

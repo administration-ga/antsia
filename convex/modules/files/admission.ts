@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/modules/fileGuard/admission.ts @ ad2e7fdc2 — adaptations : personnes et réseaux (`uploadedByPersonId`, `networkId`) ; registres métier du socle retirés, copies fédérées réservées et assets catalogue protégés avant admission ; coupe-circuit FAIL-CLOSED (la ligne naît `pending` sans analyse, retenue jusqu'à la levée) ; refus à code du moteur (`notFound` indistinct, `conflict` pour un fichier déjà joint par soi) ; sujet iDocument retiré.
+// Dupliqué de socle/convex/modules/fileGuard/admission.ts @ ad2e7fdc2 — adaptations : personnes et réseaux (`uploadedByPersonId`, `networkId`) ; registres métier du socle retirés, copies fédérées réservées et assets catalogue protégés avant admission ; coupe-circuit FAIL-CLOSED (la ligne naît `pending` sans analyse, retenue jusqu'à la levée) ; refus à code du moteur (`notFound` indistinct, `conflict` pour un fichier déjà joint par soi) ; sujet iDocument retiré ; EX-17 (décision du 9/11/2026) : aucune inscription à l'analyse au-delà du plafond d'analyse (`UPLOAD_SIZE_OUT_OF_RANGE`), poids lu dans le stockage.
 /**
  * Garde des fichiers — l'ADMISSION, temps unique d'entrée d'un fichier.
  *
@@ -6,6 +6,12 @@
  * même recoupement déclaré ↔ stocké, puis inscription à l'analyse
  * (`enqueueScan`). Une surface qui l'appelle a fait les deux temps de la
  * politique ET a mis son fichier sous garde.
+ *
+ * PLAFOND D'ANALYSE (EX-17) : un fichier plus lourd que
+ * `FILE_GUARD_MAX_INSPECT_BYTES` n'entre JAMAIS dans la file — l'analyse le
+ * sauterait sans en lire un octet. Chaque usage d'un membre est borné en deçà
+ * (`uploadPolicy.ts`) ; `enqueueScan` refuse de surcroît toute nouvelle ligne
+ * au-delà, poids lu dans le stockage (second verrou, quel que soit l'appelant).
  *
  * `enqueueScan` est IDEMPOTENT par fichier : le même `storageId` n'est analysé
  * qu'une fois. Une ligne terminale ne se rejoue pas ; une ligne
@@ -22,15 +28,17 @@
  * INSCRIT (`registerGeneratedBlob`), né `skipped/server_generated`.
  */
 import { type DeclaredUpload, normalizeSha256, type StoredUpload } from "@antsia/social-domain/uploadPolicy"
+import { megabytes } from "@antsia/social-domain/violation"
 
 import { internal } from "../../_generated/api"
 import type { Doc, Id } from "../../_generated/dataModel"
 import type { MutationCtx } from "../../_generated/server"
-import { fail, notFound } from "../../lib/errors"
+import { fail, failRule, notFound } from "../../lib/errors"
 import { assertStoredUpload } from "../../lib/uploadPolicy"
 import { releaseStagedFile } from "./staging"
 import {
   FILE_GUARD_MAX_ATTEMPTS,
+  FILE_GUARD_MAX_INSPECT_BYTES,
   FILE_GUARD_RUNNING_STALE_MS,
   type FileScanSource,
   type FileScanStatus,
@@ -146,6 +154,13 @@ export async function enqueueScan(
     }
     if (Object.keys(patch).length > 0) await ctx.db.patch(existing._id, { ...patch, updatedAt: now })
     return { scanId: existing._id, status: existing.status, created: false, scheduled: false }
+  }
+
+  // EX-17 : le poids RÉEL (le stockage, jamais la déclaration) au-delà du plafond
+  // d'analyse ne devient jamais une ligne — elle naîtrait pour être sautée, puis servie.
+  const storedSize = (await ctx.db.system.get("_storage", stored.storageId))?.size ?? stored.sizeBytes
+  if (storedSize !== undefined && storedSize > FILE_GUARD_MAX_INSPECT_BYTES) {
+    return failRule("UPLOAD_SIZE_OUT_OF_RANGE", { maxMegabytes: megabytes(FILE_GUARD_MAX_INSPECT_BYTES) })
   }
 
   const scanId = await ctx.db.insert("fileScans", {

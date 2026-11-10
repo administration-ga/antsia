@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/FeedPages.tsx @ ad2e7fdc2 — adaptations : fil `posts.posts.myFeed` du moteur avec le réseau courant (`useNetwork().networkId`), portées du domaine (sans « mon_administration ») ; cartes rendues avec la projection du moteur (clé `_id`) ; le rail des pages à suivre est celui que le lot des pages réécrit sur le moteur (`./PagesSuggestionsRail`, mêmes nom et props qu'au socle) ; état vide du kit d'espace de `@antsia/ui/espace-kit` ; commentaires rapportés à la page réseau (« personnes » au lieu d'« agents ») ; P04 (18/10/2026) : sous le lecteur immersif (`ImmersiveFeedReader`), la MÊME page — même requête, même curseur — rend chaque publication dans un créneau, déclare son état au lecteur (chargement, erreur, lacune, préparation, nouvelles publications retenues en tête) et se tait sur l'entrelacement des suggestions ; hors lecteur, quand l'application déclare le fil immersif, chaque carte reçoit une enveloppe d'ancre de retour (`display: contents`) ; sans cette déclaration, rendu historique à l'identique ; ADR-0028 : sous la présentation « charte », la carte de suggestion des chartes (`FeedSuggestionCard`, Suivre et Écrire) ouvre la première page au téléphone, à la place des deux carrousels intercalés ; étude du 22/10/2026 (ADR-0037) : la carte de tête cède la place au carrousel « Personnes à découvrir » (Suivre et Ajouter) — au-dessus de l'état vide d'un fil vide, sinon après la 3ᵉ publication ou la dernière d'un fil plus court.
+// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/FeedPages.tsx @ ad2e7fdc2 — adaptations : fil `posts.posts.myFeed` du moteur avec le réseau courant (`useNetwork().networkId`), portées du domaine (sans « mon_administration ») ; cartes rendues avec la projection du moteur (clé `_id`) ; le rail des pages à suivre est celui que le lot des pages réécrit sur le moteur (`./PagesSuggestionsRail`, mêmes nom et props qu'au socle) ; état vide du kit d'espace de `@antsia/ui/espace-kit` ; commentaires rapportés à la page réseau (« personnes » au lieu d'« agents ») ; P04 (18/10/2026) : sous le lecteur immersif (`ImmersiveFeedReader`), la MÊME page — même requête, même curseur — rend chaque publication dans un créneau, déclare son état au lecteur (chargement, erreur, lacune, préparation, nouvelles publications retenues en tête) et se tait sur l'entrelacement des suggestions ; hors lecteur, quand l'application déclare le fil immersif, chaque carte reçoit une enveloppe d'ancre de retour (`display: contents`) ; sans cette déclaration, rendu historique à l'identique ; ADR-0028 : sous la présentation « charte », la carte de suggestion des chartes (`FeedSuggestionCard`, Suivre et Écrire) ouvre la première page au téléphone, à la place des deux carrousels intercalés ; étude du 22/10/2026 (ADR-0037) : la carte de tête cède la place au carrousel « Personnes à découvrir » (Suivre et Ajouter) — au-dessus de l'état vide d'un fil vide, sinon après la 3ᵉ publication ou la dernière d'un fil plus court. ; FP-01 : la première publication du fil est désignée par `FeedLeadMediaScope` (sa première image en `loading="eager"` et `fetchpriority="high"`, les autres paresseuses).
 "use client"
 
 /**
@@ -34,6 +34,7 @@ import {
 } from "../feed-immersion/ImmersiveFeedReader"
 import { FeedClipsRail } from "./FeedClipsRail"
 import { PostCard } from "./PostCard"
+import { FeedLeadMediaScope } from "./PostMediaPresentation"
 import { PagesSuggestionsRail } from "./PagesSuggestionsRail"
 import { SuggestionsPanel } from "./SuggestionsPanel"
 import { feedScopeArg, type FeedScope } from "./feed-scopes"
@@ -213,14 +214,16 @@ export function FeedPage({
     }
     return (
       <>
-        {shownItems.map((post) => (
+        {shownItems.map((post, index) => (
           <ImmersiveFeedSlot
             key={post._id}
             postId={post._id}
             group={pageKey}
             label={t("immersiveFeed.slotLabel", { name: post.page?.name ?? post.author.displayName ?? t("postCard.unknownAuthor") })}
           >
-            <PostCard post={post} now={now} onTag={onTag} onMention={onMention} />
+            <FeedLeadMediaScope lead={isFirst && index === 0}>
+              <PostCard post={post} now={now} onTag={onTag} onMention={onMention} />
+            </FeedLeadMediaScope>
           </ImmersiveFeedSlot>
         ))}
       </>
@@ -271,15 +274,19 @@ export function FeedPage({
           {/* P04 : l'enveloppe d'ancre (`display: contents`, aucune boîte) permet
               le retour à cette carte et la mémoire de sa galerie — seulement
               quand l'application déclare le fil immersif. */}
-          {feedPresentation === "immersive" ? (
-            <div className="contents" data-feed-anchor={post._id}>
-              <FeedPostMemoryScope postId={post._id}>
-                <PostCard post={post} now={now} onTag={onTag} onMention={onMention} />
-              </FeedPostMemoryScope>
-            </div>
-          ) : (
-            <PostCard post={post} now={now} onTag={onTag} onMention={onMention} />
-          )}
+          {/* FP-01 : la première image de la première publication est celle du
+              premier affichage (eager, priorité haute) ; les autres attendent. */}
+          <FeedLeadMediaScope lead={isFirst && index === 0}>
+            {feedPresentation === "immersive" ? (
+              <div className="contents" data-feed-anchor={post._id}>
+                <FeedPostMemoryScope postId={post._id}>
+                  <PostCard post={post} now={now} onTag={onTag} onMention={onMention} />
+                </FeedPostMemoryScope>
+              </div>
+            ) : (
+              <PostCard post={post} now={now} onTag={onTag} onMention={onMention} />
+            )}
+          </FeedLeadMediaScope>
           {/* La découverte se consomme AU FIL du défilement sur mobile : deux
               modules distincts, personnes réciproques puis pages unilatérales.
               Le bureau masque cette pile car son rail droit porte les mêmes

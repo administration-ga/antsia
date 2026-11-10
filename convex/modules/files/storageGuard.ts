@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/modules/fileGuard/storageGuard.ts @ ad2e7fdc2 — adaptations : FAIL-CLOSED (aucune ligne = retenu, jamais « antériorité servable ») ; table `fileScans` ; codes de retenue du moteur (`fileScanPending`, `fileQuarantined`) levés par `fail` ; `scanStateForFiles` (rows `documents`) retiré.
+// Dupliqué de socle/convex/modules/fileGuard/storageGuard.ts @ ad2e7fdc2 — adaptations : FAIL-CLOSED (aucune ligne = retenu, jamais « antériorité servable ») ; table `fileScans` ; codes de retenue du moteur (`fileScanPending`, `fileQuarantined`) levés par `fail` ; `scanStateForFiles` (rows `documents`) retiré ; EX-17 : un dépôt sauté sans analyse (`isUnanalyzedUpload`) est retenu comme une analyse en échec, seul un fichier produit par la plateforme sert sans analyse.
 /**
  * Garde des fichiers — la GARDE DE DÉLIVRANCE, par fichier.
  *
@@ -15,7 +15,7 @@ import { v } from "convex/values"
 import type { Doc, Id } from "../../_generated/dataModel"
 import type { MutationCtx, QueryCtx } from "../../_generated/server"
 import { fail } from "../../lib/errors"
-import { type FileScanStatus, isServableStatus, serviceStateOf } from "./policy"
+import { type FileScanStatus, isServableStatus, isUnanalyzedUpload, serviceStateOf } from "./policy"
 
 type ReadCtx = Pick<QueryCtx | MutationCtx, "db">
 type UrlCtx = Pick<QueryCtx | MutationCtx, "db" | "storage">
@@ -27,11 +27,21 @@ export async function getScanForStorage(ctx: ReadCtx, storageId: Id<"_storage">)
     .first()
 }
 
-/** `null` = aucune ligne (fichier inconnu de la garde : retenu). */
+/**
+ * Le statut que la garde APPLIQUE — `null` = aucune ligne (fichier inconnu de
+ * la garde : retenu). Deux statuts servables en apparence sont retenus comme
+ * une analyse en échec (`error`, « indisponible ») :
+ *   - un dépôt SAUTÉ sans être produit par la plateforme (EX-17) : trop lourd
+ *     pour l'analyse, personne n'en a lu un octet — c'est le cas des lignes
+ *     nées avant la fermeture de l'admission au-delà du plafond ;
+ *   - un média fédéré sans verdict antivirus sain (analyse complète exigée).
+ */
 export async function getScanStatus(ctx: ReadCtx, storageId: Id<"_storage">): Promise<FileScanStatus | null> {
   const scan = await getScanForStorage(ctx, storageId)
-  if (scan?.requiresFullScan && isServableStatus(scan.status) && !(scan.status === "clean" && scan.av?.verdict === "clean")) return "error"
-  return scan?.status ?? null
+  if (!scan) return null
+  if (isUnanalyzedUpload(scan)) return "error"
+  if (scan.requiresFullScan && isServableStatus(scan.status) && !(scan.status === "clean" && scan.av?.verdict === "clean")) return "error"
+  return scan.status
 }
 
 export async function isServableStorage(ctx: ReadCtx, storageId: Id<"_storage">): Promise<boolean> {

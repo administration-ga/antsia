@@ -212,6 +212,13 @@ export function exportableRecord(table: string, row: DataRecord, personId: strin
     if (table === "reports" && row.ownerPersonId === personId) return projectedRecord(row, [...REPORT_REFERENCE_FIELDS, "source", "decisionReason", "reviewedAt", "removedTarget"])
     return null
   }
+  // IC-02 : un message vocal s'exporte à ses deux parties, sans `storageId`. L'état d'écoute (`isRead`,
+  // `readAt`) n'appartient qu'au destinataire : l'export ne remet jamais à l'expéditeur un accusé d'écoute.
+  if (table === "voicemails") {
+    const shared = [...RECORD_METADATA, "recipientPersonId", "fromPersonId", "callId", "durationMs"]
+    if (row.recipientPersonId === personId) return projectedRecord(row, [...shared, "isRead", "readAt"])
+    return row.fromPersonId === personId ? projectedRecord(row, shared) : null
+  }
   if (table === "engineAudit") return row.actorPersonId === personId ? projectedRecord(row, [...RECORD_METADATA, "action", "capacity", "subjectTable", "subjectId", "at"]) : null
   // Tranche DIASPORALE (délégué par ANTSIA le 18/10/2026) : une demande de mentorat appartient aux
   // deux parties ; le mentoré exporte toute sa demande, le mentor jamais l'objectif, le message ni

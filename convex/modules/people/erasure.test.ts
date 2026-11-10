@@ -56,6 +56,16 @@ describe("PA5 — inventaire des données", () => {
     expect(exportableRecord("personBlocks", { ...intention, blockerPersonId: "person", targetPersonId: "other" }, "person")).not.toBeNull()
     expect(directlyOwned("personBlocks", intention, "person")).toBe(true)
   })
+  it("IC-02 : un message vocal s'exporte à ses deux parties, sans blob ; l'état d'écoute au destinataire seul", () => {
+    const voicemail = { _id: "vm", _creationTime: 1, networkId: "network", recipientPersonId: "person", fromPersonId: "other", callId: "call", audioStorageId: "blob", durationMs: 15_000, isRead: true, readAt: 2, createdAt: 1 }
+    expect(exportableRecord("voicemails", voicemail, "person")).toEqual({ _id: "vm", _creationTime: 1, networkId: "network", recipientPersonId: "person", fromPersonId: "other", callId: "call", durationMs: 15_000, isRead: true, readAt: 2, createdAt: 1 })
+    const sent = exportableRecord("voicemails", voicemail, "other")
+    expect(sent).toEqual(expect.objectContaining({ _id: "vm", fromPersonId: "other", durationMs: 15_000 }))
+    for (const field of ["isRead", "readAt", "audioStorageId"]) expect(sent).not.toHaveProperty(field)
+    expect(exportableRecord("voicemails", voicemail, "third")).toBeNull()
+    expect(directlyOwned("voicemails", voicemail, "person")).toBe(true)
+    expect(directlyOwned("voicemails", voicemail, "other")).toBe(true)
+  })
 
 })
 
@@ -96,7 +106,8 @@ describe("PA5 — droits personnels", () => {
     for (let n = 0; n < 25; n++) await t.mutation(components.betterAuth.adapter.create, { input: { model: "verification", data: { identifier: `other-${n}`, value: "unrelated", expiresAt: now + 1000, createdAt: now, updatedAt: now } } })
     for (const data of [{ identifier: "sign-in-otp-erasure-recette@example.test", value: "fictional-otp" }, { identifier: "one-time-token:fictional", value: session.page[0]!.token }]) await t.mutation(components.betterAuth.adapter.create, { input: { model: "verification", data: { ...data, expiresAt: now + 1000, createdAt: now, updatedAt: now } } })
     const blob = await t.run((ctx) => ctx.storage.store(new Blob(["fictional"])))
-    let original!: Id<"personalMessages">, copied!: Id<"personalMessages">, post!: Id<"posts">, threadId!: Id<"personalThreads">
+    const voicemailBlob = await t.run((ctx) => ctx.storage.store(new Blob(["fictional voicemail"])))
+    let original!: Id<"personalMessages">, copied!: Id<"personalMessages">, post!: Id<"posts">, threadId!: Id<"personalThreads">, voicemail!: Id<"voicemails">
     let liveSession!: Id<"liveSessions">, recordingConsent!: Id<"liveRecordingConsents">
     await t.run(async (ctx) => {
       // DL-02 : l'accord de la personne à l'enregistrement du direct d'autrui part avec elle ; le direct reste.
@@ -113,6 +124,9 @@ describe("PA5 — droits personnels", () => {
       original = await ctx.db.insert("personalMessages", { networkId, threadId: thread, senderPersonId: personId, content: "Copied private data", createdAt: now })
       copied = await ctx.db.insert("personalMessages", { networkId, threadId: thread, senderPersonId: other, content: "Copied private data", forwardedFrom: { kind: "personal", threadId: thread, messageId: original }, createdAt: now })
       await ctx.db.patch(thread, { lastMessageAt: now, lastMessageByPersonId: other, lastMessageText: "Copied private data", lastMessageKind: "text" })
+      // IC-02 : un message vocal REÇU d'autrui part avec son destinataire, enregistrement compris.
+      const callId = await ctx.db.insert("calls", { networkId, kind: "direct", status: "ended", callStatus: "missed", roomName: "erasure-room", createdByPersonId: other, calleePersonId: personId, mediaType: "audio", maxParticipants: 2, startedAt: now, endedAt: now })
+      voicemail = await ctx.db.insert("voicemails", { networkId, recipientPersonId: personId, fromPersonId: other, callId, audioStorageId: voicemailBlob, durationMs: 15_000, isRead: false, createdAt: now })
     })
     await as.mutation(api.modules.people.erasure.requestErasure, { confirmation: "DELETE_MY_ANTSIA_ACCOUNT" })
     const job = await t.run((ctx) => ctx.db.query("dataErasureJobs").first())
@@ -133,6 +147,8 @@ describe("PA5 — droits personnels", () => {
     expect(copy?.content).toBeUndefined()
     expect(copy?.deletedAt).toBeDefined()
     expect(await t.run((ctx) => ctx.db.system.get("_storage", blob))).toBeNull()
+    expect(await t.run((ctx) => ctx.db.get(voicemail))).toBeNull()
+    expect(await t.run((ctx) => ctx.db.system.get("_storage", voicemailBlob))).toBeNull()
     expect(await t.run((ctx) => ctx.db.query("idnProofs").first())).toBeNull()
     expect((await t.query(components.betterAuth.adapter.findMany, { model: "verification", where: [{ field: "identifier", value: "sign-in-otp-erasure-recette@example.test" }], paginationOpts: { cursor: null, numItems: 20 } })).page).toEqual([])
     expect((await t.query(components.betterAuth.adapter.findMany, { model: "verification", where: [{ field: "identifier", value: "one-time-token:fictional" }], paginationOpts: { cursor: null, numItems: 20 } })).page).toEqual([])

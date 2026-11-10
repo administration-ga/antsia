@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/messagerie/MessageComposer.tsx @ ad2e7fdc2 — adaptations : iDocument retiré (« Joindre depuis iDocument », pièces du coffre, `sourceDocumentId`, politique d'import `localUploadAllowed`) et commentaires des surfaces de poste retirés (`IcomPosteDraftView`, `IcomChannelsTab`) ; `PendingAttachment` du hook recopié du paquet (`lib/chat/use-chat-attachments`) ; libellés et refus traduits (espace de noms `messagerie`, clés `messageComposer.*`, `attachmentRejection`/`formatBytes` reçoivent la langue et `t`) ; un refus du moteur se dit par son code (`engineErrorRule`/`engineErrorCode` traduits par `rules:`/`errors:`), jamais par le texte brut d'une erreur serveur — accents rétablis dans les textes du socle qui en manquaient.
+// Dupliqué de socle/packages/agent-features/src/features/messagerie/MessageComposer.tsx @ ad2e7fdc2 — adaptations : iDocument retiré (« Joindre depuis iDocument », pièces du coffre, `sourceDocumentId`, politique d'import `localUploadAllowed`) et commentaires des surfaces de poste retirés (`IcomPosteDraftView`, `IcomChannelsTab`) ; `PendingAttachment` du hook recopié du paquet (`lib/chat/use-chat-attachments`) ; libellés et refus traduits (espace de noms `messagerie`, clés `messageComposer.*`, `attachmentRejection`/`formatBytes` reçoivent la langue et `t`) ; un refus du moteur se dit par son code (`engineErrorRule`/`engineErrorCode` traduits par `rules:`/`errors:`), jamais par le texte brut d'une erreur serveur — accents rétablis dans les textes du socle qui en manquaient ; PF-03 : toute pièce IMAGE passe par la préparation des photos (`features/media-upload` : ré-encodée, 2 048 px au plus, sans métadonnées, HEIC/HEIF rendus en JPEG, échec fermé) AVANT d'entrer au message, et le téléversement refuse une image qui n'en sort pas (`isPreparedImage`) ; préparation injectable (`prepareImage`).
 "use client"
 
 /**
@@ -47,6 +47,14 @@
  *    demeure ; avec elle, changer de conversation ne perd plus un fichier de
  *    20 Mo qui venait de finir de monter.
  *
+ * ⚠️ **Une photo ne part jamais brute** (lot PF-03, décision du propriétaire
+ * du 9/11/2026). Toute pièce image passe par la préparation des photos
+ * (`features/media-upload`) à l'ADMISSION : ce qui entre au message, s'affiche
+ * avec son poids et part au serveur est l'image préparée — sans position GPS
+ * ni appareil, 2 048 px au plus, HEIC/HEIF rendus en JPEG. Un échec refuse la
+ * pièce, avec sa phrase ; l'envoi attend la fin des préparations, et le
+ * téléversement refuse encore une image qui n'en sort pas (`isPreparedImage`).
+ *
  * ⚠️ **Un refus du serveur se dit par son CODE.** L'erreur que rend `onSend`
  * peut venir du moteur : son `message` porte la trace du serveur en
  * développement. On ne montre que la règle ou le code traduits
@@ -56,6 +64,13 @@
 
 import { engineErrorCode, engineErrorRule } from "@antsia/social-contracts/errors"
 import type { TFunction } from "i18next"
+import {
+	imagePreparationRefusalText,
+	isPreparedImage,
+	prepareImageForUpload,
+	type ImagePreparation,
+	type PrepareImageWith,
+} from "../media-upload"
 import type { PendingAttachment } from "../../lib/chat/use-chat-attachments"
 import { Check, Paperclip, Send, X } from "lucide-react"
 import {
@@ -72,6 +87,7 @@ import {
 	type MediaDraftItem,
 } from "./messagerie-media-draft"
 import {
+	attachmentNeedsPhotoPreparation,
 	attachmentRejection,
 	canSend,
 	composerMode,
@@ -98,6 +114,38 @@ export interface UploadedAttachment {
  * montre tel quel.
  */
 class ComposerError extends Error {}
+
+/** La préparation du navigateur (décodeur et canvas réels). */
+const prepareInBrowser: PrepareImageWith = (file, options) => prepareImageForUpload(file, undefined, options)
+
+/**
+ * Prépare, dans l'ordre du choix, les pièces d'un même geste : une image est
+ * remplacée par sa version préparée, ou écartée avec sa phrase ; le reste
+ * passe tel quel. Jamais l'original d'une image.
+ */
+async function preparerPieces(
+	files: readonly File[],
+	prepare: PrepareImageWith,
+	t: TFunction,
+): Promise<{ prets: File[]; refus: string[] }> {
+	const prets: File[] = []
+	const refus: string[] = []
+	for (const file of files) {
+		if (!attachmentNeedsPhotoPreparation(file.type)) {
+			prets.push(file)
+			continue
+		}
+		let result: ImagePreparation
+		try {
+			result = await prepare(file, { convertHeif: true })
+		} catch {
+			result = { ok: false, refusal: "unreadable" }
+		}
+		if (result.ok) prets.push(result.file)
+		else refus.push(imagePreparationRefusalText(result.refusal, file.name, t))
+	}
+	return { prets, refus }
+}
 
 /**
  * Le texte d'un échec, tel qu'on peut le MONTRER : règle du domaine ou code
@@ -219,6 +267,8 @@ export interface MessageComposerProps {
 	disabled?: boolean
 	/** Types proposés par le sélecteur de fichiers — défaut : liste blanche du serveur. */
 	accept?: string
+	/** La préparation des photos (injectable : `jsdom` n'a pas de canvas). */
+	prepareImage?: PrepareImageWith
 }
 
 export function MessageComposer(props: MessageComposerProps) {
@@ -251,10 +301,14 @@ function MessageComposerContent({
 	autoFocus = false,
 	disabled = false,
 	accept = MESSAGE_ATTACHMENT_ACCEPT,
+	prepareImage = prepareInBrowser,
 }: MessageComposerProps) {
 	const { t, i18n } = useTranslation("messagerie")
 	const [pending, setPending] = useState<PendingMessageAttachment[]>([])
 	const [uploading, setUploading] = useState(false)
+	/** Pièces en cours de préparation : elles comptent déjà dans la borne, l'envoi les attend. */
+	const [preparing, setPreparing] = useState(0)
+	const enPreparation = useRef(0)
 	const inputRef = useRef<HTMLTextAreaElement>(null)
 	const fileRef = useRef<HTMLInputElement>(null)
 	const compteurRef = useRef(0)
@@ -363,7 +417,7 @@ function MessageComposerContent({
 		(files: FileList | File[]) => {
 			if (!allowAttachments || disabled) return
 			const acceptes: File[] = []
-			let dejaLa = pieces.length
+			let dejaLa = pieces.length + enPreparation.current
 			for (const file of Array.from(files)) {
 				if (maxAttachments !== undefined && dejaLa >= maxAttachments) {
 					onError?.(t("messagerie:messagerieComposer.tooMany", { max: maxAttachments }))
@@ -382,22 +436,44 @@ function MessageComposerContent({
 				dejaLa += 1
 			}
 			if (acceptes.length === 0) return
-			if (mediaDraft !== undefined) {
-				mediaDraft.add(acceptes.map((file) => ({ file })))
+			const ajouter = (files: readonly File[]) => {
+				if (files.length === 0) return
+				if (mediaDraft !== undefined) {
+					mediaDraft.add(files.map((file) => ({ file })))
+					return
+				}
+				setPending((prev) => [
+					...prev,
+					...files.map((file) => {
+						compteurRef.current += 1
+						return {
+							file,
+							localId: `pending-${String(Date.now())}-${String(compteurRef.current)}`,
+						}
+					}),
+				])
+			}
+			if (!acceptes.some((file) => attachmentNeedsPhotoPreparation(file.type))) {
+				ajouter(acceptes)
 				return
 			}
-			setPending((prev) => [
-				...prev,
-				...acceptes.map((file) => {
-					compteurRef.current += 1
-					return {
-						file,
-						localId: `pending-${String(Date.now())}-${String(compteurRef.current)}`,
-					}
-				}),
-			])
+			// Des photos : préparées d'abord (PF-03), dans l'ordre du choix ; seul
+			// ce qui en sort entre au message.
+			const scope = contextKey
+			enPreparation.current += acceptes.length
+			setPreparing((count) => count + acceptes.length)
+			void preparerPieces(acceptes, prepareImage, t)
+				.then(({ prets, refus }) => {
+					if (!operationIsCurrent(scope)) return
+					for (const message of refus) onError?.(message)
+					ajouter(prets)
+				})
+				.finally(() => {
+					enPreparation.current -= acceptes.length
+					if (mounted.current) setPreparing((count) => count - acceptes.length)
+				})
 		},
-		[allowAttachments, maxAttachments, disabled, pieces.length, mediaDraft, onError, i18n.language, t],
+		[allowAttachments, maxAttachments, disabled, pieces.length, mediaDraft, onError, i18n.language, t, contextKey, operationIsCurrent, prepareImage],
 	)
 
 	/** Retirer une pièce, des deux côtés du même geste. */
@@ -416,6 +492,10 @@ function MessageComposerContent({
 	const televerser = useCallback(
 		async (file: File, durationMs?: number): Promise<UploadedAttachment> => {
 			const scope = contextKey
+			// Une image qui n'est pas sortie de la préparation ne part pas (PF-03).
+			if (attachmentNeedsPhotoPreparation(file.type) && !isPreparedImage(file)) {
+				throw new ComposerError(t("reseau:mediaPreparation.notPrepared", { name: file.name }))
+			}
 			const url = await generateUploadUrl()
 			if (!operationIsCurrent(scope)) throw new AbandonedMessageSend()
 			const response = await fetch(url, {
@@ -469,7 +549,7 @@ function MessageComposerContent({
 			return
 		}
 		const texte = value.trim()
-		if (!canSend({ text: value, attachmentCount: pieces.length, uploading })) {
+		if (!canSend({ text: value, attachmentCount: pieces.length, uploading: uploading || preparing > 0 })) {
 			return
 		}
 		// Une pièce dont les octets ont disparu ne part pas en silence : on le
@@ -560,6 +640,7 @@ function MessageComposerContent({
 		aReselectionner,
 		mediaDraft,
 		uploading,
+		preparing,
 		televerser,
 		onSend,
 		onSent,
@@ -658,7 +739,7 @@ function MessageComposerContent({
 		: canSend({
 				text: value,
 				attachmentCount: pieces.length,
-				uploading,
+				uploading: uploading || preparing > 0,
 			}) && aReselectionner.length === 0
 	// Le micro n'a pas de sens pendant une correction : on modifie du texte.
 	const montreLeMicro = allowVoice && mode === "voice" && !enEdition
@@ -735,6 +816,12 @@ function MessageComposerContent({
 						)
 					})}
 				</div>
+			) : null}
+
+			{preparing > 0 ? (
+				<p role="status" className="msg-file-meta" style={{ margin: "4px 12px" }}>
+					{t("reseau:mediaPreparation.preparing")}
+				</p>
 			) : null}
 
 			<div className="msg-composer">

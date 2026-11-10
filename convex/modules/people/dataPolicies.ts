@@ -37,6 +37,8 @@ export const DATA_TABLE_POLICIES: Record<string, { shared?: boolean; owners?: re
   personBlocks: {owners: ["blockerPersonId", "targetPersonId"]},
   follows: {},
   notifications: {owners: ["recipientPersonId"]},
+  // PG-02 : les règles d'un groupe sont son contenu collectif (comme la description), effacées avec lui ;
+  // la version acceptée (`acceptedRulesVersion`, `acceptedRulesAt`) suit l'appartenance : exportée et effacée avec elle.
   thematicGroups: {shared: true},
   thematicGroupMembers: {},
   thematicGroupInvites: {owners: ["inviteePersonId","invitedByPersonId"]},

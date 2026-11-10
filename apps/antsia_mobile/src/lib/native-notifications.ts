@@ -11,6 +11,8 @@ type EngineOnlyKind = Exclude<NotificationKind, keyof typeof socialKeys>
 const engineKeys: Readonly<Record<EngineOnlyKind, { actor: string | null; system: string | null }>> = {
   commercial_contact: { actor: "commercialContactActor", system: "commercialContact" },
   association_event_reminder: { actor: null, system: "associationEventReminder" },
+  association_event_cancelled: { actor: null, system: "associationEventCancelled" },
+  association_event_seat_confirmed: { actor: null, system: "associationEventSeatConfirmed" },
   membership_changed: { actor: null, system: "membershipChanged" },
   badge_changed: { actor: null, system: "badgeChanged" },
   moderation_decision: { actor: null, system: "moderationDecision" },

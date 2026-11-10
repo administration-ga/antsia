@@ -19,6 +19,8 @@ export {
   GENERATED_BLOB_SKIP_REASON,
   isReleasableStatus,
   isServableStatus,
+  isUnanalyzedUpload,
+  isWithinInspectCeiling,
   serviceStateOf,
   type ServiceState,
 } from "@antsia/social-domain/filePolicy"

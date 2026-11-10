@@ -202,6 +202,49 @@ describe("lire sa messagerie", () => {
   })
 })
 
+describe("IC-02 — le parcours du destinataire et les gardes de l'écran", () => {
+  it("un message déposé apparaît chez le destinataire seul, s'écoute, passe à « lu », puis se supprime", async () => {
+    const { t, root, alice, bob, carla } = await trio()
+    const storageId = await recording(t)
+    const { voicemailId } = await leave(root, alice, await refusedCall(t, root, alice, bob), storageId)
+    const before = await bob.as.query(V.listMine, { networkId: root, limit: 50 })
+    expect(before.items).toEqual([expect.objectContaining({ voicemailId, isRead: false, readAt: null, durationMs: 15_000 })])
+    expect(before.unreadCount).toBe(1)
+    for (const other of [alice, carla]) expect((await other.as.query(V.listMine, { networkId: root, limit: 50 })).items).toEqual([])
+    await cleanScan(t, storageId)
+    expect(typeof (await bob.as.mutation(V.playbackUrl, { networkId: root, voicemailId })).url).toBe("string")
+    await bob.as.mutation(V.markRead, { networkId: root, voicemailId })
+    const after = await bob.as.query(V.listMine, { networkId: root, limit: 50 })
+    expect(after.items).toEqual([expect.objectContaining({ voicemailId, isRead: true, readAt: T0 })])
+    expect(after.unreadCount).toBe(0)
+    await bob.as.mutation(V.deleteMine, { networkId: root, voicemailId })
+    expect(await bob.as.query(V.listMine, { networkId: root, limit: 50 })).toEqual({ items: [], unreadCount: 0 })
+  })
+
+  it("refus INDISTINCT : un tiers, un message déjà supprimé et un autre réseau reçoivent le même `notFound`", async () => {
+    const { t, root, testClosed, alice, bob, carla } = await trio()
+    const kept = await leave(root, alice, await refusedCall(t, root, alice, bob), await recording(t))
+    tick()
+    const gone = await leave(root, carla, await refusedCall(t, root, carla, bob), await recording(t))
+    await bob.as.mutation(V.deleteMine, { networkId: root, voicemailId: gone.voicemailId })
+    await t.run(async (ctx) => ctx.db.insert("networkMemberships", { networkId: testClosed, personId: bob.personId, status: "declaree", role: "member", joinedAt: 1, statusChangedAt: 1 }))
+    const attempts: [Person, Id<"networks">, Id<"voicemails">][] = [
+      [carla, root, kept.voicemailId],
+      [bob, root, gone.voicemailId],
+      [bob, testClosed, kept.voicemailId],
+    ]
+    for (const [person, networkId, voicemailId] of attempts) {
+      expect(await codeOf(person.as.mutation(V.markRead, { networkId, voicemailId }))).toBe("notFound")
+      expect(await codeOf(person.as.mutation(V.playbackUrl, { networkId, voicemailId }))).toBe("notFound")
+      expect(await codeOf(person.as.mutation(V.deleteMine, { networkId, voicemailId }))).toBe("notFound")
+    }
+    // L'expéditeur n'administre pas la messagerie d'autrui : ni « lu », ni suppression (il peut seulement se réécouter).
+    expect(await codeOf(alice.as.mutation(V.markRead, { networkId: root, voicemailId: kept.voicemailId }))).toBe("notFound")
+    expect(await codeOf(alice.as.mutation(V.deleteMine, { networkId: root, voicemailId: kept.voicemailId }))).toBe("notFound")
+    expect(await t.run(async (ctx) => ctx.db.get(kept.voicemailId))).toMatchObject({ isRead: false })
+  })
+})
+
 describe("deleteMine — supprimer ne laisse RIEN", () => {
   it("le destinataire supprime la ligne, le blob, sa ligne d'analyse et l'avis de la cloche ; l'expéditeur ne le peut pas", async () => {
     const { t, root, alice, bob } = await trio()
