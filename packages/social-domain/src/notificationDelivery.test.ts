@@ -11,6 +11,9 @@ describe("livraison neutre", () => {
     expect(notificationCategory("call_incoming")).toBe("calls")
     expect(notificationCategory("group_message")).toBe("messages")
     expect(notificationCategory("post_comment")).toBe("social")
+    // PG-01 : la décision sur une revendication est une issue de vérification ; l'invitation à signer, un geste social.
+    expect(notificationCategory("page_claim_decided")).toBe("network")
+    expect(notificationCategory("page_signatory_invite")).toBe("social")
   })
   it("borne et localise seulement un compteur", () => {
     expect(neutralNotificationMessage("fr", 1)).toContain("1 nouvelle notification")

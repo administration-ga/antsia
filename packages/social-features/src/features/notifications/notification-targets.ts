@@ -59,6 +59,8 @@ export type NotificationTargetKind =
 	| "decisions"
 	/** SU01d : ses signalements, leur échéance et leur issue. */
 	| "reports"
+	/** PG-01 : la page d'un avis de gouvernance (invitation à signer, revendication tranchée). */
+	| "page"
 
 export interface NotificationTargetRef {
 	kind: NotificationTargetKind
@@ -92,6 +94,8 @@ export interface NotificationRoutes {
 	personalDecisions?: () => string
 	/** SU01d : « Mes signalements ». */
 	personalReports?: () => string
+	/** PG-01 : la page, par son adresse (avis de gouvernance). */
+	page?: (handle: string) => string
 }
 
 /**
@@ -240,6 +244,12 @@ function typedTarget(target: NotificationOpenTarget, routes: NotificationRoutes,
 		// (DIASPORALE en V1) ; aucune adresse ici, la ligne garde « Marquer lu ».
 		case "contextualThread":
 			return null
+		// PG-01 : la page relue par le serveur pour ce lecteur ; l'invitation y attend sa réponse, la décision s'y relit.
+		case "page": {
+			const handle = clean(target.pageHandle)
+			const href = handle === null ? null : routes.page?.(handle) ?? null
+			return handle === null || href === null ? null : { kind: "page", id: clean(target.pageId) ?? handle, href, label: t(OPEN_LABEL) }
+		}
 		default:
 			return unknownTarget(target)
 	}
@@ -320,6 +330,11 @@ export function notificationTarget(item: NotificationTargetInput, routes: Notifi
 		case "contextualThread":
 			// CC-2b : sans destination typée relue, aucune adresse inventée (l'application de la nature route le fil).
 			return null
+		case "page":
+		case "pageClaim":
+			// PG-01 : la page ne se route que par son ADRESSE, relue par le serveur (destination typée) ;
+			// sans elle, aucune adresse inventée depuis un identifiant.
+			return null
 		default:
 			return unknownSubject(kind)
 	}
@@ -364,6 +379,7 @@ export function targetCallback(kind: NotificationTargetKind, targets: Notificati
 		case "jobApplication":
 		case "decisions":
 		case "reports":
+		case "page":
 			return undefined
 	}
 }
@@ -471,6 +487,9 @@ const ENGINE_ONLY_SENTENCES: Readonly<Record<EngineOnlyKind, { actor: string | n
   // EV-03 : avis du système, sans titre, lieu, date, nom de page ni motif.
   association_event_cancelled: { actor: null, system: "notifications:notificationTargets.sentence.associationEventCancelled" },
   association_event_seat_confirmed: { actor: null, system: "notifications:notificationTargets.sentence.associationEventSeatConfirmed" },
+  // PG-01 : avis du système, sans nom de page, rôle, sens de la décision ni motif.
+  page_signatory_invite: { actor: null, system: "notifications:notificationTargets.sentence.pageSignatoryInvite" },
+  page_claim_decided: { actor: null, system: "notifications:notificationTargets.sentence.pageClaimDecided" },
 		membership_changed: { actor: null, system: "notifications:notificationTargets.sentence.membershipChanged" },
 		badge_changed: { actor: null, system: "notifications:notificationTargets.sentence.badgeChanged" },
 		moderation_decision: { actor: null, system: "notifications:notificationTargets.sentence.moderationDecision" },

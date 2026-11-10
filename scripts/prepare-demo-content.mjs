@@ -2,15 +2,27 @@
  * Initialise les vrais comptes OTP de démonstration, sans secrets écrits ni identité injectée.
  * Usage : bun scripts/prepare-demo-content.mjs --target local|demo [--apply]
  * Les sept acteurs de l'écran de connexion, puis les dix figurants (absents de cet écran).
+ * Cible demo : origine du site principal et nom du déploiement de démonstration lus dans les
+ * variables de la machine (ANTSIA_RELEASE_SITE_ORIGIN, ANTSIA_RELEASE_CONVEX_DEMO), jamais dans
+ * le dépôt (EX-01, dépôt public).
  */
 import { ConvexHttpClient } from "convex/browser"
 import { makeFunctionReference } from "convex/server"
 import { fileURLToPath } from "node:url"
 
+import { isExactOrigin, validVariable } from "./release/targets.mjs"
+
 /** La démo vit sous /demo du site principal : son authentification aussi. */
-export function targetConfiguration(target) {
+export function targetConfiguration(target, env = process.env) {
   if (target === "local") return {origin:"http://localhost:3030",auth:"http://localhost:3030/api/auth",backend:"http://127.0.0.1:3210"}
-  if (target === "demo") return {origin:"https://antsia.vercel.app",auth:"https://antsia.vercel.app/demo/api/auth",backend:"https://vivid-hedgehog-655.convex.cloud"}
+  if (target === "demo") {
+    const origin = env.ANTSIA_RELEASE_SITE_ORIGIN
+    const deployment = env.ANTSIA_RELEASE_CONVEX_DEMO
+    if (!isExactOrigin(origin) || !validVariable("convex", deployment)) {
+      throw new Error("Cible demo : poser ANTSIA_RELEASE_SITE_ORIGIN (origine du site principal) et ANTSIA_RELEASE_CONVEX_DEMO (déploiement de démonstration) sur la machine.")
+    }
+    return {origin,auth:`${origin}/demo/api/auth`,backend:`https://${deployment}.convex.cloud`}
+  }
   throw new Error("Choisir explicitement --target local ou demo.")
 }
 const ref = (name)=>makeFunctionReference(name)
@@ -79,8 +91,8 @@ async function publishProfile(client,profile) {
   }
 }
 
-export async function prepareDemoAccounts(target,{apply=false,log=console.log}={}) {
-  const config=targetConfiguration(target)
+export async function prepareDemoAccounts(target,{apply=false,log=console.log,env=process.env}={}) {
+  const config=targetConfiguration(target,env)
   const convex=new ConvexHttpClient(config.backend)
   const accounts=await convex.query(ref("modules/platform/demoAccounts:catalogue"),{})
   if (!validCatalogue(accounts)) throw new Error("Le catalogue ne confirme pas les huit comptes fictifs.")
@@ -97,8 +109,8 @@ export async function prepareDemoAccounts(target,{apply=false,log=console.log}={
   return {target,accounts:report,newcomerPreserved:true}
 }
 
-export async function prepareDemoFigurants(target,{apply=false,log=console.log}={}) {
-  const config=targetConfiguration(target)
+export async function prepareDemoFigurants(target,{apply=false,log=console.log,env=process.env}={}) {
+  const config=targetConfiguration(target,env)
   const convex=new ConvexHttpClient(config.backend)
   const figurants=await convex.query(ref("modules/platform/demoAccounts:figurantCatalogue"),{})
   if (!validFigurants(figurants)) throw new Error("Le catalogue ne confirme pas les dix figurants fictifs.")

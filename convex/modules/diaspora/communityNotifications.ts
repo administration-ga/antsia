@@ -6,7 +6,8 @@
  * Ce que l'avis apprend, et à qui :
  *   · entraide : à l'auteur d'une question, qu'une réponse y est publiée ; à l'auteur d'une
  *     réponse, qu'elle est retenue ; à l'équipe d'une page, qu'une personne s'inscrit à sa
- *     mission ;
+ *     mission ; aux bénévoles inscrits (inscription CONFIRMÉE), que la mission est annulée ou
+ *     que son horaire change (ET-01, issue antsia#101), jamais le motif ni l'horaire ;
  *   · mentorat : au mentor, qu'une demande lui arrive ; au mentoré, l'accord ou le refus ; à
  *     l'autre partie, la clôture (y compris par le retrait du profil du mentor) ;
  *   · emploi : à l'équipe d'une page, qu'une candidature arrive ; à la personne qui candidate,
@@ -15,7 +16,9 @@
  *
  * Mêmes règles que les avis de mise en relation :
  * - Écriture par la porte unique (`notifyPerson`), dans la transaction du geste et juste
- *   après son écriture ; ce module n'écrit jamais lui-même dans `notifications`.
+ *   après son écriture ; ce module n'écrit jamais lui-même dans `notifications`. Seule
+ *   exception de calendrier : les bénévoles d'une mission (ET-01), avisés APRÈS la transaction
+ *   du geste, par lots bornés chaînés par curseur (`noticeAidMissionVolunteers`).
  * - Avis du SYSTÈME : ni contenu, ni montant, ni nom. L'auteur du geste (`sourcePersonId`) ne
  *   sert qu'aux refus « soi-même » et « blocage » de la porte ; il n'est jamais stocké.
  * - Destinataire relu à l'écriture (`communityNoticeAdmission`), à la lecture de la cloche
@@ -26,11 +29,16 @@
  *   d'abord.
  *
  * Les genres, les sujets et leurs colonnes vivent dans le moteur (`notifications/tables.ts`),
- * ajoutés par délégation d'ANTSIA (19/10/2026) après son signal « notifications libres ».
- * Aucune fonction Convex ici.
+ * ajoutés par délégation d'ANTSIA (19/10/2026) après son signal « notifications libres » ;
+ * `aid_mission_cancelled` et `aid_mission_rescheduled` le 10/11/2026 (ET-01, exception de zone
+ * accordée par la session du moteur). Une seule fonction Convex ici, INTERNE : la diffusion par
+ * lots aux bénévoles d'une mission.
  */
+import { v } from "convex/values"
+
+import { internal } from "../../_generated/api"
 import type { Doc, Id } from "../../_generated/dataModel"
-import type { MutationCtx, QueryCtx } from "../../_generated/server"
+import { internalMutation, type MutationCtx, type QueryCtx } from "../../_generated/server"
 import { isActiveMember } from "../../lib/access"
 import { isBlockedBetween } from "../graph/graph"
 import { type NotificationSubjectRef, notifyPerson } from "../notifications/notify"
@@ -44,8 +52,11 @@ import { SERVICE_TEAM_NOTICE_MAX } from "./serviceNotifications"
 
 type ReadCtx = Pick<QueryCtx, "db">
 
-/** À qui parle un avis : l'auteur d'un contenu, l'équipe d'une page, le mentor, le mentoré, la personne qui candidate. */
-export const COMMUNITY_NOTICE_AUDIENCES = ["author", "team", "mentor", "mentee", "candidate"] as const
+/**
+ * À qui parle un avis : l'auteur d'un contenu, l'équipe d'une page, le mentor, le mentoré, la
+ * personne qui candidate, le bénévole inscrit à une mission (ET-01).
+ */
+export const COMMUNITY_NOTICE_AUDIENCES = ["author", "team", "mentor", "mentee", "candidate", "volunteer"] as const
 export type CommunityNoticeAudience = (typeof COMMUNITY_NOTICE_AUDIENCES)[number]
 
 /** L'objet qu'un avis ouvre, par sa route dans l'application. */
@@ -75,10 +86,14 @@ export type CommunityNoticeSubject =
 // Règles : quel état écrit chaque genre annonce, et qui peut le lire
 // ═══════════════════════════════════════════════════════════════
 
+/** ET-01 : ce qu'un avis apprend au bénévole inscrit — la mission est annulée, ou son horaire a changé. */
+type AidMissionVolunteerChange = "cancelled" | "rescheduled"
+
 type CommunityRule =
   | { readonly family: "aidQuestion" }
   | { readonly family: "aidAnswer" }
   | { readonly family: "aidMission" }
+  | { readonly family: "aidMissionVolunteer"; readonly change: AidMissionVolunteerChange }
   | { readonly family: "mentoring"; readonly status: Doc<"mentoringRequests">["status"]; readonly audience: "mentor" | "mentee" | "party" }
   | { readonly family: "jobApplication"; readonly status: Doc<"jobApplications">["status"]; readonly audience: "team" | "candidate" }
   | { readonly family: "kitResource" }
@@ -88,6 +103,8 @@ const COMMUNITY_RULES: Readonly<Record<DiasporaCommunityNotificationKind, Commun
   aid_answer_received: { family: "aidQuestion" },
   aid_answer_retained: { family: "aidAnswer" },
   aid_mission_signup: { family: "aidMission" },
+  aid_mission_cancelled: { family: "aidMissionVolunteer", change: "cancelled" },
+  aid_mission_rescheduled: { family: "aidMissionVolunteer", change: "rescheduled" },
   mentoring_request_received: { family: "mentoring", status: "sent", audience: "mentor" },
   mentoring_request_accepted: { family: "mentoring", status: "accepted", audience: "mentee" },
   mentoring_request_declined: { family: "mentoring", status: "declined", audience: "mentee" },
@@ -98,6 +115,7 @@ const COMMUNITY_RULES: Readonly<Record<DiasporaCommunityNotificationKind, Commun
   kit_resource_reviewed: { family: "kitResource" },
 }
 
+type VolunteerRule = Extract<CommunityRule, { family: "aidMissionVolunteer" }>
 type MentoringRule = Extract<CommunityRule, { family: "mentoring" }>
 type JobApplicationRule = Extract<CommunityRule, { family: "jobApplication" }>
 
@@ -177,6 +195,30 @@ async function missionTarget(ctx: ReadCtx, network: Doc<"networks">, recipientPe
     pageHandle: found.page.handle,
     reference: `aidMission:${found.mission._id}:${found.mission.signupCount}`,
     status: null,
+  }
+}
+
+/**
+ * ET-01 : une mission servie à un BÉNÉVOLE dont l'inscription est CONFIRMÉE — un inscrit retiré
+ * n'est avisé de rien, et son avis ne se présente plus. L'état annoncé (annulée, ou encore en
+ * cours pour un horaire changé) n'est exigé qu'à l'écriture (`communityNoticeAdmission`).
+ * Clé : la mission, le changement et la VERSION écrite — un avis par mission et par version.
+ */
+async function volunteerTarget(ctx: ReadCtx, network: Doc<"networks">, recipientPersonId: Id<"persons">, rule: VolunteerRule, missionId: Id<"aidMissions">): Promise<CommunityTarget | null> {
+  const found = await readableAidMissionOrNull(ctx, network, recipientPersonId, missionId)
+  if (!found) return null
+  const signup = await ctx.db
+    .query("aidMissionSignups")
+    .withIndex("by_network_mission_person", (q) => q.eq("networkId", network._id).eq("missionId", found.mission._id).eq("personId", recipientPersonId))
+    .unique()
+  if (signup?.status !== "confirmed") return null
+  return {
+    audience: "volunteer",
+    opens: "aidMission",
+    objectId: found.mission._id,
+    pageHandle: found.page.handle,
+    reference: `aidMission:${found.mission._id}:${rule.change}:${found.mission.version}`,
+    status: found.mission.status,
   }
 }
 
@@ -268,6 +310,8 @@ async function noticeTarget(ctx: ReadCtx, networkId: Id<"networks">, recipientPe
       return ids.answerId ? await answerTarget(ctx, network, recipientPersonId, ids.answerId) : null
     case "aidMission":
       return ids.missionId ? await missionTarget(ctx, network, recipientPersonId, ids.missionId) : null
+    case "aidMissionVolunteer":
+      return ids.missionId ? await volunteerTarget(ctx, network, recipientPersonId, rule, ids.missionId) : null
     case "mentoring":
       return ids.mentoringRequestId ? await mentoringTarget(ctx, network, recipientPersonId, rule, ids.mentoringRequestId) : null
     case "jobApplication":
@@ -299,6 +343,8 @@ export async function communityNoticeAdmission(
   if (target === null) return null
   const rule = COMMUNITY_RULES[kind]
   if ((rule.family === "mentoring" || rule.family === "jobApplication") && rule.status !== target.status) return null
+  // ET-01 : une annulation n'est annoncée que d'une mission annulée ; un horaire changé, que d'une mission qui ne l'est pas.
+  if (rule.family === "aidMissionVolunteer" && (rule.change === "cancelled") !== (target.status === "cancelled")) return null
   return { reference: target.reference }
 }
 
@@ -396,6 +442,72 @@ export async function noticeAidMissionSignup(ctx: MutationCtx, missionId: Id<"ai
   await noticeTeam(ctx, {
     networkId: mission.networkId, pageId: mission.pageId, kind: "aid_mission_signup",
     subject: { aidMission: mission._id }, sourcePersonId: volunteerPersonId,
+  })
+}
+
+/**
+ * ET-01 : taille d'un lot de bénévoles avisés par passage — celle de la diffusion d'une
+ * annulation d'évènement de page (`PAGE_EVENT_NOTICE_BATCH_SIZE`, 32) : chaque destinataire
+ * relit la mission, son inscription, la porte unique et la file de livraison.
+ */
+export const AID_MISSION_VOLUNTEER_NOTICE_BATCH_SIZE = 32
+
+/** Les deux avis d'une mission à ses bénévoles inscrits. */
+export type AidMissionVolunteerNoticeKind = Extract<DiasporaCommunityNotificationKind, "aid_mission_cancelled" | "aid_mission_rescheduled">
+const volunteerNoticeKindValidator = v.union(v.literal("aid_mission_cancelled"), v.literal("aid_mission_rescheduled"))
+
+/**
+ * ET-01 (issue antsia#101) : les bénévoles à l'inscription CONFIRMÉE d'une mission, avisés HORS
+ * de la transaction du geste, par lots bornés chaînés par curseur (index
+ * `by_network_mission_status_signedUpAt`). Chaque destinataire passe par la porte unique, qui
+ * relit la garde (membre actif, mission servie, inscription confirmée, état annoncé) et refuse
+ * l'auteur du geste ; un lot rejoué n'ajoute rien (clé par mission, changement et version). Le
+ * job ne touche ni la mission ni les inscriptions : aucun conflit avec les gestes.
+ */
+export const noticeAidMissionVolunteers = internalMutation({
+  args: {
+    networkId: v.id("networks"),
+    missionId: v.id("aidMissions"),
+    kind: volunteerNoticeKindValidator,
+    cursor: v.union(v.string(), v.null()),
+    /** Le signataire qui a annulé ou déplacé la mission : jamais avisé de son propre geste, jamais stocké. */
+    sourcePersonId: v.optional(v.id("persons")),
+  },
+  returns: v.object({ notified: v.number(), done: v.boolean() }),
+  handler: async (ctx, args): Promise<{ notified: number; done: boolean }> => {
+    const mission = await ctx.db.get(args.missionId)
+    if (!mission || mission.networkId !== args.networkId) return { notified: 0, done: true }
+    const page = await ctx.db
+      .query("aidMissionSignups")
+      .withIndex("by_network_mission_status_signedUpAt", (q) => q.eq("networkId", args.networkId).eq("missionId", mission._id).eq("status", "confirmed"))
+      .paginate({ cursor: args.cursor, numItems: AID_MISSION_VOLUNTEER_NOTICE_BATCH_SIZE })
+    const source = args.sourcePersonId !== undefined ? { sourcePersonId: args.sourcePersonId } : {}
+    let notified = 0
+    for (const row of page.page) {
+      // Une ligne d'un autre réseau ou d'une autre mission n'est jamais une adresse ; l'auteur du geste n'est pas avisé.
+      if (row.networkId !== args.networkId || row.missionId !== mission._id || row.status !== "confirmed" || row.personId === args.sourcePersonId) continue
+      if (await notice(ctx, { networkId: args.networkId, recipientPersonId: row.personId, kind: args.kind, subject: { aidMission: mission._id }, ...source })) notified += 1
+    }
+    if (page.isDone) return { notified, done: true }
+    await ctx.scheduler.runAfter(0, internal.modules.diaspora.communityNotifications.noticeAidMissionVolunteers, {
+      networkId: args.networkId, missionId: mission._id, kind: args.kind, cursor: page.continueCursor, ...source,
+    })
+    return { notified, done: false }
+  },
+})
+
+/**
+ * ET-01 : après `cancelMission`, ou `updateMission` quand l'horaire change — programme l'avis
+ * aux bénévoles inscrits, APRÈS la transaction du geste (rien n'est écrit si elle échoue). Une
+ * mission sans inscrit ne programme rien.
+ */
+export async function scheduleAidMissionVolunteerNotices(
+  ctx: Pick<MutationCtx, "scheduler">,
+  input: { readonly mission: Doc<"aidMissions">; readonly kind: AidMissionVolunteerNoticeKind; readonly sourcePersonId: Id<"persons"> },
+): Promise<void> {
+  if (input.mission.signupCount <= 0) return
+  await ctx.scheduler.runAfter(0, internal.modules.diaspora.communityNotifications.noticeAidMissionVolunteers, {
+    networkId: input.mission.networkId, missionId: input.mission._id, kind: input.kind, cursor: null, sourcePersonId: input.sourcePersonId,
   })
 }
 

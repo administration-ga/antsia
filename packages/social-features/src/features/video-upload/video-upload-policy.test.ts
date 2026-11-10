@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/stories/story-video-policy.test.ts @ ad2e7fdc2 — adaptations : borne unique du moteur pour une Story (`STORY_VIDEO_LIMITS`, cinq minutes et cinquante mégaoctets) au lieu des bornes par destination — cas « neuf minutes sur iRéseau », « au-delà de dix minutes », « huit minutes sans conversion » ramenés à cette borne, cas « sans destination connue » retiré ; refus lus par l'i18n du moteur (`t` français, mêmes fragments attendus) ; cas ajouté : refus en anglais ; SD-03 : module renommé `video-upload-policy`, bornes en paramètre (`STORY_VIDEO_UPLOAD_LIMITS`), cas ajoutés pour les bornes d'une PUBLICATION (`POST_VIDEO_UPLOAD_LIMITS` : soixante mégaoctets, cinq minutes), le refus guidé du .mov qu'un navigateur ne lit pas, le tri des fichiers proposés.
+// Dupliqué de socle/packages/agent-features/src/features/stories/story-video-policy.test.ts @ ad2e7fdc2 — adaptations : borne unique du moteur pour une Story (`STORY_VIDEO_LIMITS`, cinq minutes et cinquante mégaoctets) au lieu des bornes par destination — cas « neuf minutes sur iRéseau », « au-delà de dix minutes », « huit minutes sans conversion » ramenés à cette borne, cas « sans destination connue » retiré ; refus lus par l'i18n du moteur (`t` français, mêmes fragments attendus) ; cas ajouté : refus en anglais ; SD-03 : module renommé `video-upload-policy`, bornes en paramètre (`STORY_VIDEO_UPLOAD_LIMITS`), cas ajoutés pour les bornes d'une PUBLICATION (`POST_VIDEO_UPLOAD_LIMITS` : soixante mégaoctets, cinq minutes), le refus guidé du .mov qu'un navigateur ne lit pas, le tri des fichiers proposés ; issue antsia#142 : chaque plan refusé porte son code à liste fermée (`refusal`).
 import { describe, expect, it } from "vitest"
 
 import { POST_VIDEO_MAX_BYTES, POST_VIDEO_MAX_DURATION_MS } from "@antsia/social-domain/content"
@@ -80,6 +80,7 @@ describe("videoUploadPlan — upload, conversion ou refus", () => {
 		})
 		expect(plan.action).toBe("refuse")
 		if (plan.action === "refuse") {
+			expect(plan.refusal).toBe("not-decodable")
 			expect(plan.error).toContain(NOM)
 			expect(plan.error).toContain("MP4")
 		}
@@ -104,6 +105,7 @@ describe("videoUploadPlan — upload, conversion ou refus", () => {
 		})
 		expect(plan.action).toBe("refuse")
 		if (plan.action === "refuse") {
+			expect(plan.refusal).toBe("no-encoder")
 			expect(plan.error).toContain("convertir")
 		}
 	})
@@ -134,6 +136,7 @@ describe("la borne de durée d'une Story est celle du moteur — cinq minutes", 
 		const plan = longClip(5 * 60_000 + 1)
 		expect(plan.action).toBe("refuse")
 		if (plan.action === "refuse") {
+			expect(plan.refusal).toBe("too-long")
 			expect(plan.error).toContain("5 minutes")
 			expect(plan.error).toContain("long.mp4")
 		}
@@ -179,7 +182,7 @@ describe("SD-03 — les bornes d'une PUBLICATION", () => {
 			durationMs: 4 * 60_000,
 		})
 		const refused = postPlan({ fileName: "conference.mp4", mimeType: "video/mp4", probe: { decodable: true, durationMs: 5 * 60_000 + 1 } })
-		expect(refused).toEqual({ action: "refuse", error: "« conference.mp4 » est trop longue. Une vidéo dure au plus 5 minutes." })
+		expect(refused).toEqual({ action: "refuse", refusal: "too-long", error: "« conference.mp4 » est trop longue. Une vidéo dure au plus 5 minutes." })
 	})
 
 	it("un .mov choisi dans Safari (décodable, encodeur MP4) se convertit vers MP4, dans le budget de soixante mégaoctets", () => {
@@ -200,10 +203,12 @@ describe("SD-03 — les bornes d'une PUBLICATION", () => {
 		const fr = postPlan({ fileName: "IMG_0412.MOV", mimeType: "video/quicktime", probe })
 		expect(fr).toEqual({
 			action: "refuse",
+			refusal: "not-decodable",
 			error: "« IMG_0412.MOV » ne peut pas être lue par ce navigateur. Choisissez-la depuis Safari (iPhone, iPad ou Mac), qui la convertit, ou enregistrez-la d'abord au format MP4, puis réessayez.",
 		})
 		expect(postPlan({ fileName: "IMG_0412.MOV", mimeType: "video/quicktime", probe }, tEn)).toEqual({
 			action: "refuse",
+			refusal: "not-decodable",
 			error: "This browser cannot play “IMG_0412.MOV”. Choose it from Safari (iPhone, iPad or Mac), which converts it, or save it as MP4 first, then try again.",
 		})
 	})
@@ -261,6 +266,7 @@ describe("le budget de CONVERSION est propre au composeur", () => {
 		const plan = mov(VIDEO_TRANSCODE_MAX_DURATION_MS + 1)
 		expect(plan.action).toBe("refuse")
 		if (plan.action === "refuse") {
+			expect(plan.refusal).toBe("too-long-to-convert")
 			expect(plan.error).toContain("3 minutes")
 			expect(plan.error).toContain("MP4")
 		}

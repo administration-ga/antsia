@@ -11,6 +11,7 @@
  *     orpheline. Les diffusions larges passent par `fanout.ts` (lots chaînés).
  */
 import {
+  isPageGovernanceNoticeKind,
   type NotificationKind,
   notificationDedupKey,
   type NotificationResolution,
@@ -29,6 +30,7 @@ import { canReadContextualThread } from "../contextualMessaging/access"
 import { isBlockedBetween } from "../graph/graph"
 import { pageEventReminderVisible } from "../events/pageEventReminderAccess"
 import { isPageEventOutcomeNoticeKind, pageEventNoticeVisible } from "../events/pageEventNoticeAccess"
+import { pageGovernanceNoticeAdmitted } from "../pages/governanceNoticeAccess"
 import { serviceNoticeAdmission } from "../diaspora/serviceNotifications"
 import { communityNoticeAdmission } from "../diaspora/communityNotifications"
 import { commerceNoticeAdmission } from "./commerceAccess"
@@ -54,6 +56,9 @@ export function subjectOf(ref: NotificationSubjectRef | undefined): Notification
   if ("voicemail" in ref) return { kind: "voicemail", id: ref.voicemail }
   if ("liveSession" in ref) return { kind: "liveSession", id: ref.liveSession }
   if ("report" in ref) return { kind: "report", id: ref.report }
+  // PG-01 : la page d'une invitation à signer, la revendication tranchée.
+  if ("page" in ref) return { kind: "page", id: ref.page }
+  if ("pageClaim" in ref) return { kind: "pageClaim", id: ref.pageClaim }
   // Sujets de la tranche `diaspora` : aucune forme générique au domaine commun ; la cloche les projette à part (`serviceNotice`).
   if ("serviceRequest" in ref || "associationMembership" in ref || "serviceReview" in ref) return null
   // Vie communautaire `diaspora` : projetée à part par la cloche (`communityNotice`).
@@ -78,6 +83,8 @@ function subjectColumns(ref: NotificationSubjectRef | undefined): Partial<Doc<"n
   if ("voicemail" in ref) return { subjectVoicemailId: ref.voicemail }
   if ("liveSession" in ref) return { subjectLiveSessionId: ref.liveSession }
   if ("report" in ref) return { subjectReportId: ref.report }
+  if ("page" in ref) return { subjectPageId: ref.page }
+  if ("pageClaim" in ref) return { subjectPageClaimId: ref.pageClaim }
   if ("serviceRequest" in ref) return { subjectServiceRequestId: ref.serviceRequest }
   if ("associationMembership" in ref) return { subjectAssociationMembershipId: ref.associationMembership }
   if ("serviceReview" in ref) return { subjectServiceReviewId: ref.serviceReview }
@@ -107,6 +114,8 @@ export function subjectRefOf(row: Doc<"notifications">): NotificationSubjectRef 
   if (row.subjectVoicemailId) return { voicemail: row.subjectVoicemailId }
   if (row.subjectLiveSessionId) return { liveSession: row.subjectLiveSessionId }
   if (row.subjectReportId) return { report: row.subjectReportId }
+  if (row.subjectPageId) return { page: row.subjectPageId }
+  if (row.subjectPageClaimId) return { pageClaim: row.subjectPageClaimId }
   if (row.subjectServiceRequestId) return { serviceRequest: row.subjectServiceRequestId }
   if (row.subjectAssociationMembershipId) return { associationMembership: row.subjectAssociationMembershipId }
   if (row.subjectServiceReviewId) return { serviceReview: row.subjectServiceReviewId }
@@ -167,6 +176,10 @@ export async function notifyPerson(ctx: Pick<MutationCtx, "db"> & Partial<Pick<M
   // EV-03 : « événement annulé », « place confirmée » — avis du système (aucun acteur), sujet = l'événement,
   // jamais à l'auteur du geste annoncé, et seulement si la garde relue tient (accès, réseau, état annoncé).
   if (isPageEventOutcomeNoticeKind(input.kind) && (input.actorPersonId !== undefined || !input.subject || !("event" in input.subject) || input.sourcePersonId === input.recipientPersonId || !(await pageEventNoticeVisible(ctx, input.networkId, input.subject.event, input.recipientPersonId, input.kind)))) return null
+  // PG-01 : invitation à signer, revendication tranchée — avis du système (aucun acteur), sujet du bon
+  // type, et seulement si la garde relue tient (invitation encore en attente ; revendication tranchée
+  // de CE demandeur, dans ce réseau ; destinataire membre actif).
+  if (isPageGovernanceNoticeKind(input.kind) && (input.actorPersonId !== undefined || !(await pageGovernanceNoticeAdmitted(ctx, input.networkId, input.recipientPersonId, input.kind, input.subject)))) return null
   const moderationNotice = input.kind === "moderation_decision"
   if (moderationNotice && (!input.subject || !("report" in input.subject) || input.actorPersonId !== undefined || !(await moderationNoticeRecipient(ctx, input.networkId, input.recipientPersonId, input.subject.report)))) return null
   // SU01d : l'accusé de réception et la décision vont au seul DÉCLARANT du dossier, sans acteur (le modérateur ne se nomme pas).
@@ -187,7 +200,9 @@ export async function notifyPerson(ctx: Pick<MutationCtx, "db"> & Partial<Pick<M
     // Un rappel personnel, comme l'avis d'annulation (une annulation n'a lieu qu'une fois), n'est ni rouvert
     // ni redistribué lors d'un rejeu d'un lot de diffusion. Une place de nouveau confirmée (après un retrait
     // et une nouvelle attente) rafraîchit sa ligne comme tout autre genre, sans nouveau push.
-    if (input.kind === "association_event_reminder" || input.kind === "association_event_cancelled") return existing._id
+    // PG-01 : une revendication n'est tranchée qu'une fois — un rejeu ne rouvre ni ne redistribue rien.
+    // Une invitation à signer renouvelée, elle, rafraîchit sa ligne (date, non-lu, résolution effacée).
+    if (input.kind === "association_event_reminder" || input.kind === "association_event_cancelled" || input.kind === "page_claim_decided") return existing._id
     // REMPLACE : date rafraîchie, non-lu rouvert, résolution EFFACÉE — une invitation rouverte est neuve.
     await ctx.db.patch(existing._id, { createdAt: now, readAt: undefined, resolvedAt: undefined, resolution: undefined })
     return existing._id

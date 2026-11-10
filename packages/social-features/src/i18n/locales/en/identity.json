@@ -33,6 +33,12 @@
   "resent": "A new code was sent. Use the most recent one.",
   "localCode": "Development code: {{code}}",
   "localCodeHint": "This code is displayed only in local development.",
+  "idnReturn": {
+    "refused": "You did not authorise sign-in with IDN. You can start again whenever you like.",
+    "unavailable": "IDN is not responding right now. Try again in a few moments.",
+    "accountExists": "An account opened with a code already uses this email address. Sign in to that account, then link your IDN identity from its settings.",
+    "failed": "Sign-in with IDN did not complete. You can start again."
+  },
   "errors": {
     "invalidEmail": "Enter a valid email address.",
     "invalidPhone": "Enter a phone number in international format, with + followed by the country code and number.",

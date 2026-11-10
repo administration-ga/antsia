@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/PostComposer.tsx @ ad2e7fdc2 — adaptations : publication par `posts.posts.publish` du moteur et, au nom d'une PAGE du moteur (signataire vivant), par `pages.pages.publishAsPage` (identifiant `Id<"pages">`, audiences `public` / `followers` au lieu de la note de service `organisation`) ; groupe thématique `Id<"thematicGroups">` ; médias déposés par la garde des fichiers (`media.media.generateUploadUrl`, usage `media_social`) et déclarés avec leur identifiant de stockage TYPÉ ; réseau courant sur chaque appel (`useNetwork().networkId`) ; l'auteur du brouillon est la personne du moteur (`useNetwork().personId`) au lieu du handle lu par `getMyProfile`, et le magasin est configuré avec le préfixe du réseau (`configurePostDraftStorage(storagePrefix)`) ; libellés, compteur, alertes et toasts par l'i18n (clés `reseau:postComposer.*`, accords au nombre ; audiences et règles de `shared.ts` et `post-composer-target.ts` avec `t`) ; refus du moteur dit par son code (`postEngineErrorText`) ; borne du texte alternatif lue dans le domaine ; feuille de style sortie du JSX dans une constante de module (`COMPOSER_CSS`) — un littéral enfant de `<style>` passerait pour une chaîne d'interface — règles inchangées ; FP-01 : chaque photo choisie passe par le module de préparation (`features/media-upload` : ré-encodée, 2 048 px au plus, sans métadonnées, échec fermé) AVANT d'entrer au brouillon, le poids envoyé est annoncé, un refus est dit ; préparation injectable (`prepareImage`) ; SD-03 : chaque vidéo choisie, quel qu'en soit le conteneur, passe par la préparation vidéo (`features/video-upload`, bornes d'une publication) — MP4/WebM lisibles tels quels, .mov converti quand ce navigateur sait le lire (progression, onglet visible, annulation), refus guidé sinon — et part avec sa durée mesurée ; sélecteur ouvert à toute vidéo ; préparation injectable (`prepareVideo`).
+// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/PostComposer.tsx @ ad2e7fdc2 — adaptations : publication par `posts.posts.publish` du moteur et, au nom d'une PAGE du moteur (signataire vivant), par `pages.pages.publishAsPage` (identifiant `Id<"pages">`, audiences `public` / `followers` au lieu de la note de service `organisation`) ; groupe thématique `Id<"thematicGroups">` ; médias déposés par la garde des fichiers (`media.media.generateUploadUrl`, usage `media_social`) et déclarés avec leur identifiant de stockage TYPÉ ; réseau courant sur chaque appel (`useNetwork().networkId`) ; l'auteur du brouillon est la personne du moteur (`useNetwork().personId`) au lieu du handle lu par `getMyProfile`, et le magasin est configuré avec le préfixe du réseau (`configurePostDraftStorage(storagePrefix)`) ; libellés, compteur, alertes et toasts par l'i18n (clés `reseau:postComposer.*`, accords au nombre ; audiences et règles de `shared.ts` et `post-composer-target.ts` avec `t`) ; refus du moteur dit par son code (`postEngineErrorText`) ; borne du texte alternatif lue dans le domaine ; feuille de style sortie du JSX dans une constante de module (`COMPOSER_CSS`) — un littéral enfant de `<style>` passerait pour une chaîne d'interface — règles inchangées ; FP-01 : chaque photo choisie passe par le module de préparation (`features/media-upload` : ré-encodée, 2 048 px au plus, sans métadonnées, échec fermé) AVANT d'entrer au brouillon, le poids envoyé est annoncé, un refus est dit ; préparation injectable (`prepareImage`) ; SD-03 : chaque vidéo choisie, quel qu'en soit le conteneur, passe par la préparation vidéo (`features/video-upload`, bornes d'une publication) — MP4/WebM lisibles tels quels, .mov converti quand ce navigateur sait le lire (progression, onglet visible, annulation), refus guidé sinon — et part avec sa durée mesurée ; sélecteur ouvert à toute vidéo ; préparation injectable (`prepareVideo`) ; FD-04 : le toast dit l'état rendu par le moteur (`moderation`) — retenue en relecture, la publication n'est pas annoncée « en ligne ».
 "use client"
 
 /**
@@ -358,7 +358,7 @@ export function PostComposer({
         },
       })
     } catch {
-      result = { status: "refused", message: t("reseau:videoPreparation.conversionFailed") }
+      result = { status: "refused", refusal: "conversion-failed", message: t("reseau:videoPreparation.conversionFailed") }
     } finally {
       if (conversionAbort.current === controller) conversionAbort.current = null
       if (active.current) setVideoPhase(null)
@@ -503,30 +503,28 @@ export function PostComposer({
         ...(canOpenPublic && publication.alsoOnRoot ? { alsoOnRoot: true } : {}),
         ...(isRoot && !group && isProvinceSlug(publication.province) ? { province: publication.province } : {}),
       }
-      if (asPage) {
-        await publishAsPage({
-          networkId,
-          pageId: asPage.pageId,
-          body: body.trim(),
-          audience: pageAudience,
-          ...mediaArg,
-          idempotencyKey,
-          ...chosenPublication,
-        })
-      } else {
-        await publish({
-          networkId,
-          body: body.trim(),
-          // L'audience du LIEU : dans un groupe, `group` + son identifiant —
-          // l'invariant `groupId` ⟺ audience `group` est tenu par le serveur.
-          ...(group
-            ? { audience: "group" as const, groupId: group.groupId }
-            : { audience }),
-          ...mediaArg,
-          idempotencyKey,
-          ...chosenPublication,
-        })
-      }
+      const sent = asPage
+        ? await publishAsPage({
+            networkId,
+            pageId: asPage.pageId,
+            body: body.trim(),
+            audience: pageAudience,
+            ...mediaArg,
+            idempotencyKey,
+            ...chosenPublication,
+          })
+        : await publish({
+            networkId,
+            body: body.trim(),
+            // L'audience du LIEU : dans un groupe, `group` + son identifiant —
+            // l'invariant `groupId` ⟺ audience `group` est tenu par le serveur.
+            ...(group
+              ? { audience: "group" as const, groupId: group.groupId }
+              : { audience }),
+            ...mediaArg,
+            idempotencyKey,
+            ...chosenPublication,
+          })
       // Vidage au SEUL succès : corps, médias, aperçus révoqués — et clé
       // d'idempotence NEUVE. Un échec ne passe jamais par ici, c'est ce qui
       // rend le renvoi sûr.
@@ -535,7 +533,9 @@ export function PostComposer({
       setPreparationNotice(null)
       setPreparationRefusal(null)
       setVideoNotice(null)
-      toast.success(t("postComposer.toast.published"))
+      // FD-04 : l'état RENDU par le moteur — retenue en relecture, la publication
+      // n'est pas « en ligne » ; seule la personne qui publie la voit pour l'instant.
+      toast.success(t(sent.moderation === "pending_review" ? "postComposer.toast.pendingReview" : "postComposer.toast.published"))
       // APRÈS le nettoyage : la surface qui se referme démonte ce composeur,
       // et l'appeler avant laisserait un état à moitié remis à zéro derrière.
       onPublished?.()

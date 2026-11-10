@@ -808,5 +808,35 @@
     "pages": "Pages du menu",
     "previous": "Produits précédents",
     "next": "Produits suivants"
+  },
+  "saved": {
+    "title": "Mes favoris",
+    "lead": "Les offres que vous avez enregistrées, pour les retrouver plus tard. Elles restent privées.",
+    "privacy": "Vous seul voyez vos favoris : ni la boutique ni les autres membres ne voient vos favoris ni leur nombre, et personne n'est prévenu.",
+    "save": "Enregistrer",
+    "savedState": "Enregistré",
+    "saveNamed": "Enregistrer « {{title}} » dans mes favoris",
+    "savedNamed": "« {{title}} » est dans mes favoris",
+    "added": "Offre enregistrée dans vos favoris.",
+    "open": "Voir mes favoris",
+    "removed": "Offre retirée de vos favoris.",
+    "loading": "Chargement de vos favoris…",
+    "loadingMore": "Chargement des favoris suivants…",
+    "more": "Voir plus",
+    "empty": "Vous n'avez encore enregistré aucune offre. Touchez le cœur d'une offre pour la retrouver ici.",
+    "browse": "Parcourir la marketplace",
+    "unavailable": "Vos favoris n'ont pas pu être chargés.",
+    "retry": "Réessayer",
+    "hidden": "Certaines offres enregistrées ne sont plus disponibles : retirées par leur boutique ou devenues inaccessibles. Elles ne s'affichent plus.",
+    "prune": "Les retirer de mes favoris",
+    "pruned": "Les offres indisponibles ont été retirées de vos favoris.",
+    "pruneFailed": "Le retrait des offres indisponibles n'a pas abouti. Réessayez.",
+    "signIn": "Se connecter pour enregistrer",
+    "openToSave": "Enregistrer dans mes favoris",
+    "errors": {
+      "saved_offer_quota": "Vous avez atteint {{max}} favoris dans ce réseau. Retirez-en depuis Mes favoris pour en ajouter.",
+      "notFound": "Cette offre n'est plus disponible.",
+      "failed": "L'enregistrement n'a pas abouti. Réessayez."
+    }
   }
 }
