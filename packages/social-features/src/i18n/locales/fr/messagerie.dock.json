@@ -60,7 +60,9 @@
     "unreadMessages_one": "{{count}} message non lu",
     "unreadMessages_other": "{{count}} messages non lus",
     "unseenStatuses_one": "{{count}} statut non vu",
-    "unseenStatuses_other": "{{count}} statuts non vus"
+    "unseenStatuses_other": "{{count}} statuts non vus",
+    "unheardVoicemails_one": "{{count}} message vocal non écouté",
+    "unheardVoicemails_other": "{{count}} messages vocaux non écoutés"
   },
   "messagerieComposeView": {
     "back": "Revenir à la liste des conversations",
