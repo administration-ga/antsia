@@ -29,6 +29,7 @@ import {
   isServiceProviderOwnerKind,
   matchesDeliveryFilter,
   parseServiceOffer,
+  parseServiceProviderSettings,
   parseServiceSearch,
   SERVICE_BUDGET_FITS,
   SERVICE_CATEGORIES,
@@ -42,6 +43,7 @@ import {
   type MemberCapability,
   type ServiceBudgetFit,
   type ServiceOfferDraft,
+  type ServiceProviderSettings,
   type ServiceSearchFilters,
 } from "@diasporale/domain"
 import { type PaginationOptions, paginationOptsValidator, paginationResultValidator, type PaginationResult } from "convex/server"
@@ -57,6 +59,7 @@ import { literals } from "../../lib/validators"
 import { liveSignatoryRole, pageCardOf, readablePageByHandle, readablePageOrNull } from "../pages/access"
 import { type PageCard, pageCardValidator } from "../pages/validators"
 import { assertDiasporaNetwork } from "./facts"
+import { serviceLocationValidator } from "./serviceRequestsTables"
 import { serviceOfferStatusValidator, servicePricingValidator } from "./servicesTables"
 
 /** Lignes d'une page de « mes offres » (tous états) : plafond dur. */
@@ -88,15 +91,33 @@ const offerCardValidator = v.object({
   updatedAt: v.number(),
 })
 
+/** SV-04 : les réglages de prestation, tels que l'équipe les lit et les écrit ; `null` : non réglé. */
+export const providerSettingsValidator = v.object({
+  timeZone: v.union(v.string(), v.null()),
+  location: v.union(serviceLocationValidator, v.null()),
+  cancellationTerms: v.union(v.string(), v.null()),
+  /** SV-09 : rendez-vous simultanés admis par la prestation, un par défaut. */
+  bookingCapacity: v.number(),
+})
+
 /** La fiche d'une offre : sa carte, son état, et si le lecteur peut la gérer (signataire vivant). */
 const offerDetailValidator = v.object({
   ...offerCardValidator.fields,
   status: serviceOfferStatusValidator,
   viewerCanManage: v.boolean(),
+  /** SV-04 : les réglages de prestation, pour l'équipe seulement ; `null` pour tout autre lecteur. */
+  providerSettings: v.union(providerSettingsValidator, v.null()),
 })
 
 type OfferCard = Infer<typeof offerCardValidator>
 type OfferDetail = Infer<typeof offerDetailValidator>
+type ProviderSettingsView = Infer<typeof providerSettingsValidator>
+
+/** Les réglages ÉCRITS d'une offre, lus par son équipe : un champ absent n'est pas réglé. */
+export function providerSettingsOf(offer: Doc<"serviceOffers">): ProviderSettingsView {
+  const settings = offer.providerSettings
+  return { timeZone: settings?.timeZone ?? null, location: settings?.location ?? null, cancellationTerms: settings?.cancellationTerms ?? null, bookingCapacity: settings?.bookingCapacity ?? 1 }
+}
 
 function toOfferCard(offer: Doc<"serviceOffers">, page: PageCard, budgetFit: ServiceBudgetFit | null): OfferCard {
   return {
@@ -118,7 +139,7 @@ function toOfferCard(offer: Doc<"serviceOffers">, page: PageCard, budgetFit: Ser
 }
 
 function toOfferDetail(offer: Doc<"serviceOffers">, page: PageCard, viewerCanManage: boolean): OfferDetail {
-  return { ...toOfferCard(offer, page, null), status: offer.status, viewerCanManage }
+  return { ...toOfferCard(offer, page, null), status: offer.status, viewerCanManage, providerSettings: viewerCanManage ? providerSettingsOf(offer) : null }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -415,6 +436,8 @@ const offerInputFields = {
   languages: v.array(literals(SERVICE_LANGUAGE_CODES)),
   durationMinutes: v.union(v.number(), v.null()),
   pricing: servicePricingValidator,
+  /** SV-04 : les réglages de prestation ; absents, ceux déjà écrits restent tels quels. */
+  providerSettings: v.optional(providerSettingsValidator),
 }
 
 type OfferInputArgs = { [K in keyof typeof offerInputFields]: Infer<(typeof offerInputFields)[K]> }
@@ -452,6 +475,24 @@ function storedFields(draft: ServiceOfferDraft) {
   }
 }
 
+/**
+ * SV-04 : les réglages saisis, jugés par LA règle du domaine (mêmes refus que la
+ * proposition), en champs écrits ; `undefined` quand rien n'est réglé.
+ */
+function storedSettingsOf(input: ProviderSettingsView): Doc<"serviceOffers">["providerSettings"] {
+  const parsed = parseServiceProviderSettings(input)
+  if (!parsed.ok) return failAppRule(parsed.code, {}, "invalidArgument")
+  const settings: ServiceProviderSettings = parsed.value
+  const stored = {
+    ...(settings.timeZone !== null ? { timeZone: settings.timeZone } : {}),
+    ...(settings.location !== null ? { location: settings.location } : {}),
+    ...(settings.cancellationTerms !== null ? { cancellationTerms: settings.cancellationTerms } : {}),
+    // Un seul rendez-vous à la fois est la règle par défaut : rien à écrire.
+    ...(settings.bookingCapacity > 1 ? { bookingCapacity: settings.bookingCapacity } : {}),
+  }
+  return Object.keys(stored).length > 0 ? stored : undefined
+}
+
 /** Une page ne porte pas plus de `SERVICE_OFFERS_PER_PAGE_MAX` offres non retirées (lecture bornée par état). */
 async function assertOfferQuota(ctx: Pick<QueryCtx, "db">, networkId: Id<"networks">, pageId: Id<"pages">): Promise<void> {
   let count = 0
@@ -475,6 +516,7 @@ export const createOffer = networkMutation({
     await enforceRateLimit(ctx, "diaspora.service.offer", ctx.person._id)
     const page = await managedProviderPage(ctx, args.pageId)
     const draft = draftOf(args)
+    const settings = args.providerSettings === undefined ? undefined : storedSettingsOf(args.providerSettings)
     await assertOfferQuota(ctx, ctx.networkId, page._id)
     const now = Date.now()
     const status = initialOfferStatus(args.publish)
@@ -483,6 +525,7 @@ export const createOffer = networkMutation({
       pageId: page._id,
       ...storedFields(draft),
       ...(draft.durationMinutes !== null ? { durationMinutes: draft.durationMinutes } : {}),
+      ...(settings !== undefined ? { providerSettings: settings } : {}),
       status,
       version: 1,
       createdAt: now,
@@ -509,9 +552,12 @@ export const updateOffer = networkMutation({
     const version = checkOfferVersion(offer.version, args.expectedVersion)
     if (!version.ok) return failAppRule(version.code, { current: offer.version }, "conflict")
     const draft = draftOf(args)
+    const settings = args.providerSettings === undefined ? null : { providerSettings: storedSettingsOf(args.providerSettings) }
     await ctx.db.patch(offer._id, {
       ...storedFields(draft),
       durationMinutes: draft.durationMinutes ?? undefined,
+      // Des réglages envoyés remplacent les précédents (tout vide les efface) ; absents, rien ne change.
+      ...(settings ?? {}),
       version: version.value,
       updatedAt: Date.now(),
     })

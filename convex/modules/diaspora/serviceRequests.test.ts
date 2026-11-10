@@ -420,3 +420,195 @@ describe("contestation d'une absence (DG-015)", () => {
     expect(await codeOf(f.requester.as.mutation(SR.contestServiceNoShow, { networkId: f.networkId, requestId: sent.requestId, reason: REASON }))).toBe("request_contest_unavailable")
   })
 })
+
+describe("proposition préremplie depuis l'offre (SV-04)", () => {
+  it("l'équipe lit le tarif, la durée, le mode, la ville et les réglages de l'offre ; le demandeur n'en lit rien ; rien n'est écrit", async () => {
+    const f = await fixture()
+    const settings = { timeZone: "Europe/Paris", location: { mode: "onsite" as const, area: "Paris 11e" }, cancellationTerms: "Annulation libre jusqu'à la veille." }
+    await f.t.run(async (ctx) => { await ctx.db.patch(f.offerId, { providerSettings: settings }) })
+    const { requestId } = await f.requester.as.mutation(SR.createServiceRequest, sendArgs(f))
+    const pageView = await f.pro.as.query(SR.getServiceRequest, { networkId: f.networkId, requestId })
+    expect(pageView?.proposalPrefill).toEqual({ pricing: { mode: "from", amountMinor: 4500, currency: "EUR" }, durationMinutes: 90, delivery: "onsite", city: "Paris", settings: { ...settings, bookingCapacity: 1 } })
+    expect((await f.requester.as.query(SR.getServiceRequest, { networkId: f.networkId, requestId }))?.proposalPrefill).toBeNull()
+    // La lecture ne propose rien : aucune proposition sans le geste explicite de l'équipe.
+    expect((await rows(f.t)).proposals).toEqual([])
+  })
+
+  it("une offre sur devis ne reprend aucun montant ; sans réglages, chaque champ reste vide", async () => {
+    const f = await fixture()
+    await f.t.run(async (ctx) => { await ctx.db.patch(f.offerId, { pricing: { mode: "quote" }, durationMinutes: undefined, delivery: "remote" }) })
+    const { requestId } = await f.requester.as.mutation(SR.createServiceRequest, sendArgs(f))
+    expect((await f.pro.as.query(SR.getServiceRequest, { networkId: f.networkId, requestId }))?.proposalPrefill).toEqual({
+      pricing: { mode: "quote" }, durationMinutes: null, delivery: "remote", city: "Paris",
+      settings: { timeZone: null, location: null, cancellationTerms: null, bookingCapacity: 1 },
+    })
+  })
+})
+
+describe("plusieurs rendez-vous simultanés pour une page (SV-09)", () => {
+  /** Trois membres de plus, chacun avec sa demande et la même proposition sur le même créneau. */
+  async function threeOnOneSlot(capacity: number | null) {
+    const f = await fixture()
+    if (capacity !== null) await f.t.run(async (ctx) => { await ctx.db.patch(f.offerId, { providerSettings: { bookingCapacity: capacity } }) })
+    const people = [f.requester, await member(f.t, f.networkId, "yannick"), await member(f.t, f.networkId, "laetitia")]
+    const keys = [KEY, OTHER_KEY, "c1d2e3f4-a5b6-4c7d-8e9f-0a1b2c3d4e5f"]
+    const requestIds: Id<"serviceRequests">[] = []
+    for (const [index, person] of people.entries()) {
+      const { requestId } = await person.as.mutation(SR.createServiceRequest, sendArgs(f, { idempotencyKey: keys[index]! }))
+      await f.pro.as.mutation(SR.proposeService, proposalArgs(f, requestId))
+      requestIds.push(requestId)
+    }
+    const accept = (index: number) => people[index]!.as.mutation(SR.acceptServiceProposal, { networkId: f.networkId, requestId: requestIds[index]!, expectedProposalVersion: 1 })
+    return { ...f, people, requestIds, accept }
+  }
+
+  it("R-G06 étendu : capacité deux, trois accords concurrents sur le même créneau, deux réussissent", async () => {
+    const f = await threeOnOneSlot(2)
+    const outcomes = await Promise.allSettled([f.accept(0), f.accept(1), f.accept(2)])
+    expect(outcomes.filter((outcome) => outcome.status === "fulfilled")).toHaveLength(2)
+    const refused = outcomes.findIndex((outcome) => outcome.status === "rejected")
+    expect(await codeOf(f.accept(refused))).toBe("booking_slot_unavailable")
+    const bookings = (await rows(f.t)).bookings
+    expect(bookings.map((booking) => [booking.status, booking.capacity])).toEqual([["confirmed", 2], ["confirmed", 2]])
+    // Le créneau plein refuse aussi une nouvelle proposition qui le chevauche ; une place libérée se reprend.
+    expect(await codeOf(f.pro.as.mutation(SR.proposeService, proposalArgs(f, f.requestIds[refused]!, { expectedVersion: 1, startAt: NOW + DAY + 2 * HOUR })))).toBe("booking_slot_unavailable")
+    const kept = [0, 1, 2].find((index) => index !== refused)!
+    await f.people[kept]!.as.mutation(SR.cancelServiceRequest, { networkId: f.networkId, requestId: f.requestIds[kept]!, reason: "Empêchement" })
+    expect(await f.accept(refused)).toMatchObject({ bookingId: expect.any(String) })
+  })
+
+  it("par défaut, un seul rendez-vous à la fois : le second accord sur le même créneau est refusé", async () => {
+    const f = await threeOnOneSlot(null)
+    expect(await f.accept(0)).toMatchObject({ bookingId: expect.any(String) })
+    expect(await codeOf(f.accept(1))).toBe("booking_slot_unavailable")
+    expect((await rows(f.t)).bookings.map((booking) => booking.capacity)).toEqual([undefined])
+  })
+
+  it("un rendez-vous pris « seul » ferme son créneau, même si la prestation admet ensuite davantage", async () => {
+    const f = await threeOnOneSlot(null)
+    await f.accept(0)
+    await f.t.run(async (ctx) => { await ctx.db.patch(f.offerId, { providerSettings: { bookingCapacity: 3 } }) })
+    expect(await codeOf(f.accept(1))).toBe("booking_slot_unavailable")
+  })
+})
+
+describe("déplacer un rendez-vous confirmé (SV-03)", () => {
+  /** Un rendez-vous confirmé le 19 octobre à 11 h UTC, 90 minutes, proposition version 1. */
+  async function booked() {
+    const f = await fixture()
+    const { requestId } = await f.requester.as.mutation(SR.createServiceRequest, sendArgs(f))
+    await f.pro.as.mutation(SR.proposeService, proposalArgs(f, requestId))
+    const { bookingId } = await f.requester.as.mutation(SR.acceptServiceProposal, { networkId: f.networkId, requestId, expectedProposalVersion: 1 })
+    return { ...f, requestId, bookingId }
+  }
+  type Booked = Awaited<ReturnType<typeof booked>>
+  const NEW_START = NOW + 2 * DAY
+  const move = (f: Booked, overrides: Partial<{ requestId: Id<"serviceRequests">; expectedProposalVersion: number; startAt: number; timeZone: string; expiresAt: number }> = {}) => ({
+    networkId: f.networkId, requestId: f.requestId, expectedProposalVersion: 1, startAt: NEW_START, timeZone: "America/Toronto", expiresAt: NOW + 12 * HOUR, ...overrides,
+  })
+  const view = (f: Booked, as: Booked["requester"]) => as.as.query(SR.getServiceRequest, { networkId: f.networkId, requestId: f.requestId })
+
+  it("la page propose un autre horaire, le demandeur l'accepte : même rendez-vous, mêmes conditions, nouvelle version", async () => {
+    const f = await booked()
+    const before = await socialTrace(f.t)
+    expect(await f.pro.as.mutation(SR.proposeServiceReschedule, move(f))).toBeNull()
+    const pending = { startAt: NEW_START, endAt: NEW_START + 90 * MINUTE, timeZone: "America/Toronto", proposedBy: "page", proposedAt: NOW, expiresAt: NOW + 12 * HOUR }
+    expect(await view(f, f.requester)).toMatchObject({ status: "confirmed", reschedule: pending, rescheduleActions: ["accept_reschedule", "decline_reschedule"], booking: { startAt: NOW + DAY + HOUR } })
+    expect(await view(f, f.pro)).toMatchObject({ reschedule: pending, rescheduleActions: ["decline_reschedule"] })
+    // La demande remonte dans les listes et y dit le nouvel horaire proposé.
+    expect((await f.requester.as.query(SR.myServiceRequests, { networkId: f.networkId, paginationOpts: PAGE_OPTS })).page[0]?.reschedule).toEqual(pending)
+    expect(await codeOf(f.pro.as.mutation(SR.acceptServiceReschedule, { networkId: f.networkId, requestId: f.requestId, expectedProposalVersion: 1, expectedStartAt: NEW_START }))).toBe("request_action_forbidden")
+    expect(await codeOf(f.pro.as.mutation(SR.proposeServiceReschedule, move(f, { startAt: NEW_START + HOUR })))).toBe("reschedule_already_open")
+    expect(await codeOf(f.requester.as.mutation(SR.acceptServiceReschedule, { networkId: f.networkId, requestId: f.requestId, expectedProposalVersion: 1, expectedStartAt: NEW_START + HOUR }))).toBe("reschedule_changed")
+
+    vi.setSystemTime(NOW + HOUR)
+    expect(await f.requester.as.mutation(SR.acceptServiceReschedule, { networkId: f.networkId, requestId: f.requestId, expectedProposalVersion: 1, expectedStartAt: NEW_START })).toEqual({ version: 2 })
+    const booking = await f.t.run(async (ctx) => ctx.db.get(f.bookingId))
+    expect(booking).toMatchObject({ status: "confirmed", startAt: NEW_START, endAt: NEW_START + 90 * MINUTE, timeZone: "America/Toronto" })
+    expect(booking?.reschedule).toBeUndefined()
+    const after = await view(f, f.requester)
+    expect(after).toMatchObject({ status: "confirmed", reschedule: null, rescheduleActions: ["propose_reschedule"], currentProposal: { version: 2, amountMinor: 4500, startAt: NEW_START } })
+    expect(after?.proposals.map((proposal) => [proposal.version, proposal.state, proposal.rescheduledFrom, proposal.amountMinor, proposal.cancellationTerms])).toEqual([
+      [2, "current", 1, 4500, "Annulation libre jusqu'à la veille."],
+      [1, "superseded", null, 4500, "Annulation libre jusqu'à la veille."],
+    ])
+    expect(after?.proposals[0]?.location).toEqual({ mode: "onsite", area: "Paris 11e" })
+    expect(after?.timeline.map((event) => [event.status, event.version])).toEqual([["sent", null], ["proposed", 1], ["confirmed", null], ["confirmed", 2]])
+    expect(JSON.stringify(after)).not.toContain(f.pro.personId)
+    expect((await rows(f.t)).bookings).toHaveLength(1)
+    // Le même horaire n'est pas un déplacement ; aucun avis de cloche n'a été écrit (genre manquant au moteur).
+    expect(await codeOf(f.requester.as.mutation(SR.proposeServiceReschedule, move(f, { expectedProposalVersion: 2 })))).toBe("reschedule_same_slot")
+    expect(await socialTrace(f.t)).toEqual(before)
+  })
+
+  it("l'avis du demandeur reste admissible sur le rendez-vous déplacé", async () => {
+    const f = await booked()
+    await f.requester.as.mutation(SR.proposeServiceReschedule, move(f, { timeZone: "Europe/Paris" }))
+    await f.pro.as.mutation(SR.acceptServiceReschedule, { networkId: f.networkId, requestId: f.requestId, expectedProposalVersion: 1, expectedStartAt: NEW_START })
+    vi.setSystemTime(NEW_START)
+    await f.pro.as.mutation(SR.completeServiceBooking, { networkId: f.networkId, requestId: f.requestId })
+    vi.setSystemTime(NEW_START + 2 * HOUR)
+    const review = await f.requester.as.mutation(api.modules.diaspora.serviceReviews.createReview, {
+      networkId: f.networkId, requestId: f.requestId, rating: 5, body: "Tresses soignées, rendez-vous déplacé sans souci.", consentToPublish: true,
+    })
+    expect(review.created).toBe(true)
+  })
+
+  it("un déplacement décliné, retiré ou échu reste sans effet ; une nouvelle proposition est alors possible", async () => {
+    const f = await booked()
+    const original = await f.t.run(async (ctx) => ctx.db.get(f.bookingId))
+    await f.requester.as.mutation(SR.proposeServiceReschedule, move(f, { timeZone: "Europe/Paris" }))
+    expect(await f.pro.as.mutation(SR.declineServiceReschedule, { networkId: f.networkId, requestId: f.requestId })).toBeNull()
+    expect(await view(f, f.requester)).toMatchObject({ reschedule: null, rescheduleActions: ["propose_reschedule"] })
+    expect(await codeOf(f.requester.as.mutation(SR.declineServiceReschedule, { networkId: f.networkId, requestId: f.requestId }))).toBe("reschedule_not_open")
+    // Le proposant retire le sien.
+    await f.requester.as.mutation(SR.proposeServiceReschedule, move(f, { timeZone: "Europe/Paris" }))
+    await f.requester.as.mutation(SR.declineServiceReschedule, { networkId: f.networkId, requestId: f.requestId })
+    // Échu : constaté à la lecture, refusé à l'accord.
+    await f.pro.as.mutation(SR.proposeServiceReschedule, move(f, { expiresAt: NOW + HOUR }))
+    vi.setSystemTime(NOW + HOUR)
+    expect(await view(f, f.requester)).toMatchObject({ reschedule: null, rescheduleActions: ["propose_reschedule"] })
+    expect(await codeOf(f.requester.as.mutation(SR.acceptServiceReschedule, { networkId: f.networkId, requestId: f.requestId, expectedProposalVersion: 1, expectedStartAt: NEW_START }))).toBe("reschedule_not_open")
+    const unchanged = await f.t.run(async (ctx) => ctx.db.get(f.bookingId))
+    expect([unchanged?.startAt, unchanged?.endAt, unchanged?.proposalId]).toEqual([original?.startAt, original?.endAt, original?.proposalId])
+    expect((await rows(f.t)).proposals).toHaveLength(1)
+    expect(await f.requester.as.mutation(SR.proposeServiceReschedule, move(f, { expiresAt: NOW + 2 * HOUR }))).toBeNull()
+  })
+
+  it("R-G06 : un créneau pris est refusé ; deux accords concurrents sur le même créneau, un seul réussit", async () => {
+    const f = await booked()
+    const other = await member(f.t, f.networkId, "yannick")
+    const second = await other.as.mutation(SR.createServiceRequest, sendArgs(f, { idempotencyKey: OTHER_KEY }))
+    await f.pro.as.mutation(SR.proposeService, proposalArgs(f, second.requestId, { startAt: NOW + DAY + 3 * HOUR }))
+    await other.as.mutation(SR.acceptServiceProposal, { networkId: f.networkId, requestId: second.requestId, expectedProposalVersion: 1 })
+    // Le créneau de l'autre rendez-vous est pris (un rendez-vous à la fois) ; chevaucher son propre horaire, jusqu'au bord de l'autre, passe.
+    expect(await codeOf(f.requester.as.mutation(SR.proposeServiceReschedule, move(f, { startAt: NOW + DAY + 3 * HOUR, timeZone: "Europe/Paris" })))).toBe("booking_slot_unavailable")
+    expect(await f.requester.as.mutation(SR.proposeServiceReschedule, move(f, { startAt: NOW + DAY + 90 * MINUTE, timeZone: "Europe/Paris" }))).toBeNull()
+    await f.requester.as.mutation(SR.declineServiceReschedule, { networkId: f.networkId, requestId: f.requestId })
+
+    await f.pro.as.mutation(SR.proposeServiceReschedule, move(f))
+    await f.pro.as.mutation(SR.proposeServiceReschedule, move(f, { requestId: second.requestId }))
+    const outcomes = await Promise.allSettled([
+      f.requester.as.mutation(SR.acceptServiceReschedule, { networkId: f.networkId, requestId: f.requestId, expectedProposalVersion: 1, expectedStartAt: NEW_START }),
+      other.as.mutation(SR.acceptServiceReschedule, { networkId: f.networkId, requestId: second.requestId, expectedProposalVersion: 1, expectedStartAt: NEW_START }),
+    ])
+    expect(outcomes.map((outcome) => outcome.status)).toEqual(["fulfilled", "rejected"])
+    expect(await codeOf(other.as.mutation(SR.acceptServiceReschedule, { networkId: f.networkId, requestId: second.requestId, expectedProposalVersion: 1, expectedStartAt: NEW_START }))).toBe("booking_slot_unavailable")
+    expect((await rows(f.t)).bookings.map((booking) => booking.startAt).sort()).toEqual([NOW + DAY + 3 * HOUR, NEW_START].sort())
+  })
+
+  it("version attendue, participants seulement, avant le début ; une annulation emporte la proposition ouverte", async () => {
+    const f = await booked()
+    expect(await codeOf(f.requester.as.mutation(SR.proposeServiceReschedule, move(f, { expectedProposalVersion: 0 })))).toBe("proposal_version_changed")
+    expect(await codeOf(f.outsider.as.mutation(SR.proposeServiceReschedule, move(f)))).toBe("notFound")
+    expect(await codeOf(f.outsider.as.mutation(SR.declineServiceReschedule, { networkId: f.networkId, requestId: f.requestId }))).toBe("notFound")
+    expect(await codeOf(f.requester.as.mutation(SR.proposeServiceReschedule, move(f, { startAt: NOW + 3 * DAY, expiresAt: NOW + 2 * DAY })))).toBe("proposal_deadline_invalid")
+    await f.pro.as.mutation(SR.proposeServiceReschedule, move(f))
+    await f.requester.as.mutation(SR.cancelServiceRequest, { networkId: f.networkId, requestId: f.requestId, reason: "Empêchement" })
+    expect((await f.t.run(async (ctx) => ctx.db.get(f.bookingId)))?.reschedule).toBeUndefined()
+    expect(await view(f, f.requester)).toMatchObject({ status: "cancelled", reschedule: null, rescheduleActions: [] })
+    const g = await booked()
+    vi.setSystemTime(NOW + DAY + HOUR)
+    expect(await codeOf(g.pro.as.mutation(SR.proposeServiceReschedule, move(g, { expiresAt: NOW + DAY + 2 * HOUR })))).toBe("booking_started")
+  })
+})
