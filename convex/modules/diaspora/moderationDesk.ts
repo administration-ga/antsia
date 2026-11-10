@@ -32,6 +32,12 @@
  * - Aucune table : le moteur ne rattache pas encore une équipe à un pays
  *   (`moderationTeams.scope` est une NATURE de contenu) ; le pays filtre la file,
  *   il ne délimite aucune compétence.
+ * - AS-01 : les revendications de page en attente (« Pages à vérifier ») se
+ *   relisent ici par fenêtres, filtrées par le pays de la PAGE, avec la garde du
+ *   moteur (`pages/claims` n'admet que le rôle de réseau, `networkRoleCapacity`) ;
+ *   la fiche, les pièces et la décision restent `pages/claims` (`getPageClaim`,
+ *   `decidePageClaim`). `party` y dit le conflit d'intérêts : le demandeur, ou
+ *   toute personne qui a une ligne de signataire sur la page, même invitée.
  */
 import type { ModerationSurface } from "@antsia/social-domain/moderationPolicy"
 import { isCountryCode, normalizeCountryCode } from "@diasporale/domain"
@@ -46,7 +52,8 @@ import { networkQuery } from "../../lib/functions"
 import { requireReportCapacity, teamCapacity } from "../moderation/cases"
 import { contentState } from "../moderation/policy"
 import { moderationSurfaceValidator, moderationTargetValidator, sanctionKindValidator } from "../moderation/tables"
-import { liveSignatoryRole } from "../pages/access"
+import { liveSignatoryRole, pageCardOf, signatoryRowOf } from "../pages/access"
+import { pageCardValidator } from "../pages/validators"
 import { findPublishedPersonByHandle, livePersonProfile } from "../people/miniProfile"
 import { canHoldNetworkRole, NETWORK_RESPONSIBLE_ROLES, NETWORK_ROLE_HOLDERS_MAX } from "../people/networkRoles"
 import { networkRoleCapacity } from "../platform/audit"
@@ -189,6 +196,17 @@ const responsibleValidator = v.object({
   isMe: v.boolean(),
 })
 type ResponsibleRow = typeof responsibleValidator.type
+
+/** AS-01 : une revendication en attente, sans note ni pièce ni demandeur (la fiche est `pages/claims.getPageClaim`). */
+const claimValidator = v.object({
+  claimId: v.id("pageClaims"),
+  page: pageCardValidator,
+  country: countryValidator,
+  evidenceCount: v.number(),
+  createdAt: v.number(),
+  party: v.union(v.literal("author"), v.literal("page"), v.null()),
+})
+type ClaimRow = typeof claimValidator.type
 
 // ── Règles de lecture ──────────────────────────────────────────────────────
 
@@ -849,5 +867,43 @@ export const teamCandidate = networkQuery({
     if (!person) return null
     const published = person.handle ?? raw
     return { personId: person._id, handle: published, displayName: person.displayName ?? published }
+  },
+})
+
+/**
+ * AS-01 — une fenêtre des revendications de page EN ATTENTE (« Pages à
+ * vérifier »), filtrée par le pays de la page, la plus ancienne d'abord. La
+ * garde est celle de `pages/claims.paginatePageClaims` (rôle de réseau, sinon
+ * le refus indistinct) ; aucune note, aucune pièce, aucun demandeur ici : la
+ * fiche et la décision restent `pages/claims`. `party` dit le conflit
+ * d'intérêts : le demandeur (`author`) ou toute personne qui a une ligne de
+ * signataire sur la page, même invitée (`page`) ; l'écran n'offre alors pas le
+ * geste.
+ */
+export const pageClaimQueue = networkQuery({
+  minStatus: "declaree",
+  args: { expectedPersonId: v.id("persons"), zone: zoneValidator, paginationOpts: paginationOptsValidator },
+  returns: v.object({ items: v.array(claimValidator), continueCursor: cursorValidator, isDone: v.boolean() }),
+  handler: async (ctx, args) => {
+    guardDesk(ctx, args.expectedPersonId)
+    if (networkRoleCapacity(ctx.membership.role) === null) return notFound()
+    const zone = zoneOf(args.zone)
+    const result = await ctx.db
+      .query("pageClaims")
+      .withIndex("by_network_status_createdAt", (q) => q.eq("networkId", ctx.networkId).eq("status", "pending"))
+      .order("asc")
+      .paginate(boundedWindow(args.paginationOpts, DESK_WINDOW_MAX))
+    const items: ClaimRow[] = []
+    for (const claim of result.page) {
+      const page = await ctx.db.get(claim.pageId)
+      if (!page || page.networkId !== ctx.networkId) continue
+      const country = countryCode(page.country)
+      if (!inZone(zone, country)) continue
+      const party = claim.claimantPersonId === ctx.person._id
+        ? ("author" as const)
+        : (await signatoryRowOf(ctx, page._id, ctx.person._id)) !== null ? ("page" as const) : null
+      items.push({ claimId: claim._id, page: await pageCardOf(ctx, page), country, evidenceCount: claim.evidenceStorageIds.length, createdAt: claim.createdAt, party })
+    }
+    return { items, continueCursor: result.isDone ? null : result.continueCursor, isDone: result.isDone }
   },
 })
