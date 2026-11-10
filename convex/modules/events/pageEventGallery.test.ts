@@ -193,6 +193,17 @@ describe("galerie collective après un événement", () => {
     expect((await list(f, eventId)).items).toHaveLength(3)
   })
 
+  it("SD-03 — une vidéo de galerie suit les bornes d'une publication, jugées AVANT toute admission", async () => {
+    const f = await fixture()
+    const { eventId } = await create(f)
+    const video = await image(f, "video")
+    vi.setSystemTime(END)
+    expect(engineErrorRule(await caught(publish(f, eventId, [{ ...video, mimeType: "video/quicktime" }], "", "mov")))?.rule).toBe("POST_MEDIA_MIME_INVALID")
+    expect(engineErrorRule(await caught(publish(f, eventId, [{ ...video, durationMs: 5 * 60_000 + 1 }], "", "long")))).toEqual({ rule: "POST_VIDEO_TOO_LONG", params: { maxMinutes: 5 } })
+    expect(await f.t.run((ctx) => ctx.db.query("fileScans").withIndex("by_storageId", (q) => q.eq("storageId", video.storageId)).first())).toBeNull()
+    expect((await publish(f, eventId, [{ ...video, durationMs: 5 * 60_000 }], "", "bound")).created).toBe(true)
+  })
+
   it("ne confond pas reçu de création et accord de modération explicite", async () => {
     const f = await fixture(false)
     const { eventId } = await create(f)

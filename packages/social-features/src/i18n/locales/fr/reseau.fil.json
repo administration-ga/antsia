@@ -174,6 +174,27 @@
       "uploadRefused": "Téléversement refusé pour « {{name}} »."
     }
   },
+  "videoPreparation": {
+    "probing": "Analyse de la vidéo…",
+    "converting": "Conversion de la vidéo en cours…",
+    "keepTabVisible": "Elle se fait ici, en temps réel : gardez cet onglet visible jusqu'au bout.",
+    "cancel": "Annuler la conversion",
+    "cancelled": "Conversion annulée : la vidéo n'a pas été ajoutée.",
+    "conversionFailed": "La conversion de la vidéo a échoué. Enregistrez-la au format MP4, puis réessayez.",
+    "convertedTooLarge": "La vidéo convertie reste trop lourde. {{reason}} Raccourcissez-la, ou enregistrez-la au format MP4 avant de la publier.",
+    "refusal": {
+      "notDecodable": "« {{name}} » ne peut pas être lue par ce navigateur. Choisissez-la depuis Safari (iPhone, iPad ou Mac), qui la convertit, ou enregistrez-la d'abord au format MP4, puis réessayez.",
+      "tooLong": "« {{name}} » est trop longue. Une vidéo dure au plus {{duration}}.",
+      "tooLongToConvert": "« {{name}} » doit être convertie pour être lisible partout, et la conversion se fait ici, en temps réel : au-delà de {{duration}}, elle est trop longue à attendre. Enregistrez-la au format MP4 : elle partira alors sans conversion.",
+      "noEncoder": "Ce navigateur ne sait pas convertir « {{name}} ». Choisissez-la depuis Safari, ou enregistrez-la au format MP4 avant de la publier."
+    },
+    "units": {
+      "minutes_one": "{{count}} minute",
+      "minutes_other": "{{count}} minutes",
+      "seconds_one": "{{count}} seconde",
+      "seconds_other": "{{count}} secondes"
+    }
+  },
   "reportContentDialog": {
     "title": {
       "publication": "Signaler cette publication",

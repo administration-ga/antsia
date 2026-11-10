@@ -50,14 +50,6 @@
       "videoTooLarge": "« {{name}} » est trop lourde. Une vidéo est limitée à {{size}}."
     }
   },
-  "storyVideoPolicy": {
-    "refusal": {
-      "notDecodable": "« {{name}} » ne peut pas être lu par ce navigateur — publiez depuis Safari, ou exportez la vidéo en MP4 (H.264).",
-      "tooLong": "« {{name}} » est trop longue. Une vidéo dure au plus {{duration}}.",
-      "tooLongToConvert": "« {{name}} » doit être convertie pour être lisible partout, et la conversion se fait ici, en temps réel : au-delà de {{duration}} elle est trop longue à attendre. Exportez-la en MP4 (H.264) — elle partira alors sans conversion.",
-      "noEncoder": "Ce navigateur ne sait pas convertir « {{name}} » — exportez la vidéo en MP4 (H.264) avant de la publier."
-    }
-  },
   "storyProgressBar": {
     "segmentLabel": "Actu {{position}} sur {{total}}"
   },
@@ -136,9 +128,6 @@
     "refused": "Fichier refusé",
     "takePhoto": "Prendre une photo",
     "chooseFromGallery": "Choisir dans la galerie",
-    "probing": "Analyse de la vidéo…",
-    "converting": "Conversion de la vidéo en cours…",
-    "keepTabVisible": "Elle se fait ici, en temps réel : gardez cet onglet visible jusqu'au bout.",
     "previewAlt": "Aperçu",
     "captionLabel": "Légende (facultative)",
     "captionPlaceholder": "Un mot sur ce moment…",
@@ -149,8 +138,6 @@
     "publish": "Publier l'actu",
     "published": "Actu publiée — visible pendant vingt-quatre heures.",
     "publishFailed": "La publication n'a pas abouti.",
-    "uploadFailed": "Le téléversement a échoué.",
-    "convertedTooLarge": "La vidéo convertie reste trop lourde. {{reason}} Raccourcissez-la, ou exportez-la en MP4 (H.264) avant de la publier.",
-    "conversionFailed": "La conversion de la vidéo a échoué — exportez-la en MP4 (H.264) et réessayez."
+    "uploadFailed": "Le téléversement a échoué."
   }
 }
