@@ -219,6 +219,12 @@ export const DOMAIN_RULES = [
   "CONTEXT_CALL_CONSENT_REQUIRED",
   "CONTEXT_IDEMPOTENCY_CONFLICT",
   "CONTEXT_TEXT_CONTROL",
+  // Commerce : la boutique en pause (CM-10). `SHOP_PAUSED` refuse un NOUVEL engagement (préparation, paiement,
+  // demande de service, candidature) et porte l'instant de réouverture (`until`, en ms) ; les deux autres bornent
+  // le jour de réouverture choisi par le vendeur (`days` : le plafond).
+  "SHOP_PAUSED",
+  "SHOP_PAUSE_END_PAST",
+  "SHOP_PAUSE_TOO_LONG",
 ] as const
 export type DomainRule = (typeof DOMAIN_RULES)[number]
 

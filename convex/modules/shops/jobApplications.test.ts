@@ -4,7 +4,7 @@
  * (décision du propriétaire du 18/10/2026 : « Continuer sans vérifier »).
  * Aucun HTTP réel : PRO.GA est simulé par un `fetch` de fixture.
  */
-import { engineErrorCode } from "@antsia/social-contracts/errors"
+import { engineErrorCode, engineErrorRule } from "@antsia/social-contracts/errors"
 import { COMMERCE_JOBS_APPLICATION_CONSENT_VERSION, COMMERCE_JOBS_CONTRACT, COMMERCE_JOBS_CONTROL_CONTRACT, COMMERCE_JOBS_FILES_ATTACHMENT_HEADER, COMMERCE_JOBS_FILES_CONTRACT, COMMERCE_JOBS_FILES_REQUEST_HEADER, parseCommerceJobsControlRequest, type CommerceJobsClosed, type CommerceJobsPublished } from "@antsia/social-domain/commerce-jobs"
 import { COMMERCE_COMMAND_LIMITS, parseCommerceCommandRequest } from "@antsia/social-domain/commerce/command"
 import { COMMERCE_COMMAND_CONTRACT, COMMERCE_PUBLIC_CONTRACT, COMMERCE_MAX_SKEW_MS, commerceCanonicalJson } from "@antsia/social-domain/commerce/primitives"
@@ -764,6 +764,33 @@ describe("P15 — récupération par clé et preuve réelle de session", () => {
     const seen = proServer(); await f.t.action(deliver, { applicationId })
     expect(seen).toHaveLength(0)
     expect((await row(f, applicationId))?.authorizationRequired).toBe(true)
+  })
+})
+
+describe("CM-10 — boutique en pause : aucune nouvelle candidature, celle déjà admise suit son cours", () => {
+  const DAY = 86_400_000
+  async function pause(f: Fixture) { await f.t.run(async (ctx) => { await ctx.db.patch(f.shopId, { pausedUntil: NOW + DAY }) }) }
+  async function applications(f: Fixture, who = f.candidate) { return await f.t.run(async (ctx) => ctx.db.query("commerceApplications").withIndex("by_person", (q) => q.eq("personId", who.personId)).take(5)) }
+
+  it("refuse une nouvelle candidature en disant la réouverture, sans rien copier ni envoyer", async () => {
+    const f = await fixture(), file = await pdf(f)
+    await pause(f)
+    const error = await f.candidate.as.mutation(apply, choice(f, [file.fileId])).then(() => null, (reason: unknown) => reason)
+    expect(engineErrorRule(error)).toEqual({ rule: "SHOP_PAUSED", params: { until: NOW + DAY } })
+    expect(await applications(f)).toEqual([])
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled()
+  })
+
+  it("une candidature admise avant la pause se rejoue par la même clé ; une vitrine illisible garde le refus indistinct", async () => {
+    const f = await fixture(), file = await pdf(f), otherFile = await pdf(f, f.other)
+    await f.t.run(async (ctx) => ctx.db.insert("identityLinks", { personId: f.candidate.personId, provider: "idn", subject: "idn-candidat-pause", loa: 2, linkedAt: NOW }))
+    const first = await f.candidate.as.mutation(apply, choice(f, [file.fileId]))
+    await pause(f)
+    expect(await f.candidate.as.mutation(apply, choice(f, [file.fileId]))).toEqual(first)
+    expect(await applications(f)).toHaveLength(1)
+    // Vitrine retirée ET en pause : la pause ne se révèle pas, le refus reste celui d'une offre introuvable.
+    await f.t.run(async (ctx) => { await ctx.db.patch(f.shopId, { storefront: "withdrawn" }) })
+    expect(await code(f.other.as.mutation(apply, choice(f, [otherFile.fileId], { idempotencyKey: "candidature-cle-0003-abcdef" })))).toBe("notFound")
   })
 })
 

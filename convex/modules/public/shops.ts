@@ -8,7 +8,8 @@ import { query } from "../../_generated/server"
 import { servableUrl } from "../files/storageGuard"
 import { findPageByHandle } from "../pages/access"
 import { publicStorefrontPage, shopOfPage } from "../shops/access"
-import { type PublicDailySpecial, type PublicStorefront, publicDailySpecialValidator, publicStorefrontValidator } from "../shops/validators"
+import { type PublicDailySpecial, type PublicStorefront, type PublicStorefrontPause, publicDailySpecialValidator, publicStorefrontPauseValidator, publicStorefrontValidator } from "../shops/validators"
+import { isShopPaused } from "@antsia/social-domain/commerce/shopPause"
 import { originDto, publicContext } from "./access"
 import { catalogStorefrontBlocks, resolveCatalogOffer } from "../shops/catalogRead"
 
@@ -69,5 +70,24 @@ export const getDailySpecial = query({
     if (!await publicStorefrontPage(ctx, context.root, shop, context.reader?.personId)) return null
     const offer = await resolveCatalogOffer(ctx, { root: context.root, readerPersonId: context.reader?.personId }, shop._id, shop.dailySpecial.offerRef)
     return offer?.kind === "product" ? { version: 1, day: shop.dailySpecial.day, offer } : null
+  },
+})
+
+/**
+ * @publicProjection CM-10 : instant de réouverture d'une vitrine publique en pause, à part du DTO strict de la vitrine
+ * (un front ancien l'ignore) ; mêmes conditions que `getStorefront`, `now` arrondi par le serveur de l'écran.
+ */
+export const getStorefrontPause = query({
+  args: { networkId: v.id("networks"), handle: v.string(), now: v.number() },
+  returns: v.union(publicStorefrontPauseValidator, v.null()),
+  handler: async (ctx, args): Promise<PublicStorefrontPause | null> => {
+    const context = await publicContext(ctx, args.networkId)
+    if (!Number.isFinite(args.now)) return null
+    const page = await findPageByHandle(ctx, args.handle)
+    const shop = page ? await shopOfPage(ctx, page._id) : null
+    const pausedUntil = shop?.pausedUntil
+    if (!shop || !isShopPaused(pausedUntil, args.now)) return null
+    if (!await publicStorefrontPage(ctx, context.root, shop, context.reader?.personId)) return null
+    return { version: 1, pausedUntil }
   },
 })

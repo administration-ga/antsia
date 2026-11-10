@@ -464,6 +464,7 @@ import type * as modules_shops_servicePolicy from "../modules/shops/servicePolic
 import type * as modules_shops_serviceRules from "../modules/shops/serviceRules.js";
 import type * as modules_shops_serviceTables from "../modules/shops/serviceTables.js";
 import type * as modules_shops_services from "../modules/shops/services.js";
+import type * as modules_shops_shopPause from "../modules/shops/shopPause.js";
 import type * as modules_shops_shops from "../modules/shops/shops.js";
 import type * as modules_shops_storefrontTerms from "../modules/shops/storefrontTerms.js";
 import type * as modules_shops_tables from "../modules/shops/tables.js";
@@ -949,6 +950,7 @@ declare const fullApi: ApiFromModules<{
   "modules/shops/serviceRules": typeof modules_shops_serviceRules;
   "modules/shops/serviceTables": typeof modules_shops_serviceTables;
   "modules/shops/services": typeof modules_shops_services;
+  "modules/shops/shopPause": typeof modules_shops_shopPause;
   "modules/shops/shops": typeof modules_shops_shops;
   "modules/shops/storefrontTerms": typeof modules_shops_storefrontTerms;
   "modules/shops/tables": typeof modules_shops_tables;

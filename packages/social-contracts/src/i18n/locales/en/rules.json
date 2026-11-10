@@ -182,5 +182,8 @@
   "CONTEXT_CALLS_CLOSED": "Calls are not open at this stage of the conversation.",
   "CONTEXT_CALL_CONSENT_REQUIRED": "A call requires both parties' consent in this conversation.",
   "CONTEXT_IDEMPOTENCY_CONFLICT": "This message was already sent with different content. Please write it again.",
-  "CONTEXT_TEXT_CONTROL": "The message contains unsupported characters."
+  "CONTEXT_TEXT_CONTROL": "The message contains unsupported characters.",
+  "SHOP_PAUSED": "This shop is temporarily closed and reopens on {{until, datetime(dateStyle: long; timeZone: Africa/Libreville)}}: it accepts no new orders or requests until then. Its storefront and your conversations with it remain open.",
+  "SHOP_PAUSE_END_PAST": "The reopening date must be tomorrow at the earliest.",
+  "SHOP_PAUSE_TOO_LONG": "A temporary closure cannot exceed {{days}} days. For longer, withdraw the storefront."
 }

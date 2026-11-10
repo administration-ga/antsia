@@ -10,6 +10,7 @@ import { COMMERCE_INQUIRY_CONSENT_VERSION } from "@antsia/social-domain/commerce
 import { COMMERCE_LINK_CONSENT_VERSION } from "@antsia/social-domain/commerce-link"
 import { COMMERCE_SERVICE_CONSENTS, COMMERCE_SERVICE_CONTROL_CONTRACT } from "@antsia/social-domain/commerce-services"
 import { federationSigningText } from "@antsia/social-domain/federationProtocol"
+import { engineErrorRule } from "@antsia/social-contracts/errors"
 import { makeFunctionReference } from "convex/server"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
@@ -964,6 +965,39 @@ describe("P14B — avis commerce des services", () => {
     const quiet = await notices(g, "commerce_service_booking_held")
     expect(quiet).toHaveLength(1)
     expect(await jobsOf(g, quiet[0]!._id)).toEqual([])
+  })
+})
+
+describe("CM-10 — boutique en pause : aucune nouvelle demande, celles en cours suivent leur cours", () => {
+  const DAY = 24 * HOUR
+  const PAUSED = { rule: "SHOP_PAUSED", params: { until: NOW + DAY } }
+  async function pause(f: Fixture) { await f.t.run(async (ctx) => { await ctx.db.patch(f.shopId, { pausedUntil: NOW + DAY }) }) }
+  async function refusal(work: Promise<unknown>) { return engineErrorRule(await work.then(() => null, (reason: unknown) => reason)) }
+  const orderIntent = (f: Fixture, clientRequestId: string, unitAmount = 15_000, revision = 1) => ({ networkId: f.root, handle: "salon-test", offerRef: OFFER, quantity: 1, expectedUnitAmount: { amount: unitAmount, currency: "XAF" as const }, expectedCatalogRevision: revision, consentTextVersion: COMMERCE_SERVICE_CONSENTS.service_order.textVersion, clientRequestId })
+
+  it("rendez-vous, devis et prestation nouveaux : refusés en disant la réouverture, rien n'est envoyé ni créé", async () => {
+    const f = await fixture(), p = peer(), threadId = await quoteThread(f)
+    await pause(f)
+    expect(await refusal(f.buyer.as.action(book, bookIntent(f)))).toEqual(PAUSED)
+    expect(await refusal(f.buyer.as.action(requestQuote, { networkId: f.root, handle: "salon-test", offerRef: OFFER, threadId, need: "Coupe", attachmentMessageIds: [], consentTextVersion: COMMERCE_INQUIRY_CONSENT_VERSION, clientRequestId: "service-paused-quote-0001" }))).toEqual(PAUSED)
+    expect(await refusal(f.buyer.as.action(orderService, orderIntent(f, "service-paused-order-0001")))).toEqual(PAUSED)
+    expect([...p06(p, "booking.request"), ...p06(p, "inquiry.submit")]).toHaveLength(0)
+    expect(p.sent.filter((item) => item.path === "/commerce/v1/services/orders")).toHaveLength(0)
+    expect(await f.t.run(async (ctx) => ctx.db.query("commerceServiceRequests").take(5))).toEqual([])
+    // La conversation commerciale avec la boutique reste ouverte : la pause ne la ferme pas.
+    expect((await f.t.run(async (ctx) => ctx.db.get(threadId)))?.state).toBe("accepted")
+  })
+
+  it("un rendez-vous pris avant la pause se rejoue et s'annule ; un nouveau tarif se reconfirme sur la même demande", async () => {
+    const f = await fixture(), p = peer(), requestRowId = await booked(f, p)
+    p.state.orderUnitAmount = 17_000; p.state.orderRevision = 2
+    const first = await f.buyer.as.action(orderService, orderIntent(f, "service-paused-order-0002"))
+    if (first.outcome !== "request") throw new Error("Prestation attendue")
+    await pause(f)
+    expect(await f.buyer.as.action(book, bookIntent(f))).toMatchObject({ outcome: "request", requestRowId, state: "accepted" })
+    expect(await f.buyer.as.action(orderService, { ...orderIntent(f, "service-paused-order-0003", 17_000, 2), existingRequestRowId: first.requestRowId })).toMatchObject({ outcome: "request", requestRowId: first.requestRowId, state: "accepted" })
+    expect(await f.buyer.as.action(cancel, { networkId: f.root, requestRowId, expectedRevision: 1, consentTextVersion: COMMERCE_SERVICE_CONSENTS.booking_cancel.textVersion, clientRequestId: "service-paused-cancel-0001" })).toMatchObject({ outcome: "request", state: "accepted" })
+    expect(await requestRow(f, requestRowId)).toMatchObject({ state: "closed" })
   })
 })
 
