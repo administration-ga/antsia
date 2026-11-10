@@ -370,7 +370,7 @@ Plan : [`13_CONSOLE_EXPLOITATION_LANCEMENT.md`](13_CONSOLE_EXPLOITATION_LANCEMEN
 | EX-17 | Garde antivirus fermée et file des fichiers retenus | P0 | S | S1 | publication. | fusionné |
 | EX-18 | Corrections d'accessibilité AA | P0 | L | S1 | aucune. | à faire |
 | EX-19 | Liste de contrôle du lancement et bascule de domaine | P0 | M | S1 | domaines, hébergement, clés : propriétaire. | à faire |
-| EX-20 | Hygiène du dépôt public | P1 | S | S1 | aucune pour le code ; évaluation du risque (rotation éventuelle du jeton antivirus) par le propriétaire. | à faire |
+| EX-20 | Hygiène du dépôt public | P1 | S | S1 | aucune pour le code ; évaluation du risque (rotation éventuelle du jeton antivirus) par le propriétaire. | fusionné |
 | EX-21 | Mesure d'usage activée | P2 | S | S1 | projet et jeton par le propriétaire ; texte de consentement validé (plan 12). | à faire |
 
 ## Plan 14 — Application mobile (iOS et Android)

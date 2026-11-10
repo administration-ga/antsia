@@ -1,5 +1,6 @@
 import { execFileSync } from "node:child_process"
-import { existsSync } from "node:fs"
+import { createHash } from "node:crypto"
+import { existsSync, readFileSync } from "node:fs"
 import { basename, extname, join } from "node:path"
 
 import { describe, expect, it } from "vitest"
@@ -8,14 +9,17 @@ import { countByKind, detectDeploymentIdentifiers, FICTIVE_MARKERS, type Identif
 import { formatFindings, readRepoFile, REPO_ROOT } from "./lib/source-files"
 
 /**
- * Chemins surveillés : dossiers (récursifs) et fichiers de la racine. EX-01
- * couvrait les scripts et sa procédure de publication ; EX-20 étend la liste
- * après avoir remplacé les identifiants déjà publiés par des rôles. Le
- * cliquet ne relit jamais son propre dossier (ses exemples sont fictifs mais
- * de forme réelle, pour éprouver le détecteur).
+ * Chemins surveillés : tout le dépôt. EX-01 couvrait les scripts et sa
+ * procédure de publication ; EX-20 a remplacé les identifiants déjà publiés
+ * par des rôles, puis étendu la liste à chaque dossier et à chaque fichier
+ * suivi de la racine (un test vérifie qu'aucun fichier texte suivi n'y
+ * échappe). Le cliquet ne relit jamais son propre dossier : ses exemples sont
+ * fictifs mais de forme réelle, pour éprouver le détecteur.
  */
-export const SCANNED_DIRECTORIES = ["scripts"] as const
-export const SCANNED_ROOT_FILES = ["docs/36_PUBLICATION_ET_RETOUR_ARRIERE.md"] as const
+export const SCANNED_DIRECTORIES = ["apps", "convex", "deploy", "docs", "ops", "packages", "scripts", "tests"] as const
+export const SCANNED_ROOT_FILES = [
+  ".claude-plugin/plugin.json", ".claude/launch.json", ".env.example", ".gitignore", "CLAUDE.md", "LICENSE", "NOTICE", "README.md", "bun.lock", "bunfig.toml", "package.json", "tsconfig.json",
+] as const
 
 /** Fichiers texte relus (les images, polices et PDF ne portent pas d'identifiant écrit). */
 const TEXT_EXTENSIONS = new Set([
@@ -31,7 +35,23 @@ type NamedException = { path: string; counts: Partial<Record<IdentifierKind, num
  * identifiant de plus (ou de moins) dans le fichier fait échouer le cliquet,
  * qui se met alors à jour dans la même PR, raison à l'appui.
  */
-export const NAMED_EXCEPTIONS: readonly NamedException[] = []
+const PROOF = "preuve à empreinte consignée : son SHA-256 figure"
+export const NAMED_EXCEPTIONS: readonly NamedException[] = [
+  // Gardes épinglées : lire ce nom dans une variable élargirait ce qui ouvre la démonstration (décision du propriétaire).
+  { path: "apps/antsia_ga/src/lib/demo-backend.ts", counts: { "convex-deployment": 1 }, reason: "garde épinglée du site : le chemin /demo et la projection illustrative du catalogue ne s'ouvrent que sur le déploiement de démonstration ; les tests importent la constante" },
+  { path: "convex/seeds/demoContentConfig.ts", counts: { "convex-deployment": 1 }, reason: "garde épinglée du moteur : la graine d'animation et la vitrine de démonstration ne s'ouvrent que sur le déploiement de démonstration ; les tests importent la constante" },
+  // Configuration de build du mobile (zone de la session mobile) : les origines publiques sont injectées dans le binaire.
+  { path: "apps/antsia_mobile/eas.json", counts: { "convex-host": 4, "hosting-host": 2 }, reason: "configuration des builds EAS du mobile : les origines publiques des moteurs et du site y sont injectées ; les déplacer vers les variables EAS est une décision du propriétaire" },
+  // Preuves signées : on ne réécrit ni un document certifié ni son empreinte (règle du propriétaire).
+  { path: "docs/recette/apercus-sept-chartes-2026-10-21/antsia/rapport.md", counts: { "hosting-host": 1 }, reason: `${PROOF} dans antsia/SHA256SUMS de la recette des aperçus` },
+  { path: "docs/recette/apercus-sept-chartes-2026-10-21/antsia/resultats.json", counts: { "hosting-host": 1 }, reason: `${PROOF} dans antsia/SHA256SUMS de la recette des aperçus` },
+  { path: "docs/recette/apercus-sept-chartes-2026-10-21/antsia-demo/rapport.md", counts: { "hosting-host": 1 }, reason: `${PROOF} dans antsia-demo/SHA256SUMS de la recette des aperçus` },
+  { path: "docs/recette/apercus-sept-chartes-2026-10-21/antsia-demo/resultats.json", counts: { "hosting-host": 1 }, reason: `${PROOF} dans antsia-demo/SHA256SUMS de la recette des aperçus` },
+  { path: "docs/recette/complements-sociaux-2026-10-21/publication/publication-proof.json", counts: { "hosting-id": 2 }, reason: `${PROOF} dans publication/manifest.json de la recette des compléments sociaux` },
+  { path: "docs/recette/publication-main-en-ligne-2026-10-21/RAPPORT_PUBLICATION_MAIN.md", counts: { "hosting-host": 2 }, reason: `${PROOF} dans SHA256SUMS de la publication de main du 21/10` },
+  { path: "docs/recette/publication-main-en-ligne-2026-10-21/README.md", counts: { "hosting-host": 2 }, reason: `${PROOF} dans SHA256SUMS de la publication de main du 21/10` },
+  { path: "docs/recette/publication-main-en-ligne-2026-10-21/preuves/publication-proof.json", counts: { "hosting-host": 4 }, reason: `${PROOF} dans SHA256SUMS de la publication de main du 21/10 (et provenance.json)` },
+]
 
 /** Fichiers suivis ou à suivre (git) : jamais un fichier ignoré, donc jamais un `.env.local`. */
 function candidateFiles(): string[] {
@@ -82,6 +102,22 @@ describe("no-deployment-identifiers — aucun identifiant interne d'hébergement
     expect(mismatches, mismatches.join("\n")).toEqual([])
   })
 
+  it("tout fichier texte suivi est relu (un dossier ou un fichier ajouté à la racine n'échappe pas au cliquet)", () => {
+    const uncovered = candidateFiles().filter((file) => isTextFile(file) && !inScope(file) && !file.startsWith("tests/ratchets/"))
+    expect(uncovered).toEqual([])
+  })
+
+  it("une preuve à empreinte consignée garde son empreinte : l'exception tombe si le fichier change", () => {
+    const proofs = NAMED_EXCEPTIONS.filter((exception) => exception.reason.startsWith(PROOF))
+      .map(({ path }) => ({ path, digest: createHash("sha256").update(readFileSync(join(REPO_ROOT, path))).digest("hex"), witnessed: false }))
+    expect(proofs.length).toBeGreaterThan(0)
+    for (const file of candidateFiles().filter(isTextFile)) {
+      const text = readRepoFile(file)
+      for (const proof of proofs) if (file !== proof.path && text.includes(proof.digest)) proof.witnessed = true
+    }
+    expect(proofs.filter((proof) => !proof.witnessed).map((proof) => proof.path)).toEqual([])
+  })
+
   it("chaque exception nommée vise un fichier relu, avec sa raison", () => {
     const scanned = new Set(scannedFiles())
     for (const { path, counts, reason } of NAMED_EXCEPTIONS) {
@@ -121,9 +157,13 @@ describe("no-deployment-identifiers — aucun identifiant interne d'hébergement
       'Promu : antsia-k9x2m4p7q ; retour arrière vers antsia-demo-a1b2c3d4e.',
       'CONVEX_DEPLOYMENT=prod:calm-heron-390',
       'https://calm-heron-834.convex.site/api',
+      'Retour arrière : antsia-qzxwvkpmt (principal) et diasporale-demo-bvlqhrnys (enfant).',
+      'ancienne adresse calm-heron.vercel.app404 et absente',
     ].join("\n")
     const findings = detectDeploymentIdentifiers("docs/fabrique.md", source)
-    expect([...new Set(findings.map((finding) => finding.line))]).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13])
+    expect([...new Set(findings.map((finding) => finding.line))]).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15])
+    expect(findings.filter((finding) => finding.line === 14).map((finding) => finding.kind)).toEqual(["hosting-deployment-short", "hosting-deployment-short"])
+    expect(findings.find((finding) => finding.line === 15)?.kind).toBe("hosting-host")
     expect(findings.filter((finding) => finding.line === 8).map((finding) => finding.kind)).toEqual(["convex-deployment", "convex-deployment"])
     expect(findings.filter((finding) => finding.line === 11).map((finding) => finding.kind)).toEqual(["hosting-deployment-short", "hosting-deployment-short"])
     expect(findings.find((finding) => finding.line === 12)?.kind).toBe("convex-deployment-target")
@@ -148,7 +188,7 @@ describe("no-deployment-identifiers — aucun identifiant interne d'hébergement
       // Identifiants séquentiels des tests de fédération.
       '"emitterRef": "commerce-probe-001", "offerRef": "offer-event-001"',
       // Noms datés et faute de frappe « paquet + nombre ».
-      'instantané antsia-front-20261021-03548f8c, tests de social-domain475',
+      'instantané antsia-front-20261021-03548f8c, tests de social-domain475, export antsia-aggregate',
       // Valeurs fictives marquées (tests du moteur, des applications et des scripts).
       'CONVEX_CLOUD_URL=https://demo-antsia-123.convex.cloud ANTSIA_DEMO_DEPLOYMENT=inert-test-123',
       'backend: "https://exemple-demo.convex.cloud", "https://exemple-123.convex.cloud", "https://x.convex.cloud", "https://eu-west-1.convex.cloud"',
@@ -161,7 +201,7 @@ describe("no-deployment-identifiers — aucun identifiant interne d'hébergement
     // Le commit doit être présent : un clone superficiel retirerait la preuve que le détecteur n'est pas devenu muet.
     expect(() => execFileSync("git", ["-C", REPO_ROOT, "cat-file", "-e", `${BEFORE_CLEANUP}^{commit}`]), "historique git requis (clone complet)").not.toThrow()
     const expected: Record<string, Partial<Record<IdentifierKind, number>>> = {
-      "docs/35_PUBLICATION_DONNEES_DEMO_2026-10-22.md": { "hosting-deployment-short": 42, "convex-deployment": 22, "hosting-id": 28, "hosting-host": 5 },
+      "docs/35_PUBLICATION_DONNEES_DEMO_2026-10-22.md": { "convex-deployment": 22, "hosting-host": 5, "hosting-deployment-short": 51, "hosting-id": 28 },
       "docs/31_RECETTE_ANTIVIRUS_DEMO_2026-10-20.md": { "hosting-host": 1, "convex-deployment": 1, "cloud-run-host": 1 },
       "docs/25_RACCORDEMENT_IDN_PRODUCTION.md": { "convex-deployment": 9, "hosting-host": 4, "convex-host": 1 },
       "ops/clamav/README.md": { "convex-deployment": 2 },

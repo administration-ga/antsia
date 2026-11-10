@@ -51,6 +51,12 @@ export const TAILWIND_UTILITY_PREFIXES = [
 const START = String.raw`(?<![\p{L}\p{N}_-])`
 /** Ni prolongé, ni suivi d'un domaine ou d'une extension (`….convex.cloud` relève de la forme hôte, `…-390.png` est un fichier). */
 const END = String.raw`(?![\p{L}\p{N}_-]|\.[\p{L}\p{N}])`
+/** Empreinte de l'hébergeur qui mêle chiffres et lettres : un chiffre suivi plus loin d'une lettre. */
+const MIXED_HASH = String.raw`(?=[a-z]*\d[a-z0-9]*[a-z])`
+/** Projets des sites des produits chez l'hébergeur (noms de produits, publics ; jamais l'équipe). */
+const PRODUCT_PROJECTS = String.raw`(?:antsia|diasporale)(?:-(?:demo|admin))?`
+/** Vrais mots de neuf lettres qui suivent un nom de produit dans le code (`antsia-aggregate`) : pas une empreinte. */
+export const HOSTING_SUFFIX_WORDS = ["aggregate"] as const
 
 export const DEPLOYMENT_IDENTIFIER_PATTERNS: readonly IdentifierPattern[] = [
   {
@@ -71,21 +77,34 @@ export const DEPLOYMENT_IDENTIFIER_PATTERNS: readonly IdentifierPattern[] = [
   {
     kind: "convex-host",
     // Région facultative : `<nom>.<région>.convex.cloud`. Un hôte d'une autre forme (`x.convex.cloud`) n'est pas un déploiement réel.
-    pattern: new RegExp(String.raw`${START}[a-z]+-[a-z]+-\d{3}(?:\.[a-z0-9-]+)?\.convex\.(?:cloud|site)\b`, "gu"),
+    // Les formes hôtes finissent sur tout ce qui n'est pas une lettre : une adresse collée à un nombre (« ….app404 ») reste vue.
+    pattern: new RegExp(String.raw`${START}[a-z]+-[a-z]+-\d{3}(?:\.[a-z0-9-]+)?\.convex\.(?:cloud|site)(?![a-z])`, "gu"),
     message: "adresse nommée d'un déploiement Convex",
   },
-  { kind: "hosting-host", pattern: /\b[a-z0-9][a-z0-9-]*\.vercel\.app\b/gu, message: "adresse d'un projet ou d'un déploiement de l'hébergeur des sites" },
+  { kind: "hosting-host", pattern: /\b[a-z0-9][a-z0-9-]*\.vercel\.app(?![a-z])/gu, message: "adresse d'un projet ou d'un déploiement de l'hébergeur des sites" },
   {
     kind: "hosting-deployment-short",
-    // `<projet>-<empreinte de 9 caractères>` : nom court d'un déploiement de l'hébergeur des sites. L'empreinte
-    // mêle chiffres et lettres (un chiffre suivi plus loin d'une lettre) : `domain475` ou `20261021` n'en sont pas.
+    // `<projet>-<empreinte de 9 caractères>` : nom court d'un déploiement de l'hébergeur des sites. Pour un
+    // projet quelconque, l'empreinte doit mêler chiffres et lettres (un chiffre suivi plus loin d'une lettre) :
+    // `domain475` ou `20261021` n'en sont pas.
     pattern: new RegExp(
-      String.raw`(?<![\p{L}\p{N}_./-])[a-z]{3,}(?:-[a-z]+)*-(?=[a-z0-9]{9}${END})(?=[a-z]*\d[a-z0-9]*[a-z])[a-z0-9]{9}`,
+      String.raw`(?<![\p{L}\p{N}_./-])[a-z]{3,}(?:-[a-z]+)*-(?=[a-z0-9]{9}${END})${MIXED_HASH}[a-z0-9]{9}`,
       "gu",
     ),
     message: "nom court d'un déploiement de l'hébergeur des sites (projet-empreinte)",
   },
-  { kind: "cloud-run-host", pattern: /\b[a-z0-9][a-z0-9-]*(?:\.[a-z0-9-]+)*\.run\.app\b/gu, message: "adresse d'un service Cloud Run" },
+  {
+    kind: "hosting-deployment-short",
+    // Pour les projets des produits (`antsia`, `antsia-demo`, `antsia-admin`, `diasporale`, `diasporale-demo`),
+    // toute empreinte compte, y compris tout en lettres (environ une sur dix, constaté dans les registres) ;
+    // seuls les vrais mots du code qui suivent ce préfixe sont écartés (`HOSTING_SUFFIX_WORDS`).
+    pattern: new RegExp(
+      String.raw`(?<![\p{L}\p{N}_./-])${PRODUCT_PROJECTS}-(?=[a-z0-9]{9}${END})(?!${MIXED_HASH})(?!(?:${HOSTING_SUFFIX_WORDS.join("|")})\b)[a-z0-9]{9}`,
+      "gu",
+    ),
+    message: "nom court d'un déploiement de l'hébergeur des sites (projet-empreinte)",
+  },
+  { kind: "cloud-run-host", pattern: /\b[a-z0-9][a-z0-9-]*(?:\.[a-z0-9-]+)*\.run\.app(?![a-z])/gu, message: "adresse d'un service Cloud Run" },
   { kind: "hosting-id", pattern: /\b(?:prj|team|dpl)_[A-Za-z0-9]{16,}\b/gu, message: "identifiant de projet, d'équipe ou de déploiement de l'hébergeur" },
   { kind: "hosting-team-slug", pattern: /\b[a-z0-9-]+-projects-[a-z0-9]{6,}\b/gu, message: "nom court d'équipe de l'hébergeur" },
   { kind: "convex-deploy-key", pattern: /\b(?:prod|dev|preview|project):[a-z0-9-]+\|[A-Za-z0-9+/=_-]{40,}/gu, message: "clé de déploiement Convex" },
