@@ -1,14 +1,20 @@
-// Dupliqué de socle/convex/modules/reseauPersonnel/domain.test.ts (l. 670-731) @ ad2e7fdc2 — adaptations : imports depuis ./thematicGroups ; `ReseauPersonnelViolation` → `DomainViolation`.
+// Dupliqué de socle/convex/modules/reseauPersonnel/domain.test.ts (l. 670-731) @ ad2e7fdc2 — adaptations : imports depuis ./thematicGroups ; `ReseauPersonnelViolation` → `DomainViolation` ; cas neufs (PG-02) : règles bornées et versionnées, acceptation, transfert de propriété.
 import { describe, expect, it } from "vitest"
 
 import {
   assertThematicGroupDescription,
   assertThematicGroupName,
+  assertThematicGroupRules,
+  assertThematicGroupRulesAccepted,
   canLeaveThematicGroup,
   canRemoveThematicGroupMember,
   canSetThematicGroupRole,
+  canTransferThematicGroupOwnership,
   isThematicGroupModerator,
+  nextThematicGroupRulesVersion,
   THEMATIC_GROUP_NAME_MAX_LENGTH,
+  THEMATIC_GROUP_RULES_MAX_LENGTH,
+  thematicGroupRulesVersionInForce,
   type ThematicGroupRole,
 } from "./thematicGroups"
 import { DomainViolation } from "./violation"
@@ -57,5 +63,48 @@ describe("autorité dans un groupe thématique", () => {
     expect(canLeaveThematicGroup("owner")).toBe(false)
     expect(canLeaveThematicGroup("moderator")).toBe(true)
     expect(canLeaveThematicGroup("member")).toBe(true)
+  })
+})
+
+describe("transfert de propriété (PG-02)", () => {
+  it("du seul owner vers un modérateur, jamais vers soi-même ni vers un simple membre", () => {
+    expect(canTransferThematicGroupOwnership({ actorRole: "owner", targetRole: "moderator", isSelf: false })).toBe(true)
+    expect(canTransferThematicGroupOwnership({ actorRole: "owner", targetRole: "member", isSelf: false })).toBe(false)
+    expect(canTransferThematicGroupOwnership({ actorRole: "owner", targetRole: "owner", isSelf: true })).toBe(false)
+    expect(canTransferThematicGroupOwnership({ actorRole: "moderator", targetRole: "moderator", isSelf: false })).toBe(false)
+    expect(canTransferThematicGroupOwnership({ actorRole: "member", targetRole: "moderator", isSelf: false })).toBe(false)
+  })
+})
+
+describe("règles du groupe (PG-02)", () => {
+  it("bornées ; vides ou blanches = aucune règle", () => {
+    expect(assertThematicGroupRules(undefined)).toBeUndefined()
+    expect(assertThematicGroupRules("   ")).toBeUndefined()
+    expect(assertThematicGroupRules("  Pas d'insultes.  ")).toBe("Pas d'insultes.")
+    expect(assertThematicGroupRules("x".repeat(THEMATIC_GROUP_RULES_MAX_LENGTH))).toHaveLength(THEMATIC_GROUP_RULES_MAX_LENGTH)
+    try {
+      assertThematicGroupRules("x".repeat(THEMATIC_GROUP_RULES_MAX_LENGTH + 1))
+      expect.unreachable()
+    } catch (error) {
+      expect(error).toBeInstanceOf(DomainViolation)
+      expect((error as DomainViolation).code).toBe("GROUP_RULES_TOO_LONG")
+      expect((error as DomainViolation).params).toEqual({ max: THEMATIC_GROUP_RULES_MAX_LENGTH })
+    }
+  })
+
+  it("la version en vigueur n'existe qu'avec un texte ; le compteur ne redescend jamais", () => {
+    expect(thematicGroupRulesVersionInForce({})).toBeNull()
+    expect(thematicGroupRulesVersionInForce({ rulesVersion: 3 })).toBeNull()
+    expect(thematicGroupRulesVersionInForce({ rules: "Courtoisie.", rulesVersion: 3 })).toBe(3)
+    expect(nextThematicGroupRulesVersion(undefined)).toBe(1)
+    expect(nextThematicGroupRulesVersion(3)).toBe(4)
+  })
+
+  it("entrer exige la version EN VIGUEUR ; sans règles, l'adhésion reste libre", () => {
+    expect(() => assertThematicGroupRulesAccepted({ rulesVersion: null, acceptedRulesVersion: undefined })).not.toThrow()
+    expect(() => assertThematicGroupRulesAccepted({ rulesVersion: 2, acceptedRulesVersion: 2 })).not.toThrow()
+    expect(() => assertThematicGroupRulesAccepted({ rulesVersion: 2, acceptedRulesVersion: undefined })).toThrow(DomainViolation)
+    // Une version périmée (lue avant un changement) ne vaut pas acceptation.
+    expect(() => assertThematicGroupRulesAccepted({ rulesVersion: 2, acceptedRulesVersion: 1 })).toThrow(DomainViolation)
   })
 })
