@@ -5,7 +5,9 @@
  * quotidien) : une lecture ne compte jamais rien. Le passage compte d'abord les
  * membres listés de chaque pays, puis les pages ACTIVES et lisibles du réseau,
  * par pays et par nature (associations, entreprises — DG-007), chacune relue par
- * LA garde des pages. Le nombre de membres d'un pays sous le seuil de publication
+ * LA garde des pages, puis les évènements à venir ouverts au réseau de chaque
+ * association (HB-02, `hubEvents.ts`) : un compte inexact n'est pas publié, et la
+ * date de ce comptage dit à l'écran que le compteur est mesuré. Le nombre de membres d'un pays sous le seuil de publication
  * ne quitte pas le serveur (anti-réidentification) : la projection rend la
  * PRÉSENTATION du compteur (`presentHubCounters`), jamais le chiffre brut ; ce
  * seuil ne concerne que les membres. L'ouverture d'un pays se lit dans
@@ -29,10 +31,14 @@ import { notFound } from "../../lib/errors"
 import { networkQuery } from "../../lib/functions"
 import { readablePageOrNull } from "../pages/access"
 import { assertDiasporaNetwork, consentInForce, effectiveStatusIn, isDiasporaNetwork, privacyOf } from "./facts"
-import { countryHubViewValidator } from "./validators"
+import { countPageUpcomingEvents } from "./hubEvents"
+import { countryHubDetailValidator, countryHubViewValidator } from "./validators"
 
 /** Une page du passage nocturne : quelques lectures par membre, loin des limites d'une transaction. */
 export const HUB_COUNTERS_PAGE_SIZE = 200
+
+/** Pages par page du passage des évènements : chacune relit jusqu'à une cinquantaine d'évènements et leur état. */
+export const HUB_EVENT_COUNTERS_PAGE_SIZE = 20
 
 /** Borne des pays d'un réseau (ISO 3166-1 : 249 codes). */
 const COUNTRIES_MAX = 250
@@ -55,15 +61,20 @@ function hubView(network: Doc<"networks">, country: string, row: Doc<"countryHub
   }
 }
 
-/** Le hub d'un pays : son ouverture et ses compteurs matérialisés (rien n'est compté ici). */
+/**
+ * Le hub d'un pays : son ouverture et ses compteurs matérialisés (rien n'est compté
+ * ici), et la date du dernier comptage exact des évènements à venir — sans elle, le
+ * compteur des évènements n'est pas mesuré.
+ */
 export const getCountryHub = networkQuery({
   args: { country: v.string() },
-  returns: countryHubViewValidator,
+  returns: countryHubDetailValidator,
   handler: async (ctx, { country }) => {
     assertDiasporaNetwork(ctx.network)
     const parsed = parseResidenceCountry(country)
     if (!parsed.ok) return notFound()
-    return hubView(ctx.network, parsed.value, await hubRow(ctx, ctx.networkId, parsed.value))
+    const row = await hubRow(ctx, ctx.networkId, parsed.value)
+    return { ...hubView(ctx.network, parsed.value, row), upcomingEventsComputedAt: row?.upcomingEventsComputedAt ?? null }
   },
 })
 
@@ -106,6 +117,10 @@ interface HubPassCounts {
   readonly members: CountryTally
   readonly associations: CountryTally
   readonly companies: CountryTally
+  /** Évènements à venir ouverts au réseau, par pays (HB-02). */
+  readonly upcomingEvents: CountryTally
+  /** Pays dont une association dépasse la borne de relecture : leur compte d'évènements n'est pas exact. */
+  readonly inexactEvents: ReadonlySet<string>
 }
 
 /** Une page de passage, jamais plus large que `HUB_COUNTERS_PAGE_SIZE`. */
@@ -126,22 +141,25 @@ async function writeHubCounters(ctx: MutationCtx, network: Doc<"networks">, coun
     ...Object.keys(counts.members),
     ...Object.keys(counts.associations),
     ...Object.keys(counts.companies),
+    ...Object.keys(counts.upcomingEvents),
   ])
   const now = Date.now()
   for (const country of countries) {
     if (!isResidenceCountry(country)) continue
-    // Les évènements à venir : leur source arrive avec les évènements (PD7) ; d'ici là, zéro mesuré.
+    // HB-02 : les évènements à venir ouverts au réseau ; un compte inexact n'est ni écrit ni daté.
+    const eventsExact = !counts.inexactEvents.has(country)
     const counters = {
       members: counts.members[country] ?? 0,
       associations: counts.associations[country] ?? 0,
       companies: counts.companies[country] ?? 0,
-      upcomingEvents: 0,
+      upcomingEvents: eventsExact ? counts.upcomingEvents[country] ?? 0 : 0,
       countersComputedAt: computedAt,
       updatedAt: now,
     }
     const row = byCountry.get(country)
-    if (row) await ctx.db.patch(row._id, counters)
-    else await ctx.db.insert("countryHubs", { networkId: network._id, country, ...counters })
+    // `undefined` retire la date d'un comptage antérieur : le compteur redevient « non mesuré ».
+    if (row) await ctx.db.patch(row._id, { ...counters, upcomingEventsComputedAt: eventsExact ? computedAt : undefined })
+    else await ctx.db.insert("countryHubs", { networkId: network._id, country, ...counters, ...(eventsExact ? { upcomingEventsComputedAt: computedAt } : {}) })
   }
 }
 
@@ -212,7 +230,7 @@ export const refreshHubCountersPage = internalMutation({
  * par nature (associations, entreprises), chacune relue par LA garde des pages
  * sans lecteur — une page retirée, ou retenue par la modération, ne compte pas.
  * Une page sans pays, d'une autre nature ou d'un pays hors diaspora n'entre dans
- * aucun hub. À la dernière page, les compteurs du passage sont écrits ensemble.
+ * aucun hub. À la dernière page, le passage continue par les évènements.
  */
 export const refreshHubPageCountersPage = internalMutation({
   args: {
@@ -250,7 +268,71 @@ export const refreshHubPageCountersPage = internalMutation({
       })
       return null
     }
-    await writeHubCounters(ctx, network, { members: args.members, associations, companies }, args.startedAt)
+    // Les pages comptées, le passage continue par les évènements à venir des associations (HB-02).
+    await ctx.scheduler.runAfter(0, internal.modules.diaspora.hubs.refreshHubEventCountersPage, {
+      networkId: network._id,
+      cursor: null,
+      members: args.members,
+      associations,
+      companies,
+      upcomingEvents: {},
+      inexactEvents: [],
+      startedAt: args.startedAt,
+      pageSize: args.pageSize,
+    })
+    return null
+  },
+})
+
+/**
+ * Une page du passage sur les ÉVÈNEMENTS (HB-02) : pour chaque association active
+ * et lisible du réseau (garde des pages, sans lecteur), ses évènements à venir
+ * ouverts au réseau, programmés et publiés (`countPageUpcomingEvents`), comptés
+ * dans le hub de son pays. Une page plus étroite que les autres : chacune relit
+ * ses évènements et leur état. Une association qui dépasse la borne de relecture
+ * rend le compte de son pays inexact : il n'est pas publié. À la dernière page,
+ * les compteurs du passage sont écrits ensemble.
+ */
+export const refreshHubEventCountersPage = internalMutation({
+  args: {
+    networkId: v.id("networks"),
+    cursor: v.union(v.string(), v.null()),
+    members: v.record(v.string(), v.number()),
+    associations: v.record(v.string(), v.number()),
+    companies: v.record(v.string(), v.number()),
+    upcomingEvents: v.record(v.string(), v.number()),
+    inexactEvents: v.array(v.string()),
+    startedAt: v.number(),
+    pageSize: v.number(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args): Promise<null> => {
+    const network = await ctx.db.get(args.networkId)
+    if (!isDiasporaNetwork(network)) return null
+    const page = await ctx.db
+      .query("pages")
+      .withIndex("by_network_status_trustRank_createdAt", (q) => q.eq("networkId", network._id).eq("status", "active"))
+      .paginate({ cursor: args.cursor, numItems: Math.min(passPageSize(args.pageSize), HUB_EVENT_COUNTERS_PAGE_SIZE) })
+    const upcomingEvents = { ...args.upcomingEvents }
+    const inexact = new Set(args.inexactEvents)
+    for (const row of page.page) {
+      const country = row.country
+      if (row.ownerKind !== "association" || country === undefined || !isResidenceCountry(country)) continue
+      if (!(await readablePageOrNull(ctx, network, row._id))) continue
+      const { count, exact } = await countPageUpcomingEvents(ctx, row, args.startedAt)
+      upcomingEvents[country] = (upcomingEvents[country] ?? 0) + count
+      if (!exact) inexact.add(country)
+    }
+    if (!page.isDone) {
+      await ctx.scheduler.runAfter(0, internal.modules.diaspora.hubs.refreshHubEventCountersPage, {
+        ...args,
+        cursor: page.continueCursor,
+        upcomingEvents,
+        inexactEvents: [...inexact],
+      })
+      return null
+    }
+    await writeHubCounters(ctx, network, { members: args.members, associations: args.associations, companies: args.companies, upcomingEvents, inexactEvents: inexact }, args.startedAt)
     return null
   },
 })
