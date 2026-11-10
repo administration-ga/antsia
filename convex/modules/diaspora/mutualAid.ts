@@ -77,7 +77,7 @@ import { liveSignatoryRole, pageCardOf, readablePageOrNull } from "../pages/acce
 import { type PageCard, pageCardValidator } from "../pages/validators"
 import { miniProfileCache } from "../people/miniProfile"
 import { noticeAidAnswerAccepted, noticeAidAnswerPublished, noticeAidMissionSignup } from "./communityNotifications"
-import { assertDiasporaNetwork } from "./facts"
+import { assertDiasporaNetwork, assertPageOpenTo } from "./facts"
 import {
   isRemovedByModeration,
   isServedTo,
@@ -1276,6 +1276,8 @@ export const signUpForMission = networkMutation({
     // G9 : on ne s'inscrit qu'à une mission que la modération sert à ce lecteur.
     const found = await readableAidMissionOrNull(ctx, ctx.network, ctx.person._id, args.missionId)
     if (!found) return notFound()
+    // RP-03 : toute l'équipe vivante de la page en blocage avec la personne, la mission se tait comme retirée.
+    await assertPageOpenTo(ctx, found.page, ctx.person._id)
     const { mission } = found
     const row = await signupRowOf(ctx, mission._id, ctx.person._id)
     const now = Date.now()
