@@ -37,6 +37,7 @@
  */
 import {
   AID_PAGE_MAX,
+  aidQuestionSearchText,
   aidSignupBlocker,
   aidStatusWithoutAcceptedAnswer,
   checkAidAcceptedAnswer,
@@ -49,13 +50,18 @@ import {
   checkAidSignup,
   checkAidSignupWithdrawal,
   hasCapability,
+  matchesAidQuestionSearch,
   MUTUAL_AID_REFUSALS,
   parseAidAnswer,
   parseAidMission,
   parseAidPlaceFilter,
   parseAidQuestion,
+  parseAidQuestionSearch,
   parseAidReason,
   type AidMissionDraft,
+  type AidPlaceFilter,
+  type AidQuestionListStatus,
+  type AidQuestionSearch,
   type AidQuestionGesture,
   type AidSignupFacts,
   type MemberCapability,
@@ -616,31 +622,77 @@ function storedMission(draft: AidMissionDraft) {
 // ═══════════════════════════════════════════════════════════════
 
 /**
+ * ET-04 — la requête d'une liste de questions : la recherche plein texte (mots
+ * repliés) dès deux caractères, sinon l'index le plus étroit des filtres posés —
+ * ville saisie, thème, « sans réponse », ou l'état seul, les plus récentes
+ * d'abord. Toujours bornée au réseau, au pays et à l'état ; ce que l'index ne
+ * porte pas (la ville d'une recherche, un second filtre) se rejuge ligne à ligne.
+ */
+function questionListQuery(ctx: Pick<QueryCtx, "db">, networkId: Id<"networks">, place: AidPlaceFilter, status: AidQuestionListStatus, search: AidQuestionSearch) {
+  const { country, cityKey } = place
+  const { query, theme } = search
+  if (query !== null) {
+    return ctx.db.query("aidQuestions").withSearchIndex("search_by_text", (q) => {
+      const base = q.search("searchText", query).eq("networkId", networkId).eq("country", country).eq("status", status)
+      return theme === null ? base : base.eq("theme", theme)
+    })
+  }
+  if (cityKey !== null) {
+    return ctx.db
+      .query("aidQuestions")
+      .withIndex("by_network_country_city_status_createdAt", (q) => q.eq("networkId", networkId).eq("country", country).eq("cityKey", cityKey).eq("status", status))
+      .order("desc")
+  }
+  if (theme !== null) {
+    return ctx.db
+      .query("aidQuestions")
+      .withIndex("by_network_country_status_theme_createdAt", (q) => q.eq("networkId", networkId).eq("country", country).eq("status", status).eq("theme", theme))
+      .order("desc")
+  }
+  if (search.unanswered) {
+    return ctx.db
+      .query("aidQuestions")
+      .withIndex("by_network_country_status_answerCount_createdAt", (q) => q.eq("networkId", networkId).eq("country", country).eq("status", status).eq("answerCount", 0))
+      .order("desc")
+  }
+  return ctx.db
+    .query("aidQuestions")
+    .withIndex("by_network_country_status_createdAt", (q) => q.eq("networkId", networkId).eq("country", country).eq("status", status))
+    .order("desc")
+}
+
+/**
  * Les questions d'un pays (et d'une ville saisie), dans un état — ouvertes,
- * résolues ou closes —, les plus récentes d'abord. Le filtre restreint : une
- * page filtrée peut être courte tout en annonçant sa suite (`isDone`).
+ * résolues ou closes —, les plus récentes d'abord ; ET-04 : d'un thème, sans
+ * réponse, ou cherchées par mots (par pertinence). Chaque filtre RESTREINT : une
+ * page filtrée peut être courte tout en annonçant sa suite (`isDone`). Aucune
+ * recherche n'est gardée.
  */
 export const listQuestions = networkQuery({
-  args: { country: v.string(), city: v.optional(v.string()), status: aidQuestionListStatusValidator, paginationOpts: paginationOptsValidator },
+  args: {
+    country: v.string(),
+    city: v.optional(v.string()),
+    status: aidQuestionListStatusValidator,
+    theme: v.optional(v.string()),
+    query: v.optional(v.string()),
+    unanswered: v.optional(v.boolean()),
+    paginationOpts: paginationOptsValidator,
+  },
   returns: paginationResultValidator(questionCardValidator),
   handler: async (ctx, args): Promise<PaginationResult<QuestionCard>> => {
     assertDiasporaNetwork(ctx.network)
     assertCapability(ctx, "read_network")
-    const { country, cityKey } = ruled(parseAidPlaceFilter({ country: args.country, city: args.city }))
-    const query = cityKey === null
-      ? ctx.db
-        .query("aidQuestions")
-        .withIndex("by_network_country_status_createdAt", (q) => q.eq("networkId", ctx.networkId).eq("country", country).eq("status", args.status))
-      : ctx.db
-        .query("aidQuestions")
-        .withIndex("by_network_country_city_status_createdAt", (q) => q.eq("networkId", ctx.networkId).eq("country", country).eq("cityKey", cityKey).eq("status", args.status))
-    const result = await query.order("desc").paginate(bounded(args.paginationOpts))
+    const place = ruled(parseAidPlaceFilter({ country: args.country, city: args.city }))
+    const search = ruled(parseAidQuestionSearch({ query: args.query, theme: args.theme, unanswered: args.unanswered }))
+    const { country, cityKey } = place
+    const result = await questionListQuery(ctx, ctx.networkId, place, args.status, search).paginate(bounded(args.paginationOpts))
     const personOf = peopleOf(ctx)
     const page: QuestionCard[] = []
     for (const question of result.page) {
       // Défense en profondeur : l'index borne déjà, chaque ligne est rejugée.
       if (question.networkId !== ctx.networkId || question.status !== args.status || question.country !== country) continue
       if (cityKey !== null && question.cityKey !== cityKey) continue
+      if (!matchesAidQuestionSearch(question, search)) continue
       if (await isSetAside(ctx, question.authorPersonId)) continue
       // G9 : projection publique — ce que la modération sert à ce lecteur, rien d'autre.
       if (!(await isServedTo(ctx, "diasporaAidQuestion", question._id, ctx.person._id))) continue
@@ -767,6 +819,7 @@ export const askQuestion = networkMutation({
       status: "open",
       answerCount: 0,
       version: 1,
+      searchText: aidQuestionSearchText(draft),
       createdAt: now,
       updatedAt: now,
     })
@@ -802,6 +855,7 @@ export const updateQuestion = networkMutation({
       theme: draft.theme,
       city: draft.city ?? undefined,
       cityKey: draft.cityKey ?? undefined,
+      searchText: aidQuestionSearchText(draft),
       editedAt: now,
       updatedAt: now,
       version,
