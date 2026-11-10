@@ -348,7 +348,7 @@ Plan : [`13_CONSOLE_EXPLOITATION_LANCEMENT.md`](13_CONSOLE_EXPLOITATION_LANCEMEN
 
 | Lot | Titre | Priorité | Taille | Session | Porte | État |
 |---|---|---|---|---|---|---|
-| EX-01 | Publication et retour arrière dans le dépôt | P0 | M | S1 | toute exécution réelle exige l'accord écrit du propriétaire. | à faire |
+| EX-01 | Publication et retour arrière dans le dépôt | P0 | M | S1 | toute exécution réelle exige l'accord écrit du propriétaire. | fusionné |
 | EX-02 | Intégration continue en lecture seule | P1 | S | S1 | **décision du propriétaire** (automatisations coupées volontairement). | à faire |
 | EX-03 | Sonde de santé qui joint le moteur | P0 | S | S1 | publication. | fusionné |
 | EX-04 | Alertes, journaux et astreinte | P0 | M | S1 | choix de l'outil, comptes et destinataires par le propriétaire. | à faire |

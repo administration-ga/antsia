@@ -1,9 +1,11 @@
 import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from "bun:test"
 
-import { adminClient, deploymentOfKey, seedDemoContent, seedMedia } from "./seed-demo-content.mjs"
+import { adminClient, demoDeployment, deploymentOfKey, seedDemoContent, seedMedia } from "./seed-demo-content.mjs"
 
-const DEMO_KEY = "prod:vivid-hedgehog-655|cle-secrete-de-test"
-const PROD_KEY = "prod:diligent-avocet-585|cle-secrete-de-test"
+// Valeurs fictives : les vrais noms de déploiement vivent sur la machine qui publie, jamais dans le dépôt.
+const DEMO_ENV = { ANTSIA_RELEASE_CONVEX_DEMO: "exemple-demo", ANTSIA_RELEASE_SITE_ORIGIN: "https://site.exemple.test" }
+const DEMO_KEY = "prod:exemple-demo|cle-secrete-de-test"
+const PROD_KEY = "prod:exemple-production|cle-secrete-de-test"
 const originalFetch = globalThis.fetch
 let consoleSpies
 
@@ -21,9 +23,9 @@ const target = (overrides = {}) => ({ key: "animation-20261020:post:membre-carte
 
 describe("clé de déploiement de la démonstration", () => {
   test.each([
-    [DEMO_KEY, "vivid-hedgehog-655"],
-    ["dev:vivid-hedgehog-655|x", "vivid-hedgehog-655"],
-    [PROD_KEY, "diligent-avocet-585"],
+    [DEMO_KEY, "exemple-demo"],
+    ["dev:exemple-demo|x", "exemple-demo"],
+    [PROD_KEY, "exemple-production"],
     ["sans-separateur", null],
     [undefined, null],
   ])("lit le déploiement de %p sans l'afficher", (key, expected) => {
@@ -31,7 +33,13 @@ describe("clé de déploiement de la démonstration", () => {
   })
 
   test.each([PROD_KEY, undefined, ""])("refuse toute clé qui ne désigne pas la démo, avant tout appel : %p", key => {
-    expect(() => adminClient(key)).toThrow("ANTSIA_CONVEX_DEMO_DEPLOY_KEY ne désigne pas vivid-hedgehog-655.")
+    expect(() => adminClient(key, { env: DEMO_ENV })).toThrow("ANTSIA_CONVEX_DEMO_DEPLOY_KEY ne désigne pas exemple-demo.")
+    expect(globalThis.fetch).not.toHaveBeenCalled()
+  })
+
+  test.each([{}, { ANTSIA_RELEASE_CONVEX_DEMO: "prod:exemple-demo|cle" }])("sans nom de déploiement de démonstration sur la machine, refus avant tout appel : %p", env => {
+    expect(() => demoDeployment(env)).toThrow("ANTSIA_RELEASE_CONVEX_DEMO absente ou mal formée")
+    expect(() => adminClient(DEMO_KEY, { env })).toThrow("ANTSIA_RELEASE_CONVEX_DEMO absente ou mal formée")
     expect(globalThis.fetch).not.toHaveBeenCalled()
   })
 })

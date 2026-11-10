@@ -1,6 +1,7 @@
 "use client"
 
 import { BRAND_NAME } from "@antsia/social-contracts/brand"
+import type { IdnReturnRefusal } from "@antsia/social-features/features/identity/idn-return"
 import { AppearanceToggle } from "@antsia/social-features/shell/appearance"
 import Link from "next/link"
 import { useEffect } from "react"
@@ -22,10 +23,12 @@ export type AccessHomeScreenProps = {
   notificationReference?: string
   shopContact?: ShopContactContinuation
   specializedDestination?: SpecializedDestination
+  /** Un refus ou un abandon chez IDN, déjà lu en refus fermé par la page serveur. */
+  idnReturn?: IdnReturnRefusal | null
 }
 
 /** Une même porte responsive pour l'accueil, la connexion et l'inscription. */
-export function AccessHomeScreen({ intent = "sign-in", signOutIncomplete = false, publicPostId, notificationReference, shopContact, specializedDestination }: AccessHomeScreenProps = {}) {
+export function AccessHomeScreen({ intent = "sign-in", signOutIncomplete = false, publicPostId, notificationReference, shopContact, specializedDestination, idnReturn = null }: AccessHomeScreenProps = {}) {
   const { t, i18n } = useTranslation("antsia")
   const locale = i18n.resolvedLanguage?.startsWith("en") ? "en" : "fr"
 
@@ -52,7 +55,7 @@ export function AccessHomeScreen({ intent = "sign-in", signOutIncomplete = false
         <div className="mx-auto w-full min-w-0 max-w-[420px]">
           <SessionProviders>
             <main id="contenu" tabIndex={-1} className="focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
-              <SignInCard compact intent={intent} signOutIncomplete={signOutIncomplete} publicPostId={publicPostId} notificationReference={notificationReference} shopContact={shopContact} specializedDestination={specializedDestination} />
+              <SignInCard compact intent={intent} signOutIncomplete={signOutIncomplete} publicPostId={publicPostId} notificationReference={notificationReference} shopContact={shopContact} specializedDestination={specializedDestination} idnReturn={idnReturn} />
             </main>
           </SessionProviders>
           <div className="mt-3 text-center">

@@ -1,5 +1,6 @@
 "use client"
 
+import { idnReturnMessageKey, type IdnReturnRefusal, withoutIdnReturnParams } from "@antsia/social-features/features/identity/idn-return"
 import { IdentityEntry } from "@antsia/social-features/identity"
 import { api } from "@convex/_generated/api"
 import { useQuery } from "convex/react"
@@ -31,7 +32,7 @@ function DevCodeHint({ identifier }: { identifier: string }) {
 }
 
 /** Même porte sur l'accueil et /entrer ; le fournisseur garde toute l'autorité. */
-export function SignInCard({ compact = false, intent = "sign-in", signOutIncomplete = false, publicPostId, notificationReference, shopContact, specializedDestination }: {
+export function SignInCard({ compact = false, intent = "sign-in", signOutIncomplete = false, publicPostId, notificationReference, shopContact, specializedDestination, idnReturn = null }: {
   compact?: boolean
   intent?: "sign-in" | "sign-up"
   signOutIncomplete?: boolean
@@ -39,6 +40,8 @@ export function SignInCard({ compact = false, intent = "sign-in", signOutIncompl
   notificationReference?: string
   shopContact?: ShopContactContinuation
   specializedDestination?: SpecializedDestination
+  /** Un refus ou un abandon chez IDN, ramené à cette porte par le moteur (issue 122, EA-02). */
+  idnReturn?: IdnReturnRefusal | null
 }) {
   const { t } = useTranslation("antsia")
   const { t: tIdentity } = useTranslation("identity")
@@ -60,16 +63,25 @@ export function SignInCard({ compact = false, intent = "sign-in", signOutIncompl
     else if (session.status === "welcome") router.replace(welcomePath)
   }, [session.status, signOutIncomplete, destination, welcomePath, router])
 
+  // Le refus est dit une fois : l'adresse affichée perd ses paramètres de retour, sans rechargement.
+  useEffect(() => {
+    if (!idnReturn) return
+    const cleaned = withoutIdnReturnParams(window.location.href)
+    if (cleaned !== null) window.history.replaceState(window.history.state, "", cleaned)
+  }, [idnReturn])
+
   if (session.status === "loading" || (!signOutIncomplete && (session.status === "restricted" || session.status === "member" || session.status === "welcome"))) return <CenteredStatus label={t("session.checking")} />
 
   return (
     <div className={compact ? "rounded-xl border border-border bg-card p-5 text-card-foreground shadow-lg sm:p-6" : undefined}>
       {signOutIncomplete ? <p role="alert" className="mb-6 rounded-lg border border-border bg-muted p-4 text-sm">{tIdentity("signOutIncomplete")}</p> : null}
+      {idnReturn ? <p role="alert" className="mb-6 rounded-lg border border-border bg-muted p-4 text-sm">{tIdentity(idnReturnMessageKey(idnReturn))}</p> : null}
       <IdentityEntry
         key={intent}
         authClient={entryClient}
         configuration={configuration}
         callbackURL={browserAppPath(welcomePath)}
+        errorCallbackURL={browserAppPath(routes.signIn())}
         onAuthenticated={() => window.location.assign(browserAppPath(welcomePath))}
         renderLocalCode={(identifier) => <DevCodeHint identifier={identifier} />}
         presentation={compact ? "compact" : "default"}
