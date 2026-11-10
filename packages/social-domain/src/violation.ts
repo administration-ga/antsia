@@ -106,6 +106,8 @@ export const DOMAIN_RULES = [
   "UPLOAD_MISMATCH",
   // Décisions (console, modération) : le motif
   "DECISION_REASON_LENGTH",
+  // Rôles d'un réseau (EX-08) : un réseau qui a un administrateur vivant en garde toujours un
+  "NETWORK_LAST_ADMIN",
   // Messagerie : pièces jointes
   "ATTACHMENTS_TOO_MANY",
   "ATTACHMENT_TYPE_NOT_ALLOWED",

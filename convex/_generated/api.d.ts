@@ -323,6 +323,7 @@ import type * as modules_people_feedDataPage from "../modules/people/feedDataPag
 import type * as modules_people_identity from "../modules/people/identity.js";
 import type * as modules_people_memberships from "../modules/people/memberships.js";
 import type * as modules_people_miniProfile from "../modules/people/miniProfile.js";
+import type * as modules_people_networkRoles from "../modules/people/networkRoles.js";
 import type * as modules_people_persons from "../modules/people/persons.js";
 import type * as modules_people_preferences from "../modules/people/preferences.js";
 import type * as modules_people_profile from "../modules/people/profile.js";
@@ -335,6 +336,7 @@ import type * as modules_platform_console from "../modules/platform/console.js";
 import type * as modules_platform_consoleTables from "../modules/platform/consoleTables.js";
 import type * as modules_platform_demoAccounts from "../modules/platform/demoAccounts.js";
 import type * as modules_platform_devTools from "../modules/platform/devTools.js";
+import type * as modules_platform_networkRoles from "../modules/platform/networkRoles.js";
 import type * as modules_platform_operationalHealth from "../modules/platform/operationalHealth.js";
 import type * as modules_platform_operationalTables from "../modules/platform/operationalTables.js";
 import type * as modules_platform_operatorAccess from "../modules/platform/operatorAccess.js";
@@ -796,6 +798,7 @@ declare const fullApi: ApiFromModules<{
   "modules/people/identity": typeof modules_people_identity;
   "modules/people/memberships": typeof modules_people_memberships;
   "modules/people/miniProfile": typeof modules_people_miniProfile;
+  "modules/people/networkRoles": typeof modules_people_networkRoles;
   "modules/people/persons": typeof modules_people_persons;
   "modules/people/preferences": typeof modules_people_preferences;
   "modules/people/profile": typeof modules_people_profile;
@@ -808,6 +811,7 @@ declare const fullApi: ApiFromModules<{
   "modules/platform/consoleTables": typeof modules_platform_consoleTables;
   "modules/platform/demoAccounts": typeof modules_platform_demoAccounts;
   "modules/platform/devTools": typeof modules_platform_devTools;
+  "modules/platform/networkRoles": typeof modules_platform_networkRoles;
   "modules/platform/operationalHealth": typeof modules_platform_operationalHealth;
   "modules/platform/operationalTables": typeof modules_platform_operationalTables;
   "modules/platform/operatorAccess": typeof modules_platform_operatorAccess;

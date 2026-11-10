@@ -24,6 +24,11 @@ export const AUDIT_ACTIONS = [
   // Console : adhésions (suspension à la racine, qui vaut partout)
   "membership.suspend_everywhere",
   "membership.lift_suspension",
+  /**
+   * Rôle de réseau d'une adhésion posé ou retiré (EX-08, cahier § 6.3) : par un administrateur
+   * de la plateforme (console), ou par l'administration d'un réseau gouverné par une tranche.
+   */
+  "membership.role_set",
   // Modération d'un réseau
   "moderation.report_decide",
   "moderation.team_create", "moderation.team_member_set", "moderation.policy_set", "moderation.term_set",

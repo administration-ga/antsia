@@ -38,7 +38,7 @@ async function activeNetwork(ctx: ReadCtx, networkId: Id<"networks">): Promise<D
 }
 
 /** L'opérateur peut gérer une capacité existante ; aucun profil caché n'est rendu découvrable. */
-async function publishedMember(ctx: ReadCtx, network: Doc<"networks">, personId: Id<"persons">, knownActive = false) {
+export async function publishedMember(ctx: ReadCtx, network: Doc<"networks">, personId: Id<"persons">, knownActive = false) {
   const person = await livePersonProfile(ctx, personId)
   if (!person || !isDiscoverablePerson(person) || (!knownActive && !(await isActiveMember(ctx, network._id, personId)))) return null
   if (network.managedBy !== undefined && (await getMembership(ctx, network._id, personId))?.directoryListed !== true) return null
