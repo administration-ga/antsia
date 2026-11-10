@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { ASSOCIATION_EVENT_NOTICE_KINDS, isAssociationEventNoticeKind, NOTIFICATION_KINDS, notificationDedupKey, notificationResolutionPrefix, notificationSubjectKey } from "./notifications"
+import { ASSOCIATION_EVENT_NOTICE_KINDS, isAssociationEventNoticeKind, isPageGovernanceNoticeKind, NOTIFICATION_KINDS, NOTIFICATION_SUBJECT_KINDS, notificationDedupKey, notificationResolutionPrefix, notificationSubjectKey, PAGE_GOVERNANCE_NOTICE_KINDS } from "./notifications"
 
 describe("cloche — clés de dédoublonnage et de résolution", () => {
   it("le sujet s'écrit `nature:identifiant`, l'absence `-`", () => {
@@ -55,5 +55,24 @@ describe("avis d'un événement de page (DG-023, EV-03)", () => {
     const event = { kind: "event", id: "ev1" } as const
     expect(notificationDedupKey("association_event_cancelled", event, null)).toBe("association_event_cancelled|event:ev1|-")
     expect(notificationDedupKey("association_event_seat_confirmed", event, null)).toBe("association_event_seat_confirmed|event:ev1|-")
+  })
+})
+
+describe("avis de gouvernance d'une page (PG-01)", () => {
+  it("invitation à signer et revendication tranchée : deux genres du domaine commun, et eux seuls", () => {
+    expect([...PAGE_GOVERNANCE_NOTICE_KINDS]).toEqual(["page_signatory_invite", "page_claim_decided"])
+    for (const kind of PAGE_GOVERNANCE_NOTICE_KINDS) {
+      expect((NOTIFICATION_KINDS as readonly string[]).includes(kind), kind).toBe(true)
+      expect(isPageGovernanceNoticeKind(kind), kind).toBe(true)
+    }
+    for (const kind of ["thematic_group_invite", "page_post", "association_event_cancelled", "toString", ""]) expect(isPageGovernanceNoticeKind(kind), kind).toBe(false)
+    expect(NOTIFICATION_SUBJECT_KINDS).toContain("page")
+    expect(NOTIFICATION_SUBJECT_KINDS).toContain("pageClaim")
+  })
+
+  it("la clé désigne la page ou la revendication, sans acteur ; la résolution vise la page de l'invitation", () => {
+    expect(notificationDedupKey("page_signatory_invite", { kind: "page", id: "p1" }, null)).toBe("page_signatory_invite|page:p1|-")
+    expect(notificationDedupKey("page_claim_decided", { kind: "pageClaim", id: "c1" }, null)).toBe("page_claim_decided|pageClaim:c1|-")
+    expect(notificationResolutionPrefix("page_signatory_invite", { kind: "page", id: "p1" })).toBe("page_signatory_invite|page:p1|")
   })
 })

@@ -31,6 +31,7 @@ import {
 import { appendAudit, operatorCapacity } from "../platform/audit"
 import { revokeAdministrationForPerson } from "../federation/agentLifecycle"
 import { admitToNetwork, setMembershipStatus, writeNetworkFacet } from "./admission"
+import { assertLeaveKeepsNetworkAdmin } from "./networkRoles"
 import { hasStrongIdentityFor } from "./persons"
 import { refreshReaderContexts, scheduleReaderRefresh } from "../posts/feedMaterialization"
 
@@ -83,6 +84,9 @@ export const joinNetwork = personMutation({
 /**
  * @selfScoped La personne de la session quitte un réseau ; quitter la racine
  * fait quitter tous les réseaux fermés (un membre d'un enfant est membre de la racine).
+ * Le dernier administrateur actif d'un réseau ne le quitte pas sans remplaçant
+ * (`NETWORK_LAST_ADMIN`) — ni directement, ni par la cascade de la racine : quitter
+ * la racine ferait quitter ce réseau, le refus vaut donc aussi pour elle.
  */
 export const leaveNetwork = personMutation({
   args: { networkId: v.id("networks") },
@@ -99,8 +103,7 @@ export const leaveNetwork = personMutation({
     if (nextMembershipStatus(membership.status, { kind: "leave" }) === null) {
       return membership.status === "suspendue" ? fail("membershipSuspended") : fail("conflict")
     }
-    const now = Date.now()
-    await setMembershipStatus(ctx, membership, "partie", { leftAt: now })
+    const cascade: Doc<"networkMemberships">[] = []
     if (leaveCascades(network.kind) === "children_too") {
       for (const status of ["en_attente", "declaree", "verifiee"] as const) {
         // borné : une personne appartient à peu de réseaux ; 200 par statut au plus.
@@ -108,9 +111,16 @@ export const leaveNetwork = personMutation({
           .query("networkMemberships")
           .withIndex("by_person_and_status", (q) => q.eq("personId", ctx.person._id).eq("status", status))
           .take(200)
-        for (const other of others) if (other._id !== membership._id) await setMembershipStatus(ctx, other, "partie", { leftAt: now })
+        for (const other of others) if (other._id !== membership._id) cascade.push(other)
       }
     }
+    // Chaque réseau que ce départ ferait quitter garde un administrateur actif. Un refus annule
+    // la transaction entière, révocation de l'administration comprise.
+    await assertLeaveKeepsNetworkAdmin(ctx, network._id, ctx.person._id)
+    for (const other of cascade) await assertLeaveKeepsNetworkAdmin(ctx, other.networkId, ctx.person._id)
+    const now = Date.now()
+    await setMembershipStatus(ctx, membership, "partie", { leftAt: now })
+    for (const other of cascade) await setMembershipStatus(ctx, other, "partie", { leftAt: now })
     return null
   },
 })

@@ -10,6 +10,7 @@ import { useId, useRef } from "react"
 import { useTranslation } from "react-i18next"
 
 import { OfferQuickAdd } from "@/components/cart/offer-quick-add"
+import { SaveOfferButton } from "@/components/shops/save-offer-button"
 import { Button } from "@/components/shared/controls"
 import { Rail } from "@/components/shared/rail"
 import { OfferCard } from "@/components/shops/offer-card"
@@ -90,7 +91,7 @@ function OfferRail({ kind, title, href }: { kind: CatalogOffer["kind"]; title: s
 
 export function OfferCards({ title, href, linkLabel, offers, level }: { title: string; href?: string; linkLabel?: string; offers: CatalogOffer[]; level?: 2 | 3 }) {
   const { t: shopT, i18n } = useTranslation("shops")
-  return <Rail size="product" title={title} href={href} linkLabel={linkLabel} level={level}>{offers.map((offer, index) => <OfferCard key={offer.offerRef} offer={offer} audience="member" locale={i18n.resolvedLanguage ?? "fr"} t={(key, options) => shopT(key, options)} eager={index === 0} action={<OfferQuickAdd offer={offer} />} />)}</Rail>
+  return <Rail size="product" title={title} href={href} linkLabel={linkLabel} level={level}>{offers.map((offer, index) => <OfferCard key={offer.offerRef} offer={offer} audience="member" locale={i18n.resolvedLanguage ?? "fr"} t={(key, options) => shopT(key, options)} eager={index === 0} action={<OfferQuickAdd offer={offer} />} save={<SaveOfferButton offer={offer} />} />)}</Rail>
 }
 
 /** La sélection fictive de la démonstration : à part, avec sa mention, jamais confondue avec le catalogue. */
