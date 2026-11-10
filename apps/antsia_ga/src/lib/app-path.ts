@@ -1,5 +1,5 @@
 /** Chemin physique du build démo ; les routes du routeur Next restent logiques. */
-const DEMO_BACKEND_HOST = "vivid-hedgehog-655.convex.cloud"
+import { DEMO_BACKEND_HOST } from "./demo-backend"
 
 /** Deux déclarations exactes sont nécessaires ; aucune origine normalisée n'ouvre la démo. */
 export function appBasePath(): "" | "/demo" {

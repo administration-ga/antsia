@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/modules/fileGuard/avProviders.ts @ ad2e7fdc2 — adaptations : FAIL-CLOSED — fournisseur absent, inconnu ou incomplet → fournisseur INDISPONIBLE (verdict `error`, fichier retenu) hors déploiement local, au lieu d'un repli silencieux sur le mock ; le mock n'est admis qu'en développement local ; commentaire « documents de l'État » ramené au moteur.
+// Dupliqué de socle/convex/modules/fileGuard/avProviders.ts @ ad2e7fdc2 — adaptations : FAIL-CLOSED — fournisseur absent, inconnu ou incomplet → fournisseur INDISPONIBLE (verdict `error`, fichier retenu) hors déploiement local, au lieu d'un repli silencieux sur le mock ; le mock n'est admis qu'en développement local ; commentaire « documents de l'État » ramené au moteur ; exemple d'adresse du service antivirus remplacé par son rôle (dépôt public, EX-20).
 /**
  * Sentinelle fichiers — adaptateurs ANTIVIRUS (ADR-0160, D4b).
  *
@@ -10,7 +10,7 @@
  * Configuration (variables du déploiement, posées par le propriétaire) :
  *   FILE_SCAN_PROVIDER      : "clamav-rest" | "mock" (développement local seulement)
  *   FILE_SCAN_CLAMAV_URL    : URL COMPLÈTE de l'endpoint de scan
- *                             (ex. https://clamav-rest-xxx.run.app/scan)
+ *                             (adresse du service antivirus suivie de `/scan`)
  *   FILE_SCAN_CLAMAV_TOKEN  : secret partagé, envoyé en `Authorization: Bearer`
  *   FILE_SCAN_TIMEOUT_MS    : défaut 60 000
  *   FILE_SCAN_MAX_BYTES     : défaut 60 Mo — au-delà, `skipped`, que le

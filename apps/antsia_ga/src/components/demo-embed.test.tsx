@@ -4,6 +4,7 @@ import { act, type ReactNode } from "react"
 import { createRoot, type Root } from "react-dom/client"
 import { I18nextProvider } from "react-i18next"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { DEMO_BACKEND_HOST } from "@/lib/demo-backend"
 
 // Une entrée de zone doit remplacer le document ; un Link Next serait une régression.
 vi.mock("next/link", () => ({ default: () => { throw new Error("La démo exige une navigation document.") } }))
@@ -20,7 +21,7 @@ let container: HTMLDivElement
 
 function enableDemoBuild() {
   vi.stubEnv("NEXT_PUBLIC_APP_BASE_PATH", "/demo")
-  vi.stubEnv("NEXT_PUBLIC_CONVEX_URL", "https://vivid-hedgehog-655.convex.cloud")
+  vi.stubEnv("NEXT_PUBLIC_CONVEX_URL", `https://${DEMO_BACKEND_HOST}`)
 }
 
 async function mount(content: ReactNode, locale: "fr" | "en" = "fr") {
@@ -36,7 +37,7 @@ beforeEach(() => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true)
   vi.stubEnv("NEXT_PUBLIC_DEMO_ENTRY_ENABLED", "true")
   vi.stubEnv("NEXT_PUBLIC_APP_BASE_PATH", "")
-  vi.stubEnv("NEXT_PUBLIC_CONVEX_URL", "https://diligent-avocet-585.convex.cloud")
+  vi.stubEnv("NEXT_PUBLIC_CONVEX_URL", "https://exemple-production.convex.cloud")
 })
 afterEach(async () => {
   await act(async () => root?.unmount())
@@ -65,7 +66,7 @@ describe("entrée de démonstration par document", () => {
 
   it("ne propose pas une entrée récursive dans le build démo", async () => {
     vi.stubEnv("NEXT_PUBLIC_APP_BASE_PATH", "/demo")
-    vi.stubEnv("NEXT_PUBLIC_CONVEX_URL", "https://vivid-hedgehog-655.convex.cloud")
+    vi.stubEnv("NEXT_PUBLIC_CONVEX_URL", `https://${DEMO_BACKEND_HOST}`)
     await mount(<DemoEntryLink />)
     expect(container.querySelector("a")).toBeNull()
   })
@@ -106,9 +107,9 @@ describe("notice flottante du build démo", () => {
 
   it.each([
     "http://localhost:3210",
-    "https://diligent-avocet-585.convex.cloud",
-    "https://vivid-hedgehog-655.convex.cloud:443",
-    "https://vivid-hedgehog-655.convex.cloud.evil.test",
+    "https://exemple-production.convex.cloud",
+    `https://${DEMO_BACKEND_HOST}:443`,
+    `https://${DEMO_BACKEND_HOST}.evil.test`,
   ])("un backend étranger ou normalisé ne devient pas un build démo : %s", async (backend) => {
     vi.stubEnv("NEXT_PUBLIC_APP_BASE_PATH", "/demo")
     vi.stubEnv("NEXT_PUBLIC_CONVEX_URL", backend)

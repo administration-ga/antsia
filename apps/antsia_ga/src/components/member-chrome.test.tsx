@@ -4,6 +4,7 @@ import { act, useEffect, useState } from "react"
 import { createRoot, type Root } from "react-dom/client"
 import { renderToStaticMarkup } from "react-dom/server"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { DEMO_BACKEND_HOST } from "@/lib/demo-backend"
 
 const state = vi.hoisted(() => ({
   navigation: "destinations" as "destinations" | "volets",
@@ -257,11 +258,11 @@ describe("MemberPage — transition adaptive sans remontage du contenu", () => {
     state.mobile = false
     try {
       vi.stubEnv("NEXT_PUBLIC_APP_BASE_PATH", "/demo")
-      vi.stubEnv("NEXT_PUBLIC_CONVEX_URL", "https://vivid-hedgehog-655.convex.cloud")
+      vi.stubEnv("NEXT_PUBLIC_CONVEX_URL", `https://${DEMO_BACKEND_HOST}`)
       expect(renderToStaticMarkup(<MemberPage workspace><section data-messages-content="" /></MemberPage>)).toContain('style="height:100dvh"')
       expect(renderToStaticMarkup(<MemberPage><section data-page-content="" /></MemberPage>)).not.toContain("--antsia-demo-banner-height")
       vi.stubEnv("NEXT_PUBLIC_APP_BASE_PATH", "")
-      vi.stubEnv("NEXT_PUBLIC_CONVEX_URL", "https://diligent-avocet-585.convex.cloud")
+      vi.stubEnv("NEXT_PUBLIC_CONVEX_URL", "https://exemple-production.convex.cloud")
       expect(renderToStaticMarkup(<MemberPage workspace><section data-messages-content="" /></MemberPage>)).not.toContain("--antsia-demo-banner-height")
     } finally {
       vi.unstubAllEnvs()

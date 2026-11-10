@@ -5,6 +5,7 @@ import { act } from "react"
 import { createRoot, type Root } from "react-dom/client"
 import { I18nextProvider } from "react-i18next"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { DEMO_BACKEND_HOST } from "@/lib/demo-backend"
 
 const state = vi.hoisted(() => ({
   catalogue: [] as unknown[] | undefined,
@@ -107,7 +108,7 @@ describe("DemoAccountsPanel", () => {
 
   it("garde le parcours OTP du build démo sous /demo après authentification", async () => {
     vi.stubEnv("NEXT_PUBLIC_APP_BASE_PATH", "/demo")
-    vi.stubEnv("NEXT_PUBLIC_CONVEX_URL", "https://vivid-hedgehog-655.convex.cloud")
+    vi.stubEnv("NEXT_PUBLIC_CONVEX_URL", `https://${DEMO_BACKEND_HOST}`)
     await mount()
     await act(async () => buttons()[0]!.click())
     expect(state.send).toHaveBeenCalledExactlyOnceWith({ email: PRESSE.email, type: "sign-in" })

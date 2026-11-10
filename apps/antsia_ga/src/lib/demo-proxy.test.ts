@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { DEMO_BACKEND_HOST } from "./demo-backend"
 
 import { appBasePath } from "./app-path"
 import { admittedDemoProxy, demoProxyHeaders, demoRuntimeOrigin } from "./demo-proxy"
@@ -7,7 +8,7 @@ import { admittedDemoProxy, demoProxyHeaders, demoRuntimeOrigin } from "./demo-p
 const proxyToken = "proxy-fixture-" + "a".repeat(32)
 const hostingToken = "hosting-fixture-" + "b".repeat(32)
 const runtimeOrigin = "https://antsia-runtime-fixture-20261021.vercel.app"
-const demoBackend = "https://vivid-hedgehog-655.convex.cloud"
+const demoBackend = `https://${DEMO_BACKEND_HOST}`
 
 beforeEach(() => {
   vi.stubEnv("NEXT_PUBLIC_APP_BASE_PATH", "/demo")
@@ -30,11 +31,11 @@ describe("admission du relais démo privé", () => {
 
   it.each([
     ["", demoBackend], ["/demo/", demoBackend], ["/democratic", demoBackend],
-    ["/demo", "https://diligent-avocet-585.convex.cloud"],
+    ["/demo", "https://exemple-production.convex.cloud"],
     ["/demo", `${demoBackend}/`], ["/demo", `${demoBackend}:443`],
-    ["/demo", "http://vivid-hedgehog-655.convex.cloud"],
-    ["/demo", "https://vivid-hedgehog-655.convex.cloud.evil.test"],
-    ["/demo", "https://user@vivid-hedgehog-655.convex.cloud"],
+    ["/demo", `http://${DEMO_BACKEND_HOST}`],
+    ["/demo", `https://${DEMO_BACKEND_HOST}.evil.test`],
+    ["/demo", `https://user@${DEMO_BACKEND_HOST}`],
   ])("refuse une configuration de build non exacte (%s, %s)", (basePath, backend) => {
     vi.stubEnv("NEXT_PUBLIC_APP_BASE_PATH", basePath)
     vi.stubEnv("NEXT_PUBLIC_CONVEX_URL", backend)
@@ -70,7 +71,7 @@ describe("origine technique du relais démo", () => {
     `${runtimeOrigin}:443`, `${runtimeOrigin}:444`, ` ${runtimeOrigin}`, `${runtimeOrigin} `,
     "https://ANTSIA-runtime-fixture.vercel.app", "https://user@antsia-runtime-fixture.vercel.app",
     "https://user:password@antsia-runtime-fixture.vercel.app", "https://*.vercel.app",
-    "https://antsia-runtime-fixture.vercel.app.evil.test", "https://nested.runtime.vercel.app",
+    "https://antsia-runtime-fixture.vercel.app.evil.test", "https://nested.runtime-fixture.vercel.app",
     "https://example.test", "https://localhost", "https://antsia_runtime.vercel.app",
   ])("rejette une origine élargie, non canonique ou étrangère : %s", value => {
     vi.stubEnv("ANTSIA_DEMO_RUNTIME_ORIGIN", value)

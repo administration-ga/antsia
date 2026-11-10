@@ -3,6 +3,14 @@ import { devToolsAllowed } from "../lib/devTools"
 
 export const DEMO_CONTENT_CONFIRMATION = "ANTSIA_DEMO_CONTENT_2026_10_20"
 export const DEMO_CONTENT_VERSION = "animation-20261020"
+/**
+ * Garde ÉPINGLÉE : la graine d'animation et la vitrine de démonstration du
+ * moteur (`shops/demoCatalog.ts`, `shops/services.ts`) ne s'ouvrent que sur CE
+ * déploiement. Le dépôt est public (EX-20) : c'est une exception nommée du
+ * cliquet `no-deployment-identifiers`. Lire ce nom dans `ANTSIA_DEMO_DEPLOYMENT`
+ * seul élargirait la garde à tout déploiement qui se déclare démonstration :
+ * décision réservée au propriétaire. Les tests importent la constante.
+ */
 export const DEMO_CONTENT_DEPLOYMENT = "vivid-hedgehog-655"
 export const DEMO_CONTENT_ACTORS = ["membre", "verifie", "presse", "commercant", "association", "administration", "moderateur"] as const
 

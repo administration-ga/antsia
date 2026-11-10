@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
+import { DEMO_BACKEND_HOST } from "./demo-backend"
 
 afterEach(() => { vi.unstubAllEnvs(); vi.resetModules() })
 
@@ -27,38 +28,38 @@ function expectNoEmbedding(headers: Array<{ key: string; value: string }>) {
 describe("configuration du build démo par chemin", () => {
   it("la zone relayée reçoit sa CSP propre et le reste du site garde ses en-têtes", async () => {
     vi.stubEnv("ANTSIA_DEMO_RUNTIME_ORIGIN", "https://runtime-fixture.vercel.app")
-    const { config, headers } = await configuration("https://diligent-avocet-585.convex.cloud")
+    const { config, headers } = await configuration("https://exemple-production.convex.cloud")
     expectNoEmbedding(headers)
     const source = (await config.headers())[0]!.source
     const pattern = new RegExp(`^${source}$`)
     for (const path of ["/", "/fil", "/entrer", "/democratic"]) expect(pattern.test(path)).toBe(true)
     for (const path of ["/demo", "/demo/fil", "/demo/_next/static/main.js"]) expect(pattern.test(path)).toBe(false)
   })
-  it.each(["http://127.0.0.1:3210", "http://localhost:3210", "https://diligent-avocet-585.convex.cloud"])("le site local ou principal garde sa racine et refuse l'embarquement : %s", async (backend) => {
+  it.each(["http://127.0.0.1:3210", "http://localhost:3210", "https://exemple-production.convex.cloud"])("le site local ou principal garde sa racine et refuse l'embarquement : %s", async (backend) => {
     const { config, headers } = await configuration(backend)
     expect(config.basePath).toBe("")
     expectNoEmbedding(headers)
   })
 
   it("le double accord exact déclare /demo sans ouvrir les iframes", async () => {
-    const { config, headers } = await configuration("https://vivid-hedgehog-655.convex.cloud", "/demo")
+    const { config, headers } = await configuration(`https://${DEMO_BACKEND_HOST}`, "/demo")
     expect(config.basePath).toBe("/demo")
     expectNoEmbedding(headers)
   })
 
   it("le backend démo seul ne déclare pas de basePath", async () => {
-    const { config, headers } = await configuration("https://vivid-hedgehog-655.convex.cloud")
+    const { config, headers } = await configuration(`https://${DEMO_BACKEND_HOST}`)
     expect(config.basePath).toBe("")
     expectNoEmbedding(headers)
   })
 
   it.each([
-    undefined, "", "http://localhost:3210", "https://diligent-avocet-585.convex.cloud",
-    "https://vivid-hedgehog-655.convex.cloud/", "https://vivid-hedgehog-655.convex.cloud:443",
-    "https://vivid-hedgehog-655.convex.cloud:8443", "https://vivid-hedgehog-655.convex.cloud/path",
-    "https://vivid-hedgehog-655.convex.cloud?demo=1", "https://vivid-hedgehog-655.convex.cloud#demo",
-    "https://vivid-hedgehog-655.convex.cloud.evil.test", "https://vivid-hedgehog-655.convex.cloud@evil.test",
-    " https://vivid-hedgehog-655.convex.cloud",
+    undefined, "", "http://localhost:3210", "https://exemple-production.convex.cloud",
+    `https://${DEMO_BACKEND_HOST}/`, `https://${DEMO_BACKEND_HOST}:443`,
+    `https://${DEMO_BACKEND_HOST}:8443`, `https://${DEMO_BACKEND_HOST}/path`,
+    `https://${DEMO_BACKEND_HOST}?demo=1`, `https://${DEMO_BACKEND_HOST}#demo`,
+    `https://${DEMO_BACKEND_HOST}.evil.test`, `https://${DEMO_BACKEND_HOST}@evil.test`,
+    ` https://${DEMO_BACKEND_HOST}`,
   ])("refuse une cible absente, locale, réelle ou déguisée malgré /demo : %s", async (backend) => {
     const { config, headers } = await configuration(backend, "/demo")
     expect(config.basePath).toBe("")
@@ -66,7 +67,7 @@ describe("configuration du build démo par chemin", () => {
   })
 
   it.each(["/", "demo", "/demo/", "/Demo", " /demo", "/demo?mode=1", "/demo/../"])("refuse un chemin enfant non exact : %j", async (path) => {
-    const { config, headers } = await configuration("https://vivid-hedgehog-655.convex.cloud", path)
+    const { config, headers } = await configuration(`https://${DEMO_BACKEND_HOST}`, path)
     expect(config.basePath).toBe("")
     expectNoEmbedding(headers)
   })

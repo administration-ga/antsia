@@ -1,11 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { DEMO_BACKEND_HOST } from "./demo-backend"
 
 import { appBasePath, browserAppPath, logicalAppPath } from "./app-path"
 import { routes } from "./routes"
 
 beforeEach(() => {
   vi.stubEnv("NEXT_PUBLIC_APP_BASE_PATH", "/demo")
-  vi.stubEnv("NEXT_PUBLIC_CONVEX_URL", "https://vivid-hedgehog-655.convex.cloud")
+  vi.stubEnv("NEXT_PUBLIC_CONVEX_URL", `https://${DEMO_BACKEND_HOST}`)
 })
 afterEach(() => { vi.unstubAllEnvs() })
 
@@ -23,19 +24,19 @@ describe("préfixe fermé du build démo", () => {
   it.each([
     undefined,
     "",
-    "https://diligent-avocet-585.convex.cloud",
+    "https://exemple-production.convex.cloud",
     "http://localhost:3210",
-    "https://vivid-hedgehog-655.convex.cloud/",
-    "https://vivid-hedgehog-655.convex.cloud:443",
-    "https://vivid-hedgehog-655.convex.cloud:8443",
-    "https://vivid-hedgehog-655.convex.cloud/path",
-    "https://vivid-hedgehog-655.convex.cloud?key=1",
-    "https://vivid-hedgehog-655.convex.cloud#fragment",
-    "https://user:secret@vivid-hedgehog-655.convex.cloud",
-    "https://vivid-hedgehog-655.convex.cloud.evil.test",
-    " https://vivid-hedgehog-655.convex.cloud",
-    "https://vivid-hedgehog-655.convex.cloud\n",
-    "http://vivid-hedgehog-655.convex.cloud",
+    `https://${DEMO_BACKEND_HOST}/`,
+    `https://${DEMO_BACKEND_HOST}:443`,
+    `https://${DEMO_BACKEND_HOST}:8443`,
+    `https://${DEMO_BACKEND_HOST}/path`,
+    `https://${DEMO_BACKEND_HOST}?key=1`,
+    `https://${DEMO_BACKEND_HOST}#fragment`,
+    `https://user:secret@${DEMO_BACKEND_HOST}`,
+    `https://${DEMO_BACKEND_HOST}.evil.test`,
+    ` https://${DEMO_BACKEND_HOST}`,
+    `https://${DEMO_BACKEND_HOST}\n`,
+    `http://${DEMO_BACKEND_HOST}`,
   ])("refuse un backend absent, normalisé ou étranger : %s", (backend) => {
     vi.stubEnv("NEXT_PUBLIC_CONVEX_URL", backend)
     expect(appBasePath()).toBe("")

@@ -1,14 +1,15 @@
 import { existsSync } from "node:fs"
 
 import { describe, expect, it } from "vitest"
+import { DEMO_BACKEND_HOST } from "./demo-backend"
 
 import { DEMO_CATALOG_DECLARATIONS, demoCatalogProjectionAllowed } from "./demo-catalog-projection"
 
 describe("origine fermée des illustrations du catalogue", () => {
-  it.each(["http://127.0.0.1:3210", "http://localhost:3210", "http://127.0.0.1:3260", "http://localhost:3260", "https://vivid-hedgehog-655.convex.cloud"])("admet l'origine exacte %s", (backendUrl) => {
+  it.each(["http://127.0.0.1:3210", "http://localhost:3210", "http://127.0.0.1:3260", "http://localhost:3260", `https://${DEMO_BACKEND_HOST}`])("admet l'origine exacte %s", (backendUrl) => {
     expect(demoCatalogProjectionAllowed(backendUrl)).toBe(true)
   })
-  it.each(["", "https://production.convex.cloud", "https://other.convex.cloud", "https://vivid-hedgehog-655.convex.cloud.evil.test", "https://evil.test/vivid-hedgehog-655.convex.cloud", "https://vivid-hedgehog-655.convex.cloud@evil.test", "https://vivid-hedgehog-655.convex.cloud/path", "https://vivid-hedgehog-655.convex.cloud?demo=1", "https://vivid-hedgehog-655.convex.cloud#demo", "https://vivid-hedgehog-655.convex.cloud:443", "https://vivid-hedgehog-655.convex.cloud/", "http://localhost:3211", "http://localhost:3210.evil.test", "http://127.0.0.1:3210@evil.test", "https://localhost:3210"])("refuse origine différente, déguisée ou élargie : %s", (backendUrl) => {
+  it.each(["", "https://production.convex.cloud", "https://other.convex.cloud", `https://${DEMO_BACKEND_HOST}.evil.test`, `https://evil.test/${DEMO_BACKEND_HOST}`, `https://${DEMO_BACKEND_HOST}@evil.test`, `https://${DEMO_BACKEND_HOST}/path`, `https://${DEMO_BACKEND_HOST}?demo=1`, `https://${DEMO_BACKEND_HOST}#demo`, `https://${DEMO_BACKEND_HOST}:443`, `https://${DEMO_BACKEND_HOST}/`, "http://localhost:3211", "http://localhost:3210.evil.test", "http://127.0.0.1:3210@evil.test", "https://localhost:3210"])("refuse origine différente, déguisée ou élargie : %s", (backendUrl) => {
     expect(demoCatalogProjectionAllowed(backendUrl)).toBe(false)
   })
 })
