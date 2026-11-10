@@ -355,7 +355,7 @@ Plan : [`13_CONSOLE_EXPLOITATION_LANCEMENT.md`](13_CONSOLE_EXPLOITATION_LANCEMEN
 | EX-05 | Page d'état publique | P1 | M | S1 | hébergement et domaine. | à faire |
 | EX-06 | Ouvrir un réseau depuis la console | P1 | M | S1 | aucune pour le code ; ouverture réelle d'un réseau : propriétaire. | à faire |
 | EX-07 | Habilitations d'opérateur avec double validation | P0 | M | S1 | décision du propriétaire. | à faire |
-| EX-08 | Administrateurs et modérateurs de réseau | P1 | M | S1 | aucune. | à faire |
+| EX-08 | Administrateurs et modérateurs de réseau | P1 | M | S1 | aucune. | fusionné |
 | PA10 · volet local | Charge et restauration sans cible externe | P0 | M | S1 | aucune (machine locale, disque libéré au préalable). | à faire |
 | PA10 · volet cible jetable | Restauration d'un export du nuage | P0 | S | S1 | création de la cible et choix de la source par le propriétaire ; aucune donnée de production. | à faire |
 | PA10 · audits | Autorisations, préparation au lancement, accessibilité | P0 | M | S1 | aucune. | à faire |

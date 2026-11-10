@@ -36,7 +36,10 @@ export type FacetInput = {
 
 /**
  * Change le statut d'une adhésion en datant le changement ; l'annuaire suit, et
- * une SORTIE (départ, suspension) coupe la personne des directs du réseau.
+ * une SORTIE (départ, suspension) coupe la personne des directs du réseau. Le
+ * rôle de réseau suit l'adhésion (EX-08) : un DÉPART le retire, pour qu'un
+ * retour ne rende aucun pouvoir sans nouvelle décision journalisée ; une
+ * suspension le garde (la levée rend l'état d'avant la sanction).
  */
 export async function setMembershipStatus(
   ctx: MutationCtx,
@@ -44,7 +47,8 @@ export async function setMembershipStatus(
   status: MembershipStatus,
   extra: Partial<Doc<"networkMemberships">> = {},
 ): Promise<void> {
-  await ctx.db.patch(membership._id, { status, statusChangedAt: Date.now(), ...extra })
+  const roleOnDeparture = status === "partie" && membership.role !== "member" ? { role: "member" as const } : {}
+  await ctx.db.patch(membership._id, { status, statusChangedAt: Date.now(), ...roleOnDeparture, ...extra })
   await syncPersonDirectory(ctx, membership.personId)
   if (isActiveStatus(membership.status) && !isActiveStatus(status)) await ctx.scheduler.runAfter(0, internal.modules.live.revocation.kickUserFromNetworkDirects, { personId: membership.personId, networkId: membership.networkId, cursor: null })
 }

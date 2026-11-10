@@ -557,5 +557,28 @@
     "enable": "Open order preparation",
     "disable": "Close order preparation",
     "updated": "Last decision on"
+  },
+  "networkRoles": {
+    "title": "Network leads",
+    "lead": "A network’s leads are active members appointed by a platform administrator. A network moderator handles reports addressed to the network, those no team takes on, and reads the network’s log; a network administrator handles the whole queue, decides the network’s appeals and manages its teams. A removal applies from the next action; every decision is justified and recorded in the log.",
+    "managed": "This network is governed by its own application: the console appoints its first administrator, then the network’s administration appoints its leads in the network’s application. Its directory depends on each member’s choice: only members who appear in it can be found by their handle.",
+    "roles": {
+      "network_admin": "Network administrators",
+      "network_moderator": "Network moderators"
+    },
+    "roleOption": {
+      "network_admin": "Network administrator",
+      "network_moderator": "Network moderator"
+    },
+    "inactive": "No effect: membership suspended, left or pending",
+    "appoint": "Appoint a lead",
+    "handleHint": "Search for a published, active member of the network; the console creates no membership.",
+    "role": "Role granted",
+    "appointAs": "Grant the role: {{role}}",
+    "appointed": "Role granted and recorded in the log.",
+    "unchanged": "This person already holds this role: nothing changed.",
+    "remove": "Remove the role",
+    "removed": "Role removed and recorded in the log.",
+    "adminRequired": "Appointing or removing a lead requires the platform administrator role."
   }
 }
