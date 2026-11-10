@@ -33,6 +33,14 @@
  * `reencodeImage(file, plan)` est le moteur seul, pour un écran qui fixe son
  * propre plan (l'album : qualité 0,92, dimensions d'origine, GIF refusé).
  *
+ * `prepareImageForUpload(file, runtime, options)` (lot PF-03) : le même
+ * contrat, sous les options d'un écran (`ImagePreparationOptions`) — la région
+ * gardée par le recadreur du profil, un plus grand côté plus petit (images
+ * rondes), la conversion HEIC/HEIF en JPEG (pièces jointes d'iCom). Le
+ * recadrage est appliqué au DESSIN (`drawImage` à neuf arguments), sur l'image
+ * décodée dont les dimensions doivent être celles du calcul ; aucune image
+ * intermédiaire n'est encodée.
+ *
  * ⚠️ Le serveur ne peut pas en dire autant : un client modifié envoie ce
  * qu'il veut. L'analyse des fichiers SIGNALE un JPEG arrivé avec sa position
  * (`convex/modules/files/inspect.ts`, `IMAGE_GPS_METADATA`).
@@ -47,10 +55,14 @@
 import { listImageMetadata, stripImageMetadata, webpIsAnimated } from "@antsia/social-domain/imageMetadata"
 
 import {
+  cropWithinSource,
   fitWithin,
-  imageUploadPlan,
+  HEIF_IMAGE_TYPES,
+  heifOutputName,
+  imagePreparationPlan,
   isImageOutputType,
   type ImageOutputType,
+  type ImagePreparationOptions,
   type ImagePreparationRefusal,
   type ImageReencodePlan,
 } from "./image-preparation"
@@ -74,6 +86,8 @@ export interface ImageDrawingContext {
   imageSmoothingEnabled: boolean
   imageSmoothingQuality: ImageSmoothingQuality
   drawImage(image: CanvasImageSource, dx: number, dy: number, dw: number, dh: number): void
+  /** La forme à neuf arguments : une région de la source (le recadrage du profil, PF-03). */
+  drawImage(image: CanvasImageSource, sx: number, sy: number, sw: number, sh: number, dx: number, dy: number, dw: number, dh: number): void
 }
 
 /** Ce que le module utilise d'un canvas. */
@@ -173,7 +187,18 @@ export type ImagePreparation =
 /** La signature d'une préparation — injectable dans les écrans. */
 export type PrepareImage = (file: File) => Promise<ImagePreparation>
 
+/** Une préparation sous les options d'un écran (PF-03) — injectable de même. */
+export type PrepareImageWith = (file: File, options: ImagePreparationOptions) => Promise<ImagePreparation>
+
 const refuse = (refusal: ImagePreparationRefusal): ImagePreparation => ({ ok: false, refusal })
+
+/**
+ * Le nom du fichier envoyé : celui d'origine, sauf pour une photo HEIC/HEIF
+ * rendue en JPEG (son extension suit son nouveau format).
+ */
+function preparedName(original: File, type: string): string {
+  return (HEIF_IMAGE_TYPES as readonly string[]).includes(original.type) && type === "image/jpeg" ? heifOutputName(original.name) : original.name
+}
 
 /**
  * Le fichier final : les octets SANS métadonnées, vérifiés une seconde fois,
@@ -189,7 +214,7 @@ function finalize(
   if (stripped === null) return refuse("unreadable")
   const remaining = listImageMetadata(stripped, type)
   if (remaining === null || remaining.length > 0) return refuse("metadata-remaining")
-  const file = new File([stripped as Uint8Array<ArrayBuffer>], original.name, { type })
+  const file = new File([stripped as Uint8Array<ArrayBuffer>], preparedName(original, type), { type })
   preparedRegistry().add(file)
   return {
     ok: true,
@@ -230,7 +255,12 @@ function encode(canvas: ImageCanvas, type: ImageOutputType, quality: number): Pr
  *
  * Le format rendu est celui de l'ENCODEUR (un navigateur qui n'encode pas le
  * WebP rend du PNG) s'il fait partie des formats acceptés, sinon refus. Le
- * fichier garde le nom d'origine.
+ * fichier garde le nom d'origine (une photo HEIC/HEIF rendue en JPEG prend
+ * l'extension `.jpg`).
+ *
+ * Avec un recadrage (`plan.crop`), seule la région est dessinée, puis réduite
+ * sous la borne du plan ; une région calculée sur d'autres dimensions que
+ * celles de l'image décodée refuse la photo (`unreadable`).
  */
 export async function reencodeImage(
   file: File,
@@ -244,7 +274,9 @@ export async function reencodeImage(
     return refuse("unreadable")
   }
   try {
-    const size = fitWithin(decoded.width, decoded.height, plan.maxDimension)
+    const crop = plan.crop === undefined ? null : cropWithinSource(plan.crop, decoded.width, decoded.height)
+    if (plan.crop !== undefined && crop === null) return refuse("unreadable")
+    const size = crop === null ? fitWithin(decoded.width, decoded.height, plan.maxDimension) : fitWithin(crop.width, crop.height, plan.maxDimension)
     if (size === null) return refuse("unreadable")
     const canvas = runtime.createCanvas(size.width, size.height)
     const context = canvas?.getContext("2d") ?? null
@@ -252,7 +284,8 @@ export async function reencodeImage(
     context.imageSmoothingEnabled = true
     context.imageSmoothingQuality = "high"
     try {
-      context.drawImage(decoded.source, 0, 0, size.width, size.height)
+      if (crop === null) context.drawImage(decoded.source, 0, 0, size.width, size.height)
+      else context.drawImage(decoded.source, crop.x, crop.y, crop.width, crop.height, 0, 0, size.width, size.height)
     } catch {
       return refuse("canvas-unavailable")
     }
@@ -270,16 +303,39 @@ export async function reencodeImage(
 
 /**
  * Prépare une photo de publication, de Story ou de profil selon les décisions
- * du 9/11/2026 (`imageUploadPlan`). Voir le contrat en tête de fichier.
+ * du 9/11/2026 (`imageUploadPlan`), sous les options éventuelles d'un écran
+ * (`imagePreparationPlan`, PF-03). Voir le contrat en tête de fichier.
+ *
+ * Sans options, le comportement est celui du lot SD-02, à l'identique.
  */
-export async function prepareImageForUpload(file: File, runtime: ImageRuntime = browserImageRuntime): Promise<ImagePreparation> {
-  const decision = imageUploadPlan(file.type)
+export async function prepareImageForUpload(
+  file: File,
+  runtime: ImageRuntime = browserImageRuntime,
+  options: ImagePreparationOptions = {},
+): Promise<ImagePreparation> {
+  const decision = imagePreparationPlan(file.type, options)
   if (decision.action === "refuse") return refuse(decision.refusal)
   if (decision.action === "strip-animated" || file.type === "image/webp") {
     const bytes = await bytesOf(file)
     if (bytes === null) return refuse("unreadable")
-    if (decision.action === "strip-animated" || webpIsAnimated(bytes)) return finalize(file, bytes, file.type, null)
+    const animated = decision.action === "strip-animated" || webpIsAnimated(bytes)
+    // Un WebP animé ne se reconnaît qu'à ses octets : un recadrage demandé sur
+    // lui est refusé ici, comme sur un GIF (il en perdrait l'animation).
+    if (animated) return options.crop === undefined ? finalize(file, bytes, file.type, null) : refuse("not-croppable")
   }
   if (decision.action !== "reencode") return refuse("unsupported-type")
   return reencodeImage(file, decision.plan, runtime)
+}
+
+/**
+ * Une image ANIMÉE (GIF, WebP animé) ? Elle ne se recadre pas : l'écran la
+ * prépare sans recadrage (`prepareImageForUpload` en garde l'animation et en
+ * retire les métadonnées). Un fichier illisible rend `false` ; sa préparation
+ * le refusera ensuite.
+ */
+export async function isAnimatedImage(file: Blob): Promise<boolean> {
+  if (file.type === "image/gif") return true
+  if (file.type !== "image/webp") return false
+  const bytes = await bytesOf(file)
+  return bytes !== null && webpIsAnimated(bytes)
 }

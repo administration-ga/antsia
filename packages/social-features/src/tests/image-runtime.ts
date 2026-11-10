@@ -6,7 +6,7 @@
  *
  * Fichier de TEST (dossier `tests/`) : jamais importé par une source.
  */
-import { prepareImageForUpload, type ImageRuntime, type PrepareImage } from "../features/media-upload"
+import { prepareImageForUpload, type ImageRuntime, type PrepareImage, type PrepareImageWith } from "../features/media-upload"
 
 function fromBase64(text: string): Uint8Array {
   return Uint8Array.from(atob(text), (char) => char.charCodeAt(0))
@@ -53,6 +53,8 @@ export interface FakeImageRuntime extends ImageRuntime {
   readonly encodings: { type: string; quality: number }[]
   /** Les fichiers passés au décodeur. */
   readonly decoded: Blob[]
+  /** Les dessins, arguments numériques seulement (4 : image entière ; 8 : une région, PF-03). */
+  readonly draws: number[][]
   /** Le nombre de décodages libérés. */
   released: number
 }
@@ -62,6 +64,7 @@ export function fakeImageRuntime(options: FakeImageRuntimeOptions = {}): FakeIma
     canvases: [],
     encodings: [],
     decoded: [],
+    draws: [],
     released: 0,
     async decode(file) {
       runtime.decoded.push(file)
@@ -83,7 +86,13 @@ export function fakeImageRuntime(options: FakeImageRuntimeOptions = {}): FakeIma
         getContext: () =>
           options.canvas === "no-context"
             ? null
-            : { imageSmoothingEnabled: false, imageSmoothingQuality: "low", drawImage: () => undefined },
+            : {
+                imageSmoothingEnabled: false,
+                imageSmoothingQuality: "low",
+                drawImage: (_image: CanvasImageSource, ...numbers: number[]) => {
+                  runtime.draws.push(numbers)
+                },
+              },
         toBlob: (callback, type, quality) => {
           runtime.encodings.push({ type, quality })
           if (options.output === null) return callback(null)
@@ -101,5 +110,12 @@ export function fakeImageRuntime(options: FakeImageRuntimeOptions = {}): FakeIma
 export function testPrepareImage(options: FakeImageRuntimeOptions = {}): PrepareImage & { runtime: FakeImageRuntime } {
   const runtime = fakeImageRuntime(options)
   const prepare = (file: File) => prepareImageForUpload(file, runtime)
+  return Object.assign(prepare, { runtime })
+}
+
+/** La même, sous les options d'un écran (recadrage, borne, HEIC/HEIF — PF-03). */
+export function testPrepareImageWith(options: FakeImageRuntimeOptions = {}): PrepareImageWith & { runtime: FakeImageRuntime } {
+  const runtime = fakeImageRuntime(options)
+  const prepare: PrepareImageWith = (file, preparation) => prepareImageForUpload(file, runtime, preparation)
   return Object.assign(prepare, { runtime })
 }

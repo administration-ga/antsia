@@ -153,7 +153,8 @@
       "unreadable": "“{{name}}” could not be read: this photo will not be sent.",
       "canvasUnavailable": "This browser cannot prepare “{{name}}”: this photo will not be sent. Try an up-to-date browser.",
       "encoderFailed": "Preparing “{{name}}” failed: this photo will not be sent.",
-      "metadataRemaining": "The hidden information in “{{name}}” could not be removed: this photo will not be sent."
+      "metadataRemaining": "The hidden information in “{{name}}” could not be removed: this photo will not be sent.",
+      "notCroppable": "“{{name}}” is an animated image: it cannot be cropped without losing its animation, so it will not be sent."
     }
   },
   "useMediaDraft": {

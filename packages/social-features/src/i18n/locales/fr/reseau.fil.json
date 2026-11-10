@@ -153,7 +153,8 @@
       "unreadable": "« {{name}} » n'a pas pu être lue : cette photo ne sera pas envoyée.",
       "canvasUnavailable": "Ce navigateur ne peut pas préparer « {{name}} » : cette photo ne sera pas envoyée. Essayez avec un navigateur à jour.",
       "encoderFailed": "La préparation de « {{name}} » a échoué : cette photo ne sera pas envoyée.",
-      "metadataRemaining": "Les informations cachées de « {{name}} » n'ont pas pu être retirées : cette photo ne sera pas envoyée."
+      "metadataRemaining": "Les informations cachées de « {{name}} » n'ont pas pu être retirées : cette photo ne sera pas envoyée.",
+      "notCroppable": "« {{name}} » est une image animée : elle ne peut pas être recadrée sans perdre son animation, elle ne sera pas envoyée."
     }
   },
   "useMediaDraft": {
