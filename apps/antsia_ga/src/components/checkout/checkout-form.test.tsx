@@ -82,6 +82,15 @@ describe("préparation explicite sans paiement", () => {
     expect(container.textContent).toContain("Cette action n’est pas disponible")
     expect(container.textContent).not.toContain("Payé")
   })
+  it("CM-10 : une boutique passée en pause entre-temps refuse sans reprise et dit sa réouverture", async () => {
+    const until = Date.UTC(2026, 10, 14, 23)
+    prepare.mockRejectedValue(Object.assign(new Error("refus"), { data: { code: "invalidArgument", rule: "SHOP_PAUSED", params: { until } } }))
+    await render(); await valid(); await submit()
+    expect(onAttempt).not.toHaveBeenCalled()
+    expect(container.textContent).toContain(i18n.t("rules:SHOP_PAUSED", { until }))
+    expect(container.textContent).toContain("15 novembre 2026")
+    expect([...container.querySelectorAll("button")].some((node) => node.textContent === "Reprendre la même demande")).toBe(false)
+  })
   it("un changement de version du consentement décoche un accord qui n'a pas encore été envoyé", async () => {
     await render(); await valid()
     expect((container.querySelector('input[name="consent"]') as HTMLInputElement).checked).toBe(true)

@@ -1,5 +1,6 @@
 "use client"
 
+import { engineErrorRule } from "@antsia/social-contracts/errors"
 import type { CommerceCheckoutLineInput, CommerceFulfillment } from "@antsia/social-domain/commerce/command"
 import { COMMERCE_MAX_AMOUNT_XAF } from "@antsia/social-domain/commerce/primitives"
 import type { CatalogOffer } from "@convex/modules/shops/catalogValidators"
@@ -55,6 +56,8 @@ export function CheckoutPreparationForm({ offer, cartLines, options, consentText
   const [intent, setIntent] = useState<CheckoutPrepareInput | null>(null)
   const intentRef = useRef<CheckoutPrepareInput | null>(null)
   const [refused, setRefused] = useState(false)
+  // CM-10 : la boutique est passée en pause depuis l'ouverture de l'écran — refus définitif, réouverture dite.
+  const [pausedUntil, setPausedUntil] = useState<number | null>(null)
   const [uncertain, setUncertain] = useState(false)
   const [savingIntent, setSavingIntent] = useState(false)
   const form = useForm<CheckoutFormValues>({ resolver: zodResolver(checkoutFormSchema(t)), defaultValues: EMPTY_CHECKOUT_FORM })
@@ -78,7 +81,14 @@ export function CheckoutPreparationForm({ offer, cartLines, options, consentText
       if (!connectivity.online || !navigator.onLine || suspended) throw new Error("checkoutSuspended")
       if (resume && beforeResume) { const found = await beforeResume(input); if (found.outcome !== "absent") return found }
       if (!action.current() || !navigator.onLine || suspended) throw new Error("checkoutSuspended")
-      return await prepare(input)
+      try {
+        return await prepare(input)
+      } catch (error) {
+        const rule = engineErrorRule(error)
+        if (rule?.rule !== "SHOP_PAUSED") throw error
+        setPausedUntil(rule.params.until ?? null)
+        return { outcome: "refused" as const }
+      }
     }, (result) => { if (result.outcome === "attempt") onAttempt(result.attemptId); else if (result.outcome === "refused") setRefused(true); else setUncertain(true) })
   }
   const submit = form.handleSubmit(async (input) => {
@@ -142,6 +152,6 @@ export function CheckoutPreparationForm({ offer, cartLines, options, consentText
       {stickyActions && total !== null && values.fulfillmentMode ? <p aria-hidden="true" className="grid flex-1 gap-0.5 min-[1024px]:hidden"><span className="text-xs text-muted-foreground">{t("total")}</span><span className="font-display text-lg font-bold">{checkoutAmount(total, locale)}</span></p> : null}
       {!intent ? <Button type="submit" variant="commerce" pending={action.pending} disabled={refused || (cartLines ? cartPrepared === null : amount === undefined) || !validTotal || suspended || !connectivity.online}>{t("prepare")}</Button> : <><p role="status" className="text-sm">{t("uncertainIntent")}</p>{(action.error || uncertain) && !refused ? <Button type="button" variant="commerce" pending={action.pending} disabled={suspended || !connectivity.online} onClick={() => send(intent, true)}>{t("retryIntent")}</Button> : null}</>}
     </div>
-    {action.error ? <p role="alert" className="text-sm text-destructive">{t("failed")}</p> : null}{refused ? <p role="alert" className="text-sm">{t("refused")}</p> : null}
+    {action.error ? <p role="alert" className="text-sm text-destructive">{t("failed")}</p> : null}{refused ? <p role="alert" className="text-sm">{pausedUntil !== null ? t("rules:SHOP_PAUSED", { until: pausedUntil }) : t("refused")}</p> : null}
   </form></Card>
 }

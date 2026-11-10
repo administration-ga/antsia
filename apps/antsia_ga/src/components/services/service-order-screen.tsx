@@ -14,6 +14,7 @@ import { useTranslation } from "react-i18next"
 import { Button, Card, Field, TextArea, TextInput } from "@/components/shared/controls"
 import { FORM_FIELDS, SCREEN_SECTIONS } from "@/components/shared/screen-layout"
 import { ShopFrame, ShopLink, useShopAction } from "@/components/shops/shop-ui"
+import { ShopPauseBanner } from "@/components/shops/shop-pause"
 import type { CatalogOffer } from "@/components/shops/catalog-model"
 import { routes } from "@/lib/routes"
 import { contactNameOf, EMPTY_ORDER, orderSchema, serviceAmount, serviceToday, type OrderValues } from "./service-model"
@@ -40,6 +41,8 @@ export function ServiceOrderScreen({ handle, offerRef }: { handle: string; offer
   const { t } = useTranslation("services")
   return <ShopFrame title={t("order.title")} lead={t("order.lead")}>
     <div className="flex flex-wrap gap-2"><ShopLink href={routes.shopOffer(handle, offerRef)}>{t("common.backToOffer")}</ShopLink><ShopLink href={routes.serviceRequests()}>{t("requests.title")}</ShopLink></div>
+    {/* CM-10 : boutique fermée temporairement — la réouverture, avant toute nouvelle demande. */}
+    <ShopPauseBanner handle={handle} />
     <ServiceInitialIntentBoundary key={JSON.stringify([networkId, personId, handle, offerRef])} mode="fixed_order" handle={handle} offerRef={offerRef}><OrderOptions handle={handle} offerRef={offerRef} /></ServiceInitialIntentBoundary>
   </ShopFrame>
 }

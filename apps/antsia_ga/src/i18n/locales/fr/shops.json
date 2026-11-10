@@ -838,5 +838,22 @@
       "notFound": "Cette offre n'est plus disponible.",
       "failed": "L'enregistrement n'a pas abouti. Réessayez."
     }
+  },
+  "pause": {
+    "bannerTitle": "Boutique fermée temporairement",
+    "bannerBody": "Réouverture le {{until, datetime(dateStyle: long; timeZone: Africa/Libreville)}}. La vitrine reste consultable ; les nouvelles commandes et demandes reprendront à cette date.",
+    "editorTitle": "Fermer temporairement",
+    "editorLead": "Pour un congé ou une absence, sans retirer la vitrine : elle reste visible, mais n'accepte plus de nouvelle commande, demande ni candidature jusqu'à la réouverture. Les commandes et demandes déjà en cours continuent, et vos conversations restent ouvertes.",
+    "reopenDay": "Réouverture le",
+    "reopenHint": "La boutique rouvre seule ce jour-là, à minuit (heure de Libreville). Au plus tard dans {{days}} jours.",
+    "close": "Fermer temporairement",
+    "change": "Changer la date de réouverture",
+    "closeConfirm": "Fermer temporairement cette boutique ? Réouverture le {{until, datetime(dateStyle: long; timeZone: Africa/Libreville)}} ; d'ici là, les nouvelles commandes et demandes seront refusées.",
+    "closedNow": "La boutique est fermée temporairement. Réouverture le {{until, datetime(dateStyle: long; timeZone: Africa/Libreville)}}.",
+    "reopenNow": "Rouvrir maintenant",
+    "reopenConfirm": "Rouvrir la boutique maintenant ? Elle acceptera de nouveau les commandes et les demandes.",
+    "saved": "La boutique est fermée temporairement.",
+    "reopened": "La boutique est rouverte.",
+    "required": "Choisissez la date de réouverture."
   }
 }

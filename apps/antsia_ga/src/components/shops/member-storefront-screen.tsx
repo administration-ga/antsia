@@ -18,6 +18,7 @@ import { ShopFrame, ShopLink, ShopLogo, ShopQueryFailure, useShopAction } from "
 import { MemberCatalogPreview } from "./catalog-member-screen"
 import { DailySpecialCard, useTodaysSpecialRef } from "./daily-special"
 import { MemberShopJobsPreview } from "@/components/jobs/member-shop-jobs-screen"
+import { ShopPauseBanner } from "./shop-pause"
 
 export function MemberStorefrontScreen({ handle }: { handle: string }) {
   const { networkId, personId } = useNetwork()
@@ -63,6 +64,8 @@ export function StorefrontBody({ shop, publications = true }: { shop: Storefront
   const facts = food ? (["specialty", "serviceArea"] as const) : (["specialty", "serviceArea", "hours"] as const)
   return <>
     {shop.viewer.manages ? <p className="-mt-4 text-sm text-muted-foreground">{ux("storefront.manageHint")}</p> : null}
+    {/* CM-10 : la vitrine reste lisible pendant une fermeture temporaire ; le bandeau dit jusqu'à quand. */}
+    <ShopPauseBanner handle={shop.handle} />
     {special ? <DailySpecialCard handle={shop.handle} offerRef={special} /> : null}
     {shop.blocks.map((block) => block === "catalog" || block === "services" ? <MemberCatalogPreview key={block} handle={shop.handle} kind={block === "catalog" ? "product" : "service"} title={food && block === "catalog" ? t("food.menu") : undefined} /> : block === "about" ? <Card key={block}><div className="grid gap-4"><h2 className="mp-subtitle">{t("storefront.about")}</h2>{shop.description ? <p className="whitespace-pre-wrap">{shop.description}</p> : null}<dl className="grid gap-4 sm:grid-cols-2">{facts.map((field) => shop[field] ? <div key={field}><dt className="text-sm font-medium text-muted-foreground">{t(`storefront.${field}`)}</dt><dd className="whitespace-pre-wrap">{shop[field]}</dd></div> : null)}</dl></div></Card> : block === "publications" && publications ? <Card key={block}><div className="grid justify-items-start gap-3"><h2 className="mp-subtitle">{t("blocks.publications")}</h2><p className="text-sm text-muted-foreground">{t("storefront.publicationsHint")}</p><ShopLink href={routes.page(shop.handle)}>{t("storefront.socialPage")}</ShopLink></div></Card> : null)}
     <StorefrontTerms value={shop.storefrontTerms} locale={i18n.resolvedLanguage === "en" ? "en" : "fr"} t={t} />
