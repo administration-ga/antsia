@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/direct/DirectScene.tsx @ ad2e7fdc2 — adaptations : studio réécrit sur la salle persistante ANTSIA, personId au lieu des noms, géométrie pure du socle, commandes d’intention conservées dans le store et partage explicite ; i18n et jetons ; chaque tuile CONTENUE dans sa case mesurée (requête de conteneur), à la proportion de la source.
+// Dupliqué de socle/packages/agent-features/src/features/direct/DirectScene.tsx @ ad2e7fdc2 — adaptations : studio réécrit sur la salle persistante ANTSIA, personId au lieu des noms, géométrie pure du socle, commandes d’intention conservées dans le store et partage explicite ; i18n et jetons ; chaque tuile CONTENUE dans sa case mesurée (requête de conteneur), à la proportion de la source ; DL-02 : la pastille « REC » reste visible en plein écran (l’en-tête de la page est alors masqué).
 "use client"
 
 import { Button } from "@antsia/ui"
@@ -12,6 +12,7 @@ import { orderDirectTiles, planDirectScene } from "./direct-scene"
 import { directParticipantPersonId, directRosterTracks } from "./direct-studio-model"
 import { DIRECT_SCENE_CELL_CLASS, directTileFit } from "./direct-tile-fit"
 import { DIRECT_SCENE_VIEWS, type DirectSceneView } from "./direct-view"
+import { DirectRecordingBadge } from "./DirectRecordingConsent"
 import { useDirectCommand } from "./use-direct-command"
 
 const studioTokens = {
@@ -73,6 +74,7 @@ export function DirectStudio({ session, onLeave, onEnd }: { session: DirectSessi
 
   return <div ref={frame} data-lk-theme="antsia" className="flex min-w-0 flex-col gap-[var(--esp-card-gap,0.75rem)] rounded-[var(--esp-primitive-card-radius,0.75rem)] border border-[var(--esp-primitive-surface-border,var(--border))] bg-card p-[var(--esp-card-padding,0.75rem)]" style={{ ...studioTokens, fontSize: "var(--esp-content-font-size, inherit)", lineHeight: "var(--esp-content-line-height, inherit)", boxShadow: "var(--esp-surface-shadow, none)", ...(fullscreen ? { height: "100%", overflow: "hidden" } : {}) }}>
     <div className="flex shrink-0 flex-wrap items-center justify-between gap-2">
+      {fullscreen ? <DirectRecordingBadge session={session} /> : null}
       <label className="flex min-h-11 items-center gap-2 text-sm">{t("studio.view")}<select value={view} onChange={(event) => setView(event.target.value as DirectSceneView)} className="min-h-11 rounded-[var(--esp-input-radius,0.5rem)] border border-input bg-background px-2">{DIRECT_SCENE_VIEWS.map((value) => <option key={value} value={value}>{t(`studio.views.${value}`)}</option>)}</select></label>
       {typeof document !== "undefined" && document.fullscreenEnabled ? <Button variant="ghost" disabled={command.pending} onClick={() => void command.run(() => fullscreen ? document.exitFullscreen() : frame.current!.requestFullscreen())}>{t(fullscreen ? "studio.exitFullscreen" : "studio.fullscreen")}</Button> : null}
     </div>

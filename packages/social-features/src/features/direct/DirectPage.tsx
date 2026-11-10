@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/direct/DirectPage.tsx @ ad2e7fdc2 — adaptations : DTO moteur, préflight avant démarrage, studio consommant la salle persistante et gestion d’antenne par permissions serveur, i18n et routes injectées ; couleurs par fonction (ADR-0027) : « Rejoindre la salle » en participation (variante `commerce`, aplat d’identité en repli).
+// Dupliqué de socle/packages/agent-features/src/features/direct/DirectPage.tsx @ ad2e7fdc2 — adaptations : DTO moteur, préflight avant démarrage, studio consommant la salle persistante et gestion d’antenne par permissions serveur, i18n et routes injectées ; couleurs par fonction (ADR-0027) : « Rejoindre la salle » en participation (variante `commerce`, aplat d’identité en repli) ; DL-02 : pastille « REC » pendant la capture, accord à l’enregistrement (case décochée) avant d’entrer à l’antenne, place d’invité intervenant ouverte par l’accord.
 "use client"
 
 import { themedActionStyle } from "../themed-action-style"
@@ -21,6 +21,7 @@ import { describeCallMediaError } from "../iappel/media-errors"
 import { DirectStudio } from "./DirectStudio"
 import { DirectManagement } from "./DirectManagement"
 import { DirectExitDialog } from "./DirectExitDialog"
+import { DirectProposedSpeakerConsent, DirectRecordingBadge, isDirectRecordingActive, needsMyRecordingConsent, RecordingConsentField } from "./DirectRecordingConsent"
 import { DirectReplay } from "./DirectReplay"
 
 export type DirectSession = FunctionReturnType<typeof api.modules.live.sessions.get>
@@ -45,6 +46,7 @@ function DirectSessionView({ session }: { session: DirectSession }) {
   const end = useMutation(api.modules.live.sessions.end)
   const leaveViewer = useMutation(api.modules.live.presence.leave)
   const leaveStage = useMutation(api.modules.live.antenna.leaveAntenna)
+  const acceptRecording = useMutation(api.modules.live.antenna.acceptRecording)
   const state = useDirectSessionStore()
   const room = useDirectRoom(session.sessionId)
   const [pending, setPending] = useState(false)
@@ -53,6 +55,10 @@ function DirectSessionView({ session }: { session: DirectSession }) {
   const [exit, setExit] = useState(false)
   const [localTracks, setLocalTracks] = useState<LocalTrack[]>([])
   const [checked, setChecked] = useState(false)
+  // DL-02 — un intervenant sans accord à l'enregistrement (antenne accordée
+  // avant cet accord) l'accepte ICI, case décochée, avant d'entrer à l'antenne.
+  const [recordingConsent, setRecordingConsent] = useState(false)
+  const consentRequired = session.viewerRole === "speaker" && needsMyRecordingConsent(session)
   const preview = useRef<HTMLVideoElement>(null)
   const preflightVersion = useRef(0)
   const currentSession = useRef(session)
@@ -101,6 +107,11 @@ function DirectSessionView({ session }: { session: DirectSession }) {
       throw failure
     }
   }
+  // L'accord part AVANT le jeton : le serveur refuse un jeton d'intervenant sans lui.
+  const enter = async () => {
+    if (consentRequired) await acceptRecording({ networkId, sessionId: session.sessionId })
+    await join()
+  }
   const preflight = () => attempt(async () => {
     const version = ++preflightVersion.current
     localTracks.forEach((track) => track.stop())
@@ -136,7 +147,7 @@ function DirectSessionView({ session }: { session: DirectSession }) {
       <Link href={routes.home()} className="inline-flex min-h-11 items-center text-sm">{t("back")}</Link>
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div><p className="text-sm text-muted-foreground">{t(`status.${session.status}`)}</p><h1 className="text-2xl font-semibold" style={{ fontFamily: "var(--esp-heading-font-family, inherit)", fontSize: "var(--esp-page-title-size, 1.5rem)", fontWeight: "var(--esp-heading-font-weight, 600)", lineHeight: "var(--esp-page-title-leading, 2rem)", letterSpacing: "var(--esp-page-title-tracking, normal)" }}>{session.title}</h1><p className="text-sm text-muted-foreground">{session.host.displayName ?? t("person")}</p>{session.page ? <Link href={routes.page(session.page.handle)} className="text-sm">{t("create.signedPage", { name: session.page.name })}</Link> : null}</div>
-        <span className="rounded-full border border-border px-3 py-1 text-sm">{t(`audience.${session.audience}`)}</span>
+        <div className="flex flex-wrap items-center gap-2"><DirectRecordingBadge session={session} /><span className="rounded-full border border-border px-3 py-1 text-sm">{t(`audience.${session.audience}`)}</span></div>
       </header>
       {anotherRoom ? <p role="alert">{t("anotherRoom")} <Link href={routes.conference(state.sessionId!)}>{t("returnToRoom")}</Link></p> : null}
       {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
@@ -151,6 +162,7 @@ function DirectSessionView({ session }: { session: DirectSession }) {
         {checked ? <p role="status">{t("preflight.ready")}</p> : null}
       </div> : null}
       {session.status === "scheduled" && session.viewerRole !== "host" ? <p>{t("waiting")}</p> : null}
+      {session.viewerRole === "viewer" ? <DirectProposedSpeakerConsent session={session} /> : null}
       {session.status === "live" ? <>
         {held && room ? (
           <RoomContext.Provider value={room}><DirectStudio session={session} onLeave={() => session.viewerRole === "viewer" || state.phase !== "connected" ? quit() : setLeaving(true)} onEnd={session.permissions.endOrTransfer ? () => setExit(true) : undefined} /></RoomContext.Provider>
@@ -160,8 +172,9 @@ function DirectSessionView({ session }: { session: DirectSession }) {
             {session.viewerRole !== "viewer" ? <>
               <label className="flex min-h-11 items-center gap-3"><input type="checkbox" checked={state.intent.micEnabled} disabled={pending || anotherRoom} onChange={(event) => directSessionStore.setIntent({ micEnabled: event.target.checked })} />{t("microphoneOn")}</label>
               <label className="flex min-h-11 items-center gap-3"><input type="checkbox" checked={state.intent.cameraEnabled && !state.intent.audioOnly} disabled={pending || anotherRoom} onChange={(event) => directSessionStore.setIntent({ cameraEnabled: event.target.checked, audioOnly: false })} />{t("cameraOn")}</label>
+              {consentRequired ? <RecordingConsentField checked={recordingConsent} onChange={setRecordingConsent} disabled={pending || anotherRoom} /> : null}
             </> : null}
-            <Button variant="commerce" disabled={pending || anotherRoom || (held && (state.phase === "connecting" || state.phase === "reconnecting"))} onClick={() => void attempt(join)}>{pending || (held && state.phase === "connecting") ? t("pending") : t("join")}</Button>
+            <Button variant="commerce" disabled={pending || anotherRoom || (consentRequired && !recordingConsent) || (held && (state.phase === "connecting" || state.phase === "reconnecting"))} onClick={() => void attempt(enter)}>{pending || (held && state.phase === "connecting") ? t("pending") : t("join")}</Button>
           </div>
         )}
         {held && state.credentials ? <div className="flex flex-wrap items-center gap-3">
@@ -169,7 +182,8 @@ function DirectSessionView({ session }: { session: DirectSession }) {
           {!room ? <Button variant="ghost" onClick={quit}>{t("leave")}</Button> : null}
         </div> : null}
         <p className="text-sm text-muted-foreground">{t("counters", { present: session.counters.present, admitted: session.counters.viewers })}</p>
-        {session.replay ? <p className="text-sm">{t(`replay.egress.${session.replay.egressState}`)}</p> : null}
+        {/* Capture en cours : la pastille de l'en-tête le dit déjà (et l'annonce) — pas deux fois. */}
+        {session.replay && !isDirectRecordingActive(session) ? <p className="text-sm">{t(`replay.egress.${session.replay.egressState}`)}</p> : null}
       </> : null}
       </div>
       {session.status !== "ended" ? <DirectManagement session={session} admitted={held && state.credentials?.role === "viewer" && state.phase === "connected"} /> : null}

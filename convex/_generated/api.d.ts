@@ -10,6 +10,7 @@
 
 import type * as betterAuth_auth from "../betterAuth/auth.js";
 import type * as betterAuth_delivery from "../betterAuth/delivery.js";
+import type * as betterAuth_idnRefusalReturn from "../betterAuth/idnRefusalReturn.js";
 import type * as betterAuth_nativeIdn from "../betterAuth/nativeIdn.js";
 import type * as betterAuth_settings from "../betterAuth/settings.js";
 import type * as crons from "../crons.js";
@@ -88,6 +89,7 @@ import type * as modules_contextualMessaging_hooks from "../modules/contextualMe
 import type * as modules_contextualMessaging_messages from "../modules/contextualMessaging/messages.js";
 import type * as modules_contextualMessaging_operator from "../modules/contextualMessaging/operator.js";
 import type * as modules_contextualMessaging_personStates from "../modules/contextualMessaging/personStates.js";
+import type * as modules_contextualMessaging_policy from "../modules/contextualMessaging/policy.js";
 import type * as modules_contextualMessaging_projection from "../modules/contextualMessaging/projection.js";
 import type * as modules_contextualMessaging_registry from "../modules/contextualMessaging/registry.js";
 import type * as modules_contextualMessaging_retention from "../modules/contextualMessaging/retention.js";
@@ -245,6 +247,7 @@ import type * as modules_live_permissions from "../modules/live/permissions.js";
 import type * as modules_live_presence from "../modules/live/presence.js";
 import type * as modules_live_reactions from "../modules/live/reactions.js";
 import type * as modules_live_reap from "../modules/live/reap.js";
+import type * as modules_live_recordingConsent from "../modules/live/recordingConsent.js";
 import type * as modules_live_replay from "../modules/live/replay.js";
 import type * as modules_live_replayComposition from "../modules/live/replayComposition.js";
 import type * as modules_live_retention from "../modules/live/retention.js";
@@ -282,6 +285,7 @@ import type * as modules_moderation_settings from "../modules/moderation/setting
 import type * as modules_moderation_tables from "../modules/moderation/tables.js";
 import type * as modules_moderation_targets from "../modules/moderation/targets.js";
 import type * as modules_networks_networks from "../modules/networks/networks.js";
+import type * as modules_networks_sliceRegistry from "../modules/networks/sliceRegistry.js";
 import type * as modules_networks_tables from "../modules/networks/tables.js";
 import type * as modules_notifications_bell from "../modules/notifications/bell.js";
 import type * as modules_notifications_commerceAccess from "../modules/notifications/commerceAccess.js";
@@ -489,6 +493,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   "betterAuth/auth": typeof betterAuth_auth;
   "betterAuth/delivery": typeof betterAuth_delivery;
+  "betterAuth/idnRefusalReturn": typeof betterAuth_idnRefusalReturn;
   "betterAuth/nativeIdn": typeof betterAuth_nativeIdn;
   "betterAuth/settings": typeof betterAuth_settings;
   crons: typeof crons;
@@ -567,6 +572,7 @@ declare const fullApi: ApiFromModules<{
   "modules/contextualMessaging/messages": typeof modules_contextualMessaging_messages;
   "modules/contextualMessaging/operator": typeof modules_contextualMessaging_operator;
   "modules/contextualMessaging/personStates": typeof modules_contextualMessaging_personStates;
+  "modules/contextualMessaging/policy": typeof modules_contextualMessaging_policy;
   "modules/contextualMessaging/projection": typeof modules_contextualMessaging_projection;
   "modules/contextualMessaging/registry": typeof modules_contextualMessaging_registry;
   "modules/contextualMessaging/retention": typeof modules_contextualMessaging_retention;
@@ -724,6 +730,7 @@ declare const fullApi: ApiFromModules<{
   "modules/live/presence": typeof modules_live_presence;
   "modules/live/reactions": typeof modules_live_reactions;
   "modules/live/reap": typeof modules_live_reap;
+  "modules/live/recordingConsent": typeof modules_live_recordingConsent;
   "modules/live/replay": typeof modules_live_replay;
   "modules/live/replayComposition": typeof modules_live_replayComposition;
   "modules/live/retention": typeof modules_live_retention;
@@ -761,6 +768,7 @@ declare const fullApi: ApiFromModules<{
   "modules/moderation/tables": typeof modules_moderation_tables;
   "modules/moderation/targets": typeof modules_moderation_targets;
   "modules/networks/networks": typeof modules_networks_networks;
+  "modules/networks/sliceRegistry": typeof modules_networks_sliceRegistry;
   "modules/networks/tables": typeof modules_networks_tables;
   "modules/notifications/bell": typeof modules_notifications_bell;
   "modules/notifications/commerceAccess": typeof modules_notifications_commerceAccess;

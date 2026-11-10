@@ -1,5 +1,5 @@
 // @vitest-environment edge-runtime
-// Dupliqué de socle/convex/modules/direct/replayPublication.test.ts @ ad2e7fdc2 — adaptations : COMPTES → personnes et réseaux (graine des fondations, `enter`, fonctions `sessions.*` et `invitees.revoke` bornées par `networkId`) ; les invités de « Invités seulement » et de la conférence publique ne sont plus des AGENTS rattachés à une administration (`orgs`, `memberships` du socle retirés) : un membre du réseau relié à l'hôte est conviable (V35) ; relations et abonnements posés par l'outillage du moteur (`connect`, ligne `follows`) ; refus à code au lieu des phrases (`liveRoleRequired`, règles `LIVE_REPLAY_WITHDRAWN`, `LIVE_REPLAY_DECISION_AFTER_END`, `LIVE_NO_RECORDING`, `LIVE_REPLAY_NOT_STARTED`) ; motif de démarrage refusé en CODE (`start_refused`) ; cloche `live_replay_published` lue dans `notifications` du moteur (`recipientPersonId`, `actorPersonId`, `subjectLiveSessionId`), APRÈS les lots de diffusion joués (`notifications/fanout` : la cloche ne sonne plus dans la transaction) ; la session « antérieure au lot » posée en base porte une vidéo CONNUE de la garde des fichiers (inscrite comme produite par la plateforme : le moteur ne sert aucun fichier inconnu de sa garde) ; horloge simulée ; les seize cas portés.
+// Dupliqué de socle/convex/modules/direct/replayPublication.test.ts @ ad2e7fdc2 — adaptations : COMPTES → personnes et réseaux (graine des fondations, `enter`, fonctions `sessions.*` et `invitees.revoke` bornées par `networkId`) ; les invités de « Invités seulement » et de la conférence publique ne sont plus des AGENTS rattachés à une administration (`orgs`, `memberships` du socle retirés) : un membre du réseau relié à l'hôte est conviable (V35) ; relations et abonnements posés par l'outillage du moteur (`connect`, ligne `follows`) ; refus à code au lieu des phrases (`liveRoleRequired`, règles `LIVE_REPLAY_WITHDRAWN`, `LIVE_REPLAY_DECISION_AFTER_END`, `LIVE_NO_RECORDING`, `LIVE_REPLAY_NOT_STARTED`) ; motif de démarrage refusé en CODE (`start_refused`) ; cloche `live_replay_published` lue dans `notifications` du moteur (`recipientPersonId`, `actorPersonId`, `subjectLiveSessionId`), APRÈS les lots de diffusion joués (`notifications/fanout` : la cloche ne sonne plus dans la transaction) ; la session « antérieure au lot » posée en base porte une vidéo CONNUE de la garde des fichiers (inscrite comme produite par la plateforme : le moteur ne sert aucun fichier inconnu de sa garde) ; horloge simulée ; les seize cas portés ; DL-02 (décision du propriétaire du 9/11/2026) : sans choix explicite, rien n'est enregistré — le premier cas l'affirme désormais, et les conférences des autres cas sont créées avec `replay: true`.
 /**
  * LE SORT DE L'ENREGISTREMENT SE DÉCIDE À LA FIN (ADR-0158).
  *
@@ -14,6 +14,11 @@
  *
  * Depuis ce lot : on enregistre d'office, la copie naît NON DÉCIDÉE, et seul
  * l'hôte l'ouvre (publier), la range (garder pour moi) ou la supprime.
+ *
+ * ⚠️ DL-02 (9/11/2026) — le PREMIER point est renversé par décision du
+ * propriétaire : enregistrer redevient un choix explicite (décoché par défaut,
+ * au formulaire comme au serveur), et chaque personne à l'antenne y consent.
+ * Les deux autres points tiennent : copie non décidée, décision de l'hôte.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
@@ -48,14 +53,14 @@ function must<X>(value: X | null | undefined): X {
   return value
 }
 
-/** Une conférence PUBLIQUE, créée SANS rien dire de l'enregistrement. */
+/** Une conférence PUBLIQUE, ENREGISTRÉE sauf `replay: false` (DL-02 : l'enregistrement est un choix explicite). */
 async function conference(root: Id<"networks">, host: Person, extra: { replay?: boolean } = {}): Promise<Id<"liveSessions">> {
   const created = await host.as.mutation(S.create, {
     networkId: root,
     title: "Point du jour",
     audience: "public",
     chatMode: "open",
-    ...(extra.replay !== undefined ? { replay: extra.replay } : {}),
+    replay: extra.replay ?? true,
   })
   return created.sessionId
 }
@@ -90,14 +95,14 @@ async function cast() {
   return { t, root, alice, bob }
 }
 
-describe("on enregistre d'office — le choix vient APRÈS", () => {
-  it("créer sans rien dire ENREGISTRE ; `replay: false` reste l'opt-out explicite", async () => {
+describe("enregistrer est un choix explicite — le sort de la copie vient APRÈS", () => {
+  it("DL-02 — créer sans rien dire N'ENREGISTRE PAS ; `replay: true` enregistre", async () => {
     const { t, root, alice } = await cast()
-    const parDefaut = await conference(root, alice)
-    const sans = await conference(root, alice, { replay: false })
+    const parDefaut = (await alice.as.mutation(S.create, { networkId: root, title: "Point du jour", audience: "public", chatMode: "open" })).sessionId
+    const avec = await conference(root, alice, { replay: true })
     await t.run(async (ctx) => {
-      expect(must(await ctx.db.get(parDefaut)).replayRequested).toBe(true)
-      expect(must(await ctx.db.get(sans)).replayRequested).toBe(false)
+      expect(must(await ctx.db.get(parDefaut)).replayRequested).toBe(false)
+      expect(must(await ctx.db.get(avec)).replayRequested).toBe(true)
     })
   })
 
@@ -409,6 +414,7 @@ describe("publier se dit à l'audience (CH-094)", () => {
       title: "Réunion restreinte",
       audience: "invitees",
       chatMode: "open",
+      replay: true,
       invitees: [
         { personId: bob.personId, stageRole: "viewer" },
         { personId: carla.personId, stageRole: "viewer" },
@@ -442,6 +448,7 @@ describe("publier se dit à l'audience (CH-094)", () => {
       title: "Point public",
       audience: "public",
       chatMode: "open",
+      replay: true,
       invitees: [
         { personId: bob.personId, stageRole: "viewer" },
         { personId: eve.personId, stageRole: "viewer" },

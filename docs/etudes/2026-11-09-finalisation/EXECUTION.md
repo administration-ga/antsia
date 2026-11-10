@@ -121,7 +121,7 @@ Plan : [`04_DIRECT_ET_CONFERENCES.md`](04_DIRECT_ET_CONFERENCES.md)
 | Lot | Titre | Priorité | Taille | Session | Porte | État |
 |---|---|---|---|---|---|---|
 | DL-01 | Recette média réelle LiveKit et Egress | P0 | M | S1 | clé externe ; aucune commande vers la production sans accord écrit. | à faire |
-| DL-02 | Consentement explicite à l'enregistrement | P0 | M | S1 | décision du propriétaire (décision 4). | à faire |
+| DL-02 | Consentement explicite à l'enregistrement | P0 | M | S1 | décision du propriétaire (décision 4). | fusionné |
 | DL-03 | Signaler et contrôler la discussion | P0 | M | S1 | aucune. | à faire |
 | DL-04 | Spectateur en 3G : audio seul et qualité basse | P0 | M | S1 | aucune pour le code ; clé LiveKit pour la preuve. | à faire |
 | DL-05 | Rediffusion légère | P1 | M | S1 | décision du propriétaire (profil, coût de stockage). | à faire |
@@ -348,7 +348,7 @@ Plan : [`13_CONSOLE_EXPLOITATION_LANCEMENT.md`](13_CONSOLE_EXPLOITATION_LANCEMEN
 
 | Lot | Titre | Priorité | Taille | Session | Porte | État |
 |---|---|---|---|---|---|---|
-| EX-01 | Publication et retour arrière dans le dépôt | P0 | M | S1 | toute exécution réelle exige l'accord écrit du propriétaire. | à faire |
+| EX-01 | Publication et retour arrière dans le dépôt | P0 | M | S1 | toute exécution réelle exige l'accord écrit du propriétaire. | fusionné |
 | EX-02 | Intégration continue en lecture seule | P1 | S | S1 | **décision du propriétaire** (automatisations coupées volontairement). | à faire |
 | EX-03 | Sonde de santé qui joint le moteur | P0 | S | S1 | publication. | fusionné |
 | EX-04 | Alertes, journaux et astreinte | P0 | M | S1 | choix de l'outil, comptes et destinataires par le propriétaire. | à faire |
