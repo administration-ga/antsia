@@ -122,6 +122,11 @@ describe("RESEAU-PUBLIC-V1 — descripteurs signés des médias", () => {
     expect(parsePost({ ...post, media: [{ ...video, sizeBytes: 50 * 1024 * 1024 + 1 }] })).toEqual(INVALID)
     expect(parsePost({ ...post, media: [{ ...image, mimeType: "video/mp4" }] })).toEqual(INVALID)
   })
+  it("SD-03 — la vidéo suit la liste blanche du domaine (MP4, WebM) ; sa durée garde la borne du contrat", () => {
+    expect(parsePost({ ...post, media: [{ ...video, mimeType: "video/webm" }] }).ok).toBe(true)
+    expect(parsePost({ ...post, media: [{ ...video, mimeType: "video/quicktime" }] })).toEqual(INVALID)
+    expect(parsePost({ ...post, media: [{ ...video, durationMs: 6 * 60_000 }] }).ok).toBe(true)
+  })
 })
 
 describe("RESEAU-PUBLIC-V1 — logos PA9B et tombes de publication", () => {

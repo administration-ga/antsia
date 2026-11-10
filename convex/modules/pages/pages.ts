@@ -14,7 +14,7 @@
  */
 import { pageTrustRank, assertMemberCreatableOwnerKind, assertPageHandle, assertPageName, normalizePageDescription, normalizePageShortName, PAGE_SIGNATORIES_MAX } from "@antsia/social-domain/pages"
 import { normalizePageAssociationType, normalizePageCity, normalizePageSector } from "@antsia/social-domain/pagePresentation"
-import { addedMentionedIds, assertCountryCode, assertPostContent, assertPostMedia, assertPostReach, REACH_REQUIRING_COUNTRY } from "@antsia/social-domain/content"
+import { addedMentionedIds, assertCountryCode, assertPostContent, assertPostMedia, assertPostReach, assertPostVideoDuration, REACH_REQUIRING_COUNTRY } from "@antsia/social-domain/content"
 import { cursorForFeedPost } from "@antsia/social-domain/feedScale"
 import { effectiveVisibility } from "@antsia/social-domain/network"
 import { PROVINCE_SLUGS } from "@antsia/social-domain/provinces"
@@ -498,6 +498,8 @@ export const publishAsPage = networkMutation({
     checked(() =>
       assertPostMedia(media.map((item) => ({ kind: item.kind, mimeType: item.mimeType, sizeBytes: item.sizeBytes, ...(item.altText ? { altText: item.altText } : {}) }))),
     )
+    // SD-03 : la durée DÉCLARÉE d'une vidéo, même borne que la publication personnelle.
+    checked(() => assertPostVideoDuration(media))
     const body = checked(() => assertPostContent({ body: args.body, mediaCount: media.length, isShare: false }))
     const placed = placePagePost(page, args.reach, ctx.network.reachValues)
     // Le nouveau choix sans compte porte les NATIVES ; les pages enfants gardent leur règle collective.
