@@ -56,6 +56,7 @@ import {
   hasCapability,
   isMentoringDomain,
   isMentoringIdempotencyKey,
+  matchesMentorSearch,
   type MemberCapability,
   MENTEE_OPEN_REQUESTS_MAX,
   MENTOR_CAPACITY_MAX,
@@ -74,6 +75,7 @@ import {
   parseMentoringReason,
   parseMentoringSlot,
   parseMentorProfile,
+  parseMentorSearchFilters,
   parseResidenceCountry,
   projectMentorPlace,
   type Result,
@@ -681,12 +683,21 @@ export const myMentorProfile = networkQuery({
 
 /**
  * Chercher des mentors ACTIFS dans un pays, tous domaines ou un domaine, les
- * plus récemment listés d'abord. Une page peut être courte, voire vide, et
- * annoncer sa suite : chaque mentor est rejugé pour ce lecteur. Aucun
- * historique de recherche n'est gardé.
+ * plus récemment listés d'abord ; ET-04 : d'une langue, d'une ville saisie (la
+ * ville que CE lecteur voit : une ville cachée ne se devine pas par le filtre).
+ * Une page peut être courte, voire vide, et annoncer sa suite : chaque mentor
+ * est rejugé pour ce lecteur. Aucun historique de recherche n'est gardé.
  */
 export const searchMentors = networkQuery({
-  args: { country: v.string(), domain: v.optional(v.string()), paginationOpts: paginationOptsValidator },
+  args: {
+    country: v.string(),
+    domain: v.optional(v.string()),
+    /** ET-04 — une langue de la liste fermée : seuls les mentors qui la parlent. */
+    language: v.optional(v.string()),
+    /** ET-04 — une ville saisie (sans GPS), jugée sur ce que le lecteur voit de la ville du mentor. */
+    city: v.optional(v.string()),
+    paginationOpts: paginationOptsValidator,
+  },
   returns: paginationResultValidator(mentorCardValidator),
   handler: async (ctx, args): Promise<PaginationResult<MentorCardDto>> => {
     assertDiasporaNetwork(ctx.network)
@@ -700,10 +711,19 @@ export const searchMentors = networkQuery({
       if (!isMentoringDomain(candidate)) return failAppRule("mentor_domain_invalid", {}, "invalidArgument")
       domain = candidate
     }
+    const parsedFilters = parseMentorSearchFilters({ language: args.language, city: args.city })
+    if (!parsedFilters.ok) return failAppRule(parsedFilters.code, {}, "invalidArgument")
+    const filters = parsedFilters.value
     const reader = await mentorReader(ctx)
     const now = Date.now()
     const options = boundedPage(args.paginationOpts, SEARCH_PAGE_MAX)
     const page: MentorCardDto[] = []
+    /** ET-04 : la langue se juge sur le profil (aucune lecture de plus), la ville sur la carte projetée pour ce lecteur. */
+    const keep = async (profile: Doc<"mentorProfiles">): Promise<void> => {
+      if (filters.language !== null && !profile.languages.includes(filters.language)) return
+      const card = await mentorCardFor(ctx, reader, profile, now)
+      if (card && matchesMentorSearch({ languages: card.languages, visibleCity: card.city }, filters)) page.push(card)
+    }
     if (domain === null) {
       const result = await ctx.db
         .query("mentorProfiles")
@@ -713,8 +733,7 @@ export const searchMentors = networkQuery({
       for (const profile of result.page) {
         // Défense en profondeur : l'index borne déjà, chaque ligne est rejugée.
         if (profile.state !== "active" || profile.country !== country) continue
-        const card = await mentorCardFor(ctx, reader, profile, now)
-        if (card) page.push(card)
+        await keep(profile)
       }
       return { ...result, page }
     }
@@ -729,8 +748,7 @@ export const searchMentors = networkQuery({
     for (const listing of result.page) {
       const profile = await ctx.db.get(listing.mentorProfileId)
       if (!profile || profile.state !== "active" || profile.country !== country || !profile.domains.includes(wanted)) continue
-      const card = await mentorCardFor(ctx, reader, profile, now)
-      if (card) page.push(card)
+      await keep(profile)
     }
     return { ...result, page }
   },

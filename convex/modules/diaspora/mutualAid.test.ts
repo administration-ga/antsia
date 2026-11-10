@@ -615,3 +615,101 @@ describe("entraide — listes bornées", () => {
     expect((await f.other.as.query(AID.listQuestions, { networkId: f.networkId, country: "FR", status: "open", paginationOpts: { numItems: 0, cursor: null } })).page).toHaveLength(1)
   })
 })
+
+describe("entraide — retrouver une question : thème, mots, sans réponse (ET-04)", () => {
+  function find(f: Fixture, who: Member, args: { theme?: string; query?: string; unanswered?: boolean; city?: string; status?: "open" | "resolved" | "closed" }) {
+    return who.as.query(AID.listQuestions, {
+      networkId: f.networkId,
+      country: "FR",
+      status: args.status ?? "open",
+      ...(args.city !== undefined ? { city: args.city } : {}),
+      ...(args.theme !== undefined ? { theme: args.theme } : {}),
+      ...(args.query !== undefined ? { query: args.query } : {}),
+      ...(args.unanswered !== undefined ? { unanswered: args.unanswered } : {}),
+      paginationOpts: FIRST,
+    })
+  }
+  const ids = (result: { page: { questionId: string }[] }) => result.page.map((row) => row.questionId)
+
+  it("un thème, « sans réponse » et des mots restreignent ; la question écrite porte son texte cherché, sans auteur ni coordonnée", async () => {
+    const f = await fixture()
+    const housing = await ask(f, f.asker)
+    const papers = await ask(f, f.asker, { title: "Renouveler un titre de séjour étudiant", detail: "Quelles pièces apporter à la préfecture ?", theme: "procedures", city: "Paris" })
+    const health = await ask(f, f.other, { title: "Trouver un médecin traitant", detail: "", theme: "health" })
+    await answer(f, f.helper, health.questionId)
+
+    expect(ids(await find(f, f.helper, { theme: "procedures" }))).toEqual([papers.questionId])
+    expect(ids(await find(f, f.helper, { theme: "procedures", city: "Lyon" }))).toEqual([])
+    // Sans réponse : la question de santé a reçu une réponse publiée, elle sort de la vue.
+    expect(ids(await find(f, f.helper, { unanswered: true }))).toEqual([papers.questionId, housing.questionId])
+    expect(ids(await find(f, f.helper, { unanswered: true, city: "Paris" }))).toEqual([papers.questionId])
+    // Les mots sont repliés des deux côtés : sans accents, la ponctuation compte pour une espace.
+    expect(ids(await find(f, f.helper, { query: "Préfecture" }))).toEqual([papers.questionId])
+    expect(ids(await find(f, f.helper, { query: "sejour", theme: "housing" }))).toEqual([])
+    expect(ids(await find(f, f.helper, { query: "colocation", city: "Paris" }))).toEqual([])
+    expect(ids(await find(f, f.helper, { query: "medecin", unanswered: true }))).toEqual([])
+    // Un caractère : aucune recherche, la liste reste celle des filtres.
+    expect(ids(await find(f, f.helper, { query: "a" }))).toEqual([health.questionId, papers.questionId, housing.questionId])
+
+    const stored = await f.t.run(async (ctx) => ctx.db.get(papers.questionId))
+    expect(stored?.searchText).toBe("renouveler un titre de sejour etudiant quelles pieces apporter a la prefecture")
+    await f.asker.as.mutation(AID.updateQuestion, { networkId: f.networkId, questionId: papers.questionId, expectedVersion: 1, title: "Renouveler une carte de résident", detail: "", theme: "procedures" })
+    expect(ids(await find(f, f.helper, { query: "prefecture" }))).toEqual([])
+    expect(ids(await find(f, f.helper, { query: "resident" }))).toEqual([papers.questionId])
+  })
+
+  it("un auteur bloqué et une question en relecture restent absents des résultats ; thème inconnu et texte trop long refusés", async () => {
+    const f = await fixture()
+    const blocked = await ask(f, f.helper, { title: "Colocation près de la gare", detail: "" })
+    const reviewed = await ask(f, f.other, { title: "Colocation à partager en janvier", detail: "" })
+    const plain = await ask(f, f.asker)
+    await f.t.run(async (ctx) => {
+      await ctx.db.insert("personBlocks", { networkId: f.networkId, blockerPersonId: f.asker.personId, targetPersonId: f.helper.personId, createdAt: NOW, updatedAt: NOW })
+    })
+    await moderate(f, "diasporaAidQuestion", reviewed.questionId, "pending_review", { ownerPersonId: f.other.personId })
+
+    expect(ids(await find(f, f.asker, { query: "colocation" }))).toEqual([plain.questionId])
+    expect(ids(await find(f, f.asker, { theme: "housing" }))).toEqual([plain.questionId])
+    expect(ids(await find(f, f.asker, { unanswered: true }))).toEqual([plain.questionId])
+    // Un tiers qui n'a rien bloqué lit les deux questions publiées, jamais celle en relecture ; son autrice, seule, la retrouve.
+    expect(ids(await find(f, f.admin, { query: "colocation" })).sort()).toEqual([blocked.questionId, plain.questionId].sort())
+    expect(ids(await find(f, f.other, { query: "colocation" })).sort()).toEqual([blocked.questionId, reviewed.questionId, plain.questionId].sort())
+
+    expect(await refusal(find(f, f.asker, { theme: "sports" }))).toBe("aid_theme_invalid")
+    expect(await refusal(find(f, f.asker, { query: "x".repeat(101) }))).toBe("aid_query_too_long")
+  })
+})
+
+describe("entraide — les prochaines missions sur la fiche d'une association (ET-09)", () => {
+  const upcoming = (f: Fixture, who: Member, pageId: Id<"pages"> = f.pageId, limit?: number) =>
+    who.as.query(AID.upcomingPageMissions, { networkId: f.networkId, pageId, ...(limit !== undefined ? { limit } : {}) })
+
+  it("ouvertes et à venir seulement, des plus proches aux plus lointaines ; en relecture, annulée ou passée : absente", async () => {
+    const f = await fixture()
+    const later = await createMission(f, { title: "Collecte de fournitures scolaires", startsAt: NOW + 5 * DAY, endsAt: NOW + 5 * DAY + 2 * HOUR })
+    const soon = await createMission(f)
+    const reviewed = await createMission(f, { title: "Atelier de rédaction de CV", startsAt: NOW + 3 * DAY, endsAt: NOW + 3 * DAY + HOUR })
+    const cancelled = await createMission(f, { title: "Visite du quartier pour les nouveaux", startsAt: NOW + 4 * DAY, endsAt: NOW + 4 * DAY + HOUR })
+    const past = await createMission(f, { title: "Permanence d'accueil du samedi", startsAt: NOW + 6 * DAY, endsAt: NOW + 6 * DAY + HOUR })
+    await moderate(f, "diasporaAidMission", reviewed.missionId, "pending_review", { ownerPageId: f.pageId })
+    await f.admin.as.mutation(AID.cancelMission, { networkId: f.networkId, missionId: cancelled.missionId, expectedVersion: 1, reason: "" })
+    await f.t.run(async (ctx) => { await ctx.db.patch(past.missionId, { startsAt: NOW - HOUR, endsAt: undefined }) })
+    await signUp(f, f.helper, soon.missionId)
+
+    expect((await upcoming(f, f.helper)).map((card) => [card.missionId, card.signedUp, card.moderation])).toEqual([[soon.missionId, true, null], [later.missionId, false, null]])
+    // L'équipe ne lit pas non plus la mission en relecture ici : elle la garde dans sa gestion.
+    expect((await upcoming(f, f.admin)).map((card) => card.missionId)).toEqual([soon.missionId, later.missionId])
+    expect((await upcoming(f, f.other, f.pageId, 1)).map((card) => card.missionId)).toEqual([soon.missionId])
+  })
+
+  it("une page qui n'est pas une association, d'un autre réseau ou retirée : refus indistinct ; une page sans mission : liste vide", async () => {
+    const f = await fixture()
+    const company = await page(f.t, f.networkId, "entreprise-locale", { ownerKind: "company" })
+    const removed = await page(f.t, f.networkId, "association-retiree", { status: "inactive" })
+    const elsewhere = await page(f.t, f.root, "association-ailleurs")
+    expect(await upcoming(f, f.other)).toEqual([])
+    expect(await refusal(upcoming(f, f.other, company))).toBe("notFound")
+    expect(await refusal(upcoming(f, f.other, removed))).toBe("notFound")
+    expect(await refusal(upcoming(f, f.other, elsewhere))).toBe("notFound")
+  })
+})

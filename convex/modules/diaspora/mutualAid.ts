@@ -37,6 +37,7 @@
  */
 import {
   AID_PAGE_MAX,
+  aidQuestionSearchText,
   aidSignupBlocker,
   aidStatusWithoutAcceptedAnswer,
   checkAidAcceptedAnswer,
@@ -49,13 +50,18 @@ import {
   checkAidSignup,
   checkAidSignupWithdrawal,
   hasCapability,
+  matchesAidQuestionSearch,
   MUTUAL_AID_REFUSALS,
   parseAidAnswer,
   parseAidMission,
   parseAidPlaceFilter,
   parseAidQuestion,
+  parseAidQuestionSearch,
   parseAidReason,
   type AidMissionDraft,
+  type AidPlaceFilter,
+  type AidQuestionListStatus,
+  type AidQuestionSearch,
   type AidQuestionGesture,
   type AidSignupFacts,
   type MemberCapability,
@@ -616,31 +622,77 @@ function storedMission(draft: AidMissionDraft) {
 // ═══════════════════════════════════════════════════════════════
 
 /**
+ * ET-04 — la requête d'une liste de questions : la recherche plein texte (mots
+ * repliés) dès deux caractères, sinon l'index le plus étroit des filtres posés —
+ * ville saisie, thème, « sans réponse », ou l'état seul, les plus récentes
+ * d'abord. Toujours bornée au réseau, au pays et à l'état ; ce que l'index ne
+ * porte pas (la ville d'une recherche, un second filtre) se rejuge ligne à ligne.
+ */
+function questionListQuery(ctx: Pick<QueryCtx, "db">, networkId: Id<"networks">, place: AidPlaceFilter, status: AidQuestionListStatus, search: AidQuestionSearch) {
+  const { country, cityKey } = place
+  const { query, theme } = search
+  if (query !== null) {
+    return ctx.db.query("aidQuestions").withSearchIndex("search_by_text", (q) => {
+      const base = q.search("searchText", query).eq("networkId", networkId).eq("country", country).eq("status", status)
+      return theme === null ? base : base.eq("theme", theme)
+    })
+  }
+  if (cityKey !== null) {
+    return ctx.db
+      .query("aidQuestions")
+      .withIndex("by_network_country_city_status_createdAt", (q) => q.eq("networkId", networkId).eq("country", country).eq("cityKey", cityKey).eq("status", status))
+      .order("desc")
+  }
+  if (theme !== null) {
+    return ctx.db
+      .query("aidQuestions")
+      .withIndex("by_network_country_status_theme_createdAt", (q) => q.eq("networkId", networkId).eq("country", country).eq("status", status).eq("theme", theme))
+      .order("desc")
+  }
+  if (search.unanswered) {
+    return ctx.db
+      .query("aidQuestions")
+      .withIndex("by_network_country_status_answerCount_createdAt", (q) => q.eq("networkId", networkId).eq("country", country).eq("status", status).eq("answerCount", 0))
+      .order("desc")
+  }
+  return ctx.db
+    .query("aidQuestions")
+    .withIndex("by_network_country_status_createdAt", (q) => q.eq("networkId", networkId).eq("country", country).eq("status", status))
+    .order("desc")
+}
+
+/**
  * Les questions d'un pays (et d'une ville saisie), dans un état — ouvertes,
- * résolues ou closes —, les plus récentes d'abord. Le filtre restreint : une
- * page filtrée peut être courte tout en annonçant sa suite (`isDone`).
+ * résolues ou closes —, les plus récentes d'abord ; ET-04 : d'un thème, sans
+ * réponse, ou cherchées par mots (par pertinence). Chaque filtre RESTREINT : une
+ * page filtrée peut être courte tout en annonçant sa suite (`isDone`). Aucune
+ * recherche n'est gardée.
  */
 export const listQuestions = networkQuery({
-  args: { country: v.string(), city: v.optional(v.string()), status: aidQuestionListStatusValidator, paginationOpts: paginationOptsValidator },
+  args: {
+    country: v.string(),
+    city: v.optional(v.string()),
+    status: aidQuestionListStatusValidator,
+    theme: v.optional(v.string()),
+    query: v.optional(v.string()),
+    unanswered: v.optional(v.boolean()),
+    paginationOpts: paginationOptsValidator,
+  },
   returns: paginationResultValidator(questionCardValidator),
   handler: async (ctx, args): Promise<PaginationResult<QuestionCard>> => {
     assertDiasporaNetwork(ctx.network)
     assertCapability(ctx, "read_network")
-    const { country, cityKey } = ruled(parseAidPlaceFilter({ country: args.country, city: args.city }))
-    const query = cityKey === null
-      ? ctx.db
-        .query("aidQuestions")
-        .withIndex("by_network_country_status_createdAt", (q) => q.eq("networkId", ctx.networkId).eq("country", country).eq("status", args.status))
-      : ctx.db
-        .query("aidQuestions")
-        .withIndex("by_network_country_city_status_createdAt", (q) => q.eq("networkId", ctx.networkId).eq("country", country).eq("cityKey", cityKey).eq("status", args.status))
-    const result = await query.order("desc").paginate(bounded(args.paginationOpts))
+    const place = ruled(parseAidPlaceFilter({ country: args.country, city: args.city }))
+    const search = ruled(parseAidQuestionSearch({ query: args.query, theme: args.theme, unanswered: args.unanswered }))
+    const { country, cityKey } = place
+    const result = await questionListQuery(ctx, ctx.networkId, place, args.status, search).paginate(bounded(args.paginationOpts))
     const personOf = peopleOf(ctx)
     const page: QuestionCard[] = []
     for (const question of result.page) {
       // Défense en profondeur : l'index borne déjà, chaque ligne est rejugée.
       if (question.networkId !== ctx.networkId || question.status !== args.status || question.country !== country) continue
       if (cityKey !== null && question.cityKey !== cityKey) continue
+      if (!matchesAidQuestionSearch(question, search)) continue
       if (await isSetAside(ctx, question.authorPersonId)) continue
       // G9 : projection publique — ce que la modération sert à ce lecteur, rien d'autre.
       if (!(await isServedTo(ctx, "diasporaAidQuestion", question._id, ctx.person._id))) continue
@@ -767,6 +819,7 @@ export const askQuestion = networkMutation({
       status: "open",
       answerCount: 0,
       version: 1,
+      searchText: aidQuestionSearchText(draft),
       createdAt: now,
       updatedAt: now,
     })
@@ -802,6 +855,7 @@ export const updateQuestion = networkMutation({
       theme: draft.theme,
       city: draft.city ?? undefined,
       cityKey: draft.cityKey ?? undefined,
+      searchText: aidQuestionSearchText(draft),
       editedAt: now,
       updatedAt: now,
       version,
@@ -1108,6 +1162,50 @@ export const pageMissions = networkQuery({
       page.push(toMissionCard(mission, card, row?.status === "confirmed", await managedModerationState(ctx, "diasporaAidMission", mission._id)))
     }
     return { ...result, page }
+  },
+})
+
+/** ET-09 — les prochaines missions montrées sur la fiche d'une association : quelques-unes, jamais une liste entière. */
+const UPCOMING_PAGE_MISSIONS_MAX = 5
+/** …lues parmi les prochaines lignes de l'index de la page (une mission en relecture ou complète n'y prend pas de place). */
+const UPCOMING_PAGE_MISSIONS_SCAN = 25
+
+/**
+ * ET-09 — les prochaines missions OUVERTES d'une page d'association, des plus
+ * proches aux plus lointaines, pour sa fiche publique : lisibles par tout membre
+ * qui lit la page, servies selon la modération (une mission en relecture ou
+ * retirée ne s'y montre pas, même à l'équipe : elle la garde dans sa gestion).
+ * Lecture BORNÉE (au plus cinq missions, vingt-cinq lignes lues). Page illisible,
+ * d'ailleurs ou d'une autre nature : refus indistinct.
+ */
+export const upcomingPageMissions = networkQuery({
+  args: { pageId: v.id("pages"), limit: v.optional(v.number()) },
+  returns: v.array(missionCardValidator),
+  handler: async (ctx, args): Promise<MissionCard[]> => {
+    assertDiasporaNetwork(ctx.network)
+    assertCapability(ctx, "read_network")
+    const association = await readableMissionPage(ctx, args.pageId)
+    if (!association) return notFound()
+    const requested = args.limit !== undefined && Number.isFinite(args.limit) ? Math.trunc(args.limit) : UPCOMING_PAGE_MISSIONS_MAX
+    const limit = Math.min(Math.max(requested, 1), UPCOMING_PAGE_MISSIONS_MAX)
+    const now = Date.now()
+    const rows = await ctx.db
+      .query("aidMissions")
+      .withIndex("by_network_page_startsAt", (q) => q.eq("networkId", ctx.networkId).eq("pageId", association._id).gt("startsAt", now))
+      .order("asc")
+      .take(UPCOMING_PAGE_MISSIONS_SCAN)
+    const card = await pageCardOf(ctx, association)
+    const missions: MissionCard[] = []
+    for (const mission of rows) {
+      if (missions.length >= limit) break
+      // Défense en profondeur : l'index borne déjà, chaque ligne est rejugée.
+      if (mission.networkId !== ctx.networkId || mission.pageId !== association._id || mission.status !== "open" || now >= mission.startsAt) continue
+      // G9 : projection publique — ce que la modération sert à ce lecteur, rien d'autre.
+      if (!(await isServedTo(ctx, "diasporaAidMission", mission._id, ctx.person._id))) continue
+      const row = await signupRowOf(ctx, mission._id, ctx.person._id)
+      missions.push(toMissionCard(mission, card, row?.status === "confirmed"))
+    }
+    return missions
   },
 })
 
