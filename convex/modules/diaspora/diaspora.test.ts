@@ -570,7 +570,7 @@ describe("myMembership — projection allowlistée de soi", () => {
     })
     expect(mine?.verifiedSince).toEqual(expect.any(Number))
     expect(Object.keys(mine ?? {}).sort()).toEqual(
-      ["attestation", "badges", "capabilities", "directoryVisibility", "facet", "joinedAt", "role", "root", "rateTier", "sponsoredBy", "status", "verifiedSince"].sort(),
+      ["attestation", "badges", "capabilities", "directoryVisibility", "facet", "joinedAt", "role", "root", "rateTier", "sponsoredBy", "status", "statusOutdated", "verifiedSince"].sort(),
     )
     expect(await t.withIdentity({ subject: "auth-sans-personne" }).query(api.modules.diaspora.membership.myMembership, { networkId: diasporale })).toBeNull()
   })

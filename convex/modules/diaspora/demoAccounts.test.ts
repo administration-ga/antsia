@@ -483,7 +483,7 @@ describe("comptes de démonstration DIASPORALE — statut dérivé des faits fic
     // La dispense : éligible au parrainage dès l'équipement, sans ancienneté posée à la main.
     expect(Date.now() - (await membershipOf(t, diasporale, personId)).statusChangedAt).toBeLessThan(DAY_MS)
     expect(await as.query(api.modules.diaspora.membership.sponsorDashboard, { networkId: diasporale })).toMatchObject({ eligible: true, refusal: null })
-    expect(await as.query(api.modules.diaspora.membership.myMembership, { networkId: diasporale })).toMatchObject({ status: "verifiee", badges: ["verified"] })
+    expect(await as.query(api.modules.diaspora.membership.myMembership, { networkId: diasporale })).toMatchObject({ status: "verifiee", badges: ["verified"], statusOutdated: false })
     await equip(as, "fondateur")
     expect(await admissions()).toHaveLength(1)
   })

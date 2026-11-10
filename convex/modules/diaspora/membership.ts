@@ -22,6 +22,7 @@ import {
   type DiasporaFacet,
   engineVerificationSource,
   idnGroundFromLink,
+  membershipStatusDrift,
   parseFacetInput,
   personBadges,
   type SponsorFacts,
@@ -60,9 +61,11 @@ import {
   endFoundingAdmissionOnDeparture,
   endSponsorshipOnDeparture,
   facetOf,
+  groundsFrom,
   isDiasporaNetwork,
   membershipGrounds,
   privacyOf,
+  rederiveMembership,
   syncDirectoryListing,
   writePrivacy,
 } from "./facts"
@@ -328,10 +331,37 @@ export const leaveDiasporale = networkMutation({
 })
 
 /**
+ * @selfScoped EA-03 — la personne de la session fait relire SON statut quand ses
+ * faits ont changé hors de la tranche (IDN liée, niveau relevé, lien révoqué) :
+ * les faits sont relus et LA règle appliquée, sans rien saisir. Seulement si un
+ * écart existe (`myMembership.statusOutdated`) ; sinon rien n'est écrit. Un départ
+ * et une sanction (ici ou à la racine) restent inchangés : refus indistinct.
+ */
+export const refreshMyMembership = personMutation({
+  args: { networkId: v.id("networks") },
+  returns: v.object({ status: membershipStatusValidator, changed: v.boolean() }),
+  handler: async (ctx, { networkId }) => {
+    await enforceRateLimit(ctx, "network.join", ctx.person._id)
+    const network = await ctx.db.get(networkId)
+    if (!isDiasporaNetwork(network)) return notFound()
+    const access = await effectiveStatusIn(ctx, network, ctx.person._id)
+    if (!access.membership || access.status === null || !isActiveStatus(access.status)) return notFound()
+    const before = access.membership.status
+    const now = Date.now()
+    const grounds = await membershipGrounds(ctx, network._id, ctx.person._id, access.membership)
+    if (membershipStatusDrift(before, grounds, now) === null) return { status: before, changed: false }
+    const status = await rederiveMembership(ctx, access.membership, now)
+    return { status, changed: status !== before }
+  },
+})
+
+/**
  * @selfScoped La personne de la session lit SON adhésion à DIASPORALE : statut
  * effectif (une suspension ANTSIA vaut ici), facette complète avec ses niveaux,
  * badges calculés, parrain en vigueur, dernière demande d'attestation (sans la
- * raison consulaire), capacités. `null` sans personne, sans réseau ou sans adhésion.
+ * raison consulaire), capacités, et si son statut enregistré n'est plus celui
+ * que ses faits justifient (`statusOutdated`, EA-03). `null` sans personne, sans
+ * réseau ou sans adhésion.
  */
 export const myMembership = query({
   args: { networkId: v.id("networks") },
@@ -354,6 +384,8 @@ export const myMembership = query({
       badges: v.array(trustBadgeValidator),
       capabilities: v.array(memberCapabilityValidator),
       rateTier: writeRateTierValidator,
+      /** EA-03 : le statut enregistré diffère de celui que les faits justifient (à relire). Jamais pour un départ ou une sanction. */
+      statusOutdated: v.boolean(),
     }),
   ),
   handler: async (ctx, { networkId }) => {
@@ -375,6 +407,9 @@ export const myMembership = query({
       membershipStatus: status,
     })
     const sponsorship = await activeSponsorshipOf(ctx, network._id, person._id)
+    // EA-03 : les mêmes faits que l'acte (`groundsFrom`), relus contre le statut enregistré.
+    const grounds = groundsFrom({ links, sponsorship, foundingAdmission: await activeFoundingAdmissionOf(ctx, network._id, person._id), membership })
+    const statusOutdated = isActiveStatus(status) && membershipStatusDrift(membership.status, grounds, Date.now()) !== null
     // borné : une demande d'attestation par 24 h ; les dix dernières suffisent à trouver celle du réseau.
     const requests = await ctx.db
       .query("consularAttestations")
@@ -400,6 +435,7 @@ export const myMembership = query({
       badges,
       capabilities: [...capabilitiesOf(status)],
       rateTier: writeRateTier(status, badges),
+      statusOutdated,
     }
   },
 })
