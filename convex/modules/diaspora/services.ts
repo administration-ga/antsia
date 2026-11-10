@@ -440,7 +440,12 @@ const offerInputFields = {
   providerSettings: v.optional(providerSettingsValidator),
 }
 
-type OfferInputArgs = { [K in keyof typeof offerInputFields]: Infer<(typeof offerInputFields)[K]> }
+/**
+ * Le contenu d'une offre, tel que `draftOf` le juge. Les réglages de prestation (SV-04) sont
+ * facultatifs et jugés à part (`storedSettingsOf`) : ils n'entrent pas dans ce type, qui
+ * exigerait sinon leur présence.
+ */
+type OfferInputArgs = { [K in Exclude<keyof typeof offerInputFields, "providerSettings">]: Infer<(typeof offerInputFields)[K]> }
 
 /** La saisie jugée par LA règle du domaine ; un refus devient un code d'application. */
 function draftOf(args: OfferInputArgs): ServiceOfferDraft {
