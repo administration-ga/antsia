@@ -7,6 +7,10 @@ describe("état adressable de la console", () => {
     expect(readConsoleState("?section=teams&network=network-one")).toEqual({ section: "teams", networkId: "network-one" })
     expect(readConsoleState("?section=unsafe&network=forged")).toEqual({ section: "networks", networkId: "forged" })
   })
+  it("déclare la section Fichiers (EX-17) et l'encode comme les autres", () => {
+    expect(readConsoleState("?section=files")).toEqual({ section: "files", networkId: "" })
+    expect(routes.consoleState("files")).toBe(routes.home() + "?section=files")
+  })
   it("encode le contexte sans modifier le chemin ni admettre une nouvelle URL", () => {
     const encoded = routes.consoleState("appeals", "/elsewhere?section=unsafe")
     expect(encoded.startsWith(routes.home() + "?")).toBe(true)
