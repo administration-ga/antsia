@@ -12,6 +12,7 @@ import { getMembership, isActiveMember } from "../../lib/access"
 import { checked, fail, notFound } from "../../lib/errors"
 import { operatorMutation, operatorQuery } from "../../lib/functions"
 import { enforceRateLimit } from "../../lib/rateLimit"
+import { blockedTermsPage, blockedTermsPageValidator, moderationSettings, moderationSettingsValidator, writeBlockedTerm, writeModerationPolicy } from "../moderation/settings"
 import { moderationSurfaceValidator, reportLegalBasisValidator } from "../moderation/tables"
 import { findPublishedPersonByHandle, isDiscoverablePerson, livePersonProfile } from "../people/miniProfile"
 import { appendAudit, operatorCapacity } from "./audit"
@@ -124,6 +125,55 @@ export const setTeamMember = operatorMutation({
     } else await ctx.db.patch(member._id, { active: args.active, updatedAt: Date.now() })
     await appendAudit(ctx, { action: "moderation.team_member_set", capacity: operatorCapacity(ctx.operator), actorPersonId: ctx.person._id, networkId: network._id, subject: { table: "moderationTeams", id: team._id }, details: { reason, personId: args.personId, active: args.active } })
     return null
+  },
+})
+
+/**
+ * MC-02 — les réglages de modération d'un réseau actif, lus par la console (même projection que
+ * l'administrateur du réseau : réglage posé par surface, ou défauts prudents du moteur).
+ */
+export const moderationPolicies = operatorQuery({
+  args: { networkId: v.id("networks") },
+  returns: moderationSettingsValidator,
+  handler: async (ctx, args) => {
+    const network = await activeNetwork(ctx, args.networkId)
+    return await moderationSettings(ctx, network._id)
+  },
+})
+
+/** MC-02 — les mots bloqués actifs d'un réseau actif, par pages de 50 au plus. */
+export const blockedTerms = operatorQuery({
+  args: { networkId: v.id("networks"), paginationOpts: paginationOptsValidator },
+  returns: blockedTermsPageValidator,
+  handler: async (ctx, args) => {
+    const network = await activeNetwork(ctx, args.networkId)
+    return await blockedTermsPage(ctx, network._id, args.paginationOpts)
+  },
+})
+
+/** MC-02 — l'opérateur pose le réglage d'une surface dans un réseau actif, motif au journal. */
+export const setModerationPolicy = operatorMutation({
+  args: { networkId: v.id("networks"), surface: moderationSurfaceValidator, preReview: v.boolean(), maxLinks: v.number(), maxWrites: v.number(), windowMs: v.number(), reason: v.string() },
+  handler: async (ctx, args) => {
+    const network = await activeNetwork(ctx, args.networkId)
+    await enforceRateLimit(ctx, "moderation.decide", ctx.person._id)
+    const reason = motiveOf(args.reason)
+    const { policyId, details } = await writeModerationPolicy(ctx, network._id, { surface: args.surface, preReview: args.preReview, maxLinks: args.maxLinks, maxWrites: args.maxWrites, windowMs: args.windowMs })
+    await appendAudit(ctx, { action: "moderation.policy_set", capacity: operatorCapacity(ctx.operator), actorPersonId: ctx.person._id, networkId: network._id, subject: { table: "moderationPolicies", id: policyId }, details: { reason, ...details } })
+    return { policyId }
+  },
+})
+
+/** MC-02 — l'opérateur ajoute ou retire un mot bloqué dans un réseau actif, motif au journal. */
+export const setBlockedTerm = operatorMutation({
+  args: { networkId: v.id("networks"), term: v.string(), active: v.boolean(), reason: v.string() },
+  handler: async (ctx, args) => {
+    const network = await activeNetwork(ctx, args.networkId)
+    await enforceRateLimit(ctx, "moderation.decide", ctx.person._id)
+    const reason = motiveOf(args.reason)
+    const { termId, details } = await writeBlockedTerm(ctx, network._id, args.term, args.active)
+    await appendAudit(ctx, { action: "moderation.term_set", capacity: operatorCapacity(ctx.operator), actorPersonId: ctx.person._id, networkId: network._id, subject: { table: "blockedTerms", id: termId }, details: { reason, ...details } })
+    return { termId }
   },
 })
 

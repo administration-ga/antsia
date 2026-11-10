@@ -1,5 +1,5 @@
 /** Garde PA5 partagée ; aucune fonction publique ni dépendance aux constructeurs. */
-import { contentNeedsReview, isSanctionLive, MODERATION_SCAN_LIMIT, type ModerationSurface } from "@antsia/social-domain/moderationPolicy"
+import { contentNeedsReview, effectiveModerationPolicy, isSanctionLive, MODERATION_SCAN_LIMIT, type ModerationSurface } from "@antsia/social-domain/moderationPolicy"
 
 import type { Doc, Id } from "../../_generated/dataModel"
 import type { MutationCtx, QueryCtx } from "../../_generated/server"
@@ -67,11 +67,12 @@ export async function owningPageOfReport(ctx: ReadCtx, report: Pick<Doc<"reports
 export async function moderateContentWrite(ctx: Pick<MutationCtx, "db">, input: { networkId: Id<"networks">; ownerPersonId: Id<"persons">; kind: ModerationSurface; id: string; text: string }): Promise<boolean> {
   const existing = await contentState(ctx, input.kind, input.id)
   if (existing?.status === "removed") return fail("policyRefused")
-  const policy = await ctx.db.query("moderationPolicies").withIndex("by_network_surface", (q) => q.eq("networkId", input.networkId).eq("surface", input.kind)).unique()
+  // MC-02 : sans réglage explicite du réseau, les défauts prudents du moteur (`MODERATION_POLICY_DEFAULTS`).
+  const rule = effectiveModerationPolicy(await ctx.db.query("moderationPolicies").withIndex("by_network_surface", (q) => q.eq("networkId", input.networkId).eq("surface", input.kind)).unique())
   const terms = await ctx.db.query("blockedTerms").withIndex("by_network_active", (q) => q.eq("networkId", input.networkId).eq("active", true)).take(MODERATION_SCAN_LIMIT + 1)
   const now = Date.now()
-  const recent = await ctx.db.query("moderationContentStates").withIndex("by_network_owner_updatedAt", (q) => q.eq("networkId", input.networkId).eq("ownerPersonId", input.ownerPersonId).gte("updatedAt", now - (policy?.windowMs ?? 60_000))).take(MODERATION_SCAN_LIMIT + 1)
-  const pending = terms.length > MODERATION_SCAN_LIMIT || contentNeedsReview({ text: input.text, preReview: policy?.preReview ?? false, blockedTerms: terms.map((row) => row.term), maxLinks: policy?.maxLinks ?? 20, recentWrites: recent.filter((row) => row._id !== existing?._id).length, maxWrites: policy?.maxWrites ?? MODERATION_SCAN_LIMIT })
+  const recent = await ctx.db.query("moderationContentStates").withIndex("by_network_owner_updatedAt", (q) => q.eq("networkId", input.networkId).eq("ownerPersonId", input.ownerPersonId).gte("updatedAt", now - rule.windowMs)).take(MODERATION_SCAN_LIMIT + 1)
+  const pending = terms.length > MODERATION_SCAN_LIMIT || contentNeedsReview({ text: input.text, preReview: rule.preReview, blockedTerms: terms.map((row) => row.term), maxLinks: rule.maxLinks, recentWrites: recent.filter((row) => row._id !== existing?._id).length, maxWrites: rule.maxWrites })
   const status = pending ? "pending_review" as const : "published" as const
   if (existing) await ctx.db.patch(existing._id, { status, updatedAt: now })
   else await ctx.db.insert("moderationContentStates", { networkId: input.networkId, targetKind: input.kind, targetId: input.id, ownerPersonId: input.ownerPersonId, status, createdAt: now, updatedAt: now })
@@ -93,14 +94,15 @@ export async function moderateOwnedContentWrite(
   if (existing?.status === "removed") return fail("policyRefused")
   const ownerPersonId = "personId" in input.owner ? input.owner.personId : undefined
   const ownerPageId = "pageId" in input.owner ? input.owner.pageId : undefined
-  const policy = await ctx.db.query("moderationPolicies").withIndex("by_network_surface", (q) => q.eq("networkId", input.networkId).eq("surface", input.kind)).unique()
+  // MC-02 : sans réglage explicite du réseau, les défauts prudents du moteur (`MODERATION_POLICY_DEFAULTS`).
+  const rule = effectiveModerationPolicy(await ctx.db.query("moderationPolicies").withIndex("by_network_surface", (q) => q.eq("networkId", input.networkId).eq("surface", input.kind)).unique())
   const terms = await ctx.db.query("blockedTerms").withIndex("by_network_active", (q) => q.eq("networkId", input.networkId).eq("active", true)).take(MODERATION_SCAN_LIMIT + 1)
   const now = Date.now()
-  const since = now - (policy?.windowMs ?? 60_000)
+  const since = now - rule.windowMs
   const recent = ownerPageId !== undefined
     ? await ctx.db.query("moderationContentStates").withIndex("by_network_page_updatedAt", (q) => q.eq("networkId", input.networkId).eq("ownerPageId", ownerPageId).gte("updatedAt", since)).take(MODERATION_SCAN_LIMIT + 1)
     : await ctx.db.query("moderationContentStates").withIndex("by_network_owner_updatedAt", (q) => q.eq("networkId", input.networkId).eq("ownerPersonId", ownerPersonId).gte("updatedAt", since)).take(MODERATION_SCAN_LIMIT + 1)
-  const pending = terms.length > MODERATION_SCAN_LIMIT || contentNeedsReview({ text: input.text, preReview: policy?.preReview ?? false, blockedTerms: terms.map((row) => row.term), maxLinks: policy?.maxLinks ?? 20, recentWrites: recent.filter((row) => row._id !== existing?._id).length, maxWrites: policy?.maxWrites ?? MODERATION_SCAN_LIMIT })
+  const pending = terms.length > MODERATION_SCAN_LIMIT || contentNeedsReview({ text: input.text, preReview: rule.preReview, blockedTerms: terms.map((row) => row.term), maxLinks: rule.maxLinks, recentWrites: recent.filter((row) => row._id !== existing?._id).length, maxWrites: rule.maxWrites })
   const status = pending ? "pending_review" as const : "published" as const
   if (existing) await ctx.db.patch(existing._id, { status, updatedAt: now })
   else await ctx.db.insert("moderationContentStates", { networkId: input.networkId, targetKind: input.kind, targetId: input.id, ...(ownerPageId !== undefined ? { ownerPageId } : ownerPersonId !== undefined ? { ownerPersonId } : {}), status, createdAt: now, updatedAt: now })
@@ -134,11 +136,12 @@ export async function moderatePageContentWrite(ctx: Pick<MutationCtx, "db">, inp
 export async function moderateFederatedPostWrite(ctx: Pick<MutationCtx, "db">, input: { networkId: Id<"networks">; pageId: Id<"pages">; id: Id<"posts">; text: string }): Promise<boolean> {
   const existing = await contentState(ctx, "post", input.id)
   if (existing?.status === "removed" || existing?.status === "pending_review") return false
-  const policy = await ctx.db.query("moderationPolicies").withIndex("by_network_surface", (q) => q.eq("networkId", input.networkId).eq("surface", "post")).unique()
+  // MC-02 : sans réglage explicite du réseau, les défauts prudents du moteur (`MODERATION_POLICY_DEFAULTS`).
+  const rule = effectiveModerationPolicy(await ctx.db.query("moderationPolicies").withIndex("by_network_surface", (q) => q.eq("networkId", input.networkId).eq("surface", "post")).unique())
   const terms = await ctx.db.query("blockedTerms").withIndex("by_network_active", (q) => q.eq("networkId", input.networkId).eq("active", true)).take(MODERATION_SCAN_LIMIT + 1)
   const now = Date.now()
-  const recent = await ctx.db.query("moderationContentStates").withIndex("by_network_page_updatedAt", (q) => q.eq("networkId", input.networkId).eq("ownerPageId", input.pageId).gte("updatedAt", now - (policy?.windowMs ?? 60_000))).take(MODERATION_SCAN_LIMIT + 1)
-  const pending = terms.length > MODERATION_SCAN_LIMIT || contentNeedsReview({ text: input.text, preReview: policy?.preReview ?? false, blockedTerms: terms.map((row) => row.term), maxLinks: policy?.maxLinks ?? 20, recentWrites: recent.filter((row) => row._id !== existing?._id).length, maxWrites: policy?.maxWrites ?? MODERATION_SCAN_LIMIT })
+  const recent = await ctx.db.query("moderationContentStates").withIndex("by_network_page_updatedAt", (q) => q.eq("networkId", input.networkId).eq("ownerPageId", input.pageId).gte("updatedAt", now - rule.windowMs)).take(MODERATION_SCAN_LIMIT + 1)
+  const pending = terms.length > MODERATION_SCAN_LIMIT || contentNeedsReview({ text: input.text, preReview: rule.preReview, blockedTerms: terms.map((row) => row.term), maxLinks: rule.maxLinks, recentWrites: recent.filter((row) => row._id !== existing?._id).length, maxWrites: rule.maxWrites })
   const status = pending ? "pending_review" as const : "published" as const
   if (existing) await ctx.db.patch(existing._id, { status, ownerPageId: input.pageId, updatedAt: now })
   else await ctx.db.insert("moderationContentStates", { networkId: input.networkId, targetKind: "post", targetId: input.id, ownerPageId: input.pageId, status, createdAt: now, updatedAt: now })
