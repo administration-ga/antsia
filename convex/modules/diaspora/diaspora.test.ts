@@ -638,6 +638,8 @@ describe("hubs pays — compteurs matérialisés, jamais calculés à la lecture
       open: true,
       counters: expect.objectContaining({ dormant: true }),
       countersComputedAt: null,
+      // HB-02 : aucun passage n'a compté les évènements, le compteur n'est pas mesuré.
+      upcomingEventsComputedAt: null,
     })
 
     vi.useFakeTimers()
