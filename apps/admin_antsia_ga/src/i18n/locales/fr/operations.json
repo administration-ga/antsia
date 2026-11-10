@@ -457,5 +457,28 @@
     "enable": "Ouvrir la préparation des commandes",
     "disable": "Fermer la préparation des commandes",
     "updated": "Dernière décision le"
+  },
+  "networkRoles": {
+    "title": "Responsables du réseau",
+    "lead": "Les responsables d’un réseau sont des membres actifs, nommés par un administrateur de la plateforme. Un modérateur du réseau traite les signalements adressés au réseau, ceux qu’aucune équipe ne prend en charge, et lit le journal du réseau ; un administrateur du réseau traite toute la file, tranche les recours du réseau et gère ses équipes. Un retrait vaut dès l’action suivante ; chaque décision est motivée et inscrite au journal.",
+    "managed": "Ce réseau est gouverné par sa propre application : la console y nomme le premier administrateur, puis l’administration du réseau nomme ses responsables dans l’application du réseau. Son annuaire dépend du choix de chaque membre : seuls les membres qui y paraissent se trouvent par leur identifiant.",
+    "roles": {
+      "network_admin": "Administrateurs du réseau",
+      "network_moderator": "Modérateurs du réseau"
+    },
+    "roleOption": {
+      "network_admin": "Administrateur du réseau",
+      "network_moderator": "Modérateur du réseau"
+    },
+    "inactive": "Sans effet : adhésion suspendue, quittée ou en attente",
+    "appoint": "Nommer un responsable",
+    "handleHint": "Recherchez un membre publié et actif du réseau ; aucune adhésion n’est créée par la console.",
+    "role": "Rôle confié",
+    "appointAs": "Confier le rôle : {{role}}",
+    "appointed": "Rôle confié et inscrit au journal.",
+    "unchanged": "Cette personne a déjà ce rôle : rien n’a changé.",
+    "remove": "Retirer le rôle",
+    "removed": "Rôle retiré et inscrit au journal.",
+    "adminRequired": "Nommer ou retirer un responsable exige le rôle d’administrateur de la plateforme."
   }
 }
