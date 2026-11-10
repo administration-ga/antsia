@@ -20,6 +20,7 @@ import { cartIntentDigest, cartItemKey, type CartDraft, type CartItem } from "@/
 import { routes } from "@/lib/routes"
 import { CART_LINES, CartBar, CartLayout, CartLine, CartSummary } from "./cart-layout"
 import { OfferQuickAdd } from "./offer-quick-add"
+import { SaveOfferButton } from "@/components/shops/save-offer-button"
 import { useCartConnectivity, useCartDraft } from "./use-cart-draft"
 
 /** Une boutique par panier, en pastilles qui défilent ; celle choisie prend la couleur du commerce (ADR-0027). */
@@ -182,7 +183,7 @@ function ContinueShopping({ handle, exclude }: { handle: string; exclude: Readon
   const query = useAuthenticatedConvexQuery(api.modules.shops.catalog.list, { networkId, handle, kind: "product", paginationOpts: { cursor: null, numItems: CATALOG_PAGE_SIZE } })
   const offers = !query.isError && query.data ? query.data.page.filter(offer => !exclude.has(offer.offerRef)) : []
   if (!offers.length) return null
-  return <Rail size="product" title={t("continueShopping")} href={routes.shopCatalog(handle)} linkLabel={shopT("catalog.openCatalog")}>{offers.map((offer, index) => <OfferCard key={offer.offerRef} offer={offer} audience="member" locale={i18n.resolvedLanguage ?? "fr"} t={(key, options) => shopT(key, options)} eager={index === 0} seller={false} action={<OfferQuickAdd offer={offer} />} />)}</Rail>
+  return <Rail size="product" title={t("continueShopping")} href={routes.shopCatalog(handle)} linkLabel={shopT("catalog.openCatalog")}>{offers.map((offer, index) => <OfferCard key={offer.offerRef} offer={offer} audience="member" locale={i18n.resolvedLanguage ?? "fr"} t={(key, options) => shopT(key, options)} eager={index === 0} seller={false} action={<OfferQuickAdd offer={offer} />} save={<SaveOfferButton offer={offer} />} />)}</Rail>
 }
 
 function SubmittedCart({ draft, save, onRecover, onStopped, recovery = false }: { draft: CartDraft; save: (draft: CartDraft | null) => boolean; onRecover: () => void; onStopped: () => void; recovery?: boolean }) {

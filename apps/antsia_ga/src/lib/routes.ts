@@ -238,6 +238,8 @@ export const routes = {
   cart: () => "/panier",
   purchases: () => "/mes-achats",
   purchase: (purchaseId: string) => `/mes-achats/${encodeURIComponent(purchaseId)}`,
+  /** CM-09 : mes offres enregistrées (privées), rangées sous Profil. */
+  savedOffers: () => "/mes-favoris",
   checkoutPrepare: (handle: string, offerRef: string) => `/boutique/${encodeURIComponent(handle)}/preparer/${encodeURIComponent(offerRef)}`,
   checkoutAttempt: (attemptId: string) => `/mes-commandes/${encodeURIComponent(attemptId)}`,
   paymentList: () => "/mes-paiements",
@@ -510,6 +512,7 @@ export function memberDestinationFor(
   if (pathname === routes.myShops() || pathname.startsWith(`${routes.myShops()}/`)) return { id: "profil", current: "section" }
   if (pathname === routes.myOrders() || pathname.startsWith(`${routes.myOrders()}/`)) return { id: "profil", current: "section" }
   if (pathname === routes.cart() || pathname === routes.purchases() || pathname.startsWith(`${routes.purchases()}/`)) return { id: "profil", current: "section" }
+  if (pathname === routes.savedOffers()) return { id: "profil", current: "section" }
   if (pathname === routes.paymentList() || pathname.startsWith(`${routes.paymentList()}/`)) return { id: "profil", current: "section" }
   if (pathname === routes.myApplications() || pathname.startsWith(`${routes.myApplications()}/`)) return { id: "profil", current: "section" }
   if (pathname === routes.serviceRequests() || pathname.startsWith(`${routes.serviceRequests()}/`)) return { id: "profil", current: "section" }

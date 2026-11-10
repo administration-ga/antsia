@@ -17,6 +17,7 @@ describe("Profil — ce que la destination regroupe (P02)", () => {
       ["enregistrements", reseauAgentHref("enregistrements", routes.feed())],
       ["stories", routes.stories()],
       ["shop", routes.myShops()],
+      ["savedOffers", routes.savedOffers()],
       ["cart", routes.cart()],
       ["purchases", routes.purchases()],
       ["checkoutPreparations", routes.myOrders()],
@@ -40,7 +41,7 @@ describe("Profil — ce que la destination regroupe (P02)", () => {
     for (const handle of [null, "", "   "]) {
       const entries = meEntries(handle)
       expect(entries.map((entry) => entry.id)).not.toContain("profile")
-      expect(entries).toHaveLength(13)
+      expect(entries).toHaveLength(14)
       expect(entries.find((entry) => entry.id === "shop")?.href).toBe(routes.myShops())
     }
   })
@@ -67,5 +68,11 @@ describe("Profil — ce que la destination regroupe (P02)", () => {
     const entries = meEntries("awa.ndong")
     expect(entries.find((entry) => entry.id === "serviceRequests")).toEqual({ id: "serviceRequests", section: "activity", href: routes.serviceRequests(), labelKey: "services:requests.title", descriptionKey: "services:requests.lead" })
     expect(meEntries(null).map((entry) => entry.id)).toContain("serviceRequests")
+  })
+
+  // CM-09 : Mes favoris (offres enregistrées) est servi depuis Profil, dans l'activité.
+  it("sert Mes favoris depuis Profil, dans l'activité", () => {
+    expect(meEntries("awa.ndong").find((entry) => entry.id === "savedOffers")).toEqual({ id: "savedOffers", section: "activity", href: routes.savedOffers(), labelKey: "shops:saved.title", descriptionKey: "shops:saved.lead" })
+    expect(meEntries(null).map((entry) => entry.id)).toContain("savedOffers")
   })
 })

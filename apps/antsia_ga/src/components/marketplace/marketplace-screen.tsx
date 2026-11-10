@@ -9,6 +9,7 @@ import { Suspense, useId, useRef } from "react"
 import { useTranslation } from "react-i18next"
 
 import { OfferQuickAdd } from "@/components/cart/offer-quick-add"
+import { SaveOfferButton } from "@/components/shops/save-offer-button"
 import { MemberPage } from "@/components/member-chrome"
 import { Button } from "@/components/shared/controls"
 import { OfferCard } from "@/components/shops/offer-card"
@@ -121,7 +122,7 @@ function OfferWindow({ search }: { search: MarketplaceSearch }) {
   if (result.indexStatus !== "ready") return <div className="grid gap-3"><p role="status">{t("results.building")}</p><Button variant="outline" className="justify-self-start" pending={query.isFetching} onClick={() => { void query.refetch() }}>{t("results.retry")}</Button></div>
   return <div className="grid min-w-0 gap-4" aria-busy={query.isFetching || undefined}>
     {query.isFetching ? <p role="status" className="text-sm text-muted-foreground">{t("results.refreshing")}</p> : null}
-    {result.page.length ? <ul className={OFFER_GRID}>{result.page.map((offer, index) => <li key={offer.offerRef} className="min-w-0"><OfferCard offer={offer} eager={index === 0} audience="member" locale={i18n.resolvedLanguage ?? "fr"} t={(key, options) => shopT(key, options)} action={<OfferQuickAdd offer={offer} />} /></li>)}</ul> : <p role="status">{t(result.isDone ? "results.empty" : "results.window")}</p>}
+    {result.page.length ? <ul className={OFFER_GRID}>{result.page.map((offer, index) => <li key={offer.offerRef} className="min-w-0"><OfferCard offer={offer} eager={index === 0} audience="member" locale={i18n.resolvedLanguage ?? "fr"} t={(key, options) => shopT(key, options)} action={<OfferQuickAdd offer={offer} />} save={<SaveOfferButton offer={offer} />} /></li>)}</ul> : <p role="status">{t(result.isDone ? "results.empty" : "results.window")}</p>}
     {result.filteredWindow ? <p className="text-sm text-muted-foreground">{t("results.filtered")}</p> : null}
     <MarketplacePagination search={search} isDone={result.isDone} cursor={result.continueCursor} />
   </div>
@@ -155,5 +156,5 @@ function DemoSelection({ search }: { search: MarketplaceSearch }) {
   const id = useId()
   const query = useAuthenticatedConvexQuery(api.modules.shops.marketplace.demoSelection, { networkId, ...offerFilters(search) })
   if (!query.isError && !query.isPending && query.data?.length === 0) return null
-  return <section aria-labelledby={id} className="grid min-w-0 gap-4 pt-2" data-marketplace-demo><div className="grid min-w-0 gap-1"><h2 id={id} className="mp-subtitle">{t("demo.title")}</h2><p className="text-sm text-muted-foreground">{t("demo.notice")}</p></div>{query.isError ? <p role="status">{t("demo.unavailable")}</p> : query.isPending || !query.data ? <p role="status">{t("demo.loading")}</p> : <ul className={OFFER_GRID}>{query.data.map((offer, index) => <li key={offer.offerRef} className="min-w-0"><OfferCard offer={offer} eager={index === 0} audience="member" locale={i18n.resolvedLanguage ?? "fr"} t={(key, options) => shopT(key, options)} action={<OfferQuickAdd offer={offer} />} /></li>)}</ul>}</section>
+  return <section aria-labelledby={id} className="grid min-w-0 gap-4 pt-2" data-marketplace-demo><div className="grid min-w-0 gap-1"><h2 id={id} className="mp-subtitle">{t("demo.title")}</h2><p className="text-sm text-muted-foreground">{t("demo.notice")}</p></div>{query.isError ? <p role="status">{t("demo.unavailable")}</p> : query.isPending || !query.data ? <p role="status">{t("demo.loading")}</p> : <ul className={OFFER_GRID}>{query.data.map((offer, index) => <li key={offer.offerRef} className="min-w-0"><OfferCard offer={offer} eager={index === 0} audience="member" locale={i18n.resolvedLanguage ?? "fr"} t={(key, options) => shopT(key, options)} action={<OfferQuickAdd offer={offer} />} save={<SaveOfferButton offer={offer} />} /></li>)}</ul>}</section>
 }
