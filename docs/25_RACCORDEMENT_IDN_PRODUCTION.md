@@ -1,13 +1,15 @@
 # Raccorder IDN à ANTSIA — 20 octobre 2026
 
+> Dépôt public : les identifiants internes d'hébergement (déploiements, projets, équipes, adresses techniques) sont tenus hors du dépôt ; ce document les désigne par leur rôle (EX-20, 10/11/2026).
+
 ## État vérifié le 20 octobre 2026
 
 Le raccordement et la connexion réelle IDN sont validés. Le serveur IDN
-`flexible-panda-248` a été repris ; le client `antsia_prd_dnWDNoy7` est approuvé
-pour le callback `https://antsia.vercel.app/api/auth/oauth2/callback/idn`, les
+(déploiement Convex de production d'IDN) a été repris ; le client `antsia_prd_dnWDNoy7` est approuvé
+pour le callback `<site principal>/api/auth/oauth2/callback/idn`, les
 scopes `openid profile email` et le niveau minimal 1. Les quatre paramètres
 `IDN_CLIENT_ID`, `IDN_CLIENT_SECRET`, `IDN_ISSUER` et `IDN_DISCOVERY_URL` sont
-configurés sur `diligent-avocet-585`. Le secret neuf a transité en mémoire puis
+configurés sur le déploiement Convex de production. Le secret neuf a transité en mémoire puis
 par stdin, sans fichier ni affichage de sa valeur.
 
 Chez Netim, les deux enregistrements A `site.identite.ga` et `api.identite.ga`
@@ -61,18 +63,18 @@ Les observations ci-dessous précèdent la correction DNS et la connexion réell
 décrites ci-dessus.
 
 Le 20/10, accès au projet `okatech / identite-ga` confirmé dans Chrome.
-Le serveur `flexible-panda-248` a été repris dans les réglages Convex : état
+Le serveur (déploiement Convex de production d'IDN) a été repris dans les réglages Convex : état
 `running` constaté, puis requêtes administratives à nouveau exécutables.
 Aucun changement de forfait ni de limite de dépenses.
 
 L’inventaire borné des 11 applications est complet : aucun client ANTSIA/ANTIA.
 Client **`antsia_prd_dnWDNoy7`** créé par la procédure existante, approuvé en
 production, actif et rattaché au développeur vérifié existant d’OkaTech.
-Callback `https://antsia.vercel.app/api/auth/oauth2/callback/idn`, scopes
+Callback `<site principal>/api/auth/oauth2/callback/idn`, scopes
 `openid profile email`, niveau minimal 1. Aucun utilisateur ni rôle créé.
 
 Les quatre paramètres `IDN_CLIENT_ID`, `IDN_CLIENT_SECRET`, `IDN_ISSUER` et
-`IDN_DISCOVERY_URL` sont configurés sur `diligent-avocet-585`. Le secret neuf a
+`IDN_DISCOVERY_URL` sont configurés sur le déploiement Convex de production. Le secret neuf a
 circulé en mémoire puis par stdin ; aucune valeur affichée ni fichier créé.
 La projection publique annonce maintenant `idn=true` et le bouton IDN réel est
 actif sur `/entrer`, sans republication applicative.
@@ -83,9 +85,9 @@ expirent. Le serveur de noms autoritaire Netim et le résolveur public renvoient
 `site.identite.ga` et `api.identite.ga` vers **102.208.104.151** (A, TTL 300), sans
 CNAME. Convex indique les deux domaines **non vérifiés** et demande le CNAME
 `convex.domains`. Les TXT `_convex_domains.{site,api}.identite.ga` contiennent déjà
-`flexible-panda-248`.
+le nom du déploiement Convex de production d'IDN.
 
-La découverte sur l’adresse canonique `flexible-panda-248.convex.site` répond
+La découverte sur l’adresse canonique des actions HTTP de ce déploiement (`<déploiement IDN>.convex.site`) répond
 200 et garde l’issuer `https://site.identite.ga`. Le frontend `identite.ga`
 répond aussi 200. Changer seulement le discovery ANTSIA ne réparerait pas les
 endpoints token/userinfo annoncés sur le domaine indisponible.
@@ -114,10 +116,10 @@ rôle attribué, environnement modifié ou code IDN publié à ce stade.
 
 Deux blocages sont distingués :
 
-- ANTSIA `diligent-avocet-585` : `IDN_CLIENT_ID`, `IDN_ISSUER` et
+- ANTSIA, déploiement de production : `IDN_CLIENT_ID`, `IDN_ISSUER` et
   `IDN_DISCOVERY_URL` sont absents. Le secret n'a pas été consulté. Ces absences
   suffisent à maintenir `idn=false` et le bouton de connexion désactivé.
-- IDN `flexible-panda-248`, équipe **okatech**, projet **identite-ga** :
+- IDN, déploiement de production (équipe et projet Convex d'IDN, tenus hors du dépôt) :
   l'inventaire administratif en lecture seule des applications ANTSIA est refusé
   par « Cannot run functions while this deployment is paused ». La raison de la
   pause n'est pas encore connue. Les comptes de navigateur disponibles n'ont
@@ -132,11 +134,11 @@ ne prouve pas que les fonctions de connexion d'un serveur en pause s'exécutent.
 | Paramètre | Valeur ou règle |
 |---|---|
 | Nom du client | `ANTSIA` ; vérifier les applications existantes avant création |
-| Serveur IDN | `flexible-panda-248`, API `https://api.identite.ga` |
+| Serveur IDN | déploiement Convex de production d'IDN, API `https://api.identite.ga` |
 | Issuer OIDC | `https://site.identite.ga` |
 | Découverte | `https://site.identite.ga/api/auth/convex/.well-known/openid-configuration` |
-| Site principal ANTSIA confirmé | `https://antsia.vercel.app` |
-| Callback autorisé | `https://antsia.vercel.app/api/auth/oauth2/callback/idn` |
+| Site principal ANTSIA confirmé | adresse de l'hébergeur du site principal |
+| Callback autorisé | `<site principal>/api/auth/oauth2/callback/idn` |
 | Scopes | `openid profile email` uniquement |
 | Niveau minimal | 1 ; aucune vérification fictive ni élévation de rôle |
 | Démonstration | Aucune modification ; son accès fictif est conservé |
@@ -160,7 +162,7 @@ applications. N'ajouter les domaines futurs qu'après leur raccordement effectif
    refuse les homonymes. Identifier un propriétaire développeur existant pour sa
    gestion future ; ne créer ni compte ni rôle par commodité de recette.
 4. Transmettre le secret **nouvellement créé** directement entre processus vers
-   `convex env set IDN_CLIENT_SECRET` sur `diligent-avocet-585`, par l'entrée
+   `convex env set IDN_CLIENT_SECRET` sur le déploiement Convex de production, par l'entrée
    standard prévue par le CLI. Capturer la réponse de création en mémoire sans
    l'afficher. Aucun secret dans les arguments de processus, le presse-papiers,
    les fichiers, `.env*`, traces, captures ou journaux. Ne pas lancer la création

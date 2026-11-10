@@ -1,5 +1,7 @@
 # Conservation de /demo et des sessions avant publication de main
 
+> Dépôt public : les identifiants internes d'hébergement (déploiements, projets, équipes, adresses techniques) sont tenus hors du dépôt ; ce document les désigne par leur rôle (EX-20, 10/11/2026).
+
 Base : `31a7891e0329770fad79072811b9a9ec6a93de39`. Arbre de sources vérifié : `c1addf9c1160bbdb5b95acea6b5760884fc89ccc`.
 
 Le main initial ne contenait pas le relais /demo et purgeait la reprise de session sur une erreur réseau sans statut. Cette intégration reprend les corrections déjà publiées pour les sessions IDN, la séparation des cookies et stockages, les liens et médias sous /demo, le catalogue illustratif et ses huit images. Les conteneurs bornés du fil et de la messagerie tiennent compte du bandeau démo. La garde de préparation du fil pendant la déconnexion, publiée parallèlement sous d76d559/0af6d49, est conservée.
@@ -14,4 +16,4 @@ La branche, HEAD et l'index réels du checkout partagé sont conservés. L'inté
 
 ## Publication et recette
 
-Les constructions et la recette en ligne suivent la fusion de ce commit. Ce rapport ne les déclare pas effectuées. Les deux applications doivent être extraites du main fusionné, l'enfant protégé construit avant le principal, puis le principal promu après les contrôles de versions, CSP, HTML et images. URL publique de la démo : https://antsia.vercel.app/demo. Ancien alias antsia-demo.vercel.app supprimé intentionnellement. Les backends déjà publiés restent en place. Aucun contenu social à publier.
+Les constructions et la recette en ligne suivent la fusion de ce commit. Ce rapport ne les déclare pas effectuées. Les deux applications doivent être extraites du main fusionné, l'enfant protégé construit avant le principal, puis le principal promu après les contrôles de versions, CSP, HTML et images. URL publique de la démo : `/demo` du site principal. Ancienne adresse propre du projet de démonstration supprimée intentionnellement. Les backends déjà publiés restent en place. Aucun contenu social à publier.

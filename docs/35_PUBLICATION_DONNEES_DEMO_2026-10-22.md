@@ -2,13 +2,14 @@
 
 > Sources : PR 40 (données de démo) et administration-ga/diasporale#23 (10 clés de modération).
 > Publication autorisée par écrit par le propriétaire, pour `main` 628e8a9 : démo puis principal,
-> contrôles à 390/834/1440 px, retour à `antsia-75eknkz96` si un contrôle échoue.
+> contrôles à 390/834/1440 px, retour au déploiement précédent du site principal (`main-2b93836a9187`) si un contrôle échoue.
+> Dépôt public : les identifiants internes d'hébergement (déploiements, projets, équipes, adresses techniques) sont tenus hors du dépôt ; ce document les désigne par leur rôle (EX-20, 10/11/2026).
 
 ## Backend (session marketplace, accord écrit du propriétaire)
 
 | Étape | Résultat |
 |---|---|
-| Convex démo `vivid-hedgehog-655`, puis production `diligent-avocet-585` | `main` 628e8a9, puis 9927c9c (PR 41, SU01d) ; aucun index supprimé |
+| Convex : déploiement de démonstration, puis de production | `main` 628e8a9, puis 9927c9c (PR 41, SU01d) ; aucun index supprimé |
 | Comptes (`prepare-demo-content`) | 7 acteurs reconnectés, 10 figurants créés |
 | `seeds/demoContent:run` | 31 publications créées, 21 déjà présentes (vague du 20/10) |
 | `seeds/demoContent:runFigurants` | 10 figurants, 20 publications, 30 relations, 16 demandes |
@@ -21,10 +22,10 @@ Contexte : `git archive` de ANTSIA 628e8a9 (arbre 1b2774d9) et de DIASPORALE df2
 
 | Projet | Déploiement | Version | État |
 |---|---|---|---|
-| Enfant démo | `dpl_FCwtTZXT2xt8SNjHJhEruDmfaV4U` (antsia-demo-lxv1xb7du) | `main-628e8a96be67-demo` | READY, promu |
-| Principal | `dpl_Fxg6JPahZcCRo1G5TaaaDf9BSdPX` (antsia-dl360lhin) | `main-628e8a96be67-production` | READY, promu |
+| Enfant démo | tenu hors du dépôt | `main-628e8a96be67-demo` | READY, promu |
+| Principal | tenu hors du dépôt | `main-628e8a96be67-production` | READY, promu |
 
-Retour arrière : promouvoir `antsia-75eknkz96` (main-2b93836a9187).
+Retour arrière : promouvoir le déploiement précédent du site principal (main-2b93836a9187).
 
 Ce front 628e8a9 tourne sur le backend 9927c9c, dont les changements sont additifs : motifs de
 signalement en plus, deux genres d'avis (`report_received`, `report_decided`), nouvelles
@@ -68,10 +69,10 @@ Autres contrôles :
 - PR 44 : `MessagerieDock` revient en tête de la colonne droite du fil (décision du propriétaire).
   Front seul, aucun changement sous `convex/`.
 - Fronts promus (accord écrit du propriétaire) :
-  - enfant démo : `dpl_CXq6fxP6AjzaP4te2C9p2gZFACi5` (antsia-demo-g8bhjmocb), version `main-1942aa7ebfb5-demo` ;
-  - principal : `dpl_DR58SLXdJnfHYhgG1xuD8pSgoJAn` (antsia-fl8eoqzvl), version `main-1942aa7ebfb5-production`.
+  - enfant démo : version `main-1942aa7ebfb5-demo` ;
+  - principal : version `main-1942aa7ebfb5-production`.
   - Contexte : ANTSIA 1942aa7 et DIASPORALE 214831c, 3 236 fichiers, empreinte `35dac378…`.
-  - Retour arrière : antsia-fqt7jo4yd (principal) et antsia-demo-9wd9liokh (enfant).
+  - Retour arrière : les déploiements alors en ligne du principal et de l'enfant (identifiants tenus hors du dépôt).
 - Recette :
   - 1440 : iCom (« Messages ») en tête de la colonne droite, puis Personnes à découvrir ;
   - 834 : colonne droite repliée, comme prévu ;
@@ -87,10 +88,10 @@ Autres contrôles :
   La pilule n'apparaît qu'en présence d'une activité pro (capacité `icomPro`, ANTSIA seul ;
   DIASPORALE inchangé). Front seul : les fonctions lues existaient déjà côté backend.
 - Fronts promus (accord écrit du propriétaire) :
-  - enfant démo : `dpl_9enxa1jfp5N7kKuhgdYdFL9ph18e` (antsia-demo-7ljagkvjb), version `main-26f30241dcd6-demo` ;
-  - principal : `dpl_DZPsAskwLLXSrkZc5B2sQDNpR6eJ` (antsia-jqoi0thyr), version `main-26f30241dcd6-production`.
+  - enfant démo : version `main-26f30241dcd6-demo` ;
+  - principal : version `main-26f30241dcd6-production`.
   - Contexte : ANTSIA 26f3024 et DIASPORALE 214831c, 3 255 fichiers, empreinte `a986a77d…`.
-  - Retour arrière : antsia-fl8eoqzvl (principal) et antsia-demo-g8bhjmocb (enfant).
+  - Retour arrière : le déploiement `main-1942aa7ebfb5-production` (principal) et le déploiement `main-1942aa7ebfb5-demo` (enfant).
 - Recette (compte Membre de la démo, Awa MBA) :
 
 | Contrôle | 1440 | 834 | 390 |
@@ -115,16 +116,16 @@ Autres contrôles :
 ## Mise à jour — Convex et front `main` bca19af (conversations de démonstration, ICP-2)
 
 - Backend (session des déploiements, accord écrit du propriétaire) : Convex bca19af sur
-  vivid-hedgehog-655 puis diligent-avocet-585, aperçu `--dry-run` d'abord, schéma validé, aucun
+  démonstration puis production, aperçu `--dry-run` d'abord, schéma validé, aucun
   index ajouté ni retiré, 1 032 fonctions identiques des deux côtés.
 - Graine `seeds/demoConversations:run` sur la démo seule : mandats 3, réglages 3, 11 échanges
   iCom (25 messages), 8 fils boutique (15 messages). Aucune politique du canal boutique n'existait
   sur la racine de la démo : la graine l'a ouvert (`channelOpened: true`). Rien en production.
 - Fronts promus (accord écrit du propriétaire) :
-  - enfant démo : `dpl_BpRereVWQ8zhgR1y5euHFzWYpaQe` (antsia-demo-8hbfvxcy0), version `main-bca19af78116-demo` ;
-  - principal : `dpl_8rCFPmjTZNoy3bZMTyQSQzFRqJMm` (antsia-ojavnpvwd), version `main-bca19af78116-production`.
+  - enfant démo : version `main-bca19af78116-demo` ;
+  - principal : version `main-bca19af78116-production`.
   - Contexte : ANTSIA bca19af et DIASPORALE 214831c, 3 256 fichiers, empreinte `a3087c28…`.
-  - Retour arrière : antsia-jqoi0thyr (principal) et antsia-demo-7ljagkvjb (enfant).
+  - Retour arrière : le déploiement `main-26f30241dcd6-production` (principal) et le déploiement `main-26f30241dcd6-demo` (enfant).
   - Contenu par rapport à 26f3024 : élision des libellés iCom Pro et PR 49 (gouttière unique
     dans les espaces spécialisés). Les PR 51 et 52, fusionnées après bca19af, ne sont pas publiées.
 - Recette (compte Membre de la démo, Awa MBA) :
@@ -153,10 +154,10 @@ Autres contrôles :
   colonne), PR 52 (tous les écrans de membre en pleine largeur, sections et champs en colonnes
   responsives), PR 53 (registre). Aucun changement sous `convex/` : backend bca19af inchangé.
 - Fronts promus (accord écrit du propriétaire) :
-  - enfant démo : `dpl_BWKUKSSy3a6zQBHnw6qgyRtNpWG2` (antsia-demo-h8ppd65uo), version `main-94f6506aa59e-demo` ;
-  - principal : `dpl_8Ecd8htmb6iqePmrp8iTRtPSkWEP` (antsia-mrgyt8eyx), version `main-94f6506aa59e-production`.
+  - enfant démo : version `main-94f6506aa59e-demo` ;
+  - principal : version `main-94f6506aa59e-production`.
   - Contexte : ANTSIA 94f6506 et DIASPORALE 214831c, 3 259 fichiers, empreinte `504530ff…`.
-  - Retour arrière : antsia-ojavnpvwd (principal) et antsia-demo-8hbfvxcy0 (enfant).
+  - Retour arrière : le déploiement `main-bca19af78116-production` (principal) et le déploiement `main-bca19af78116-demo` (enfant).
 - Recette (compte Membre de la démo, Awa MBA) :
 
 | Contrôle | 1440 | 834 | 390 |
@@ -188,17 +189,17 @@ Autres contrôles :
 | Étape | Résultat |
 |---|---|
 | Aperçus `--dry-run`, démo et production | aucun index supprimé, schéma validé ; seule ligne : « version Node des actions », artefact connu de la CLI |
-| Convex démo `vivid-hedgehog-655` | 1 034 → 1 035 fonctions : `modules/platform/console.js:legalDeadlineAlert` ajoutée, aucune retirée |
-| Convex production `diligent-avocet-585` | idem ; signatures identiques à la démo |
-| Console `antsia-admin` | `dpl_EKFVB2iJerWY4up3KgLyRbNWUc5U` (antsia-admin-3smpcs4kx), publiée sans bascule, contrôlée (READY, 302 SSO), puis promue |
+| Convex démo | 1 034 → 1 035 fonctions : `modules/platform/console.js:legalDeadlineAlert` ajoutée, aucune retirée |
+| Convex production | idem ; signatures identiques à la démo |
+| Console (projet de la console chez l'hébergeur) | déploiement tenu hors du dépôt, publiée sans bascule, contrôlée (READY, 302 SSO), puis promue |
 
 - Console en ligne :
   - santé `{"status":"ok","version":"d7f4784","backend":"configured"}` ;
   - `/`, `/entrer` et `/sante-fonctionnelle` en 200 ;
-  - CSP sur `diligent-avocet-585`, HSTS, `X-Frame-Options: DENY` ;
+  - CSP sur le déploiement Convex de production, HSTS, `X-Frame-Options: DENY` ;
   - l'entrée IDN s'affiche (bouton actif, « IDN niveau 2 minimum »), sans erreur dans la console du navigateur.
 - Variables : aucune modifiée. `NEXT_PUBLIC_BUILD_SHA` n'a été passé qu'au build.
-- Retour arrière : `dpl_CiJGfViWVpxnaKHZDEn8R9jdxgHW` (antsia-admin-b0ap9n83e, version 4ab6a4f du 19/10).
+- Retour arrière : le déploiement précédent de la console (version 4ab6a4f du 19/10).
 - antsia.ga : fronts inchangés (`main-880d1aadf525`). `/` et `/transparence` en 200, comme `/demo`
   et `/demo/transparence`.
 - Restes, au propriétaire :
@@ -222,15 +223,15 @@ Autres contrôles :
 | Étape | Résultat |
 |---|---|
 | Aperçus `--dry-run`, démo et production | aucun index supprimé, schéma validé ; seule ligne : « version Node des actions », artefact connu |
-| Convex démo `vivid-hedgehog-655` | 1 035 fonctions avant et après, signatures identiques (`followsYou` est un champ de réponse de `suggestions.paginate`) ; la logique de la PR 61 part avec, fermée hors de la démonstration déclarée |
-| Convex production `diligent-avocet-585` | idem ; relevé des fonctions identique à la démo |
-| Front, enfant démo | `dpl_2sneRNRxMoQ5fLQEtC1P2Ww7MouR` (antsia-demo-9o837ytn1), version `main-6db0a2917abd-demo`, READY, 302 SSO, promu |
-| Front, principal | `dpl_7pRfdCa6dYVkyQDyQyajdhpt8JK1` (antsia-gxx0we8lv), version `main-6db0a2917abd-production`, READY, 302 SSO, promu |
+| Convex démo | 1 035 fonctions avant et après, signatures identiques (`followsYou` est un champ de réponse de `suggestions.paginate`) ; la logique de la PR 61 part avec, fermée hors de la démonstration déclarée |
+| Convex production | idem ; relevé des fonctions identique à la démo |
+| Front, enfant démo | version `main-6db0a2917abd-demo`, READY, 302 SSO, promu |
+| Front, principal | version `main-6db0a2917abd-production`, READY, 302 SSO, promu |
 
 - Contexte figé : 3 270 fichiers, empreinte `d101b26f…`.
-- Retour arrière : antsia-cklu264gn (principal) et antsia-demo-74l9c4xz8 (enfant), versions `880d1aa`.
+- Retour arrière : les déploiements précédents du principal et de l'enfant, versions `880d1aa` (identifiants tenus hors du dépôt).
 - Santé : `main-6db0a2917abd-production` et `main-6db0a2917abd-demo`.
-- Pages en 200, CSP sur `diligent-avocet-585`, HSTS et `X-Frame-Options: DENY` :
+- Pages en 200, CSP sur le déploiement Convex de production, HSTS et `X-Frame-Options: DENY` :
   - `/`, `/entrer`, `/fil`, `/moi`, `/messages`, `/marketplace`, `/transparence` ;
   - `/demo`, `/demo/entrer`, `/demo/fil`, `/demo/transparence`.
 - Recette en ligne, en lecture seule (démo partagée, compte Membre Awa MBA) :
@@ -259,12 +260,12 @@ Autres contrôles :
 
 | Étape | Résultat |
 |---|---|
-| Aperçu `--dry-run`, démo | cible `okatech:antsia-demo:demo` ; aucun index supprimé, schéma validé ; seule ligne : « version Node des actions », artefact connu |
-| Convex démo `vivid-hedgehog-655` | fonctions de `4feeea0`, 1 035 avant et après ; `modules/diaspora/demoAccounts:catalogue` rend les 20 comptes |
-| Production `diligent-avocet-585` | non touchée par cette publication ; catalogue `[]`, réseau `diasporale` absent |
+| Aperçu `--dry-run`, démo | cible : le projet Convex de démonstration ; aucun index supprimé, schéma validé ; seule ligne : « version Node des actions », artefact connu |
+| Convex démo | fonctions de `4feeea0`, 1 035 avant et après ; `modules/diaspora/demoAccounts:catalogue` rend les 20 comptes |
+| Convex production | non touchée par cette publication ; catalogue `[]`, réseau `diasporale` absent |
 | Graine | `ANTSIA_SEEDS_ALLOWED=true`, `modules/diaspora/seed:run` (réseau `diasporale` créé, hub FR), puis variable retirée |
-| Site | projet Vercel `diasporale-demo` (`prj_ZJN43UbhX5PHO64qL80pa2mAmUnq`) ; déploiement `dpl_AHPTXYChXkVMRYwFtFwHhDVQaaTo` (diasporale-demo-ocsgzkrcs), READY en 191 s, version `diasporale-fcde2902a42b-antsia-4feeea0a773f-demo` |
-| Origine de confiance | `TRUSTED_ORIGINS=https://diasporale-demo.vercel.app` sur la démo (neuf variables) |
+| Site | projet de démonstration de DIASPORALE chez l'hébergeur (identifiants tenus hors du dépôt) ; READY en 191 s, version `diasporale-fcde2902a42b-antsia-4feeea0a773f-demo` |
+| Origine de confiance | `TRUSTED_ORIGINS=<adresse du projet de démonstration de DIASPORALE>` sur la démo (neuf variables) |
 
 - Réglages du projet : dossier racine `DIASPORALE/apps/diasporale_com`, Node 24, installation
   `cd ../../../ANTSIA && npx --yes bun@1.4.2 install --frozen-lockfile`, construction `npx --yes bun@1.4.2 run build`.
@@ -275,7 +276,7 @@ Autres contrôles :
   - `NEXT_PUBLIC_BUILD_SHA`.
   Aucun secret.
 - Contexte figé : 3 273 fichiers, empreinte `aafb4565…`.
-- Accès : https://diasporale-demo.vercel.app est public (200 sur `/`, `/entrer`, `/sante-fonctionnelle`). La protection
+- Accès : l'adresse du projet de démonstration de DIASPORALE est publique (200 sur `/`, `/entrer`, `/sante-fonctionnelle`). La protection
   Vercel standard couvre les autres adresses du projet.
 - Recette en ligne, avec les comptes de démonstration :
   - Patrice MBOUMBA publie un texte fictif, que Sandrine ONDO signale pour harcèlement ;
@@ -288,7 +289,7 @@ Autres contrôles :
 - Une autre session a ensuite publié `main` `6db0a29` sur les deux backends (section précédente). Vérifié après coup :
   le catalogue, le réseau, `TRUSTED_ORIGINS` et la voie de Ruth fonctionnent toujours ; la production reste fermée.
 - Retour arrière : retirer `TRUSTED_ORIGINS` de la démo ferme toute connexion depuis le site ; retirer le projet
-  Vercel `diasporale-demo` le met hors ligne (au propriétaire).
+  de démonstration de DIASPORALE chez l'hébergeur le met hors ligne (au propriétaire).
 - Restes, au propriétaire :
   - DIASPORALE en production : décision d'hébergement A10, textes légaux relus par un juriste, domaine
     diasporale.com, réseau créé par la console ;
@@ -311,23 +312,23 @@ Autres contrôles :
 | Étape | Résultat |
 |---|---|
 | Aperçu `--dry-run`, démo | aucun index supprimé, schéma validé |
-| Convex démo `vivid-hedgehog-655` | 1 035 → 1 035 fonctions, signatures identiques (seule la logique des gardes change) |
-| Convex production `diligent-avocet-585` | idem ; signatures identiques à la démo |
-| Console `antsia-admin` | `dpl_3rhQmzyR9KA2w1UguE2n1jkbHfZ8` (antsia-admin-nta6qmgwi), contrôlée (READY, 302 SSO), puis promue |
+| Convex démo | 1 035 → 1 035 fonctions, signatures identiques (seule la logique des gardes change) |
+| Convex production | idem ; signatures identiques à la démo |
+| Console (projet de la console chez l'hébergeur) | déploiement tenu hors du dépôt, contrôlée (READY, 302 SSO), puis promue |
 
 - Console en ligne : santé `{"status":"ok","version":"3253a10","backend":"configured"}`. `/entrer` dit
   « IDN niveau 1 minimum », sans erreur dans la console du navigateur.
-- Retour arrière : `dpl_EKFVB2iJerWY4up3KgLyRbNWUc5U` (antsia-admin-3smpcs4kx, `d7f4784`).
+- Retour arrière : le déploiement précédent de la console (`d7f4784`).
 - Premier opérateur : à la demande du propriétaire, une ligne `operators` (`platform_admin`) pour sa
   propre personne, la seule en production.
-  - Posée par import en ajout sur `diligent-avocet-585` ; aucune autre donnée touchée.
+  - Posée par import en ajout sur le déploiement Convex de production ; aucune autre donnée touchée.
   - Le code n'en crée toujours aucune (ADR-0011).
 - Départ IDN contrôlé depuis la console, sans saisie :
   - redirection vers `identite.ga/sign-in`, client `antsia_prd_dnWDNoy7` ;
-  - retour central `https://antsia.vercel.app/api/auth/oauth2/callback/idn`, `prompt=login`, PKCE ;
-  - `TRUSTED_ORIGINS` contient `https://antsia-admin.vercel.app`.
+  - retour central `<site principal>/api/auth/oauth2/callback/idn`, `prompt=login`, PKCE ;
+  - `TRUSTED_ORIGINS` contient l'adresse de la console chez l'hébergeur.
 - Variables : aucune modifiée.
-- Reste : la recette connectée, quand le propriétaire se connecte avec IDN sur https://antsia-admin.vercel.app.
+- Reste : la recette connectée, quand le propriétaire se connecte avec IDN sur la console.
 
 ## Mise à jour — formules des boutiques en ligne (ADR-0037, lot 3) : front seul, sur la base en ligne
 
@@ -353,10 +354,10 @@ Autres contrôles :
 
 | Étape | Résultat |
 |---|---|
-| Front, enfant démo | `dpl_3xpobDuJCG7V92ug8rLj5QQwsQJU` (antsia-demo-bblosaang), version `release-998b59872cd4-demo`, READY en 162 s, 302 SSO, promu |
-| Front, principal | `dpl_3bEibVz37nUwCUN417eWLwUUVUKh` (antsia-letiizofb), version `release-998b59872cd4-production`, READY en 191 s, 302 SSO, promu |
+| Front, enfant démo | version `release-998b59872cd4-demo`, READY en 162 s, 302 SSO, promu |
+| Front, principal | version `release-998b59872cd4-production`, READY en 191 s, 302 SSO, promu |
 
-- Retour arrière : antsia-gxx0we8lv (principal) et antsia-demo-9o837ytn1 (enfant), versions `6db0a29`.
+- Retour arrière : le déploiement `main-6db0a2917abd-production` (principal) et le déploiement `main-6db0a2917abd-demo` (enfant), versions `6db0a29`.
 - Santé : `release-998b59872cd4-production` et `release-998b59872cd4-demo`.
 - Pages en 200, CSP sur le backend de chaque site, HSTS et `X-Frame-Options: DENY` :
   - `/`, `/entrer`, `/fil`, `/moi`, `/messages`, `/marketplace`, `/transparence` ;
@@ -418,10 +419,10 @@ Autres contrôles :
 
 | Étape | Résultat |
 |---|---|
-| Front, enfant démo | `dpl_4utjMBGK78kxEMheWqNJgnakCGtM` (antsia-demo-psc3q7y5q), version `release-a7a5d78bce90-demo`, READY en 186 s, 302 SSO, promu |
-| Front, principal | `dpl_45wDHqELEQuUSBMJRDr89RB2tECq` (antsia-1bj5ooe7n), version `release-a7a5d78bce90-production`, READY en 204 s, 302 SSO, promu |
+| Front, enfant démo | version `release-a7a5d78bce90-demo`, READY en 186 s, 302 SSO, promu |
+| Front, principal | version `release-a7a5d78bce90-production`, READY en 204 s, 302 SSO, promu |
 
-- Retour arrière : antsia-letiizofb (principal) et antsia-demo-bblosaang (enfant), versions `998b598`.
+- Retour arrière : le déploiement `release-998b59872cd4-production` (principal) et le déploiement `release-998b59872cd4-demo` (enfant), versions `998b598`.
 - Boutons d'achat : les cinq autres publications des boutiques de la démo sont liées à leur offre, par l'interface (comptes de
   démonstration), comme les trois premières. Les huit publications des trois boutiques ont désormais leur bouton :
 
@@ -458,14 +459,14 @@ Autres contrôles :
 | Étape | Résultat |
 |---|---|
 | Aperçus `--dry-run`, démo et production | aucun index supprimé, schéma validé ; seule ligne : « version Node des actions », artefact connu |
-| Convex démo `vivid-hedgehog-655` | 1 035 fonctions avant et après ; deux signatures changées, `shops:directory` et `marketplaceShops:search` (`bannerUrl`) |
-| Convex production `diligent-avocet-585` | idem ; relevé des fonctions identique à la démo |
-| Front, enfant démo | `dpl_5bn2vvuauhDHYLUMoMh6PToig5F9` (antsia-demo-qr9euc0gt), version `main-a0d26d0e657e-demo`, READY en 130 s, 302 SSO, promu |
-| Front, principal | `dpl_7LjNpLT4emEjjLREJHjDwn3pDCYU` (antsia-efvqokxab), version `main-a0d26d0e657e-production`, READY en 157 s, 302 SSO, promu |
+| Convex démo | 1 035 fonctions avant et après ; deux signatures changées, `shops:directory` et `marketplaceShops:search` (`bannerUrl`) |
+| Convex production | idem ; relevé des fonctions identique à la démo |
+| Front, enfant démo | version `main-a0d26d0e657e-demo`, READY en 130 s, 302 SSO, promu |
+| Front, principal | version `main-a0d26d0e657e-production`, READY en 157 s, 302 SSO, promu |
 
 - Contexte figé : 3 288 fichiers, empreinte `ba571431…`. Le code (hors documentation) est celui de `676a6cf`, vérifié par
   `bun run verify` (15 496 tests).
-- Retour arrière des fronts : antsia-1bj5ooe7n (principal) et antsia-demo-psc3q7y5q (enfant), versions `release-a7a5d78bce90`.
+- Retour arrière des fronts : le déploiement `release-a7a5d78bce90-production` (principal) et le déploiement `release-a7a5d78bce90-demo` (enfant), versions `release-a7a5d78bce90`.
   Le backend `a0d26d0` reste compatible avec eux : il n'ajoute qu'un champ de réponse.
 - Santé : `main-a0d26d0e657e-production` et `main-a0d26d0e657e-demo`. Pages en 200, CSP sur le backend de chaque site :
   `/`, `/entrer`, `/fil`, `/marketplace`, `/marketplace?view=services`, `/mes-boutiques`, `/transparence`, `/demo/entrer`,
@@ -485,12 +486,12 @@ Autres contrôles :
 | Étape | Résultat |
 |---|---|
 | Aperçus `--dry-run`, démo et production | aucun index supprimé, schéma validé ; seule ligne : « version Node des actions », artefact connu |
-| Convex démo `vivid-hedgehog-655` | 1 035 fonctions. Sept signatures changent comme prévu : le gabarit `food` élargit la configuration d'activité (getStorefront, getMyShop, startShop, storefront, updateShop), et les cartes de directory et de search portent `template` |
-| Convex production `diligent-avocet-585` | idem ; relevé des fonctions identique à la démo |
-| Front, enfant démo | `dpl_4sT3LWvwNv8nx4RdTKR3VwmopwZf` (antsia-demo-rkhg6vy4f), version `main-1956641d5b31-demo`, READY en 196 s, 302 SSO, promu |
-| Front, principal | `dpl_Bwn7jYpb1NvoRChFXiYimacTPcEF` (antsia-k46y2qudx), version `main-1956641d5b31-production`, READY en 216 s, 302 SSO, promu |
+| Convex démo | 1 035 fonctions. Sept signatures changent comme prévu : le gabarit `food` élargit la configuration d'activité (getStorefront, getMyShop, startShop, storefront, updateShop), et les cartes de directory et de search portent `template` |
+| Convex production | idem ; relevé des fonctions identique à la démo |
+| Front, enfant démo | version `main-1956641d5b31-demo`, READY en 196 s, 302 SSO, promu |
+| Front, principal | version `main-1956641d5b31-production`, READY en 216 s, 302 SSO, promu |
 
-- Retour arrière des fronts : antsia-efvqokxab (principal) et antsia-demo-qr9euc0gt (enfant), versions `a0d26d0`. Le backend
+- Retour arrière des fronts : le déploiement `main-a0d26d0e657e-production` (principal) et le déploiement `main-a0d26d0e657e-demo` (enfant), versions `a0d26d0`. Le backend
   `1956641` reste compatible avec eux : il élargit une liste et ajoute un champ de réponse.
 - Santé : `main-1956641d5b31-production` et `main-1956641d5b31-demo`. Pages en 200 : `/`, `/fil`, `/marketplace`,
   `/restauration`, `/explorer`, `/mes-boutiques`, `/demo/restauration`, `/demo/explorer`, `/demo/mes-boutiques`.
@@ -507,26 +508,26 @@ Autres contrôles :
 ## Mise à jour — `main` 4cea752 en ligne : menu, horaires, plat du jour et « Commander » (SU06, second volet)
 
 - Demande du propriétaire, le 23/10 : « continue l'univers Alimentation et restauration — menu, horaires, plat du jour et
-  « Commander » ». Puis son accord détaillé de publication : « publie main 4cea752. Backend prod diligent-avocet-585
-  (--dry-run puis déploiement), puis fronts enfant démo puis principal, promus ; retour arrière antsia-k46y2qudx /
-  antsia-demo-rkhg6vy4f. Puis pose le plat du jour de l'épicerie démo et fais la recette en ligne. » Cette entrée couvre
+  « Commander » ». Puis son accord détaillé de publication : « publie main 4cea752. Backend prod [déploiement de production]
+  (--dry-run puis déploiement), puis fronts enfant démo puis principal, promus ; retour arrière [déploiement `main-1956641d5b31-production`] /
+  [déploiement `main-1956641d5b31-demo`]. Puis pose le plat du jour de l'épicerie démo et fais la recette en ligne. » Cette entrée couvre
   la PR 80 : détail dans l'[exécution des sept univers](etudes/2026-10-21-sept-univers-et-vie-publique/EXECUTION.md).
 - Backend : export propre (ANTSIA `4cea752`, DIASPORALE `367c2bd`, sans `.env.local`), connexion CLI du Mac, aucune clé.
 
 | Étape | Résultat |
 |---|---|
 | Aperçus `--dry-run`, démo et production | aucun index supprimé, schéma validé ; seule ligne : « version Node des actions », artefact connu |
-| Convex démo `vivid-hedgehog-655` | 1 035 → 1 036 fonctions. Six signatures changent comme prévu : `catalog:postOffer` (`shopTemplate`), `marketplaceShops:search` et `shops:directory` (cartes : `hours`, `dailySpecial`), `shops:getMyShop` et `shops:storefront` (`dailySpecial`), et la nouvelle `shops:setDailySpecial` |
-| Convex production `diligent-avocet-585` | idem ; relevé des fonctions identique à la démo |
-| Front, enfant démo | `dpl_2nKjUh85YosaKKe1okboKwL9BcaK` (antsia-demo-nztj6rb03), version `main-4cea752365fe-demo`, READY en 164 s, 302 SSO, promu |
-| Front, principal | `dpl_3ZU2j8XX1EotaYB6Piqzdg6iz1Uv` (antsia-j01r1n6se), version `main-4cea752365fe-production`, READY en 114 s, 302 SSO, promu |
+| Convex démo | 1 035 → 1 036 fonctions. Six signatures changent comme prévu : `catalog:postOffer` (`shopTemplate`), `marketplaceShops:search` et `shops:directory` (cartes : `hours`, `dailySpecial`), `shops:getMyShop` et `shops:storefront` (`dailySpecial`), et la nouvelle `shops:setDailySpecial` |
+| Convex production | idem ; relevé des fonctions identique à la démo |
+| Front, enfant démo | version `main-4cea752365fe-demo`, READY en 164 s, 302 SSO, promu |
+| Front, principal | version `main-4cea752365fe-production`, READY en 114 s, 302 SSO, promu |
 
 - Ordre réel : le backend de la démo est parti juste après la fusion de la PR 80, AVANT l'accord de publication. Il
   n'ajoutait que des champs et une fonction : les fronts `1956641` sont restés sains (santé et pages contrôlées). La
   production a attendu l'accord : le contrôle des permissions l'a refusée sans lui.
 - Contexte figé : 3 298 fichiers, empreinte `b4a0fe4c…`. Le code (hors documentation) est celui de la PR 80, vérifié par
   `bun run verify` (15 516 tests).
-- Retour arrière des fronts : antsia-k46y2qudx (principal) et antsia-demo-rkhg6vy4f (enfant), versions `1956641`. Le
+- Retour arrière des fronts : le déploiement `main-1956641d5b31-production` (principal) et le déploiement `main-1956641d5b31-demo` (enfant), versions `1956641`. Le
   backend `4cea752` reste compatible avec eux : il n'ajoute que des champs de réponse et une mutation.
 - Santé : `main-4cea752365fe-production` et `main-4cea752365fe-demo`. CSP : chaque site sur son seul backend. Pages en
   200 : `/`, `/fil`, `/marketplace`, `/restauration`, `/explorer`, `/mes-boutiques`, `/demo/restauration`,

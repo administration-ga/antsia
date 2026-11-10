@@ -1,6 +1,6 @@
 {
   "checkedAt": "2026-10-20T23:15:59.177479+00:00",
-  "origin": "https://antsia.vercel.app",
+  "origin": "<site principal>",
   "httpStatus": 200,
   "health": {
     "status": "ok",
@@ -8,8 +8,8 @@
     "version": "social-responsive-20261021-e34875c094de4b4f",
     "backend": "configured"
   },
-  "deploymentId": "dpl_57gtmHo6kvFvPqUBBym6VhxgExrX",
-  "deploymentUrl": "https://antsia-ny8zf56bb-okatechs-projects-f0102678.vercel.app",
+  "deploymentId": "<tenu hors du dépôt>",
+  "deploymentUrl": "<adresse propre du déploiement, tenue hors du dépôt>",
   "releaseCommit": "68f8ad92bd6f87acc53a8ae85563bd781863c4fc",
   "sourceFingerprint": "e34875c094de4b4f541da8beb584cc2f5e431b4202b20bf4eb53aa883f27fd1a",
   "cspProductionBackend": true,

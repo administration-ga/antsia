@@ -1,5 +1,7 @@
 # Mémoire ANTSIA — persistance de la session IDN
 
+> Dépôt public : les identifiants internes d'hébergement (déploiements, projets, équipes, adresses techniques) sont tenus hors du dépôt ; ce document les désigne par leur rôle (EX-20, 10/11/2026).
+
 État constaté le 20 octobre 2026 à 22 h 19, heure de Paris.
 
 Cette note reprend uniquement les changements ANTSIA du commit mémoire
@@ -15,8 +17,7 @@ le même profil public `@asted` sur `/fil`, avec le bouton de déconnexion et
 sans nouvelle demande IDN. Un nouvel onglet ouvert sur `/fil` restaure
 également le compte.
 
-Le déploiement identifié pendant la recette est
-`dpl_6coT1M8U4HnyMtqAAS5Kh8nhHr4K`, version
+Le déploiement identifié pendant la recette (identifiant tenu hors du dépôt) porte la version
 `session-reload-20261020-7512840237b38401`.
 
 La projection administrative, bornée à 25 sessions et sans sélection de

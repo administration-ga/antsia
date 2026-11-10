@@ -75,7 +75,7 @@
       ],
       "main": 1,
       "scrollWidth": 390,
-      "url": "https://antsia.vercel.app/demo/professionnels",
+      "url": "<site principal>/demo/professionnels",
       "value": ""
     },
     {
@@ -87,7 +87,7 @@
       ],
       "main": 1,
       "scrollWidth": 834,
-      "url": "https://antsia.vercel.app/demo/professionnels",
+      "url": "<site principal>/demo/professionnels",
       "value": ""
     },
     {
@@ -99,7 +99,7 @@
       ],
       "main": 1,
       "scrollWidth": 1440,
-      "url": "https://antsia.vercel.app/demo/professionnels",
+      "url": "<site principal>/demo/professionnels",
       "value": ""
     },
     {
@@ -198,7 +198,7 @@
       "height": 1000,
       "main": 1,
       "scrollWidth": 1440,
-      "url": "https://antsia.vercel.app/demo/fil",
+      "url": "<site principal>/demo/fil",
       "greeting": "Quoi de neuf, Awa ?",
       "notifications": "12 notifications non lues",
       "pendingInvitations": "3 invitations en attente"
@@ -242,7 +242,7 @@
         "Atelier Tech Démo"
       ],
       "main": 1,
-      "url": "https://antsia.vercel.app/demo/boutique/atelier-tech-demo",
+      "url": "<site principal>/demo/boutique/atelier-tech-demo",
       "serviceOfferHref": "/demo/prestataire/atelier-tech-demo/offres/demo%3Aoffer%3Adiagnostic-informatique"
     },
     {
@@ -284,7 +284,7 @@
       ],
       "main": 1,
       "scrollWidth": 390,
-      "url": "https://antsia.vercel.app/demo/marketplace"
+      "url": "<site principal>/demo/marketplace"
     }
   ],
   "consoleErrors": []

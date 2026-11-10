@@ -59,7 +59,7 @@
   },
   "anonymousGuard": {
     "checkedAt": "2026-10-20T22:42:31.346562+00:00",
-    "backend": "https://diligent-avocet-585.convex.cloud",
+    "backend": "https://<déploiement Convex de production>.convex.cloud",
     "function": "modules/posts/mediaFeed:paginate",
     "anonymousRejected": true,
     "httpStatus": 200,
@@ -72,9 +72,9 @@
     "build": "passed",
     "baseline": {
       "version": "session-coordination-20261021-03548f8c8f01470e",
-      "deploymentId": "dpl_UxMyjdTakahwkCjfRSyy7PFF9gAL",
-      "url": "https://antsia-5383efgvc-okatechs-projects-f0102678.vercel.app",
-      "backend": "diligent-avocet-585"
+      "deploymentId": "<tenu hors du dépôt>",
+      "url": "<adresse propre du déploiement, tenue hors du dépôt>",
+      "backend": "<déploiement Convex de production>"
     }
   },
   "performanceIntegration": {
@@ -87,8 +87,8 @@
   },
   "releaseCommit": "68f8ad92bd6f87acc53a8ae85563bd781863c4fc",
   "frontendPublication": {
-    "origin": "https://antsia.vercel.app",
-    "deploymentId": "dpl_57gtmHo6kvFvPqUBBym6VhxgExrX",
+    "origin": "<site principal>",
+    "deploymentId": "<tenu hors du dépôt>",
     "health": {
       "status": "ok",
       "application": "antsia-ga",

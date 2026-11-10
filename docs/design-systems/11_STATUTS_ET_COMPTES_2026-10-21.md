@@ -1,5 +1,7 @@
 # Statuts, chartes et comptes — 21 octobre 2026
 
+> Dépôt public : les identifiants internes d'hébergement (déploiements, projets, équipes, adresses techniques) sont tenus hors du dépôt ; ce document les désigne par leur rôle (EX-20, 10/11/2026).
+
 ## Comparaison avec la référence
 
 Les huit rubriques de l'artifact Claude fourni ont été confrontées au code et aux versions publiées. La feuille commune relue dans l'iframe de la référence contient les sept chartes ; SHA-256 : `a3009b9e2559d2e985bf5ad00923c7354a689d86447d06d918200c93f9845839` (81 217 caractères). Les 392 valeurs fondamentales de palette contrôlées correspondent déjà aux thèmes du dépôt. Le paquet de designs antérieur est présent dans les deux versions publiques : aucun retour général à une ancienne charte n'a été constaté.
@@ -37,10 +39,10 @@ La recette de démonstration entre Awa et Jean-Rémy, avec vérification après 
 
 | Cible | Version | Déploiement |
 | --- | --- | --- |
-| Production | `stories-design-20261021-7330c9399dbe6b9a` | `dpl_H5NAB7BgouCeb8dNG94k2HsaYqFT` |
-| Démo | `stories-design-20261021-b297b082d4ea0827` | `dpl_HBwPPaaSvCHR9fnhiFNtiwHXQk89` |
+| Production | `stories-design-20261021-7330c9399dbe6b9a` | tenu hors du dépôt |
+| Démo | `stories-design-20261021-b297b082d4ea0827` | tenu hors du dépôt |
 
-Les deux builds et typages distants sont réussis ; état READY, projet correct, version exacte, santé HTTP 200 et CSP vérifiés avant promotion. Les domaines canoniques servent ces mêmes versions après promotion. Le premier candidat de production `dpl_6zDxK82stULgJ1NEggyhfwyYBdwP` a été conservé sans promotion, car sa base était devenue ancienne.
+Les deux builds et typages distants sont réussis ; état READY, projet correct, version exacte, santé HTTP 200 et CSP vérifiés avant promotion. Les domaines canoniques servent ces mêmes versions après promotion. Le premier candidat de production a été conservé sans promotion, car sa base était devenue ancienne.
 
 Démo : 14 combinaisons de charte et d'apparence vérifiées sur Patrick MOUSSAVOU, sans débordement ; anneaux 62 px, ajout 24 px, marque 22 px et noms 11,5 px constatés. Le lecteur a ouvert les statuts accessibles ; les trois anneaux tiers sont devenus « vus », sur fond de bordure neutre, avec initiales et contenu conservés. Les préférences Gaboma/Clair ont été rétablies.
 
@@ -62,4 +64,4 @@ Preuves : `docs/recette/design-et-comptes-2026-10-21/` (mesures, états UI, capt
 
 Nouvelle demande d'aller-retour sans participation du propriétaire. Le parcours officiel de production rejoint IDN et demande de nouveau le PIN de l'identité mémorisée. Aucun accès d'authentification utilisable pour les deux comptes n'est disponible dans cette recette. L'onglet IDN déjà ouvert appartient à la session responsive et n'a pas été repris de force. L'ouverture du gestionnaire Chrome a été refusée par la politique du navigateur (protocole interne non autorisé) ; aucun accès indirect ni contournement tenté.
 
-Lecture bornée actuelle de `diligent-avocet-585` à 23:44:06 UTC : un utilisateur ANTSIA, zéro session non expirée, inventaires complets. La santé conserve la version `stories-design-20261021-7330c9399dbe6b9a`. Aucun compte créé, session fabriquée, PIN deviné ou protection modifiée. La recette reste bloquée avant la première nouvelle connexion ; aucun aller-retour de production n'est revendiqué. Preuve projetée : `production-real-account-retry.json`.
+Lecture bornée actuelle du déploiement Convex de production à 23:44:06 UTC : un utilisateur ANTSIA, zéro session non expirée, inventaires complets. La santé conserve la version `stories-design-20261021-7330c9399dbe6b9a`. Aucun compte créé, session fabriquée, PIN deviné ou protection modifiée. La recette reste bloquée avant la première nouvelle connexion ; aucun aller-retour de production n'est revendiqué. Preuve projetée : `production-real-account-retry.json`.

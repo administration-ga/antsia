@@ -1,5 +1,7 @@
 # U08 — Contrôle responsive en ligne et correctifs
 
+> Dépôt public : les identifiants internes d'hébergement (déploiements, projets, équipes, adresses techniques) sont tenus hors du dépôt ; ce document les désigne par leur rôle (EX-20, 10/11/2026).
+
 21 octobre 2026, fuseau Europe/Paris. Demande explicite de vérifier ANTSIA sur téléphone, tablette et ordinateur, puis corriger et publier les problèmes, en préservant les travaux parallèles.
 
 ## Observations sur la version publique
@@ -20,7 +22,7 @@
 
 ## Préservation du travail parallèle
 
-La publication `stories-design-20261021-7330c9399dbe6b9a` (`dpl_H5NAB7BgouCeb8dNG94k2HsaYqFT`) est la base du candidat, avec ses 22 fichiers graphiques conservés. Ses 3069 fichiers de packaging ont été comparés aux empreintes avant copie. Onze sources de correction sont superposées ; les 2076 chemins techniques du candidat sont identifiés séparément. Pas d'édition d'environnement, de changement de branche/index partagé, de publication de backend, de données, de comptes, de fournisseur ou de capacité commerciale. DIASPORALE, natif, admin et démo ne sont pas déployés par cette tranche.
+La publication `stories-design-20261021-7330c9399dbe6b9a` (déploiement tenu hors du dépôt) est la base du candidat, avec ses 22 fichiers graphiques conservés. Ses 3069 fichiers de packaging ont été comparés aux empreintes avant copie. Onze sources de correction sont superposées ; les 2076 chemins techniques du candidat sont identifiés séparément. Pas d'édition d'environnement, de changement de branche/index partagé, de publication de backend, de données, de comptes, de fournisseur ou de capacité commerciale. DIASPORALE, natif, admin et démo ne sont pas déployés par cette tranche.
 
 ## Validation du candidat
 
@@ -35,7 +37,7 @@ Les captures restent locales dans `docs/recette/responsive-en-ligne-2026-10-21/`
 ## Publication et reprise après publication
 
 - Branche `codex/recette-responsive-20261021` poussée : `a104de8` trace les 22 sources déjà publiées par la session graphique ; `5b89394` porte les onze corrections et leurs preuves. Les 2076 chemins techniques du candidat correspondent à l’arbre Git de cette livraison. Branche réelle `codex/pa4-identite-session`, HEAD et index partagés conservés.
-- Version publique `responsive-recipe-20261021-5e87719d6f0eb0e7`, déploiement `dpl_H7tUFizo4AroUJ9XFgCUuCq4AdQH`, READY. Build hébergé réussi ; santé du candidat puis `https://antsia.vercel.app/api/sante-fonctionnelle` HTTP 200, `status=ok`, backend configuré et CSP de production vérifiés. La version de départ était toujours `7330c9399dbe6b9a` immédiatement avant promotion.
+- Version publique `responsive-recipe-20261021-5e87719d6f0eb0e7`, déploiement tenu hors du dépôt, READY. Build hébergé réussi ; santé du candidat puis `<site principal>/api/sante-fonctionnelle` HTTP 200, `status=ok`, backend configuré et CSP de production vérifiés. La version de départ était toujours `7330c9399dbe6b9a` immédiatement avant promotion.
 - Après publication : nouvel onglet membre ouvert normalement sur le fil et captures 390/834/1440, sans débordement. Page publique À propos aux trois formats et console sans avertissement ni erreur sur les onglets contrôlés. Cela complète 25 mesures avant publication et six après ; les captures privées restent locales.
 - Deux Stories sont devenues disponibles depuis la recette parallèle : lecteur et commandes Précédente/Pause/Suivante rendus en ligne. La pause durable et la navigation de la série ne sont **pas déclarées validées en ligne** : retour au fil, puis nouvelle révocation du compte pendant la tentative de confirmation. Leurs régressions en composant restent vertes. Aucune Story créée, retirée ni modifiée par cette recette.
 - La recette parallèle poursuit l’alternance des comptes réels et révoque leurs sessions ; elle empêche une campagne membre continue. Profil complet, conservation d’un vrai brouillon, appel et appareils physiques restent hors preuve. Aucun affaiblissement des gardes ni changement de cette autre recette pour obtenir une capture.

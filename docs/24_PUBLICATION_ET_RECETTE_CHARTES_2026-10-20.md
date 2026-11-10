@@ -1,7 +1,9 @@
 # Publication des chartes et recette en ligne — 20 octobre 2026
 
-Les corrections sont publiées sur **https://antsia.vercel.app** et
-**https://antsia-demo.vercel.app**. Les deux sondes `/api/sante-fonctionnelle`
+> Dépôt public : les identifiants internes d'hébergement (déploiements, projets, équipes, adresses techniques) sont tenus hors du dépôt ; ce document les désigne par leur rôle (EX-20, 10/11/2026).
+
+Les corrections sont publiées sur **le site principal** et sur **le projet de démonstration**
+(adresses de l'hébergeur). Les deux sondes `/api/sante-fonctionnelle`
 renvoient HTTP 200. La production sert `chartes-20261020-ad1664c2b27b81a4` ;
 la démonstration sert désormais `logout-20261020-c52b73ee37effd0c`, qui conserve
 ces corrections et ajoute le correctif de déconnexion publié par l'autre chat.
@@ -26,11 +28,11 @@ détaillés ci-dessous conservent leur valeur historique aux étapes décrites.
 | Base DIASPORALE nécessaire à la construction | `fab55ef0b2101aac70c4351f02fdfc74b5ee3f3a` |
 | Corrections intégrées | 182 chemins de corrections des chartes et préférences, inventaire explicite |
 | Contrôle de stabilité | 2 969 fichiers identiques à leur inventaire après tests et publications |
-| Vercel `antsia` | `dpl_94991LfeD7WvCZ2tLqXTZAh78xVx`, READY puis promotion sans reconstruction |
-| Vercel `antsia-demo` | `dpl_7QKwPUYchXGkPdrCod2ttPW49abG`, READY puis promotion sans reconstruction |
-| Dernière version de démonstration | `dpl_3W92ZpnB5rhewbqWd3vxggfYWs5f`, READY, ajout de déconnexion sur notre version |
-| Convex production | `diligent-avocet-585` |
-| Convex démonstration | `vivid-hedgehog-655` |
+| Hébergeur, projet du site principal | déploiement tenu hors du dépôt, READY puis promotion sans reconstruction |
+| Hébergeur, projet de démonstration | déploiement tenu hors du dépôt, READY puis promotion sans reconstruction |
+| Dernière version de démonstration | déploiement tenu hors du dépôt, READY, ajout de déconnexion sur notre version |
+| Convex production | déploiement de production |
+| Convex démonstration | déploiement de démonstration |
 
 L'archive de livraison est construite à partir de `main` et des corrections
 sélectionnées dans les sources réelles. Les travaux auth, sessions et DIASPORALE
@@ -110,14 +112,14 @@ déploiement Convex de production, sans communiquer de secret dans un chat :
    `IDN_ISSUER=https://site.identite.ga` ou la découverte explicite ci-dessus.
 3. Contrôler `SITE_URL` et déclarer exactement
    `<SITE_URL>/api/auth/oauth2/callback/idn` dans le portail. Pour les domaines
-   concernés : `https://antsia.vercel.app/api/auth/oauth2/callback/idn` ou
+   concernés : `<site principal>/api/auth/oauth2/callback/idn` ou
    `https://antsia.ga/api/auth/oauth2/callback/idn`, selon l'origine réellement
    choisie. Ne pas déduire cette origine du seul catalogue des applications.
 4. Contrôler les origines autorisées, les scopes `openid profile email` et les
    URL frontend/backend du même déploiement ; attendre `idn=true` dans la
    configuration publique avant la recette de connexion et de création.
 5. Réaliser le parcours IDN avec le propriétaire, puis reprendre les 42
-   combinaisons de thème en session membre sur `antsia.vercel.app`.
+   combinaisons de thème en session membre sur le site principal.
 
 Le portail IDN contient aussi un exemple documentaire
 `apps/developer/app/docs/_articles/register-app.tsx` qui donne encore `https://identite.ga` comme issuer ;

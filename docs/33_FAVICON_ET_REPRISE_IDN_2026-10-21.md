@@ -1,13 +1,15 @@
 # Favicon et reprise IDN — 21 octobre 2026
 
+> Dépôt public : les identifiants internes d'hébergement (déploiements, projets, équipes, adresses techniques) sont tenus hors du dépôt ; ce document les désigne par leur rôle (EX-20, 10/11/2026).
+
 ## Correction et publication
 
 `/favicon.ico` renvoyait 404 sur ANTSIA, sa démo et IDN. Le fichier ANTSIA réel est ajouté à `apps/antsia_ga/src/app/favicon.ico` : monogramme de la marque, ICO décodable en 16/32/48/64 pixels. Next produit sa route statique et sa balise de métadonnées, sans changement de configuration, thème, session ou backend.
 
 | Cible | Version publiée | Déploiement | Résultat HTTP |
 | --- | --- | --- | --- |
-| https://antsia.vercel.app | `favicon-20261021-da994563d25d2e11` | `dpl_HnnqfRxbwo88ui8uq12Bhawn63xJ` | favicon 200, santé 200 |
-| https://antsia-demo.vercel.app | `favicon-20261021-f2be15a6cd2d90e6` | `dpl_7Mk1uddWVe8cEd7M5UquUmmt7JM5` | favicon 200, santé 200 |
+| site principal | `favicon-20261021-da994563d25d2e11` | tenu hors du dépôt | favicon 200, santé 200 |
+| projet de démonstration | `favicon-20261021-f2be15a6cd2d90e6` | tenu hors du dépôt | favicon 200, santé 200 |
 
 Chaque candidat reprend sa dernière base canonique et ajoute exactement un fichier. Les derniers correctifs responsive de production, les sessions, l’antivirus et les contenus de démonstration sont conservés. Construction et typage distants réussis ; état READY avant promotion. Les fichiers servis ont la même empreinte SHA-256 que le source, `17d852570781ea593894532cff3ef4e5c57481d873db9eabbf911ccec3ea9149`. Les deux pages d’entrée publient la balise `/favicon.ico?...`. CSP présente, backend configuré. Aucun test global du WIP partagé ni déploiement Convex revendiqué.
 

@@ -1,5 +1,7 @@
 # Session IDN et rechargements — 20 octobre 2026
 
+> Dépôt public : les identifiants internes d'hébergement (déploiements, projets, équipes, adresses techniques) sont tenus hors du dépôt ; ce document les désigne par leur rôle (EX-20, 10/11/2026).
+
 **Résultat en production : cinq rechargements complets et une nouvelle ouverture conservent le compte @asted sur /fil, sans nouvelle demande IDN et sans contenu publié.**
 
 ## Diagnostic constaté
@@ -49,11 +51,11 @@ stockage ; seule une réponse200/null le purge dans le plugin.
 - Version préparée : `session-reload-20261020-7512840237b38401`.
 - Base publique conservée : `3507e4a264c0a135f0d07faa3b4c2432e814423f` ; seuls
   le bootstrap et son test changent dans le manifeste de2994fichiers.
-- Vercel `antsia`, équipe `okatechs-projects-f0102678`, production :
-  `dpl_6coT1M8U4HnyMtqAAS5Kh8nhHr4K`, build et typage complets réussis.
-- Promotion terminée : https://antsia.vercel.app sert la nouvelle version ; santé200 et version confirmées à19:07:42 UTC.
+- Hébergeur, projet du site principal, production :
+  déploiement tenu hors du dépôt, build et typage complets réussis.
+- Promotion terminée : le site principal sert la nouvelle version ; santé200 et version confirmées à19:07:42 UTC.
 - Contrôle du build préparé et public : santé200, version attendue, backend
-  `diligent-avocet-585` dans la CSP ; backend de démonstration absent.
+  le déploiement Convex de production dans la CSP ; backend de démonstration absent.
 - Aucun déploiement Convex, secret, fichier d’environnement ou contenu social
   modifié par cette correction.
 - Échantillon de journaux du nouveau déploiement : aucune erreur remontée sur la
@@ -62,8 +64,8 @@ stockage ; seule une réponse200/null le purge dans le plugin.
 ## Recette connectée validée
 
 Le propriétaire a terminé la connexion IDN officielle. Le fil de production
-`https://antsia.vercel.app/fil` affiche le profil public @asted et le bouton de
-sortie. Les scripts rendus identifient bien `dpl_6coT1M8U4HnyMtqAAS5Kh8nhHr4K`.
+`<site principal>/fil` affiche le profil public @asted et le bouton de
+sortie. Les scripts rendus identifient bien ce déploiement.
 
 Cinq rechargements complets du navigateur ont été effectués, avec attente de la
 fin des gardes de session à chaque fois :
@@ -95,7 +97,7 @@ attente de sept jours ni un redémarrage complet du système.
 ## Reprise de la connexion
 
 La première confirmation du propriétaire correspondait à la fenêtre active de
-`antsia-demo.vercel.app`. La production n’avait alors aucune session : les deux
+le projet de démonstration. La production n’avait alors aucune session : les deux
 origines disposent de stockages distincts. Un parcours IDN neuf de production a
 été mis au premier plan ; le propriétaire a ensuite terminé la connexion réelle.
 La phase d’attente a été résolue avant la recette ci-dessus.

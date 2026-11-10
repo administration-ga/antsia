@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { DEMO_BACKEND_HOST } from "./demo-backend"
 
 const mocks = vi.hoisted(() => ({ sdk: vi.fn(), bridge: vi.fn(), fence: vi.fn(), lock: vi.fn() }))
 vi.mock("@antsia/api/sign-out-everywhere", () => ({ signOutEverywhere: mocks.sdk }))
@@ -26,7 +27,7 @@ describe("sortie avec purge du pont", () => {
   })
   it.each([true, false])("reste dans la démo après sortie, purge confirmée : %s", async (bridgeCleared) => {
     vi.stubEnv("NEXT_PUBLIC_APP_BASE_PATH", "/demo")
-    vi.stubEnv("NEXT_PUBLIC_CONVEX_URL", "https://vivid-hedgehog-655.convex.cloud")
+    vi.stubEnv("NEXT_PUBLIC_CONVEX_URL", `https://${DEMO_BACKEND_HOST}`)
     const assign = vi.fn()
     vi.stubGlobal("window", { location: { assign }, localStorage: memoryStorage(), sessionStorage: memoryStorage() })
     mocks.fence.mockReturnValue("generation")
@@ -37,7 +38,7 @@ describe("sortie avec purge du pont", () => {
   })
   it("un stockage démo indisponible ne replie jamais la purge sur le stockage principal", async () => {
     vi.stubEnv("NEXT_PUBLIC_APP_BASE_PATH", "/demo")
-    vi.stubEnv("NEXT_PUBLIC_CONVEX_URL", "https://vivid-hedgehog-655.convex.cloud")
+    vi.stubEnv("NEXT_PUBLIC_CONVEX_URL", `https://${DEMO_BACKEND_HOST}`)
     const assign = vi.fn()
     vi.stubGlobal("window", { location: { assign } })
     mocks.fence.mockReturnValue("generation")

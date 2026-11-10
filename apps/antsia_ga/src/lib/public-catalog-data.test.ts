@@ -1,5 +1,6 @@
 import { getFunctionName } from "convex/server"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { DEMO_BACKEND_HOST, DEMO_DEPLOYMENT_NAME } from "@/lib/demo-backend"
 import { catalogOfferFixture, catalogPageFixture, COLLECTION_REF, OFFER_REF } from "@/components/shops/__tests__/catalog-fixtures"
 
 const mocks = vi.hoisted(() => ({ query: vi.fn(), viewer: vi.fn() }))
@@ -91,7 +92,7 @@ describe("catalogue SSR — projection strictement allowlistée", () => {
 })
 
 describe("catalogue SSR — projection illustrative de démonstration", () => {
-  it.each(["http://localhost:3210", "http://127.0.0.1:3210", "http://localhost:3260", "http://127.0.0.1:3260", "https://vivid-hedgehog-655.convex.cloud"])("admet le registre fermé des déclarations uniquement sur %s", (backendUrl) => {
+  it.each(["http://localhost:3210", "http://127.0.0.1:3210", "http://localhost:3260", "http://127.0.0.1:3260", `https://${DEMO_BACKEND_HOST}`])("admet le registre fermé des déclarations uniquement sur %s", (backendUrl) => {
     vi.stubEnv("NEXT_PUBLIC_CONVEX_URL", backendUrl)
     for (const declaration of DEMO_CATALOG_DECLARATIONS) {
       const base = demoOfferFixture()
@@ -100,9 +101,9 @@ describe("catalogue SSR — projection illustrative de démonstration", () => {
       expect(catalogPageSchema.safeParse(catalogPageFixture({ page: [offer], collections: offer.collections })).success).toBe(true)
     }
   })
-  it.each(["https://production.convex.cloud", "https://other.convex.cloud", "https://vivid-hedgehog-655.convex.cloud.evil.test", "https://vivid-hedgehog-655.convex.cloud@evil.test", "https://vivid-hedgehog-655.convex.cloud:444", "http://localhost:3211"])("refuse la démo sur %s et conserve le contrat PRO.GA", (backendUrl) => {
+  it.each(["https://production.convex.cloud", "https://other.convex.cloud", `https://${DEMO_BACKEND_HOST}.evil.test`, `https://${DEMO_BACKEND_HOST}@evil.test`, `https://${DEMO_BACKEND_HOST}:444`, "http://localhost:3211"])("refuse la démo sur %s et conserve le contrat PRO.GA", (backendUrl) => {
     vi.stubEnv("NEXT_PUBLIC_CONVEX_URL", backendUrl)
-    vi.stubEnv("ANTSIA_DEMO_DEPLOYMENT", "vivid-hedgehog-655")
+    vi.stubEnv("ANTSIA_DEMO_DEPLOYMENT", DEMO_DEPLOYMENT_NAME)
     expect(catalogOfferSchema.safeParse(demoOfferFixture()).success).toBe(false)
     expect(catalogPageSchema.safeParse(catalogPageFixture({ page: [], collections: demoOfferFixture().collections })).success).toBe(false)
     expect(catalogOfferSchema.safeParse(catalogOfferFixture({ media: [{ url: "https://assets.example.test/catalogue/image.png", altText: "Produit", width: 800, height: 800, withheld: null }] })).success).toBe(true)
@@ -164,7 +165,7 @@ describe("MP03 — facettes publiques PRO.GA strictes", () => {
     expect(catalogOfferSchema.safeParse({ ...catalogOfferFixture(), facets }).success).toBe(false)
   })
 
-  it.each(["http://localhost:3210", "https://vivid-hedgehog-655.convex.cloud"])("une offre de démonstration ne peut pas revendiquer des facettes PRO.GA sur %s", (backendUrl) => {
+  it.each(["http://localhost:3210", `https://${DEMO_BACKEND_HOST}`])("une offre de démonstration ne peut pas revendiquer des facettes PRO.GA sur %s", (backendUrl) => {
     vi.stubEnv("NEXT_PUBLIC_CONVEX_URL", backendUrl)
     const demo = demoOfferFixture()
     expect(catalogOfferSchema.safeParse(demo).success).toBe(true)

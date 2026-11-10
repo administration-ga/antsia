@@ -1,7 +1,9 @@
 # Sélecteur photo et vidéo — 20 octobre 2026
 
-Le correctif complet est publié sur [ANTSIA](https://antsia.vercel.app) et
-[la démonstration](https://antsia-demo.vercel.app).
+> Dépôt public : les identifiants internes d'hébergement (déploiements, projets, équipes, adresses techniques) sont tenus hors du dépôt ; ce document les désigne par leur rôle (EX-20, 10/11/2026).
+
+Le correctif complet est publié sur ANTSIA (site principal) et
+la démonstration (projet de démonstration).
 
 ## Défaut corrigé
 
@@ -46,8 +48,8 @@ modifiée.
 
 | Cible | Déploiement Vercel | État |
 |---|---|---|
-| antsia | `dpl_EZQNzXLvaLmbzNaWDBs3ip6DnE6S` | READY, alias public vérifié |
-| antsia-demo | `dpl_3CErPZo6GoRfugUvZQWRxxWvEfGj` | READY, alias public vérifié |
+| site principal | déploiement tenu hors du dépôt | READY, alias public vérifié |
+| démonstration | déploiement tenu hors du dépôt | READY, alias public vérifié |
 
 Version de contenu : `media-picker-20261020-74d5cac88d25892d`.
 Base Git du paquet : `a29a6d8` ; cet identifiant de contenu n'est pas un commit.

@@ -1,5 +1,7 @@
 # U08 — Base de livraison et procédure, reconnaissance du 21 octobre
 
+> Dépôt public : les identifiants internes d'hébergement (déploiements, projets, équipes, adresses techniques) sont tenus hors du dépôt ; ce document les désigne par leur rôle (EX-20, 10/11/2026).
+
 Lecture seule des sources, manifestes et preuves historiques ; aucun test, codegen, build, serveur, appel de données, commande Git d’écriture ou déploiement exécuté. Ce rapport ne recontrôle pas l’alias distant actuel. L’autorisation de terminer, vérifier et livrer vient de la demande actuelle du propriétaire ; la présente sous-tâche reste documentaire.
 
 ## Deux bases publiées distinctes à conserver
@@ -11,7 +13,7 @@ Racine conservée : `/Users/okatech/Library/Caches/antsia-releases/20261020-conn
 | Front ANTSIA | `production/ECOSYSTEMES/` avec ANTSIA et ses workspaces voisins DIASPORALE | `production/manifest.json`, 2 998 fichiers, version `relations-media-20261020-c8de4d49935c` ; `production/media-stage.log`, `media-promote.log` et `docs/recette/relations-media-2026-10-20/production-frontend.json` |
 | Backend de production final | `backend-production/ECOSYSTEMES/` | `backend-production/manifest.json`, 2 975 fichiers, révision de source après réparation AV ; `requeue-candidate-bundle/fullConfig.json`, `requeue-bundle-proof.json`, `requeue-hash-check.log` et preuve `production-requeue-backend.json` dans le dossier de recette |
 
-Le front historique est `dpl_9ySFdUsUy7855qkAJSMM8xn8oz82`, cible `antsia`, READY puis promu. Le backend associé est `diligent-avocet-585` ; la preuve conservée atteste 710 modules corrélés, schéma inchangé. La dernière correction AV du backend porte seulement `modules/files/mutations.js` selon `requeue-bundle-proof.json`.
+Le front historique est un déploiement du projet du site principal (identifiant tenu hors du dépôt), READY puis promu. Le backend associé est le déploiement Convex de production ; la preuve conservée atteste 710 modules corrélés, schéma inchangé. La dernière correction AV du backend porte seulement `modules/files/mutations.js` selon `requeue-bundle-proof.json`.
 
 **Ne pas utiliser l’archive backend pour rebâtir le front.** Six comparaisons de source ciblées confirment que son bootstrap et son audio sont plus anciens que le front publié. Dans le checkout réel, le bootstrap/session et l’audio correspondent au manifeste front ; `convex/betterAuth/auth.ts` et `convex/modules/files/mutations.ts` correspondent au manifeste backend final. Les fichiers de demande de connexion et le sélecteur font également partie des corrections à conserver.
 
@@ -52,11 +54,11 @@ node scripts/convex-dev.mjs deploy --typecheck enable --yes
 
 Le premier prépare le bundle et ne prouve pas sa publication. Relire le diff immédiatement avant le vrai push : aucune suppression d’index non prévue, schéma/crons et modules limités au changement autorisé ; conserver les corrections auth/relations/AV. Pas de graine, migration de données ou modification de configuration fournisseur dans ce flux. Après publication, corréler le bundle attendu au code distant comme dans les preuves historiques ; ne pas confondre `--write-push-request`, dry-run et publication.
 
-Pour Vercel, utiliser le parent **ECOSYSTEMES du candidat front**, la liste blanche existante et les identifiants du projet déjà lié dans `.vercel/project.json` du checkout. Ce fichier contient seulement `projectId`, `orgId`, `projectName` ; ne copier que ce lien de projet dans le packaging si nécessaire, jamais un environnement. Projet `antsia`, équipe `okatechs-projects-f0102678`, identifiants déjà présents dans ce fichier. Le réglage distant de racine doit être confirmé avant la commande ; le build historique installe depuis deux niveaux au-dessus de l’application.
+Pour Vercel, utiliser le parent **ECOSYSTEMES du candidat front**, la liste blanche existante et les identifiants du projet déjà lié dans `.vercel/project.json` du checkout. Ce fichier contient seulement `projectId`, `orgId`, `projectName` ; ne copier que ce lien de projet dans le packaging si nécessaire, jamais un environnement. Projet du site principal et équipe de l'hébergeur : identifiants déjà présents dans ce fichier, tenus hors du dépôt. Le réglage distant de racine doit être confirmé avant la commande ; le build historique installe depuis deux niveaux au-dessus de l’application.
 
 ```sh
-vercel deploy "$FRONT_ECOSYSTEMES" --prod --skip-domain --archive=tgz --yes --scope okatechs-projects-f0102678
-vercel promote "$NEW_DEPLOYMENT_URL" --yes --scope okatechs-projects-f0102678
+vercel deploy "$FRONT_ECOSYSTEMES" --prod --skip-domain --archive=tgz --yes --scope "$ANTSIA_RELEASE_VERCEL_TEAM"
+vercel promote "$NEW_DEPLOYMENT_URL" --yes --scope "$ANTSIA_RELEASE_VERCEL_TEAM"
 ```
 
 Les options de déploiement/archive sont présentes dans la CLI locale lue. Le build distant historique utilise Bun 1.4.2 et Next 16.2.9 ; le checkout contient une évolution Next/cache distincte. Ne pas embarquer cette évolution sans décision explicite. Avant promotion : santé/version attendues, bon backend dans la CSP, backend de démonstration absent, puis recette autorisée. Promouvoir le même build sans le reconstruire. La santé est dynamique dans `apps/antsia_ga/src/app/api/sante-fonctionnelle/route.ts` ; elle n’est pas une preuve de session, médias ou parcours métier.

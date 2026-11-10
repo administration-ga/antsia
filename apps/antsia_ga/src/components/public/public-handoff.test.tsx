@@ -2,6 +2,7 @@
 import { act, type ReactNode } from "react"
 import { createRoot, type Root } from "react-dom/client"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { DEMO_BACKEND_HOST } from "../../lib/demo-backend"
 
 const mocks = vi.hoisted(() => ({ status: "member", replace: vi.fn() }))
 vi.mock("@/components/providers", () => ({ SessionProviders: ({ children }: { children: ReactNode }) => children }))
@@ -17,7 +18,7 @@ beforeEach(() => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true)
   vi.stubGlobal("location", { ...window.location, replace: mocks.replace })
   vi.stubEnv("NEXT_PUBLIC_APP_BASE_PATH", "/demo")
-  vi.stubEnv("NEXT_PUBLIC_CONVEX_URL", "https://vivid-hedgehog-655.convex.cloud")
+  vi.stubEnv("NEXT_PUBLIC_CONVEX_URL", `https://${DEMO_BACKEND_HOST}`)
   mocks.status = "member"
   mocks.replace.mockReset()
   host = document.createElement("div")
@@ -42,7 +43,7 @@ describe("retour public dans la même zone d'application", () => {
   })
 
   it("conserve l'adresse du fil du build principal", async () => {
-    vi.stubEnv("NEXT_PUBLIC_CONVEX_URL", "https://diligent-avocet-585.convex.cloud")
+    vi.stubEnv("NEXT_PUBLIC_CONVEX_URL", "https://exemple-production.convex.cloud")
     await act(async () => root!.render(<PublicHandoff />))
     expect(mocks.replace).toHaveBeenCalledExactlyOnceWith("/fil")
   })

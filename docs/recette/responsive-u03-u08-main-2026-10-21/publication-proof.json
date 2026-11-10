@@ -4,15 +4,15 @@
   "sourceFiles": 2886,
   "promotedAt": "2026-10-21T17:08:38Z",
   "production": {
-    "id": "dpl_9Ga4gMfBVAzkh656teP4Vo2Ei8ix",
-    "url": "https://antsia-kcpanvsq4-okatechs-projects-f0102678.vercel.app",
+    "id": "<tenu hors du dépôt>",
+    "url": "<adresse propre du déploiement, tenue hors du dépôt>",
     "version": "main-5851d025af92-production",
     "readyState": "READY",
     "durationSeconds": 132.3
   },
   "demo": {
-    "id": "dpl_4Hx7Day2T2jvBbsGuEe6L53VsxVZ",
-    "url": "https://antsia-demo-f3fsnoyd2-okatechs-projects-f0102678.vercel.app",
+    "id": "<tenu hors du dépôt>",
+    "url": "<adresse propre du déploiement, tenue hors du dépôt>",
     "version": "main-5851d025af92-demo",
     "readyState": "READY",
     "durationSeconds": 131.7
@@ -31,8 +31,8 @@
     "demo": "200 main-5851d025af92-demo"
   },
   "csp": {
-    "production": "diligent-avocet-585",
-    "demoPages": "vivid-hedgehog-655"
+    "production": "<déploiement Convex de production>",
+    "demoPages": "<déploiement Convex de démonstration>"
   },
-  "rollbackTarget": "https://antsia-m1kry4rya-okatechs-projects-f0102678.vercel.app (main-086cd43b8686-production)"
+  "rollbackTarget": "<adresse propre du déploiement, tenue hors du dépôt> (main-086cd43b8686-production)"
 }

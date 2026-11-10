@@ -1,5 +1,7 @@
 # Compléments sociaux — 21 octobre 2026
 
+> Dépôt public : les identifiants internes d'hébergement (déploiements, projets, équipes, adresses techniques) sont tenus hors du dépôt ; ce document les désigne par leur rôle (EX-20, 10/11/2026).
+
 Les modèles fournis dans les onze captures Facebook sont intégrés dans les vrais composants ANTSIA : invitations, suggestions, profils, notifications, cartes d’offre et aperçus vidéo du fil. Les fonctions et contenus existants restent raccordés. Les commits de livraison sont poussés et les deux versions sont **publiées sur ANTSIA et sa zone /demo**. La recette locale initiale est conservée ci-dessous.
 
 ## Comportements intégrés
@@ -56,8 +58,8 @@ Les limites de la recette locale initiale sont levées pour les compilations et 
 
 | Cible | Commit source poussé | Version | Déploiement |
 | --- | --- | --- | --- |
-| [ANTSIA](https://antsia.vercel.app/) | `2966feaafc0f4c86176845c3ba4c07d5a7297422` | `social-20261021-production-2966feaafc0f` | `dpl_EpqwAiwbS4BzDTec73RL2AWCbNNK` — READY |
-| [Démo intégrée](https://antsia.vercel.app/demo) | `df82f10ac50a5058ef236e20ed2578bbcd9386c2` | `social-20261021-demo-df82f10ac50a` | `dpl_9d6JWNqASpK8KbdejSw2ozKpPDxX` — READY |
+| ANTSIA (site principal) | `2966feaafc0f4c86176845c3ba4c07d5a7297422` | `social-20261021-production-2966feaafc0f` | déploiement tenu hors du dépôt — READY |
+| Démo intégrée (`/demo` du site principal) | `df82f10ac50a5058ef236e20ed2578bbcd9386c2` | `social-20261021-demo-df82f10ac50a` | déploiement tenu hors du dépôt — READY |
 
 Les branches `codex/complements-sociaux-20261021` et `codex/complements-sociaux-demo-20261021` portent les sources. Le prérequis `05d8487` conserve exactement les trois fichiers de confidentialité publiés pendant la préparation ; trois formulations sont clarifiées ensuite sans changer leurs informations. Le test de contrat DIASPORALE ajoute une seule entrée pour le jeton de rayon : commit `aafe007`, branche `codex/contrat-actions-sociales-20261021`, poussée sans publication de l’application DIASPORALE.
 

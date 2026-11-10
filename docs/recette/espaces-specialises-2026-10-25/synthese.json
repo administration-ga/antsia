@@ -79,7 +79,7 @@
   },
   "publicHealth": {
     "checkedAt": "2026-10-25T13:16:13.139296+00:00",
-    "origin": "https://antsia.vercel.app",
+    "origin": "<site principal>",
     "mode": "public",
     "results": [
       {
@@ -107,7 +107,7 @@
         "foreignBackendAbsentFromCsp": true
       },
       {
-        "origin": "https://antsia-demo.vercel.app",
+        "origin": "<projet de démonstration>",
         "status": 404
       }
     ]
@@ -117,7 +117,7 @@
       "demo": {
         "status": "staged_cli_wait_completed",
         "startedAt": "2026-10-25T13:11:20.803407+00:00",
-        "projectId": "prj_EVmqRAr7i4vKF25o6mpNKVbajgLC",
+        "projectId": "<tenu hors du dépôt>",
         "version": "specialized-6095514b6a00-demo",
         "candidateContentFingerprint": "6095514b6a00b9ec3db4291c9218cbbc7885f75cfd15b5b47622565de2cac192",
         "verification": {
@@ -142,8 +142,8 @@
         "childRuntimeOrigin": null,
         "cliExitCode": 0,
         "finishedAt": "2026-10-25T13:13:12.526494+00:00",
-        "deploymentId": "dpl_ZD7mGDThdEPRTEvgpPyASzZvvhwD",
-        "url": "https://antsia-demo-ocq4sqigr-okatechs-projects-f0102678.vercel.app",
+        "deploymentId": "<tenu hors du dépôt>",
+        "url": "<adresse propre du déploiement, tenue hors du dépôt>",
         "sourcesUnchanged": true,
         "readyStateReadBackRequired": true,
         "uiAcceptanceRequired": true
@@ -151,7 +151,7 @@
       "production": {
         "status": "staged_cli_wait_completed",
         "startedAt": "2026-10-25T13:13:29.042448+00:00",
-        "projectId": "prj_PjiCPA1GobnnCipPpVkaAYxFVIkB",
+        "projectId": "<tenu hors du dépôt>",
         "version": "specialized-6095514b6a00-production",
         "candidateContentFingerprint": "6095514b6a00b9ec3db4291c9218cbbc7885f75cfd15b5b47622565de2cac192",
         "verification": {
@@ -173,20 +173,20 @@
             "historicalReferenceOnly": true
           }
         },
-        "childRuntimeOrigin": "https://antsia-demo-ocq4sqigr-okatechs-projects-f0102678.vercel.app",
+        "childRuntimeOrigin": "<adresse propre du déploiement, tenue hors du dépôt>",
         "cliExitCode": 0,
         "finishedAt": "2026-10-25T13:15:23.442385+00:00",
-        "deploymentId": "dpl_D93mYLT4Vp9hztfZ4TJwgYCqbwXT",
-        "url": "https://antsia-3zpg8mpz8-okatechs-projects-f0102678.vercel.app",
+        "deploymentId": "<tenu hors du dépôt>",
+        "url": "<adresse propre du déploiement, tenue hors du dépôt>",
         "sourcesUnchanged": true,
         "readyStateReadBackRequired": true,
         "uiAcceptanceRequired": true
       }
     },
     "promotion": {
-      "deploymentId": "dpl_D93mYLT4Vp9hztfZ4TJwgYCqbwXT",
-      "previousDeploymentId": "dpl_5Txod4ozxqim4s7FLjBKfj1eyMHb",
-      "publicAlias": "antsia.vercel.app",
+      "deploymentId": "<tenu hors du dépôt>",
+      "previousDeploymentId": "<tenu hors du dépôt>",
+      "publicAlias": "<site principal>",
       "confirmedAt": "2026-10-25T13:16:34.204225+00:00",
       "publicHealthVerified": true,
       "publicEnvValueUpdatedAndReadBack": true,
@@ -196,14 +196,14 @@
   },
   "catalogIndexReadback": [
     {
-      "deployment": "vivid-hedgehog-655",
+      "deployment": "<déploiement Convex de démonstration>",
       "networkId": "zn72grsbj3syj5gdhj0ew8c4ds8gny66",
       "status": "ready",
       "version": 2,
       "generation": 1
     },
     {
-      "deployment": "diligent-avocet-585",
+      "deployment": "<déploiement Convex de production>",
       "networkId": "zn74k1sfsvd8gahy5k0w8k8a9x8gn56w",
       "status": "ready",
       "version": 2,

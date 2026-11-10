@@ -3,6 +3,7 @@ import { act, StrictMode } from "react"
 import { createRoot, type Root } from "react-dom/client"
 import { renderToStaticMarkup } from "react-dom/server"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { DEMO_BACKEND_HOST } from "../../lib/demo-backend"
 
 const mocks = vi.hoisted(() => ({
   pathname: "/decouvrir",
@@ -130,18 +131,18 @@ describe("îlot de thème des pages publiques", () => {
 
   it("le build /demo conserve une URL Convex absolue sans préfixer le transport du thème", async () => {
     vi.stubEnv("NEXT_PUBLIC_APP_BASE_PATH", "/demo")
-    vi.stubEnv("NEXT_PUBLIC_CONVEX_URL", "https://vivid-hedgehog-655.convex.cloud")
+    vi.stubEnv("NEXT_PUBLIC_CONVEX_URL", `https://${DEMO_BACKEND_HOST}`)
     const network = vi.fn<typeof fetch>().mockResolvedValue(new Response("{}"))
     vi.stubGlobal("fetch", network)
     mocks.query.mockImplementationOnce(async () => {
       const adapter = mocks.construct.mock.calls.at(-1)?.[1]?.fetch
       if (!adapter) throw new Error("missing public fetch adapter")
-      await adapter("https://vivid-hedgehog-655.convex.cloud/api/query", { method: "POST" })
+      await adapter(`https://${DEMO_BACKEND_HOST}/api/query`, { method: "POST" })
       return { theme: "sable" }
     })
     await act(async () => root!.render(<PublicAccountTheme enabled />))
-    expect(mocks.construct).toHaveBeenCalledExactlyOnceWith("https://vivid-hedgehog-655.convex.cloud", { fetch: expect.any(Function) })
-    expect(network).toHaveBeenCalledWith("https://vivid-hedgehog-655.convex.cloud/api/query", { method: "POST", cache: "no-store", signal: expect.any(AbortSignal) })
+    expect(mocks.construct).toHaveBeenCalledExactlyOnceWith(`https://${DEMO_BACKEND_HOST}`, { fetch: expect.any(Function) })
+    expect(network).toHaveBeenCalledWith(`https://${DEMO_BACKEND_HOST}/api/query`, { method: "POST", cache: "no-store", signal: expect.any(AbortSignal) })
     expect(mocks.setTheme).toHaveBeenCalledExactlyOnceWith("sable")
   })
 })

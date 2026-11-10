@@ -1,10 +1,12 @@
 # Espaces spécialisés — recette responsive du 25 octobre 2026
 
-Statut : **publié et contrôlé après publication** sur https://antsia.vercel.app, le 25 octobre 2026.
+> Dépôt public : les identifiants internes d'hébergement (déploiements, projets, équipes, adresses techniques) sont tenus hors du dépôt ; ce document les désigne par leur rôle (EX-20, 10/11/2026).
+
+Statut : **publié et contrôlé après publication** sur le site principal, le 25 octobre 2026.
 
 ## Périmètre
 
-Boutiques, catalogues, fiches produits, prestataires, prestations, espace professionnel et presse. Recette dans le navigateur sur `antsia.vercel.app/demo`, avec le compte fictif existant, à **390 × 844**, **834 × 1112** et **1440 × 1000**. Le compte réel, les messages, commandes, contrats, profils et articles ne sont pas modifiés par ces contrôles.
+Boutiques, catalogues, fiches produits, prestataires, prestations, espace professionnel et presse. Recette dans le navigateur sur `/demo` du site principal, avec le compte fictif existant, à **390 × 844**, **834 × 1112** et **1440 × 1000**. Le compte réel, les messages, commandes, contrats, profils et articles ne sont pas modifiés par ces contrôles.
 
 ## Corrections
 
@@ -45,11 +47,11 @@ Le correctif fonctionnel pro et ses deux cas de régression sont dans le commit 
 
 ## Publication confirmée
 
-- Principal : `specialized-6095514b6a00-production`, déploiement `dpl_D93mYLT4Vp9hztfZ4TJwgYCqbwXT`.
-- Démonstration sous `/demo` : `specialized-6095514b6a00-demo`, déploiement `dpl_ZD7mGDThdEPRTEvgpPyASzZvvhwD`.
+- Principal : `specialized-6095514b6a00-production` (déploiement tenu hors du dépôt).
+- Démonstration sous `/demo` : `specialized-6095514b6a00-demo` (déploiement tenu hors du dépôt).
 - Les deux routes de santé publiques répondent 200 avec les nouvelles versions et les moteurs attendus ; la CSP exclut le moteur étranger dans chaque cas.
 - L’origine démo persistée du projet principal a été mise à jour vers cet enfant immuable, puis relue. Aucun secret ni fichier d’environnement modifié.
-- `antsia-demo.vercel.app` reste supprimé : réponse404.
+- L'ancienne adresse propre du projet de démonstration reste supprimée : réponse404.
 
 ## Contrôles après publication
 

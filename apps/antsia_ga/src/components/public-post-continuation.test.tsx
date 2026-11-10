@@ -5,6 +5,7 @@ import { act, type ReactNode } from "react"
 import { createRoot, type Root } from "react-dom/client"
 import { I18nextProvider } from "react-i18next"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { DEMO_BACKEND_HOST } from "@/lib/demo-backend"
 
 import { appResources } from "@/i18n/resources"
 import { routes } from "@/lib/routes"
@@ -84,7 +85,7 @@ describe("connexion — retour vers la publication après admission", () => {
 
   it("préserve la continuation dans le callback et la navigation complète du build démo", async () => {
     vi.stubEnv("NEXT_PUBLIC_APP_BASE_PATH", "/demo")
-    vi.stubEnv("NEXT_PUBLIC_CONVEX_URL", "https://vivid-hedgehog-655.convex.cloud")
+    vi.stubEnv("NEXT_PUBLIC_CONVEX_URL", `https://${DEMO_BACKEND_HOST}`)
     const assign = vi.fn()
     vi.stubGlobal("location", { ...window.location, assign })
     await mount(<SignInCard publicPostId={POST_ID} />)
@@ -96,7 +97,7 @@ describe("connexion — retour vers la publication après admission", () => {
 
   it("conserve une destination logique pour le routeur Next dans le build démo", async () => {
     vi.stubEnv("NEXT_PUBLIC_APP_BASE_PATH", "/demo")
-    vi.stubEnv("NEXT_PUBLIC_CONVEX_URL", "https://vivid-hedgehog-655.convex.cloud")
+    vi.stubEnv("NEXT_PUBLIC_CONVEX_URL", `https://${DEMO_BACKEND_HOST}`)
     mocks.status = "member"
     await mount(<SignInCard publicPostId={POST_ID} />)
     expect(mocks.replace).toHaveBeenCalledWith(routes.memberPost(POST_ID))
@@ -202,7 +203,7 @@ describe("connexion et bienvenue — reprise d'un espace spécialisé", () => {
 
   it("garde la continuation fermée dans la navigation complète démo", async () => {
     vi.stubEnv("NEXT_PUBLIC_APP_BASE_PATH", "/demo")
-    vi.stubEnv("NEXT_PUBLIC_CONVEX_URL", "https://vivid-hedgehog-655.convex.cloud")
+    vi.stubEnv("NEXT_PUBLIC_CONVEX_URL", `https://${DEMO_BACKEND_HOST}`)
     const assign = vi.fn()
     vi.stubGlobal("location", { ...window.location, assign })
     await mount(<SignInCard specializedDestination={SHOP_DESTINATION} />)

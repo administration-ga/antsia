@@ -1,5 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server"
 import { afterEach, describe, expect, it, vi } from "vitest"
+import { DEMO_BACKEND_HOST } from "../../lib/demo-backend"
 
 const network = vi.hoisted(() => ({ navigationLayout: undefined as "adaptive" | undefined }))
 
@@ -35,7 +36,7 @@ describe("messagerie dans l'opt-in adaptatif", () => {
 describe("hauteur de la messagerie avec la notice démo flottante", () => {
   it("conserve toute la hauteur sans retrancher la notice flottante dans la zone démo", () => {
     vi.stubEnv("NEXT_PUBLIC_APP_BASE_PATH", "/demo")
-    vi.stubEnv("NEXT_PUBLIC_CONVEX_URL", "https://vivid-hedgehog-655.convex.cloud")
+    vi.stubEnv("NEXT_PUBLIC_CONVEX_URL", `https://${DEMO_BACKEND_HOST}`)
     const html = renderToStaticMarkup(<MessagesScreen route={{}} />)
     expect(html).toContain('class="esp-page-motif flex h-dvh flex-col overflow-hidden bg-background"')
     expect(html).toContain('style="height:100dvh"')
@@ -46,13 +47,13 @@ describe("hauteur de la messagerie avec la notice démo flottante", () => {
 
   it("conserve le masquage de la barre dans une conversation immersive de démo", () => {
     vi.stubEnv("NEXT_PUBLIC_APP_BASE_PATH", "/demo")
-    vi.stubEnv("NEXT_PUBLIC_CONVEX_URL", "https://vivid-hedgehog-655.convex.cloud")
+    vi.stubEnv("NEXT_PUBLIC_CONVEX_URL", `https://${DEMO_BACKEND_HOST}`)
     expect(renderToStaticMarkup(<MessagesScreen route={{ kind: "personne", id: "fixture" }} />)).toContain('data-mobile="hidden"')
   })
 
   it.each(["", "/demo"])("la hauteur du principal reste 100dvh avec basePath %j", (basePath) => {
     vi.stubEnv("NEXT_PUBLIC_APP_BASE_PATH", basePath)
-    vi.stubEnv("NEXT_PUBLIC_CONVEX_URL", "https://diligent-avocet-585.convex.cloud")
+    vi.stubEnv("NEXT_PUBLIC_CONVEX_URL", "https://exemple-production.convex.cloud")
     const html = renderToStaticMarkup(<MessagesScreen route={{}} />)
     expect(html).not.toContain('style="')
     expect(html).toContain('class="esp-page-motif flex h-dvh flex-col overflow-hidden bg-background"')

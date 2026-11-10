@@ -1,5 +1,7 @@
 # Tri de l'arbre partagé — 2 novembre 2026
 
+> Dépôt public : les identifiants internes d'hébergement (déploiements, projets, équipes, adresses techniques) sont tenus hors du dépôt ; ce document les désigne par leur rôle (EX-20, 10/11/2026).
+
 **Le code qui n'existe que dans l'arbre partagé tient en une vingtaine de fichiers, et l'un de ces lots corrige un défaut en ligne.** Le reste est constitué de preuves de recette. Rien n'a été déplacé, publié ni supprimé.
 
 Comparaison de chaque fichier de `ECOSYSTEMES/ANTSIA` (branche `codex/pa4-identite-session`, hors fichiers ignorés) à `origin/main` `d788ecf2` et à l'historique de toutes les branches. Détail fichier par fichier : `classement.json`.
@@ -33,7 +35,7 @@ Les quelque 1160 changements affichés par `git status` sont trompeurs : ils se 
 
 `apps/antsia_ga/src/app/bienvenue/page.tsx` et son test. Un membre connecté au statut `welcome`, donc sans profil finalisé, est envoyé sur `/bienvenue` par `network-shell.tsx`. Or `main` et la production y montent `AccessHomeScreen`, la porte de connexion, au lieu de `WelcomeScreen`.
 
-- **Constaté le 2/11 en lecture anonyme** : `https://antsia.vercel.app/bienvenue` et `/demo/bienvenue` ont pour titre « Entrer sur ANTSIA », et non « Bienvenue sur ANTSIA ».
+- **Constaté le 2/11 en lecture anonyme** : `<site principal>/bienvenue` et `/demo/bienvenue` ont pour titre « Entrer sur ANTSIA », et non « Bienvenue sur ANTSIA ».
 - **Observé le 26/10** par la session de recette, sur une arrivée réelle : la page affichait la connexion (note `diagnostic-idn-recette-production-2026-10-26` du vault).
 - **Correctif éprouvé sur `main`** : les 2 fichiers s'y appliquent tels quels, 4 tests et typage verts. `WelcomeScreen` y est déjà.
 

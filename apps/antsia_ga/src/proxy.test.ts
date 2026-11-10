@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { DEMO_BACKEND_HOST } from "./lib/demo-backend"
 
 import { proxy } from "./proxy"
 
@@ -9,7 +10,7 @@ const runtimeOrigin = "https://antsia-runtime-fixture-20261021.vercel.app"
 
 beforeEach(() => {
   vi.stubEnv("NEXT_PUBLIC_APP_BASE_PATH", "")
-  vi.stubEnv("NEXT_PUBLIC_CONVEX_URL", "https://diligent-avocet-585.convex.cloud")
+  vi.stubEnv("NEXT_PUBLIC_CONVEX_URL", "https://exemple-production.convex.cloud")
   vi.stubEnv("ANTSIA_DEMO_PROXY_TOKEN", proxyToken)
   vi.stubEnv("ANTSIA_DEMO_HOSTING_BYPASS", hostingToken)
   vi.stubEnv("ANTSIA_DEMO_RUNTIME_ORIGIN", runtimeOrigin)
@@ -94,7 +95,7 @@ describe("relais /demo sur le site principal", () => {
 describe("admission du build enfant /demo", () => {
   beforeEach(() => {
     vi.stubEnv("NEXT_PUBLIC_APP_BASE_PATH", "/demo")
-    vi.stubEnv("NEXT_PUBLIC_CONVEX_URL", "https://vivid-hedgehog-655.convex.cloud")
+    vi.stubEnv("NEXT_PUBLIC_CONVEX_URL", `https://${DEMO_BACKEND_HOST}`)
   })
 
   it.each(["/demo", "/demo/entrer", "/demo/_next/static/main.js"])("refuse un accès direct sans secret : %s", path => {

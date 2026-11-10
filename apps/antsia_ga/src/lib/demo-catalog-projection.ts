@@ -1,3 +1,5 @@
+import { DEMO_BACKEND_HOST } from "./demo-backend"
+
 /** Projection illustrative fermée, réservée au backend local ou à la démo déclarée. */
 type DemoCatalogDeclaration = { offerRef: string; shopHandle: string; kind: "product" | "service"; collectionRef: string; imagePath: string }
 
@@ -50,7 +52,7 @@ export function demoCatalogProjectionAllowed(backendUrl: string | undefined = pr
     if (backendUrl !== url.origin || url.username || url.password || url.search || url.hash) return false
     // 3260 est le port local ANTSIA quand 3210 est réservé par une autre application du poste.
     return url.protocol === "http:" && ["3210", "3260"].includes(url.port) && ["127.0.0.1", "localhost"].includes(url.hostname)
-      || url.protocol === "https:" && !url.port && url.hostname === "vivid-hedgehog-655.convex.cloud"
+      || url.protocol === "https:" && !url.port && url.hostname === DEMO_BACKEND_HOST
   } catch { return false }
 }
 

@@ -20,12 +20,12 @@ L'icône vient de `assets/app-icon.png`, déclarée par `icon` dans `app.config.
 `scripts/build-app-icon.py` (monogramme du favicon). Sans cette déclaration, Expo garde le PNG blanc
 de son gabarit : c'est l'icône des builds iOS 2 à 12, chez Apple comme sur le téléphone.
 
-Les origines publiques observées sur le site publié le 21 octobre sont :
+Les origines publiques observées sur le site publié le 21 octobre (valeurs tenues hors du dépôt, désignées ici par leur rôle) sont :
 
 ```sh
-export EXPO_PUBLIC_CONVEX_URL=https://diligent-avocet-585.convex.cloud
-export EXPO_PUBLIC_CONVEX_SITE_URL=https://diligent-avocet-585.convex.site
-export EXPO_PUBLIC_SITE_URL=https://antsia.vercel.app
+export EXPO_PUBLIC_CONVEX_URL=https://<déploiement Convex de production>.convex.cloud
+export EXPO_PUBLIC_CONVEX_SITE_URL=https://<déploiement Convex de production>.convex.site
+export EXPO_PUBLIC_SITE_URL=<origine publique du site principal>
 ```
 
 Configuration approuvée le 21 octobre, conservée dans `native-build.json` :
