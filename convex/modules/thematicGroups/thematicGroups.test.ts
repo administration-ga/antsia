@@ -9,7 +9,7 @@ import type { MutationCtx } from "../../_generated/server"
 import { SEED_CONFIRMATION } from "../../seeds/foundations"
 import { testConvex } from "../../test.setup"
 import { admitStoredUpload } from "../files/admission"
-import { exportableRecord } from "../people/dataInventory"
+import { exportableRecord, type DataRecord } from "../people/dataInventory"
 
 type T = ReturnType<typeof testConvex>
 type Person = { as: ReturnType<T["withIdentity"]>; personId: Id<"persons">; handle: string }
@@ -359,9 +359,9 @@ describe("règles du groupe (PG-02)", () => {
       membership: await ctx.db.query("thematicGroupMembers").withIndex("by_group_and_person", (q) => q.eq("groupId", groupId).eq("personId", bob.personId)).unique(),
       group: await ctx.db.get(groupId),
     }))
-    expect(exportableRecord("thematicGroupMembers", membership as unknown as Record<string, unknown>, bob.personId)).toMatchObject({ groupId, acceptedRulesVersion: 1, acceptedRulesAt: expect.any(Number) })
-    expect(exportableRecord("thematicGroupMembers", membership as unknown as Record<string, unknown>, alice.personId)).toBeNull()
-    const exportedGroup = exportableRecord("thematicGroups", group as unknown as Record<string, unknown>, alice.personId)
+    expect(exportableRecord("thematicGroupMembers", membership as unknown as DataRecord,bob.personId)).toMatchObject({ groupId, acceptedRulesVersion: 1, acceptedRulesAt: expect.any(Number) })
+    expect(exportableRecord("thematicGroupMembers", membership as unknown as DataRecord,alice.personId)).toBeNull()
+    const exportedGroup = exportableRecord("thematicGroups", group as unknown as DataRecord,alice.personId)
     expect(exportedGroup).toMatchObject({ _id: groupId, createdByPersonId: alice.personId })
     expect(exportedGroup).not.toHaveProperty("rules")
   })
