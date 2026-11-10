@@ -1,5 +1,7 @@
 # ANTSIA — expérience sociale, noms et adaptation des écrans
 
+> Dépôt public : les identifiants internes d'hébergement (déploiements, projets, équipes, adresses techniques) sont tenus hors du dépôt ; ce document les désigne par leur rôle (EX-20, 10/11/2026).
+
 20 octobre 2026. Demande : analyser cinq captures et deux vidéos mobiles, moderniser les noms
 des fonctions et préparer leur adaptation téléphone, tablette et ordinateur. **La marque ANTSIA
 est conservée.** Ce dossier complète l'étude sociale et commerciale du 18 octobre ; il ne
@@ -31,7 +33,7 @@ restent la principale source de couleur.
 
 ## État au 21 octobre 2026
 
-- U01–U08 raccordés au Web ANTSIA et publiés sur https://antsia.vercel.app, version `responsive-recipe-20261021-5e87719d6f0eb0e7`.
+- U01–U08 raccordés au Web ANTSIA et publiés sur le site principal, version `responsive-recipe-20261021-5e87719d6f0eb0e7`.
 - Navigation téléphone/tablette/ordinateur, cartes et Stories, Explorer/Clips, profils, Messages et commerce contextuel implémentés avec les gardes existantes.
 - Vérifications exécutées et corrections intégrées ; candidat final :763 tests application,4119 social-features, build Next16.4.2 et lint des six workspaces sans erreur. Résultats et reprises datés dans le [bilan U08](rapports/U08_LIVRAISON_2026-10-21.md).
 - Branche `codex/experience-sociale-responsive-20261021` poussée ; backend média et frontend publiés. Correctifs de session et performances de l’autre session conservés.

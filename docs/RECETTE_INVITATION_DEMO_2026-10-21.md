@@ -1,6 +1,8 @@
 # Invitation démo acceptée et visible des deux côtés — 21/10/2026
 
-La recette est terminée sur https://antsia.vercel.app/demo : Sylvie OYANE @presse.demo a envoyé une invitation à Awa MBA @membre.demo, qui l’a acceptée dans l’interface normale. Après un rechargement complet de chaque compte, la connexion apparaît des deux côtés sans erreur de chargement ni avertissement ou erreur console capturé.
+> Dépôt public : les identifiants internes d'hébergement (déploiements, projets, équipes, adresses techniques) sont tenus hors du dépôt ; ce document les désigne par leur rôle (EX-20, 10/11/2026).
+
+La recette est terminée sur `/demo` du site principal : Sylvie OYANE @presse.demo a envoyé une invitation à Awa MBA @membre.demo, qui l’a acceptée dans l’interface normale. Après un rechargement complet de chaque compte, la connexion apparaît des deux côtés sans erreur de chargement ni avertissement ou erreur console capturé.
 
 ## Résultats observés
 
@@ -13,7 +15,7 @@ L’invitation reçue disparaît après acceptation. Les trois invitations sorta
 
 ## Conservation des données
 
-Inventaire complet borné à 100 lignes sur le backend de démonstration `vivid-hedgehog-655` :
+Inventaire complet borné à 100 lignes sur le backend de démonstration (déploiement Convex de démonstration) :
 
 - Avant : huit documents de connexion, soit cinq acceptés et trois invitations en attente.
 - Après : neuf documents, soit six acceptés et les trois invitations toujours en attente.

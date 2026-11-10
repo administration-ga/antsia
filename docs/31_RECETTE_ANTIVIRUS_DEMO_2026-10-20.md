@@ -1,18 +1,20 @@
 # Antivirus et publication vidéo sur la démo — 20 octobre 2026
 
+> Dépôt public : les identifiants internes d'hébergement (déploiements, projets, équipes, adresses techniques) sont tenus hors du dépôt ; ce document les désigne par leur rôle (EX-20, 10/11/2026).
+
 ## Résultat vérifié
 
-La démo https://antsia-demo.vercel.app est raccordée au vrai service antivirus
+La démo (projet de démonstration) est raccordée au vrai service antivirus
 ANTSIA. Deux envois vidéo distincts ont été publiés par le parcours normal du
 navigateur, analysés par ClamAV puis lus jusqu'au bout après un rechargement
 complet. Aucun avertissement ou erreur console observé pendant cette recette.
 
 ## Configuration appliquée
 
-- Cible exacte : `vivid-hedgehog-655` ; aucun paramètre de production modifié.
-- Fournisseur : `clamav-rest`, service existant du projet dédié
-  `okatech-antsia-security`, région `europe-west1`.
-- Endpoint : `https://antsia-clamav-rest-4ax5cbw34q-ew.a.run.app/scan`.
+- Cible exacte : le déploiement Convex de démonstration ; aucun paramètre de production modifié.
+- Fournisseur : `clamav-rest`, service existant du projet
+  d'hébergement dédié de l'antivirus, région `europe-west1`.
+- Endpoint : l'adresse du service antivirus suivie de `/scan` (tenue hors du dépôt).
 - Délai : `60000` ms ; plafond : `62914560` octets.
 - Secret transféré de Secret Manager au backend par mémoire/stdin, sans
   affichage, argument de processus, fichier ou presse-papiers.

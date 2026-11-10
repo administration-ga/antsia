@@ -1,7 +1,9 @@
 # Aperçus photo et vidéo en production — 20 octobre 2026
 
+> Dépôt public : les identifiants internes d'hébergement (déploiements, projets, équipes, adresses techniques) sont tenus hors du dépôt ; ce document les désigne par leur rôle (EX-20, 10/11/2026).
+
 **Recette terminée le 20/10/2026 à 20:46 (Europe/Paris)** sur
-[ANTSIA en production](https://antsia.vercel.app/fil), dans un onglet dédié du
+ANTSIA en production (`<site principal>/fil`), dans un onglet dédié du
 profil Chrome Asted, avec la session membre existante du propriétaire issue
 du raccordement IDN. Aucun nouveau parcours de connexion, consentement ou
 changement de compte n'a été déclenché. L'action « Vérifier avec IDN » de
@@ -9,7 +11,7 @@ renforcement de l'identité n'a pas été utilisée : elle est distincte de la
 session de connexion demandée ici.
 
 Version de santé : `audio-gesture-20261020-82c4108726107498` ; les scripts
-réellement chargés portent `dpl_3mKcBfqz71UrTM6JLJhBkWrJ6mZd`.
+réellement chargés portent l'identifiant du déploiement promu (tenu hors du dépôt).
 
 ## Résultats
 

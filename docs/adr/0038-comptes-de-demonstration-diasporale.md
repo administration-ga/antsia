@@ -9,7 +9,7 @@
 ## Contexte
 
 DIASPORALE n'a jamais été en ligne. Le 22/10/2026, le propriétaire demande de le publier, d'abord
-sur le backend de démonstration (`vivid-hedgehog-655`), pour une recette en ligne : la modératrice
+sur le backend de démonstration (le déploiement Convex de démonstration), pour une recette en ligne : la modératrice
 Ruth ALLOGHO, un signalement pour harcèlement, le bureau `/moderation` et ses délais légaux.
 
 L'ADR-0029 a ouvert les comptes de démonstration d'ANTSIA sur la démonstration déclarée, et

@@ -5,15 +5,15 @@
   "sourceFiles": 2887,
   "promotedAt": "2026-10-21T17:43:02Z",
   "production": {
-    "id": "dpl_4GBYbcaziPMAYd2nszD914NnrUWa",
-    "url": "https://antsia-15gqfbcqx-okatechs-projects-f0102678.vercel.app",
+    "id": "<tenu hors du dépôt>",
+    "url": "<adresse propre du déploiement, tenue hors du dépôt>",
     "version": "main-0773370b0a85-production",
     "readyState": "READY",
     "durationSeconds": 112.9
   },
   "demo": {
-    "id": "dpl_CuVN1DXjaypVuxq1vngzjgUyXLrB",
-    "url": "https://antsia-demo-rb0npgaxo-okatechs-projects-f0102678.vercel.app",
+    "id": "<tenu hors du dépôt>",
+    "url": "<adresse propre du déploiement, tenue hors du dépôt>",
     "version": "main-0773370b0a85-demo",
     "readyState": "READY",
     "durationSeconds": 147.6
@@ -42,5 +42,5 @@
     "horizontalOverflow": false,
     "consoleErrorsOrWarnings": 0
   },
-  "rollbackTarget": "https://antsia-kcpanvsq4-okatechs-projects-f0102678.vercel.app (main-5851d025af92-production)"
+  "rollbackTarget": "<adresse propre du déploiement, tenue hors du dépôt> (main-5851d025af92-production)"
 }

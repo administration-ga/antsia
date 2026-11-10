@@ -7,6 +7,8 @@ tags: [antsia, livraison, main]
 ---
 # Main consolidé publié sur ANTSIA et sa démo
 
+> Dépôt public : les identifiants internes d'hébergement (déploiements, projets, équipes, adresses techniques) sont tenus hors du dépôt ; ce document les désigne par leur rôle (EX-20, 10/11/2026).
+
 Accords explicites successifs du propriétaire : correctifs démo/IDN déjà publics, trois fichiers de confidentialité, puis compléments sociaux publiés2966fea/df82f10 et seuls prérequis publiés indispensables. PR24/main46b780b précède PR25/c8c6d71, fusionnée sous `d50c5a014daedd2c4b32571cf70461867121eb26`.88chemins sélectionnés après codegen (87initiaux et binding API de deux lignes) et9rapports ; aucun WIP parallèle. Branche/HEAD/index du checkout partagé conservés, commits avec index privé. Parents publiés non repris en bloc ; styles de main conservés hors deltas, quatre jetons consommés par les composants et valeurs des sept thèmes explicitement repris. Les dossiers marketplace, DIASPORALE/events et autres travaux non publiés restent préservés.
 
 ## Vérification source
@@ -15,7 +17,7 @@ Accords explicites successifs du propriétaire : correctifs démo/IDN déjà pub
 
 ## Publication effective
 
-Archive du main fusionné et DIASPORALEfab55ef exclusivement,2841fichiers livrables, empreinte `824797881ad006fe597098dab02be4afaefb12473e9b55fa1beac1e932d8e9dc`. Deux builds READY : principal `https://antsia-4qsp37re8-okatechs-projects-f0102678.vercel.app` ; enfant protégé `https://antsia-demo-icmae4szr-okatechs-projects-f0102678.vercel.app`. Versions `main-d50c5a014dae-production` et `main-d50c5a014dae-demo`. Sept contrôles staged et64assertions exactes sur huit pages légales FR/EN réussis. Garde de concurrence compare la version sociale approuvée avant promotion. Promotion du principal seule effectuée, santé/CSP des deux zones conformes ; ancien antsia-demo.vercel.app404 et absent, enfant direct protégé. Une seule origine de relais Vercel existante mise à jour après succès ; aucun.env ni secret écrit dans le dépôt, aucun déploiement/seed/purge Convex de production. Backends diligent-avocet-585 et vivid-hedgehog-655 conservés.
+Archive du main fusionné et DIASPORALEfab55ef exclusivement,2841fichiers livrables, empreinte `824797881ad006fe597098dab02be4afaefb12473e9b55fa1beac1e932d8e9dc`. Deux builds READY : principal et enfant protégé (adresses propres tenues hors du dépôt). Versions `main-d50c5a014dae-production` et `main-d50c5a014dae-demo`. Sept contrôles staged et64assertions exactes sur huit pages légales FR/EN réussis. Garde de concurrence compare la version sociale approuvée avant promotion. Promotion du principal seule effectuée, santé/CSP des deux zones conformes ; ancienne adresse propre du projet de démonstration en 404 et absente, enfant direct protégé. Une seule origine de relais Vercel existante mise à jour après succès ; aucun.env ni secret écrit dans le dépôt, aucun déploiement/seed/purge Convex de production. Backends de production et de démonstration conservés.
 
 ## Recette en ligne
 

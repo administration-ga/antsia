@@ -1,5 +1,7 @@
 # Antivirus ANTSIA — exploitation et déploiement
 
+> Dépôt public : les identifiants internes d'hébergement (déploiements, projets, équipes, adresses techniques) sont tenus hors du dépôt ; ce document les désigne par leur rôle (EX-20, 10/11/2026).
+
 Repris de `socle/ops/clamav/` du dépôt administration.ga au commit vérifié
 `4e1b625040c5f962f166ed74a691f5cee0126e27`. Le socle n'a pas été modifié.
 Service : `antsia-clamav-rest`. Secret : `antsia-clamav-token`.
@@ -7,18 +9,18 @@ Service : `antsia-clamav-rest`. Secret : `antsia-clamav-token`.
 ## Installation vérifiée le 20 octobre 2026
 
 Après autorisation explicite du propriétaire, le projet dédié
-`okatech-antsia-security` a été créé et facturé à l'usage en `europe-west1`.
+(identifiant tenu hors du dépôt) a été créé et facturé à l'usage en `europe-west1`.
 Le service est prêt sur la révision `antsia-clamav-rest-00001-ws8` ; build
-`2b804dad-cdb3-4d19-ab35-af7e377cc78f` réussi, tag
+(identifiant tenu hors du dépôt) réussi, tag
 `manual-4cbaad8c7704e42c2b12`.
 
-La production Convex `diligent-avocet-585` y est raccordée. Santé, refus sans
+Le déploiement Convex de production y est raccordé. Santé, refus sans
 secret, détection réelle EICAR et fichier sain de33MiB ont été vérifiés. Les deux
 vidéos initialement retenues ont ensuite été réanalysées par la voie interne
 auditée et lues dans Chrome. Le [rapport de livraison](../../docs/30_CORRECTIFS_RELATIONS_ET_MEDIAS_2026-10-20.md)
 contient les preuves et les limites de la recette. Aucun secret n'y figure.
 
-La démo Convex `vivid-hedgehog-655` est également raccordée depuis le 20 octobre
+Le déploiement Convex de démonstration est également raccordé depuis le 20 octobre
 2026. Deux envois vidéo par le navigateur ont été analysés sains puis lus
 intégralement après rechargement, sans avertissement. Voir la
 [recette de la démo](../../docs/31_RECETTE_ANTIVIRUS_DEMO_2026-10-20.md).

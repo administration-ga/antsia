@@ -9,7 +9,7 @@
 +describe("hauteur de la messagerie avec la notice démo flottante", () => {
 +  it("conserve toute la hauteur sans retrancher la notice flottante dans la zone démo", () => {
      vi.stubEnv("NEXT_PUBLIC_APP_BASE_PATH", "/demo")
-     vi.stubEnv("NEXT_PUBLIC_CONVEX_URL", "https://vivid-hedgehog-655.convex.cloud")
+     vi.stubEnv("NEXT_PUBLIC_CONVEX_URL", "https://<déploiement Convex de démonstration>.convex.cloud")
      const html = renderToStaticMarkup(<MessagesScreen route={{}} />)
      expect(html).toContain('class="esp-page-motif flex h-dvh flex-col overflow-hidden bg-background"')
 -    expect(html).toContain('style="height:calc(100dvh - var(--antsia-demo-banner-height, 0px))"')

@@ -1,6 +1,6 @@
 {
   "checkedAt": "2026-10-20T23:15:25.180617+00:00",
-  "stagedUrl": "https://antsia-ny8zf56bb-okatechs-projects-f0102678.vercel.app",
+  "stagedUrl": "<adresse propre du déploiement, tenue hors du dépôt>",
   "releaseCommit": "68f8ad92bd6f87acc53a8ae85563bd781863c4fc",
   "version": "social-responsive-20261021-e34875c094de4b4f",
   "sourceFingerprint": "e34875c094de4b4f541da8beb584cc2f5e431b4202b20bf4eb53aa883f27fd1a",
@@ -17,6 +17,6 @@
     "version": "cache-performance-20261021-e3fab6816eb3f79f",
     "backend": "configured"
   },
-  "baselineDeploymentId": "dpl_6VZqPxNpTmJJvd6LU36ho5GCZ3Rk",
+  "baselineDeploymentId": "<tenu hors du dépôt>",
   "browserRecipe": "NOT RUN"
 }

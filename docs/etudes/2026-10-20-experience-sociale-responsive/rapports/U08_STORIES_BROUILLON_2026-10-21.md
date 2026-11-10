@@ -1,5 +1,7 @@
 # Contrôles connectés — Stories et brouillon Messages
 
+> Dépôt public : les identifiants internes d'hébergement (déploiements, projets, équipes, adresses techniques) sont tenus hors du dépôt ; ce document les désigne par leur rôle (EX-20, 10/11/2026).
+
 Date : 21 octobre 2026. Publication Web effectuée ; contrôle du vrai brouillon encore en attente d’une relation existante.
 
 ## Résultat constaté en production
@@ -33,11 +35,11 @@ Le défaut de géométrie est mesuré avant/après en ligne. Le test du maintien
 
 Source : `70939c53b24d43b2e86e57ccd00d54263b5abc2d`, branche `codex/stories-brouillon-20261021`, poussée.
 Version : `stories-draft-20261021-86e8cb32a156d65c`.
-Vercel : `dpl_AquvvpCxU58a69Q7ZDAof8Y9Fyax`, READY, production [ANTSIA](https://antsia.vercel.app).
+Hébergeur : déploiement tenu hors du dépôt, READY, production du site principal.
 
 La livraison repart de la dernière publication globale `79e02b5`/`08edc2d08cb9b596` et conserve ses changements. Les 2 431 fichiers techniques ANTSIA du paquet figé correspondent à l’arbre Git livré ; seuls cinq fichiers de ce correctif sont ajoutés au parent. Aucun backend, natif, démo, admin ou DIASPORALE déployé. Aucun fichier d’environnement édité. La branche, HEAD et l’index réels de l’arbre partagé sont conservés. Les captures de la session et du contenu restent locales, hors commit.
 
-Santé publique : HTTP 200, status ok, version exacte, backend configured ; CSP diligent-avocet-585 vérifiée.
+Santé publique : HTTP 200, status ok, version exacte, backend configured ; CSP du déploiement Convex de production vérifiée.
 
 ## Preuves
 

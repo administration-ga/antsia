@@ -1,5 +1,7 @@
 # U03–U08 reportés sur main — 21 octobre 2026
 
+> Dépôt public : les identifiants internes d'hébergement (déploiements, projets, équipes, adresses techniques) sont tenus hors du dépôt ; ce document les désigne par leur rôle (EX-20, 10/11/2026).
+
 ## Constat
 
 Les lots responsive U03 à U08 ont été publiés le 21/10 depuis la lignée de livraison Codex (`71c93a5` → `2966fea`). La consolidation de `main` (PR 25) n'a repris que les compléments sociaux et leurs prérequis. La production servie depuis `main` (`main-086cd43b8686`) a donc perdu Clips et Explorer, les profils adaptatifs, la création et la pause des Stories, la messagerie en espace de travail, la demande de contact des boutiques ainsi que le rail et la barre basse adaptatifs.
@@ -41,17 +43,17 @@ Total : 11 877 tests réussis. Une première passe a été coupée par un disque
 
 Publication autorisée par le propriétaire. `main` `5851d02` (PR 29) est en ligne depuis 17 h 08 UTC :
 
-- production : `main-5851d025af92-production` (`dpl_9Ga4gMfBVAzkh656teP4Vo2Ei8ix`) ;
-- démo sous `/demo` : `main-5851d025af92-demo` (`dpl_4Hx7Day2T2jvBbsGuEe6L53VsxVZ`).
+- production : `main-5851d025af92-production` (déploiement tenu hors du dépôt) ;
+- démo sous `/demo` : `main-5851d025af92-demo` (déploiement tenu hors du dépôt).
 
 Le contexte publié contient les seuls fichiers suivis de `main` et de DIASPORALE `fab55ef`. Les secrets serveur sont hérités des projets, sans lecture. Aucun backend Convex n'a été déployé.
 
 - **Avant promotion.** Enfant et principal directs redirigés vers le SSO Vercel ; ancien alias démo en 404 ; version publique encore `086cd43` ; `main` inchangé.
-- **Après promotion.** Santés HTTP 200 sur les versions exactes. La CSP du principal vise `diligent-avocet-585`, celle des pages démo `vivid-hedgehog-655`.
+- **Après promotion.** Santés HTTP 200 sur les versions exactes. La CSP du principal vise le déploiement Convex de production, celle des pages démo le déploiement de démonstration.
 - **Recette en ligne.** Compte démo fictif Awa MBA, à 390, 834 et 1 440 px : Réseau, Explorer, Clips, Messages, Moi, Actus, profil, vitrine et fiche d'offre, ainsi que les pages publiques du principal. Aucun débordement horizontal et aucune alerte. Console vide, sans erreur ni avertissement.
 - **Ce que la recette confirme.** Barre basse au téléphone (Accueil, Clips, Messages, Explorer, Profil). Rail compact à 834 px. Rail complet et colonne iCom à 1 440 px. Messages en espace borné, sans défilement du document, avec le bandeau démo retranché. Explorer en grille de médias, images chargées.
 
-Preuve : [`publication-proof.json`](../../../recette/responsive-u03-u08-main-2026-10-21/publication-proof.json). Retour arrière possible : promouvoir `antsia-m1kry4rya` (`main-086cd43b8686`).
+Preuve : [`publication-proof.json`](../../../recette/responsive-u03-u08-main-2026-10-21/publication-proof.json). Retour arrière possible : promouvoir le déploiement précédent du site principal (`main-086cd43b8686`).
 
 ### Observations, sans retour arrière
 

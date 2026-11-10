@@ -1,5 +1,7 @@
 # MP14 — Rapport de livraison du candidat MP00–MP14
 
+> Dépôt public : les identifiants internes d'hébergement (déploiements, projets, équipes, adresses techniques) sont tenus hors du dépôt ; ce document les désigne par leur rôle (EX-20, 10/11/2026).
+
 **Date : 21 octobre 2026 · Branche : `claude/marketplace-mp00-mp14-20261021` · État : candidat composé et vérifié ; mise en production soumise à l'accord du propriétaire.**
 
 Les sessions Codex ont été interrompues à 17 h 50 pendant la composition, dans un bac à sable Vercel (`sbx_YVoF…`) que la reprise n'a pas pu utiliser : prolongation refusée (403), commandes non autorisées. Le candidat a été recomposé localement, hors de l'arbre partagé.
@@ -69,7 +71,7 @@ Total ANTSIA : **13 097 tests verts**.
 
 ### DIASPORALE (dépôt voisin, non modifié)
 
-Avec son `main` actuel (`ad898b5`, qui intègre `789e9ec`), DIASPORALE type sans erreur face à ce moteur et ses thèmes restent ceux de `main`. Un seul cliquet échoue dans `diasporale-com` : il demande les libellés FR/EN de cinq nouvelles surfaces de modération (`commerceStorefront`, `professionalProfile`, `professionalCollaboration`, `editorialVersion`, `editorialMedia`) dans `settings.dataRights.decisions.surface` et `moderationDesk.surface`, soit dix clés. Ces fichiers appartiennent à DIASPORALE : les ajouter est la condition de son adoption de ce moteur. Le déploiement d'antsia.vercel.app n'en dépend pas.
+Avec son `main` actuel (`ad898b5`, qui intègre `789e9ec`), DIASPORALE type sans erreur face à ce moteur et ses thèmes restent ceux de `main`. Un seul cliquet échoue dans `diasporale-com` : il demande les libellés FR/EN de cinq nouvelles surfaces de modération (`commerceStorefront`, `professionalProfile`, `professionalCollaboration`, `editorialVersion`, `editorialMedia`) dans `settings.dataRights.decisions.surface` et `moderationDesk.surface`, soit dix clés. Ces fichiers appartiennent à DIASPORALE : les ajouter est la condition de son adoption de ce moteur. Le déploiement du site principal n'en dépend pas.
 
 ### Parité des contrats jumeaux
 
@@ -95,7 +97,7 @@ Aucune capacité conditionnelle n'est activée par ce candidat.
 La marketplace ajoute treize tables et des fonctions Convex. Les publications précédentes n'avaient déployé que le front ; celle-ci exige, dans l'ordre :
 
 1. trancher la passe de design (ci-dessus), fusionner la PR dans `main` et revérifier le résultat ;
-2. `convex deploy` sur la démonstration, puis sur la production (`diligent-avocet-585`) ;
+2. `convex deploy` sur la démonstration, puis sur la production (déploiement Convex de production) ;
 3. `vercel deploy --prod` de l'enfant démo, puis du principal ;
 4. recette en ligne aux trois formats, comptes démo et compte réel.
 
@@ -111,5 +113,5 @@ Schéma : sur les tables existantes, seulement des champs optionnels et des unio
 
 ## Retour arrière
 
-- Front : promouvoir de nouveau `dpl_9Ga4gMfBVAzkh656teP4Vo2Ei8ix` (`main-5851d025af92-production`, en ligne au 21/10 au soir).
+- Front : promouvoir de nouveau le déploiement `main-5851d025af92-production` (identifiant tenu hors du dépôt, en ligne au 21/10 au soir).
 - Backend : redéployer `main` `5851d02`. Les tables nouvelles restent vides tant que les capacités sont fermées ; ce retour n'a pas été répété.

@@ -1,12 +1,14 @@
 # `main` aligné sur la production — 2 novembre 2026
 
-**`main` contient désormais ce qui est en ligne sur `antsia.vercel.app` et sur Convex.** Sur 2646 fichiers publiés, 2614 y sont identiques à l'octet ; les 32 autres sont nommés ci-dessous. L'API de `main` est identique à celle relevée en production. Cette intégration ne publie rien.
+> Dépôt public : les identifiants internes d'hébergement (déploiements, projets, équipes, adresses techniques) sont tenus hors du dépôt ; ce document les désigne par leur rôle (EX-20, 10/11/2026).
+
+**`main` contient désormais ce qui est en ligne sur le site principal et sur Convex.** Sur 2646 fichiers publiés, 2614 y sont identiques à l'octet ; les 32 autres sont nommés ci-dessous. L'API de `main` est identique à celle relevée en production. Cette intégration ne publie rien.
 
 ## Ce qui est en production
 
 | Cible | Identité | Source de la preuve |
 | --- | --- | --- |
-| Fronts principal et démo | `specialized-6095514b6a00`, `dpl_D93mYLT4Vp9hztfZ4TJwgYCqbwXT` et `dpl_ZD7mGDThdEPRTEvgpPyASzZvvhwD` | `/sante-fonctionnelle` et liste Vercel, relues le 2/11 ; `docs/recette/espaces-specialises-2026-10-25/manifeste-publication.json` |
+| Fronts principal et démo | `specialized-6095514b6a00` (déploiements tenus hors du dépôt) | `/sante-fonctionnelle` et liste Vercel, relues le 2/11 ; `docs/recette/espaces-specialises-2026-10-25/manifeste-publication.json` |
 | Moteur Convex, démo et production | copie du 24/10 `8b7ce0eb…` et les 4 fichiers de la PR 87 | audit de la publication du 26/10 ; rien de plus récent dans les journaux du projet |
 
 Le moteur n'a pas été interrogé pendant ce travail, conformément à la consigne : son état vient de ces journaux.

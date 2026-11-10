@@ -1,5 +1,7 @@
 # Environnement de démonstration d'ANTSIA
 
+> Dépôt public : les identifiants internes d'hébergement (déploiements, projets, équipes, adresses techniques) sont tenus hors du dépôt ; ce document les désigne par leur rôle (EX-20, 10/11/2026).
+
 > Décision : ADR-0029. Ce document dit ce que le propriétaire crée et pose (projets, secrets),
 > puis comment publier et remettre à zéro. Aucun secret ne s'écrit dans le dépôt ni dans un chat :
 > chaque valeur se saisit dans le tableau de bord concerné ou dans le terminal du propriétaire.
@@ -10,8 +12,8 @@ Un second déploiement complet du moteur et d'antsia.ga, séparé de la producti
 
 | | Production | Démonstration |
 |---|---|---|
-| Backend Convex | projet de production actuel | projet **distinct** (ex. `antsia-demo`) |
-| Site | `antsia.vercel.app` | projet d'hébergement **distinct** (ex. `antsia-demo`) |
+| Backend Convex | projet de production actuel | projet **distinct** |
+| Site | projet d'hébergement du site principal | projet d'hébergement **distinct** (l'enfant de démonstration) |
 | Comptes | vrais membres | les huit comptes fictifs `<acteur>@demo.antsia.test`, partagés, et dix figurants `figurant-<n>@demo.antsia.test` (absents de l'écran de connexion) |
 | Bouton « Comptes de démonstration » | jamais | sur l'écran de connexion et l'accueil |
 
@@ -31,7 +33,7 @@ déploiement. Sur tout autre déploiement, le catalogue est vide et l'équipemen
    | Variable | Valeur |
    |---|---|
    | `ANTSIA_DEMO_DEPLOYMENT` | le `<nom>` relevé au point 1, exactement |
-   | `SITE_URL` | l'origine du site de démonstration (ex. `https://antsia-demo.vercel.app`) |
+   | `SITE_URL` | l'origine du site de démonstration (l'adresse du projet de démonstration chez l'hébergeur) |
    | `BETTER_AUTH_SECRET` | un secret **neuf**, propre à la démonstration (au moins 32 caractères, par ex. `openssl rand -base64 48`) |
    | `ANTSIA_SEEDS_ALLOWED` | `true`, le temps de la graine (point 5), puis la retirer |
 
@@ -67,7 +69,7 @@ déploiement. Sur tout autre déploiement, le catalogue est vide et l'équipemen
 
    Aucune variable PostHog : la démonstration ne mesure rien.
 3. Publier depuis `ECOSYSTEMES`, comme la production, en liant le dossier au projet de
-   démonstration (`vercel link --project antsia-demo`, puis `vercel deploy --prod`).
+   démonstration (`vercel link --project <projet de démonstration>`, puis `vercel deploy --prod`).
 4. Recommandé : protéger l'accès au site (mot de passe ou protection de l'hébergeur) si la
    démonstration ne doit pas être publique.
 
@@ -77,7 +79,7 @@ déploiement. Sur tout autre déploiement, le catalogue est vide et l'équipemen
    phrase « Site de démonstration : comptes et contenus fictifs, partagés par tous les visiteurs. »
 2. Un appui sur « Presse » : connexion, accueil rempli seul, page « Gabon Actu Démo » administrée,
    badge Vérifié. Rejouer pour « Administration » (page Officiel) et « Modération ».
-3. Sur la production (`antsia.vercel.app`) : aucun panneau de démonstration ;
+3. Sur la production (adresse du site principal) : aucun panneau de démonstration ;
    `modules/platform/demoAccounts:catalogue` rend `[]`.
 
 ## 4. Contenus de démonstration (graines d'animation, propriétaire)
@@ -106,7 +108,7 @@ Le mode `tout` du même script les enchaîne entre la publication de la démonst
 production. Le script `scripts/seed-demo-content.mjs` :
 
 1. inscrit les sept acteurs puis les dix figurants par le **vrai parcours OTP** du site
-   (`https://antsia.vercel.app/demo/api/auth`), sans écrire aucun code ni jeton ;
+   (`<site principal>/demo/api/auth`), sans écrire aucun code ni jeton ;
 2. appelle `seeds/demoContent:run` puis `:runFigurants` (fonctions internes, clé de démonstration) ;
 3. dépose les images une à une : le serveur planifie chaque cible et n'accepte que la taille et
    l'empreinte SHA-256 de son manifeste (`seeds/demoContentMedia:storeAsset`), aucune URL n'est suivie.

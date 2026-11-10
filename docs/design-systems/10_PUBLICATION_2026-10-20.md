@@ -1,6 +1,8 @@
 # Publication des sept design systems — 20 octobre 2026
 
-Les sept thèmes et les huit rubriques sont publiés sur [ANTSIA](https://antsia.vercel.app/).
+> Dépôt public : les identifiants internes d'hébergement (déploiements, projets, équipes, adresses techniques) sont tenus hors du dépôt ; ce document les désigne par leur rôle (EX-20, 10/11/2026).
+
+Les sept thèmes et les huit rubriques sont publiés sur ANTSIA (site principal).
 La sonde publique renvoie HTTP 200, `status: ok` et le commit exact
 `3507e4a264c0a135f0d07faa3b4c2432e814423f`.
 
@@ -13,9 +15,9 @@ La sonde publique renvoie HTTP 200, `status: ok` et le commit exact
 | Base publique tracée séparément | `3e20aadfe4c4bb491cc2d1b60a3286a51a29ac96` |
 | Base Git antérieure | `a29a6d81b815815f7f8aa77d2ac81f7bff134128` |
 | Version publique précédente conservée | `audio-gesture-20261020-82c4108726107498` |
-| Déploiement Vercel | `dpl_F2NAUaB5miGd7UeqPXv8MWjR2WRT`, READY, production |
-| Build immuable | [antsia-okb7zqc3x](https://antsia-okb7zqc3x-okatechs-projects-f0102678.vercel.app/) |
-| Projet | `antsia` — `prj_PjiCPA1GobnnCipPpVkaAYxFVIkB` |
+| Déploiement de l'hébergeur | identifiant tenu hors du dépôt, READY, production |
+| Build immuable | adresse propre du déploiement, tenue hors du dépôt |
+| Projet | projet du site principal chez l'hébergeur (identifiant tenu hors du dépôt) |
 | SHA-256 du paquet | `456eb830d4e413fc9dd464ae984b7b06c1b339dcd91311f4ce61a7fe2c21d4a5` |
 
 La base publique contenait 190 fichiers front déjà publiés mais non tracés dans
@@ -68,7 +70,7 @@ sept thèmes. Le domaine public servait encore la version audio précédente.
 Ce même build a ensuite été promu, sans reconstruction ; la sonde publique
 confirme le nouveau commit.
 
-Contrôles visuels sur `antsia.vercel.app` :
+Contrôles visuels sur le site principal :
 
 - Accueil sombre à 1 440 px : corps 15 px, titre 26 px, champ 16 px,
   présentation de connexion et aperçu du fil présents, sans débordement.

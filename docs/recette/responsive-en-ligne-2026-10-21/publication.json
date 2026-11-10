@@ -1,7 +1,7 @@
 {
   "checkedAt": "2026-10-21T00:03:40.229888+00:00",
-  "deploymentUrl": "https://antsia-6qxq7tzon-okatechs-projects-f0102678.vercel.app",
-  "deploymentId": "dpl_H7tUFizo4AroUJ9XFgCUuCq4AdQH",
+  "deploymentUrl": "<adresse propre du déploiement, tenue hors du dépôt>",
+  "deploymentId": "<tenu hors du dépôt>",
   "releaseCommit": "5b8939470887d6b85ac8d56045fbd3002d06be11",
   "version": "responsive-recipe-20261021-5e87719d6f0eb0e7",
   "sourceFingerprint": "5e87719d6f0eb0e7cb97f6d92e7eb60862f1f498582cd4dddd85a0aa7be7c083",
@@ -18,7 +18,7 @@
     "version": "stories-design-20261021-7330c9399dbe6b9a",
     "backend": "configured"
   },
-  "baselineDeploymentId": "dpl_H5NAB7BgouCeb8dNG94k2HsaYqFT",
+  "baselineDeploymentId": "<tenu hors du dépôt>",
   "publicAliasPromoted": true,
   "publicHealth": {
     "status": "ok",

@@ -4,13 +4,13 @@ Date : 21 octobre 2026. Décision : acceptée à la demande du propriétaire.
 
 ## Contexte
 
-Les comptes fictifs doivent être accessibles depuis `https://antsia.vercel.app/`, et l’adresse publique `antsia-demo.vercel.app` doit disparaître. Le compte réel, les données de démonstration et les changements de la session parallèle doivent être préservés.
+Les comptes fictifs doivent être accessibles depuis l'adresse du site principal (`/`), et l’adresse publique propre du projet de démonstration doit disparaître. Le compte réel, les données de démonstration et les changements de la session parallèle doivent être préservés.
 
 ## Décision
 
 L’application principale propose une entrée `/demo`. Cette zone sert un second build Next du même source, avec `basePath=/demo`, au travers d’un relais serveur vers un déploiement Vercel protégé. Aucun iframe ni nouveau domaine public n’est nécessaire. L’ancienne adresse est retirée de la configuration Vercel et doit répondre HTTP 404. Le déploiement technique enfant reste nécessaire : supprimer ce projet casserait `/demo`.
 
-Le backend principal reste `diligent-avocet-585` et le backend de démonstration reste `vivid-hedgehog-655`. Aucun code backend ni graine de données n’est déployé par ce changement. Seul le `SITE_URL` du backend de démonstration rejoint l’origine principale.
+Le backend principal reste le déploiement Convex de production et le backend de démonstration reste le déploiement Convex de démonstration (noms tenus hors du dépôt). Aucun code backend ni graine de données n’est déployé par ce changement. Seul le `SITE_URL` du backend de démonstration rejoint l’origine principale.
 
 Le build principal fixe l’origine technique immuable de l’enfant. Il remplace les en-têtes privés entrants par ses propres valeurs et ne transmet que les cookies démo attendus. L’enfant refuse les documents et API sans enveloppe privée valide ; les protections Vercel restent actives. Les secrets du relais restent côté serveur, hors sources, paramètres publics, preuves et captures.
 

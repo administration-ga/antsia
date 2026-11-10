@@ -1,5 +1,7 @@
 # Consolidation de main avant publication ANTSIA et démo
 
+> Dépôt public : les identifiants internes d'hébergement (déploiements, projets, équipes, adresses techniques) sont tenus hors du dépôt ; ce document les désigne par leur rôle (EX-20, 10/11/2026).
+
 Base : `46b780bed977c4293ef634e920785a90fe6ba5b9`. Arbre de sources vérifié : `e37a7c224a680d8654a0b703dae3d0467b6d4f4d`.
 
 Le propriétaire a autorisé successivement la conservation des correctifs démo/IDN déjà en ligne (fusionnés par PR24), des trois fichiers publics de confidentialité, puis des compléments sociaux publiés aux commits `2966fea` et `df82f10`. Les promotions intermédiaires ont été retenues lorsque la version publique a changé. Le travail non publié des autres sessions est exclu.
@@ -20,4 +22,4 @@ L'intégration emploie un index privé et des sources extraites des commits. HEA
 
 ## Publication et recette
 
-Ce rapport précède la fusion et ne les déclare pas terminées. Construire depuis le main fusionné et les seuls fichiers commis : enfant démo protégé puis principal, contrôles de routage/CSP/images/transport auth et huit pages légales FR/EN. Promouvoir uniquement le principal après garde contre une nouvelle publication concurrente. La démo publique reste https://antsia.vercel.app/demo ; l'ancien alias supprimé n'est pas recréé. Vérifier les sessions existantes, rechargements et formats d'écran sans publier de contenu. Les résultats effectifs de publication seront consignés séparément.
+Ce rapport précède la fusion et ne les déclare pas terminées. Construire depuis le main fusionné et les seuls fichiers commis : enfant démo protégé puis principal, contrôles de routage/CSP/images/transport auth et huit pages légales FR/EN. Promouvoir uniquement le principal après garde contre une nouvelle publication concurrente. La démo publique reste `/demo` du site principal ; l'ancien alias supprimé n'est pas recréé. Vérifier les sessions existantes, rechargements et formats d'écran sans publier de contenu. Les résultats effectifs de publication seront consignés séparément.

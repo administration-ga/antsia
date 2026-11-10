@@ -1,9 +1,11 @@
 # Déverrouillage audio — 20 octobre 2026
 
+> Dépôt public : les identifiants internes d'hébergement (déploiements, projets, équipes, adresses techniques) sont tenus hors du dépôt ; ce document les désigne par leur rôle (EX-20, 10/11/2026).
+
 ## Diagnostic
 
 La trace `q` du fichier `3n1zmqtxn6o36.js` du déploiement démo
-`dpl_3CErPZo6GoRfugUvZQWRxxWvEfGj` correspond à
+(identifiant tenu hors du dépôt) correspond à
 `resumeSharedAudioContext()`, appelé par l'écouteur global de déverrouillage.
 L'écouteur traitait `pointerdown` et `keydown` sans vérifier la confiance de
 l'événement ni l'activation navigateur. Le début d'un pointeur tactile ne
@@ -48,8 +50,8 @@ aucun travail parallèle ajouté. Archive et manifeste :
 
 | Cible | Déploiement | État |
 |---|---|---|
-| antsia | `dpl_3mKcBfqz71UrTM6JLJhBkWrJ6mZd` | READY, alias public vérifié |
-| antsia-demo | `dpl_BWsD5xMuCHLHNdVwMuXAefvDjLPh` | READY, alias public vérifié |
+| site principal | déploiement tenu hors du dépôt | READY, alias public vérifié |
+| démonstration | déploiement tenu hors du dépôt | READY, alias public vérifié |
 
 Les deux constructions Next/TypeScript ont réussi. Avant promotion, version,
 santé `ok` et CSP vers le backend propre à chaque cible contrôlées ; les alias

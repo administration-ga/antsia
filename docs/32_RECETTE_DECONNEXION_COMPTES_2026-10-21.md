@@ -1,5 +1,7 @@
 # Déconnexion et changement de compte — 20–21 octobre 2026
 
+> Dépôt public : les identifiants internes d'hébergement (déploiements, projets, équipes, adresses techniques) sont tenus hors du dépôt ; ce document les désigne par leur rôle (EX-20, 10/11/2026).
+
 ## Périmètre
 
 Demande explicite : reprendre la recette de la démo et de la production sans participation du propriétaire, corriger les défauts et publier les corrections nécessaires. Les comptes de démonstration passent par leur véritable parcours OTP. Aucun profil, rôle, secret ou session de production n'a été fabriqué. Aucune configuration `.env` n'a été modifiée.
@@ -31,8 +33,8 @@ Les candidats reprennent exactement les précédentes bases publiées, avec seul
 
 | Cible | Version publiée | Déploiement |
 | --- | --- | --- |
-| Production `antsia.vercel.app` | `session-coordination-20261021-03548f8c8f01470e` | `dpl_UxMyjdTakahwkCjfRSyy7PFF9gAL` |
-| Démo `antsia-demo.vercel.app` | `session-coordination-20261021-2243812195053c44` | `dpl_BzEYA98dUM5NAvx6Du2fpT1oB9n3` |
+| Production (site principal) | `session-coordination-20261021-03548f8c8f01470e` | tenu hors du dépôt |
+| Démo (projet de démonstration) | `session-coordination-20261021-2243812195053c44` | tenu hors du dépôt |
 
 Deux builds Next 16.2.9 et typages distants réussis, candidats READY et santé/CSP validés avant promotion. Deux domaines canoniques relus : HTTP 200, version exacte, backend configuré et CSP présente (22:35:36–37 UTC).
 
@@ -65,6 +67,6 @@ Le rapport [Statuts, chartes et comptes](design-systems/11_STATUTS_ET_COMPTES_20
 
 ## Nouvelle tentative entre comptes réels — 21 octobre, 00:04 UTC
 
-Après l’annonce de connexion du deuxième compte, l’observation montre encore Asted `@asted` avant et après rechargement. Le serveur contient un seul utilisateur ANTSIA et un seul compte IDN lié ; les deux sessions sont du même sujet que le premier compte. Cette tentative ne prouve donc pas un deuxième compte distinct. Le déploiement observé est `dpl_H7tUFizo4AroUJ9XFgCUuCq4AdQH` (publication parallèle).
+Après l’annonce de connexion du deuxième compte, l’observation montre encore Asted `@asted` avant et après rechargement. Le serveur contient un seul utilisateur ANTSIA et un seul compte IDN lié ; les deux sessions sont du même sujet que le premier compte. Cette tentative ne prouve donc pas un deuxième compte distinct. Le déploiement observé est celui de la publication parallèle (identifiant tenu hors du dépôt).
 
 La sortie normale ANTSIA révoque ces deux sessions : zéro session active à 00:06:22 UTC, `/entrer` sans profil, bouton membre, indicateur incomplet ou alerte à 00:06:42 UTC. Aucun warning/error console au contrôle du profil et après reload. La sortie du portail IDN reste non confirmée : instabilité de chargement puis Mac verrouillé, déverrouillage automatique indisponible. Le cycle réel A→B→A reste ouvert. Dossier : `docs/recette/comptes-reels-aller-retour-2026-10-21/`. Aucun contournement de connexion, secret lu ou changement applicatif dans cette reprise.

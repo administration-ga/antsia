@@ -1,5 +1,7 @@
 # Exécution SU00–SU16
 
+> Dépôt public : les identifiants internes d'hébergement (déploiements, projets, équipes, adresses techniques) sont tenus hors du dépôt ; ce document les désigne par leur rôle (EX-20, 10/11/2026).
+
 Autorisation : le propriétaire a validé les décisions D01 à D08 le 21 octobre 2026 et demandé l'ADR (SU00) et l'analyse de conformité (SU01). D09 à D12 restent proposées : aucun lot ne les présume. Chaque lot s'exécute seul, réservé dans la mémoire partagée, branché dans l'application réelle et vérifié selon les instructions du dépôt ; ses preuves sont consignées ici.
 
 ## Référence
@@ -15,7 +17,7 @@ Autorisation : le propriétaire a validé les décisions D01 à D08 le 21 octobr
 |---|---|---|
 | SU00 | Terminé — documentaire | ADR-0035 (D01–D08 acceptées, D09–D12 proposées) ; index des ADR mis à jour ; étude passée en version 1.1 |
 | SU01 | Analyse livrée ; mise en œuvre par sous-lots | exigences article par article, état du code, écarts, arbitrages juridiques, sous-lots SU01a à SU01j et calendrier ; à faire valider par un juriste avant toute mise en œuvre de l'identification et de l'âge |
-| SU01d | En ligne, restes compris, depuis le 22/10 (backend de `f574c75`, front `880d1aa`) ; délais légaux de la console en ligne le 22/10 (backend et console `d7f4784`, puis `3253a10`), recette connectée faite le 23/10 ; bureau de DIASPORALE (diasporale#26) en ligne sur la démonstration seulement (https://diasporale-demo.vercel.app, 22/10) | voir [SU01d — signalements réglementés](#su01d--signalements-réglementés) |
+| SU01d | En ligne, restes compris, depuis le 22/10 (backend de `f574c75`, front `880d1aa`) ; délais légaux de la console en ligne le 22/10 (backend et console `d7f4784`, puis `3253a10`), recette connectée faite le 23/10 ; bureau de DIASPORALE (diasporale#26) en ligne sur la démonstration seulement (projet de démonstration de DIASPORALE chez l'hébergeur, 22/10) | voir [SU01d — signalements réglementés](#su01d--signalements-réglementés) |
 | SU02 | En ligne depuis le 23/10 (PR 77, fronts `1956641`) | Découvrir rangé par piliers (Business, Vie publique, Divertissement), tuiles des seuls univers ouverts ; voir [SU02 et SU06](#su02-et-su06--découvrir-par-piliers-et-alimentation-et-restauration) |
 | SU06 | En ligne depuis le 23/10 : premier volet (PR 77, `1956641`), second volet (PR 80, `4cea752`) | gabarit `food`, espace `/restauration` ; menu, horaires, plat du jour et « Commander » : voir [SU06, second volet](#su06-second-volet--menu-horaires-plat-du-jour-commander) ; reste l'index des produits par catégorie `food` |
 | SU03 | À faire | types d'offre bien immobilier et véhicule ; dépend de MP03 |
@@ -58,7 +60,7 @@ Ordonnance n° 0011/PR/2026, art. 24, 32 et 33.
 - Backend déployé le 22/10/2026 vers 1 h, démo puis production, avec l'accord écrit du propriétaire : `9927c9c` (3 index sur `reports`, `deadlineQueue` et `myReports`), puis `bca19af`.
 - Fronts publiés depuis `main` : `26f3024`, puis `bca19af` (docs/35). La production répond `main-bca19af78116`, qui contient SU01d.
 - Restes en ligne le 22/10/2026 vers 10 h 40 :
-  - backend de `main` `f574c75`, identique sous `convex/` à `880d1aa`, sur la démo (vivid-hedgehog-655) puis la production (diligent-avocet-585), avec l'accord écrit du propriétaire ;
+  - backend de `main` `f574c75`, identique sous `convex/` à `880d1aa`, sur la démo (déploiement Convex de démonstration) puis la production (déploiement Convex de production), avec l'accord écrit du propriétaire ;
   - aperçus `--dry-run` sains : aucun index supprimé, schéma validé. Seule ligne affichée : « version Node des actions », un artefact `null`/`undefined` de la CLI, sans valeur de part et d'autre ;
   - la production portait déjà ce backend (1 034 fonctions, signatures identiques à la démo), déployé en même temps que le front `880d1aa`. Elle n'a pas été poussée une seconde fois ;
   - contrôles en lecture seule sur les deux : `transparencyDeadlines` répond (seuil 5, douze périodes, aucune encore publiée), `transparency` garde sa forme, `/transparence` dit les délais (front `main-880d1aadf525`).
@@ -206,7 +208,7 @@ Périmètre tranché par le propriétaire le 22/10/2026 : l'export suit la règl
 
 **Ce qui reste de SU01d**
 - Console en ligne le 22/10, avec l'accord écrit du propriétaire ([docs/35](../../35_PUBLICATION_DONNEES_DEMO_2026-10-22.md)) : backend et console `d7f4784`, puis `3253a10` (ADR-0039 : l'IDN de niveau 1 suffit). Le premier opérateur, le propriétaire, est posé, et sa recette connectée est faite le 23/10 (ci-dessus).
-- DIASPORALE, bureau compris, est en ligne sur la démonstration seulement, depuis le 22/10 (https://diasporale-demo.vercel.app ; ADR-0038, [docs/35](../../35_PUBLICATION_DONNEES_DEMO_2026-10-22.md)). Sa production attend le propriétaire : décision d'hébergement A10, textes légaux relus, domaine diasporale.com, réseau créé par la console.
+- DIASPORALE, bureau compris, est en ligne sur la démonstration seulement, depuis le 22/10 (projet de démonstration de DIASPORALE chez l'hébergeur ; ADR-0038, [docs/35](../../35_PUBLICATION_DONNEES_DEMO_2026-10-22.md)). Sa production attend le propriétaire : décision d'hébergement A10, textes légaux relus, domaine diasporale.com, réseau créé par la console.
 - Premiers chiffres : le passage quotidien de 04 h 10 UTC mesure la veille. Une journée ne se publie qu'à partir de 5 échéances sur 5 auteurs.
 
 ## SU02 et SU06 — Découvrir par piliers, et Alimentation et restauration

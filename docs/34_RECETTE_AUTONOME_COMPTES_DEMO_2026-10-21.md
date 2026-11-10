@@ -1,8 +1,10 @@
 # Recette autonome des comptes de démonstration — 21 octobre 2026
 
-Le propriétaire précise qu’il ne dispose pas d’un deuxième compte réel et demande de réaliser les tests avec les comptes de démonstration. La recette entre deux identités réelles est remplacée par cette recette autonome sur https://antsia-demo.vercel.app. Aucun identifiant/PIN demandé au propriétaire.
+> Dépôt public : les identifiants internes d'hébergement (déploiements, projets, équipes, adresses techniques) sont tenus hors du dépôt ; ce document les désigne par leur rôle (EX-20, 10/11/2026).
 
-Version observée : `verification-20261021-demo-070aafd886c4337a`, `dpl_J5YskviFDCg5UTz3DfBzXh6Xwqjg`, backend `vivid-hedgehog-655`. Deux onglets du navigateur intégré ; connexion par les boutons existants et leur vrai parcours OTP. Pas de lecture directe de code, de cookie ou de jeton, pas de fabrication de session ni de changement de configuration.
+Le propriétaire précise qu’il ne dispose pas d’un deuxième compte réel et demande de réaliser les tests avec les comptes de démonstration. La recette entre deux identités réelles est remplacée par cette recette autonome sur le projet de démonstration. Aucun identifiant/PIN demandé au propriétaire.
+
+Version observée : `verification-20261021-demo-070aafd886c4337a` (déploiement tenu hors du dépôt), backend de démonstration. Deux onglets du navigateur intégré ; connexion par les boutons existants et leur vrai parcours OTP. Pas de lecture directe de code, de cookie ou de jeton, pas de fabrication de session ni de changement de configuration.
 
 ## Résultat — 01:50–01:53 UTC
 
