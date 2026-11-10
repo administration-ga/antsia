@@ -358,7 +358,7 @@ export function PostComposer({
         },
       })
     } catch {
-      result = { status: "refused", message: t("reseau:videoPreparation.conversionFailed") }
+      result = { status: "refused", refusal: "conversion-failed", message: t("reseau:videoPreparation.conversionFailed") }
     } finally {
       if (conversionAbort.current === controller) conversionAbort.current = null
       if (active.current) setVideoPhase(null)
