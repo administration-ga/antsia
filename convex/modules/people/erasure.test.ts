@@ -108,7 +108,11 @@ describe("PA5 — droits personnels", () => {
     const blob = await t.run((ctx) => ctx.storage.store(new Blob(["fictional"])))
     const voicemailBlob = await t.run((ctx) => ctx.storage.store(new Blob(["fictional voicemail"])))
     let original!: Id<"personalMessages">, copied!: Id<"personalMessages">, post!: Id<"posts">, threadId!: Id<"personalThreads">, voicemail!: Id<"voicemails">
+    let liveSession!: Id<"liveSessions">, recordingConsent!: Id<"liveRecordingConsents">
     await t.run(async (ctx) => {
+      // DL-02 : l'accord de la personne à l'enregistrement du direct d'autrui part avec elle ; le direct reste.
+      liveSession = await ctx.db.insert("liveSessions", { networkId, hostPersonId: other, title: "Direct d'autrui", roomName: "direct-erasure", status: "ended", audience: "public", chatMode: "open", stageFormat: "computer", stageLayout: "adaptive", maxViewers: 200, replayRequested: true, createdAt: now, updatedAt: now })
+      recordingConsent = await ctx.db.insert("liveRecordingConsents", { networkId, sessionId: liveSession, personId, acceptedAt: now })
       post = await ctx.db.insert("posts", { networkId, authorPersonId: personId, body: "Private original", audience: "public", visibility: "network", status: "published", searchText: "private original", publishedAt: now, createdAt: now, updatedAt: now })
       await ctx.db.insert("postComments", { networkId, postId: post, authorPersonId: other, body: "Other reply", status: "published", createdAt: now, updatedAt: now })
       await ctx.db.insert("fileScans", { storageId: blob, networkId, uploadedByPersonId: personId, source: "profile", status: "clean", attempts: 1, createdAt: now, updatedAt: now })
@@ -136,6 +140,8 @@ describe("PA5 — droits personnels", () => {
     expect(await t.run((ctx) => ctx.db.get(personId))).toBeNull()
     expect(await t.run((ctx) => ctx.db.get(post))).toBeNull()
     expect(await t.run((ctx) => ctx.db.get(original))).toBeNull()
+    expect(await t.run((ctx) => ctx.db.get(recordingConsent))).toBeNull()
+    expect(await t.run((ctx) => ctx.db.get(liveSession))).not.toBeNull()
     const copy = await t.run((ctx) => ctx.db.get(copied))
     expect((await t.run((ctx) => ctx.db.get(threadId)))?.lastMessageText).toBeUndefined()
     expect(copy?.content).toBeUndefined()

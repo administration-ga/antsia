@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/modules/direct/antenna.ts @ ad2e7fdc2 — adaptations : personnes et réseaux — constructeurs `networkQuery`/`networkMutation`, lecteur `directCaller` (un tiers est jugé depuis le réseau de la session, adhésion relue : V35), cibles `targetPersonId`/`personIds`, tables `liveAntennaRequests`/`liveAntennaInvitations`/`liveViewerGrants`/`liveSpeakers` (`networkId` copié de la session sur chaque ligne, champs `inviterPersonId`/`inviteePersonId`), DTO en `personId` ; constantes pures (`ANTENNA_STATE_SCAN`, état d'invitation `AntennaInviteState`, réexporté) importées de `@antsia/social-domain/live/antenna`, réponse de l'hôte par `directAntennaResponseValidator` ; relations lues DANS le réseau de la session (y compris la page de candidats, index `by_network_low_status`/`by_network_high_status`), identifiant public résolu dans ce réseau ; compte « actif » = personne non effacée (`deletionRequestedAt`) ; cible invitable à l'antenne = membre DÉCLARÉE du réseau de la session (`lib/access.memberHasStatus`, comme les appels) — un membre en attente, ou qui n'est plus membre actif, rend `no_profile` : non proposé par `searchInviteCandidates`, invitation refusée du même code, aucune cloche ; nom affiché du profil PUBLIÉ, `null` sans profil (l'écran traduit le nom neutre) ; débits `live.antennaRequest` (par personne) et `live.antennaInvite` (par hôte) qui lèvent `rateLimited` ; cloche `live_antenna_invite` sur le sujet `liveSession` par `notifyPerson`, résolue par `resolveNotifications` ; instant de lecture des quatre queries (`myState`, `hostState`, `searchInviteCandidates`, `inviteStatesForUsers`) fourni par l'écran (`now`, D16) ; refus à CODE de règle (`LIVE_ENDED`, `LIVE_ALREADY_ON_STAGE`, `LIVE_JOIN_AS_VIEWER_FIRST`, `LIVE_HAND_NOT_RECEIVABLE`, `LIVE_ANTENNA_NOT_INVITABLE`, `LIVE_INVITATION_EXPIRED`, `LIVE_INVITATION_NOT_RECEIVABLE`, `LIVE_HOST_STAYS_ON_STAGE`, `LIVE_NOT_ON_STAGE`) et refus de droit `liveRoleRequired` (garde de la fondation) au lieu des phrases ; commentaires rapportés au moteur.
+// Dupliqué de socle/convex/modules/direct/antenna.ts @ ad2e7fdc2 — adaptations : personnes et réseaux — constructeurs `networkQuery`/`networkMutation`, lecteur `directCaller` (un tiers est jugé depuis le réseau de la session, adhésion relue : V35), cibles `targetPersonId`/`personIds`, tables `liveAntennaRequests`/`liveAntennaInvitations`/`liveViewerGrants`/`liveSpeakers` (`networkId` copié de la session sur chaque ligne, champs `inviterPersonId`/`inviteePersonId`), DTO en `personId` ; constantes pures (`ANTENNA_STATE_SCAN`, état d'invitation `AntennaInviteState`, réexporté) importées de `@antsia/social-domain/live/antenna`, réponse de l'hôte par `directAntennaResponseValidator` ; relations lues DANS le réseau de la session (y compris la page de candidats, index `by_network_low_status`/`by_network_high_status`), identifiant public résolu dans ce réseau ; compte « actif » = personne non effacée (`deletionRequestedAt`) ; cible invitable à l'antenne = membre DÉCLARÉE du réseau de la session (`lib/access.memberHasStatus`, comme les appels) — un membre en attente, ou qui n'est plus membre actif, rend `no_profile` : non proposé par `searchInviteCandidates`, invitation refusée du même code, aucune cloche ; nom affiché du profil PUBLIÉ, `null` sans profil (l'écran traduit le nom neutre) ; débits `live.antennaRequest` (par personne) et `live.antennaInvite` (par hôte) qui lèvent `rateLimited` ; cloche `live_antenna_invite` sur le sujet `liveSession` par `notifyPerson`, résolue par `resolveNotifications` ; instant de lecture des quatre queries (`myState`, `hostState`, `searchInviteCandidates`, `inviteStatesForUsers`) fourni par l'écran (`now`, D16) ; refus à CODE de règle (`LIVE_ENDED`, `LIVE_ALREADY_ON_STAGE`, `LIVE_JOIN_AS_VIEWER_FIRST`, `LIVE_HAND_NOT_RECEIVABLE`, `LIVE_ANTENNA_NOT_INVITABLE`, `LIVE_INVITATION_EXPIRED`, `LIVE_INVITATION_NOT_RECEIVABLE`, `LIVE_HOST_STAYS_ON_STAGE`, `LIVE_NOT_ON_STAGE`) et refus de droit `liveRoleRequired` (garde de la fondation) au lieu des phrases ; commentaires rapportés au moteur ; DL-02 : accord à l'enregistrement — `acceptRecording` (débit `live.recordingConsent`, refus `LIVE_ENDED`, `LIVE_NO_RECORDING`), exigé avant la main levée et à toute montée (`LIVE_RECORDING_CONSENT_REQUIRED`).
 /**
  * Antenne participative d'un DIRECT : mains levées et invitations explicites.
  * API publique : `api.modules.live.antenna.*`
@@ -36,6 +36,8 @@ import {
 } from "./access"
 import { effectiveDirectInvitationStatus } from "./domain"
 import { DIRECT_MAX_SPEAKERS } from "./grants"
+import { promoteConsentingSpeakerInvitee } from "./invitees"
+import { assertRecordingConsent, recordingConsentRow, writeRecordingConsent } from "./recordingConsent"
 import { demoteSpeakerRow, promoteSpeakerRow } from "./speakers"
 import { directAntennaResponseValidator } from "./validators"
 
@@ -331,6 +333,11 @@ export const raiseHand = networkMutation({
     if (!(await viewerGrantRow(ctx, session._id, ctx.person._id))) {
       return failRule("LIVE_JOIN_AS_VIEWER_FIRST")
     }
+    // DL-02 — demander la parole dans un direct ENREGISTRÉ, c'est demander à y
+    // être enregistré : l'accord vient AVANT la main, pour que l'hôte ne reçoive
+    // jamais une main qu'il ne pourrait pas accepter (`promoteSpeakerRow` exige
+    // le même accord au moment de la montée).
+    await assertRecordingConsent(ctx, session, ctx.person._id)
 
     const existing = await ctx.db
       .query("liveAntennaRequests")
@@ -938,6 +945,48 @@ export const respondToInvitation = networkMutation({
     const promoted = await promoteSpeakerRow(ctx, session, ctx.person._id)
     await settlePendingIntentsAsAccepted(ctx, session, ctx.person._id, Date.now())
     return { changed: true, promoted }
+  },
+})
+
+/**
+ * ACCEPTER l'enregistrement de ce direct (DL-02) — MON accord explicite et
+ * horodaté, avant de prendre l'antenne d'un direct enregistré.
+ *
+ * Ordre du moteur : ADHÉSION (constructeur) → VISIBILITÉ (refus indistinct) →
+ * ÉLIGIBILITÉ (direct à venir ou en cours, ET enregistré : une session non
+ * enregistrée ne stocke aucun accord, `LIVE_NO_RECORDING`) → DÉBIT
+ * (`live.recordingConsent`, seul un accord NOUVEAU le consomme) → DROIT (on
+ * n'accorde que pour soi : aucun argument ne désigne une autre personne).
+ *
+ * Idempotente : rejouée, elle rend l'horodatage du PREMIER accord.
+ *
+ * L'invité intervenant d'un direct en cours monte dans la même transaction
+ * (`promoted: true`) : sa place ne l'attendait que pour cet accord. Les autres
+ * chemins (main levée, invitation à l'antenne) restent des gestes à part — cet
+ * accord ne fait monter personne d'autre.
+ *
+ * ⚠️ Aucun retrait d'accord n'est offert : rendre l'antenne (`leaveAntenna`)
+ * arrête de capter la personne, mais ce qui a déjà été enregistré reste dans la
+ * rediffusion, dont l'hôte décide. L'écran le dit sans promettre davantage.
+ */
+export const acceptRecording = networkMutation({
+  args: { sessionId: v.id("liveSessions") },
+  handler: async (ctx, args): Promise<{ acceptedAt: number; promoted: boolean }> => {
+    const session = await assertVisibleDirectSession(ctx, directCaller(ctx), args.sessionId)
+    if (session.status === "ended") return failRule("LIVE_ENDED")
+    if (!session.replayRequested) return failRule("LIVE_NO_RECORDING")
+
+    const existing = await recordingConsentRow(ctx, session._id, ctx.person._id)
+    let acceptedAt: number
+    if (existing !== null) {
+      acceptedAt = existing.acceptedAt
+    } else {
+      // Par PERSONNE : changer de direct ne remet pas le compteur à zéro.
+      await enforceRateLimit(ctx, "live.recordingConsent", ctx.person._id)
+      acceptedAt = (await writeRecordingConsent(ctx, session, ctx.person._id, Date.now())).acceptedAt
+    }
+    const promoted = await promoteConsentingSpeakerInvitee(ctx, session, ctx.person._id)
+    return { acceptedAt, promoted }
   },
 })
 
