@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/direct/DirectFloatingCard.tsx @ ad2e7fdc2 — adaptations : registre/salle ANTSIA sans montage audio, identité personId, rôles et permissions serveur, charte et routes injectées ; déplacement existant de la coque et pose mobile/reduite ; DL-02 : pastille « REC » tant que la capture tourne, dans toutes les poses.
+// Dupliqué de socle/packages/agent-features/src/features/direct/DirectFloatingCard.tsx @ ad2e7fdc2 — adaptations : registre/salle ANTSIA sans montage audio, identité personId, rôles et permissions serveur, charte et routes injectées ; déplacement existant de la coque et pose mobile/reduite ; DL-02 : pastille « REC » tant que la capture tourne, dans toutes les poses ; DL-04 : au spectateur, « Écouter seulement », suggestion sur connexion faible et aperçu d’écoute sobre (l’abonnement est réglé par la salle).
 "use client"
 import { useNetwork, useRoutes } from "@antsia/api/network"
 import { Link } from "@antsia/api/routing"
@@ -9,6 +9,7 @@ import { Track } from "livekit-client"
 import { useState } from "react"
 import { createPortal } from "react-dom"
 import { useTranslation } from "react-i18next"
+import { useDirectReception } from "../../stores/direct-reception-store"
 import { useDirectRoom } from "../../stores/direct-room-registry"
 import { directSessionStore, useDirectSessionStore } from "../../stores/direct-session-store"
 import { useSurfaceDrag } from "../../shell/floating-surface/use-surface-drag"
@@ -16,6 +17,7 @@ import { useEscapeLayer } from "../../shell/floating-surface/use-escape-layer"
 import { ESCAPE_PRIORITY } from "../../shell/floating-surface/escape-stack"
 import type { DirectSession } from "./DirectPage"
 import { DirectExitDialog } from "./DirectExitDialog"
+import { DirectListeningStage, DirectReceptionControls, DirectReceptionHint } from "./DirectReception"
 import { DirectRecordingBadge } from "./DirectRecordingConsent"
 import { directCardPose, type DirectCardPose } from "./direct-floating"
 import { directParticipantPersonId, directRosterTracks } from "./direct-studio-model"
@@ -50,6 +52,8 @@ function FloatingFrame({ pose, session, onLeave }: { pose: DirectCardPose; sessi
   const { ref: surfaceRef, style: surfaceStyle, handleProps, dragging } = useSurfaceDrag({ storageKey: `${storagePrefix}direct-floating-${pose}:v1`, enabled: draggable, label: t("floating.move"), storage: "session", placementMode: "free" })
   useEscapeLayer({ id: "antsia-direct-floating", priority: ESCAPE_PRIORITY.WINDOW, enabled: pose === "card" && !exit, onEscape: () => directSessionStore.setCardMinimized(true) })
   const publisher = session?.viewerRole !== "viewer" && !!session && state.credentials?.role === "speaker" && state.phase === "connected"
+  // DL-04 — réception réglable au seul jeton de spectateur ; la pilule reste une pilule.
+  const receptionAvailable = !!session && state.credentials?.role === "viewer" && pose !== "pill"
   if (!state.sessionId) return null
   const title = session?.title ?? t("ongoing")
   const leave = () => { if (session && session.viewerRole !== "viewer" && session.status === "live" && state.phase === "connected") setExit(true); else onLeave() }
@@ -61,19 +65,22 @@ function FloatingFrame({ pose, session, onLeave }: { pose: DirectCardPose; sessi
         {session ? <DirectRecordingBadge session={session} /> : null}
         {pose !== "mobile" ? <Button size="sm" variant="ghost" onClick={() => directSessionStore.setCardMinimized(pose !== "pill")}>{t(pose === "pill" ? "floating.expand" : "floating.minimize")}</Button> : null}
       </header>
-      {pose === "card" && room && session ? <RoomContext.Provider value={room}><MiniScene session={session} /></RoomContext.Provider> : null}
+      {receptionAvailable ? <DirectReceptionHint sessionId={state.sessionId} /> : null}
+      {pose === "card" && room && session ? <RoomContext.Provider value={room}><MiniScene session={session} viewer={state.credentials?.role === "viewer"} /></RoomContext.Provider> : null}
       <Link href={routes.conference(state.sessionId)} className="flex min-h-11 items-center text-sm font-semibold">{title}</Link>
       <p role="status" className="text-xs text-muted-foreground">{t(`phase.${state.phase}`)}</p>
       {state.error ? <p role="alert" className="text-sm">{state.error}</p> : null}
       {publisher && pose !== "pill" ? <div className="flex flex-wrap gap-2"><Button variant="ghost" size="sm" aria-pressed={state.intent.micEnabled} onClick={() => directSessionStore.setIntent({ micEnabled: !state.intent.micEnabled })}>{t(state.intent.micEnabled ? "microphoneOff" : "microphoneOn")}</Button><Button variant="ghost" size="sm" aria-pressed={state.intent.cameraEnabled && !state.intent.audioOnly} onClick={() => directSessionStore.setIntent({ cameraEnabled: !(state.intent.cameraEnabled && !state.intent.audioOnly), audioOnly: false })}>{t(state.intent.cameraEnabled && !state.intent.audioOnly ? "cameraOff" : "cameraOn")}</Button></div> : null}
+      {receptionAvailable ? <DirectReceptionControls sessionId={state.sessionId} compact /> : null}
       <Button variant="ghost" size="sm" onClick={leave}>{t("leave")}</Button>
     </aside>
     {exit && session ? <DirectExitDialog session={session} onCancel={() => setExit(false)} onLeave={onLeave} /> : null}
   </>
 }
 
-function MiniScene({ session }: { session: DirectSession }) {
+function MiniScene({ session, viewer }: { session: DirectSession; viewer: boolean }) {
   const { t } = useTranslation("direct")
+  const { preference } = useDirectReception()
   const cameras = useTracks([{ source: Track.Source.Camera, withPlaceholder: true }], { onlySubscribed: false })
   const screens = useTracks([{ source: Track.Source.ScreenShare, withPlaceholder: false }], { onlySubscribed: false })
   const speaking = useSpeakingParticipants()
@@ -82,6 +89,11 @@ function MiniScene({ session }: { session: DirectSession }) {
   const active = speaking.map(directParticipantPersonId).find((personId) => roster.some((person) => person.key === personId))
   const focus = roster.find((person) => person.key === session.spotlight?.personId && person.track) ?? roster.find((person) => person.key === active && person.track) ?? roster.find((person) => person.role === "host") ?? roster[0]
   const track = screen ?? focus?.track
+  // Écoute seule : aucune tuile (les pistes vidéo ne sont plus reçues), un aperçu sobre.
+  if (viewer && preference.mode === "audio") {
+    const speaking = roster.find((person) => person.key === active)
+    return <DirectListeningStage compact speakerName={speaking ? speaking.displayName || t("person") : null} presentationCut={!!screen} />
+  }
   return <div aria-label={t("floating.preview")} data-lk-theme="antsia" className="relative aspect-[16/10] overflow-hidden rounded-[var(--esp-primitive-media-radius,0.5rem)] border border-border bg-muted" style={{ "--lk-bg": "var(--background)", "--lk-fg": "var(--foreground)" } as React.CSSProperties}>
     {track ? <ParticipantTile trackRef={track} className="h-full w-full" /> : <p className="p-4 text-sm">{t("studio.notConnected")}</p>}
     <span className="absolute bottom-1 left-1 rounded bg-background px-2 py-1 text-xs">{screen ? t("studio.presentation") : focus?.displayName ?? t("person")}</span>

@@ -69,6 +69,9 @@ export const DOMAIN_RULES = [
   "PAGE_CLAIM_PENDING",
   "PAGE_CLAIM_EVIDENCE_COUNT",
   "PAGE_CLAIM_NOTE_TOO_LONG",
+  // PG-01 : administrateur de secours (console) — jamais sur une page encore tenue, jamais hors du réseau.
+  "PAGE_HAS_LIVE_ADMIN",
+  "PAGE_RESCUE_INELIGIBLE",
   // Albums
   "ALBUM_TITLE_REQUIRED",
   "ALBUM_TITLE_TOO_LONG",

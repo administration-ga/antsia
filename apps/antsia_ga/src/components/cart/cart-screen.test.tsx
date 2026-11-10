@@ -13,6 +13,8 @@ import { checkoutAmount } from "@/components/checkout/checkout-model"
 import { catalogPageFixture } from "@/components/shops/__tests__/catalog-fixtures"
 
 const mocks = vi.hoisted(() => ({ lookup: { outcome: "absent" } as unknown, context: undefined as unknown, list: undefined as unknown, stop: vi.fn(), refetch: vi.fn(), push: vi.fn(), options: vi.fn(), prepare: vi.fn(), person: "person-a", error: false }))
+// CM-09 : le bouton « Enregistrer » a ses propres tests (`save-offer-button.test.tsx`) ; ici, sa seule présence.
+vi.mock("@/components/shops/save-offer-button", () => ({ SaveOfferButton: ({ offer, layout }: { offer: { offerRef: string }; layout?: string }) => <span data-save-offer={offer.offerRef} data-save-layout={layout ?? "overlay"} /> }))
 vi.mock("@antsia/api/engine", () => ({ api: { modules: { shops: { checkout: { cartContext: "cartContext", findByClientRequestId: "lookup", stopClientIntent: "stop" }, checkoutActions: { options: "options", prepare: "prepare" }, shops: { storefront: "storefront" }, catalog: { list: "list" } } } } }))
 vi.mock("@antsia/api/network", () => ({ useNetwork: () => ({ networkId: "network-a", personId: mocks.person }) }))
 vi.mock("@antsia/api/hooks", () => ({ useAuthenticatedConvexQuery: (ref: string) => ({ data: ref === "lookup" ? mocks.lookup : ref === "cartContext" ? mocks.context : ref === "list" ? mocks.list : undefined, isError: mocks.error, isPending: false, isFetching: false, refetch: mocks.refetch }) }))

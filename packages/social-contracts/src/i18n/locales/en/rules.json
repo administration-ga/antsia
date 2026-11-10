@@ -46,6 +46,8 @@
   "PAGE_CLAIM_PENDING": "Your claim on this page is already under review.",
   "PAGE_CLAIM_EVIDENCE_COUNT": "Attach between one and {{max}} documents to your claim.",
   "PAGE_CLAIM_NOTE_TOO_LONG": "A claim note has at most {{max}} characters.",
+  "PAGE_HAS_LIVE_ADMIN": "This page still has an active administrator: a backup administrator is only appointed for a page without one.",
+  "PAGE_RESCUE_INELIGIBLE": "The designated person must be an active member of the page's network, with no erasure request in progress.",
   "ALBUM_TITLE_REQUIRED": "An album has a title.",
   "ALBUM_TITLE_TOO_LONG": "An album title is limited to {{max}} characters.",
   "ALBUM_DESCRIPTION_TOO_LONG": "An album description is limited to {{max}} characters.",

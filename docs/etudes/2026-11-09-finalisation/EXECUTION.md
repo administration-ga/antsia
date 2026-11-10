@@ -123,7 +123,7 @@ Plan : [`04_DIRECT_ET_CONFERENCES.md`](04_DIRECT_ET_CONFERENCES.md)
 | DL-01 | Recette média réelle LiveKit et Egress | P0 | M | S1 | clé externe ; aucune commande vers la production sans accord écrit. | à faire |
 | DL-02 | Consentement explicite à l'enregistrement | P0 | M | S1 | décision du propriétaire (décision 4). | fusionné |
 | DL-03 | Signaler et contrôler la discussion | P0 | M | S1 | aucune. | à faire |
-| DL-04 | Spectateur en 3G : audio seul et qualité basse | P0 | M | S1 | aucune pour le code ; clé LiveKit pour la preuve. | à faire |
+| DL-04 | Spectateur en 3G : audio seul et qualité basse | P0 | M | S1 | aucune pour le code ; clé LiveKit pour la preuve. | fusionné |
 | DL-05 | Rediffusion légère | P1 | M | S1 | décision du propriétaire (profil, coût de stockage). | à faire |
 | DL-06 | Programmer un direct et me le rappeler | P1 | M | S1 | aucune. | à faire |
 | DL-07 | Partager un direct | P1 | S | S1 | aucune. | à faire |
@@ -196,7 +196,7 @@ Plan : [`07_PAGES_GROUPES_EVENEMENTS.md`](07_PAGES_GROUPES_EVENEMENTS.md)
 
 | Lot | Titre | Priorité | Taille | Session | Porte | État |
 |---|---|---|---|---|---|---|
-| PG-01 | Gouvernance des pages : file des revendications, console de reprise, cloches | P0 | M | S1 | publication en ligne. | à faire |
+| PG-01 | Gouvernance des pages : file des revendications, console de reprise, cloches | P0 | M | S1 | publication en ligne. | fusionné |
 | PG-02 | Gestion d'un groupe : fermer, archiver, supprimer, transférer, règles | P0 | M | S1 | aucune. | fusionné |
 | PG-03 | Remonter les évènements de page dans le moteur, pour tous les réseaux | P1 | L | S1 (avec S2) | décision du propriétaire n° 1. | à faire |
 | PG-04 | Évènements de page sur antsia.ga | P1 | L | S1 | publication en ligne. | à faire |
@@ -228,7 +228,7 @@ Plan : [`08_COMMERCE_MARKETPLACE_BOUTIQUES.md`](08_COMMERCE_MARKETPLACE_BOUTIQUE
 | CM-06 | Recette transactionnelle à deux comptes | P0 | M | S1 | second compte réel (propriétaire). | à faire |
 | CM-07 | Commandes reçues dans Ma boutique | P1 | M | S1 | aucune (activation de la lecture : propriétaire). | à faire |
 | CM-08 | Panier durable | P1 | M | S1 | aucune. | à faire |
-| CM-09 | Favoris d'offres et de boutiques | P1 | M | S1 | aucune. | à faire |
+| CM-09 | Favoris d'offres et de boutiques | P1 | M | S1 | aucune. | fusionné |
 | CM-10 | Boutique en pause | P1 | S | S1 | aucune. | à faire |
 | CM-11 | Alerte de retour en stock et de baisse de prix | P2 | M | S1 | aucune. | à faire |
 | CM-12 | Vus récemment | P2 | S | S1 | aucune. | à faire |
