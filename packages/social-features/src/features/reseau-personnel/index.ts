@@ -58,6 +58,15 @@ export { ProfilPersonnePage } from "./ProfilPersonnePage"
 export { ProfilFrame } from "./ProfilFrame"
 export { ProfileMiniCard } from "./ProfileMiniCard"
 export { ProfilePublicationCard } from "./ProfilePublicationCard"
+// PF-03 : le recadreur des images de profil (cercle, bandeau) et ses décisions,
+// pour toute application du moteur qui pose une photo ou une couverture.
+export { ProfileImageCropper, type ProfileImageCropperProps } from "./ProfileImageCropper"
+export {
+  PROFILE_IMAGE_FRAMES,
+  profileImageChoiceRefusal,
+  profileImagePreparedRefusal,
+  type ProfileImageKind,
+} from "./profile-image-crop"
 export { PrivacyLists } from "./PrivacyLists"
 
 // ── Pages (réécrites sur les pages du moteur) ──────────────────────────────

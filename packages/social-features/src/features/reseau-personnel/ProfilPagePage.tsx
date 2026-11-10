@@ -1,4 +1,4 @@
-// Réécrit d'après socle/packages/agent-features/src/features/reseau-personnel/ProfilPagePage.tsx @ ad2e7fdc2 — ce qui change : la fiche d'une page à IDENTITÉ PROPRE du moteur (nom, sigle, logo, bannière, description, nature, pays) lue par `pages.pages.getPage` dans le réseau courant, au lieu d'une page d'administration dérivée de son organisation ; badge CALCULÉ par le serveur (Officiel, Vérifié, Communauté) ; suivi par `follow`/`unfollow` du moteur, refus lu dans son CODE ; publier au nom de la page réservé au RÔLE VIVANT du lecteur (`viewer.role`) — le composeur partagé reçoit `asPage` ; mur par `pagePosts` (fenêtres chaînées, curseur composite du moteur, éléments rendus par `PostCard`) ; adresses par la table des routes injectée (retour au volet par `reseauAgentHref("pages", routes.home())`, mots-clés par `reseauAgentTagHref`, mentions vers le PROFIL d'une personne, jamais vers une page) ; panne de la fiche et du mur dite avec Réessayer ; textes traduits (clés `profilPagePage.…`, décisions dans `profil-page.ts`) ; ajouts : invitation à signer (accepter, décliner), revendication ou demande de vérification pièces à l'appui (`pages.claims.*`), gestion pour un administrateur vivant — identité (`pages.identity.updatePageIdentity`), logo et bannière par la garde des fichiers (`generatePageImageUploadUrl`, `setPageImage`), signataires (`pages.signatories.*`) ; props inchangés (`handle`). ; PA6 : dates et jours civils dans le fuseau personnel du lecteur (repli appareil). ; couleurs par fonction (ADR-0027) : « Suivre » et l'acceptation d'une invitation en variante `social`, Suivre neutre une fois la page suivie. ; prop facultative `commerce` (décision du propriétaire du 22/10/2026) : la présentation marchande que l'application pose sur la page qui vend — en-tête de boutique à la place de l'identité, offres en tête, rappels toutes les trois publications —, gestes de la page inchangés.
+// Réécrit d'après socle/packages/agent-features/src/features/reseau-personnel/ProfilPagePage.tsx @ ad2e7fdc2 — ce qui change : la fiche d'une page à IDENTITÉ PROPRE du moteur (nom, sigle, logo, bannière, description, nature, pays) lue par `pages.pages.getPage` dans le réseau courant, au lieu d'une page d'administration dérivée de son organisation ; badge CALCULÉ par le serveur (Officiel, Vérifié, Communauté) ; suivi par `follow`/`unfollow` du moteur, refus lu dans son CODE ; publier au nom de la page réservé au RÔLE VIVANT du lecteur (`viewer.role`) — le composeur partagé reçoit `asPage` ; mur par `pagePosts` (fenêtres chaînées, curseur composite du moteur, éléments rendus par `PostCard`) ; adresses par la table des routes injectée (retour au volet par `reseauAgentHref("pages", routes.home())`, mots-clés par `reseauAgentTagHref`, mentions vers le PROFIL d'une personne, jamais vers une page) ; panne de la fiche et du mur dite avec Réessayer ; textes traduits (clés `profilPagePage.…`, décisions dans `profil-page.ts`) ; ajouts : invitation à signer (accepter, décliner), revendication ou demande de vérification pièces à l'appui (`pages.claims.*`), gestion pour un administrateur vivant — identité (`pages.identity.updatePageIdentity`), logo et bannière par la garde des fichiers (`generatePageImageUploadUrl`, `setPageImage`), signataires (`pages.signatories.*`) ; props inchangés (`handle`). ; PA6 : dates et jours civils dans le fuseau personnel du lecteur (repli appareil). ; couleurs par fonction (ADR-0027) : « Suivre » et l'acceptation d'une invitation en variante `social`, Suivre neutre une fois la page suivie. ; prop facultative `commerce` (décision du propriétaire du 22/10/2026) : la présentation marchande que l'application pose sur la page qui vend — en-tête de boutique à la place de l'identité, offres en tête, rappels toutes les trois publications —, gestes de la page inchangés. ; PF-03 : logo et bannière préparés avant leur dépôt (`preparePageImage` : ré-encodés, sans métadonnées, échec fermé) — seule l'image préparée est déposée et déclarée.
 "use client"
 
 /**
@@ -87,6 +87,7 @@ import {
   pageRefusalTexts,
   pageRoleNote,
   pageUploadAccept,
+  preparePageImage,
   pageWallEmptyText,
   signatoryDisplayName,
   signatoryHandleOf,
@@ -913,15 +914,17 @@ function PageImagesForm({ page }: { page: PageDto }) {
   const [error, setError] = useState<string | null>(null)
   const titleId = useId()
 
-  const upload = async (slot: ImageSlot, file: File) => {
-    const refusal = pageFileRefusal(slot === "logo" ? "page_logo" : "page_banner", file, t)
-    if (refusal !== null) {
-      setError(refusal)
-      return
-    }
+  const upload = async (slot: ImageSlot, choisi: File) => {
     setError(null)
     setBusySlot(slot)
     try {
+      // PF-03 : seule l'image PRÉPARÉE (sans métadonnées) part ; un refus est dit.
+      const preparation = await preparePageImage(slot === "logo" ? "page_logo" : "page_banner", choisi, t)
+      if (!preparation.ok) {
+        setError(preparation.refus)
+        return
+      }
+      const file = preparation.file
       const uploadUrl = await generateUploadUrl({ networkId, slot })
       const storageId = await uploadToEngine(uploadUrl, file)
       if (storageId === null) {

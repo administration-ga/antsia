@@ -2,6 +2,7 @@
 import { describe, expect, it } from "vitest"
 import { createAppI18n } from "../../i18n"
 import {
+	attachmentNeedsPhotoPreparation,
 	attachmentKind,
 	attachmentRejection as attachmentRejectionT,
 	ATTACHMENTS_MAX_PER_MESSAGE,
@@ -234,5 +235,16 @@ describe("la langue de l'écran", () => {
 		)
 		expect(raison).toContain("video.mp4")
 		expect(raison).toContain("25 MB")
+	})
+})
+
+describe("attachmentNeedsPhotoPreparation — toute pièce image passe par la préparation (PF-03)", () => {
+	it("les photos, HEIC compris, et toute autre image ; ni les documents, ni les sons, ni les vidéos", () => {
+		for (const type of ["image/jpeg", "image/png", "image/webp", "image/gif", "image/heic", "image/heif", "image/svg+xml", " IMAGE/JPEG "]) {
+			expect(attachmentNeedsPhotoPreparation(type)).toBe(true)
+		}
+		for (const type of ["application/pdf", "audio/webm", "video/mp4", "text/plain", ""]) {
+			expect(attachmentNeedsPhotoPreparation(type)).toBe(false)
+		}
 	})
 })
