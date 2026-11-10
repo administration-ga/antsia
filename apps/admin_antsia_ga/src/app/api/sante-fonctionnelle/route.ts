@@ -1,17 +1,13 @@
-import { computeHealth } from "@antsia/api/health"
+import { healthHttpStatus } from "@antsia/api/health"
+
+import { consoleHealthEnv, probeConsoleHealth } from "@/lib/health"
 
 // Jamais de rendu statique : une santé figée à la compilation décrit la
 // machine de build, pas le service qui répond.
 export const dynamic = "force-dynamic"
 
-export function GET() {
-  const report = computeHealth(
-    {
-      // Références LITTÉRALES : Next les inscrit au build (jamais `process.env` entier).
-      NEXT_PUBLIC_CONVEX_URL: process.env.NEXT_PUBLIC_CONVEX_URL,
-      NEXT_PUBLIC_BUILD_SHA: process.env.NEXT_PUBLIC_BUILD_SHA,
-    },
-    "admin-antsia-ga",
-  )
-  return Response.json(report, { status: report.status === "ok" ? 200 : 503 })
+/** Santé réelle (EX-03) : 200 si le moteur répond, 503 sinon ; réponse bornée à 2 s d'attente du moteur. */
+export async function GET() {
+  const report = await probeConsoleHealth(consoleHealthEnv())
+  return Response.json(report, { status: healthHttpStatus(report), headers: { "Cache-Control": "no-store" } })
 }

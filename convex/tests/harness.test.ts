@@ -9,7 +9,7 @@ import { modules, testConvex } from "../test.setup"
 describe("harnais convex-test du moteur", () => {
   it("appelle une fonction réelle contre le schéma réel", async () => {
     const t = testConvex()
-    expect(await t.query(api.health.ping, {})).toEqual({ status: "ok" })
+    expect(await t.query(api.health.ping, { requestedAt: 0 })).toMatchObject({ status: "ok" })
   })
 
   it("le glob des modules n'est jamais vide (une négation mal écrite le rend muet)", () => {
