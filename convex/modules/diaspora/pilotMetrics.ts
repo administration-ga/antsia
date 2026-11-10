@@ -239,7 +239,7 @@ async function offersStage(ctx: MutationCtx, network: Doc<"networks">, args: Pas
 
 /** Une portée de plus dans un relevé (`network`, et le pays s'il est un pays de résidence). */
 function counted(snapshot: Readonly<Record<string, number>>, country: string): Record<string, number> {
-  const next = { ...snapshot, [NETWORK_SCOPE]: (snapshot[NETWORK_SCOPE] ?? 0) + 1 }
+  const next: Record<string, number> = { ...snapshot, [NETWORK_SCOPE]: (snapshot[NETWORK_SCOPE] ?? 0) + 1 }
   if (isResidenceCountry(country)) next[country] = (next[country] ?? 0) + 1
   return next
 }
