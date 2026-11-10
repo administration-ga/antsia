@@ -354,6 +354,130 @@ describe("relecture préalable — pages à vérifier, évènements en relecture
   })
 })
 
+describe("MC-01 — un groupe thématique et un message personnel entrent au guichet", () => {
+  const PREVIEW = api.modules.moderation.reviewProjection.preview
+
+  async function setRole(t: T, networkId: Id<"networks">, personId: Id<"persons">, role: Role): Promise<void> {
+    await t.run(async (ctx) => {
+      const row = await ctx.db.query("networkMemberships").withIndex("by_network_and_person", (q) => q.eq("networkId", networkId).eq("personId", personId)).unique()
+      if (row) await ctx.db.patch(row._id, { role })
+    })
+  }
+
+  /** Un groupe posé tel quel : son pays, ou sa page d'association ; son propriétaire vivant s'il en a un. */
+  async function group(t: T, networkId: Id<"networks">, creatorPersonId: Id<"persons">, fields: { country?: string; associationPageId?: Id<"pages"> } = {}): Promise<Id<"thematicGroups">> {
+    sequence += 1
+    const name = `Groupe fictif ${sequence}`
+    return await t.run(async (ctx) => {
+      const groupId = await ctx.db.insert("thematicGroups", {
+        networkId,
+        name,
+        description: "Thème de fixture",
+        rules: "Règles de fixture",
+        rulesVersion: 1,
+        ...(fields.country ? { country: fields.country } : {}),
+        ...(fields.associationPageId ? { associationPageId: fields.associationPageId } : {}),
+        createdByPersonId: creatorPersonId,
+        searchText: name.toLowerCase(),
+        idempotencyKey: `groupe-${sequence}`,
+        createdAt: NOW,
+        updatedAt: NOW,
+      })
+      if (!fields.associationPageId) await ctx.db.insert("thematicGroupMembers", { networkId, groupId, personId: creatorPersonId, role: "owner", joinedAt: NOW })
+      return groupId
+    })
+  }
+
+  it("range un groupe au pays du groupe, sinon à celui de sa page d'association, et dit qui le tient", async () => {
+    const f = await fixture()
+    const groupBe = await group(f.t, f.network, f.author.personId, { country: "BE" })
+    const pageFr = await page(f.t, f.network, "FR")
+    const groupOfPage = await group(f.t, f.network, f.author.personId, { associationPageId: pageFr })
+    await f.t.run(async (ctx) => {
+      // La modératrice du réseau modère aussi le groupe belge ; l'administrateur signe la page française.
+      await ctx.db.insert("thematicGroupMembers", { networkId: f.network, groupId: groupBe, personId: f.moderator.personId, role: "moderator", joinedAt: NOW })
+      await ctx.db.insert("pageSignatories", { networkId: f.network, pageId: pageFr, personId: f.admin.personId, role: "admin", acceptedAt: NOW, createdAt: NOW, updatedAt: NOW })
+    })
+    // Le geste réel du moteur : le dossier naît dans le réseau DIASPORALE, propriétaire vivant posé.
+    const { reportId: onGroupBe } = await f.reader.as.mutation(CASES.report, { networkId: f.network, target: { kind: "thematicGroup", id: groupBe }, reason: "misinformation" })
+    expect(await f.t.run(async (ctx) => await ctx.db.get(onGroupBe))).toMatchObject({ networkId: f.network, targetKind: "thematicGroup", ownerPersonId: f.author.personId })
+    const onGroupOfPage = await report(f.t, f.network, { kind: "thematicGroup", id: groupOfPage }, { reporterPersonId: f.reader.personId, reason: "spam" })
+
+    const ids = async (viewer: Member, zone: typeof ALL | typeof NONE | typeof FR | typeof BE) =>
+      (await viewer.as.query(D.queue, queueArgs(f.network, viewer, zone, { surface: "thematicGroup" }))).items.map((row) => row.reportId)
+    expect(await ids(f.admin, BE)).toEqual([onGroupBe])
+    expect(await ids(f.admin, FR)).toEqual([onGroupOfPage])
+    expect(await ids(f.admin, NONE)).toEqual([])
+    expect(await ids(f.admin, ALL)).toEqual([onGroupBe, onGroupOfPage])
+
+    // Qui tient le groupe ne tranche pas : modérateur du groupe (« group »), signataire de sa page (« page »).
+    const asModerator = (await f.moderator.as.query(D.queue, queueArgs(f.network, f.moderator, ALL))).items
+    expect(asModerator.find((row) => row.reportId === onGroupBe)).toEqual({
+      reportId: onGroupBe, surface: "thematicGroup", country: "BE", reason: "misinformation", status: "open", level: "network",
+      teamName: null, createdAt: expect.any(Number), hasAuthor: true, party: "group",
+    })
+    expect(asModerator.find((row) => row.reportId === onGroupOfPage)).toMatchObject({ country: "FR", hasAuthor: false, party: null })
+    expect(await codeOf(f.moderator.as.mutation(CASES.decide, { networkId: f.network, reportId: onGroupBe, decision: "dismissed", reason: "Tentative sur son propre groupe.", sanctions: [] }))).toBe("notFound")
+    const asAdmin = (await f.admin.as.query(D.queue, queueArgs(f.network, f.admin, ALL))).items
+    expect(asAdmin.find((row) => row.reportId === onGroupOfPage)?.party).toBe("page")
+    expect(asAdmin.find((row) => row.reportId === onGroupBe)?.party).toBeNull()
+    expect((await f.admin.as.query(D.caseDetail, { networkId: f.network, expectedPersonId: f.admin.personId, reportId: onGroupBe })).case).toMatchObject({ surface: "thematicGroup", country: "BE", party: null })
+
+    // L'aperçu que lit le guichet : la fiche et les règles seules, ni membre, ni propriétaire, ni déclarant.
+    const preview = await f.admin.as.query(PREVIEW, { networkId: f.network, reportId: onGroupBe })
+    expect(preview).toEqual({ kind: "thematicGroup", available: true, title: expect.stringMatching(/^Groupe fictif \d+$/), body: "Thème de fixture\n\nRègles de fixture", media: [] })
+    for (const secret of [f.author.personId, f.reader.personId, f.moderator.personId]) expect(JSON.stringify(preview)).not.toContain(secret)
+    // La file ne porte aucun contenu.
+    expect(JSON.stringify(asAdmin)).not.toContain("Thème de fixture")
+
+    // Une nature signalable seulement reste typée si un état de modération la porte (posé tel quel).
+    await f.t.run(async (ctx) => {
+      await ctx.db.insert("moderationContentStates", { networkId: f.network, targetKind: "thematicGroup", targetId: groupBe, status: "pending_review", createdAt: NOW, updatedAt: NOW })
+    })
+    expect((await f.moderator.as.query(D.pendingQueue, queueArgs(f.network, f.moderator, BE))).items).toEqual([
+      { target: { kind: "thematicGroup", id: groupBe }, surface: "thematicGroup", country: "BE", teamName: null, updatedAt: NOW, party: "group" },
+    ])
+  })
+
+  it("range un message personnel « sans pays », dit ses deux parties et n'en montre que le texte signalé", async () => {
+    const f = await fixture()
+    await f.t.run(async (ctx) => {
+      const [low, high] = f.author.personId < f.reader.personId ? [f.author.personId, f.reader.personId] : [f.reader.personId, f.author.personId]
+      await ctx.db.insert("connections", { networkId: f.network, personIdLow: low, personIdHigh: high, requestedByPersonId: f.author.personId, recipientPersonId: f.reader.personId, status: "accepted", requestedAt: NOW, respondedAt: NOW, updatedAt: NOW })
+    })
+    const MSG = api.modules.messaging
+    const { threadId } = await f.author.as.mutation(MSG.inbox.startThreadWithHandle, { networkId: f.network, handle: "lectrice.fixture", initialMessage: "Message voisin de fixture" })
+    const { messageId } = await f.author.as.mutation(MSG.messages.sendMessage, { networkId: f.network, threadId, content: "Message signalé de fixture" })
+    const { reportId } = await f.reader.as.mutation(CASES.report, { networkId: f.network, target: { kind: "personalMessage", id: messageId }, reason: "spam" })
+
+    const ids = async (zone: typeof ALL | typeof NONE | typeof FR | typeof BE) =>
+      (await f.moderator.as.query(D.queue, queueArgs(f.network, f.moderator, zone))).items.map((row) => row.reportId)
+    expect(await ids(NONE)).toEqual([reportId])
+    expect(await ids(FR)).toEqual([])
+    // La facette de résidence des deux parties (FR) n'est jamais lue.
+    expect(await ids(ALL)).toEqual([reportId])
+    const onlyMessages = await f.moderator.as.query(D.queue, queueArgs(f.network, f.moderator, ALL, { surface: "personalMessage" }))
+    expect(onlyMessages.items).toEqual([{
+      reportId, surface: "personalMessage", country: null, reason: "spam", status: "open", level: "network",
+      teamName: null, createdAt: expect.any(Number), hasAuthor: true, party: null,
+    }])
+    for (const secret of [f.author.personId, f.reader.personId, threadId, messageId, "Message signalé", "Message voisin"]) expect(JSON.stringify(onlyMessages)).not.toContain(secret)
+    expect((await f.moderator.as.query(D.caseDetail, { networkId: f.network, expectedPersonId: f.moderator.personId, reportId })).case).toMatchObject({ surface: "personalMessage", country: null })
+
+    // L'aperçu que lit le guichet : LE message signalé, borné, sans pièce, sans participant, sans voisin.
+    const preview = await f.moderator.as.query(PREVIEW, { networkId: f.network, reportId })
+    expect(preview).toEqual({ kind: "personalMessage", available: true, title: null, body: "Message signalé de fixture", media: [] })
+    for (const secret of [f.author.personId, f.reader.personId, threadId, "Message voisin"]) expect(JSON.stringify(preview)).not.toContain(secret)
+
+    // Les deux parties du fil sont l'auteur du message et son déclarant : ni l'une ni l'autre ne tranche.
+    await setRole(f.t, f.network, f.author.personId, "network_moderator")
+    await setRole(f.t, f.network, f.reader.personId, "network_moderator")
+    expect((await f.author.as.query(D.queue, queueArgs(f.network, f.author, NONE))).items[0]?.party).toBe("author")
+    expect((await f.reader.as.query(D.queue, queueArgs(f.network, f.reader, NONE))).items[0]?.party).toBe("reporter")
+    expect(await codeOf(f.reader.as.mutation(CASES.decide, { networkId: f.network, reportId, decision: "actioned", reason: "Décision sur son propre fil.", sanctions: [] }))).toBe("notFound")
+  })
+})
+
 describe("recours du réseau — à l'administration seule, par pays", () => {
   it("sert les recours d'équipe du pays demandé, avec l'incompatibilité de l'ancien décideur", async () => {
     const f = await fixture()

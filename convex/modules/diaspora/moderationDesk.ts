@@ -12,9 +12,11 @@
  *   page), ressource du kit (son pays), offre d'emploi (zone de l'offre, sinon
  *   pays de la page) et candidature (pays de l'offre), profil de mentor ou de
  *   talent (le pays qu'il déclare), demande de mentorat (pays du profil du
- *   mentor). Les autres natures (compte, messages, statut, album, offre de
- *   boutique) ne portent aucun pays : « sans pays ». Le pays de résidence d'une
- *   personne (facette à visibilité choisie) n'est JAMAIS lu.
+ *   mentor). MC-01 : groupe thématique (son pays, sinon celui de sa page
+ *   d'association). Les autres natures (compte, messages — message personnel
+ *   compris —, statut, album, offre de boutique) ne portent aucun pays : « sans
+ *   pays ». Le pays de résidence d'une personne (facette à visibilité choisie)
+ *   n'est JAMAIS lu.
  * - Les gardes sont celles du moteur, importées et jamais recopiées :
  *   `teamCapacity` et `requireReportCapacity` (`moderation/cases`), `contentState`
  *   (`moderation/policy`), `liveSignatoryRole` (`pages/access`). Hors compétence,
@@ -26,9 +28,12 @@
  *   `cases.createTeam`, `cases.setTeamMember`), motivées et journalisées par lui ;
  *   les responsables du réseau (MD-01) se nomment par `membership.setResponsibleRole`,
  *   sur l'aide du moteur. `party` dit seulement à l'écran pourquoi la personne ne décide pas : ce que
- *   le moteur refuse (auteur, page signée, ancien décideur, auteur du recours),
- *   plus deux retenues de l'écran (déclarant du dossier ; signataire de la page
- *   visée par une page, une publication de page, un évènement ou un avis).
+ *   le moteur refuse (auteur, page signée, ancien décideur, auteur du recours ;
+ *   MC-01 : propriétaire ou modérateur vivant du groupe visé), plus deux
+ *   retenues de l'écran (déclarant du dossier ; signataire de la page visée par
+ *   une page, une publication de page, un évènement, un avis ou un groupe
+ *   d'association). Les deux parties d'un fil 1:1 sont l'auteur du message
+ *   signalé et son déclarant : seule une partie au fil peut le signaler.
  * - Aucune table : le moteur ne rattache pas encore une équipe à un pays
  *   (`moderationTeams.scope` est une NATURE de contenu) ; le pays filtre la file,
  *   il ne délimite aucune compétence.
@@ -50,6 +55,7 @@ import { liveSignatoryRole } from "../pages/access"
 import { findPublishedPersonByHandle, livePersonProfile } from "../people/miniProfile"
 import { canHoldNetworkRole, NETWORK_RESPONSIBLE_ROLES, NETWORK_ROLE_HOLDERS_MAX } from "../people/networkRoles"
 import { networkRoleCapacity } from "../platform/audit"
+import { liveThematicGroupMembership } from "../thematicGroups/access"
 import { assertDiasporaNetwork } from "./facts"
 
 type ReadCtx = Pick<QueryCtx, "db">
@@ -64,7 +70,7 @@ type DeskCtx = ReadCtx & {
 type Target = Doc<"reports">["target"]
 type Zone = { readonly kind: "all" } | { readonly kind: "none" } | { readonly kind: "country"; readonly country: string }
 type TargetFacts = { readonly country: string | null; readonly pageIds: readonly Id<"pages">[] }
-type Party = "author" | "reporter" | "page" | "decider"
+type Party = "author" | "reporter" | "page" | "decider" | "group"
 type SignatureCache = Map<string, boolean>
 type TeamNameCache = Map<string, string | null>
 
@@ -98,7 +104,7 @@ const zoneValidator = v.union(
 )
 const openStatusValidator = v.union(v.literal("open"), v.literal("reviewing"))
 const levelValidator = v.union(v.literal("team"), v.literal("network"), v.literal("platform"))
-const partyValidator = v.union(v.literal("author"), v.literal("reporter"), v.literal("page"), v.literal("decider"), v.null())
+const partyValidator = v.union(v.literal("author"), v.literal("reporter"), v.literal("page"), v.literal("decider"), v.literal("group"), v.null())
 const countryValidator = v.union(v.string(), v.null())
 const cursorValidator = v.union(v.string(), v.null())
 
@@ -319,6 +325,18 @@ async function targetFacts(ctx: ReadCtx, networkId: Id<"networks">, target: Targ
       const zone = offer && offer.networkId === networkId ? countryCode(offer.country) : null
       return { country: zone ?? page.country, pageIds: page.pageIds }
     }
+    // MC-01 : le pays du groupe, sinon celui de sa page d'association (groupe d'adhérents), dont les
+    // signataires parlent pour lui ; jamais le pays d'un membre ni celui de son propriétaire.
+    case "thematicGroup": {
+      const group = await ctx.db.get(target.id)
+      if (!group || group.networkId !== networkId) return NO_FACTS
+      const page = await pageFacts(ctx, networkId, group.associationPageId)
+      return { country: countryCode(group.country) ?? page.country, pageIds: page.pageIds }
+    }
+    // MC-01 : un fil 1:1 n'a ni lieu ni page, et le pays de ses deux parties n'est jamais lu : un message
+    // personnel est « sans pays », sans rien relire du message ni du fil.
+    case "personalMessage":
+      return NO_FACTS
     // Compte, messages, statut, album, offres de boutique et d'emploi reflétées : aucun pays porté.
     default:
       return NO_FACTS
@@ -384,6 +402,16 @@ function typedTarget(ctx: ReadCtx, kind: ModerationSurface, id: string): Target 
       const typed = ctx.db.normalizeId("commerceJobHeads", id)
       return typed === null ? null : { kind: "commerceJob" as const, id: typed }
     }
+    // MC-01 : surfaces signalables seulement (aucune écriture n'y passe la relecture préalable),
+    // typées ici pour qu'un état de modération de ces natures ne reste jamais hors du guichet.
+    case "thematicGroup": {
+      const typed = ctx.db.normalizeId("thematicGroups", id)
+      return typed === null ? null : { kind: "thematicGroup" as const, id: typed }
+    }
+    case "personalMessage": {
+      const typed = ctx.db.normalizeId("personalMessages", id)
+      return typed === null ? null : { kind: "personalMessage" as const, id: typed }
+    }
     // Vague H (G9) : chaque nature relue dans SA table.
     case "diasporaAidQuestion": {
       const typed = ctx.db.normalizeId("aidQuestions", id)
@@ -448,11 +476,23 @@ async function ownerPagesOf(ctx: ReadCtx, kind: ModerationSurface, id: string, f
   return owner !== undefined ? [owner, ...facts.pageIds] : facts.pageIds
 }
 
+/**
+ * MC-01 : la personne tient-elle le groupe visé (propriétaire ou modérateur VIVANT, règle du moteur
+ * `liveThematicGroupMembership`, responsables de la page compris pour un groupe d'adhérents) ? Le
+ * moteur lui refuse alors la décision ; l'écran le dit au lieu d'offrir le geste.
+ */
+async function runsTargetGroup(ctx: ReadCtx, target: Target, personId: Id<"persons">): Promise<boolean> {
+  if (target.kind !== "thematicGroup") return false
+  const role = (await liveThematicGroupMembership(ctx, target.id, personId))?.role
+  return role === "owner" || role === "moderator"
+}
+
 async function caseParty(ctx: DeskCtx, row: Doc<"reports">, facts: TargetFacts, cache: SignatureCache): Promise<Party | null> {
   if (row.ownerPersonId === ctx.person._id) return "author"
   if (row.reviewedByPersonId === ctx.person._id) return "decider"
   if (row.reporterPersonId === ctx.person._id) return "reporter"
-  return (await signsAnyPage(ctx, ctx.person._id, await ownerPagesOf(ctx, row.targetKind, row.targetId, facts), cache)) ? "page" : null
+  if (await signsAnyPage(ctx, ctx.person._id, await ownerPagesOf(ctx, row.targetKind, row.targetId, facts), cache)) return "page"
+  return (await runsTargetGroup(ctx, row.target, ctx.person._id)) ? "group" : null
 }
 
 async function appealParty(ctx: DeskCtx, appeal: Doc<"appeals">, row: Doc<"reports">, facts: TargetFacts, cache: SignatureCache): Promise<Party | null> {
@@ -685,7 +725,8 @@ export const pendingQueue = networkQuery({
       const pageIds = owner !== undefined ? [owner, ...facts.pageIds] : facts.pageIds
       const party: Party | null = row.ownerPersonId === ctx.person._id
         ? "author"
-        : (await signsAnyPage(ctx, ctx.person._id, pageIds, signatures)) ? "page" : null
+        : (await signsAnyPage(ctx, ctx.person._id, pageIds, signatures)) ? "page"
+        : (await runsTargetGroup(ctx, target, ctx.person._id)) ? "group" : null
       items.push({ target, surface: row.targetKind, country: facts.country, teamName: team?.name ?? null, updatedAt: row.updatedAt, party })
     }
     return { items, continueCursor: result.isDone ? null : result.continueCursor, isDone: result.isDone }
