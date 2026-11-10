@@ -264,6 +264,8 @@ export function exportableRecord(table: string, row: DataRecord, personId: strin
   const owners = policy.owners ?? EXPORT_PERSON_FIELDS[table]
   if (!owners?.some((field) => row[field] === personId)) return null
   if (table === "fileScans") return projectedRecord(row, [...RECORD_METADATA, "storageId", "uploadedByPersonId", "source", "status", "attempts", "scannedAt", "releasedAt"])
+  // Admission fondatrice de DIASPORALE : la décision et son retrait, jamais l'identifiant de l'opérateur qui a décidé.
+  if (table === "foundingAdmissions") return projectedRecord(row, [...RECORD_METADATA, "personId", "reason", "seniorityWaiver", "admittedAt", "withdrawnAt", "withdrawnBy", "withdrawalReason"])
   // Une copie transférée n'ouvre pas l'original retiré/inaccessible par l'export self-scoped.
   if ((table === "personalMessages" || table === "groupMessages") && row.forwardedFrom) {
     const metadata = { ...row }
