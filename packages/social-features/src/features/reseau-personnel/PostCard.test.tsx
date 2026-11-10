@@ -279,4 +279,16 @@ describe("PostCard (vérification)", () => {
     expect(links).toHaveLength(1)
     expect(links[0]).toHaveAttribute("href", "/conference/liveSessions_1")
   })
+
+  it.each(["classic", "media", "charte"] as const)("FD-04 (%s) : « En relecture » sous l'en-tête quand le moteur rend la publication retenue ; publiée ou sans champ, rien", (presentation) => {
+    const NOTICE = "En relecture : visible de vous seul pour l'instant."
+    const options = presentation === "classic" ? {} : { postPresentation: presentation }
+    const view = renderWithEngine(<PostCard post={{ ...base, isMine: true, moderation: "pending_review" }} now={1_700_000_060_000} />, options)
+    expect(screen.getByText(NOTICE)).toHaveAttribute("role", "status")
+    view.rerender(<PostCard post={{ ...base, isMine: true, moderation: "published" }} now={1_700_000_060_000} />)
+    expect(screen.queryByText(NOTICE)).toBeNull()
+    // Un autre lecteur ne reçoit jamais le champ : la carte ne dit rien.
+    view.rerender(<PostCard post={base} now={1_700_000_060_000} />)
+    expect(screen.queryByText(NOTICE)).toBeNull()
+  })
 })
