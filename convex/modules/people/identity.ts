@@ -16,6 +16,7 @@ import { fail, notFound } from "../../lib/errors"
 import { enforceRateLimit } from "../../lib/rateLimit"
 import { getActiveIdentity } from "../../lib/session"
 import { revokeAdministrationForPerson } from "../federation/agentLifecycle"
+import { MANAGED_MEMBERSHIP_REDERIVERS } from "../networks/sliceRegistry"
 import { syncPersonDirectory } from "./directory"
 import { idnLoaValidator, idnProfileTypeValidator } from "./tables"
 
@@ -182,7 +183,12 @@ async function activePerson(ctx: MutationCtx): Promise<{ person: Doc<"persons">;
 
 const MEMBERSHIP_BATCH = 50
 
-/** Maintient seulement les adhésions déjà choisies ; chaque transaction relit les liens actuels. */
+/**
+ * Maintient seulement les adhésions déjà choisies ; chaque transaction relit les liens actuels.
+ * Un réseau gouverné par une tranche (`managedBy`) est relu par SON gestionnaire, inscrit au registre
+ * des tranches (`networks/sliceRegistry`) ; sans gestionnaire, il est sauté. Départ et sanction ne
+ * sont jamais confiés à la tranche.
+ */
 async function reconcileMemberships(ctx: MutationCtx, personId: Id<"persons">, cursor: string | null): Promise<{ changed: number; done: boolean }> {
   const links = await ctx.db.query("identityLinks").withIndex("by_person_and_provider", (q) => q.eq("personId", personId)).take(16)
   const strongIdentity = hasStrongIdentity(links)
@@ -190,12 +196,21 @@ async function reconcileMemberships(ctx: MutationCtx, personId: Id<"persons">, c
   const root = await getRootNetwork(ctx)
   const rootMembership = root ? await getMembership(ctx, root._id, personId) : null
   if (rootMembership && !isActiveStatus(rootMembership.status)) return { changed: 0, done: true }
+  // borné : MEMBERSHIP_BATCH adhésions par transaction, la suite par passage planifié ; au plus une relecture
+  // de tranche par adhésion de la page (aucune lecture de plus pour un réseau sans gestionnaire).
   const page = await ctx.db.query("networkMemberships").withIndex("by_person_and_status", (q) => q.eq("personId", personId)).paginate({ cursor, numItems: MEMBERSHIP_BATCH })
+  const now = Date.now()
   let changed = 0
   for (const membership of page.page) {
     if (!isActiveStatus(membership.status)) continue
     const network = await ctx.db.get(membership.networkId)
-    if (!network || network.status !== "active" || network.managedBy !== undefined) continue
+    if (!network || network.status !== "active") continue
+    if (network.managedBy !== undefined) {
+      // Réseau gouverné : sa tranche relit l'adhésion selon SES règles (idempotente) ; sans gestionnaire, rien ne change.
+      const rederive = MANAGED_MEMBERSHIP_REDERIVERS[network.managedBy]
+      if (rederive !== null && (await rederive(ctx, membership, now)) !== membership.status) changed += 1
+      continue
+    }
     const target = entryStatusFor(network.membershipPolicy, { strongIdentity, externalVerification: network.kind === "root" && externalVerification, sponsored: membership.sponsorPersonId !== undefined })
     if (!target) continue
     const upgrade = strongIdentity && (membership.status === "en_attente" || (membership.status === "declaree" && target === "verifiee"))

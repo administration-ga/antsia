@@ -3,7 +3,7 @@
 import { api } from "@antsia/api/engine"
 import { isSigningOutEverywhere } from "@antsia/api/sign-out-everywhere"
 import { CONSOLE_MIN_LOA } from "@antsia/social-domain/badges"
-import { identityErrorKey, type IdentityConfiguration } from "@antsia/social-features/identity"
+import { identityErrorKey, idnReturnMessageKey, idnReturnRefusal, type IdentityConfiguration, type IdnReturnRefusal, withoutIdnReturnParams } from "@antsia/social-features/identity"
 import { Button } from "@antsia/ui"
 import { useConvexAuth, useQuery } from "convex/react"
 import { ShieldCheck } from "lucide-react"
@@ -43,7 +43,7 @@ export function IdnConsoleEntry({ configuration }: { configuration: IdentityConf
       let timeout: ReturnType<typeof setTimeout> | undefined
       try {
         const response = await Promise.race([
-          authClient.signIn.oauth2({ providerId: "idn", callbackURL: routes.home(), fetchOptions: { throw: false, signal: request.signal } }),
+          authClient.signIn.oauth2({ providerId: "idn", callbackURL: routes.home(), errorCallbackURL: routes.signIn(), fetchOptions: { throw: false, signal: request.signal } }),
           new Promise<never>((_resolve, reject) => { timeout = setTimeout(() => { request.abort(); reject(new Error("Authentication request timed out")) }, 10_000) }),
         ])
         if (!mounted.current) return
@@ -73,10 +73,19 @@ export function ConsoleSignInScreen() {
   const { t } = useTranslation("admin")
   const { t: identityT } = useTranslation("identity")
   const [signOutIncomplete, setSignOutIncomplete] = useState(false)
-  useEffect(() => { setSignOutIncomplete(new URLSearchParams(window.location.search).get("deconnexion") === "incomplete") }, [])
+  const [idnReturn, setIdnReturn] = useState<IdnReturnRefusal | null>(null)
+  useEffect(() => {
+    const search = new URLSearchParams(window.location.search)
+    setSignOutIncomplete(search.get("deconnexion") === "incomplete")
+    // Un refus ou un abandon chez IDN ramené ici par le moteur : dit une fois, en phrase connue.
+    setIdnReturn(idnReturnRefusal(search.get("error")))
+    const cleaned = withoutIdnReturnParams(window.location.href)
+    if (cleaned !== null) window.history.replaceState(window.history.state, "", cleaned)
+  }, [])
   return <main id="contenu" className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center gap-6 px-4 py-10">
     <header className="space-y-3"><p className="text-sm font-medium uppercase tracking-wide text-muted-foreground">{t("home.eyebrow")}</p><h1 className="text-3xl">{t("signIn.title")}</h1><p className="text-muted-foreground">{t("home.access")}</p></header>
     {signOutIncomplete ? <p role="alert" className="rounded-lg border border-border bg-muted p-4 text-sm">{identityT("signOutIncomplete")}</p> : null}
+    {idnReturn ? <p role="alert" className="rounded-lg border border-border bg-muted p-4 text-sm">{identityT(idnReturnMessageKey(idnReturn))}</p> : null}
     {CONVEX_URL ? <ConsoleQueryBoundary fallback={(_error, retry) => <section className="space-y-3"><p role="alert">{t("signIn.configurationFailed")}</p><Button style={{ minHeight: 44 }} onClick={retry}>{t("session.retry")}</Button></section>}><ConnectedEntry signOutIncomplete={signOutIncomplete} /></ConsoleQueryBoundary> : <p role="alert">{t("session.backendMissing")}</p>}
     <Link className="inline-flex min-h-11 items-center self-start rounded-md text-sm underline focus-visible:outline-2 focus-visible:outline-offset-4" href={routes.home()}>{t("health.backHome")}</Link>
   </main>

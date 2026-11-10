@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/modules/direct/replay.ts @ ad2e7fdc2 — adaptations : table `liveSessions` du moteur (`v.id("liveSessions")` ; index GLOBAUX `by_egressId` et `by_status_replayStatus_endedAt` : le webhook et les crons sont des passages système, tous réseaux) ; références internes du moteur (`modules/live/replay`, `modules/live/livekitActions.reconcileDirectEgress`, `lib/livekitEgress*`) ; MOTIFS → CODES du vocabulaire fermé (`replayComposition.DIRECT_REPLAY_FAILURE_REASONS`, validateur précis des arguments `failureReason`) ; GARDE DES FICHIERS : le fichier rapatrié n'est rattaché qu'INSCRIT à la garde (`acceptStoredEgressFile` : temps 2, puis admission à l'analyse ou inscription d'un fichier produit par la plateforme, au réseau et à l'hôte de la conférence) — la garde de délivrance, fail-closed, ne servirait jamais un fichier qu'elle ne connaît pas —, la piste de sous-titres est inscrite à l'ANALYSE (`enqueueScan`, déposant : la personne qui l'importe, nouvel argument facultatif `uploadedByPersonId` d'`attachCaptions`) et sa langue est un code du vocabulaire fermé (`DIRECT_REPLAY_CAPTIONS_LANGS`) ; toute suppression d'une copie emporte sa ligne d'analyse (`purgeStoredFile`, D10 — `purgeReplayBlobs` reçoit donc un contexte de mutation complet) et toute expiration efface aussi la langue de la piste retirée (échéance exacte et cron) ; `returns` validés.
+// Dupliqué de socle/convex/modules/direct/replay.ts @ ad2e7fdc2 — adaptations : table `liveSessions` du moteur (`v.id("liveSessions")` ; index GLOBAUX `by_egressId` et `by_status_replayStatus_endedAt` : le webhook et les crons sont des passages système, tous réseaux) ; références internes du moteur (`modules/live/replay`, `modules/live/livekitActions.reconcileDirectEgress`, `lib/livekitEgress*`) ; MOTIFS → CODES du vocabulaire fermé (`replayComposition.DIRECT_REPLAY_FAILURE_REASONS`, validateur précis des arguments `failureReason`) ; GARDE DES FICHIERS : le fichier rapatrié n'est rattaché qu'INSCRIT à la garde (`acceptStoredEgressFile` : temps 2, puis admission à l'analyse ou inscription d'un fichier produit par la plateforme, au réseau et à l'hôte de la conférence) — la garde de délivrance, fail-closed, ne servirait jamais un fichier qu'elle ne connaît pas —, la piste de sous-titres est inscrite à l'ANALYSE (`enqueueScan`, déposant : la personne qui l'importe, nouvel argument facultatif `uploadedByPersonId` d'`attachCaptions`) et sa langue est un code du vocabulaire fermé (`DIRECT_REPLAY_CAPTIONS_LANGS`) ; toute suppression d'une copie emporte sa ligne d'analyse (`purgeStoredFile`, D10 — `purgeReplayBlobs` reçoit donc un contexte de mutation complet) et toute expiration efface aussi la langue de la piste retirée (échéance exacte et cron) ; `returns` validés ; DL-02 : toute expiration planifie la purge des accords à l'enregistrement de la session (`recordingConsent.scheduleRecordingConsentPurge`).
 /**
  * Le REPLAY d'un direct — l'Egress LiveKit RÉUTILISÉ, sans `callRecordings`.
  * Fonctions INTERNES : le webhook HTTP et les actions Node sont les seuls
@@ -43,6 +43,7 @@ import { buildDirectEgressFilepath } from "../../lib/livekitEgressRouting"
 import { acceptStoredEgressFile, discardStoredEgressFile, egressUploadValidator } from "../../lib/livekitEgressUploads"
 import { enqueueScan, readStoredBlobFacts } from "../files/admission"
 import { purgeStoredFile } from "../files/purge"
+import { scheduleRecordingConsentPurge } from "./recordingConsent"
 import { type DirectReplayFailureReason, directReplayReconcileVerdict } from "./replayComposition"
 import { DIRECT_REPLAY_PURGE_BATCH, directReplayRetentionUntil, nextDirectReplayRetentionCheck } from "./retention"
 import {
@@ -462,6 +463,8 @@ export const expireReplay = internalMutation({
       replayPurgedAt: now,
       updatedAt: now,
     })
+    // DL-02 — les accords à l'enregistrement durent autant que la copie.
+    await scheduleRecordingConsentPurge(ctx, session._id)
     return { expired: true }
   },
 })
@@ -502,6 +505,7 @@ export const purgeExpiredReplays = internalMutation({
             replayPurgedAt: now,
             updatedAt: now,
           })
+          await scheduleRecordingConsentPurge(ctx, session._id)
           continue
         }
         await ctx.db.patch(session._id, {
@@ -524,6 +528,8 @@ export const purgeExpiredReplays = internalMutation({
         replayPurgedAt: now,
         updatedAt: now,
       })
+      // DL-02 — les accords partent avec la copie (un job par session, borné à la page de 50).
+      await scheduleRecordingConsentPurge(ctx, session._id)
     }
 
     if (!page.isDone) {

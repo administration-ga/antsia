@@ -28,6 +28,23 @@
   "cameraOn": "Allumer la caméra",
   "counters": "{{present}} présents · {{admitted}} admissions depuis le début",
   "recording": "Cette conférence est enregistrée. L'hôte décidera ensuite de la publication de la rediffusion.",
+  "recordingBadge": {
+    "short": "REC",
+    "label": "Enregistrement en cours"
+  },
+  "recordingConsent": {
+    "notice": "Cette conférence est enregistrée. À l'antenne, votre image, votre voix et votre partage d'écran figureront dans l'enregistrement.",
+    "where": "Après la conférence, l'hôte décide de publier ou non la rediffusion, jamais au-delà de l'audience de la conférence ; elle est conservée {{days}} jours au plus.",
+    "withdraw": "Vous pouvez rendre l'antenne à tout moment : la suite n'est plus enregistrée, mais ce qui l'a déjà été reste dans la rediffusion, dont l'hôte décide.",
+    "accept": "J'accepte que mon image et ma voix soient enregistrées à l'antenne de cette conférence",
+    "given": "Vous avez accepté l'enregistrement de cette conférence.",
+    "proposedSpeaker": "L'hôte vous propose d'intervenir. Acceptez l'enregistrement pour monter à l'antenne dès le début de la conférence.",
+    "proposedSpeakerLive": "L'hôte vous propose d'intervenir. Acceptez l'enregistrement pour monter à l'antenne.",
+    "confirm": "Accepter l'enregistrement",
+    "takeStage": "Accepter et monter à l'antenne",
+    "promotedLater": "Votre accord est enregistré. L'antenne est pleine pour le moment : l'hôte pourra vous faire monter dès qu'une place se libère.",
+    "hostNotice": "Cette conférence est enregistrée : une personne ne monte à l'antenne qu'après avoir accepté l'enregistrement."
+  },
   "status": {
     "scheduled": "À venir",
     "live": "En direct",
@@ -57,7 +74,7 @@
     "capacity": "Nombre maximal de spectateurs",
     "networkOnly": "Cette conférence reste dans ce réseau, même avec l'audience « Tout le réseau ».",
     "record": "Enregistrer cette conférence",
-    "recordDescription": "L'enregistrement est annoncé aux participants. Il restera privé tant que vous ne déciderez pas de le publier après la conférence.",
+    "recordDescription": "L'enregistrement est annoncé aux participants, et chaque intervenant devra l'accepter avant de prendre l'antenne ; en cochant, vous l'acceptez pour vous-même. Il restera privé tant que vous ne déciderez pas de le publier après la conférence.",
     "announce": "Publier une annonce dans le fil",
     "submit": "Préparer la conférence",
     "invalidTitle": "Saisissez un titre de 1 à {{max}} caractères.",
@@ -209,7 +226,7 @@
   },
   "antenna": {
     "failed": "L’antenne ne peut pas être chargée.",
-    "consent": "Recevoir l’antenne autorise à intervenir. Votre micro et votre caméra restent à votre choix lors de la nouvelle entrée dans la salle.",
+    "consent": "Recevoir l’antenne autorise à intervenir. Votre micro et votre caméra restent à votre choix lors de la nouvelle entrée dans la salle. Si la conférence est enregistrée, vous devrez d’abord accepter l’enregistrement.",
     "speakerReady": "Vous pouvez intervenir. Rejoignez de nouveau la salle pour appliquer ce rôle.",
     "leave": "Rendre l’antenne",
     "invited": "L’hôte vous propose de prendre la parole.",

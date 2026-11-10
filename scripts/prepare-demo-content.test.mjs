@@ -39,14 +39,24 @@ function figurantCatalogue() {
   }))
 }
 
+/** Cible demo fictive : les vraies valeurs vivent sur la machine qui publie, jamais dans le dépôt. */
+const DEMO_TARGET = { ANTSIA_RELEASE_SITE_ORIGIN: "https://site.exemple.test", ANTSIA_RELEASE_CONVEX_DEMO: "exemple-demo" }
+let savedTarget
+
 beforeEach(() => {
   globalThis.fetch = mock(async () => { throw new Error("Tout accès réseau non simulé est interdit dans ce test.") })
   consoleSpies = ["log", "warn", "error"].map(method => spyOn(console, method).mockImplementation(() => {}))
+  savedTarget = Object.fromEntries(Object.keys(DEMO_TARGET).map(name => [name, process.env[name]]))
+  Object.assign(process.env, DEMO_TARGET)
 })
 
 afterEach(() => {
   globalThis.fetch = originalFetch
   for (const spy of consoleSpies) spy.mockRestore()
+  for (const [name, value] of Object.entries(savedTarget)) {
+    if (value === undefined) delete process.env[name]
+    else process.env[name] = value
+  }
 })
 
 function transport({ accounts = catalogue(), figurants = figurantCatalogue(), target = "local", person, authFailure } = {}) {
@@ -220,7 +230,17 @@ describe("parcours OTP et protection des comptes existants", () => {
 
 describe("cible de démonstration servie sous /demo", () => {
   test("l'authentification passe par la base /demo du site principal, l'origine reste celle du site", () => {
-    expect(targetConfiguration("demo")).toEqual({ origin: "https://antsia.vercel.app", auth: "https://antsia.vercel.app/demo/api/auth", backend: "https://vivid-hedgehog-655.convex.cloud" })
+    expect(targetConfiguration("demo")).toEqual({ origin: "https://site.exemple.test", auth: "https://site.exemple.test/demo/api/auth", backend: "https://exemple-demo.convex.cloud" })
+  })
+
+  test.each([
+    [{}, "variables absentes"],
+    [{ ANTSIA_RELEASE_SITE_ORIGIN: "https://site.exemple.test/demo", ANTSIA_RELEASE_CONVEX_DEMO: "exemple-demo" }, "origine avec chemin"],
+    [{ ANTSIA_RELEASE_SITE_ORIGIN: "https://site.exemple.test", ANTSIA_RELEASE_CONVEX_DEMO: "prod:exemple-demo|cle" }, "clé à la place d'un nom"],
+  ])("refuse la cible demo sans ses variables de machine (%p, %s), avant tout appel", async (env, _label) => {
+    expect(() => targetConfiguration("demo", env)).toThrow("Cible demo : poser ANTSIA_RELEASE_SITE_ORIGIN")
+    await expect(prepareDemoAccounts("demo", { apply: true, env })).rejects.toThrow("Cible demo")
+    expect(globalThis.fetch).not.toHaveBeenCalled()
   })
 })
 
@@ -233,8 +253,8 @@ describe("figurants : vrai parcours OTP, hors de l'écran de connexion", () => {
     const authRequests = requests.filter(request => request.path.startsWith("/api/auth/"))
     expect(authRequests).toHaveLength(30)
     for (const request of authRequests) {
-      expect(request.url.startsWith("https://antsia.vercel.app/demo/api/auth/")).toBe(true)
-      expect(request.headers.get("Origin")).toBe("https://antsia.vercel.app")
+      expect(request.url.startsWith("https://site.exemple.test/demo/api/auth/")).toBe(true)
+      expect(request.headers.get("Origin")).toBe("https://site.exemple.test")
     }
     const output = JSON.stringify({ report, logs: consoleSpies.flatMap(spy => spy.mock.calls) })
     for (const secret of [otp, ...figurantSlots.flatMap(slot => [sessionToken(`figurant-${slot}`), jwtToken(`figurant-${slot}`)])]) expect(output).not.toContain(secret)
