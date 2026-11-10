@@ -13,11 +13,32 @@
   },
   "health": {
     "title": "Service status",
+    "lead": {
+      "ok": "The console and its engine are responding.",
+      "degraded": "The engine is not responding normally: some features may be unavailable."
+    },
+    "overall": {
+      "ok": "Operational",
+      "degraded": "Degraded service"
+    },
     "application": "Application",
+    "version": "Application version",
     "backend": "Engine",
-    "configured": "configured",
-    "missing": "not configured",
-    "version": "Version",
+    "engine": {
+      "reachable": "responding",
+      "slow": "responding slowly",
+      "error": "responding with an error",
+      "timeout": "no response within the time limit",
+      "unreachable": "unreachable",
+      "missing": "not configured"
+    },
+    "engineVersion": "Engine version",
+    "undeclared": "not declared",
+    "serverTime": "Engine time",
+    "latency": "Engine response time",
+    "latencyValue": "{{latency}} ms",
+    "unknown": "unknown",
+    "notMeasured": "not measured",
     "backHome": "Back to home"
   },
   "session": {
