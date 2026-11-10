@@ -679,3 +679,37 @@ describe("entraide — retrouver une question : thème, mots, sans réponse (ET-
     expect(await refusal(find(f, f.asker, { query: "x".repeat(101) }))).toBe("aid_query_too_long")
   })
 })
+
+describe("entraide — les prochaines missions sur la fiche d'une association (ET-09)", () => {
+  const upcoming = (f: Fixture, who: Member, pageId: Id<"pages"> = f.pageId, limit?: number) =>
+    who.as.query(AID.upcomingPageMissions, { networkId: f.networkId, pageId, ...(limit !== undefined ? { limit } : {}) })
+
+  it("ouvertes et à venir seulement, des plus proches aux plus lointaines ; en relecture, annulée ou passée : absente", async () => {
+    const f = await fixture()
+    const later = await createMission(f, { title: "Collecte de fournitures scolaires", startsAt: NOW + 5 * DAY, endsAt: NOW + 5 * DAY + 2 * HOUR })
+    const soon = await createMission(f)
+    const reviewed = await createMission(f, { title: "Atelier de rédaction de CV", startsAt: NOW + 3 * DAY, endsAt: NOW + 3 * DAY + HOUR })
+    const cancelled = await createMission(f, { title: "Visite du quartier pour les nouveaux", startsAt: NOW + 4 * DAY, endsAt: NOW + 4 * DAY + HOUR })
+    const past = await createMission(f, { title: "Permanence d'accueil du samedi", startsAt: NOW + 6 * DAY, endsAt: NOW + 6 * DAY + HOUR })
+    await moderate(f, "diasporaAidMission", reviewed.missionId, "pending_review", { ownerPageId: f.pageId })
+    await f.admin.as.mutation(AID.cancelMission, { networkId: f.networkId, missionId: cancelled.missionId, expectedVersion: 1, reason: "" })
+    await f.t.run(async (ctx) => { await ctx.db.patch(past.missionId, { startsAt: NOW - HOUR, endsAt: undefined }) })
+    await signUp(f, f.helper, soon.missionId)
+
+    expect((await upcoming(f, f.helper)).map((card) => [card.missionId, card.signedUp, card.moderation])).toEqual([[soon.missionId, true, null], [later.missionId, false, null]])
+    // L'équipe ne lit pas non plus la mission en relecture ici : elle la garde dans sa gestion.
+    expect((await upcoming(f, f.admin)).map((card) => card.missionId)).toEqual([soon.missionId, later.missionId])
+    expect((await upcoming(f, f.other, f.pageId, 1)).map((card) => card.missionId)).toEqual([soon.missionId])
+  })
+
+  it("une page qui n'est pas une association, d'un autre réseau ou retirée : refus indistinct ; une page sans mission : liste vide", async () => {
+    const f = await fixture()
+    const company = await page(f.t, f.networkId, "entreprise-locale", { ownerKind: "company" })
+    const removed = await page(f.t, f.networkId, "association-retiree", { status: "inactive" })
+    const elsewhere = await page(f.t, f.root, "association-ailleurs")
+    expect(await upcoming(f, f.other)).toEqual([])
+    expect(await refusal(upcoming(f, f.other, company))).toBe("notFound")
+    expect(await refusal(upcoming(f, f.other, removed))).toBe("notFound")
+    expect(await refusal(upcoming(f, f.other, elsewhere))).toBe("notFound")
+  })
+})

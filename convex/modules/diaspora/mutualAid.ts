@@ -1165,6 +1165,50 @@ export const pageMissions = networkQuery({
   },
 })
 
+/** ET-09 — les prochaines missions montrées sur la fiche d'une association : quelques-unes, jamais une liste entière. */
+const UPCOMING_PAGE_MISSIONS_MAX = 5
+/** …lues parmi les prochaines lignes de l'index de la page (une mission en relecture ou complète n'y prend pas de place). */
+const UPCOMING_PAGE_MISSIONS_SCAN = 25
+
+/**
+ * ET-09 — les prochaines missions OUVERTES d'une page d'association, des plus
+ * proches aux plus lointaines, pour sa fiche publique : lisibles par tout membre
+ * qui lit la page, servies selon la modération (une mission en relecture ou
+ * retirée ne s'y montre pas, même à l'équipe : elle la garde dans sa gestion).
+ * Lecture BORNÉE (au plus cinq missions, vingt-cinq lignes lues). Page illisible,
+ * d'ailleurs ou d'une autre nature : refus indistinct.
+ */
+export const upcomingPageMissions = networkQuery({
+  args: { pageId: v.id("pages"), limit: v.optional(v.number()) },
+  returns: v.array(missionCardValidator),
+  handler: async (ctx, args): Promise<MissionCard[]> => {
+    assertDiasporaNetwork(ctx.network)
+    assertCapability(ctx, "read_network")
+    const association = await readableMissionPage(ctx, args.pageId)
+    if (!association) return notFound()
+    const requested = args.limit !== undefined && Number.isFinite(args.limit) ? Math.trunc(args.limit) : UPCOMING_PAGE_MISSIONS_MAX
+    const limit = Math.min(Math.max(requested, 1), UPCOMING_PAGE_MISSIONS_MAX)
+    const now = Date.now()
+    const rows = await ctx.db
+      .query("aidMissions")
+      .withIndex("by_network_page_startsAt", (q) => q.eq("networkId", ctx.networkId).eq("pageId", association._id).gt("startsAt", now))
+      .order("asc")
+      .take(UPCOMING_PAGE_MISSIONS_SCAN)
+    const card = await pageCardOf(ctx, association)
+    const missions: MissionCard[] = []
+    for (const mission of rows) {
+      if (missions.length >= limit) break
+      // Défense en profondeur : l'index borne déjà, chaque ligne est rejugée.
+      if (mission.networkId !== ctx.networkId || mission.pageId !== association._id || mission.status !== "open" || now >= mission.startsAt) continue
+      // G9 : projection publique — ce que la modération sert à ce lecteur, rien d'autre.
+      if (!(await isServedTo(ctx, "diasporaAidMission", mission._id, ctx.person._id))) continue
+      const row = await signupRowOf(ctx, mission._id, ctx.person._id)
+      missions.push(toMissionCard(mission, card, row?.status === "confirmed"))
+    }
+    return missions
+  },
+})
+
 /**
  * Les bénévoles inscrits à une mission, dans l'ordre d'arrivée — pour l'équipe
  * VIVANTE de la page seulement (refus indistinct sinon). Chacun a consenti à
