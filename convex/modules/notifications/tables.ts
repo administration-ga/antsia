@@ -74,6 +74,10 @@ export const DIASPORA_COMMUNITY_NOTIFICATION_KINDS = [
   "aid_answer_retained",
   /** Équipe de la page : une personne s'inscrit à sa mission. */
   "aid_mission_signup",
+  /** Bénévole à l'inscription confirmée : la mission est annulée ; le motif se lit sur la fiche (ET-01, issue #101). */
+  "aid_mission_cancelled",
+  /** Bénévole à l'inscription confirmée : l'horaire de la mission a changé ; il se lit sur la fiche (ET-01). */
+  "aid_mission_rescheduled",
   /** Mentor : une demande de mentorat lui arrive. */
   "mentoring_request_received",
   /** Mentoré : sa demande est acceptée. */

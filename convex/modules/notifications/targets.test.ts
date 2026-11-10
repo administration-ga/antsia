@@ -139,8 +139,9 @@ describe("avis de la vie communautaire DIASPORALE (délégués par ANTSIA le 19/
     expect([...DIASPORA_COMMUNITY_NOTICE_OPENS]).toEqual([...COMMUNITY_NOTICE_OPENS])
   })
 
-  it("onze genres propres, distincts de la mise en relation, et le genre « absence contestée » parmi la mise en relation", () => {
-    expect(DIASPORA_COMMUNITY_NOTIFICATION_KINDS).toHaveLength(11)
+  it("treize genres propres, distincts de la mise en relation, et le genre « absence contestée » parmi la mise en relation", () => {
+    // ET-01 (issue #101) : mission annulée, horaire changé, pour les bénévoles inscrits.
+    expect(DIASPORA_COMMUNITY_NOTIFICATION_KINDS).toHaveLength(13)
     for (const kind of DIASPORA_COMMUNITY_NOTIFICATION_KINDS) {
       expect(isDiasporaCommunityNotificationKind(kind), kind).toBe(true)
       expect(isDiasporaServiceNotificationKind(kind), kind).toBe(false)

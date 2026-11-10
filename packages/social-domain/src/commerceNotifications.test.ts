@@ -69,7 +69,8 @@ describe("genres commerce — liste fermée, publics et catégorie", () => {
     // SU01d : « Mes signalements », destination de l'accusé de réception et de la décision au déclarant.
     expect(NOTIFICATION_OPEN_TARGET_KINDS).toEqual(["serviceRequest", "commercialThread", "jobApplication", "pageModerationDecisions", "personalDecisions", "personalReports", "diasporaServiceNotice", "diasporaCommunityNotice", "contextualThread", "page"]) // PG-01 : la page d'un avis de gouvernance.
     expect(DIASPORA_NOTICE_AUDIENCES).toEqual(["requester", "provider", "responsible", "member"])
-    expect(DIASPORA_COMMUNITY_NOTICE_AUDIENCES).toEqual(["author", "team", "mentor", "mentee", "candidate"])
+    // ET-01 (issue #101) : le bénévole inscrit, avisé d'une mission annulée ou déplacée.
+    expect(DIASPORA_COMMUNITY_NOTICE_AUDIENCES).toEqual(["author", "team", "mentor", "mentee", "candidate", "volunteer"])
     expect(DIASPORA_COMMUNITY_NOTICE_OPENS).toEqual(["aidQuestion", "aidMission", "mentoringRequest", "jobApplication", "kitResource"])
   })
 })
