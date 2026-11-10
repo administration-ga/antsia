@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/modules/reseauPersonnel/domain.ts (l. 756-805 et 896-937) @ ad2e7fdc2 — adaptations : section des groupes thématiques isolée dans son module ; `ReseauPersonnelViolation` → `DomainViolation`.
+// Dupliqué de socle/convex/modules/reseauPersonnel/domain.ts (l. 756-805 et 896-937) @ ad2e7fdc2 — adaptations : section des groupes thématiques isolée dans son module ; `ReseauPersonnelViolation` → `DomainViolation` ; règles du groupe bornées et versionnées, leur acceptation, et transfert de propriété vers un modérateur (PG-02).
 /**
  * Groupes THÉMATIQUES — bornes et autorité.
  *
@@ -69,8 +69,9 @@ export function canSetThematicGroupRole(input: { actorRole: ThematicGroupRole; t
 }
 
 /**
- * L'`owner` ne QUITTE pas son groupe : sans transfert de propriété, son départ
- * laisserait un groupe sans personne pour le modérer.
+ * L'`owner` ne QUITTE pas son groupe : son départ laisserait un groupe sans
+ * personne pour le modérer. Il transmet d'abord son rôle à un modérateur
+ * (`canTransferThematicGroupOwnership`), puis part en simple modérateur.
  */
 export function canLeaveThematicGroup(role: ThematicGroupRole): boolean {
   return role !== "owner"
@@ -79,4 +80,60 @@ export function canLeaveThematicGroup(role: ThematicGroupRole): boolean {
 /** La même règle, levée : le propriétaire ne quitte pas son groupe. */
 export function assertCanLeaveThematicGroup(role: ThematicGroupRole): void {
   if (!canLeaveThematicGroup(role)) throw new DomainViolation("GROUP_OWNER_CANNOT_LEAVE")
+}
+
+/**
+ * Le TRANSFERT de propriété : du seul `owner` vers un `moderator` du groupe,
+ * jamais vers soi-même ni vers un simple membre (le propriétaire nomme d'abord
+ * un modérateur). L'ancien propriétaire devient modérateur : le groupe garde
+ * exactement un propriétaire. L'éligibilité de la PERSONNE (adhésion au réseau,
+ * sanction, effacement, blocage) se juge au serveur.
+ */
+export function canTransferThematicGroupOwnership(input: { actorRole: ThematicGroupRole; targetRole: ThematicGroupRole; isSelf: boolean }): boolean {
+  return input.actorRole === "owner" && input.targetRole === "moderator" && !input.isSelf
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Règles du groupe (PG-02)
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Les règles d'un groupe sont le TEXTE de son propriétaire (contenu de membre,
+ * comme la description), jamais un texte juridique de la plateforme. Même
+ * borne que la description d'un évènement personnel et qu'un message
+ * commercial : 2 000 caractères.
+ */
+export const THEMATIC_GROUP_RULES_MAX_LENGTH = 2000
+
+/** Règles recevables : bornées ; vides (ou blanches) = aucune règle. */
+export function assertThematicGroupRules(raw: string | undefined): string | undefined {
+  if (raw === undefined) return undefined
+  const trimmed = raw.trim()
+  if (trimmed.length === 0) return undefined
+  if (trimmed.length > THEMATIC_GROUP_RULES_MAX_LENGTH) {
+    throw new DomainViolation("GROUP_RULES_TOO_LONG", { max: THEMATIC_GROUP_RULES_MAX_LENGTH })
+  }
+  return trimmed
+}
+
+/**
+ * La version EN VIGUEUR des règles d'un groupe, ou `null` sans règles. Le
+ * compteur `rulesVersion` ne redescend jamais : retirer puis remettre des
+ * règles en fait une version nouvelle.
+ */
+export function thematicGroupRulesVersionInForce(group: { rules?: string; rulesVersion?: number }): number | null {
+  return group.rules === undefined ? null : (group.rulesVersion ?? 1)
+}
+
+/** La version que prend un nouveau texte : une de plus que la dernière émise. */
+export function nextThematicGroupRulesVersion(current: number | undefined): number {
+  return (current ?? 0) + 1
+}
+
+/**
+ * Entrer dans un groupe qui a des règles exige d'avoir accepté CELLES EN
+ * VIGUEUR. Sans règles, l'adhésion reste libre comme avant.
+ */
+export function assertThematicGroupRulesAccepted(input: { rulesVersion: number | null; acceptedRulesVersion: number | undefined }): void {
+  if (input.rulesVersion !== null && input.acceptedRulesVersion !== input.rulesVersion) throw new DomainViolation("GROUP_RULES_NOT_ACCEPTED")
 }

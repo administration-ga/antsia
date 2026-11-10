@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/groupes-thematiques.ts @ ad2e7fdc2 — adaptations : bornes et rôles tirés du domaine du moteur (`@antsia/social-domain/thematicGroups`) au lieu d'un miroir recopié ; libellés par l'i18n — les constantes de texte deviennent des CLÉS qualifiées (`GROUPS_RETURN_LABEL_KEY`, `EMPTY_DISCOVER_TEXT_KEY`, `EMPTY_MY_GROUPS_TEXT_KEY`, `GROUPS_ERROR_TEXT_KEYS`, `GROUP_INVITE_OPEN_LABEL_KEY`, `GROUP_INVITE_PICKER_LABEL_KEY`, `GROUP_INVITE_EMPTY_TEXT_KEY`), les fonctions reçoivent `t` en DERNIER paramètre (clés `reseau:groupesThematiques.*`, pluriels par `count`) ; nom neutre d'une personne sans profil publié (`groupPersonName`) ; refus du moteur lus par leur code ou leur règle (`groupActionErrorText`) ; réponse d'`invite` du moteur (`alreadyInvited` toujours rendu, la lecture tolérante est gardée).
+// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/groupes-thematiques.ts @ ad2e7fdc2 — adaptations : bornes et rôles tirés du domaine du moteur (`@antsia/social-domain/thematicGroups`) au lieu d'un miroir recopié ; libellés par l'i18n — les constantes de texte deviennent des CLÉS qualifiées (`GROUPS_RETURN_LABEL_KEY`, `EMPTY_DISCOVER_TEXT_KEY`, `EMPTY_MY_GROUPS_TEXT_KEY`, `GROUPS_ERROR_TEXT_KEYS`, `GROUP_INVITE_OPEN_LABEL_KEY`, `GROUP_INVITE_PICKER_LABEL_KEY`, `GROUP_INVITE_EMPTY_TEXT_KEY`), les fonctions reçoivent `t` en DERNIER paramètre (clés `reseau:groupesThematiques.*`, pluriels par `count`) ; nom neutre d'une personne sans profil publié (`groupPersonName`) ; refus du moteur lus par leur code ou leur règle (`groupActionErrorText`) ; réponse d'`invite` du moteur (`alreadyInvited` toujours rendu, la lecture tolérante est gardée) ; gestion d'un groupe (PG-02) : règles à accepter avant d'entrer ou après un changement, gestes du propriétaire selon l'état du groupe, bandeau d'un groupe fermé ou archivé, confirmation de suppression par le nom du groupe.
 /**
  * groupes-thematiques — ce que le volet Groupes DÉCIDE, hors de tout composant.
  *
@@ -23,6 +23,7 @@ import {
   THEMATIC_GROUP_DESCRIPTION_MAX_LENGTH,
   THEMATIC_GROUP_NAME_MAX_LENGTH,
   THEMATIC_GROUP_NAME_MIN_LENGTH,
+  THEMATIC_GROUP_RULES_MAX_LENGTH,
   type ThematicGroupRole as DomainThematicGroupRole,
 } from "@antsia/social-domain/thematicGroups"
 import type { TFunction } from "i18next"
@@ -31,6 +32,7 @@ import type { TFunction } from "i18next"
 export const GROUP_NAME_MIN_LENGTH = THEMATIC_GROUP_NAME_MIN_LENGTH
 export const GROUP_NAME_MAX_LENGTH = THEMATIC_GROUP_NAME_MAX_LENGTH
 export const GROUP_DESCRIPTION_MAX_LENGTH = THEMATIC_GROUP_DESCRIPTION_MAX_LENGTH
+export const GROUP_RULES_MAX_LENGTH = THEMATIC_GROUP_RULES_MAX_LENGTH
 
 export type ThematicGroupRole = DomainThematicGroupRole
 
@@ -138,7 +140,7 @@ export const EMPTY_DISCOVER_TEXT_KEY = "reseau:groupesThematiques.emptyDiscover"
 export const EMPTY_MY_GROUPS_TEXT_KEY = "reseau:groupesThematiques.emptyMyGroups"
 
 /** Les sources d'un volet de groupes qui peuvent tomber en panne, chacune avec sa phrase. */
-export type GroupsErrorSource = "invites" | "mine" | "discover" | "group" | "members" | "wall" | "candidates"
+export type GroupsErrorSource = "invites" | "mine" | "discover" | "group" | "members" | "wall" | "candidates" | "transfer"
 
 function errorKeys(source: GroupsErrorSource): { title: string; message: string } {
   return {
@@ -164,6 +166,8 @@ export const GROUPS_ERROR_TEXT_KEYS: Readonly<Record<GroupsErrorSource, { title:
   members: errorKeys("members"),
   wall: errorKeys("wall"),
   candidates: errorKeys("candidates"),
+  // PG-02 : les modérateurs à qui transmettre la propriété — une panne n'est pas « aucun modérateur ».
+  transfer: errorKeys("transfer"),
 })
 
 /**
@@ -175,10 +179,13 @@ export function joinCtaLabel(
   input: {
     myRole: ThematicGroupRole | null
     invited: boolean
+    /** La version des règles en vigueur (PG-02) : un groupe qui en a ne se rejoint pas sans les lire. */
+    rulesVersion?: number | null
   },
   t: TFunction,
 ): string | null {
   if (input.myRole !== null) return null
+  if (entryRequiresRules(input.rulesVersion)) return t("reseau:groupesThematiques.join.readRules")
   return input.invited ? t("reseau:groupesThematiques.join.acceptInvite") : t("reseau:groupesThematiques.join.join")
 }
 
@@ -276,4 +283,70 @@ export function groupInviteReportLabel(outcome: GroupInviteOutcome, t: TFunction
   if (outcome.failed > 0) parts.push(t("reseau:groupesThematiques.inviteReport.failed", { count: outcome.failed }))
   if (parts.length === 0) return t("reseau:groupesThematiques.inviteReport.none")
   return t("reseau:groupesThematiques.inviteReport.sentence", { parts: parts.join(", ") })
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Gérer un groupe (PG-02)
+// ═══════════════════════════════════════════════════════════════
+//
+// Le propriétaire pose des règles, transmet son rôle, ferme, archive ou
+// supprime. Ces prédicats ne font que MONTRER : chaque geste est re-jugé au
+// serveur (propriétaire vivant d'un groupe qui n'est pas celui d'une page).
+
+/** L'état d'un groupe tel que le moteur le rend. */
+export type GroupState = "active" | "closed" | "archived"
+
+/**
+ * Entrer exige-t-il d'accepter des règles ? Oui dès qu'une version est en
+ * vigueur : la personne les voit AVANT « Rejoindre » (ou avant d'accepter une
+ * invitation), et le serveur refuse une adhésion sans la version en vigueur.
+ * Une réponse d'un moteur d'avant les règles (champ absent) n'en a pas.
+ */
+export function entryRequiresRules(rulesVersion: number | null | undefined): boolean {
+  return typeof rulesVersion === "number"
+}
+
+/**
+ * Un MEMBRE doit-il prendre connaissance de règles nouvelles ? Une version
+ * nouvelle ne renvoie personne : la fiche la lui montre jusqu'à ce qu'il
+ * l'accepte.
+ */
+export function memberMustReviewRules(input: { myRole: ThematicGroupRole | null; rulesVersion: number | null | undefined; myAcceptedRulesVersion: number | null | undefined }): boolean {
+  return input.myRole !== null && entryRequiresRules(input.rulesVersion) && input.myAcceptedRulesVersion !== input.rulesVersion
+}
+
+/**
+ * Le groupe ouvre-t-il encore ses actes de membre (publier, lire le mur,
+ * inviter, voir les membres) ? Fermé ou archivé, le serveur les refuse tous.
+ */
+export function isGroupOpen(state: GroupState): boolean {
+  return state === "active"
+}
+
+/** Ce que l'écran « Gérer le groupe » offre selon l'état : un groupe gelé garde l'archivage et la suppression. */
+export function groupManageActions(state: GroupState): { rules: boolean; transfer: boolean; close: boolean; archive: boolean; delete: boolean } {
+  const open = isGroupOpen(state)
+  return { rules: open, transfer: open, close: open, archive: state !== "archived", delete: true }
+}
+
+/** Le bandeau d'un groupe fermé ou archivé (clé qualifiée) — `null` pour un groupe actif. */
+export function groupStateNoticeKey(state: GroupState): string | null {
+  switch (state) {
+    case "closed":
+      return "reseau:groupsPanel.state.closed"
+    case "archived":
+      return "reseau:groupsPanel.state.archived"
+    case "active":
+      return null
+  }
+}
+
+/**
+ * La suppression se confirme en saisissant le NOM du groupe (le motif de
+ * l'effacement d'un compte, qui fait saisir un mot) : exact, espaces de bord
+ * ignorés. Un nom vide ne confirme jamais rien.
+ */
+export function deleteConfirmationMatches(typed: string, groupName: string): boolean {
+  const expected = groupName.trim()
+  return expected.length > 0 && typed.trim() === expected
 }
