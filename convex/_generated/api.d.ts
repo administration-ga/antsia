@@ -88,6 +88,7 @@ import type * as modules_contextualMessaging_hooks from "../modules/contextualMe
 import type * as modules_contextualMessaging_messages from "../modules/contextualMessaging/messages.js";
 import type * as modules_contextualMessaging_operator from "../modules/contextualMessaging/operator.js";
 import type * as modules_contextualMessaging_personStates from "../modules/contextualMessaging/personStates.js";
+import type * as modules_contextualMessaging_policy from "../modules/contextualMessaging/policy.js";
 import type * as modules_contextualMessaging_projection from "../modules/contextualMessaging/projection.js";
 import type * as modules_contextualMessaging_registry from "../modules/contextualMessaging/registry.js";
 import type * as modules_contextualMessaging_retention from "../modules/contextualMessaging/retention.js";
@@ -561,6 +562,7 @@ declare const fullApi: ApiFromModules<{
   "modules/contextualMessaging/messages": typeof modules_contextualMessaging_messages;
   "modules/contextualMessaging/operator": typeof modules_contextualMessaging_operator;
   "modules/contextualMessaging/personStates": typeof modules_contextualMessaging_personStates;
+  "modules/contextualMessaging/policy": typeof modules_contextualMessaging_policy;
   "modules/contextualMessaging/projection": typeof modules_contextualMessaging_projection;
   "modules/contextualMessaging/registry": typeof modules_contextualMessaging_registry;
   "modules/contextualMessaging/retention": typeof modules_contextualMessaging_retention;
