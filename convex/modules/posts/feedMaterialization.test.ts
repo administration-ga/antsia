@@ -300,6 +300,9 @@ describe("PA10 — diffusion bornée, contexte et révocations vivantes", () => 
   // une mesure de charge (campagne R8). Le 24/10, sur le Mac partagé fortement sollicité,
   // le harnais a dépassé 360 s (retour après 450 s) : marge portée à dix minutes sans
   // réduire les destinataires, les lots ni les assertions. Ce délai n'est pas un SLO produit.
+  // Le 10/11, avec plusieurs sessions sur la machine : 156 s seul, 557 s dans une vérification
+  // complète (charge vers 45), plus de 817 s et un délai dépassé dans la suivante (charge de 100
+  // à 120). Marge portée à trente minutes, toujours sans rien réduire ni affirmer de moins.
   it("diffuse cinq mille abonnés en lots de vingt sans modifier le post ni dupliquer les entrées", async () => {
     const f = await fixture(0), author = await member(f.t, f.root, "source5000")
     for (let offset = 0; offset < 5000; offset += 50) {
@@ -318,5 +321,5 @@ describe("PA10 — diffusion bornée, contexte et révocations vivantes", () => 
     expect(entries).toHaveLength(5001) // Auteur + abonnés.
     expect(new Set(entries.map(row => row.personId)).size).toBe(5001)
     expect(await f.t.run(ctx => ctx.db.get(postId))).toEqual(before)
-  }, 600_000)
+  }, 1_800_000)
 })
