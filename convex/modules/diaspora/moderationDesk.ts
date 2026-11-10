@@ -115,6 +115,8 @@ const deskValidator = v.object({
   networkWide: v.boolean(),
   canReviewAppeals: v.boolean(),
   canManageTeams: v.boolean(),
+  /** MD-04 : régler la modération du réseau (relecture, liens, cadence, mots bloqués) — la règle de `cases.myCapacity` (MC-02). */
+  canManagePolicy: v.boolean(),
   teams: v.array(deskTeamValidator),
 })
 
@@ -512,6 +514,10 @@ function guardDesk(ctx: DeskCtx, expectedPersonId: Id<"persons">): void {
  * Ma capacité de modération dans DIASPORALE : rôle réseau, équipes vivantes
  * (toutes pour l'administration du réseau, les siennes sinon). `null` pour un
  * membre sans compétence : rien n'est dit des équipes ni de leurs membres.
+ * Les réglages (MD-04) se lisent et se posent par les fonctions du moteur
+ * (`cases.policies`, `cases.blockedTermsPage`, `cases.setPolicy`,
+ * `cases.setBlockedTerm`), ouvertes à l'administration de CE réseau : le guichet
+ * dit seulement qui y a droit.
  */
 export const myDesk = networkQuery({
   minStatus: "declaree",
@@ -541,6 +547,8 @@ export const myDesk = networkQuery({
       networkWide,
       canReviewAppeals: admin,
       canManageTeams: admin,
+      // MD-04 : seule l'administration du réseau lit et pose les réglages (`cases.policies`, `cases.setPolicy`…).
+      canManagePolicy: admin,
       teams,
     }
   },
