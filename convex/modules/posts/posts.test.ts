@@ -412,7 +412,8 @@ describe("publier", () => {
     const { root, testClosed } = await seed(t)
     const alice = await enter(t, root, "alice", testClosed)
     const first = await alice.as.mutation(api.modules.posts.posts.publish, { networkId: root, body: "Une fois", idempotencyKey: "cle-1" })
-    expect(await alice.as.mutation(api.modules.posts.posts.publish, { networkId: root, body: "Une fois", idempotencyKey: "cle-1" })).toEqual({ postId: first.postId, created: false })
+    // FD-04 : le rejeu dit aussi l'état de modération COURANT de la publication existante.
+    expect(await alice.as.mutation(api.modules.posts.posts.publish, { networkId: root, body: "Une fois", idempotencyKey: "cle-1" })).toEqual({ postId: first.postId, created: false, moderation: "published" })
     expect(await codeOf(alice.as.mutation(api.modules.posts.posts.publish, { networkId: testClosed, body: "Une fois", idempotencyKey: "cle-1" }))).toBe("conflict")
   })
 

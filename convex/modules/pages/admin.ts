@@ -11,10 +11,12 @@ import { assertDecisionReason } from "@antsia/social-domain/audit"
 import { assertCountryCode } from "@antsia/social-domain/content"
 import {
   assertPageHandle,
+  assertPageHasRoomForSignatory,
   assertPageName,
   assertTrustAllowedForOwner,
   normalizePageDescription,
   normalizePageShortName,
+  PAGE_SIGNATORIES_MAX,
   pageTrustRank,
 } from "@antsia/social-domain/pages"
 import { paginationOptsValidator, type PaginationResult } from "convex/server"
@@ -22,15 +24,18 @@ import { v } from "convex/values"
 
 import { internal } from "../../_generated/api"
 import type { Doc } from "../../_generated/dataModel"
+import type { QueryCtx } from "../../_generated/server"
+import { isActiveMember } from "../../lib/access"
 import { checked, failRule, notFound } from "../../lib/errors"
 import { operatorMutation, operatorQuery } from "../../lib/functions"
 import { requirePlatformAdmin } from "../../lib/operatorIdentity"
 import { enforceRateLimit } from "../../lib/rateLimit"
 import { contentVisibilityValidator, pageTrustValidator } from "../../lib/validators"
-import { assertNativePageManagement } from "../federation/mirrorAccess"
+import { assertNativePageManagement, isFederatedPage } from "../federation/mirrorAccess"
+import { notifyPerson } from "../notifications/notify"
 import { hasStrongIdentityFor } from "../people/persons"
 import { appendAudit, operatorCapacity } from "../platform/audit"
-import { assertPageHandleFree, isPageOnRoot, pageSearchText, signatoryRowOf } from "./access"
+import { assertPageHandleFree, isPageOnRoot, liveSignatoryRole, pageSearchText, signatoryRowOf, signatoryRowsOf } from "./access"
 import { pageStatusValidator } from "./validators"
 
 /** Ce que la console doit voir — l'état RÉEL, sans caviardage (ni identifiant de stockage). */
@@ -189,9 +194,10 @@ export const setPageStatus = operatorMutation({
 
 /**
  * Changer l'ADRESSE d'une page. L'ancienne n'est PAS réservée : un lien partagé
- * vers elle cessera d'aboutir — c'est pourquoi le geste appartient à la console,
- * et pourquoi l'historique d'identité garde l'ancienne adresse (c'est elle que
- * cherchera qui suit un lien mort).
+ * vers elle cessera d'aboutir — aucune redirection n'existe (PG-01 : constaté,
+ * rien d'ajouté) — c'est pourquoi le geste appartient à la console, et pourquoi
+ * l'historique d'identité garde l'ancienne adresse (c'est elle que cherchera qui
+ * suit un lien mort).
  */
 export const setPageHandle = operatorMutation({
   args: { pageId: v.id("pages"), handle: v.string(), reason: v.string() },
@@ -254,7 +260,90 @@ export const grantPageAdmin = operatorMutation({
       details: { reason: motive, targetPersonId: person._id, role: "admin", previousRole: existing?.role ?? null, invited: existing === null },
       at: now,
     })
-    return { invited: existing === null || existing.acceptedAt === undefined }
+    const invited = existing === null || existing.acceptedAt === undefined
+    // PG-01 : l'invitation sonne chez la personne habilitée (sans acteur : l'opérateur ne se nomme pas).
+    if (invited) await notifyPerson(ctx, { networkId: page.networkId, recipientPersonId: person._id, kind: "page_signatory_invite", subject: { page: page._id } })
+    return { invited }
+  },
+})
+
+/**
+ * Les administrateurs VIVANTS d'une page, au sens de `liveSignatoryRole` : habilitation
+ * acceptée, page active et native, adhésion active au réseau de la page (ni partie, ni
+ * suspendue), identité forte relue pour une page officielle. Borné par le plafond des signataires.
+ */
+async function liveAdminCount(ctx: Pick<QueryCtx, "db">, page: Doc<"pages">): Promise<number> {
+  const admins = await ctx.db
+    .query("pageSignatories")
+    .withIndex("by_page_role", (q) => q.eq("pageId", page._id).eq("role", "admin"))
+    .take(PAGE_SIGNATORIES_MAX + 1)
+  let live = 0
+  for (const row of admins) if ((await liveSignatoryRole(ctx, page, row.personId)) === "admin") live += 1
+  return live
+}
+
+/**
+ * PG-01 — l'état de GOUVERNANCE d'une page pour la console : ses administrateurs vivants, les
+ * invitations d'administrateur qui attendent leur réponse, et si elle est reflétée (alors gérée
+ * par sa source, jamais ici). `null` pour une page inconnue.
+ */
+export const pageGovernance = operatorQuery({
+  args: { pageId: v.id("pages") },
+  returns: v.union(v.null(), v.object({ liveAdmins: v.number(), pendingAdmins: v.number(), federated: v.boolean() })),
+  handler: async (ctx, args) => {
+    const page = await ctx.db.get(args.pageId)
+    if (!page) return null
+    if (await isFederatedPage(ctx, page._id)) return { liveAdmins: 0, pendingAdmins: 0, federated: true }
+    const pendingAdmins = (await signatoryRowsOf(ctx, page._id)).filter((row) => row.role === "admin" && row.acceptedAt === undefined).length
+    return { liveAdmins: await liveAdminCount(ctx, page), pendingAdmins, federated: false }
+  },
+})
+
+/**
+ * PG-01 — l'ADMINISTRATEUR DE SECOURS d'une page abandonnée : seulement quand la page n'a plus
+ * AUCUN administrateur vivant — jamais une prise de contrôle d'une page encore tenue. La
+ * personne désignée doit être membre active du réseau de la page, sans effacement demandé, et
+ * présenter une identité forte pour une page officielle (règles de `grantPageAdmin`). Comme toute
+ * habilitation nouvelle, c'est une INVITATION qu'elle accepte (cloche `page_signatory_invite`) ;
+ * un signataire déjà accepté devient administrateur aussitôt. Décision motivée, tracée
+ * (`page.signatory_grant`, `rescue`), rejouée sans effet.
+ */
+export const grantRescuePageAdmin = operatorMutation({
+  args: { pageId: v.id("pages"), personId: v.id("persons"), reason: v.string() },
+  returns: v.object({ invited: v.boolean() }),
+  handler: async (ctx, args) => {
+    requirePlatformAdmin(ctx)
+    await enforceRateLimit(ctx, "operator.page", ctx.person._id)
+    const motive = checked(() => assertDecisionReason(args.reason, 10))
+    const page = await ctx.db.get(args.pageId)
+    const person = await ctx.db.get(args.personId)
+    if (!page || page.status !== "active" || !person) return notFound()
+    await assertNativePageManagement(ctx, page._id)
+    if ((await liveAdminCount(ctx, page)) > 0) return failRule("PAGE_HAS_LIVE_ADMIN")
+    if (person.deletionRequestedAt !== undefined || !(await isActiveMember(ctx, page.networkId, person._id))) return failRule("PAGE_RESCUE_INELIGIBLE")
+    if (page.trust === "official" && !(await hasStrongIdentityFor(ctx, person._id))) return failRule("PAGE_SIGNATORY_IDENTITY_REQUIRED")
+    const existing = await signatoryRowOf(ctx, page._id, person._id)
+    // Rejouée : l'invitation de secours attend déjà sa réponse — rien de neuf, ni trace ni cloche.
+    if (existing?.role === "admin" && existing.acceptedAt === undefined) return { invited: true }
+    const now = Date.now()
+    if (existing) await ctx.db.patch(existing._id, { role: "admin", authorityRevision: (existing.authorityRevision ?? 0) + 1, updatedAt: now })
+    else {
+      const count = (await signatoryRowsOf(ctx, page._id)).length
+      checked(() => assertPageHasRoomForSignatory(count))
+      await ctx.db.insert("pageSignatories", { networkId: page.networkId, pageId: page._id, personId: person._id, role: "admin", authorityRevision: 0, createdAt: now, updatedAt: now })
+    }
+    const invited = existing === null || existing.acceptedAt === undefined
+    await appendAudit(ctx, {
+      action: "page.signatory_grant",
+      capacity: operatorCapacity(ctx.operator),
+      actorPersonId: ctx.person._id,
+      networkId: page.networkId,
+      subject: { table: "pages", id: page._id },
+      details: { reason: motive, targetPersonId: person._id, role: "admin", previousRole: existing?.role ?? null, invited, rescue: true, liveAdmins: 0 },
+      at: now,
+    })
+    if (invited) await notifyPerson(ctx, { networkId: page.networkId, recipientPersonId: person._id, kind: "page_signatory_invite", subject: { page: page._id } })
+    return { invited }
   },
 })
 

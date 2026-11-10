@@ -548,3 +548,40 @@ describe("kit d'arrivée — état de modération (G9), dit à qui gère seuleme
     expect(await detail(f, f.reader, resourceId)).toBeNull()
   })
 })
+
+describe("kit d'arrivée — chercher par mots (ET-04)", () => {
+  const found = async (f: Fixture, who: Member, args: { query: string; city?: string; nationalOnly?: boolean; category?: string }) =>
+    (await who.as.query(K.listResources, { networkId: f.networkId, country: "FR", paginationOpts: FIRST, ...args })).page.map((card) => card.resourceId)
+
+  it("le titre et le résumé se cherchent, repliés ; la zone et la rubrique restreignent ; une soumission non relue reste absente", async () => {
+    const f = await fixture()
+    const paris = await publish(f)
+    const national = await publish(f, f.author, { title: "Les numéros d'urgence en France", summary: "Qui appeler, et quand : SAMU, pompiers, police.", category: "emergency", city: "", body: "Le 112 répond partout en Europe ; le 15 pour une urgence médicale, le 18 pour les pompiers." })
+    const pending = await propose(f, f.author, { title: "Ouvrir un compte en ligne", summary: "Les banques en ligne et leurs pièces demandées." })
+
+    expect(await found(f, f.reader, { query: "Pièces" })).toEqual([paris.resourceId])
+    expect(await found(f, f.reader, { query: "samu" })).toEqual([national.resourceId])
+    expect(await found(f, f.reader, { query: "samu", city: "Paris" })).toEqual([])
+    expect(await found(f, f.reader, { query: "samu", nationalOnly: true })).toEqual([national.resourceId])
+    expect(await found(f, f.reader, { query: "compte", category: "emergency" })).toEqual([])
+    // Le contenu entier n'est pas cherché : seuls le titre et le résumé le sont.
+    expect(await found(f, f.reader, { query: "agence" })).toEqual([])
+    expect(await found(f, f.reader, { query: "en ligne" })).not.toContain(pending.resourceId)
+
+    const stored = await f.t.run(async (ctx) => ctx.db.get(paris.resourceId))
+    expect(stored?.searchText).toBe("ouvrir un compte bancaire a paris les pieces demandees et les delais habituels pour un premier compte")
+    expect(await refusal(found(f, f.reader, { query: "x".repeat(101) }))).toBe("arrival_kit_query_too_long")
+  })
+
+  it("une ressource en relecture de modération ne se trouve pas ; une autre version suit son nouveau texte", async () => {
+    const f = await fixture()
+    const paris = await publish(f)
+    await moderate(f.t, f.networkId, paris.resourceId, "pending_review", { ownerPersonId: f.author.personId })
+    expect(await found(f, f.reader, { query: "bancaire" })).toEqual([])
+    await moderate(f.t, f.networkId, paris.resourceId, "removed", { ownerPersonId: f.author.personId })
+    expect(await found(f, f.reader, { query: "bancaire" })).toEqual([])
+
+    const second = await publish(f, f.other, { title: "Assurance habitation étudiante", summary: "Les garanties exigées par un bailleur pour un studio." })
+    expect(await found(f, f.reader, { query: "bailleur" })).toEqual([second.resourceId])
+  })
+})

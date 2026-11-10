@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/components/direct/DirectRoomMount.tsx @ ad2e7fdc2 — adaptations : références du moteur, réseau courant, dépendances LiveKit locales et libellés traduits ; structure de salle persistante conservée.
+// Dupliqué de socle/packages/agent-features/src/components/direct/DirectRoomMount.tsx @ ad2e7fdc2 — adaptations : références du moteur, réseau courant, dépendances LiveKit locales et libellés traduits ; structure de salle persistante conservée ; DL-04 : réception du spectateur (écoute seule, image plafonnée, suggestion sur connexion faible) appliquée à la salle déjà ouverte, sans reconnexion ni second rendu audio.
 "use client"
 
 /**
@@ -41,7 +41,14 @@ import {
 import "@livekit/components-styles"
 import { LIVEKIT_CALL_ROOM_OPTIONS } from "../../lib/livekit/room-options"
 import { useLiveKitDisconnectGuard } from "../../lib/livekit/use-livekit-disconnect-guard"
-import { ConnectionState } from "livekit-client"
+import {
+  ConnectionState,
+  RoomEvent,
+  type ConnectionQuality,
+  type Participant,
+  type RemoteTrack,
+  type RemoteTrackPublication,
+} from "livekit-client"
 import { useCallback, useEffect, useRef } from "react"
 import { toast } from "sonner"
 import { useTranslation } from "react-i18next"
@@ -57,12 +64,20 @@ import {
 } from "../../features/direct/direct-call-coexistence"
 import { useCallStore } from "../../stores/call-store"
 import { DIRECT_INTENT_UNCONVERGED, reconcileMediaIntent, type DirectIntentConvergence } from "../../features/direct/direct-intent-sync"
+import {
+  applyReceptionToPublication,
+  applyReceptionToRoom,
+  effectiveDirectReception,
+  isWeakDirectConnection,
+} from "../../features/direct/direct-reception"
+import { directReceptionStore, useDirectReception } from "../../stores/direct-reception-store"
 import { directRoomRegistry } from "../../stores/direct-room-registry"
 import {
   directSessionStore,
   directWantsAudio,
   directWantsVideo,
   useDirectSessionStore,
+  type DirectCredentialRole,
   type DirectSessionId,
 } from "../../stores/direct-session-store"
 
@@ -188,6 +203,76 @@ function DirectIntentSync({ role }: { role: "viewer" | "speaker" }) {
   return null
 }
 
+/**
+ * DL-04 — applique MA réception (spectateur) à la salle, À CHAUD.
+ *
+ * Vit avec la salle, sous `<LiveKitRoom>` : le réglage vaut donc pour TOUS
+ * les lecteurs de pistes (plateau, vignettes, partage d'écran, plein écran,
+ * carte flottante), qui ne font que rendre les publications, et pour toute
+ * piste publiée APRÈS le choix (nouvel intervenant, partage qui démarre) :
+ *
+ *  · au changement de réglage, et à chaque (re)connexion établie — une
+ *    reprise complète recrée les publications distantes, abonnées d'office
+ *    par `autoSubscribe` ;
+ *  · à chaque `TrackPublished` et `TrackSubscribed` — une piste que le
+ *    serveur abonne d'office en écoute seule est aussitôt désabonnée.
+ *
+ * Le SON n'est jamais touché : aucune piste audio désabonnée, aucune
+ * reconnexion, `RoomAudioRenderer` reste monté. À l'antenne (jeton
+ * `speaker`), le réglage effectif est le défaut : on voit le plateau.
+ *
+ * La suggestion « Écouter seulement » naît ICI, d'une qualité de MA
+ * connexion signalée faible (`poor`, `lost`) : une fois par direct, jamais
+ * de bascule d'office.
+ */
+function DirectReceptionController({
+  sessionId,
+  role,
+}: {
+  sessionId: DirectSessionId
+  role: DirectCredentialRole
+}) {
+  const room = useRoomContext()
+  const { preference } = useDirectReception()
+  const { mode, quality } = effectiveDirectReception(role, preference)
+
+  useEffect(() => {
+    if (!room) return
+    const reception = { mode, quality }
+    const applyAll = () => applyReceptionToRoom(room, reception)
+    const onPublished = (publication: RemoteTrackPublication) => applyReceptionToPublication(publication, reception)
+    const onSubscribed = (_track: RemoteTrack, publication: RemoteTrackPublication) => applyReceptionToPublication(publication, reception)
+    const onConnectionState = (state: ConnectionState) => {
+      if (state === ConnectionState.Connected) applyAll()
+    }
+    applyAll()
+    room.on(RoomEvent.TrackPublished, onPublished)
+    room.on(RoomEvent.TrackSubscribed, onSubscribed)
+    room.on(RoomEvent.ConnectionStateChanged, onConnectionState)
+    return () => {
+      room.off(RoomEvent.TrackPublished, onPublished)
+      room.off(RoomEvent.TrackSubscribed, onSubscribed)
+      room.off(RoomEvent.ConnectionStateChanged, onConnectionState)
+    }
+  }, [room, mode, quality])
+
+  const listening = mode === "audio"
+  useEffect(() => {
+    if (!room || role !== "viewer" || listening) return
+    const offer = () => directReceptionStore.offerHint(sessionId)
+    if (isWeakDirectConnection(room.localParticipant.connectionQuality)) offer()
+    const onQuality = (connectionQuality: ConnectionQuality, participant: Participant) => {
+      if (participant === room.localParticipant && isWeakDirectConnection(connectionQuality)) offer()
+    }
+    room.on(RoomEvent.ConnectionQualityChanged, onQuality)
+    return () => {
+      room.off(RoomEvent.ConnectionQualityChanged, onQuality)
+    }
+  }, [room, role, listening, sessionId])
+
+  return null
+}
+
 export function DirectRoomMount({ sessionId }: { sessionId: DirectSessionId }) {
   const { t } = useTranslation("direct")
   const { sessionId: heldSessionId, credentials, intent } = useDirectSessionStore()
@@ -270,6 +355,7 @@ export function DirectRoomMount({ sessionId }: { sessionId: DirectSessionId }) {
       <DirectConnectionPhase />
       <DirectMediaIntentController wantsAudio={wantsAudio} wantsVideo={wantsVideo} />
       <DirectIntentSync role={credentials.role} />
+      <DirectReceptionController sessionId={sessionId} role={credentials.role} />
       {/* UNIQUE dans toute la page : deux `RoomAudioRenderer` sur la même
           salle, c'est deux `<audio>` sur les mêmes pistes. Son volume suit
           la ligne d'appel : baissé pendant un appel, plein sinon. */}

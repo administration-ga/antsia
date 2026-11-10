@@ -378,6 +378,29 @@
     "leaveKeepLive": "Leave without ending",
     "leaveStage": "Leave the stage"
   },
+  "reception": {
+    "controls": "Live reception",
+    "listenOnly": "Listen only",
+    "listenOnlyHint": "Turns off incoming video, screen sharing included; the sound keeps playing. Your choice is remembered on this device.",
+    "quality": "Picture",
+    "qualities": {
+      "auto": "Automatic",
+      "low": "Data saver"
+    },
+    "qualityHint": "Data saver requests the lightest picture the live offers; Automatic lets the on-screen size and your network decide. Your choice is remembered on this device.",
+    "listening": {
+      "label": "Listening only",
+      "speaking": "{{name}} is speaking",
+      "nobody": "Nobody is speaking right now",
+      "description": "Video is no longer received, screen sharing included; the sound keeps playing.",
+      "presentationCut": "A screen share is in progress: it is turned off too while listening only."
+    },
+    "hint": {
+      "text": "Your connection looks weak. “Listen only” turns off incoming video; the sound keeps playing.",
+      "accept": "Listen only",
+      "close": "Dismiss this suggestion"
+    }
+  },
   "rail": {
     "title": "Live conferences",
     "profile": "Profile of {{name}}",

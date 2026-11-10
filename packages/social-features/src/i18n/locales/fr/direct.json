@@ -378,6 +378,29 @@
     "leaveKeepLive": "Quitter sans terminer",
     "leaveStage": "Quitter l’antenne"
   },
+  "reception": {
+    "controls": "Réception du direct",
+    "listenOnly": "Écouter seulement",
+    "listenOnlyHint": "Coupe les images reçues, partage d’écran compris ; le son continue. Votre choix est retenu sur cet appareil.",
+    "quality": "Image",
+    "qualities": {
+      "auto": "Automatique",
+      "low": "Économie"
+    },
+    "qualityHint": "Économie demande l’image la plus légère que propose le direct ; Automatique laisse la taille de l’image à l’écran et votre réseau décider. Votre choix est retenu sur cet appareil.",
+    "listening": {
+      "label": "Écoute seule",
+      "speaking": "{{name}} parle",
+      "nobody": "Personne ne parle en ce moment",
+      "description": "Les images ne sont plus reçues, partage d’écran compris ; le son continue.",
+      "presentationCut": "Un partage d’écran est en cours : il est coupé aussi en écoute seule."
+    },
+    "hint": {
+      "text": "Votre connexion semble faible. « Écouter seulement » coupe les images reçues ; le son continue.",
+      "accept": "Écouter seulement",
+      "close": "Fermer cette suggestion"
+    }
+  },
   "rail": {
     "title": "Conférences en direct",
     "profile": "Profil de {{name}}",

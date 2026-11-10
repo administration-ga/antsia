@@ -258,6 +258,18 @@ export function normalizePageClaimNote(raw: string | undefined): string | undefi
   return value
 }
 
+/**
+ * PG-01 — conservation des pièces d'une revendication TRANCHÉE : 90 jours après la décision,
+ * puis purge par lots bornés (cron `pages-purge-decided-claim-evidence`) ; une demande retirée
+ * les purge aussitôt. VALEUR CHOISIE DANS LE LOT, À VALIDER PAR LE PROPRIÉTAIRE ET LE JURISTE :
+ * aucune décision n'existe ; 90 jours est la plus courte durée déjà en usage pour des pièces
+ * personnelles comparables (fichiers retenus, `FILE_GUARD_QUARANTINE_RETENTION_DAYS_DEFAULT` ;
+ * demandes de service closes, `SERVICE_CLOSED_RETENTION_MS` ; conversations commerciales closes,
+ * `COMMERCIAL_RETENTION_MS` ; rediffusions, `DIRECT_REPLAY_RETENTION_DAYS`).
+ */
+export const PAGE_CLAIM_EVIDENCE_RETENTION_DAYS = 90
+export const PAGE_CLAIM_EVIDENCE_RETENTION_MS = PAGE_CLAIM_EVIDENCE_RETENTION_DAYS * 24 * 60 * 60 * 1000
+
 /** Seule une revendication EN ATTENTE se tranche ou se retire ; une décision est définitive. */
 export function isPageClaimOpen(status: PageClaimStatus): boolean {
   return status === "pending"

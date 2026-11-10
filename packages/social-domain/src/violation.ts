@@ -31,6 +31,10 @@ export const DOMAIN_RULES = [
   "POST_COUNTRY_INVALID",
   "FEED_LANES_INVALID",
   "POST_COUNTRY_REQUIRED",
+  // Règle de placement de la tranche qui gouverne le réseau (HB-03, issue antsia#96 ; `POST_PLACEMENT_REFUSALS`)
+  "POST_PLACEMENT_NOT_OWN_COUNTRY",
+  "POST_PLACEMENT_COUNTRY_NOT_OPEN",
+  "POST_PLACEMENT_COUNTRY_NOT_ADMITTED",
   "COMMENT_EMPTY",
   "COMMENT_TOO_LONG",
   // Profil
@@ -69,6 +73,9 @@ export const DOMAIN_RULES = [
   "PAGE_CLAIM_PENDING",
   "PAGE_CLAIM_EVIDENCE_COUNT",
   "PAGE_CLAIM_NOTE_TOO_LONG",
+  // PG-01 : administrateur de secours (console) — jamais sur une page encore tenue, jamais hors du réseau.
+  "PAGE_HAS_LIVE_ADMIN",
+  "PAGE_RESCUE_INELIGIBLE",
   // Albums
   "ALBUM_TITLE_REQUIRED",
   "ALBUM_TITLE_TOO_LONG",

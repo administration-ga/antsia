@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/SharePostDialog.tsx @ ad2e7fdc2 — adaptations : publication par le moteur et le réseau courant ; adresse membre injectée par useRoutes, copie sans écriture sociale ; citation sur geste explicite et selon l’audience ; dialogue accessible et responsive du kit partagé ; libellés et toasts par l’i18n.
+// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/SharePostDialog.tsx @ ad2e7fdc2 — adaptations : publication par le moteur et le réseau courant ; adresse membre injectée par useRoutes, copie sans écriture sociale ; citation sur geste explicite et selon l’audience ; dialogue accessible et responsive du kit partagé ; libellés et toasts par l’i18n ; FD-04 : un partage retenu en relecture se dit tel quel (état rendu par le moteur).
 "use client"
 
 /**
@@ -80,8 +80,9 @@ export function SharePostDialog({ postId, authorName, excerpt, canQuote = true, 
     publishLock.current = true
     setSending(true)
     try {
-      await publish({ networkId, body: body.trim(), audience, sharedPostId: postId })
-      toast.success(t("sharePostDialog.toast.shared"))
+      const sent = await publish({ networkId, body: body.trim(), audience, sharedPostId: postId })
+      // FD-04 : un partage retenu en relecture n'est pas « partagé » : l'écran dit l'état rendu.
+      toast.success(t(sent.moderation === "pending_review" ? "sharePostDialog.toast.pendingReview" : "sharePostDialog.toast.shared"))
       onClose()
     } catch (error) {
       toast.error(postEngineErrorText(error, "reseau:sharePostDialog.toast.failed", t))

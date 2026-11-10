@@ -13,6 +13,8 @@ const engineKeys: Readonly<Record<EngineOnlyKind, { actor: string | null; system
   association_event_reminder: { actor: null, system: "associationEventReminder" },
   association_event_cancelled: { actor: null, system: "associationEventCancelled" },
   association_event_seat_confirmed: { actor: null, system: "associationEventSeatConfirmed" },
+  page_signatory_invite: { actor: null, system: "pageSignatoryInvite" },
+  page_claim_decided: { actor: null, system: "pageClaimDecided" },
   membership_changed: { actor: null, system: "membershipChanged" },
   badge_changed: { actor: null, system: "badgeChanged" },
   moderation_decision: { actor: null, system: "moderationDecision" },

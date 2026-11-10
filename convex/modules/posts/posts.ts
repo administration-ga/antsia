@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/modules/reseauPersonnel/posts.ts @ ad2e7fdc2 — adaptations : PAR RÉSEAU — tout se lit DEPUIS le réseau de la fonction appelée (une publication `network` d'un réseau fermé n'est rendue par aucune lecture de la racine, R4 ; la racine lit ses natifs et les `root` de tous les réseaux par l'index `onRoot`), adhésion par le constructeur au lieu d'`assertNotSuspended` ; fenêtres par auteur, fusion k-voies, curseur composite et deux phases GARDÉS, lecteurs de fenêtre factorisés (réseau, racine, auteur) ; portée « mon_administration », collègues, organisations et notes de service retirés (l. 1059-1061, 1079-1081, 1221-1224, 1253) ; PAGES rebranchées sur les pages du moteur (lot 13 : fenêtre par page suivie dans « Pour vous », admission propre `pageFeedAdmissionFor` — ni la connexion au signataire, ni la sourdine, ni le blocage entre personnes ne s'y appliquent —, carte de la page dans le DTO avec `author` pour signataire, aucune publication de page sur un mur personnel ni dans « mes publications », autorité ACTUELLE du signataire pour retirer ou éditer) ; évènement (l. 564-598) au lot de son module ; DIRECT annoncé (l. 545-562, `resolveDirectProjection`) rebranché au lot 16 : la carte porte `live` (session relue à chaque lecture : identifiant, statut, titre), FACULTATIVE dans le DTO (absente quand la publication n'annonce rien ou que la session n'existe plus) ; BLOCAGE exclu du fil, de la recherche et du mur (il l'emporte sur toute audience) ; lacune des ensembles bornés RENDUE (`lacunar`, D19, D24) ; une seule garde dans la recherche (D25) ; partages comptés par agrégat ; cloche du partage et des citations par la porte unique ; portée et pays ; épingle par réseau (sur l'adhésion) rendue avec le mur ; `myPosts` paginé (`paginateMyPosts`) ; le fil « Récents » natif `feed` de la tranche verticale GARDÉ (compatibilité des écrans), DTO étendu ; débit sur publier, éditer, retirer ; fil par VOIES (portée, pays facultatif) que compose une application servie (le hub d'un pays, « toute la diaspora »), fusionnées par date ; fenêtres bornées fusionnées sous FRONTIÈRE (une fenêtre pleine n'ouvre plus de trou dans « Pour vous »).
+// Dupliqué de socle/convex/modules/reseauPersonnel/posts.ts @ ad2e7fdc2 — adaptations : PAR RÉSEAU — tout se lit DEPUIS le réseau de la fonction appelée (une publication `network` d'un réseau fermé n'est rendue par aucune lecture de la racine, R4 ; la racine lit ses natifs et les `root` de tous les réseaux par l'index `onRoot`), adhésion par le constructeur au lieu d'`assertNotSuspended` ; fenêtres par auteur, fusion k-voies, curseur composite et deux phases GARDÉS, lecteurs de fenêtre factorisés (réseau, racine, auteur) ; portée « mon_administration », collègues, organisations et notes de service retirés (l. 1059-1061, 1079-1081, 1221-1224, 1253) ; PAGES rebranchées sur les pages du moteur (lot 13 : fenêtre par page suivie dans « Pour vous », admission propre `pageFeedAdmissionFor` — ni la connexion au signataire, ni la sourdine, ni le blocage entre personnes ne s'y appliquent —, carte de la page dans le DTO avec `author` pour signataire, aucune publication de page sur un mur personnel ni dans « mes publications », autorité ACTUELLE du signataire pour retirer ou éditer) ; évènement (l. 564-598) au lot de son module ; DIRECT annoncé (l. 545-562, `resolveDirectProjection`) rebranché au lot 16 : la carte porte `live` (session relue à chaque lecture : identifiant, statut, titre), FACULTATIVE dans le DTO (absente quand la publication n'annonce rien ou que la session n'existe plus) ; BLOCAGE exclu du fil, de la recherche et du mur (il l'emporte sur toute audience) ; lacune des ensembles bornés RENDUE (`lacunar`, D19, D24) ; une seule garde dans la recherche (D25) ; partages comptés par agrégat ; cloche du partage et des citations par la porte unique ; portée et pays ; épingle par réseau (sur l'adhésion) rendue avec le mur ; `myPosts` paginé (`paginateMyPosts`) ; le fil « Récents » natif `feed` de la tranche verticale GARDÉ (compatibilité des écrans), DTO étendu ; débit sur publier, éditer, retirer ; fil par VOIES (portée, pays facultatif) que compose une application servie (le hub d'un pays, « toute la diaspora »), fusionnées par date ; fenêtres bornées fusionnées sous FRONTIÈRE (une fenêtre pleine n'ouvre plus de trou dans « Pour vous ») ; RÈGLE DE PLACEMENT de la tranche qui gouverne le réseau, jugée avant toute écriture, forme du placement avancée avant la vérité du stockage (HB-03, issue antsia#96) ; état de modération rendu à l'AUTEUR seul, au retour de `publish` et sur la carte (`moderation`, FD-04, issue antsia#108).
 /**
  * Publications d'un réseau — publier, partager, éditer, retirer, épingler ;
  * lire le fil, le mur d'une personne, une publication ; chercher.
@@ -80,6 +80,8 @@ import { type PageCard, pageCardValidator } from "../pages/validators"
 import { findPublishedPersonByHandle, miniProfileCache, resolveMentionedPersonIds } from "../people/miniProfile"
 import { canAccessAssociationGroupPost, requireLiveThematicGroupMembership } from "../thematicGroups/access"
 import { assertVisiblePost, canSeePostDoc, editorialDiscussionOpen, isInReadingContext, type ReaderContext } from "./access"
+import { moderationForAuthor, ownPostModerationValidator, writtenPostModeration } from "./authorModeration"
+import { assertPostPlacement, placementOf } from "./placement"
 import { markPostRemoved } from "./contentRemoval"
 import { countComments, countShares, summarizeReactions } from "./counters"
 import { notifyMentions, withdrawPostRootVisibility, writePost } from "./postWrite"
@@ -201,6 +203,12 @@ export const feedItemValidator = v.object({
   reason: literals(FEED_REASONS),
   /** Les marques DU LECTEUR, pour le menu « … ». */
   viewer: v.object({ bookmarked: v.boolean(), notifying: v.boolean() }),
+  /**
+   * FD-04 (issue antsia#108) : l'état de modération, « publiée » ou « en relecture » (envoi ou
+   * modification retenus) — PRÉSENT seulement quand le lecteur est l'auteur (`moderationForAuthor`),
+   * ABSENT pour tout autre lecteur, modérateurs compris. Facultatif : un front qui l'ignore est inchangé.
+   */
+  moderation: v.optional(ownPostModerationValidator),
 })
 
 export type FeedItem = Infer<typeof feedItemValidator>
@@ -271,7 +279,7 @@ async function resolveDirectProjection(ctx: ReadCtx, post: Doc<"posts">): Promis
 /** LA projection d'une publication — le fil, le mur, la recherche et la lecture unitaire rendent la même carte. */
 export async function toFeedItem(ctx: QueryCtx, post: Doc<"posts">, reader: ReaderContext, reason: FeedReason, enrich: Enrichment): Promise<FeedItem> {
   if (post.pageId === undefined && !hasNativePostAuthor(post)) return notFound()
-  const [author, reactions, commentCount, shareCount, media, share, origin, event, page, live] = await Promise.all([
+  const [author, reactions, commentCount, shareCount, media, share, origin, event, page, live, moderation] = await Promise.all([
     hasNativePostAuthor(post) ? enrich.profileOf(post.authorPersonId) : Promise.resolve(null),
     summarizeReactions(ctx, post._id, reader.personId),
     countComments(ctx, post._id),
@@ -282,6 +290,7 @@ export async function toFeedItem(ctx: QueryCtx, post: Doc<"posts">, reader: Read
     eventCardOf(ctx, post.eventId, reader.personId),
     post.pageId === undefined ? Promise.resolve(null) : enrich.pageOf(post.pageId),
     resolveDirectProjection(ctx, post),
+    moderationForAuthor(ctx, post, reader.personId),
   ])
   // Une publication de page ne retombe JAMAIS sur l'identité de son signataire : page retirée, contenu indisponible.
   if (post.pageId !== undefined && page === null) return notFound()
@@ -325,6 +334,7 @@ export async function toFeedItem(ctx: QueryCtx, post: Doc<"posts">, reader: Read
     origin,
     reason,
     viewer: { bookmarked: enrich.marks.bookmarked.has(post._id), notifying: enrich.marks.notifying.has(post._id) },
+    ...(moderation === null ? {} : { moderation }),
   }
 }
 
@@ -548,9 +558,13 @@ export async function pageViewingReason(ctx: ReadCtx, reader: ReaderContext, pag
  * et un pays si le réseau en déclare. Gardes, dans cet ordre : débit ;
  * idempotence (rejouer la clé rend la publication EXISTANTE) ; forme et
  * appartenance au groupe ; partage par la garde de visibilité (aplati sur
- * l'original) ; vérité du STOCKAGE pour les médias ; le domaine juge l'ensemble.
+ * l'original) ; forme du placement (portée et pays) puis, dans un réseau
+ * gouverné, la RÈGLE DE PLACEMENT de sa tranche (HB-03), avant toute écriture ;
+ * vérité du STOCKAGE pour les médias ; le domaine juge l'ensemble.
  * `alsoOnRoot` est le geste explicite « publier aussi sur ANTSIA », qui ne vaut
  * que pour une audience publique ; à la racine, il ouvre explicitement la lecture sans compte.
+ * Le retour dit à l'auteur l'état de modération de sa publication (FD-04) :
+ * `published` ou `pending_review`, l'état COURANT au rejeu d'une clé.
  */
 export const publish = networkMutation({
   minStatus: "declaree",
@@ -567,7 +581,7 @@ export const publish = networkMutation({
     alsoOnRoot: v.optional(v.boolean()),
     idempotencyKey: v.optional(v.string()),
   },
-  returns: v.object({ postId: v.id("posts"), created: v.boolean() }),
+  returns: v.object({ postId: v.id("posts"), created: v.boolean(), moderation: ownPostModerationValidator }),
   handler: async (ctx, args) => {
     await enforceRateLimit(ctx, "post.publish", ctx.person._id)
     // Rejeu AVANT toute validation : la publication existante est la réponse.
@@ -579,7 +593,7 @@ export const publish = networkMutation({
       // Une clé rejouée dans un AUTRE réseau ne publie pas ici : la clé appartient à son composeur.
       if (replay) {
         if (!(await canAccessAssociationGroupPost(ctx, replay, ctx.person._id, ctx.networkId))) return notFound()
-        return replay.networkId === ctx.networkId ? { postId: replay._id, created: false } : fail("conflict")
+        return replay.networkId === ctx.networkId ? { postId: replay._id, created: false, moderation: await writtenPostModeration(ctx, replay._id) } : fail("conflict")
       }
     }
 
@@ -604,6 +618,17 @@ export const publish = networkMutation({
       checked(() => assertShareable({ audience: target.audience, status: target.status }))
     }
 
+    // Le PLACEMENT, jugé AVANT toute écriture (HB-03) : sa forme par le domaine, puis, dans un réseau
+    // gouverné, la règle de sa tranche — un refus n'admet aucun fichier et n'ouvre aucune relecture.
+    const placed = checked(() =>
+      assertPostReach({
+        ...(associationGroup ? { reach: "diaspora" } : args.reach !== undefined ? { reach: args.reach } : {}),
+        ...(args.country !== undefined ? { country: args.country } : {}),
+        reachValues: ctx.network.reachValues,
+      }),
+    )
+    await assertPostPlacement(ctx, { network: ctx.network, authorPersonId: ctx.person._id, page: null, ...placementOf(placed) })
+
     // La vérité du STOCKAGE écrase le déclaré, média par média (garde des fichiers comprise).
     const media = await verifyDeclaredMedia(ctx, {
       actorPersonId: ctx.person._id,
@@ -618,13 +643,6 @@ export const publish = networkMutation({
     // SD-03 : la durée DÉCLARÉE (le stockage ne la connaît pas) ; absente, la vidéo passe.
     checked(() => assertPostVideoDuration(media))
     const body = checked(() => assertPostContent({ body: args.body, mediaCount: media.length, isShare: shared !== null }))
-    const placed = checked(() =>
-      assertPostReach({
-        ...(associationGroup ? { reach: "diaspora" } : args.reach !== undefined ? { reach: args.reach } : {}),
-        ...(args.country !== undefined ? { country: args.country } : {}),
-        reachValues: ctx.network.reachValues,
-      }),
-    )
     const visibility = associationGroup ? "network" as const : effectiveVisibility({
       networkKind: ctx.network.kind,
       audienceIsPublic: audience === "public",
@@ -650,7 +668,7 @@ export const publish = networkMutation({
     if (shared && hasNativePostAuthor(shared) && (await canReadModeratedContent(ctx, "post", postId, shared.authorPersonId))) {
       await notifyPerson(ctx, { networkId: ctx.networkId, recipientPersonId: shared.authorPersonId, actorPersonId: ctx.person._id, kind: "post_share", subject: { post: shared._id } })
     }
-    return { postId, created: true }
+    return { postId, created: true, moderation: await writtenPostModeration(ctx, postId) }
   },
 })
 

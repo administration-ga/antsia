@@ -10,6 +10,9 @@
  *   référence (une seule, révocable). `answerCount` compte les réponses
  *   PUBLIÉES (lecture des listes sans balayage) ; `version` ne suit que les
  *   gestes de l'auteur (une réponse nouvelle ne périme pas sa lecture).
+ *   `searchText` (ET-04) : le titre et le détail en mots repliés, écrit à chaque
+ *   question posée ou modifiée ; facultatif pour les lignes d'avant le champ (elles
+ *   restent listées, seule la recherche par mots ne les trouve pas).
  * - `aidAnswers` : une réponse d'une personne à une question ; retirée, elle
  *   reste au journal sans être servie.
  * - `aidMissions` : une mission bénévole d'une PAGE d'association ; aucune
@@ -69,6 +72,8 @@ export const mutualAidTables = {
     resolvedAt: v.optional(v.number()),
     closedAt: v.optional(v.number()),
     withdrawnAt: v.optional(v.number()),
+    /** ET-04 — le texte cherché (titre et détail repliés, `aidQuestionSearchText`) ; jamais une coordonnée ni l'auteur. */
+    searchText: v.optional(v.string()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -76,8 +81,13 @@ export const mutualAidTables = {
     .index("by_network_country_status_createdAt", ["networkId", "country", "status", "createdAt"])
     // …et d'une ville saisie de ce pays.
     .index("by_network_country_city_status_createdAt", ["networkId", "country", "cityKey", "status", "createdAt"])
+    // ET-04 — …d'un thème de ce pays ; et celles qui n'ont encore aucune réponse publiée.
+    .index("by_network_country_status_theme_createdAt", ["networkId", "country", "status", "theme", "createdAt"])
+    .index("by_network_country_status_answerCount_createdAt", ["networkId", "country", "status", "answerCount", "createdAt"])
     // Mes questions (et l'export ou l'effacement de la personne).
-    .index("by_network_author_createdAt", ["networkId", "authorPersonId", "createdAt"]),
+    .index("by_network_author_createdAt", ["networkId", "authorPersonId", "createdAt"])
+    // ET-04 — chercher par mots dans un pays, un état et un thème (la ville et « sans réponse » se rejugent).
+    .searchIndex("search_by_text", { searchField: "searchText", filterFields: ["networkId", "country", "status", "theme"] }),
 
   aidAnswers: defineTable({
     networkId: v.id("networks"),
