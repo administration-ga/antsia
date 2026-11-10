@@ -509,3 +509,16 @@ describe("ProfilPagePage — la présentation marchande que l'application lui do
     expect(insertions.map((node) => node.previousElementSibling?.getAttribute("data-post-id"))).toEqual(["p3", "p6"])
   })
 })
+
+describe("ProfilPagePage — signaler la page (MC-01)", () => {
+  it("un visiteur sans rôle voit « Signaler » parmi les gestes de la page", () => {
+    renderWithEngine(<ProfilPagePage handle="ministere" />)
+    expect(screen.getByRole("button", { name: "Signaler" })).toBeTruthy()
+  })
+
+  it("qui signe pour la page ne la signale pas", () => {
+    mocks.getPage.data = pageDto({}, { role: "admin" })
+    renderWithEngine(<ProfilPagePage handle="ministere" />)
+    expect(screen.queryByRole("button", { name: "Signaler" })).toBeNull()
+  })
+})

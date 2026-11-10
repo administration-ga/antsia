@@ -81,6 +81,7 @@ import {
   type EventSectionKey,
 } from "./evenements-list"
 import { RelationPicker } from "./RelationPicker"
+import { ReportTargetButton } from "./ReportTarget"
 import type { RelationPickerCandidate } from "./relation-picker"
 
 /** Chaque section de l'agenda (à venir, aujourd'hui, invitations en attente,
@@ -450,6 +451,9 @@ function EventCard({
               {showParticipants ? t("evenementsPanel.participants.hide") : t("evenementsPanel.participants.show")}
             </Button>
           ) : null}
+
+          {/* MC-01 : l'évènement d'autrui se signale, en dernier (la brique commune) ; jamais par son organisateur. */}
+          {!event.isOrganizer ? <ReportTargetButton target={{ kind: "event", id: event.eventId }} /> : null}
         </div>
 
         {/* Inviter — l'acte de l'organisateur, tant que l'évènement tient et n'est pas révolu. */}

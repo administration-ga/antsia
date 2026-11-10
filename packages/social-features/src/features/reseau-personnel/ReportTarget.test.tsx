@@ -16,7 +16,7 @@ import fr from "../../i18n/locales/fr/reseau.fil.json"
 import { renderWithEngine, TEST_NETWORK_ID } from "../../tests/engine-wrapper"
 
 const mocks = vi.hoisted(() => ({
-  report: vi.fn(async (_args: unknown): Promise<{ reportId: string; created: boolean; hidden: true }> => ({ reportId: "reports_1", created: true, hidden: true })),
+  report: vi.fn(async (): Promise<{ reportId: string; created: boolean; hidden: true }> => ({ reportId: "reports_1", created: true, hidden: true })),
   success: vi.fn(),
   error: vi.fn(),
 }))

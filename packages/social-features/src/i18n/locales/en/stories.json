@@ -104,7 +104,8 @@
     "removed": "Story removed.",
     "removeFailed": "The removal did not go through.",
     "confirmRemove": "Confirm removal",
-    "remove": "Remove"
+    "remove": "Remove",
+    "report": "Report"
   },
   "storiesViewerPage": {
     "error": {

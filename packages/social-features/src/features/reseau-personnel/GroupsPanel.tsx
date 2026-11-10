@@ -72,6 +72,7 @@ import { GroupManageCard } from "./GroupManageCard"
 import { PostCard } from "./PostCard"
 import { PostComposer } from "./PostComposer"
 import { RelationPicker } from "./RelationPicker"
+import { ReportTargetButton } from "./ReportTarget"
 import { toRelationPickerCandidates } from "./relation-picker"
 import { appendPage, feedCursorKey, initialFeedPages, loadMoreAnnouncement, shouldShowLoadMore, type FeedCursor } from "./reseau-feed-pages"
 
@@ -783,6 +784,9 @@ function GroupPage({
                 {showManage ? t("groupsPanel.page.hideManage") : t("groupsPanel.page.manage")}
               </Button>
             ) : null}
+            {/* MC-01 : la fiche et les règles se signalent, en dernier — jamais par leur propriétaire. Signalé, le
+                groupe est masqué pour le déclarant (la fiche se refuse, le volet le dit). */}
+            {myRole !== "owner" ? <ReportTargetButton target={{ kind: "thematicGroup", id: groupId }} /> : null}
           </div>
           {isMember && open && canInviteToGroup(myRole) ? <GroupInviteCard groupId={groupId} /> : null}
         </div>

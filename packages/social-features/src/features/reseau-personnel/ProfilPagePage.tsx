@@ -64,6 +64,7 @@ import { PostCard } from "./PostCard"
 import { PostComposer } from "./PostComposer"
 import { CreateDirectDialog } from "../direct/CreateDirectDialog"
 import { ProfilFrame } from "./ProfilFrame"
+import { ReportTargetButton } from "./ReportTarget"
 import {
   canManagePageAs,
   canPublishAsPage,
@@ -223,6 +224,8 @@ function PageProfile({ page, commerce }: { page: PageDto; commerce?: PageCommerc
   const canPublish = canPublishAsPage(role)
   const canManage = canManagePageAs(role)
   const claimAction = pageClaimAction(page.badge, role)
+  // MC-01 : qui ne tient AUCUN rôle vivant sur la page peut la signaler ; ses signataires parlent pour elle.
+  const canReport = role === null
   const roleNote = pageRoleNote(role, t)
   const badge = pageBadgeView(page.badge)
   const meta = [ownerKindLabel(page.ownerKind, t), ...(page.country === null ? [] : [countryName(page.country, i18n.language)])].join(" · ")
@@ -248,6 +251,8 @@ function PageProfile({ page, commerce }: { page: PageDto; commerce?: PageCommerc
           {pageClaimTitle("claim", t)}
         </Button>
       ) : null}
+      {/* Signaler, toujours en dernier (la brique commune). */}
+      {canReport ? <ReportTargetButton target={{ kind: "page", id: page.pageId }} size="md" /> : null}
     </>
   )
 
@@ -273,7 +278,7 @@ function PageProfile({ page, commerce }: { page: PageDto; commerce?: PageCommerc
       {shopHero ? (
         <>
           {shopHero}
-          {canManage || claimAction === "claim" || roleNote !== null ? (
+          {canManage || claimAction === "claim" || canReport || roleNote !== null ? (
             <div style={STACK_STYLE}>
               <div style={ACTIONS_STYLE}>{pageTools}</div>
               {roleNote === null ? null : <p className="pp-self-note">{roleNote}</p>}

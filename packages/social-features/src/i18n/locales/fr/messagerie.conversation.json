@@ -31,7 +31,8 @@
     "unpin": "Désépingler",
     "edit": "Modifier",
     "deleteForMe": "Supprimer pour moi",
-    "deleteForEveryone": "Supprimer pour tout le monde"
+    "deleteForEveryone": "Supprimer pour tout le monde",
+    "report": "Signaler"
   },
   "messagerieBulles": {
     "today": "Aujourd'hui",

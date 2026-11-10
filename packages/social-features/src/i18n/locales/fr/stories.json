@@ -104,7 +104,8 @@
     "removed": "Actu retirée.",
     "removeFailed": "Le retrait n'a pas abouti.",
     "confirmRemove": "Confirmer le retrait",
-    "remove": "Retirer"
+    "remove": "Retirer",
+    "report": "Signaler"
   },
   "storiesViewerPage": {
     "error": {
