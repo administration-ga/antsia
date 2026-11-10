@@ -23,8 +23,9 @@
  *   de pièce privée ni de coordonnée ; l'aperçu reste `moderation/reviewProjection`.
  * - Aucune décision ici : elles passent par les mutations EXISTANTES du moteur
  *   (`cases.decide`, `cases.reviewContent`, `cases.reviewNetworkAppeal`,
- *   `cases.createTeam`, `cases.setTeamMember`), motivées et journalisées par lui.
- *   `party` dit seulement à l'écran pourquoi la personne ne décide pas : ce que
+ *   `cases.createTeam`, `cases.setTeamMember`), motivées et journalisées par lui ;
+ *   les responsables du réseau (MD-01) se nomment par `membership.setResponsibleRole`,
+ *   sur l'aide du moteur. `party` dit seulement à l'écran pourquoi la personne ne décide pas : ce que
  *   le moteur refuse (auteur, page signée, ancien décideur, auteur du recours),
  *   plus deux retenues de l'écran (déclarant du dossier ; signataire de la page
  *   visée par une page, une publication de page, un évènement ou un avis).
@@ -47,6 +48,7 @@ import { contentState } from "../moderation/policy"
 import { moderationSurfaceValidator, moderationTargetValidator, sanctionKindValidator } from "../moderation/tables"
 import { liveSignatoryRole } from "../pages/access"
 import { findPublishedPersonByHandle, livePersonProfile } from "../people/miniProfile"
+import { canHoldNetworkRole, NETWORK_RESPONSIBLE_ROLES, NETWORK_ROLE_HOLDERS_MAX } from "../people/networkRoles"
 import { networkRoleCapacity } from "../platform/audit"
 import { assertDiasporaNetwork } from "./facts"
 
@@ -174,6 +176,17 @@ const memberValidator = v.object({
   isMe: v.boolean(),
 })
 type MemberRow = typeof memberValidator.type
+
+const responsibleValidator = v.object({
+  personId: v.id("persons"),
+  role: v.union(v.literal("network_admin"), v.literal("network_moderator")),
+  handle: v.union(v.string(), v.null()),
+  displayName: v.union(v.string(), v.null()),
+  /** Le rôle s'exerce : adhésion active, « déclarée » au moins, sans suspension. */
+  active: v.boolean(),
+  isMe: v.boolean(),
+})
+type ResponsibleRow = typeof responsibleValidator.type
 
 // ── Règles de lecture ──────────────────────────────────────────────────────
 
@@ -771,9 +784,49 @@ export const teamRoster = networkQuery({
 })
 
 /**
+ * MD-01 et LX-03 — les responsables du réseau, administration d'abord puis
+ * modération, pour l'administration du réseau seule (tout autre membre : le
+ * refus indistinct). Chacun est identifié par son profil PUBLIÉ, jamais par une
+ * coordonnée ni un nom civil ; `active` dit si le rôle s'exerce (une adhésion
+ * en attente ou suspendue le garde sans le faire valoir). Lecture bornée par
+ * l'index du rôle, au plus `NETWORK_ROLE_HOLDERS_MAX` titulaires par rôle (la
+ * borne de l'aide du moteur) ; `more` dit qu'il en existe au-delà.
+ */
+export const responsibles = networkQuery({
+  minStatus: "declaree",
+  args: { expectedPersonId: v.id("persons") },
+  returns: v.object({ members: v.array(responsibleValidator), more: v.boolean() }),
+  handler: async (ctx, { expectedPersonId }) => {
+    guardDesk(ctx, expectedPersonId)
+    if (ctx.membership.role !== "network_admin") return notFound()
+    const members: ResponsibleRow[] = []
+    let more = false
+    for (const role of NETWORK_RESPONSIBLE_ROLES) {
+      const rows = await ctx.db
+        .query("networkMemberships")
+        .withIndex("by_network_and_role", (q) => q.eq("networkId", ctx.networkId).eq("role", role))
+        .take(NETWORK_ROLE_HOLDERS_MAX + 1)
+      if (rows.length > NETWORK_ROLE_HOLDERS_MAX) more = true
+      for (const row of rows.slice(0, NETWORK_ROLE_HOLDERS_MAX)) {
+        const person = await livePersonProfile(ctx, row.personId)
+        members.push({
+          personId: row.personId,
+          role,
+          handle: person?.handle ?? null,
+          displayName: person?.displayName ?? null,
+          active: await canHoldNetworkRole(ctx, ctx.networkId, row.personId),
+          isMe: row.personId === ctx.person._id,
+        })
+      }
+    }
+    return { members, more }
+  },
+})
+
+/**
  * Le membre actif du réseau désigné par son identifiant public, pour
- * l'administration du réseau qui compose une équipe ; `null` sinon (identifiant
- * inconnu, profil retiré, non-membre : la même réponse).
+ * l'administration du réseau qui compose une équipe ou nomme un responsable ;
+ * `null` sinon (identifiant inconnu, profil retiré, non-membre : la même réponse).
  */
 export const teamCandidate = networkQuery({
   minStatus: "declaree",
