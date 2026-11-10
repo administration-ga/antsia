@@ -44,7 +44,7 @@ export const DIASPORA_NOTICE_SUBJECT_KINDS = ["serviceRequest", "associationMemb
 export type DiasporaNoticeSubjectKind = (typeof DIASPORA_NOTICE_SUBJECT_KINDS)[number]
 
 /** Publics d'un avis communautaire DIASPORALE (`COMMUNITY_NOTICE_AUDIENCES` de la tranche, recopiés à l'identique). */
-export const DIASPORA_COMMUNITY_NOTICE_AUDIENCES = ["author", "team", "mentor", "mentee", "candidate"] as const
+export const DIASPORA_COMMUNITY_NOTICE_AUDIENCES = ["author", "team", "mentor", "mentee", "candidate", "volunteer"] as const
 export type DiasporaCommunityNoticeAudience = (typeof DIASPORA_COMMUNITY_NOTICE_AUDIENCES)[number]
 
 /** Ce qu'ouvre un avis communautaire DIASPORALE (`COMMUNITY_NOTICE_OPENS` de la tranche, recopiés à l'identique). */

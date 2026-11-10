@@ -82,7 +82,7 @@ import { isBlockedBetween } from "../graph/graph"
 import { liveSignatoryRole, pageCardOf, readablePageOrNull } from "../pages/access"
 import { type PageCard, pageCardValidator } from "../pages/validators"
 import { miniProfileCache } from "../people/miniProfile"
-import { noticeAidAnswerAccepted, noticeAidAnswerPublished, noticeAidMissionSignup } from "./communityNotifications"
+import { noticeAidAnswerAccepted, noticeAidAnswerPublished, noticeAidMissionSignup, scheduleAidMissionVolunteerNotices } from "./communityNotifications"
 import { assertDiasporaNetwork, assertPageOpenTo } from "./facts"
 import {
   isRemovedByModeration,
@@ -1315,6 +1315,8 @@ export const updateMission = networkMutation({
     await moderateDiasporaWrite(ctx, { networkId: ctx.networkId, kind: "diasporaAidMission", id: mission._id, text: missionText(draft), owner: { pageId: mission.pageId } })
     const version = mission.version + 1
     await ctx.db.patch(mission._id, { ...storedMission(draft), status, updatedAt: now, version })
+    // ET-01 : un horaire changé (début, fin ou fuseau) s'annonce aux bénévoles inscrits, après la transaction ; le reste, non.
+    if (rescheduled) await scheduleAidMissionVolunteerNotices(ctx, { mission, kind: "aid_mission_rescheduled", sourcePersonId: ctx.person._id })
     return { version, status }
   },
 })
@@ -1336,7 +1338,7 @@ export const closeMission = networkMutation({
   },
 })
 
-/** Annuler une mission (terminal), avec un motif facultatif lu par les inscrits. */
+/** Annuler une mission (terminal), avec un motif facultatif lu par les inscrits sur la fiche ; chaque inscrit en est avisé (ET-01). */
 export const cancelMission = networkMutation({
   args: { missionId: v.id("aidMissions"), expectedVersion: v.number(), reason: v.optional(v.string()) },
   returns: v.object({ version: v.number() }),
@@ -1350,6 +1352,8 @@ export const cancelMission = networkMutation({
     const now = Date.now()
     const version = mission.version + 1
     await ctx.db.patch(mission._id, { status, cancelReason: reason ?? undefined, cancelledAt: now, updatedAt: now, version })
+    // ET-01 : chaque bénévole inscrit en est avisé, après la transaction, sans le motif (il se lit sur la fiche).
+    await scheduleAidMissionVolunteerNotices(ctx, { mission, kind: "aid_mission_cancelled", sourcePersonId: ctx.person._id })
     return { version }
   },
 })
