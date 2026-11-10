@@ -1,8 +1,8 @@
-import type { HealthReport } from "@antsia/api/health"
+import type { HealthProbeReport } from "@antsia/api/health"
 import { renderToStaticMarkup } from "react-dom/server"
 import { describe, expect, it, vi } from "vitest"
 
-const state = vi.hoisted(() => ({ report: null as HealthReport | null }))
+const state = vi.hoisted(() => ({ report: null as HealthProbeReport | null }))
 
 vi.mock("@/lib/health", () => ({
   probeConsoleHealth: async () => state.report,
@@ -14,7 +14,7 @@ vi.mock("@/i18n/server", () => ({
 
 import HealthPage from "./page"
 
-async function render(report: HealthReport) {
+async function render(report: HealthProbeReport) {
   state.report = report
   return renderToStaticMarkup(await HealthPage())
 }

@@ -30,11 +30,14 @@ export function declaredEngineVersion(raw: string | undefined): string | null {
  * resterait figé à la première exécution (mesuré le 10/11 sur le backend local :
  * trois appels sur quatre secondes, une seule date). Avec un argument nouveau, la
  * fonction s'exécute vraiment à chaque sonde.
+ * L'argument reste FACULTATIF : une application qui appelle encore `ping({})`
+ * (la route de diasporale.com, écrite avant EX-03) garde une réponse valide ;
+ * elle prouve que le moteur répond, mais sa date peut venir du cache.
  * Hors des modules sociaux : ni réseau ni adhésion (cliquet
  * `network-scoped-functions`).
  */
 export const ping = query({
-  args: { requestedAt: v.number() },
+  args: { requestedAt: v.optional(v.number()) },
   returns: v.object({
     status: v.literal("ok"),
     serverTime: v.number(),

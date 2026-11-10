@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 
-import { createHealthProbe, ENGINE_PROBE_TIMEOUT_MS, ENGINE_SLOW_MS, type HealthReport, healthHttpStatus, HEALTH_REUSE_MS, probeHealth } from "./health"
+import { computeHealth, createHealthProbe, ENGINE_PROBE_TIMEOUT_MS, ENGINE_SLOW_MS, type HealthProbeReport, healthHttpStatus, HEALTH_REUSE_MS, probeHealth } from "./health"
 
 const ENGINE_URL = "http://127.0.0.1:3999"
 const NOW = Date.UTC(2026, 10, 10, 9, 30)
@@ -28,7 +28,7 @@ function silentFetch() {
 }
 
 /** Aucune adresse, aucun message d'erreur, aucun identifiant dans ce qui sort de la sonde. */
-function expectNoInternalDetail(report: HealthReport) {
+function expectNoInternalDetail(report: HealthProbeReport) {
   const serialized = JSON.stringify(report)
   for (const forbidden of ["127.0.0.1", "3999", "http", "convex", "Error", "Request ID"]) expect(serialized).not.toContain(forbidden)
   expect(Object.keys(report).sort()).toEqual(["application", "backend", "engine", "status", "version"])
@@ -96,7 +96,7 @@ describe("probeHealth — la sonde joint le moteur (EX-03)", () => {
     vi.useFakeTimers()
     vi.setSystemTime(NOW)
     const { fetchImpl, signals } = silentFetch()
-    let settled: HealthReport | null = null
+    let settled: HealthProbeReport | null = null
     const pending = probeHealth({ NEXT_PUBLIC_CONVEX_URL: ENGINE_URL }, "app", { fetch: fetchImpl }).then((report) => { settled = report })
     await vi.advanceTimersByTimeAsync(ENGINE_PROBE_TIMEOUT_MS - 1)
     expect(settled).toBeNull()
@@ -105,7 +105,7 @@ describe("probeHealth — la sonde joint le moteur (EX-03)", () => {
     await pending
     expect(signals[0]?.aborted).toBe(true)
     expect(settled).toMatchObject({ status: "degraded", engine: { state: "timeout", version: null, serverTime: null, latencyMs: null } })
-    expect(healthHttpStatus(settled as unknown as HealthReport)).toBe(503)
+    expect(healthHttpStatus(settled as unknown as HealthProbeReport)).toBe(503)
   })
 
   it("moteur lent : il répond, donc HTTP 200, mais l'état est « degraded »", async () => {
@@ -153,5 +153,17 @@ describe("createHealthProbe — une route publique ne multiplie pas les appels a
     // Une autre configuration ne lit jamais le résultat de la précédente.
     await probe({ NEXT_PUBLIC_CONVEX_URL: "http://127.0.0.1:3998" })
     expect(fetchImpl).toHaveBeenCalledTimes(3)
+  })
+})
+
+describe("computeHealth — rapport de configuration, conservé pour les sondes composées", () => {
+  it("garde la forme d'avant EX-03 : quatre champs, aucun état du moteur", () => {
+    const report = computeHealth({ NEXT_PUBLIC_CONVEX_URL: ENGINE_URL, NEXT_PUBLIC_BUILD_SHA: "abc123" }, "app")
+    expect(report).toEqual({ status: "ok", application: "app", version: "abc123", backend: "configured" })
+    expect(JSON.stringify(report)).not.toContain(ENGINE_URL)
+  })
+
+  it("dit « degraded » sans adresse du moteur, et « dev » sans commit construit", () => {
+    expect(computeHealth({}, "app")).toEqual({ status: "degraded", application: "app", version: "dev", backend: "missing" })
   })
 })

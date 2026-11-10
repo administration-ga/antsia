@@ -51,6 +51,12 @@ export type EngineHealth = {
   latencyMs: number | null
 }
 
+/**
+ * Rapport de CONFIGURATION, sans appel au moteur : la forme d'avant EX-03.
+ * Conservé, avec `computeHealth`, pour les applications qui composent leur
+ * propre sonde par-dessus (diasporale.com y ajoute sa source de données et son
+ * propre état du moteur).
+ */
 export type HealthReport = {
   status: "ok" | "degraded"
   application: string
@@ -58,8 +64,10 @@ export type HealthReport = {
   version: string
   /** Champ conservé tel quel : les contrôles de publication le lisent (« configured »). */
   backend: "configured" | "missing"
-  engine: EngineHealth
 }
+
+/** Rapport de la sonde qui JOINT le moteur (EX-03) : la configuration, plus l'état réel du moteur. */
+export type HealthProbeReport = HealthReport & { engine: EngineHealth }
 
 export type HealthEnv = {
   NEXT_PUBLIC_CONVEX_URL?: string
@@ -137,21 +145,30 @@ export function engineAnswered(engine: EngineHealth): boolean {
   return engine.state === "reachable" || engine.state === "slow"
 }
 
-/** Le rapport de santé d'une application : sa version, et l'état réel de son moteur. */
-export async function probeHealth(env: HealthEnv, application: string, options: HealthProbeOptions = {}): Promise<HealthReport> {
-  const url = env.NEXT_PUBLIC_CONVEX_URL
-  const engine = url ? await probeEngine(url, options) : silent("missing")
+/**
+ * Rapport de configuration seule : « ok » dès que l'adresse du moteur est connue.
+ * Il ne prouve PAS que le moteur répond : une sonde le complète par `probeEngine`
+ * (c'est ce que fait `probeHealth`) ou par son propre appel à `health.ping`.
+ */
+export function computeHealth(env: HealthEnv, application: string): HealthReport {
+  const backend = env.NEXT_PUBLIC_CONVEX_URL ? "configured" : "missing"
   return {
-    status: engine.state === "reachable" ? "ok" : "degraded",
+    status: backend === "configured" ? "ok" : "degraded",
     application,
     version: env.NEXT_PUBLIC_BUILD_SHA ?? "dev",
-    backend: url ? "configured" : "missing",
-    engine,
+    backend,
   }
 }
 
+/** Le rapport de santé d'une application : sa version, et l'état réel de son moteur. */
+export async function probeHealth(env: HealthEnv, application: string, options: HealthProbeOptions = {}): Promise<HealthProbeReport> {
+  const url = env.NEXT_PUBLIC_CONVEX_URL
+  const engine = url ? await probeEngine(url, options) : silent("missing")
+  return { ...computeHealth(env, application), status: engine.state === "reachable" ? "ok" : "degraded", engine }
+}
+
 /** 503 quand le moteur ne répond pas ; 200 quand il répond, même lentement (état `degraded`). */
-export function healthHttpStatus(report: HealthReport): 200 | 503 {
+export function healthHttpStatus(report: HealthProbeReport): 200 | 503 {
   return engineAnswered(report.engine) ? 200 : 503
 }
 
@@ -163,8 +180,8 @@ export function healthHttpStatus(report: HealthReport): 200 | 503 {
 export function createHealthProbe(application: string, options: HealthProbeOptions & { reuseMs?: number } = {}) {
   const now = options.now ?? Date.now
   const reuseMs = options.reuseMs ?? HEALTH_REUSE_MS
-  let last: { key: string; at: number; report: Promise<HealthReport> } | null = null
-  return (env: HealthEnv): Promise<HealthReport> => {
+  let last: { key: string; at: number; report: Promise<HealthProbeReport> } | null = null
+  return (env: HealthEnv): Promise<HealthProbeReport> => {
     const key = `${env.NEXT_PUBLIC_CONVEX_URL ?? ""}\n${env.NEXT_PUBLIC_BUILD_SHA ?? ""}`
     const at = now()
     if (last && last.key === key && at - last.at < reuseMs) return last.report

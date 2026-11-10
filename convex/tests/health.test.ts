@@ -31,6 +31,11 @@ describe("health.ping — sonde du moteur (EX-03)", () => {
     expect(Object.keys(result).sort()).toEqual(["engineVersion", "serverTime", "status"])
   })
 
+  it("répond encore à un appelant d'avant EX-03, qui n'envoie aucun argument", async () => {
+    const t = testConvex()
+    expect(await t.query(api.health.ping, {})).toMatchObject({ status: "ok", engineVersion: null })
+  })
+
   it("ne rend jamais une valeur hors forme : absente, vide, trop longue ou porteuse d'une adresse", () => {
     expect(declaredEngineVersion(undefined)).toBeNull()
     expect(declaredEngineVersion("")).toBeNull()
