@@ -169,6 +169,9 @@ const RATE_LIMITS = {
   // invité fait sonner sa cloche pendant le live.
   "live.create": { kind: "token bucket", rate: 10, period: HOUR, capacity: 3 },
   "live.inviteesAdd": { kind: "token bucket", rate: 60, period: HOUR, capacity: 20 },
+  // DL-02 — l'accord à l'enregistrement s'écrit UNE fois par direct et par personne (le rejeu
+  // d'un accord existant ne consomme rien) : dix directs d'affilée, trente par heure au plus.
+  "live.recordingConsent": { kind: "token bucket", rate: 30, period: HOUR, capacity: 10 },
   // Battements : un spectateur toutes les 30 s, l'hôte toutes les 15 s, quelques onglets au plus.
   "live.presence": { kind: "token bucket", rate: 8, period: MINUTE, capacity: 8 },
   "live.hostPresence": { kind: "token bucket", rate: 12, period: MINUTE, capacity: 12 },
