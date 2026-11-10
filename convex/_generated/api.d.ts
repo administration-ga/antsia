@@ -88,6 +88,7 @@ import type * as modules_contextualMessaging_hooks from "../modules/contextualMe
 import type * as modules_contextualMessaging_messages from "../modules/contextualMessaging/messages.js";
 import type * as modules_contextualMessaging_operator from "../modules/contextualMessaging/operator.js";
 import type * as modules_contextualMessaging_personStates from "../modules/contextualMessaging/personStates.js";
+import type * as modules_contextualMessaging_policy from "../modules/contextualMessaging/policy.js";
 import type * as modules_contextualMessaging_projection from "../modules/contextualMessaging/projection.js";
 import type * as modules_contextualMessaging_registry from "../modules/contextualMessaging/registry.js";
 import type * as modules_contextualMessaging_retention from "../modules/contextualMessaging/retention.js";
@@ -282,6 +283,7 @@ import type * as modules_moderation_settings from "../modules/moderation/setting
 import type * as modules_moderation_tables from "../modules/moderation/tables.js";
 import type * as modules_moderation_targets from "../modules/moderation/targets.js";
 import type * as modules_networks_networks from "../modules/networks/networks.js";
+import type * as modules_networks_sliceRegistry from "../modules/networks/sliceRegistry.js";
 import type * as modules_networks_tables from "../modules/networks/tables.js";
 import type * as modules_notifications_bell from "../modules/notifications/bell.js";
 import type * as modules_notifications_commerceAccess from "../modules/notifications/commerceAccess.js";
@@ -567,6 +569,7 @@ declare const fullApi: ApiFromModules<{
   "modules/contextualMessaging/messages": typeof modules_contextualMessaging_messages;
   "modules/contextualMessaging/operator": typeof modules_contextualMessaging_operator;
   "modules/contextualMessaging/personStates": typeof modules_contextualMessaging_personStates;
+  "modules/contextualMessaging/policy": typeof modules_contextualMessaging_policy;
   "modules/contextualMessaging/projection": typeof modules_contextualMessaging_projection;
   "modules/contextualMessaging/registry": typeof modules_contextualMessaging_registry;
   "modules/contextualMessaging/retention": typeof modules_contextualMessaging_retention;
@@ -761,6 +764,7 @@ declare const fullApi: ApiFromModules<{
   "modules/moderation/tables": typeof modules_moderation_tables;
   "modules/moderation/targets": typeof modules_moderation_targets;
   "modules/networks/networks": typeof modules_networks_networks;
+  "modules/networks/sliceRegistry": typeof modules_networks_sliceRegistry;
   "modules/networks/tables": typeof modules_networks_tables;
   "modules/notifications/bell": typeof modules_notifications_bell;
   "modules/notifications/commerceAccess": typeof modules_notifications_commerceAccess;

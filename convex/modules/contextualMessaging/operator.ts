@@ -4,22 +4,20 @@
  * par un administrateur de plateforme, avec un motif d'au moins dix caractères et une ligne de
  * journal `contextual.policy_set` (cliquet `operator-audit`). Une politique fermée bloque toute
  * ouverture, tout message et tout appel ; l'historique reste lisible des parties (D10). Fermer la
- * politique est aussi le retour arrière.
+ * politique est aussi le retour arrière. L'écriture elle-même vit dans `./policy`
+ * (`writeContextualPolicy`), partagée avec la graine locale de la tranche (antsia#107).
  */
 import { assertDecisionReason } from "@antsia/social-domain/audit"
 import { CONTEXTUAL_SUPPORTED_KINDS, CONTEXTUAL_POLICY_REASON_MIN } from "@antsia/social-domain/contextualMessaging"
-import { makeFunctionReference } from "convex/server"
 import { v } from "convex/values"
 
-import { checked, notFound } from "../../lib/errors"
+import { checked } from "../../lib/errors"
 import { operatorMutation, operatorQuery } from "../../lib/functions"
 import { requirePlatformAdmin } from "../../lib/operatorIdentity"
 import { enforceRateLimit } from "../../lib/rateLimit"
 import { appendAudit, operatorCapacity } from "../platform/audit"
+import { writeContextualPolicy } from "./policy"
 import { contextualKindValidator } from "./tables"
-
-/** CC-4 : une politique FERMÉE bloque tout appel — la revalidation paginée arrête ceux qui vivent encore. */
-const revalidateCalls = makeFunctionReference<"mutation", { cursor?: string }, number>("modules/contextualMessaging/retention:revalidateCalls")
 
 const policyStateValidator = v.object({ kind: contextualKindValidator, enabled: v.boolean(), updatedAt: v.union(v.number(), v.null()) })
 
@@ -55,15 +53,10 @@ export const setPolicy = operatorMutation({
     requirePlatformAdmin(ctx)
     await enforceRateLimit(ctx, "operator.network", ctx.person._id)
     const reason = checked(() => assertDecisionReason(args.reason, CONTEXTUAL_POLICY_REASON_MIN))
-    const network = await ctx.db.get(args.networkId)
-    if (network === null || network.status !== "active") return notFound()
-    const row = await ctx.db.query("contextualPolicies").withIndex("by_network_kind", (q) => q.eq("networkId", args.networkId).eq("kind", args.kind)).first()
-    // Rien à décider : la politique est déjà dans l'état demandé (fermée sans ligne).
-    if ((row?.enabled === true) === args.enabled) return null
-    const now = Date.now()
-    const fields = { networkId: args.networkId, kind: args.kind, enabled: args.enabled, updatedAt: now, updatedByPersonId: ctx.person._id }
-    if (row) await ctx.db.patch(row._id, fields)
-    else await ctx.db.insert("contextualPolicies", fields)
+    // Réseau actif (sinon refus indistinct), écriture et revalidation des appels à la fermeture : `./policy`.
+    const { changed, at } = await writeContextualPolicy(ctx, { networkId: args.networkId, kind: args.kind, enabled: args.enabled, updatedByPersonId: ctx.person._id })
+    // Rien à décider (état déjà en place) : aucune ligne de journal.
+    if (!changed) return null
     await appendAudit(ctx, {
       action: "contextual.policy_set",
       capacity: operatorCapacity(ctx.operator),
@@ -71,9 +64,8 @@ export const setPolicy = operatorMutation({
       networkId: args.networkId,
       subject: { table: "networks", id: args.networkId },
       details: { reason, kind: args.kind, enabled: args.enabled },
-      at: now,
+      at,
     })
-    if (!args.enabled) await ctx.scheduler.runAfter(0, revalidateCalls, {})
     return null
   },
 })
