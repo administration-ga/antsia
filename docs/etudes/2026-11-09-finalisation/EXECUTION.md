@@ -64,7 +64,7 @@ Plan : [`02_FIL_PUBLICATIONS_INTERACTIONS.md`](02_FIL_PUBLICATIONS_INTERACTIONS.
 
 | Lot | Titre | Priorité | Taille | Session | Porte | État |
 |---|---|---|---|---|---|---|
-| FP-01 | Photos de publication allégées et nettoyées | P0 | M | S1 | aucune. | à faire |
+| FP-01 | Photos de publication allégées et nettoyées | P0 | M | S1 | aucune. | fusionné |
 | FP-02 | Recette réelle du fil et des interactions | P0 | S | S1 | second compte du propriétaire ; accord écrit pour toute écriture en production. | à faire |
 | FP-03 | Modification honnête : marque et versions | P1 | M | S1 | aucune. | à faire |
 | FP-04 | Partager hors de l'application | P1 | M | S1 | aucune pour le code ; publication en ligne sur accord. | à faire |
@@ -92,7 +92,7 @@ Plan : [`03_STORIES_CLIPS_DECOUVERTE_RECHERCHE.md`](03_STORIES_CLIPS_DECOUVERTE_
 | Lot | Titre | Priorité | Taille | Session | Porte | État |
 |---|---|---|---|---|---|---|
 | SD-01 | Signaler une Story | P0 | S | S1 | aucune. | à faire |
-| SD-02 | Photos nettoyées et allégées avant envoi | P0 | M | S1 | aucune. | à faire |
+| SD-02 | Photos nettoyées et allégées avant envoi | P0 | M | S1 | aucune. | fusionné |
 | SD-03 | Vidéos lisibles partout et bornées | P0 | M | S1 | aucune. | à faire |
 | SD-04 | Économie de données et lecture automatique | P1 | M | S1 | aucune. | à faire |
 | SD-05 | Affiche des vidéos et compression avant envoi | P1 | M | S1 | aucune. | à faire |

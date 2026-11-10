@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/stories/StoryCreateSheet.tsx @ ad2e7fdc2 — adaptations : branché sur `stories.stories.publish` et `media.media.generateUploadUrl` (usage `story_media`) du moteur, réseau de `useNetwork()` ; champ « Où l'afficher », origine du composeur (propriété `origin`) et invite croisée retirés avec les surfaces (ADR-0079 du socle) — le moteur n'a qu'une surface et une seule borne vidéo ; audiences lues dans `AUDIENCE_OPTIONS` du réseau par leurs clés ; libellés, refus et toasts traduits (clés `stories:storyCreateSheet.*`), refus du moteur dits par leur code (`storyEngineErrorText`) ; pourcentage de conversion mis en forme par `Intl` dans la langue courante.
+// Dupliqué de socle/packages/agent-features/src/features/stories/StoryCreateSheet.tsx @ ad2e7fdc2 — adaptations : branché sur `stories.stories.publish` et `media.media.generateUploadUrl` (usage `story_media`) du moteur, réseau de `useNetwork()` ; champ « Où l'afficher », origine du composeur (propriété `origin`) et invite croisée retirés avec les surfaces (ADR-0079 du socle) — le moteur n'a qu'une surface et une seule borne vidéo ; audiences lues dans `AUDIENCE_OPTIONS` du réseau par leurs clés ; libellés, refus et toasts traduits (clés `stories:storyCreateSheet.*`), refus du moteur dits par leur code (`storyEngineErrorText`) ; pourcentage de conversion mis en forme par `Intl` dans la langue courante ; SD-02 : une photo passe par le module partagé `features/media-upload` (ré-encodée, 2 048 px au plus, sans métadonnées, échec fermé) avant d'être retenue, son poids est annoncé avant l'envoi, et l'envoi refuse toute image qui n'en sort pas (`isPreparedImage`) ; préparation injectable (`prepareImage`).
 "use client"
 
 /**
@@ -31,6 +31,13 @@
  * est RÉVOQUÉE au remplacement comme au démontage : sans cela, une session de
  * composition fuit la mémoire du navigateur (même précaution que
  * `useMediaDraft`).
+ *
+ * ⚠️ Une PHOTO ne part jamais telle qu'elle a été choisie (lot SD-02) : elle
+ * est préparée par `prepareImageForUpload` — ré-encodée, réduite à 2 048 px de
+ * plus grand côté, débarrassée de toute métadonnée (position GPS comprise) —,
+ * et c'est ce fichier NEUF qui est montré, pesé et envoyé. Un échec refuse la
+ * photo (jamais l'original), et l'envoi revérifie que l'image sort bien du
+ * module (`isPreparedImage`).
  */
 
 import { api, type Id } from "@antsia/api/engine"
@@ -42,6 +49,14 @@ import { useMutation } from "convex/react"
 import { useEffect, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
+import {
+	imagePreparationRefusalText,
+	imagePreparationSummary,
+	isPreparedImage,
+	prepareImageForUpload,
+	type ImagePreparation,
+	type PrepareImage,
+} from "../media-upload"
 import {
 	AUDIENCE_OPTIONS,
 	DEFAULT_AUDIENCE,
@@ -83,12 +98,18 @@ export interface StoryCreateSheetProps {
 	onClose: () => void
 	/** Appelé APRÈS une publication réussie, jamais sur échec ni annulation. */
 	onPublished?: () => void
+	/**
+	 * La préparation des photos — celle du module partagé par défaut. Injectée
+	 * par les tests : `jsdom` n'a ni décodeur d'image ni canvas.
+	 */
+	prepareImage?: PrepareImage
 }
 
 export function StoryCreateSheet({
 	open,
 	onClose,
 	onPublished,
+	prepareImage = prepareImageForUpload,
 }: StoryCreateSheetProps) {
 	const { t } = useTranslation("stories")
 	const { networkId, personId } = useNetwork()
@@ -97,7 +118,7 @@ export function StoryCreateSheet({
 	// flottante COMPACTE au bureau, sur le voile (`scrim`), comme le lecteur.
 	const mobile = useIsReseauMobile()
 	const pose = storyComposePose(mobile)
-	const form = <StoryCreateForm key={`${networkId}:${personId}`} onClose={onClose} onPublished={onPublished} />
+	const form = <StoryCreateForm key={`${networkId}:${personId}`} onClose={onClose} onPublished={onPublished} prepareImage={prepareImage} />
 	return (
 		<ImmersiveOverlay
 			open={open}
@@ -123,9 +144,11 @@ export function StoryCreateSheet({
 function StoryCreateForm({
 	onClose,
 	onPublished,
+	prepareImage,
 }: {
 	onClose: () => void
 	onPublished?: () => void
+	prepareImage: PrepareImage
 }) {
 	const { t, i18n } = useTranslation("stories")
 	const { networkId } = useNetwork()
@@ -150,6 +173,10 @@ function StoryCreateForm({
 	// La garde anti-course : choisir un AUTRE fichier pendant qu'une sonde ou
 	// une conversion tourne rend le résultat de la première caduc.
 	const prepToken = useRef(0)
+	/** La préparation d'une PHOTO en cours (ré-encodage, retrait des métadonnées). */
+	const [imagePreparing, setImagePreparing] = useState(false)
+	/** Le poids annoncé avant l'envoi : d'origine → envoyé. */
+	const [imageNotice, setImageNotice] = useState<string | null>(null)
 
 	const cameraInput = useRef<HTMLInputElement>(null)
 	const galleryInput = useRef<HTMLInputElement>(null)
@@ -284,6 +311,46 @@ function StoryCreateForm({
 		}
 	}
 
+	/**
+	 * La PRÉPARATION d'une photo (SD-02) : le brouillon reste NUL tant qu'elle
+	 * tourne (bouton éteint) ; le fichier retenu, montré et pesé est celui que
+	 * rend le module, jamais celui choisi. Un refus est dit, rien n'est retenu.
+	 */
+	const prepareStoryImage = async (chosen: File, token: number) => {
+		setImagePreparing(true)
+		let result: ImagePreparation
+		try {
+			result = await prepareImage(chosen)
+		} catch {
+			result = { ok: false, refusal: "unreadable" }
+		}
+		if (token !== prepToken.current || !alive.current) return
+		setImagePreparing(false)
+		if (!result.ok) {
+			setDraft({ error: imagePreparationRefusalText(result.refusal, chosen.name, t) })
+			return
+		}
+		// Le fichier préparé repasse par la même règle que le choisi : type et
+		// poids, tels que le serveur les relira.
+		const verdict = storyDraftFrom(result.file, t)
+		if (!isStoryDraftReady(verdict)) {
+			setDraft(verdict)
+			return
+		}
+		const url = URL.createObjectURL(result.file)
+		liveUrls.current.add(url)
+		setDraft(verdict)
+		setFile(result.file)
+		setPreviewUrl(url)
+		setImageNotice(
+			imagePreparationSummary(
+				{ count: 1, originalBytes: result.originalBytes, preparedBytes: result.preparedBytes },
+				i18n.language,
+				t,
+			),
+		)
+	}
+
 	const accept = (chosen: File | undefined) => {
 		if (chosen === undefined || submitLock.current || !alive.current) return
 		const token = ++prepToken.current
@@ -292,6 +359,8 @@ function StoryCreateForm({
 		if (previewUrl !== null) releaseUrl(previewUrl)
 		setVideoDurationMs(null)
 		setVideoPrep(null)
+		setImagePreparing(false)
+		setImageNotice(null)
 		const verdict = storyDraftFrom(chosen, t)
 		if (!isStoryDraftReady(verdict)) {
 			setDraft(verdict)
@@ -300,11 +369,11 @@ function StoryCreateForm({
 			return
 		}
 		if (verdict.kind === "image") {
-			setDraft(verdict)
-			const url = URL.createObjectURL(chosen)
-			liveUrls.current.add(url)
-			setFile(chosen)
-			setPreviewUrl(url)
+			// Une PHOTO passe par la préparation : brouillon nul en attendant.
+			setDraft(null)
+			setFile(null)
+			setPreviewUrl(null)
+			void prepareStoryImage(chosen, token)
 			return
 		}
 		// Une VIDÉO passe par la préparation : brouillon nul en attendant.
@@ -316,6 +385,13 @@ function StoryCreateForm({
 
 	const handleSubmit = async () => {
 		if (submitLock.current || !alive.current || !canSubmit || file === null || !isStoryDraftReady(draft)) return
+		// ÉCHEC FERMÉ : une image qui ne sort pas du module de préparation ne
+		// part pas — aucun chemin ne contourne le retrait des métadonnées.
+		if (draft.kind === "image" && !isPreparedImage(file)) {
+			setDraft({ error: t("reseau:mediaPreparation.notPrepared", { name: file.name }) })
+			setFile(null)
+			return
+		}
 		submitLock.current = true
 		intent.current = retainStorySubmissionIntent(intent.current, { file, caption, audience }, newIdempotencyKey)
 		const submission = intent.current
@@ -475,6 +551,21 @@ function StoryCreateForm({
 					</Button>
 				</div>
 
+				{/* La préparation d'une PHOTO : ré-encodage et retrait des
+				    métadonnées, avant tout aperçu. */}
+				{imagePreparing ? (
+					<p
+						role="status"
+						style={{
+							margin: 0,
+							fontSize: 12.5,
+							color: "var(--muted-foreground)",
+						}}
+					>
+						{t("reseau:mediaPreparation.preparing")}
+					</p>
+				) : null}
+
 				{/* La préparation vidéo — sonde puis conversion éventuelle. Le
 				    pourcentage se COMPTE : chasse fixe, signature de l'espace. */}
 				{videoPrep !== null ? (
@@ -535,6 +626,20 @@ function StoryCreateForm({
 							/>
 						)}
 					</div>
+				) : null}
+
+				{/* Le poids ANNONCÉ avant l'envoi : ce qui part, et sans quoi. */}
+				{imageNotice !== null && isStoryDraftReady(draft) && draft.kind === "image" ? (
+					<p
+						role="status"
+						style={{
+							margin: 0,
+							fontSize: 12.5,
+							color: "var(--muted-foreground)",
+						}}
+					>
+						{imageNotice}
+					</p>
 				) : null}
 
 				<Field label={t("storyCreateSheet.captionLabel")} htmlFor="story-caption">

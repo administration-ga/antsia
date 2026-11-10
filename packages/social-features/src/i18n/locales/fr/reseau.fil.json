@@ -142,6 +142,20 @@
       }
     }
   },
+  "mediaPreparation": {
+    "notPrepared": "« {{name}} » n'est pas passée par la préparation des photos : elle ne sera pas envoyée.",
+    "preparing": "Préparation en cours : allègement et retrait des informations cachées (lieu, appareil)…",
+    "summary_one": "Photo prête à l'envoi : {{before}} → {{after}}, sans ses informations cachées (lieu, appareil).",
+    "summary_many": "{{count}} photos prêtes à l'envoi : {{before}} → {{after}}, sans leurs informations cachées (lieu, appareil).",
+    "summary_other": "{{count}} photos prêtes à l'envoi : {{before}} → {{after}}, sans leurs informations cachées (lieu, appareil).",
+    "refusal": {
+      "unsupportedType": "« {{name}} » n'est pas une photo que l'on peut préparer (JPEG, PNG, WebP ou GIF) : elle ne sera pas envoyée.",
+      "unreadable": "« {{name}} » n'a pas pu être lue : cette photo ne sera pas envoyée.",
+      "canvasUnavailable": "Ce navigateur ne peut pas préparer « {{name}} » : cette photo ne sera pas envoyée. Essayez avec un navigateur à jour.",
+      "encoderFailed": "La préparation de « {{name}} » a échoué : cette photo ne sera pas envoyée.",
+      "metadataRemaining": "Les informations cachées de « {{name}} » n'ont pas pu être retirées : cette photo ne sera pas envoyée."
+    }
+  },
   "useMediaDraft": {
     "rejection": {
       "notImage": "« {{name}} » n'est pas une image acceptée.",

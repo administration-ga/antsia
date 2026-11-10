@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/reseau-albums/album-model.ts @ ad2e7fdc2 — adaptations : bornes, audiences et états lus dans le domaine du moteur (`@antsia/social-domain/albums`) ; phrases traduites par l'i18n (`t` en DERNIER paramètre, clés qualifiées `albums:albumModel.*`) — les tables de libellés deviennent des fonctions (`albumStepLabel`, `albumAudienceLabel`, `albumAudienceHint`, `albumStatusLabel`, `albumWithdrawNotice`), « réseau des agents » devient « réseau », les accords passent par les pluriels de l'i18n ; adresses COMPOSÉES depuis la base du profil que sert l'application (`useRoutes().profile(handle)`, premier paramètre de `albumHref`, `albumBackHref` et `albumsTabHref`) au lieu de chemins de l'espace agent écrits en dur ; `moveAlbumItem` et `orderChanged` génériques sur le type d'identifiant ; ajouts : `albumEngineErrorText` (refus du moteur par sa règle ou son code, jamais le texte brut du serveur) et `albumAddBatches` (lots d'ajout bornés par `ALBUM_ADD_BATCH_MAX`, que le moteur refuse au-delà).
+// Dupliqué de socle/packages/agent-features/src/features/reseau-albums/album-model.ts @ ad2e7fdc2 — adaptations : bornes, audiences et états lus dans le domaine du moteur (`@antsia/social-domain/albums`) ; phrases traduites par l'i18n (`t` en DERNIER paramètre, clés qualifiées `albums:albumModel.*`) — les tables de libellés deviennent des fonctions (`albumStepLabel`, `albumAudienceLabel`, `albumAudienceHint`, `albumStatusLabel`, `albumWithdrawNotice`), « réseau des agents » devient « réseau », les accords passent par les pluriels de l'i18n ; adresses COMPOSÉES depuis la base du profil que sert l'application (`useRoutes().profile(handle)`, premier paramètre de `albumHref`, `albumBackHref` et `albumsTabHref`) au lieu de chemins de l'espace agent écrits en dur ; `moveAlbumItem` et `orderChanged` génériques sur le type d'identifiant ; ajouts : `albumEngineErrorText` (refus du moteur par sa règle ou son code, jamais le texte brut du serveur) et `albumAddBatches` (lots d'ajout bornés par `ALBUM_ADD_BATCH_MAX`, que le moteur refuse au-delà) ; SD-02 : le format de sortie de `albumReencodePlan` est typé (JPEG ou PNG), pour le module partagé de ré-encodage.
 /**
  * album-model — CE QUI DÉCIDE dans le parcours d'album, hors de tout composant.
  *
@@ -212,7 +212,7 @@ export function albumAddBatches<T>(items: readonly T[], size: number = ALBUM_ADD
 export const ALBUM_REENCODE_QUALITY = 0.92
 
 export type AlbumReencodePlan =
-  | { action: "reencode"; targetType: string }
+  | { action: "reencode"; targetType: "image/jpeg" | "image/png" }
   | { action: "refuse"; reason: string }
 
 /**

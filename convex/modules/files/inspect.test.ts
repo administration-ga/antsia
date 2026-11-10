@@ -1,10 +1,11 @@
-// Dupliqué de socle/convex/modules/fileGuard/inspect.test.ts @ ad2e7fdc2 — adaptations : aucune (copie textuelle).
+// Dupliqué de socle/convex/modules/fileGuard/inspect.test.ts @ ad2e7fdc2 — adaptations : copie textuelle ; ajout SD-02 : un JPEG dont le segment APP1 porte un bloc GPS est SIGNALÉ (`IMAGE_GPS_METADATA`, sévérité `info`) sans que le verdict change.
 import { describe, expect, it } from "vitest"
 import JSZip from "jszip"
 import {
   decodePdfNameEscapes,
   indexOfBytes,
   inspectFilename,
+  inspectJpegMetadata,
   inspectOle2,
   inspectPdf,
   inspectZipEntries,
@@ -15,6 +16,7 @@ import {
   sniffMime,
   type ZipEntryInfo,
 } from "./inspect"
+import { decideVerdict } from "./verdict"
 
 const enc = new TextEncoder()
 const bytes = (text: string) => enc.encode(text)
@@ -252,5 +254,53 @@ describe("fileGuard/inspect — orchestration", () => {
     expect(indexOfBytes(hay, [0x25, 0x50, 0x44, 0x46])).toBe(3)
     expect(indexOfBytes(hay, [0x25, 0x50, 0x44, 0x46], 4)).toBe(-1)
     expect(indexOfBytes(hay, [0x7a, 0x7a])).toBe(-1)
+  })
+})
+
+describe("fileGuard/inspect — position GPS d'une photo (SD-02, mode « signaler »)", () => {
+  /** Un JPEG 2×2 réel (libjpeg-turbo), sans métadonnée. */
+  const JPEG_2X2 = Uint8Array.from(
+    Buffer.from(
+      "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMDAsKCwsNDhIQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRT/2wBDAQMEBAUEBQkFBQkUDQsNFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBT/wAARCAACAAIDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAj/xAAdEAACAgMAAwAAAAAAAAAAAAABAgADBAUGBxIh/8QAFQEBAQAAAAAAAAAAAAAAAAAABQf/xAAZEQACAwEAAAAAAAAAAAAAAAAAAgEDMnH/2gAMAwEAAhEDEQA/AKb5zx/y+Rz2rtt5vUWWvi1M7vg1FmJQEkn1+mIiTOvC8BX1J//Z",
+      "base64"
+    )
+  )
+
+  /**
+   * Le même JPEG avec un APP1 EXIF (gros-boutiste) : IFD0 → pointeur GPS
+   * (`0x8825`) → IFD GPS d'une entrée (référence de latitude, valeur FICTIVE).
+   */
+  function jpegWithGps(): Uint8Array {
+    const tiff = [
+      0x4d, 0x4d, 0x00, 0x2a, 0x00, 0x00, 0x00, 0x08,
+      0x00, 0x01, 0x88, 0x25, 0x00, 0x04, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x1a, 0x00, 0x00, 0x00, 0x00,
+      0x00, 0x01, 0x00, 0x01, 0x00, 0x02, 0x00, 0x00, 0x00, 0x02, 0x4e, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    ]
+    const payload = [0x45, 0x78, 0x69, 0x66, 0x00, 0x00, ...tiff]
+    const app1 = [0xff, 0xe1, (payload.length + 2) >> 8, (payload.length + 2) & 0xff, ...payload]
+    return Uint8Array.from([...JPEG_2X2.subarray(0, 20), ...app1, ...JPEG_2X2.subarray(20)])
+  }
+
+  it("signale un JPEG qui porte un bloc GPS, sans signal pour le même JPEG nu", () => {
+    expect(inspectJpegMetadata(jpegWithGps())).toEqual([
+      { code: "IMAGE_GPS_METADATA", severity: "info", detail: "position GPS dans le segment APP1 (EXIF ou XMP)" },
+    ])
+    expect(inspectJpegMetadata(JPEG_2X2)).toEqual([])
+  })
+
+  it("l'analyse complète lève le signal, et le verdict reste sain : signaler, pas refuser", async () => {
+    const report = await runDeterministicInspection({ bytes: jpegWithGps(), declaredMimeType: "image/jpeg", filename: "photo.jpg" })
+    expect(report.detectedMimeType).toBe("image/jpeg")
+    expect(report.findings).toEqual([
+      { code: "IMAGE_GPS_METADATA", severity: "info", detail: "position GPS dans le segment APP1 (EXIF ou XMP)" },
+    ])
+    expect(decideVerdict({ findings: report.findings, av: { provider: "test", verdict: "clean" } })).toEqual({ status: "clean", reason: "OK" })
+    const clean = await runDeterministicInspection({ bytes: JPEG_2X2, declaredMimeType: "image/jpeg", filename: "photo.jpg" })
+    expect(clean.findings).toEqual([])
+  })
+
+  it("ne lit le GPS que dans un JPEG : un PNG n'est pas concerné", async () => {
+    const png = await runDeterministicInspection({ bytes: PNG_HEADER, declaredMimeType: "image/png", filename: "x.png" })
+    expect(png.findings.map((f) => f.code)).not.toContain("IMAGE_GPS_METADATA")
   })
 })

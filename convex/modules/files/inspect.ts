@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/modules/fileGuard/inspect.ts @ ad2e7fdc2 — adaptations : aucune (copie BINAIRE : octets bruts de contrôle conservés ; `Finding` vient de `./policy`).
+// Dupliqué de socle/convex/modules/fileGuard/inspect.ts @ ad2e7fdc2 — adaptations : copie BINAIRE (octets bruts de contrôle conservés ; `Finding` vient de `./policy`) ; ajout SD-02 : signal `IMAGE_GPS_METADATA` (sévérité `info` : signaler sans refuser) pour un JPEG dont le segment APP1 porte un bloc GPS, lu par `jpegHasGpsMetadata` (`@antsia/social-domain/imageMetadata`).
 /**
  * Sentinelle fichiers — INSPECTION DÉTERMINISTE, règle pure (ADR-0160, D4a).
  *
@@ -20,7 +20,12 @@
  *   - les bombes et détournements d'archive (ratio de décompression,
  *     traversée de chemin, exécutable embarqué) ;
  *   - le NOM du fichier (double extension, extension exécutable, caractère
- *     de renversement d'écriture).
+ *     de renversement d'écriture) ;
+ *   - la POSITION GPS d'une photo JPEG (segment APP1, EXIF ou XMP) : SIGNALÉE
+ *     seulement (lot SD-02, sévérité `info`, aucun verdict changé). Le client
+ *     officiel ré-encode les photos avant l'envoi et n'en laisse partir aucune
+ *     métadonnée ; ce signal dit qu'un fichier est arrivé autrement (ancien
+ *     client, client modifié, autre application du moteur).
  *
  * Limites assumées, écrites ici pour ne pas être redécouvertes : un PDF dont
  * les objets sont dans des flux compressés (`/ObjStm`) cache ses noms à une
@@ -28,6 +33,8 @@
  * n'est lu qu'à travers ses ENTRÉES (`ZipEntryInfo`), fournies par l'appelant
  * (jszip côté action) pour garder ce module sans dépendance.
  */
+import { jpegHasGpsMetadata } from "@antsia/social-domain/imageMetadata"
+
 import type { Finding } from "./policy"
 
 /** Une entrée d'archive telle que l'appelant la présente (jszip). */
@@ -782,6 +789,20 @@ export function inspectOle2(bytes: Uint8Array): Finding[] {
   return findings
 }
 
+// ─── Photos : position GPS (SD-02) ──────────────────────────────────────────
+
+/**
+ * Le signal d'un JPEG qui porte encore sa position GPS (segment APP1, EXIF ou
+ * XMP). Sévérité `info` : le verdict ne change pas (mode « signaler » du lot
+ * SD-02, décision 8 du plan 02) — le refus viendra avec la chaîne des médias
+ * du plan 03, une fois tous les clients passés au ré-encodage.
+ */
+export function inspectJpegMetadata(bytes: Uint8Array): Finding[] {
+  return jpegHasGpsMetadata(bytes)
+    ? [{ code: "IMAGE_GPS_METADATA", severity: "info", detail: "position GPS dans le segment APP1 (EXIF ou XMP)" }]
+    : []
+}
+
 // ─── Nom de fichier ──────────────────────────────────────────────────────────
 
 const DOCUMENT_EXTENSIONS = "pdf|docx?|xlsx?|pptx?|odt|ods|odp|jpe?g|png|gif|webp|heic|txt|md|csv|mp4|mp3|wav|m4a|webm|ogg"
@@ -869,6 +890,8 @@ export async function runDeterministicInspection(
       }
     } else if (family === "ole2") {
       findings.push(...inspectOle2(bytes))
+    } else if (family === "jpeg") {
+      findings.push(...inspectJpegMetadata(bytes))
     }
   } catch (err) {
     findings.push({

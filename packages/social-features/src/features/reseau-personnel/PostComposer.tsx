@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/PostComposer.tsx @ ad2e7fdc2 — adaptations : publication par `posts.posts.publish` du moteur et, au nom d'une PAGE du moteur (signataire vivant), par `pages.pages.publishAsPage` (identifiant `Id<"pages">`, audiences `public` / `followers` au lieu de la note de service `organisation`) ; groupe thématique `Id<"thematicGroups">` ; médias déposés par la garde des fichiers (`media.media.generateUploadUrl`, usage `media_social`) et déclarés avec leur identifiant de stockage TYPÉ ; réseau courant sur chaque appel (`useNetwork().networkId`) ; l'auteur du brouillon est la personne du moteur (`useNetwork().personId`) au lieu du handle lu par `getMyProfile`, et le magasin est configuré avec le préfixe du réseau (`configurePostDraftStorage(storagePrefix)`) ; libellés, compteur, alertes et toasts par l'i18n (clés `reseau:postComposer.*`, accords au nombre ; audiences et règles de `shared.ts` et `post-composer-target.ts` avec `t`) ; refus du moteur dit par son code (`postEngineErrorText`) ; borne du texte alternatif lue dans le domaine ; feuille de style sortie du JSX dans une constante de module (`COMPOSER_CSS`) — un littéral enfant de `<style>` passerait pour une chaîne d'interface — règles inchangées.
+// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/PostComposer.tsx @ ad2e7fdc2 — adaptations : publication par `posts.posts.publish` du moteur et, au nom d'une PAGE du moteur (signataire vivant), par `pages.pages.publishAsPage` (identifiant `Id<"pages">`, audiences `public` / `followers` au lieu de la note de service `organisation`) ; groupe thématique `Id<"thematicGroups">` ; médias déposés par la garde des fichiers (`media.media.generateUploadUrl`, usage `media_social`) et déclarés avec leur identifiant de stockage TYPÉ ; réseau courant sur chaque appel (`useNetwork().networkId`) ; l'auteur du brouillon est la personne du moteur (`useNetwork().personId`) au lieu du handle lu par `getMyProfile`, et le magasin est configuré avec le préfixe du réseau (`configurePostDraftStorage(storagePrefix)`) ; libellés, compteur, alertes et toasts par l'i18n (clés `reseau:postComposer.*`, accords au nombre ; audiences et règles de `shared.ts` et `post-composer-target.ts` avec `t`) ; refus du moteur dit par son code (`postEngineErrorText`) ; borne du texte alternatif lue dans le domaine ; feuille de style sortie du JSX dans une constante de module (`COMPOSER_CSS`) — un littéral enfant de `<style>` passerait pour une chaîne d'interface — règles inchangées ; FP-01 : chaque photo choisie passe par le module de préparation (`features/media-upload` : ré-encodée, 2 048 px au plus, sans métadonnées, échec fermé) AVANT d'entrer au brouillon, le poids envoyé est annoncé, un refus est dit ; préparation injectable (`prepareImage`).
 "use client"
 
 /**
@@ -25,6 +25,13 @@
  * ⚠️ Un média dont le fichier n'est plus en mémoire (rechargement) et qui n'a
  * pas été téléversé est annoncé « à resélectionner » et BLOQUE l'envoi : on ne
  * présente pas un nom de fichier comme une pièce sauvegardée.
+ *
+ * ⚠️ Une PHOTO n'entre au brouillon qu'APRÈS sa préparation (lot FP-01) :
+ * ré-encodée, réduite à 2 048 px de plus grand côté, débarrassée de toute
+ * métadonnée (position GPS comprise). C'est le fichier préparé qui est montré,
+ * pesé, téléversé et déclaré ; un échec refuse la photo, jamais l'original, et
+ * `useMediaDraft` refuse de toute façon une image qui ne sort pas du module.
+ * « Publier » attend la fin de la préparation.
  */
 
 import { api } from "@antsia/api/engine"
@@ -47,7 +54,7 @@ import {
   TextInput,
 } from "@antsia/ui"
 import { useMutation } from "convex/react"
-import { useEffect, useId, useRef, useState } from "react"
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 import { Avatar } from "./Avatar"
@@ -75,7 +82,15 @@ import {
   resolveComposerTarget,
   showsAudienceSelector,
 } from "./post-composer-target"
-import { MEDIA_ACCEPT, useMediaDraft } from "./useMediaDraft"
+import { MEDIA_ACCEPT, rejectionFor, useMediaDraft, type DraftMediaKind } from "./useMediaDraft"
+import {
+  imagePreparationRefusalText,
+  imagePreparationSummary,
+  isPreparableImageType,
+  prepareImageForUpload,
+  type ImagePreparation,
+  type PrepareImage,
+} from "../media-upload"
 import {
   newIdempotencyKey,
   postDraftKey,
@@ -123,6 +138,11 @@ interface PostComposerProps {
    * s'ajoute à son comportement, il ne le remplace pas.
    */
   onPublished?: () => void
+  /**
+   * La préparation des photos — celle du module partagé par défaut. Injectée
+   * par les tests : `jsdom` n'a ni décodeur d'image ni canvas.
+   */
+  prepareImage?: PrepareImage
 }
 
 /**
@@ -178,8 +198,9 @@ export function PostComposer({
   asPage,
   autoFocus = false,
   onPublished,
+  prepareImage = prepareImageForUpload,
 }: PostComposerProps = {}) {
-  const { t } = useTranslation("reseau")
+  const { t, i18n } = useTranslation("reseau")
   const { networkId, personId, storagePrefix, slug } = useNetwork()
   // ── Erreur de PROGRAMMATION, traitée explicitement : un composeur ne
   // publie jamais à la fois dans un groupe et au nom d'une page. Avant tout
@@ -247,6 +268,77 @@ export function PostComposer({
   const fileInput = useRef<HTMLInputElement>(null)
 
   const media = useMediaDraft(draftTarget)
+  // Le brouillon de médias du DERNIER rendu : la préparation est asynchrone, et
+  // l'ajout qui la suit doit compter les médias présents à cet instant-là.
+  const mediaRef = useRef(media)
+  useLayoutEffect(() => {
+    mediaRef.current = media
+  })
+
+  /** La préparation des photos choisies est en cours : « Publier » attend. */
+  const [preparing, setPreparing] = useState(false)
+  const preparingRef = useRef(false)
+  /** Le premier refus de la dernière sélection (règle du brouillon ou préparation). */
+  const [preparationRefusal, setPreparationRefusal] = useState<string | null>(null)
+  /** Le poids annoncé avant l'envoi : d'origine → envoyé. */
+  const [preparationNotice, setPreparationNotice] = useState<string | null>(null)
+
+  /**
+   * Les fichiers choisis : les règles du brouillon d'abord (type, nombre,
+   * poids, sur le fichier CHOISI — une photo refusée n'est pas préparée pour
+   * rien), puis chaque PHOTO est préparée ; seul le fichier préparé entre au
+   * brouillon. Une vidéo y entre telle quelle (lots SD-03 et SD-05).
+   */
+  const addFiles = async (files: readonly File[]) => {
+    if (files.length === 0 || preparingRef.current) return
+    preparingRef.current = true
+    setPreparing(true)
+    setPreparationRefusal(null)
+    setPreparationNotice(null)
+    const startedIn = currentContext.current
+    try {
+      const ready: File[] = []
+      const refusals: string[] = []
+      const kinds: { kind: DraftMediaKind }[] = mediaRef.current.items.map((item) => ({ kind: item.kind }))
+      let originalBytes = 0
+      let preparedBytes = 0
+      let prepared = 0
+      for (const file of files) {
+        const refusal = rejectionFor(file, kinds, undefined, t)
+        if (refusal !== null) {
+          refusals.push(refusal)
+          continue
+        }
+        if (!isPreparableImageType(file.type)) {
+          ready.push(file)
+          kinds.push({ kind: "video" })
+          continue
+        }
+        let result: ImagePreparation
+        try {
+          result = await prepareImage(file)
+        } catch {
+          result = { ok: false, refusal: "unreadable" }
+        }
+        if (!active.current || startedIn !== currentContext.current) return
+        if (!result.ok) {
+          refusals.push(imagePreparationRefusalText(result.refusal, file.name, t))
+          continue
+        }
+        ready.push(result.file)
+        kinds.push({ kind: "image" })
+        originalBytes += result.originalBytes
+        preparedBytes += result.preparedBytes
+        prepared += 1
+      }
+      if (ready.length > 0) mediaRef.current.add(ready)
+      setPreparationRefusal(refusals[0] ?? null)
+      if (prepared > 0) setPreparationNotice(imagePreparationSummary({ count: prepared, originalBytes, preparedBytes }, i18n.language, t))
+    } finally {
+      preparingRef.current = false
+      if (active.current) setPreparing(false)
+    }
+  }
 
   const expanded = isComposerExpanded({
     focused,
@@ -270,6 +362,7 @@ export function PostComposer({
   const aReselectionner = media.unrecoverable
   const canSubmit =
     !submitting &&
+    !preparing &&
     aReselectionner.length === 0 &&
     state.remaining >= 0 &&
     (state.canSubmit || media.items.length > 0)
@@ -331,6 +424,8 @@ export function PostComposer({
       // rend le renvoi sûr.
       if (!active.current || submittedContext !== currentContext.current) return
       postDraftStore.clear(draftKey)
+      setPreparationNotice(null)
+      setPreparationRefusal(null)
       toast.success(t("postComposer.toast.published"))
       // APRÈS le nettoyage : la surface qui se referme démonte ce composeur,
       // et l'appeler avant laisserait un état à moitié remis à zéro derrière.
@@ -431,8 +526,21 @@ export function PostComposer({
           ) : null}
         </div>
 
+        {preparationRefusal ? (
+          <Alert tone="warning">{preparationRefusal}</Alert>
+        ) : null}
         {media.rejection ? (
           <Alert tone="warning">{media.rejection}</Alert>
+        ) : null}
+        {/* La préparation des photos, puis le poids ANNONCÉ avant l'envoi. */}
+        {preparing ? (
+          <p role="status" style={{ margin: 0, color: "var(--ink-600)", fontSize: 12 }}>
+            {t("mediaPreparation.preparing")}
+          </p>
+        ) : preparationNotice !== null && media.items.length > 0 ? (
+          <p role="status" style={{ margin: 0, color: "var(--ink-600)", fontSize: 12 }}>
+            {preparationNotice}
+          </p>
         ) : null}
 
         {/* Le brouillon a survécu au rechargement, ces fichiers non. Le dire
@@ -578,16 +686,20 @@ export function PostComposer({
               accept={MEDIA_ACCEPT}
               multiple
               hidden
+              disabled={preparing}
               onChange={(event) => {
-                media.add(Array.from(event.target.files ?? []))
+                const files = Array.from(event.target.files ?? [])
                 // Réinitialisé pour que re-choisir LE MÊME fichier déclenche
                 // encore un changement.
                 event.target.value = ""
+                void addFiles(files)
               }}
             />
             <Button
               variant="secondary"
               type="button"
+              disabled={preparing}
+              aria-busy={preparing || undefined}
               onClick={() => fileInput.current?.click()}
               style={RESEAU_SECONDARY_ACTION_STYLE}
             >

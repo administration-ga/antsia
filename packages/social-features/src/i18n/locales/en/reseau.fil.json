@@ -142,6 +142,20 @@
       }
     }
   },
+  "mediaPreparation": {
+    "notPrepared": "“{{name}}” did not go through photo preparation: it will not be sent.",
+    "preparing": "Preparing: reducing size and removing hidden information (location, device)…",
+    "summary_one": "Photo ready to send: {{before}} → {{after}}, without its hidden information (location, device).",
+    "summary_many": "{{count}} photos ready to send: {{before}} → {{after}}, without their hidden information (location, device).",
+    "summary_other": "{{count}} photos ready to send: {{before}} → {{after}}, without their hidden information (location, device).",
+    "refusal": {
+      "unsupportedType": "“{{name}}” is not a photo that can be prepared (JPEG, PNG, WebP or GIF): it will not be sent.",
+      "unreadable": "“{{name}}” could not be read: this photo will not be sent.",
+      "canvasUnavailable": "This browser cannot prepare “{{name}}”: this photo will not be sent. Try an up-to-date browser.",
+      "encoderFailed": "Preparing “{{name}}” failed: this photo will not be sent.",
+      "metadataRemaining": "The hidden information in “{{name}}” could not be removed: this photo will not be sent."
+    }
+  },
   "useMediaDraft": {
     "rejection": {
       "notImage": "“{{name}}” is not an accepted image.",
