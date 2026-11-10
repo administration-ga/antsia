@@ -96,6 +96,8 @@ export const providerSettingsValidator = v.object({
   timeZone: v.union(v.string(), v.null()),
   location: v.union(serviceLocationValidator, v.null()),
   cancellationTerms: v.union(v.string(), v.null()),
+  /** SV-09 : rendez-vous simultanés admis par la prestation, un par défaut. */
+  bookingCapacity: v.number(),
 })
 
 /** La fiche d'une offre : sa carte, son état, et si le lecteur peut la gérer (signataire vivant). */
@@ -114,7 +116,7 @@ type ProviderSettingsView = Infer<typeof providerSettingsValidator>
 /** Les réglages ÉCRITS d'une offre, lus par son équipe : un champ absent n'est pas réglé. */
 export function providerSettingsOf(offer: Doc<"serviceOffers">): ProviderSettingsView {
   const settings = offer.providerSettings
-  return { timeZone: settings?.timeZone ?? null, location: settings?.location ?? null, cancellationTerms: settings?.cancellationTerms ?? null }
+  return { timeZone: settings?.timeZone ?? null, location: settings?.location ?? null, cancellationTerms: settings?.cancellationTerms ?? null, bookingCapacity: settings?.bookingCapacity ?? 1 }
 }
 
 function toOfferCard(offer: Doc<"serviceOffers">, page: PageCard, budgetFit: ServiceBudgetFit | null): OfferCard {
@@ -485,6 +487,8 @@ function storedSettingsOf(input: ProviderSettingsView): Doc<"serviceOffers">["pr
     ...(settings.timeZone !== null ? { timeZone: settings.timeZone } : {}),
     ...(settings.location !== null ? { location: settings.location } : {}),
     ...(settings.cancellationTerms !== null ? { cancellationTerms: settings.cancellationTerms } : {}),
+    // Un seul rendez-vous à la fois est la règle par défaut : rien à écrire.
+    ...(settings.bookingCapacity > 1 ? { bookingCapacity: settings.bookingCapacity } : {}),
   }
   return Object.keys(stored).length > 0 ? stored : undefined
 }

@@ -33,11 +33,13 @@ export const serviceOfferStatusValidator = literals(SERVICE_OFFER_STATUSES)
  * SV-04 : les réglages de prestation d'une offre, lus par l'équipe de sa page
  * seulement, repris dans chaque nouvelle proposition. Un champ absent n'est pas
  * réglé. Jamais une adresse exacte ni une coordonnée (règle du domaine).
+ * SV-09 : `bookingCapacity`, les rendez-vous simultanés admis (absent : un).
  */
 export const serviceProviderSettingsValidator = v.object({
   timeZone: v.optional(v.string()),
   location: v.optional(serviceLocationValidator),
   cancellationTerms: v.optional(v.string()),
+  bookingCapacity: v.optional(v.number()),
 })
 
 export const servicesTables = {
@@ -64,7 +66,7 @@ export const servicesTables = {
     searchText: v.string(),
     /** Version de l'offre : toute modification l'incrémente ; une demande cite la version lue. */
     version: v.number(),
-    /** SV-04 : réglages de prestation (fuseau, lieu, conditions habituels), pour l'équipe seulement ; absent, rien n'est réglé. */
+    /** SV-04, SV-09 : réglages de prestation (fuseau, lieu, conditions, capacité), pour l'équipe seulement ; absent, rien n'est réglé. */
     providerSettings: v.optional(serviceProviderSettingsValidator),
     createdAt: v.number(),
     updatedAt: v.number(),

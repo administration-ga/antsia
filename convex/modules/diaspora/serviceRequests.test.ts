@@ -428,7 +428,7 @@ describe("proposition préremplie depuis l'offre (SV-04)", () => {
     await f.t.run(async (ctx) => { await ctx.db.patch(f.offerId, { providerSettings: settings }) })
     const { requestId } = await f.requester.as.mutation(SR.createServiceRequest, sendArgs(f))
     const pageView = await f.pro.as.query(SR.getServiceRequest, { networkId: f.networkId, requestId })
-    expect(pageView?.proposalPrefill).toEqual({ pricing: { mode: "from", amountMinor: 4500, currency: "EUR" }, durationMinutes: 90, delivery: "onsite", city: "Paris", settings })
+    expect(pageView?.proposalPrefill).toEqual({ pricing: { mode: "from", amountMinor: 4500, currency: "EUR" }, durationMinutes: 90, delivery: "onsite", city: "Paris", settings: { ...settings, bookingCapacity: 1 } })
     expect((await f.requester.as.query(SR.getServiceRequest, { networkId: f.networkId, requestId }))?.proposalPrefill).toBeNull()
     // La lecture ne propose rien : aucune proposition sans le geste explicite de l'équipe.
     expect((await rows(f.t)).proposals).toEqual([])
@@ -440,7 +440,54 @@ describe("proposition préremplie depuis l'offre (SV-04)", () => {
     const { requestId } = await f.requester.as.mutation(SR.createServiceRequest, sendArgs(f))
     expect((await f.pro.as.query(SR.getServiceRequest, { networkId: f.networkId, requestId }))?.proposalPrefill).toEqual({
       pricing: { mode: "quote" }, durationMinutes: null, delivery: "remote", city: "Paris",
-      settings: { timeZone: null, location: null, cancellationTerms: null },
+      settings: { timeZone: null, location: null, cancellationTerms: null, bookingCapacity: 1 },
     })
+  })
+})
+
+describe("plusieurs rendez-vous simultanés pour une page (SV-09)", () => {
+  /** Trois membres de plus, chacun avec sa demande et la même proposition sur le même créneau. */
+  async function threeOnOneSlot(capacity: number | null) {
+    const f = await fixture()
+    if (capacity !== null) await f.t.run(async (ctx) => { await ctx.db.patch(f.offerId, { providerSettings: { bookingCapacity: capacity } }) })
+    const people = [f.requester, await member(f.t, f.networkId, "yannick"), await member(f.t, f.networkId, "laetitia")]
+    const keys = [KEY, OTHER_KEY, "c1d2e3f4-a5b6-4c7d-8e9f-0a1b2c3d4e5f"]
+    const requestIds: Id<"serviceRequests">[] = []
+    for (const [index, person] of people.entries()) {
+      const { requestId } = await person.as.mutation(SR.createServiceRequest, sendArgs(f, { idempotencyKey: keys[index]! }))
+      await f.pro.as.mutation(SR.proposeService, proposalArgs(f, requestId))
+      requestIds.push(requestId)
+    }
+    const accept = (index: number) => people[index]!.as.mutation(SR.acceptServiceProposal, { networkId: f.networkId, requestId: requestIds[index]!, expectedProposalVersion: 1 })
+    return { ...f, people, requestIds, accept }
+  }
+
+  it("R-G06 étendu : capacité deux, trois accords concurrents sur le même créneau, deux réussissent", async () => {
+    const f = await threeOnOneSlot(2)
+    const outcomes = await Promise.allSettled([f.accept(0), f.accept(1), f.accept(2)])
+    expect(outcomes.filter((outcome) => outcome.status === "fulfilled")).toHaveLength(2)
+    const refused = outcomes.findIndex((outcome) => outcome.status === "rejected")
+    expect(await codeOf(f.accept(refused))).toBe("booking_slot_unavailable")
+    const bookings = (await rows(f.t)).bookings
+    expect(bookings.map((booking) => [booking.status, booking.capacity])).toEqual([["confirmed", 2], ["confirmed", 2]])
+    // Le créneau plein refuse aussi une nouvelle proposition qui le chevauche ; une place libérée se reprend.
+    expect(await codeOf(f.pro.as.mutation(SR.proposeService, proposalArgs(f, f.requestIds[refused]!, { expectedVersion: 1, startAt: NOW + DAY + 2 * HOUR })))).toBe("booking_slot_unavailable")
+    const kept = [0, 1, 2].find((index) => index !== refused)!
+    await f.people[kept]!.as.mutation(SR.cancelServiceRequest, { networkId: f.networkId, requestId: f.requestIds[kept]!, reason: "Empêchement" })
+    expect(await f.accept(refused)).toMatchObject({ bookingId: expect.any(String) })
+  })
+
+  it("par défaut, un seul rendez-vous à la fois : le second accord sur le même créneau est refusé", async () => {
+    const f = await threeOnOneSlot(null)
+    expect(await f.accept(0)).toMatchObject({ bookingId: expect.any(String) })
+    expect(await codeOf(f.accept(1))).toBe("booking_slot_unavailable")
+    expect((await rows(f.t)).bookings.map((booking) => booking.capacity)).toEqual([undefined])
+  })
+
+  it("un rendez-vous pris « seul » ferme son créneau, même si la prestation admet ensuite davantage", async () => {
+    const f = await threeOnOneSlot(null)
+    await f.accept(0)
+    await f.t.run(async (ctx) => { await ctx.db.patch(f.offerId, { providerSettings: { bookingCapacity: 3 } }) })
+    expect(await codeOf(f.accept(1))).toBe("booking_slot_unavailable")
   })
 })

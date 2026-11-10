@@ -132,6 +132,8 @@ export const serviceRequestsTables = {
     endAt: v.number(),
     timeZone: v.string(),
     status: serviceBookingStatusValidator,
+    /** SV-09 : les rendez-vous simultanés que la prestation admettait à l'accord (absent : un). */
+    capacity: v.optional(v.number()),
     closedBy: v.optional(serviceRequestActorValidator),
     reason: v.optional(v.string()),
     closedAt: v.optional(v.number()),

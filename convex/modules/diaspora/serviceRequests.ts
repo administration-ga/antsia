@@ -22,6 +22,7 @@
  */
 import {
   availableServiceRequestActions,
+  bookingCapacityAllows,
   canContestNoShow,
   checkNoShowContest,
   checkProposalVersion,
@@ -292,20 +293,36 @@ async function requireRequesterSide(ctx: ReadScope, requestId: Id<"serviceReques
   return request
 }
 
+/** SV-09 : les rendez-vous simultanés que l'offre d'une demande admet (réglage de prestation ; un par défaut). */
+async function offerCapacityOf(ctx: ReadScope, request: Doc<"serviceRequests">): Promise<number> {
+  const offer = await ctx.db.get(request.offerId)
+  return offer && offer.networkId === ctx.networkId && offer.pageId === request.pageId ? (offer.providerSettings?.bookingCapacity ?? 1) : 1
+}
+
 /**
- * Un rendez-vous CONFIRMÉ de la page chevauche-t-il ce créneau ? Lecture bornée
- * des rendez-vous commençant dans [début − durée maximale, fin) : deux
- * acceptations concurrentes lisent la même plage, la seconde est rejouée par
- * Convex et voit la première.
+ * Le créneau est-il PLEIN pour la page ? Lecture bornée des rendez-vous confirmés
+ * commençant dans [début − durée maximale, fin) : deux acceptations concurrentes
+ * lisent la même plage, la seconde est rejouée par Convex et voit la première.
+ * SV-09 : la règle de capacité du domaine (`bookingCapacityAllows`) — à un partout,
+ * aucun chevauchement. `exceptBookingId` : le rendez-vous qu'on déplace ne se
+ * compte pas lui-même.
  */
-async function slotTaken(ctx: ReadScope, pageId: Id<"pages">, slot: { startAt: number; endAt: number }): Promise<boolean> {
+async function slotTaken(
+  ctx: ReadScope,
+  pageId: Id<"pages">,
+  slot: { startAt: number; endAt: number },
+  capacity: number,
+  exceptBookingId: Id<"serviceBookings"> | null = null,
+): Promise<boolean> {
   const booked = await ctx.db
     .query("serviceBookings")
     .withIndex("by_network_and_page_and_status_and_startAt", (q) =>
       q.eq("networkId", ctx.networkId).eq("pageId", pageId).eq("status", "confirmed").gt("startAt", slot.startAt - SERVICE_SLOT_MAX_MINUTES * MINUTE_MS).lt("startAt", slot.endAt),
     )
     .take(SLOT_SCAN_MAX)
-  return booked.length >= SLOT_SCAN_MAX || booked.some((booking) => slotsOverlap(booking, slot))
+  if (booked.length >= SLOT_SCAN_MAX) return true
+  const overlapping = booked.filter((booking) => booking._id !== exceptBookingId && slotsOverlap(booking, slot)).map((booking) => ({ capacity: booking.capacity ?? 1 }))
+  return !bookingCapacityAllows({ capacity, overlapping })
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -609,7 +626,7 @@ export const proposeService = networkMutation({
     ruled(checkProposalVersion(args.expectedVersion, request.proposalVersion))
     const version = ruled(nextProposalVersion(request.proposalVersion))
     const terms = ruled(parseServiceProposal(args, now))
-    if (await slotTaken(ctx, request.pageId, terms)) return refuseRule("booking_slot_unavailable")
+    if (await slotTaken(ctx, request.pageId, terms, await offerCapacityOf(ctx, request))) return refuseRule("booking_slot_unavailable")
     if (request.currentProposalId) await ctx.db.patch(request.currentProposalId, { state: "superseded", updatedAt: now })
     const proposalId = await ctx.db.insert("serviceProposals", {
       networkId: ctx.networkId,
@@ -721,7 +738,9 @@ export const acceptServiceProposal = networkMutation({
     // La page doit encore se lire d'ici : une page retirée ne prend plus de rendez-vous.
     const page = await readablePageOrNull(ctx, ctx.network, request.pageId, ctx.person._id)
     if (!page || page.networkId !== ctx.networkId) return notFound()
-    if (await slotTaken(ctx, request.pageId, proposal)) return refuseRule("booking_slot_unavailable")
+    // SV-09 : la capacité de la prestation à l'accord, gardée avec le rendez-vous.
+    const capacity = await offerCapacityOf(ctx, request)
+    if (await slotTaken(ctx, request.pageId, proposal, capacity)) return refuseRule("booking_slot_unavailable")
     const bookingId = await ctx.db.insert("serviceBookings", {
       networkId: ctx.networkId,
       requestId: request._id,
@@ -731,6 +750,7 @@ export const acceptServiceProposal = networkMutation({
       endAt: proposal.endAt,
       timeZone: proposal.timeZone,
       status: "confirmed",
+      ...(capacity > 1 ? { capacity } : {}),
       createdAt: now,
       updatedAt: now,
     })
