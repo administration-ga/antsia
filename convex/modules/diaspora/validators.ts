@@ -90,6 +90,45 @@ export const countryHubViewValidator = v.object({
 })
 
 /**
+ * Le hub lu par un MEMBRE (`getCountryHub`) : la projection publique, plus la date
+ * du dernier passage qui a compté les évènements à venir (HB-02). `null` : ce
+ * compteur n'est pas mesuré (aucun passage ne l'a compté, ou son compte n'était
+ * pas exact) et ne s'affiche pas. La vitrine publique (`listOpenCountries`) garde
+ * sa projection stricte, sans ce champ.
+ */
+export const countryHubDetailValidator = v.object({
+  ...countryHubViewValidator.fields,
+  upcomingEventsComputedAt: v.union(v.number(), v.null()),
+})
+
+/**
+ * Un évènement d'association dans le hub de son pays (HB-02) : OUVERT AU RÉSEAU,
+ * programmé, publié par la modération, à venir. La carte seulement : ni inscrits,
+ * ni capacité, ni état du lecteur, que la fiche de l'évènement dit sous sa garde.
+ */
+export const hubEventValidator = v.object({
+  eventId: v.id("events"),
+  pageId: v.id("pages"),
+  title: v.string(),
+  /** Lieu saisi par l'association ; vide quand elle n'en dit rien. */
+  location: v.string(),
+  startAt: v.number(),
+  endAt: v.number(),
+  timeZone: v.string(),
+  organizer: v.object({ name: v.string(), handle: v.string() }),
+})
+
+/** Une fenêtre des évènements d'un pays : curseur opaque, fin, et fenêtre des pages incomplète. */
+export const hubEventsPageValidator = v.object({
+  country: v.string(),
+  items: v.array(hubEventValidator),
+  continueCursor: v.union(v.string(), v.null()),
+  isDone: v.boolean(),
+  /** La fenêtre des pages du pays s'est arrêtée avant la fin : des évènements d'autres associations peuvent manquer. */
+  partial: v.boolean(),
+})
+
+/**
  * Une page d'un hub pays (DG-007) : la CARTE allowlistée du moteur (logo par la
  * garde des fichiers, badge calculé de la confiance), sa description, ses abonnés
  * comptés par l'agrégat et sa revendicabilité jugée pour CE lecteur. Aucun
