@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/functions/meetings.ts (l. 2441-2645, `listCallHistory`) @ ad2e7fdc2 — adaptations : journal par RÉSEAU, trois sources indexées (ce que j'ai lancé, ce qui m'était adressé, les appels de groupe où l'on m'a convié) fusionnées puis bornées à cinquante avec signal de lacune (D19) ; appels de FILE d'organisation, portée, poste, routage du secrétariat et environnement retirés ; `.collect()` des rattachements retiré (D11) ; DTO allowlisté au lieu du document entier et d'une table de noms d'état civil (personnes nommées par le contrat `counterpartLabel`, D21) ; un appel de groupe se classe d'après MON ticket (manqué, refusé, écarté par mes réglages) au lieu du seul état de l'appel, qui disait « entrant » à l'invité qui ne l'avait jamais entendu sonner.
+// Dupliqué de socle/convex/functions/meetings.ts (l. 2441-2645, `listCallHistory`) @ ad2e7fdc2 — adaptations : journal par RÉSEAU, trois sources indexées (ce que j'ai lancé, ce qui m'était adressé, les appels de groupe où l'on m'a convié) fusionnées puis bornées à cinquante avec signal de lacune (D19) ; appels de FILE d'organisation, portée, poste, routage du secrétariat et environnement retirés ; `.collect()` des rattachements retiré (D11) ; DTO allowlisté au lieu du document entier et d'une table de noms d'état civil (personnes nommées par le contrat `counterpartLabel`, D21) ; un appel de groupe se classe d'après MON ticket (manqué, refusé, écarté par mes réglages) au lieu du seul état de l'appel, qui disait « entrant » à l'invité qui ne l'avait jamais entendu sonner. ; IC-04 : l'APPELANT d'un appel écarté « hors de mes relations » le lit comme un appel sans réponse (`missed`, aucune raison) — seul l'appelé lit pourquoi son téléphone n'a pas sonné.
 /**
  * Appels — le JOURNAL de celui qui lit.
  *
@@ -46,6 +46,16 @@ export type CallHistoryItemDto = {
   /** Un appel de groupe : qui l'a lancé, et le fil d'où il part quand j'en suis membre vivant. */
   group: { caller: { personId: Id<"persons">; label: CounterpartLabel }; threadId: Id<"groupThreads"> | null } | null
   createdByMe: boolean
+}
+
+/**
+ * IC-04 — ce que l'APPELANT relit d'un appel écarté par le réglage « hors de mes relations » de
+ * l'appelé (le défaut depuis la décision du propriétaire du 9/11/2026) : un appel sans réponse, sans
+ * raison. Le réglage d'autrui ne se lit pas dans mon journal ; l'appelé, lui, garde la raison (son
+ * téléphone n'a pas sonné, il sait pourquoi et peut élargir son réglage).
+ */
+function callerView(categorized: { category: CallCategory; reason: CallAdmissionReason | null }, createdByMe: boolean): { category: CallCategory; reason: CallAdmissionReason | null } {
+  return createdByMe && categorized.reason === "outside_relations" ? { category: "missed", reason: null } : categorized
 }
 
 /** Le classement d'un appel où l'on m'a CONVIÉ, d'après mon ticket. */
@@ -103,7 +113,7 @@ export const listCallHistory = networkQuery({
       const ticket = ticketOf.get(call._id)
       // Convié par un ticket (appel de groupe, ou ajout écarté sur un tête-à-tête) : c'est MON ticket qui dit ce qui m'est arrivé.
       const { category, reason } =
-        !createdByMe && ticket !== undefined ? ticketCategory(ticket) : categorizeCall({ createdBy: call.createdByPersonId, callStatus: call.callStatus, endReason: call.endReason ?? null }, me)
+        !createdByMe && ticket !== undefined ? ticketCategory(ticket) : callerView(categorizeCall({ createdBy: call.createdByPersonId, callStatus: call.callStatus, endReason: call.endReason ?? null }, me), createdByMe)
       const otherId = call.kind === "direct" ? (createdByMe ? (call.calleePersonId ?? null) : call.createdByPersonId) : null
       const threadMember = call.kind === "group" ? await isLiveMemberOfThreadCall(ctx, call, me) : null
       calls.push({

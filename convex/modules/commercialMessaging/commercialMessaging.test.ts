@@ -237,10 +237,30 @@ describe("P10 — canal autonome et autorité actuelle", () => {
     await f.manager.as.mutation(callConsent, { ...scope, allowed: true })
     const call = await f.buyer.as.mutation(startCall, { ...scope, respondentPersonId: f.manager.personId, mediaType: "audio" })
     if (!call.admitted) throw new Error("Fixture d'appel non admise")
-    await f.t.run(async (ctx) => ctx.db.insert("callPreferences", { personId: f.manager.personId, outsideRelationsCalls: "silent", updatedAt: NOW }))
+    // IC-04 : « hors de mes relations » ne s'applique plus à un fil aux deux accords d'appel ; « ne pas déranger », si.
+    await f.t.run(async (ctx) => ctx.db.insert("callPreferences", { personId: f.manager.personId, dnd: { until: NOW + 3_600_000, startedAt: NOW }, updatedAt: NOW }))
     expect(await f.manager.as.query(internal.modules.calls.token.authorizeToken, { networkId: f.root, callId: call.callId })).toBeNull()
     expect(engineErrorCode(await caught(f.buyer.as.mutation(api.modules.calls.lifecycle.setCallRinging, { networkId: f.root, callId: call.callId })))).toBe("notFound")
     expect(engineErrorCode(await caught(f.manager.as.mutation(api.modules.calls.lifecycle.join, { networkId: f.root, callId: call.callId })))).toBe("notFound")
+  })
+  it("IC-04 : les deux accords d'appel du fil lèvent « hors de mes relations » (défaut ou posé) ; l'appel personnel le garde", async () => {
+    const f = await fixture()
+    const scope = await accepted(f)
+    await f.buyer.as.mutation(callConsent, { ...scope, allowed: true })
+    await f.manager.as.mutation(callConsent, { ...scope, allowed: true })
+    // Le client et le répondant ne sont pas reliés, et aucun des deux n'a réglé « qui peut m'appeler » (défaut `silent`).
+    const byDefault = await f.buyer.as.mutation(startCall, { ...scope, respondentPersonId: f.manager.personId, mediaType: "audio" })
+    if (!byDefault.admitted) throw new Error(`appel commercial refusé : ${byDefault.reason}`)
+    await f.buyer.as.mutation(api.modules.calls.lifecycle.setCallRinging, { networkId: f.root, callId: byDefault.callId })
+    expect((await f.manager.as.query(api.modules.calls.ringing.listRinging, { networkId: f.root })).calls).toEqual([expect.objectContaining({ callId: byDefault.callId, commercialThreadId: scope.threadId })])
+    await f.buyer.as.mutation(api.modules.calls.lifecycle.leave, { networkId: f.root, callId: byDefault.callId, intentional: true })
+    vi.setSystemTime(NOW + 60_000)
+    // Posé explicitement, le réglage ne vaut pas davantage contre l'accord donné dans CE fil.
+    await f.t.run(async (ctx) => ctx.db.insert("callPreferences", { personId: f.manager.personId, outsideRelationsCalls: "silent", updatedAt: NOW }))
+    expect(await f.buyer.as.mutation(startCall, { ...scope, respondentPersonId: f.manager.personId, mediaType: "audio" })).toMatchObject({ admitted: true })
+    // Hors du fil, l'appel personnel garde le réglage : la conversation ne confère aucun droit.
+    const personal = await f.buyer.as.mutation(api.modules.calls.direct.callMember, { networkId: f.root, target: { personId: f.manager.personId } })
+    expect(personal).toMatchObject({ admitted: false, reason: "outside_relations", voicemailOffered: false })
   })
   it("ne promeut jamais un appel commercial et n'offre pas de messagerie vocale personnelle", async () => {
     const f = await fixture()

@@ -396,6 +396,8 @@ describe("CC-4 — porte partagée et D5 (a) (N30)", () => {
     const f = await fixture()
     const scope = await opened(f, mentoring(f))
     await setPrefs(f, f.mentor, { outsideRelationsCalls: "silent" })
+    // IC-04 : « mes relations seulement » est le défaut ; le demandeur l'a élargi à tout le réseau.
+    await setPrefs(f, f.requester, { outsideRelationsCalls: "ring" })
     await consent(f.requester, scope)
     await consent(f.mentor, scope)
     expect(await f.mentor.as.query(getThread, scope)).toMatchObject({ callSettings: { outsideRelationsSilenceWaived: true, dndUntil: null } })
@@ -423,7 +425,8 @@ describe("CC-4 — porte partagée et D5 (a) (N30)", () => {
     expect(await callDoc(f, silenced.callId)).toMatchObject({ status: "ended", contextualThreadId: scope.threadId })
     const storageId = await f.t.run(async (ctx) => await ctx.storage.store(new Blob(["voice"], { type: "audio/webm" })))
     expect(engineErrorCode(await caught(f.requester.as.mutation(C.voicemail.leave, { networkId: f.root, callId: silenced.callId, storageId, durationMs: 1000 })))).toBe("notFound")
-    await setPrefs(f, f.mentor, { dnd: undefined })
+    // IC-04 : l'appel personnel d'un tiers non relié ne sonne que si le mentor prend les appels de tout le réseau.
+    await setPrefs(f, f.mentor, { dnd: undefined, outsideRelationsCalls: "ring" })
     // Occupé : le mentor tient déjà une communication et a coupé le signal d'appel en attente.
     const other = await f.stranger.as.mutation(C.direct.callMember, { networkId: f.root, target: { personId: f.mentor.personId } })
     if (!other.admitted) throw new Error("appel personnel de recette non admis")

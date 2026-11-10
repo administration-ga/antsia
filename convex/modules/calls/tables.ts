@@ -162,7 +162,18 @@ export const callsTables = {
     sharePresence: v.optional(v.boolean()),
     /** Recevoir une sonnerie poussée hors de l'onglet. Absent = `true`. */
     pushIncoming: v.optional(v.boolean()),
+    /**
+     * Qui peut faire sonner mon téléphone hors de mes relations. Absent = JAMAIS RÉGLÉ = le défaut
+     * du moteur, `silent` depuis IC-04 (décision du propriétaire du 9/11/2026) ; seule une valeur
+     * posée par la personne (`update`) l'écarte du défaut — aucune écriture ne la pose d'office.
+     */
     outsideRelationsCalls: v.optional(outsideRelationsCallsValidator),
+    /**
+     * IC-04 — accusés de lecture des conversations à deux, RÉCIPROQUES : `false` n'en émet plus et
+     * n'en voit plus. Absent = `true`. Les lectures restent enregistrées (pastille du lecteur) ;
+     * seul leur service à l'expéditeur dépend de ce réglage.
+     */
+    readReceipts: v.optional(v.boolean()),
     /** Dernière ouverture du journal : borne le compteur d'appels manqués que l'écran affiche. */
     journalSeenAt: v.optional(v.number()),
     updatedAt: v.number(),

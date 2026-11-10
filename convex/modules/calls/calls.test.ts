@@ -1,5 +1,5 @@
 // @vitest-environment edge-runtime
-// Dupliqué de socle/convex/modules/iappel/calls.test.ts (avec socle/convex/modules/iappel/evaluate.test.ts ; socle/convex/tests/callJournalAndDecline.test.ts ; socle/convex/tests/livekitTokenIssuance.test.ts ; socle/convex/tests/newAgentCalls.test.ts ; les cas `callByHandle` de socle/convex/modules/reseauPersonnel/messagerie.test.ts) @ ad2e7fdc2 — adaptations : personnes et réseaux (graine des fondations) ; codes et règles au lieu des libellés ; « un membre appelle un membre » sans organisation ni affiliation (verrous V01 à V07 levés, réécrit sur `callMember`) ; portée de poste, horaires, priorité, file du centre d'appels, environnement back-office et miroir de présence d'organisation retirés avec leur code ; fenêtre de sonnerie tenue par l'extinction programmée (plus d'horloge de query) ; tests neufs : refus indistinct (inconnu, profil retiré, non-membre, bloqué, membre en attente), appel d'un autre réseau introuvable, hors de mes relations sans cloche ni messagerie vocale, raccrocher sans réponse observable, lignes de participation closes à chaque fin, appels périmés de l'appelant clos avant un nouvel appel, nettoyage chaîné, débit, jeton portant la personne en attributs.
+// Dupliqué de socle/convex/modules/iappel/calls.test.ts (avec socle/convex/modules/iappel/evaluate.test.ts ; socle/convex/tests/callJournalAndDecline.test.ts ; socle/convex/tests/livekitTokenIssuance.test.ts ; socle/convex/tests/newAgentCalls.test.ts ; les cas `callByHandle` de socle/convex/modules/reseauPersonnel/messagerie.test.ts) @ ad2e7fdc2 — adaptations : personnes et réseaux (graine des fondations) ; codes et règles au lieu des libellés ; « un membre appelle un membre » sans organisation ni affiliation (verrous V01 à V07 levés, réécrit sur `callMember`) ; portée de poste, horaires, priorité, file du centre d'appels, environnement back-office et miroir de présence d'organisation retirés avec leur code ; fenêtre de sonnerie tenue par l'extinction programmée (plus d'horloge de query) ; tests neufs : refus indistinct (inconnu, profil retiré, non-membre, bloqué, membre en attente), appel d'un autre réseau introuvable, hors de mes relations sans cloche ni messagerie vocale, raccrocher sans réponse observable, lignes de participation closes à chaque fin, appels périmés de l'appelant clos avant un nouvel appel, nettoyage chaîné, débit, jeton portant la personne en attributs. ; IC-04 : les personnes de ces scénarios ont élargi « qui peut m'appeler » à tout le réseau (`enterCallable`) — le défaut « mes relations seulement » a ses tests (`settings.test.ts`).
 /**
  * APPELS EN TÊTE-À-TÊTE — ce que ce fichier tient, dans l'ordre d'importance :
  *  1. un membre appelle un membre : aucune organisation, aucune affiliation ;
@@ -21,7 +21,7 @@ import {
   codeOf,
   connect,
   connectedCall,
-  enter,
+  enterCallable,
   journalOf,
   presenceAt,
   ringingCall,
@@ -48,8 +48,8 @@ afterEach(() => {
 async function duo() {
   const t = testConvex()
   const { root, testClosed } = await seed(t)
-  const alice = await enter(t, root, "alice")
-  const bob = await enter(t, root, "bob")
+  const alice = await enterCallable(t, root, "alice")
+  const bob = await enterCallable(t, root, "bob")
   return { t, root, testClosed, alice, bob }
 }
 
@@ -96,9 +96,9 @@ describe("callMember — un membre appelle un membre", () => {
 
   it("inconnu, profil retiré, bloqué, d'un autre réseau ou en attente : le MÊME refus", async () => {
     const { t, root, testClosed, alice, bob } = await duo()
-    const carla = await enter(t, root, "carla")
-    const dan = await enter(t, root, "dan")
-    const eve = await enter(t, root, "eve")
+    const carla = await enterCallable(t, root, "carla")
+    const dan = await enterCallable(t, root, "dan")
+    const eve = await enterCallable(t, root, "eve")
     expect(await codeOf(alice.as.mutation(C.direct.callMember, { networkId: root, target: { handle: "personne" } }))).toBe("notFound")
     await carla.as.mutation(api.modules.people.profile.withdrawMyProfile, {})
     await block(t, root, bob, alice)
@@ -154,7 +154,7 @@ describe("callMember — l'admission : un refus est une VALEUR", () => {
 
   it("déjà en ligne : par défaut l'appel PASSE (en attente, tonalité « occupé » photographiée) ; refusé si l'attente est coupée", async () => {
     const { t, root, alice, bob } = await duo()
-    const carla = await enter(t, root, "carla")
+    const carla = await enterCallable(t, root, "carla")
     await connectedCall(root, carla, bob)
     tick()
     const placed = await call(root, alice, bob)
@@ -209,7 +209,7 @@ describe("callMember — l'admission : un refus est une VALEUR", () => {
     expect((await call(root, alice, bob)).admitted).toBe(true)
   })
 
-  it("hors de mes relations : écarté en le disant, SANS cloche ni messagerie vocale ; une relation passe", async () => {
+  it("hors de mes relations : écarté (raison rendue à l'écran, qui la dit à l'appelant comme un appel sans réponse — IC-04), SANS cloche ni messagerie vocale ; une relation passe", async () => {
     const { t, root, alice, bob } = await duo()
     await setPrefs(t, bob, { outsideRelationsCalls: "silent" })
     const placed = await call(root, alice, bob)
@@ -243,7 +243,7 @@ describe("listRinging — ce qui sonne chez moi", () => {
 
   it("un appel décroché, refusé ou annulé ne sonne plus", async () => {
     const { t, root, alice, bob } = await duo()
-    const carla = await enter(t, root, "carla")
+    const carla = await enterCallable(t, root, "carla")
     await connectedCall(root, alice, bob)
     expect(await ringingFor(root, bob)).toEqual([])
     const declined = await ringingCall(root, carla, bob)
@@ -253,7 +253,7 @@ describe("listRinging — ce qui sonne chez moi", () => {
 
   it("le plus ancien d'abord — c'est lui qu'on va manquer", async () => {
     const { t, root, alice, bob } = await duo()
-    const carla = await enter(t, root, "carla")
+    const carla = await enterCallable(t, root, "carla")
     const first = await ringingCall(root, alice, bob)
     tick(5_000)
     const second = await ringingCall(root, carla, bob)
@@ -314,7 +314,7 @@ describe("join — décrocher", () => {
 
   it("un tiers n'entre pas ; un appel d'un autre réseau est introuvable", async () => {
     const { t, root, testClosed, alice, bob } = await duo()
-    const carla = await enter(t, root, "carla")
+    const carla = await enterCallable(t, root, "carla")
     const callId = await ringingCall(root, alice, bob)
     expect(await codeOf(carla.as.mutation(C.lifecycle.join, { networkId: root, callId }))).toBe("notFound")
     await t.run(async (ctx) => ctx.db.insert("networkMemberships", { networkId: testClosed, personId: bob.personId, status: "declaree", role: "member", joinedAt: 1, statusChangedAt: 1 }))
@@ -356,7 +356,7 @@ describe("leave — raccrocher", () => {
 
   it("un appel inconnu, d'un autre réseau ou dont je n'ai pas de ligne : aucun effet, aucune réponse qui distingue", async () => {
     const { t, root, alice, bob } = await duo()
-    const carla = await enter(t, root, "carla")
+    const carla = await enterCallable(t, root, "carla")
     const callId = await ringingCall(root, alice, bob)
     expect(await carla.as.mutation(C.lifecycle.leave, { networkId: root, callId })).toBeNull()
     expect((await callDoc(t, callId))?.status).toBe("active")
@@ -509,7 +509,7 @@ describe("listCallHistory — le journal de celui qui lit", () => {
 
   it("le journal d'une personne ne montre ni les appels d'une autre, ni ceux d'un autre réseau", async () => {
     const { t, root, testClosed, alice, bob } = await duo()
-    const carla = await enter(t, root, "carla")
+    const carla = await enterCallable(t, root, "carla")
     await connectedCall(root, alice, bob)
     expect(await journalOf(root, carla)).toEqual([])
     await t.run(async (ctx) => ctx.db.insert("networkMemberships", { networkId: testClosed, personId: alice.personId, status: "declaree", role: "member", joinedAt: 1, statusChangedAt: 1 }))
@@ -537,7 +537,7 @@ describe("cleanupStaleCalls — le filet des appels périmés", () => {
 
   it("établi mais plus personne dans la salle : terminé ; au-delà de quatre heures : terminé EN ERREUR", async () => {
     const { t, root, alice, bob } = await duo()
-    const carla = await enter(t, root, "carla")
+    const carla = await enterCallable(t, root, "carla")
     const empty = await connectedCall(root, alice, bob)
     await t.run(async (ctx) => {
       for (const row of await ctx.db
@@ -556,13 +556,13 @@ describe("cleanupStaleCalls — le filet des appels périmés", () => {
 
   it("avant un nouvel appel, MES appels périmés du réseau sont clos ; un appel où l'autre est en ligne, non", async () => {
     const { t, root, alice, bob } = await duo()
-    const carla = await enter(t, root, "carla")
+    const carla = await enterCallable(t, root, "carla")
     const stale = await ringingCall(root, alice, bob)
     await t.run(async (ctx) => ctx.db.patch(stale, { startedAt: T0 - 10 * 60_000 }))
     const live = await connectedCall(root, alice, carla)
     await t.run(async (ctx) => ctx.db.patch(live, { startedAt: T0 - 10 * 60_000 }))
     tick()
-    const dan = await enter(t, root, "dan")
+    const dan = await enterCallable(t, root, "dan")
     await call(root, alice, dan)
     expect(await callDoc(t, stale)).toMatchObject({ status: "ended", callStatus: "missed" })
     expect((await callDoc(t, live))?.status).toBe("active")
@@ -582,7 +582,7 @@ describe("le jeton de salle", () => {
 
   it("autorisé pour une personne partie à un appel vivant ; un tiers et un appel terminé rendent `null`", async () => {
     const { t, root, alice, bob } = await duo()
-    const carla = await enter(t, root, "carla")
+    const carla = await enterCallable(t, root, "carla")
     const callId = await ringingCall(root, alice, bob)
     expect(await bob.as.query(internal.modules.calls.token.authorizeToken, { networkId: root, callId })).toBeNull()
     await bob.as.mutation(C.lifecycle.join, { networkId: root, callId })
@@ -599,7 +599,7 @@ describe("le jeton de salle", () => {
     delete process.env.LIVEKIT_WS_URL
     vi.spyOn(console, "error").mockImplementation(() => {})
     const { t, root, alice, bob } = await duo()
-    const carla = await enter(t, root, "carla")
+    const carla = await enterCallable(t, root, "carla")
     const callId = await ringingCall(root, alice, bob)
     await bob.as.mutation(C.lifecycle.join, { networkId: root, callId })
     expect(await codeOf(bob.as.action(C.livekitActions.requestToken, { networkId: root, callId }))).toBe("mediaServerNotConfigured")

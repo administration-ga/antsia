@@ -1,5 +1,5 @@
 // @vitest-environment edge-runtime
-// Dupliqué de socle/convex/modules/iappel/voicemail.test.ts (avec socle/convex/modules/iappel/voicemail.adoption.test.ts) @ ad2e7fdc2 — adaptations : personnes et réseaux ; codes et règles au lieu des libellés ; portée poste / personnel retirée (2 cas) ; adoption du blob par le coffre iDocument retirée ; le dépôt passe par la garde des fichiers (fraîcheur, usage `voice`, type relu au stockage) et l'écoute par la garde de délivrance ; tests neufs : appel décroché, encore vivant ou de groupe refusés, « hors de mes relations » sans messagerie vocale, blob déjà admis refusé (indistinct pour autrui, `conflict` pour soi), retenue dite tant que l'analyse n'a pas parlé, effacement qui purge le blob, sa ligne d'analyse et l'avis de la cloche, autre réseau introuvable.
+// Dupliqué de socle/convex/modules/iappel/voicemail.test.ts (avec socle/convex/modules/iappel/voicemail.adoption.test.ts) @ ad2e7fdc2 — adaptations : personnes et réseaux ; codes et règles au lieu des libellés ; portée poste / personnel retirée (2 cas) ; adoption du blob par le coffre iDocument retirée ; le dépôt passe par la garde des fichiers (fraîcheur, usage `voice`, type relu au stockage) et l'écoute par la garde de délivrance ; tests neufs : appel décroché, encore vivant ou de groupe refusés, « hors de mes relations » sans messagerie vocale, blob déjà admis refusé (indistinct pour autrui, `conflict` pour soi), retenue dite tant que l'analyse n'a pas parlé, effacement qui purge le blob, sa ligne d'analyse et l'avis de la cloche, autre réseau introuvable. ; IC-04 : les personnes de ces scénarios ont élargi « qui peut m'appeler » à tout le réseau (`enterCallable`) — le défaut « mes relations seulement » a ses tests (`settings.test.ts`).
 /**
  * MESSAGERIE VOCALE — ce que ce fichier tient :
  *  1. seul l'APPELANT d'un tête-à-tête qui n'a pas abouti laisse un message ;
@@ -11,7 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import type { Id } from "../../_generated/dataModel"
 import { testConvex } from "../../test.setup"
-import { bellOf, C, call, codeOf, connectedCall, enter, type Person, ringingCall, ruleOf, seed, setPrefs, T0, type T, tick } from "./fixtures.setup"
+import { bellOf, C, call, codeOf, connectedCall, enterCallable, type Person, ringingCall, ruleOf, seed, setPrefs, T0, type T, tick } from "./fixtures.setup"
 
 const V = C.voicemail
 
@@ -46,9 +46,9 @@ async function refusedCall(t: T, networkId: Id<"networks">, from: Person, to: Pe
 async function trio() {
   const t = testConvex()
   const { root, testClosed } = await seed(t)
-  const alice = await enter(t, root, "alice")
-  const bob = await enter(t, root, "bob")
-  const carla = await enter(t, root, "carla")
+  const alice = await enterCallable(t, root, "alice")
+  const bob = await enterCallable(t, root, "bob")
+  const carla = await enterCallable(t, root, "carla")
   return { t, root, testClosed, alice, bob, carla }
 }
 

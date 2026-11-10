@@ -1,5 +1,5 @@
 // @vitest-environment edge-runtime
-// Dupliqué de socle/convex/modules/iappel/groupCalls.test.ts (avec socle/convex/modules/iappel/ringExpiry.test.ts ; socle/convex/tests/callCapacitySettings.test.ts ; les cas d'appel de fil de socle/convex/modules/reseauPersonnel/groupes.test.ts) @ ad2e7fdc2 — adaptations : personnes et réseaux ; appel ad hoc SANS organisation (verrous V08 à V17 levés : des invités joignables du réseau, plus des collègues d'une administration) ; plafond constant de onze (configuration d'organisation et exemption du back-office retirées avec leur code) ; présence lue sur les lignes de participation ; codes et règles au lieu des libellés ; Web Push → la décision seule (PA5) ; tests neufs : blocage d'un invité refusé à chaque porte (D13), « hors de mes relations » appliqué en ad hoc et pas depuis un fil, journal de l'invité classé d'après SON ticket, un membre du fil hors sélection rejoint l'appel en cours, départ et retrait du fil qui sortent de l'appel, suppression du fil qui le termine, fil et appel d'un autre réseau introuvables.
+// Dupliqué de socle/convex/modules/iappel/groupCalls.test.ts (avec socle/convex/modules/iappel/ringExpiry.test.ts ; socle/convex/tests/callCapacitySettings.test.ts ; les cas d'appel de fil de socle/convex/modules/reseauPersonnel/groupes.test.ts) @ ad2e7fdc2 — adaptations : personnes et réseaux ; appel ad hoc SANS organisation (verrous V08 à V17 levés : des invités joignables du réseau, plus des collègues d'une administration) ; plafond constant de onze (configuration d'organisation et exemption du back-office retirées avec leur code) ; présence lue sur les lignes de participation ; codes et règles au lieu des libellés ; Web Push → la décision seule (PA5) ; tests neufs : blocage d'un invité refusé à chaque porte (D13), « hors de mes relations » appliqué en ad hoc et pas depuis un fil, journal de l'invité classé d'après SON ticket, un membre du fil hors sélection rejoint l'appel en cours, départ et retrait du fil qui sortent de l'appel, suppression du fil qui le termine, fil et appel d'un autre réseau introuvables. ; IC-04 : les personnes de ces scénarios ont élargi « qui peut m'appeler » à tout le réseau (`enterCallable`) — le défaut « mes relations seulement » a ses tests (`settings.test.ts`).
 /**
  * APPELS DE GROUPE — un appel, pas une réunion :
  *  1. ça sonne chez chaque invité ADMIS, jamais chez l'hôte ; l'admission se joue
@@ -20,7 +20,7 @@ import {
   callDoc,
   codeOf,
   connectedCall,
-  enter,
+  enterCallable,
   groupThread,
   journalOf,
   type Person,
@@ -51,7 +51,7 @@ async function cast(count: number) {
   const { root, testClosed } = await seed(t)
   const names = ["alice", "bob", "carla", "dan", "eve", "fred", "gael", "hugo", "ines", "jules", "karl", "lea", "marc", "nina"]
   const people: Person[] = []
-  for (const name of names.slice(0, count)) people.push(await enter(t, root, name))
+  for (const name of names.slice(0, count)) people.push(await enterCallable(t, root, name))
   return { t, root, testClosed, people }
 }
 

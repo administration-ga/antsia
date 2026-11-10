@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/functions/meetings.ts (avec socle/convex/modules/reseauPersonnel/messagerie.ts, l. 1039-1110, `callByHandle`) @ ad2e7fdc2 — adaptations : la personne appelée est rendue (`calleePersonId`, connue même d'un appel adressé par identifiant public : l'écran d'appel la nomme et la suit) ; l. 1863-1993 (`callCitizenById`) et `callByHandle` FUSIONNÉS en `callMember` — une seule porte, la cible désignée par sa personne (journal, grille) ou par son identifiant public, un seul budget (`call.place`) ; verrous « agent » levés (V01 délai de rattachement → statut d'adhésion par le constructeur ; V02 « les ressortissants ne peuvent pas appeler », V03 et V07 « l'appelé doit être affilié » retirés : un membre déclaré appelle un membre déclaré du réseau) ; l'appelé est JOIGNABLE (profil publié, non effacé, membre déclaré du réseau) et sans blocage, sinon le refus indistinct (D13) ; `endStaleCalls` → `reapStaleCallsOf` (lecture indexée bornée, D11, D27) ; admission par le pont du moteur ; titre non stocké ; salle `call-…` ; lignes de participation (D27) ; fin de sonnerie programmée ; messagerie vocale jamais offerte sur « hors de mes relations » (décision 6d du socle, désormais tenue par le serveur).
+// Dupliqué de socle/convex/functions/meetings.ts (avec socle/convex/modules/reseauPersonnel/messagerie.ts, l. 1039-1110, `callByHandle`) @ ad2e7fdc2 — adaptations : la personne appelée est rendue (`calleePersonId`, connue même d'un appel adressé par identifiant public : l'écran d'appel la nomme et la suit) ; l. 1863-1993 (`callCitizenById`) et `callByHandle` FUSIONNÉS en `callMember` — une seule porte, la cible désignée par sa personne (journal, grille) ou par son identifiant public, un seul budget (`call.place`) ; verrous « agent » levés (V01 délai de rattachement → statut d'adhésion par le constructeur ; V02 « les ressortissants ne peuvent pas appeler », V03 et V07 « l'appelé doit être affilié » retirés : un membre déclaré appelle un membre déclaré du réseau) ; l'appelé est JOIGNABLE (profil publié, non effacé, membre déclaré du réseau) et sans blocage, sinon le refus indistinct (D13) ; `endStaleCalls` → `reapStaleCallsOf` (lecture indexée bornée, D11, D27) ; admission par le pont du moteur ; titre non stocké ; salle `call-…` ; lignes de participation (D27) ; fin de sonnerie programmée ; messagerie vocale jamais offerte sur « hors de mes relations » (décision 6d du socle, désormais tenue par le serveur). ; IC-04 : l'accord d'appel d'un fil commercial (P10) lève le réglage « hors de mes relations », désormais `silent` par défaut, comme celui d'une conversation contextuelle.
 /**
  * Appels — APPELER UN MEMBRE, en tête-à-tête.
  *
@@ -43,7 +43,8 @@ export const callMember = networkMutation({
  * (P10, `commercialMessaging/calls.startCall`) ou `contextualThreadId` (CC-4,
  * `contextualMessaging/calls.start`), jamais les deux (sélecteur `conversation.ts` : refus indistinct).
  * Toutes les gardes s'appliquent à chacun ; D5 (a) : un appel contextuel, dont la paire exige les
- * accords des deux personnes dans ce fil, lève le seul réglage « hors de mes relations » de l'appelé.
+ * accords des deux personnes dans ce fil, lève le seul réglage « hors de mes relations » de l'appelé ;
+ * IC-04 : un appel commercial aussi (sa paire exige les deux accords d'appel du fil, `commercialCallPairAllowed`).
  */
 export async function placeDirectCall(
   ctx: MutationCtx & { networkId: Id<"networks">; person: Doc<"persons"> },
@@ -66,7 +67,8 @@ export async function placeDirectCall(
     await reapStaleCallsOf(ctx, ctx.networkId, me, now)
     const roomName = callRoomName("direct", now)
 
-    const admission = await evaluateCallAdmission(ctx, { networkId: ctx.networkId, calleePersonId: callee._id, callerPersonId: me, now, ...(conversation.kind === "contextual" ? { viaContextualConsent: true } : {}) })
+    // Les accords d'appel d'un fil (contextuel D5 (a), commercial P10 depuis IC-04) lèvent le seul réglage « hors de mes relations ».
+    const admission = await evaluateCallAdmission(ctx, { networkId: ctx.networkId, calleePersonId: callee._id, callerPersonId: me, now, ...(conversation.kind === "contextual" ? { viaContextualConsent: true } : {}), ...(conversation.kind === "commercial" ? { viaCommercialConsent: true } : {}) })
     if (!admission.decision.admitted) {
       const reason = admission.decision.reason
       const callId = await insertRefusedCall(ctx, { networkId: ctx.networkId, callerId: me, calleeId: callee._id, roomName, mediaType, reason, now, ...conversationFieldsOf(conversation) })

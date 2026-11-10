@@ -33,6 +33,7 @@ import {
 import type { Doc, Id } from "../../_generated/dataModel"
 import type { MutationCtx, QueryCtx } from "../../_generated/server"
 import { evaluateCallAdmission } from "../calls/evaluate"
+import { outsideRelationsCallsOf } from "../calls/preferences"
 import { type CallEnd, finishCall } from "../calls/state"
 import { isBlockedBetween } from "../graph/graph"
 import { signatoryRowOf } from "../pages/access"
@@ -307,7 +308,8 @@ export type ContextualCallSettings = {
 export async function viewerCallSettings(ctx: Pick<QueryCtx, "db">, personId: Id<"persons">): Promise<ContextualCallSettings> {
   const prefs = await ctx.db.query("callPreferences").withIndex("by_person", (q) => q.eq("personId", personId)).unique()
   return {
-    outsideRelationsSilenceWaived: prefs?.outsideRelationsCalls === "silent",
+    // IC-04 : le réglage EFFECTIF — `silent` aussi pour qui ne l'a jamais posé (défaut du moteur).
+    outsideRelationsSilenceWaived: outsideRelationsCallsOf(prefs) === "silent",
     dndUntil: prefs?.dnd?.until ?? null,
     meetingSilence: prefs?.autoMeetingDnd?.enabled === true,
     callWaitingOff: prefs?.callWaiting === false,

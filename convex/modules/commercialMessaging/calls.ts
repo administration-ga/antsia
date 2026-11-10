@@ -39,7 +39,7 @@ export const startCall = networkMutation({
     if (!await commercialCallPairAllowed(ctx, access.thread, ctx.person._id, targetId)) return notFound()
     const active = await ctx.db.query("calls").withIndex("by_commercial_thread_status", (q) => q.eq("commercialThreadId", args.threadId).eq("status", "active")).first()
     if (active) return notFound()
-    // L'admission personnelle est conservée : silence, présence, occupation et préférences.
+    // L'admission personnelle est conservée (silence, présence, occupation, préférences) ; IC-04 : les accords d'appel du fil lèvent le seul réglage « hors de mes relations ».
     return await placeDirectCall(ctx, { target: { personId: targetId }, mediaType: args.mediaType, commercialThreadId: args.threadId })
   },
 })
