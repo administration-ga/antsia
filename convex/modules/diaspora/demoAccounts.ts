@@ -137,7 +137,7 @@ async function diasporaleNetwork(ctx: MutationCtx): Promise<Doc<"networks"> | nu
  * public ne suffit pas : une autre personne peut le porter ; seule compte celle dont
  * l'adresse vérifiée est l'adresse réservée de l'acteur.
  */
-async function personOfActor(ctx: MutationCtx, actor: DiasporaleDemoActor): Promise<Doc<"persons"> | null> {
+export async function personOfActor(ctx: MutationCtx, actor: DiasporaleDemoActor): Promise<Doc<"persons"> | null> {
   const profile = DIASPORALE_DEMO_ACTOR_SPECS[actor].profile
   if (profile === null) return null
   const person = await ctx.db.query("persons").withIndex("by_handle", (q) => q.eq("handle", profile.handle)).unique()
@@ -270,14 +270,34 @@ async function ensureSponsorship(ctx: MutationCtx, network: Doc<"networks">, spo
   await ctx.db.insert("sponsorships", { networkId: network._id, sponsorPersonId: sponsor._id, sponsoredPersonId, createdAt: now })
 }
 
+/**
+ * L'équipe de modération de démonstration du réseau, créée une seule fois (active, sans
+ * périmètre). Partagée avec la graine locale du banc de recette (`seed.matchmakingBenchForRecette`) : les deux
+ * chemins retrouvent la même équipe par son nom, quel que soit l'ordre.
+ */
+export async function ensureDemoModerationTeam(ctx: MutationCtx, network: Doc<"networks">, now: number): Promise<{ teamId: Id<"moderationTeams">; created: boolean }> {
+  const teams = await ctx.db.query("moderationTeams").withIndex("by_network_active", (q) => q.eq("networkId", network._id).eq("active", true)).take(101)
+  const existing = teams.find((team) => team.name === DEMO_MODERATION_TEAM)
+  if (existing) return { teamId: existing._id, created: false }
+  return { teamId: await ctx.db.insert("moderationTeams", { networkId: network._id, name: DEMO_MODERATION_TEAM, active: true, createdAt: now }), created: true }
+}
+
+/** La personne parmi les membres actifs de l'équipe ; rend `true` si elle ne l'était pas encore. */
+export async function ensureModerationTeamMember(ctx: MutationCtx, network: Doc<"networks">, teamId: Id<"moderationTeams">, personId: Id<"persons">, now: number): Promise<boolean> {
+  const member = await ctx.db.query("moderationTeamMembers").withIndex("by_team_person", (q) => q.eq("teamId", teamId).eq("personId", personId)).unique()
+  if (!member) {
+    await ctx.db.insert("moderationTeamMembers", { networkId: network._id, teamId, personId, active: true, updatedAt: now })
+    return true
+  }
+  if (member.active) return false
+  await ctx.db.patch(member._id, { active: true, updatedAt: now })
+  return true
+}
+
 /** L'équipe de modération de démonstration, et la personne parmi ses membres actifs. */
 async function ensureModerationTeam(ctx: MutationCtx, network: Doc<"networks">, person: Doc<"persons">, now: number): Promise<void> {
-  const teams = await ctx.db.query("moderationTeams").withIndex("by_network_active", (q) => q.eq("networkId", network._id).eq("active", true)).take(101)
-  const teamId = teams.find((team) => team.name === DEMO_MODERATION_TEAM)?._id
-    ?? await ctx.db.insert("moderationTeams", { networkId: network._id, name: DEMO_MODERATION_TEAM, active: true, createdAt: now })
-  const member = await ctx.db.query("moderationTeamMembers").withIndex("by_team_person", (q) => q.eq("teamId", teamId).eq("personId", person._id)).unique()
-  if (!member) await ctx.db.insert("moderationTeamMembers", { networkId: network._id, teamId, personId: person._id, active: true, updatedAt: now })
-  else if (!member.active) await ctx.db.patch(member._id, { active: true, updatedAt: now })
+  const { teamId } = await ensureDemoModerationTeam(ctx, network, now)
+  await ensureModerationTeamMember(ctx, network, teamId, person._id, now)
 }
 
 /**

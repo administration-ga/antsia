@@ -154,7 +154,20 @@ export async function syncDirectoryListing(ctx: MutationCtx, networkId: Id<"netw
   await setDirectoryListed(ctx, networkId, personId, visible && (await consentInForce(ctx, networkId, personId, "directory")))
 }
 
-/** Un consentement est-il en vigueur pour ce réseau (accordé pour lui, ou sans réseau) ? */
+/**
+ * NP-01 — la ligne de consentement compte-t-elle pour ce réseau ? Le profil social vaut pour la
+ * personne entière (sa ligne n'a pas de réseau ; une ligne posée pour ce réseau compte aussi).
+ * Toute autre finalité vaut pour le RÉSEAU EXACT, comme le moteur la relit avant d'agir (accord
+ * aux notifications avant un envoi, `notificationConsent` ; consentement d'une demande
+ * d'attestation) : une ancienne ligne sans réseau ne compte plus, et elle n'est jamais réécrite en
+ * accord du réseau — la personne redonne son accord, à la bonne portée.
+ */
+export function consentCountsForNetwork(row: Pick<Doc<"consents">, "purpose" | "networkId">, networkId: Id<"networks">): boolean {
+  if (row.purpose === "social_profile") return row.networkId === undefined || row.networkId === networkId
+  return row.networkId === networkId
+}
+
+/** Un consentement est-il en vigueur pour ce réseau, à la portée de sa finalité (`consentCountsForNetwork`) ? */
 export async function consentInForce(
   ctx: QueryCtx,
   networkId: Id<"networks">,
@@ -167,7 +180,7 @@ export async function consentInForce(
     .withIndex("by_person_and_purpose", (q) => q.eq("personId", personId).eq("purpose", purpose))
     .take(100)
   return isConsentInForce(
-    rows.filter((row) => row.networkId === undefined || row.networkId === networkId),
+    rows.filter((row) => consentCountsForNetwork(row, networkId)),
     purpose,
   )
 }
