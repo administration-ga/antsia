@@ -76,6 +76,12 @@ export const arrivalKitTables = {
     /** Date de la version courante. */
     revisedAt: v.number(),
     archivedAt: v.optional(v.number()),
+    /**
+     * ET-04 — le texte cherché : titre et résumé de la version courante, en mots repliés
+     * (`arrivalKitSearchText`). Facultatif pour les lignes d'avant le champ : elles restent
+     * listées, seule la recherche par mots ne les trouve pas avant leur prochaine version.
+     */
+    searchText: v.optional(v.string()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -89,7 +95,9 @@ export const arrivalKitTables = {
     .index("by_network_status_country_submitted", ["networkId", "status", "country", "submittedAt"])
     // « Mes propositions », les plus récemment changées d'abord ; et le plafond par état.
     .index("by_network_proposer_updated", ["networkId", "proposedByPersonId", "updatedAt"])
-    .index("by_network_proposer_status", ["networkId", "proposedByPersonId", "status"]),
+    .index("by_network_proposer_status", ["networkId", "proposedByPersonId", "status"])
+    // ET-04 — chercher par mots dans le kit public d'un pays, par rubrique (la ville se rejuge).
+    .searchIndex("search_by_text", { searchField: "searchText", filterFields: ["networkId", "listed", "country", "category"] }),
 
   kitResourceReviews: defineTable({
     networkId: v.id("networks"),

@@ -14,6 +14,7 @@ import { routes } from "@/lib/routes"
 import type { CatalogOffer } from "./catalog-model"
 import { StorefrontBody, StorefrontHero } from "./member-storefront-screen"
 import { OfferCard } from "./offer-card"
+import { SaveOfferButton } from "./save-offer-button"
 import type { StorefrontData } from "./shop-model"
 import { ShopLink } from "./shop-ui"
 
@@ -65,7 +66,7 @@ function rotated(offers: readonly CatalogOffer[], rank: number): CatalogOffer[] 
 /** Une offre sur la fiche de la page : sa carte, avec l'ajout direct ; le vendeur (la page) ne se répète pas. */
 function PageOfferCard({ offer, eager }: { offer: CatalogOffer; eager: boolean }) {
   const { t, i18n } = useTranslation("shops")
-  return <OfferCard offer={offer} audience="member" locale={i18n.resolvedLanguage ?? "fr"} t={(key, options) => t(key, options)} eager={eager} seller={false} action={<OfferQuickAdd offer={offer} />} />
+  return <OfferCard offer={offer} audience="member" locale={i18n.resolvedLanguage ?? "fr"} t={(key, options) => t(key, options)} eager={eager} seller={false} action={<OfferQuickAdd offer={offer} />} save={<SaveOfferButton offer={offer} />} />
 }
 
 /**

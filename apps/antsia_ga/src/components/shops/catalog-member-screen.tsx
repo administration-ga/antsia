@@ -23,6 +23,7 @@ import { CatalogFiltersForm } from "./catalog-filters"
 import { CatalogGrid, CatalogPagination } from "./catalog-grid"
 import type { CatalogOffer, CatalogPage } from "./catalog-model"
 import { OfferCard, OfferDetails } from "./offer-card"
+import { SaveOfferButton } from "./save-offer-button"
 import { CheckoutPrepareLink } from "../checkout/checkout-prepare-link"
 import { OfferCartActions, OfferShareButton } from "../cart/offer-cart-actions"
 import { ServiceOfferActions } from "../services/service-offer-actions"
@@ -79,7 +80,7 @@ function MemberCatalogWindow({ handle, search, preview = false, provider = false
     {!preview ? <CatalogToolbar handle={handle} filters={filters} collections={page.collections} provider={provider} layout={layout} onLayout={setLayout} /> : null}
     {preview && page.collections.length >= 2 ? page.collections.slice(0, VITRINE_COLLECTIONS_MAX).map(collection => <CollectionRail key={collection.collectionRef} handle={handle} collection={collection} kind={search.kind} provider={provider} />) : null}
     {page.indexStatus === "building" ? <p role="status" className="text-sm text-muted-foreground">{t("catalog.indexBuilding")}</p> : null}
-    {page.indexStatus !== "building" || page.page.length ? <CatalogGrid page={page} audience="member" locale={i18n.resolvedLanguage ?? "fr"} t={translate} layout={preview ? "grid" : layout} preview={preview} renderAction={offer => <OfferQuickAdd offer={offer} />} /> : null}
+    {page.indexStatus !== "building" || page.page.length ? <CatalogGrid page={page} audience="member" locale={i18n.resolvedLanguage ?? "fr"} t={translate} layout={preview ? "grid" : layout} preview={preview} renderAction={offer => <OfferQuickAdd offer={offer} />} renderSave={offer => <SaveOfferButton offer={offer} />} /> : null}
     {page.page.length === 0 && page.indexStatus !== "building" ? <p className="text-sm text-muted-foreground">{t("catalog.publicConsentHint")}</p> : null}
     {preview ? <ShopLink href={provider ? routes.providerCatalog(handle, filters) : routes.shopCatalog(handle, filters)}>{t(food ? "food.seeMenu" : "catalog.openCatalog")}</ShopLink> : <CatalogPagination page={page} handle={handle} audience="member" filters={filters} cursor={search.cursor} t={translate} provider={provider} />}
   </div>
@@ -137,7 +138,7 @@ function CollectionRail({ handle, collection, kind, provider }: { handle: string
   const query = useAuthenticatedConvexQuery(api.modules.shops.catalog.list, { networkId, handle, collectionRef: collection.collectionRef, ...(kind ? { kind } : {}), paginationOpts: { cursor: null, numItems: CATALOG_PAGE_SIZE } })
   if (query.isError || query.isPending || !query.data?.page.length) return null
   const filters: CatalogFilters = { collectionRef: collection.collectionRef, ...(kind ? { kind } : {}) }
-  return <Rail size="product" title={collection.label} level={3} href={provider ? routes.providerCatalog(handle, filters) : routes.shopCatalog(handle, filters)} linkLabel={t("catalog.seeCollection")}>{query.data.page.map((offer, index) => <OfferCard key={offer.offerRef} offer={offer} audience="member" locale={i18n.resolvedLanguage ?? "fr"} t={(key, options) => t(key, options)} eager={index === 0} seller={false} action={<OfferQuickAdd offer={offer} />} />)}</Rail>
+  return <Rail size="product" title={collection.label} level={3} href={provider ? routes.providerCatalog(handle, filters) : routes.shopCatalog(handle, filters)} linkLabel={t("catalog.seeCollection")}>{query.data.page.map((offer, index) => <OfferCard key={offer.offerRef} offer={offer} audience="member" locale={i18n.resolvedLanguage ?? "fr"} t={(key, options) => t(key, options)} eager={index === 0} seller={false} action={<OfferQuickAdd offer={offer} />} save={<SaveOfferButton offer={offer} />} />)}</Rail>
 }
 
 /** `title` : le nom du bloc quand le gabarit en donne un (« Menu » d'une adresse « Alimentation et restauration »). */
@@ -163,7 +164,7 @@ function MemberOfferQuery({ handle, offerRef, initialSelection, provider }: { ha
   const demo = offer?.offerRef.startsWith("demo:offer:") === true
   // Une fiche lue porte le titre de l'écran (le nom de l'offre en `h1`) ; sinon, le titre générique.
   return <ShopFrame title={provider ? providerT("detail.title") : t("catalog.offerTitle")} header={offer ? null : undefined}><ShopLink href={catalogHref}>{provider ? providerT("actions.catalog") : t(food ? "food.backToMenu" : "catalog.backToCatalog")}</ShopLink>{query.isError ? <ShopQueryFailure href={catalogHref} retry={() => { void query.refetch() }} /> : query.isPending || query.data === undefined ? <p role="status">{t("catalog.loading")}</p> : !offer ? <ShopQueryFailure href={catalogHref} /> : <>
-    <OfferDetails offer={offer} audience="member" titleAs="h1" locale={i18n.resolvedLanguage ?? "fr"} t={(key, options) => t(key, options)} providerT={(key, options) => providerT(key, options)} actionSlot={<div className="grid w-full gap-4">{demo ? <p className="text-sm text-muted-foreground">{t("publicActions.demoNotice")}</p> : offer.kind === "service" ? <ServiceOfferActions offer={offer} /> : <OfferCartActions offer={offer} initialSelection={initialSelection} layout="page" />}<div className="flex flex-wrap gap-3">{!demo && offer.actions.contact ? <ShopLink variant="message" href={routes.shopContact(offer.shopHandle, offer.offerRef)}>{t("contact.ask")}</ShopLink> : null}{!demo && offer.kind !== "service" ? <CheckoutPrepareLink handle={offer.shopHandle} offerRef={offer.offerRef} /> : null}<OfferShareButton handle={offer.shopHandle} offerRef={offer.offerRef} kind={offer.kind} /></div></div>} />
+    <OfferDetails offer={offer} audience="member" titleAs="h1" locale={i18n.resolvedLanguage ?? "fr"} t={(key, options) => t(key, options)} providerT={(key, options) => providerT(key, options)} actionSlot={<div className="grid w-full gap-4">{demo ? <p className="text-sm text-muted-foreground">{t("publicActions.demoNotice")}</p> : offer.kind === "service" ? <ServiceOfferActions offer={offer} /> : <OfferCartActions offer={offer} initialSelection={initialSelection} layout="page" />}<div className="flex flex-wrap gap-3">{!demo && offer.actions.contact ? <ShopLink variant="message" href={routes.shopContact(offer.shopHandle, offer.offerRef)}>{t("contact.ask")}</ShopLink> : null}{!demo && offer.kind !== "service" ? <CheckoutPrepareLink handle={offer.shopHandle} offerRef={offer.offerRef} /> : null}<SaveOfferButton offer={offer} layout="inline" /><OfferShareButton handle={offer.shopHandle} offerRef={offer.offerRef} kind={offer.kind} /></div></div>} />
     <OfferShopTerms handle={offer.shopHandle} />
     <SameShopRail offer={offer} provider={provider} />
   </>}</ShopFrame>
@@ -186,5 +187,5 @@ function SameShopRail({ offer, provider }: { offer: CatalogOffer; provider: bool
   const query = useAuthenticatedConvexQuery(api.modules.shops.catalog.list, { networkId, handle: offer.shopHandle, kind: offer.kind, paginationOpts: { cursor: null, numItems: CATALOG_PAGE_SIZE } })
   const others = !query.isError && query.data ? query.data.page.filter(entry => entry.offerRef !== offer.offerRef) : []
   if (!others.length) return null
-  return <Rail size="product" title={t("catalog.sameShop")} href={provider ? routes.providerCatalog(offer.shopHandle) : routes.shopCatalog(offer.shopHandle)} linkLabel={t(food ? "food.seeMenu" : "catalog.openCatalog")}>{others.map(entry => <OfferCard key={entry.offerRef} offer={entry} audience="member" locale={i18n.resolvedLanguage ?? "fr"} t={(key, options) => t(key, options)} seller={false} action={<OfferQuickAdd offer={entry} />} />)}</Rail>
+  return <Rail size="product" title={t("catalog.sameShop")} href={provider ? routes.providerCatalog(offer.shopHandle) : routes.shopCatalog(offer.shopHandle)} linkLabel={t(food ? "food.seeMenu" : "catalog.openCatalog")}>{others.map(entry => <OfferCard key={entry.offerRef} offer={entry} audience="member" locale={i18n.resolvedLanguage ?? "fr"} t={(key, options) => t(key, options)} seller={false} action={<OfferQuickAdd offer={entry} />} save={<SaveOfferButton offer={entry} />} />)}</Rail>
 }

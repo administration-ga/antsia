@@ -5,7 +5,7 @@ import { z } from "zod"
 
 export const MODERATION_ACTIONS = ["dismissed", "removal", "warning", "suspension"] as const
 export type ModerationAction = typeof MODERATION_ACTIONS[number]
-export type ModerationView = "reports" | "pending" | "appeals" | "settings"
+export type ModerationView = "reports" | "pending" | "appeals" | "settings" | "claims"
 
 export function moderationReasonSchema(message: string) {
   return z.string().trim().min(3, message).max(DECISION_REASON_MAX, message)
@@ -31,11 +31,12 @@ export function moderationDecisionInput(value: { action: ModerationAction; reaso
 
 /** Aucun identifiant d'équipe de l'adresse n'est admis sans projection de capacité. */
 export function moderationWindow(params: { view?: string | string[]; team?: string | string[]; cursor?: string | string[] }, capacity: { networkWide: boolean; canReviewAppeals?: boolean; canManagePolicy?: boolean; teams: readonly { teamId: string }[] }) {
-  const view: ModerationView | null = params.view === undefined || params.view === "reports" ? "reports" : params.view === "pending" ? "pending" : params.view === "appeals" ? "appeals" : params.view === "settings" ? "settings" : null
+  const view: ModerationView | null = params.view === undefined || params.view === "reports" ? "reports" : params.view === "pending" ? "pending" : params.view === "appeals" ? "appeals" : params.view === "settings" ? "settings" : params.view === "claims" ? "claims" : null
   const team = params.team === undefined ? undefined : capacity.teams.find((item) => item.teamId === params.team)?.teamId
   const cursor = params.cursor
   // MC-02 : les réglages du réseau sont réservés à sa capacité serveur (administrateur), sans équipe ni curseur.
-  const permitted = view === "settings" ? capacity.canManagePolicy === true && params.team === undefined && cursor === undefined : view === "appeals" ? capacity.canReviewAppeals === true && params.team === undefined : params.team === undefined ? capacity.networkWide : team !== undefined
+  // PG-01 : les revendications de pages relèvent de la modération du RÉSEAU (administrateur ou modérateur), sans équipe.
+  const permitted = view === "settings" ? capacity.canManagePolicy === true && params.team === undefined && cursor === undefined : view === "appeals" ? capacity.canReviewAppeals === true && params.team === undefined : view === "claims" ? capacity.networkWide && params.team === undefined : params.team === undefined ? capacity.networkWide : team !== undefined
   const valid = view !== null && permitted && (cursor === undefined || (typeof cursor === "string" && cursor.length > 0 && cursor.length <= 4096))
   return { valid, view: view ?? "reports", team, cursor: typeof cursor === "string" ? cursor : null }
 }

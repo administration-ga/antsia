@@ -39,6 +39,17 @@ describe("catalogue et fiche en SSR public réel", () => {
     expect(detail).toContain("Rouge")
     expect(detail).not.toContain("data-checkout")
   })
+  it("CM-09 : sans compte, « Enregistrer » invite à se connecter et ramène à la fiche ; connecté, mène à l'espace membre", async () => {
+    const anonymous = renderToStaticMarkup(await PublicOfferScreen(input()))
+    const signIn = routes.signIn(undefined, undefined, undefined, undefined, { kind: "offer", handle: "atelier", offerRef: OFFER_REF }).replaceAll("&", "&amp;")
+    const saveLink = (html: string) => /<a[^>]*data-public-save-offer[^>]*>/.exec(html)?.[0] ?? ""
+    expect(saveLink(anonymous)).toContain(`href="${signIn}"`)
+    expect(anonymous).toContain("Se connecter pour enregistrer")
+    mocks.offer.mockResolvedValue({ status: "ready", viewer: "authenticated", data: catalogOfferFixture() })
+    const member = renderToStaticMarkup(await PublicOfferScreen(input()))
+    expect(saveLink(member)).toContain(`href="${routes.shopOffer("atelier", OFFER_REF)}"`)
+    expect(member).toContain("Enregistrer dans mes favoris")
+  })
   it("MP06 : le catalogue prestataire impose service et garde les liens de pagination", async () => {
     mocks.catalog.mockResolvedValue({ status: "ready", viewer: "anonymous", data: catalogPageFixture({ page: [], isDone: false, continueCursor: "next-service", filteredWindow: true }) })
     const props = { params: Promise.resolve({ handle: "atelier" }), searchParams: Promise.resolve({ langue: "fr", modeCommercial: "quote" }), provider: true }

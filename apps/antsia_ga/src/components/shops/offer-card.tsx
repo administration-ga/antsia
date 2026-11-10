@@ -46,10 +46,11 @@ function recentlyOutOfStock(offer: CatalogOffer, nowMs = Date.now()): boolean {
  * La carte d'une offre, sur le modèle des ventes privées (décision du propriétaire du 22/10/2026) : galerie à
  * points, marque, nom, couleur ou nombre de variantes, prix exact et vendeur, puis l'action que la surface lui
  * passe (l'ajout au panier du membre). Rien d'inventé : ni prix barré ni remise, le moteur n'en porte pas.
+ * `save` : le bouton « Enregistrer » du membre (CM-09), dans le coin de la photo (ou en bout de ligne, `compact`).
  * `compact` : la carte en ligne d'une publication liée à une offre. Présentation commune SSR/membre : aucun hook
  * de compte ni fournisseur requis.
  */
-export function OfferCard({ offer, audience, locale, t, compact = false, eager = false, seller = true, action }: { offer: CatalogOffer; audience: CatalogAudience; locale: string; t: CatalogTranslate; compact?: boolean; eager?: boolean; seller?: boolean; action?: ReactNode }) {
+export function OfferCard({ offer, audience, locale, t, compact = false, eager = false, seller = true, action, save }: { offer: CatalogOffer; audience: CatalogAudience; locale: string; t: CatalogTranslate; compact?: boolean; eager?: boolean; seller?: boolean; action?: ReactNode; save?: ReactNode }) {
   const href = offerHref(offer, audience)
   const { brand, color } = offerAttributes(offer)
   const detail = color ?? (offer.variants.length ? t("catalog.hasVariants", { count: offer.variants.length }) : null)
@@ -63,12 +64,16 @@ export function OfferCard({ offer, audience, locale, t, compact = false, eager =
       <h3 className="line-clamp-2 text-sm font-semibold leading-snug">{offer.title}</h3>
       {detail ? <p className="truncate text-xs text-muted-foreground">{detail}</p> : null}
       <p className="break-words font-bold text-[color:var(--role-commerce-ink,var(--foreground))]">{price}</p>
-      <div className="flex min-w-0 flex-wrap items-center gap-x-3">{shop}<Link href={href} prefetch={false} className={linkClass}>{t("catalog.openOffer")}<ArrowUpRight className="ml-1 size-4 shrink-0" aria-hidden /></Link></div>
+      <div className="flex min-w-0 flex-wrap items-center gap-x-3">{shop}<Link href={href} prefetch={false} className={linkClass}>{t("catalog.openOffer")}<ArrowUpRight className="ml-1 size-4 shrink-0" aria-hidden /></Link>{save ? <span className="ml-auto inline-flex" data-offer-card-save>{save}</span> : null}</div>
     </div>
     {action ? <div className="col-span-full grid min-w-0 px-1 pb-1 empty:hidden" data-offer-card-action>{action}</div> : null}
   </article>
   return <article data-offer-card className="flex h-full min-w-0 flex-col gap-3 overflow-hidden rounded-[var(--ui2-card-radius)] bg-card pb-3 text-card-foreground [overflow-wrap:anywhere]">
-    <OfferMediaCarousel media={offer.media} title={offer.title} href={href} labels={{ photos: t("catalog.offerPhotos"), openOffer: t("catalog.openOfferNamed", { title: offer.title }), openPhotos: offer.media.map((_, index) => t("catalog.openOfferPhoto", { title: offer.title, index: index + 1 })), noPhoto: t("catalog.noPhoto"), mediaWithheld: t("catalog.mediaWithheld") }} eager={eager} />
+    {/* CM-09 : le bouton « Enregistrer » du membre, posé dans le coin de la photo ; aucun sur une carte publique. */}
+    <div className="relative min-w-0">
+      <OfferMediaCarousel media={offer.media} title={offer.title} href={href} labels={{ photos: t("catalog.offerPhotos"), openOffer: t("catalog.openOfferNamed", { title: offer.title }), openPhotos: offer.media.map((_, index) => t("catalog.openOfferPhoto", { title: offer.title, index: index + 1 })), noPhoto: t("catalog.noPhoto"), mediaWithheld: t("catalog.mediaWithheld") }} eager={eager} />
+      {save ? <div className="absolute right-2 top-2 z-10" data-offer-card-save>{save}</div> : null}
+    </div>
     <div className="grid min-w-0 flex-1 content-start gap-1 px-2">
       {brand ? <p className="truncate text-sm font-bold">{brand}</p> : null}
       <h3 className="line-clamp-2 text-sm leading-snug"><Link href={href} prefetch={false} className="rounded text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{offer.title}</Link></h3>

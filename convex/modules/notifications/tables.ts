@@ -74,6 +74,10 @@ export const DIASPORA_COMMUNITY_NOTIFICATION_KINDS = [
   "aid_answer_retained",
   /** Équipe de la page : une personne s'inscrit à sa mission. */
   "aid_mission_signup",
+  /** Bénévole à l'inscription confirmée : la mission est annulée ; le motif se lit sur la fiche (ET-01, issue #101). */
+  "aid_mission_cancelled",
+  /** Bénévole à l'inscription confirmée : l'horaire de la mission a changé ; il se lit sur la fiche (ET-01). */
+  "aid_mission_rescheduled",
   /** Mentor : une demande de mentorat lui arrive. */
   "mentoring_request_received",
   /** Mentoré : sa demande est acceptée. */
@@ -133,6 +137,9 @@ export const notificationSubjectValidator = v.union(
   v.object({ voicemail: v.id("voicemails") }),
   v.object({ liveSession: v.id("liveSessions") }),
   v.object({ report: v.id("reports") }),
+  // PG-01 : la page d'une invitation à signer, la revendication tranchée (références seules).
+  v.object({ page: v.id("pages") }),
+  v.object({ pageClaim: v.id("pageClaims") }),
   // Tranche `diaspora` (mise en relation) : sujets propres, sans forme générique au domaine commun.
   v.object({ serviceRequest: v.id("serviceRequests") }),
   v.object({ associationMembership: v.id("associationMemberships") }),
@@ -171,6 +178,9 @@ export const notificationsTables = {
     subjectVoicemailId: v.optional(v.id("voicemails")),
     subjectLiveSessionId: v.optional(v.id("liveSessions")),
     subjectReportId: v.optional(v.id("reports")),
+    /** PG-01 : la page (`page_signatory_invite`) ou la revendication (`page_claim_decided`) désignées. */
+    subjectPageId: v.optional(v.id("pages")),
+    subjectPageClaimId: v.optional(v.id("pageClaims")),
     /** Tranche `diaspora` : la demande de service, l'adhésion associative ou l'avis désignés (références seules). */
     subjectServiceRequestId: v.optional(v.id("serviceRequests")),
     subjectAssociationMembershipId: v.optional(v.id("associationMemberships")),

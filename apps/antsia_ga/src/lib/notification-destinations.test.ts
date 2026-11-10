@@ -33,5 +33,8 @@ describe("P14B — routes des destinations typées", () => {
     expect(notificationTarget({ kind: "commerce_job_application_updated", target: { kind: "jobApplication", applicationId: "candidature-1" } }, engineRoutes, t)?.href).toBe(routes.jobApplication("candidature-1"))
     expect(notificationTarget({ kind: "moderation_decision", target: { kind: "pageModerationDecisions", pageId: "page-1", pageHandle: "page-demo" } }, engineRoutes, t)?.href).toBe(routes.pageModerationDecisions("page-1"))
     expect(notificationTarget({ kind: "moderation_decision", target: { kind: "personalDecisions" } }, engineRoutes, t)?.href).toBe(routes.personalControls())
+    // PG-01 : invitation à signer et revendication tranchée mènent à la page, relue par le serveur.
+    expect(notificationTarget({ kind: "page_signatory_invite", target: { kind: "page", pageId: "page-1", pageHandle: "pecheurs-lambarene" } }, engineRoutes, t)?.href).toBe(routes.page("pecheurs-lambarene"))
+    expect(notificationTarget({ kind: "page_claim_decided", target: { kind: "page", pageId: "page-1", pageHandle: "pecheurs-lambarene" } }, engineRoutes, t)?.href).toBe(routes.page("pecheurs-lambarene"))
   })
 })

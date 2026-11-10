@@ -14,10 +14,13 @@
  *    le seul déclarant du dossier ;
  *  - mise en relation DIASPORALE (13 genres) : un sujet GÉNÉRIQUE — nature et référence opaque,
  *    public et adresse de page relus par la tranche (`serviceNoticeView`) — que l'application
- *    DIASPORALE route elle-même.
+ *    DIASPORALE route elle-même ;
+ *  - `page_signatory_invite`, `page_claim_decided` (PG-01) : la page, lisible par le destinataire à
+ *    l'instant (`pageGovernanceTarget`).
  * Aucun autre genre n'a de destination typée : `null`, et l'écran garde la cible de son sujet commun.
  */
 import { isCommerceNotificationKind } from "@antsia/social-domain/commerceNotifications"
+import { isPageGovernanceNoticeKind } from "@antsia/social-domain/notifications"
 import { CONTEXTUAL_SUPPORTED_KINDS, CONTEXTUAL_SIDES, isContextualNotificationKind } from "@antsia/social-domain/contextualMessaging"
 import { DIASPORA_COMMUNITY_NOTICE_AUDIENCES, DIASPORA_COMMUNITY_NOTICE_OPENS, DIASPORA_NOTICE_AUDIENCES, DIASPORA_NOTICE_SUBJECT_KINDS, type NotificationOpenTarget } from "@antsia/social-domain/notificationOpenTarget"
 import { v } from "convex/values"
@@ -30,6 +33,7 @@ import { communityNoticeView, type CommunityNoticeDto } from "../diaspora/commun
 import { contextualNotificationTarget } from "../contextualMessaging/access"
 import { owningPageOfReport } from "../moderation/policy"
 import { liveSignatoryRole } from "../pages/access"
+import { pageGovernanceTarget } from "../pages/governanceNoticeAccess"
 import { commerceNoticeView } from "./commerceAccess"
 import { isReporterNoticeKind, reporterNoticeRecipient } from "./policy"
 import { isDiasporaCommunityNotificationKind, isDiasporaServiceNotificationKind } from "./tables"
@@ -71,6 +75,8 @@ export const notificationOpenTargetValidator = v.union(
     side: literals(CONTEXTUAL_SIDES),
     pageHandle: v.union(v.string(), v.null()),
   }),
+  // PG-01 : la page d'un avis de gouvernance, lisible par le destinataire à l'instant.
+  v.object({ kind: v.literal("page"), pageId: v.string(), pageHandle: v.string() }),
 )
 
 /**
@@ -130,5 +136,7 @@ export async function notificationOpenTargetOf(ctx: ReadCtx, row: Doc<"notificat
   if (isDiasporaCommunityNotificationKind(row.kind)) return diasporaCommunityNoticeTarget(await communityNoticeView(ctx, row))
   // CC-2b : le fil contextuel RELU pour le destinataire (partie actuelle, sinon repli neutre `null`).
   if (isContextualNotificationKind(row.kind)) return await contextualNotificationTarget(ctx, row)
+  // PG-01 : invitation à signer, revendication tranchée — la page, relue avec les droits du lecteur.
+  if (isPageGovernanceNoticeKind(row.kind)) return await pageGovernanceTarget(ctx, row)
   return null
 }

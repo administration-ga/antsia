@@ -430,3 +430,26 @@ describe("mentorat DIASPORALE", () => {
     expect((await search(f, f.other)).page).toEqual([])
   })
 })
+
+describe("mentorat — retrouver un mentor : langue et ville (ET-04)", () => {
+  const ids = async (f: Fixture, who: Member, overrides: Partial<{ domain: string; language: string; city: string }>) =>
+    (await who.as.query(M.searchMentors, { networkId: f.networkId, country: "FR", ...overrides, paginationOpts: PAGE_OPTS })).page.map((card) => card.mentorId)
+
+  it("la langue restreint ; la ville se juge sur ce que le lecteur voit : une ville tenue cachée ne se devine pas", async () => {
+    const f = await fixture()
+    const lyon = await member(f.t, f.networkId, "bilal", "Bilal ESSONO", { countryOfResidence: "FR", city: "Lyon", visibility: { city: "network" } })
+    const { mentorId: lyonId } = await lyon.as.mutation(M.becomeMentor, profileArgs(f.networkId, { languages: ["fr", "fan"], city: "Lyon", domains: ["work"] }))
+
+    expect(await ids(f, f.other, { language: "fan" })).toEqual([lyonId])
+    expect(await ids(f, f.other, { language: "en" })).toEqual([f.mentorId])
+    expect(await ids(f, f.other, { language: "fan", domain: "housing" })).toEqual([])
+    expect(await ids(f, f.other, { city: " LYON " })).toEqual([lyonId])
+    expect(await ids(f, f.other, { city: "Lyon", domain: "work" })).toEqual([lyonId])
+    // Awa tient sa ville à ses relations : un membre qui n'en est pas ne la trouve pas par « Paris 11e ».
+    expect(await ids(f, f.other, { city: "Paris 11e" })).toEqual([])
+    expect((await search(f, f.other)).page.map((card) => card.mentorId).sort()).toEqual([f.mentorId, lyonId].sort())
+
+    expect(await codeOf(ids(f, f.other, { language: "klingon" }))).toBe("mentor_language_invalid")
+    expect(await codeOf(ids(f, f.other, { city: "x".repeat(81) }))).toBe("mentor_city_invalid")
+  })
+})

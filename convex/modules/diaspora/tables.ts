@@ -12,13 +12,15 @@
  * - `communityImports` : les éléments publics importés de consulat.ga
  *   (`DIASPORA-COMMUNAUTE-V1`, PD5) ;
  * - `memberPrivacy` : les niveaux FINS de la facette et le niveau d'annuaire
- *   (le moteur générique ne connaît que `hidden`, `network` et `root`).
+ *   (le moteur générique ne connaît que `hidden`, `network` et `root`) ;
+ * - `foundingAdmissions` : les admissions FONDATRICES décidées par un opérateur
+ *   (EA-01), motif à l'appui, retraits compris (la décision reste au journal).
  *
  * Toutes portent `networkId` : la tranche ne sert que le réseau qu'elle
  * gouverne (`networks.managedBy = "diaspora"`), dans un moteur multi-réseaux.
  * Fichier écrit par la session DIASPORALE ; agrégé par `convex/schema.ts`.
  */
-import { ATTESTATION_SUBJECT_KINDS, DIRECTORY_VISIBILITY_LEVELS, FIELD_VISIBILITY_LEVELS } from "@diasporale/domain"
+import { ATTESTATION_SUBJECT_KINDS, DIRECTORY_VISIBILITY_LEVELS, FIELD_VISIBILITY_LEVELS, FOUNDING_WITHDRAWAL_CAUSES } from "@diasporale/domain"
 import { defineTable } from "convex/server"
 import { v } from "convex/values"
 
@@ -127,6 +129,36 @@ export const diasporaTables = {
     directoryVisibility: directoryVisibilityValidator,
     updatedAt: v.number(),
   }).index("by_network_and_person", ["networkId", "personId"]),
+
+  /**
+   * EA-01 — une admission FONDATRICE : décision tracée d'un opérateur, qui fait de
+   * la personne (déjà membre, rien d'office) un membre « vérifiée » ; en option, la
+   * dispense d'ancienneté pour parrainer. Une ligne par décision, jamais réécrite
+   * sauf pour son retrait : la décision et son retrait restent au journal. Au plus
+   * une admission EN VIGUEUR par personne (sans `withdrawnAt`), et au plus
+   * `FOUNDING_COHORT_MAX` dans le réseau. Elle s'éteint avec le départ.
+   */
+  foundingAdmissions: defineTable({
+    networkId: v.id("networks"),
+    /** La personne admise : la ligne lui appartient (export, effacement). */
+    personId: v.id("persons"),
+    /** Le motif de la décision, borné (`assertDecisionReason`). */
+    reason: v.string(),
+    /** Dispense d'ancienneté pour parrainer, accordée avec la décision (le quota ne change pas). */
+    seniorityWaiver: v.boolean(),
+    admittedAt: v.number(),
+    /** L'opérateur qui a décidé ; absent pour le seul équipement de démonstration (développement local). */
+    admittedByPersonId: v.optional(v.id("persons")),
+    withdrawnAt: v.optional(v.number()),
+    withdrawnBy: v.optional(literals(FOUNDING_WITHDRAWAL_CAUSES)),
+    /** L'opérateur qui a retiré la décision (cause `operator`). */
+    withdrawnByPersonId: v.optional(v.id("persons")),
+    /** Le motif du retrait par un opérateur, borné ; absent pour un départ. */
+    withdrawalReason: v.optional(v.string()),
+  })
+    .index("by_network_and_person", ["networkId", "personId"])
+    // En vigueur : `withdrawnAt` absent ; retirées : rangées par date de retrait.
+    .index("by_network_and_withdrawnAt", ["networkId", "withdrawnAt"]),
 
   // Plan global (docs/14 de DIASPORALE) : chaque chantier tient ses tables dans son fichier.
   ...servicesTables,

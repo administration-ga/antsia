@@ -22,26 +22,33 @@
  */
 import {
   availableServiceRequestActions,
+  availableServiceRescheduleActions,
+  bookingCapacityAllows,
   canContestNoShow,
   checkNoShowContest,
   checkProposalVersion,
   checkServiceRequestTiming,
   checkServiceRequestTransition,
+  checkServiceRescheduleGesture,
   effectiveServiceRequestStatus,
   isServiceIdempotencyKey,
   isServiceRequestTerminal,
   MINUTE_MS,
   nextProposalVersion,
   normalizeServiceRequestDraft,
+  openServiceReschedule,
   parseServiceProposal,
   parseServiceReason,
+  parseServiceReschedule,
   type Result,
   SERVICE_PROPOSAL_MAX_VERSIONS,
   SERVICE_REQUEST_ACTIONS,
   SERVICE_REQUEST_OPEN_STATUSES,
+  SERVICE_RESCHEDULE_ACTIONS,
   SERVICE_SLOT_MAX_MINUTES,
   serviceRequestFingerprint,
   serviceRequestTimeline,
+  SERVICE_DELIVERY_MODES,
   slotsOverlap,
   type ServiceRequestAction,
   type ServiceRequestActor,
@@ -77,8 +84,11 @@ import {
   serviceRequestActorValidator,
   serviceRequestCloserValidator,
   serviceRequestStatusValidator,
+  serviceRescheduleValidator,
   serviceWindowValidator,
 } from "./serviceRequestsTables"
+import { providerSettingsOf, providerSettingsValidator } from "./services"
+import { servicePricingValidator } from "./servicesTables"
 
 const LIST_PAGE_MAX = 50
 const LIST_PAGE_BYTES = 2 * 1024 * 1024
@@ -136,6 +146,8 @@ const summaryFields = {
   timeZone: v.string(),
   currentProposal: v.union(proposalSummaryValidator, v.null()),
   booking: v.union(bookingSummaryValidator, v.null()),
+  /** SV-03 : le nouvel horaire proposé pour le rendez-vous confirmé, s'il est encore ouvert ; `null` sinon. */
+  reschedule: v.union(serviceRescheduleValidator, v.null()),
   /** L'échéance qui court ; `null` après l'accord ou la clôture. */
   deadlineAt: v.union(v.number(), v.null()),
   createdAt: v.number(),
@@ -157,7 +169,22 @@ const proposalDetailValidator = v.object({
   cancellationTerms: v.string(),
   expiresAt: v.number(),
   state: serviceProposalStateValidator,
+  /** SV-03 : la version qu'un déplacement accepté a remplacée ; `null` pour une proposition. */
+  rescheduledFrom: v.union(v.number(), v.null()),
   createdAt: v.number(),
+})
+
+/**
+ * SV-04 : ce qu'une nouvelle proposition reprend de l'offre (tarif annoncé, durée,
+ * mode, ville) et de ses réglages de prestation. Pour l'équipe de la page seulement ;
+ * rien n'est envoyé sans que le signataire valide le formulaire.
+ */
+const proposalPrefillValidator = v.object({
+  pricing: servicePricingValidator,
+  durationMinutes: v.union(v.number(), v.null()),
+  delivery: literals(SERVICE_DELIVERY_MODES),
+  city: v.string(),
+  settings: providerSettingsValidator,
 })
 
 const timelineEventValidator = v.object({
@@ -177,10 +204,14 @@ const detailValidator = v.object({
   closedReason: v.union(v.string(), v.null()),
   /** Les gestes réellement ouverts à ce lecteur maintenant (calculés par le serveur). */
   actions: v.array(literals(SERVICE_REQUEST_ACTIONS)),
+  /** SV-03 : les gestes de déplacement ouverts à ce lecteur maintenant. */
+  rescheduleActions: v.array(literals(SERVICE_RESCHEDULE_ACTIONS)),
   /** DG-015 : la contestation d'une absence par le demandeur, lisible des deux côtés ; `null` sinon. */
   noShowContest: v.union(v.object({ at: v.number(), reason: v.string() }), v.null()),
   /** Le demandeur peut-il contester l'absence maintenant (quatorze jours après le constat) ? */
   canContestNoShow: v.boolean(),
+  /** SV-04 : la proposition préremplie depuis l'offre, pour l'équipe de la page ; `null` pour le demandeur. */
+  proposalPrefill: v.union(proposalPrefillValidator, v.null()),
 })
 
 export type ServiceRequestSummaryDto = typeof summaryValidator.type
@@ -207,6 +238,8 @@ const CONFLICT_REFUSALS: ReadonlySet<ServiceRequestRefusal> = new Set<ServiceReq
   "request_idempotency_conflict",
   "proposal_version_changed",
   "booking_slot_unavailable",
+  "reschedule_already_open",
+  "reschedule_changed",
 ])
 
 const POLICY_REFUSALS: ReadonlySet<ServiceRequestRefusal> = new Set<ServiceRequestRefusal>([
@@ -220,6 +253,7 @@ const POLICY_REFUSALS: ReadonlySet<ServiceRequestRefusal> = new Set<ServiceReque
   "booking_not_started",
   "request_contest_unavailable",
   "request_contest_window_closed",
+  "reschedule_not_open",
 ])
 
 /** Un refus de la tranche, traduit par DIASPORALE (`errors.<code>`) ; une saisie invalide est `invalidArgument`. */
@@ -274,20 +308,36 @@ async function requireRequesterSide(ctx: ReadScope, requestId: Id<"serviceReques
   return request
 }
 
+/** SV-09 : les rendez-vous simultanés que l'offre d'une demande admet (réglage de prestation ; un par défaut). */
+async function offerCapacityOf(ctx: ReadScope, request: Doc<"serviceRequests">): Promise<number> {
+  const offer = await ctx.db.get(request.offerId)
+  return offer && offer.networkId === ctx.networkId && offer.pageId === request.pageId ? (offer.providerSettings?.bookingCapacity ?? 1) : 1
+}
+
 /**
- * Un rendez-vous CONFIRMÉ de la page chevauche-t-il ce créneau ? Lecture bornée
- * des rendez-vous commençant dans [début − durée maximale, fin) : deux
- * acceptations concurrentes lisent la même plage, la seconde est rejouée par
- * Convex et voit la première.
+ * Le créneau est-il PLEIN pour la page ? Lecture bornée des rendez-vous confirmés
+ * commençant dans [début − durée maximale, fin) : deux acceptations concurrentes
+ * lisent la même plage, la seconde est rejouée par Convex et voit la première.
+ * SV-09 : la règle de capacité du domaine (`bookingCapacityAllows`) — à un partout,
+ * aucun chevauchement. `exceptBookingId` : le rendez-vous qu'on déplace ne se
+ * compte pas lui-même.
  */
-async function slotTaken(ctx: ReadScope, pageId: Id<"pages">, slot: { startAt: number; endAt: number }): Promise<boolean> {
+async function slotTaken(
+  ctx: ReadScope,
+  pageId: Id<"pages">,
+  slot: { startAt: number; endAt: number },
+  capacity: number,
+  exceptBookingId: Id<"serviceBookings"> | null = null,
+): Promise<boolean> {
   const booked = await ctx.db
     .query("serviceBookings")
     .withIndex("by_network_and_page_and_status_and_startAt", (q) =>
       q.eq("networkId", ctx.networkId).eq("pageId", pageId).eq("status", "confirmed").gt("startAt", slot.startAt - SERVICE_SLOT_MAX_MINUTES * MINUTE_MS).lt("startAt", slot.endAt),
     )
     .take(SLOT_SCAN_MAX)
-  return booked.length >= SLOT_SCAN_MAX || booked.some((booking) => slotsOverlap(booking, slot))
+  if (booked.length >= SLOT_SCAN_MAX) return true
+  const overlapping = booked.filter((booking) => booking._id !== exceptBookingId && slotsOverlap(booking, slot)).map((booking) => ({ capacity: booking.capacity ?? 1 }))
+  return !bookingCapacityAllows({ capacity, overlapping })
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -295,6 +345,11 @@ async function slotTaken(ctx: ReadScope, pageId: Id<"pages">, slot: { startAt: n
 // ═══════════════════════════════════════════════════════════════
 
 type PageLabel = typeof pageLabelValidator.type
+
+/** SV-03 : la proposition de déplacement d'un rendez-vous CONFIRMÉ, si elle est encore ouverte (échéance constatée). */
+function openRescheduleOf(booking: Doc<"serviceBookings"> | null, status: ServiceRequestStatus, now: number) {
+  return booking && booking.status === "confirmed" && status === "confirmed" ? openServiceReschedule(booking.reschedule ?? null, now) : null
+}
 
 /** Projeter des demandes pour un lecteur : la page par la garde de lecture, le demandeur pour l'équipe seulement. */
 function summaryProjector(ctx: ReadScope, viewer: ServiceRequestActor, now: number) {
@@ -339,6 +394,7 @@ function summaryProjector(ctx: ReadScope, viewer: ServiceRequestActor, now: numb
           }
         : null,
       booking: booking ? { startAt: booking.startAt, endAt: booking.endAt, timeZone: booking.timeZone, status: booking.status } : null,
+      reschedule: openRescheduleOf(booking, status, now),
       deadlineAt: status === "sent" || status === "proposed" ? (request.deadlineAt ?? null) : null,
       createdAt: request.createdAt,
       updatedAt: request.updatedAt,
@@ -355,10 +411,16 @@ async function detailOf(ctx: ReadScope, request: Doc<"serviceRequests">, viewer:
     .order("desc")
     .take(SERVICE_PROPOSAL_MAX_VERSIONS)
   const booking = request.bookingId ? await ctx.db.get(request.bookingId) : null
+  // SV-04 : l'offre de la demande, relue pour l'équipe seulement (même réseau, même page).
+  const offer = viewer === "page" ? await ctx.db.get(request.offerId) : null
+  const proposalPrefill = offer && offer.networkId === ctx.networkId && offer.pageId === request.pageId
+    ? { pricing: offer.pricing, durationMinutes: offer.durationMinutes ?? null, delivery: offer.delivery, city: offer.city, settings: providerSettingsOf(offer) }
+    : null
   return {
     ...summary,
     viewerRole: viewer,
     need: request.need,
+    proposalPrefill,
     proposals: proposals.map((proposal) => ({
       version: proposal.version,
       amountMinor: proposal.amountMinor,
@@ -372,11 +434,12 @@ async function detailOf(ctx: ReadScope, request: Doc<"serviceRequests">, viewer:
       cancellationTerms: proposal.cancellationTerms,
       expiresAt: proposal.expiresAt,
       state: proposal.state,
+      rescheduledFrom: proposal.rescheduledFrom ?? null,
       createdAt: proposal.createdAt,
     })),
     timeline: serviceRequestTimeline({
       createdAt: request.createdAt,
-      proposals: proposals.map((proposal) => ({ version: proposal.version, createdAt: proposal.createdAt })),
+      proposals: proposals.map((proposal) => ({ version: proposal.version, createdAt: proposal.createdAt, rescheduledFrom: proposal.rescheduledFrom ?? null })),
       confirmedAt: booking ? booking.createdAt : null,
       closed: request.closedAt !== undefined && isServiceRequestTerminal(request.status) ? { status: request.status, at: request.closedAt } : null,
       effectiveStatus: summary.status,
@@ -389,6 +452,14 @@ async function detailOf(ctx: ReadScope, request: Doc<"serviceRequests">, viewer:
       status: summary.status,
       now,
       bookingStartAt: booking ? booking.startAt : null,
+      proposalVersion: request.proposalVersion,
+    }),
+    rescheduleActions: availableServiceRescheduleActions({
+      actor: viewer,
+      status: summary.status,
+      now,
+      bookingStartAt: booking && booking.status === "confirmed" ? booking.startAt : null,
+      reschedule: booking?.reschedule ?? null,
       proposalVersion: request.proposalVersion,
     }),
     noShowContest: request.contestedAt !== undefined && request.contestReason !== undefined ? { at: request.contestedAt, reason: request.contestReason } : null,
@@ -585,7 +656,7 @@ export const proposeService = networkMutation({
     ruled(checkProposalVersion(args.expectedVersion, request.proposalVersion))
     const version = ruled(nextProposalVersion(request.proposalVersion))
     const terms = ruled(parseServiceProposal(args, now))
-    if (await slotTaken(ctx, request.pageId, terms)) return refuseRule("booking_slot_unavailable")
+    if (await slotTaken(ctx, request.pageId, terms, await offerCapacityOf(ctx, request))) return refuseRule("booking_slot_unavailable")
     if (request.currentProposalId) await ctx.db.patch(request.currentProposalId, { state: "superseded", updatedAt: now })
     const proposalId = await ctx.db.insert("serviceProposals", {
       networkId: ctx.networkId,
@@ -661,7 +732,7 @@ export const cancelServiceRequest = networkMutation({
     const booking = status === "confirmed" && request.bookingId ? await ctx.db.get(request.bookingId) : null
     ruled(checkServiceRequestTransition({ action: "cancel", actor, status, now, bookingStartAt: booking ? booking.startAt : null }))
     const reason = ruled(parseServiceReason(args.reason, status === "confirmed"))
-    if (booking) await ctx.db.patch(booking._id, { status: "cancelled", closedBy: actor, reason: reason ?? undefined, closedAt: now, updatedAt: now })
+    if (booking) await ctx.db.patch(booking._id, { status: "cancelled", closedBy: actor, reason: reason ?? undefined, reschedule: undefined, closedAt: now, updatedAt: now })
     await ctx.db.patch(request._id, {
       status: "cancelled",
       closedBy: actor,
@@ -697,7 +768,9 @@ export const acceptServiceProposal = networkMutation({
     // La page doit encore se lire d'ici : une page retirée ne prend plus de rendez-vous.
     const page = await readablePageOrNull(ctx, ctx.network, request.pageId, ctx.person._id)
     if (!page || page.networkId !== ctx.networkId) return notFound()
-    if (await slotTaken(ctx, request.pageId, proposal)) return refuseRule("booking_slot_unavailable")
+    // SV-09 : la capacité de la prestation à l'accord, gardée avec le rendez-vous.
+    const capacity = await offerCapacityOf(ctx, request)
+    if (await slotTaken(ctx, request.pageId, proposal, capacity)) return refuseRule("booking_slot_unavailable")
     const bookingId = await ctx.db.insert("serviceBookings", {
       networkId: ctx.networkId,
       requestId: request._id,
@@ -707,6 +780,7 @@ export const acceptServiceProposal = networkMutation({
       endAt: proposal.endAt,
       timeZone: proposal.timeZone,
       status: "confirmed",
+      ...(capacity > 1 ? { capacity } : {}),
       createdAt: now,
       updatedAt: now,
     })
@@ -714,6 +788,136 @@ export const acceptServiceProposal = networkMutation({
     await syncContextualConversation(ctx, conversationOf(request._id))
     await noticeServiceProposalAccepted(ctx, request._id)
     return { bookingId }
+  },
+})
+
+// ═══════════════════════════════════════════════════════════════
+// Déplacer un rendez-vous confirmé (SV-03)
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Le rendez-vous d'un participant pour un geste de déplacement : la demande, son
+ * rôle, le rendez-vous et l'état effectif. Le demandeur ne déplace que vers une
+ * page qui se lit encore d'ici ; un signataire est relu vivant (`participantOf`).
+ */
+async function rescheduleScope(ctx: WriteScope, requestId: Id<"serviceRequests">) {
+  const access = await participantOf(ctx, requestId)
+  if (!access) return notFound()
+  const { request, actor } = access
+  if (actor === "requester") {
+    const page = await readablePageOrNull(ctx, ctx.network, request.pageId, ctx.person._id)
+    if (!page || page.networkId !== ctx.networkId) return notFound()
+  }
+  const booking = request.bookingId ? await ctx.db.get(request.bookingId) : null
+  const now = Date.now()
+  const status = effectiveStatusOf(request, now)
+  const gesture = (action: "propose_reschedule" | "accept_reschedule" | "decline_reschedule") => ruled(checkServiceRescheduleGesture({
+    action,
+    actor,
+    status,
+    now,
+    bookingStartAt: booking && booking.status === "confirmed" ? booking.startAt : null,
+    reschedule: booking?.reschedule ?? null,
+    proposalVersion: request.proposalVersion,
+  }))
+  return { request, actor, booking, now, gesture }
+}
+
+/**
+ * Proposer un autre horaire pour un rendez-vous CONFIRMÉ, avant son début : même
+ * durée, mêmes conditions. L'une ou l'autre partie propose, une seule
+ * proposition à la fois ; le créneau doit être libre pour la page (capacité du
+ * rendez-vous, lui-même non compté). Rien ne change tant que l'autre partie
+ * n'accepte pas ; à l'échéance, le rendez-vous reste tel quel.
+ * Aucun avis de cloche : le genre manque au moteur (issue [S1]) ; la demande
+ * remonte en tête des listes des deux parties et sa fiche montre la proposition.
+ */
+export const proposeServiceReschedule = networkMutation({
+  args: { requestId: v.id("serviceRequests"), expectedProposalVersion: v.number(), startAt: v.number(), timeZone: v.string(), expiresAt: v.number() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    assertDiasporaNetwork(ctx.network)
+    await enforceRateLimit(ctx, "diaspora.service.booking", ctx.person._id)
+    const { request, actor, booking, now, gesture } = await rescheduleScope(ctx, args.requestId)
+    gesture("propose_reschedule")
+    ruled(checkProposalVersion(args.expectedProposalVersion, request.proposalVersion))
+    if (!booking) return refuseRule("request_not_open")
+    const slot = ruled(parseServiceReschedule(args, booking, now))
+    if (await slotTaken(ctx, request.pageId, slot, booking.capacity ?? 1, booking._id)) return refuseRule("booking_slot_unavailable")
+    await ctx.db.patch(booking._id, { reschedule: { ...slot, proposedBy: actor, proposedAt: now }, updatedAt: now })
+    await ctx.db.patch(request._id, { updatedAt: now })
+    await syncContextualConversation(ctx, conversationOf(request._id))
+    return null
+  },
+})
+
+/**
+ * L'AUTRE partie accepte le nouvel horaire LU (`expectedStartAt`), sur la version
+ * lue : contrôle transactionnel du créneau, puis une NOUVELLE version de la
+ * proposition (mêmes conditions, nouvel horaire, auteur inchangé : le signataire
+ * qui a fait accepter les conditions) devient celle du rendez-vous, qui garde
+ * son identité. Deux accords concurrents : un seul réussit. L'avis du demandeur
+ * reste admissible sur le rendez-vous déplacé.
+ */
+export const acceptServiceReschedule = networkMutation({
+  args: { requestId: v.id("serviceRequests"), expectedProposalVersion: v.number(), expectedStartAt: v.number() },
+  returns: v.object({ version: v.number() }),
+  handler: async (ctx, args) => {
+    assertDiasporaNetwork(ctx.network)
+    await enforceRateLimit(ctx, "diaspora.service.booking", ctx.person._id)
+    const { request, booking, now, gesture } = await rescheduleScope(ctx, args.requestId)
+    gesture("accept_reschedule")
+    ruled(checkProposalVersion(args.expectedProposalVersion, request.proposalVersion))
+    const pending = booking?.reschedule
+    if (!booking || !pending) return refuseRule("reschedule_not_open")
+    if (pending.startAt !== args.expectedStartAt) return refuseRule("reschedule_changed")
+    const current = request.currentProposalId ? await ctx.db.get(request.currentProposalId) : null
+    if (!current || current.state !== "current" || current._id !== booking.proposalId) return refuseRule("request_not_open")
+    const version = ruled(nextProposalVersion(request.proposalVersion))
+    if (await slotTaken(ctx, request.pageId, pending, booking.capacity ?? 1, booking._id)) return refuseRule("booking_slot_unavailable")
+    await ctx.db.patch(current._id, { state: "superseded", updatedAt: now })
+    const proposalId = await ctx.db.insert("serviceProposals", {
+      networkId: ctx.networkId,
+      requestId: request._id,
+      pageId: request.pageId,
+      version,
+      authorPersonId: current.authorPersonId,
+      amountMinor: current.amountMinor,
+      currency: current.currency,
+      durationMinutes: current.durationMinutes,
+      startAt: pending.startAt,
+      endAt: pending.endAt,
+      timeZone: pending.timeZone,
+      location: current.location,
+      details: current.details,
+      cancellationTerms: current.cancellationTerms,
+      expiresAt: pending.expiresAt,
+      state: "current",
+      rescheduledFrom: current.version,
+      createdAt: now,
+      updatedAt: now,
+    })
+    await ctx.db.patch(booking._id, { proposalId, startAt: pending.startAt, endAt: pending.endAt, timeZone: pending.timeZone, reschedule: undefined, updatedAt: now })
+    await ctx.db.patch(request._id, { currentProposalId: proposalId, proposalVersion: version, updatedAt: now })
+    await syncContextualConversation(ctx, conversationOf(request._id))
+    return { version }
+  },
+})
+
+/** Décliner le nouvel horaire (l'autre partie) ou retirer le sien (le proposant) : le rendez-vous reste tel quel. */
+export const declineServiceReschedule = networkMutation({
+  args: { requestId: v.id("serviceRequests") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    assertDiasporaNetwork(ctx.network)
+    await enforceRateLimit(ctx, "diaspora.service.booking", ctx.person._id)
+    const { request, booking, now, gesture } = await rescheduleScope(ctx, args.requestId)
+    gesture("decline_reschedule")
+    if (!booking) return refuseRule("reschedule_not_open")
+    await ctx.db.patch(booking._id, { reschedule: undefined, updatedAt: now })
+    await ctx.db.patch(request._id, { updatedAt: now })
+    await syncContextualConversation(ctx, conversationOf(request._id))
+    return null
   },
 })
 
@@ -726,7 +930,7 @@ async function closeBooking(ctx: WriteScope, requestId: Id<"serviceRequests">, a
   const booking = request.bookingId ? await ctx.db.get(request.bookingId) : null
   const next = ruled(checkServiceRequestTransition({ action, actor: "page", status: effectiveStatusOf(request, now), now, bookingStartAt: booking ? booking.startAt : null }))
   const status = next === "completed" ? "completed" : "no_show"
-  if (booking) await ctx.db.patch(booking._id, { status, closedBy: "page", closedAt: now, updatedAt: now })
+  if (booking) await ctx.db.patch(booking._id, { status, closedBy: "page", reschedule: undefined, closedAt: now, updatedAt: now })
   await ctx.db.patch(request._id, { status, closedBy: "page", closedByPersonId: ctx.person._id, closedAt: now, updatedAt: now })
   await syncContextualConversation(ctx, conversationOf(request._id))
   await noticeServicePageGesture(ctx, request._id, status === "completed" ? "service_booking_completed" : "service_booking_no_show", ctx.person._id)

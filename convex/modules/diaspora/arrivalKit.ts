@@ -43,6 +43,7 @@ import {
   ARRIVAL_KIT_REVIEW_DECISIONS,
   arrivalKitReviewCause,
   arrivalKitReviewDueAt,
+  arrivalKitSearchText,
   checkArrivalKitFlag,
   checkArrivalKitReviewer,
   checkArrivalKitVersion,
@@ -56,6 +57,7 @@ import {
   matchesArrivalKitListing,
   parseArrivalKitCountry,
   parseArrivalKitListing,
+  parseArrivalKitQuery,
   parseArrivalKitReason,
   parseArrivalKitResource,
   transitionArrivalKit,
@@ -432,13 +434,21 @@ async function flagOf(ctx: NetworkCtx, row: ResourceRow): Promise<Doc<"kitOutdat
 // ═══════════════════════════════════════════════════════════════
 
 /**
- * La requête du kit public : l'index le plus étroit de la lecture — tout le pays,
- * une ville (ou les seules ressources nationales, clé vide), avec ou sans rubrique —,
- * les plus récemment vérifiées d'abord. Toujours bornée au réseau ET au kit public.
+ * La requête du kit public : la recherche plein texte (ET-04, mots repliés du titre
+ * et du résumé) dès deux caractères, par pertinence ; sinon l'index le plus étroit de
+ * la lecture — tout le pays, une ville (ou les seules ressources nationales, clé vide),
+ * avec ou sans rubrique —, les plus récemment vérifiées d'abord. Toujours bornée au
+ * réseau ET au kit public ; la zone d'une recherche se rejuge ligne à ligne.
  */
-function listingQuery(ctx: Pick<QueryCtx, "db">, networkId: Id<"networks">, listing: ArrivalKitListing) {
+function listingQuery(ctx: Pick<QueryCtx, "db">, networkId: Id<"networks">, listing: ArrivalKitListing, query: string | null) {
   const { country, zone, category } = listing
   const resources = ctx.db.query("kitResources")
+  if (query !== null) {
+    return resources.withSearchIndex("search_by_text", (q) => {
+      const base = q.search("searchText", query).eq("networkId", networkId).eq("listed", true).eq("country", country)
+      return category === null ? base : base.eq("category", category)
+    })
+  }
   if (zone.kind === "country") {
     if (category === null) {
       return resources
@@ -471,6 +481,8 @@ export const listResources = networkQuery({
     city: v.optional(v.string()),
     nationalOnly: v.optional(v.boolean()),
     category: v.optional(v.string()),
+    /** ET-04 — des mots cherchés dans le titre et le résumé ; aucune recherche n'est gardée. */
+    query: v.optional(v.string()),
     paginationOpts: paginationOptsValidator,
   },
   returns: paginationResultValidator(resourceCardValidator),
@@ -480,7 +492,9 @@ export const listResources = networkQuery({
     const parsed = parseArrivalKitListing({ country: args.country, city: args.city, nationalOnly: args.nationalOnly, category: args.category })
     if (!parsed.ok) return refuseKit(parsed.code)
     const listing = parsed.value
-    const result = await listingQuery(ctx, ctx.networkId, listing).paginate(bounded(args.paginationOpts))
+    const query = parseArrivalKitQuery(args.query)
+    if (!query.ok) return refuseKit(query.code)
+    const result = await listingQuery(ctx, ctx.networkId, listing, query.value).paginate(bounded(args.paginationOpts))
     const labels = labelsFor(ctx)
     const now = Date.now()
     const page: ResourceCard[] = []
@@ -671,6 +685,8 @@ function contentOf(draft: ArrivalKitResourceDraft) {
     sourceName: draft.sourceName,
     sourceUrl: draft.sourceUrl,
     lastVerifiedAt: draft.lastVerifiedAt,
+    // ET-04 : le texte cherché suit la version courante.
+    searchText: arrivalKitSearchText(draft),
   }
 }
 

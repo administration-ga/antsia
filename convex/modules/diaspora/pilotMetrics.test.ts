@@ -492,3 +492,136 @@ describe("mesure du pilote — console du moteur", () => {
     expect(await code(f.admin.as.query(PILOT.consolePilotMetrics, { networkId: f.networkId, days: 7 }))).toBe("operatorRequired")
   })
 })
+
+describe("mesure du pilote — l'utilité de l'entraide (ET-10)", () => {
+  type QuestionShape = { readonly at: number; readonly country?: string; readonly status?: Doc<"aidQuestions">["status"]; readonly accepted?: boolean; readonly answeredAfterHours?: number; readonly removed?: boolean }
+
+  /** Une question d'entraide fictive, datée de sa création ; sa première réponse publiée, si elle en a une. */
+  async function question(f: Fixture, shape: QuestionShape) {
+    vi.setSystemTime(shape.at)
+    await f.t.run(async (ctx) => {
+      const questionId = await ctx.db.insert("aidQuestions", {
+        networkId: f.networkId, authorPersonId: f.plain.personId, title: "Question privée de recette", detail: PRIVATE_NEED, theme: "housing",
+        country: shape.country ?? "FR", status: shape.status ?? "open", answerCount: shape.answeredAfterHours === undefined ? 0 : 1, version: 1,
+        createdAt: shape.at, updatedAt: shape.at,
+      })
+      if (shape.answeredAfterHours !== undefined) {
+        const answeredAt = shape.at + shape.answeredAfterHours * HOUR_MS
+        const answerId = await ctx.db.insert("aidAnswers", {
+          networkId: f.networkId, questionId, authorPersonId: f.admin.personId, body: PRIVATE_DETAILS, status: "published", version: 1, createdAt: answeredAt, updatedAt: answeredAt,
+        })
+        if (shape.accepted) await ctx.db.patch(questionId, { acceptedAnswerId: answerId })
+      }
+      if (shape.removed) {
+        await ctx.db.insert("moderationContentStates", { networkId: f.networkId, targetKind: "diasporaAidQuestion", targetId: questionId, ownerPersonId: f.plain.personId, status: "removed", createdAt: shape.at, updatedAt: shape.at })
+      }
+    })
+  }
+
+  async function signup(f: Fixture, at: number, status: Doc<"aidMissionSignups">["status"]) {
+    vi.setSystemTime(at)
+    await f.t.run(async (ctx) => {
+      const missionId = await ctx.db.insert("aidMissions", {
+        networkId: f.networkId, pageId: f.association, title: "Mission de recette", description: "Mission fictive de recette.", country: "BE", city: "Bruxelles", cityKey: "bruxelles",
+        startsAt: at + 5 * DAY_MS, timeZone: "Europe/Brussels", places: 10, signupCount: status === "confirmed" ? 1 : 0, status: "open", version: 1, createdAt: at, updatedAt: at,
+      })
+      await ctx.db.insert("aidMissionSignups", { networkId: f.networkId, missionId, personId: f.plain.personId, status, nameConsentAt: at, signedUpAt: at, createdAt: at, updatedAt: at })
+    })
+  }
+
+  async function mentoring(f: Fixture, at: number, accepted: boolean) {
+    vi.setSystemTime(at)
+    await f.t.run(async (ctx) => {
+      const mentorProfileId = await ctx.db.insert("mentorProfiles", {
+        networkId: f.networkId, personId: f.admin.personId, state: "active", domains: ["housing"], presentation: "Présentation fictive de recette pour le mentorat.", languages: ["fr"],
+        country: "FR", availability: "Le soir", maxActiveMentees: 3, version: 1, optedInAt: at, listedAt: at, createdAt: at, updatedAt: at,
+      })
+      await ctx.db.insert("mentoringRequests", {
+        networkId: f.networkId, mentorProfileId, mentorPersonId: f.admin.personId, menteePersonId: f.plain.personId, domain: "housing", goal: "Objectif privé", message: PRIVATE_MESSAGE,
+        wishedSlots: [], timeZone: "Europe/Paris", consentAt: at, idempotencyKey: `cle-recette-${at}`, idempotencyFingerprint: `empreinte-${at}`, expiresAt: at + 14 * DAY_MS,
+        status: accepted ? "accepted" : "sent", slotVersion: 0, ...(accepted ? { acceptedAt: at + HOUR_MS } : {}), createdAt: at, updatedAt: at,
+      })
+    })
+  }
+
+  async function kitResource(f: Fixture, country: string, lastVerifiedAt: number, status: Doc<"kitResources">["status"] = "published") {
+    await f.t.run(async (ctx) => {
+      await ctx.db.insert("kitResources", {
+        networkId: f.networkId, authorPersonId: f.plain.personId, proposedByPersonId: f.plain.personId, revisedByPersonId: f.plain.personId, title: "Ressource de recette", summary: "Résumé fictif de recette.",
+        body: "Contenu fictif de recette.", category: "housing", country, cityKey: "", sourceName: "Source fictive", sourceUrl: "https://www.exemple-public.fr/recette", lastVerifiedAt, status,
+        listed: status === "published" || status === "needs_review", revision: 1, version: 1, outdatedFlags: 0, revisedAt: START, createdAt: START, updatedAt: START,
+      })
+    })
+  }
+
+  /** Vingt questions en France sur trois jours, une en Belgique, et ce qui ne compte pas. */
+  async function seedAid(f: Fixture) {
+    for (let index = 0; index < 20; index += 1) {
+      await question(f, { at: daysAgo(2 + (index % 3), 8 + (index % 10)), accepted: index < 12, status: index < 12 ? "resolved" : "open", ...(index < 16 ? { answeredAfterHours: index + 1 } : {}) })
+    }
+    await question(f, { at: daysAgo(2, 20), country: "BE" })
+    await question(f, { at: daysAgo(2, 21), status: "withdrawn", answeredAfterHours: 1 })
+    await question(f, { at: daysAgo(2, 22), removed: true })
+    for (let index = 0; index < 6; index += 1) await signup(f, daysAgo(3, 8 + index), index < 5 ? "confirmed" : "withdrawn")
+    for (let index = 0; index < 7; index += 1) await mentoring(f, daysAgo(4, 8 + index), index < 2)
+    vi.setSystemTime(START)
+    for (let index = 0; index < 6; index += 1) await kitResource(f, "FR", NOW - 30 * DAY_MS)
+    await kitResource(f, "FR", NOW - 400 * DAY_MS)
+    await kitResource(f, "FR", NOW - 10 * DAY_MS, "needs_review")
+    await kitResource(f, "FR", NOW - 10 * DAY_MS, "submitted")
+  }
+
+  it("la première aide aboutie se lit avec sa base ; délai, inscriptions, mentorat et kit ; sous le seuil, « moins de 5 »", async () => {
+    const f = await fixture()
+    await seedAid(f)
+    await runPass(f)
+    const { byId } = await measured(f.admin.as, { networkId: f.networkId, country: "FR", days: 7 })
+    expect(byId.get("aid_questions_asked")).toEqual({ id: "aid_questions_asked", group: "mutual_aid", kind: "count", value: { kind: "value", value: 20 } })
+    expect(byId.get("aid_questions_resolved")).toEqual({
+      id: "aid_questions_resolved", group: "mutual_aid", kind: "ratio", denominatorId: "aid_questions_asked",
+      value: { kind: "value", value: 12 }, denominator: { kind: "value", value: 20 }, rate: { kind: "value", percent: 60 },
+    })
+    expect(byId.get("aid_questions_answered")).toMatchObject({ value: { kind: "complement_below_threshold" }, denominator: { kind: "value", value: 20 }, rate: { kind: "withheld" } })
+    expect(byId.get("aid_first_answer_hours")).toEqual({ id: "aid_first_answer_hours", group: "mutual_aid", kind: "duration", sample: { kind: "value", value: 16 }, median: { kind: "at_most", hours: 8 }, p75: { kind: "at_most", hours: 12 } })
+    // Les inscriptions sont en Belgique : la France n'en compte aucune ; tout le réseau en compte cinq confirmées.
+    expect(byId.get("aid_signups")).toMatchObject({ kind: "count", value: { kind: "below_threshold", threshold: PILOT_DISPLAY_THRESHOLD } })
+    expect(byId.get("mentoring_requested")).toMatchObject({ kind: "count", value: { kind: "value", value: 7 } })
+    expect(byId.get("mentoring_accepted")).toMatchObject({ kind: "ratio", value: { kind: "below_threshold" }, denominator: { kind: "value", value: 7 } })
+    expect(byId.get("kit_resources_listed")).toEqual({ id: "kit_resources_listed", group: "mutual_aid", kind: "snapshot", value: { kind: "value", value: 8 } })
+    expect(byId.get("kit_resources_to_review")).toMatchObject({ kind: "ratio", denominatorId: "kit_resources_listed", value: { kind: "below_threshold" }, denominator: { kind: "value", value: 8 } })
+
+    const network = await measured(f.admin.as, { networkId: f.networkId, days: 7 })
+    expect(network.byId.get("aid_signups")).toMatchObject({ value: { kind: "value", value: 5 } })
+    // La question belge compte pour tout le réseau ; la retirée et la question retirée par la modération, jamais.
+    expect(network.byId.get("aid_questions_asked")).toMatchObject({ value: { kind: "value", value: 21 } })
+    // Aucun texte privé n'entre dans une ligne.
+    expect(JSON.stringify(await storedRows(f))).not.toMatch(/privé|recette/i)
+  })
+
+  it("le passage rejoué, par petits lots ou non, rend les mêmes lignes de l'entraide", async () => {
+    const f = await fixture()
+    await seedAid(f)
+    await runPass(f, 3)
+    const paged = (await storedRows(f)).map((row) => ({ day: row.dayStartAt, country: row.country, counts: row.counts, aidFirstAnswer: row.aidFirstAnswer, kitListed: row.kitListed ?? null, kitToReview: row.kitToReview ?? null }))
+    await runPass(f)
+    const replayed = (await storedRows(f)).map((row) => ({ day: row.dayStartAt, country: row.country, counts: row.counts, aidFirstAnswer: row.aidFirstAnswer, kitListed: row.kitListed ?? null, kitToReview: row.kitToReview ?? null }))
+    const order = (rows: typeof paged) => [...rows].sort((left, right) => left.day - right.day || String(left.country).localeCompare(String(right.country)))
+    expect(order(replayed)).toEqual(order(paged))
+    expect(replayed.some((row) => (row.counts.aidQuestionsAsked ?? 0) > 0)).toBe(true)
+  })
+
+  it("une ligne écrite avant ET-10, sans compteur de l'entraide, se lit zéro, sans erreur", async () => {
+    const f = await fixture()
+    await runPass(f)
+    await f.t.run(async (ctx) => {
+      const rows = await ctx.db.query("pilotMetricsDaily").withIndex("by_network_and_dayStartAt", (q) => q.eq("networkId", f.networkId)).take(500)
+      for (const row of rows) {
+        const { aidQuestionsAsked: _a, aidQuestionsAnswered: _b, aidQuestionsResolved: _c, aidSignups: _d, mentoringRequested: _e, mentoringAccepted: _f, ...legacy } = row.counts
+        await ctx.db.replace(row._id, { networkId: row.networkId, country: row.country, dayStartAt: row.dayStartAt, counts: legacy, firstResponse: row.firstResponse, computedAt: row.computedAt, ...(row.offersActive === undefined ? {} : { offersActive: row.offersActive }) })
+      }
+    })
+    const { byId } = await measured(f.admin.as, { networkId: f.networkId, days: 30 })
+    expect(byId.get("aid_questions_asked")).toMatchObject({ value: { kind: "below_threshold" } })
+    expect(byId.get("kit_resources_listed")).toMatchObject({ value: { kind: "below_threshold" } })
+  })
+})
