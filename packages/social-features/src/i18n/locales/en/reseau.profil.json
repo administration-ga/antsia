@@ -156,6 +156,31 @@
       "withdrawFailed": "Unpublishing failed."
     }
   },
+  "profileImageCropper": {
+    "title": {
+      "avatar": "Crop your photo",
+      "cover": "Crop your cover"
+    },
+    "instructions": "Drag the image to choose what stays in the frame; pinch or use the slider to zoom. With the keyboard, on the frame: arrows to move, + and − to zoom, 0 to recentre.",
+    "animated": "Animated image: it will be sent whole, without cropping, to keep its animation; your profile will show it trimmed to the centre, as here.",
+    "frameLabel": {
+      "avatar": "Photo frame, as a circle",
+      "cover": "Cover frame, as a banner"
+    },
+    "roleDescription": "cropper",
+    "loading": "Loading the image…",
+    "unreadable": "This image could not be read: it will not be sent. Choose another one.",
+    "privacy": "The image is prepared on your device: only the framed part is sent, reduced and without its hidden information (location, device).",
+    "zoom": "Zoom",
+    "zoomStatus": "Zoom: {{value}}",
+    "reset": "Recentre",
+    "cancel": "Cancel",
+    "confirm": {
+      "avatar": "Save photo",
+      "cover": "Save cover"
+    },
+    "sending": "Preparing and sending…"
+  },
   "handleChoiceCard": {
     "legend": "Available handles",
     "needName": "Enter your display name first: the suggestions are based on it.",

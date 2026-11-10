@@ -156,6 +156,31 @@
       "withdrawFailed": "La dépublication a échoué."
     }
   },
+  "profileImageCropper": {
+    "title": {
+      "avatar": "Recadrer votre photo",
+      "cover": "Recadrer votre couverture"
+    },
+    "instructions": "Glissez l'image pour choisir ce qui reste dans le cadre ; pincez ou utilisez le curseur pour zoomer. Au clavier, sur le cadre : flèches pour déplacer, + et − pour zoomer, 0 pour recentrer.",
+    "animated": "Image animée : elle sera envoyée entière, sans recadrage, pour garder son animation ; la fiche la montrera rognée au centre, comme ici.",
+    "frameLabel": {
+      "avatar": "Cadre de la photo, en cercle",
+      "cover": "Cadre de la couverture, en bandeau"
+    },
+    "roleDescription": "recadreur",
+    "loading": "Chargement de l'image…",
+    "unreadable": "Cette image n'a pas pu être lue : elle ne sera pas envoyée. Choisissez-en une autre.",
+    "privacy": "L'image est préparée sur votre appareil : seule la partie cadrée part, réduite et sans ses informations cachées (lieu, appareil).",
+    "zoom": "Zoom",
+    "zoomStatus": "Zoom : {{value}}",
+    "reset": "Recentrer",
+    "cancel": "Annuler",
+    "confirm": {
+      "avatar": "Enregistrer la photo",
+      "cover": "Enregistrer la couverture"
+    },
+    "sending": "Préparation et envoi…"
+  },
   "handleChoiceCard": {
     "legend": "Identifiants disponibles",
     "needName": "Saisissez d'abord votre nom affiché : les propositions en partent.",
