@@ -808,5 +808,35 @@
     "pages": "Menu pages",
     "previous": "Previous products",
     "next": "Next products"
+  },
+  "saved": {
+    "title": "My favourites",
+    "lead": "The offers you saved, to find them again later. They stay private.",
+    "privacy": "Only you see your favourites: neither the shop nor other members see them or how many there are, and no one is notified.",
+    "save": "Save",
+    "savedState": "Saved",
+    "saveNamed": "Save “{{title}}” to my favourites",
+    "savedNamed": "“{{title}}” is in my favourites",
+    "added": "Offer saved to your favourites.",
+    "open": "See my favourites",
+    "removed": "Offer removed from your favourites.",
+    "loading": "Loading your favourites…",
+    "loadingMore": "Loading more favourites…",
+    "more": "See more",
+    "empty": "You have not saved any offer yet. Tap the heart on an offer to find it here.",
+    "browse": "Browse the marketplace",
+    "unavailable": "Your favourites could not be loaded.",
+    "retry": "Try again",
+    "hidden": "Some saved offers are no longer available: withdrawn by their shop or no longer accessible. They are no longer shown.",
+    "prune": "Remove them from my favourites",
+    "pruned": "Unavailable offers were removed from your favourites.",
+    "pruneFailed": "Removing unavailable offers did not complete. Try again.",
+    "signIn": "Sign in to save",
+    "openToSave": "Save to my favourites",
+    "errors": {
+      "saved_offer_quota": "You have reached {{max}} favourites in this network. Remove some from My favourites to add more.",
+      "notFound": "This offer is no longer available.",
+      "failed": "Saving did not complete. Try again."
+    }
   }
 }

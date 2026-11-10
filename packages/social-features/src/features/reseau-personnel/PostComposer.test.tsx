@@ -227,6 +227,30 @@ describe("PA8 — publication accessible sans compte par geste explicite", () =>
   })
 })
 
+describe("FD-04 — le toast dit l'état de modération RENDU par le moteur", () => {
+  it("retenue en relecture : « En relecture », jamais « Publication en ligne » ; publiée : « Publication en ligne »", async () => {
+    mocks.publish.mockResolvedValueOnce({ postId: "p1", created: true, moderation: "pending_review" })
+    render(<PostComposer prepareImage={prepare} />)
+    fireEvent.change(zoneDeTexte(), { target: { value: "Un texte retenu" } })
+    fireEvent.click(screen.getByRole("button", { name: "Publier" }))
+    await waitFor(() => expect(mocks.toast.success).toHaveBeenCalledTimes(1))
+    expect(mocks.toast.success).toHaveBeenCalledWith("En relecture : visible de vous seul pour l'instant.")
+    mocks.publish.mockResolvedValueOnce({ postId: "p2", created: true, moderation: "published" })
+    fireEvent.change(zoneDeTexte(), { target: { value: "Un texte publié" } })
+    fireEvent.click(screen.getByRole("button", { name: "Publier" }))
+    await waitFor(() => expect(mocks.toast.success).toHaveBeenCalledTimes(2))
+    expect(mocks.toast.success).toHaveBeenLastCalledWith("Publication en ligne.")
+  })
+
+  it("au nom d'une page, l'état rendu par `publishAsPage` décide aussi du toast", async () => {
+    mocks.publishAsPage.mockResolvedValueOnce({ postId: "p1", created: true, moderation: "pending_review" })
+    render(<PostComposer asPage={{ pageId: "pages_public" as never, displayName: "Page de recette", avatarUrl: null }} />)
+    fireEvent.change(zoneDeTexte(), { target: { value: "Annonce retenue" } })
+    fireEvent.click(screen.getByRole("button", { name: "Publier en tant que Page de recette" }))
+    await waitFor(() => expect(mocks.toast.success).toHaveBeenCalledWith("En relecture : visible de vous seul pour l'instant."))
+  })
+})
+
 afterEach(() => {
   cleanup()
   vi.unstubAllGlobals()

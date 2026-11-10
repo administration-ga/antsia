@@ -35,6 +35,21 @@ export const serviceRequestCloserValidator = literals(SERVICE_REQUEST_CLOSERS)
 /** Une fenêtre souhaitée ou un créneau : début inclus, fin exclue (UTC). */
 export const serviceWindowValidator = v.object({ startAt: v.number(), endAt: v.number() })
 
+/**
+ * SV-03 : un nouvel horaire proposé pour un rendez-vous confirmé — même durée,
+ * mêmes conditions — par l'une ou l'autre partie, en attente de l'accord de
+ * l'autre jusqu'à son échéance. Aucune référence personnelle : seul le rôle
+ * de qui propose est gardé.
+ */
+export const serviceRescheduleValidator = v.object({
+  startAt: v.number(),
+  endAt: v.number(),
+  timeZone: v.string(),
+  proposedBy: serviceRequestActorValidator,
+  proposedAt: v.number(),
+  expiresAt: v.number(),
+})
+
 /** Un lieu APPROXIMATIF (ville, quartier), jamais une adresse ; ou à distance. */
 export const serviceLocationValidator = v.union(
   v.object({ mode: v.literal("remote") }),
@@ -118,6 +133,8 @@ export const serviceRequestsTables = {
     /** L'échéance de l'accord : future, à 14 jours au plus, avant le début. */
     expiresAt: v.number(),
     state: serviceProposalStateValidator,
+    /** SV-03 : la version qu'un déplacement accepté a remplacée (seuls l'horaire et le fuseau changent). */
+    rescheduledFrom: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
   }).index("by_request_and_version", ["requestId", "version"]),
@@ -132,6 +149,10 @@ export const serviceRequestsTables = {
     endAt: v.number(),
     timeZone: v.string(),
     status: serviceBookingStatusValidator,
+    /** SV-09 : les rendez-vous simultanés que la prestation admettait à l'accord (absent : un). */
+    capacity: v.optional(v.number()),
+    /** SV-03 : le nouvel horaire proposé, en attente de l'accord de l'autre partie ; absent sinon. */
+    reschedule: v.optional(serviceRescheduleValidator),
     closedBy: v.optional(serviceRequestActorValidator),
     reason: v.optional(v.string()),
     closedAt: v.optional(v.number()),

@@ -15,7 +15,7 @@ import {
 	type VideoRuntime,
 } from "./video-preparation"
 import { TRANSCODE_ABORTED, type TranscodeOptions } from "./video-upload-probe"
-import { POST_VIDEO_UPLOAD_LIMITS, VIDEO_TRANSCODE_MAX_DURATION_MS } from "./video-upload-policy"
+import { POST_VIDEO_UPLOAD_LIMITS, VIDEO_PREPARATION_REFUSALS, VIDEO_TRANSCODE_MAX_DURATION_MS, type VideoPreparationRefusal } from "./video-upload-policy"
 
 const t = createAppI18n({ locale: "fr", appResources: { fr: {}, en: {} }, defaultNS: "reseau" }).getFixedT("fr")
 
@@ -106,6 +106,7 @@ describe("prepareVideoForUpload — ce qui part, et ce qui ne part pas", () => {
 		const result = await prepareVideoForUpload(video("IMG_0412.MOV", "video/quicktime"), { limits: POST_VIDEO_UPLOAD_LIMITS, t }, env.value)
 		expect(result.status).toBe("refused")
 		if (result.status === "refused") {
+			expect(result.refusal).toBe("not-decodable")
 			expect(result.message).toContain("IMG_0412.MOV")
 			expect(result.message).toContain("Safari")
 			expect(result.message).toContain("MP4")
@@ -117,12 +118,13 @@ describe("prepareVideoForUpload — ce qui part, et ce qui ne part pas", () => {
 	it("une vidéo au-delà de cinq minutes est refusée avant toute conversion", async () => {
 		const env = runtime({ durationMs: 6 * 60_000 })
 		const result = await prepareVideoForUpload(video("long.mp4", "video/mp4"), { limits: POST_VIDEO_UPLOAD_LIMITS, t }, env.value)
-		expect(result).toEqual({ status: "refused", message: "« long.mp4 » est trop longue. Une vidéo dure au plus 5 minutes." })
+		expect(result).toEqual({ status: "refused", refusal: "too-long", message: "« long.mp4 » est trop longue. Une vidéo dure au plus 5 minutes." })
 	})
 
 	it("un .mov trop long À CONVERTIR est refusé en disant d'enregistrer un MP4", async () => {
 		const env = runtime({ durationMs: VIDEO_TRANSCODE_MAX_DURATION_MS + 1 })
 		const result = await prepareVideoForUpload(video("souvenir.mov", "video/quicktime"), { limits: POST_VIDEO_UPLOAD_LIMITS, t }, env.value)
+		expect(result.status === "refused" && result.refusal).toBe("too-long-to-convert")
 		expect(result.status === "refused" && result.message).toContain("3 minutes")
 		expect(env.transcodeCalls).toEqual([])
 	})
@@ -130,7 +132,7 @@ describe("prepareVideoForUpload — ce qui part, et ce qui ne part pas", () => {
 	it("une conversion qui échoue devient un refus dit, jamais une exception", async () => {
 		const env = runtime({ transcode: async () => { throw new Error("transcode:recorder") } })
 		const result = await prepareVideoForUpload(video("souvenir.mov", "video/quicktime"), { limits: POST_VIDEO_UPLOAD_LIMITS, t }, env.value)
-		expect(result).toEqual({ status: "refused", message: "La conversion de la vidéo a échoué. Enregistrez-la au format MP4, puis réessayez." })
+		expect(result).toEqual({ status: "refused", refusal: "conversion-failed", message: "La conversion de la vidéo a échoué. Enregistrez-la au format MP4, puis réessayez." })
 		expect(env.revoked).toEqual(env.urls)
 	})
 
@@ -156,6 +158,46 @@ describe("prepareVideoForUpload — ce qui part, et ce qui ne part pas", () => {
 		const env = runtime()
 		expect(await prepareVideoForUpload(video("clip.mp4", "video/mp4"), { limits: POST_VIDEO_UPLOAD_LIMITS, t, signal: controller.signal }, env.value)).toEqual({ status: "cancelled" })
 		expect(env.urls).toEqual([])
+	})
+})
+
+describe("issue antsia#142 — chaque refus rend un code à liste fermée, à côté de la phrase", () => {
+	/**
+	 * Un scénario RÉEL par refus du module : la vidéo choisie et le navigateur simulé. Le
+	 * `Record` exige un scénario par code de la liste (le typage échoue sinon) ; le type
+	 * `VideoPreparation` exige un code sur tout refus rendu.
+	 */
+	const SCENARIOS: Record<VideoPreparationRefusal, { file: () => File; env: Parameters<typeof runtime>[0] }> = {
+		"not-decodable": { file: () => video("IMG_0412.MOV", "video/quicktime"), env: { decodable: false, durationMs: null } },
+		"too-long": { file: () => video("long.mp4", "video/mp4"), env: { durationMs: POST_VIDEO_UPLOAD_LIMITS.maxDurationMs + 1 } },
+		"too-long-to-convert": { file: () => video("souvenir.mov", "video/quicktime"), env: { durationMs: VIDEO_TRANSCODE_MAX_DURATION_MS + 1 } },
+		"no-encoder": { file: () => video("souvenir.mov", "video/quicktime"), env: { targets: [] } },
+		"conversion-failed": { file: () => video("souvenir.mov", "video/quicktime"), env: { transcode: async () => { throw new Error("transcode:recorder") } } },
+	}
+
+	it("la liste est fermée et sans doublon", () => {
+		expect(new Set(VIDEO_PREPARATION_REFUSALS).size).toBe(VIDEO_PREPARATION_REFUSALS.length)
+		expect([...VIDEO_PREPARATION_REFUSALS].sort()).toEqual(Object.keys(SCENARIOS).sort())
+	})
+
+	it.each(VIDEO_PREPARATION_REFUSALS.map((refusal) => [refusal]))("le refus « %s » rend son code et sa phrase traduite", async (refusal) => {
+		const scenario = SCENARIOS[refusal]
+		const env = runtime(scenario.env)
+		const result = await prepareVideoForUpload(scenario.file(), { limits: POST_VIDEO_UPLOAD_LIMITS, t }, env.value)
+		expect(result.status).toBe("refused")
+		if (result.status !== "refused") return
+		expect(result.refusal).toBe(refusal)
+		// La phrase reste celle que montre antsia.ga : traduite, jamais une clé.
+		expect(result.message.length).toBeGreaterThan(0)
+		expect(result.message).not.toContain("videoPreparation")
+		expect(env.revoked).toEqual(env.urls)
+	})
+
+	it("une annulation n'est pas un refus : ni code ni phrase", async () => {
+		const controller = new AbortController()
+		controller.abort()
+		const result = await prepareVideoForUpload(video("clip.mp4", "video/mp4"), { limits: POST_VIDEO_UPLOAD_LIMITS, t, signal: controller.signal }, runtime().value)
+		expect(result).toEqual({ status: "cancelled" })
 	})
 })
 

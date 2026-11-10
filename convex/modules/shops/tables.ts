@@ -18,6 +18,7 @@ import { v } from "convex/values"
 
 import { contentVisibilityValidator } from "../../lib/validators"
 import { jobTables } from "./jobTables"
+import { savedOfferTables } from "./savedOfferTables"
 import { serviceTables } from "./serviceTables"
 import { activityConfigurationValidator, shopModelValidator, storefrontPolicyValidator, storefrontStateValidator } from "./validators"
 
@@ -26,6 +27,8 @@ export const shopsTables = {
   ...jobTables,
   // P14 : services, devis et rendez-vous (préfixe commerceService*).
   ...serviceTables,
+  // CM-09 : favoris d'offres, privés, références seules.
+  ...savedOfferTables,
   shops: defineTable({
     networkId: v.id("networks"),
     /** Le préparateur d'un brouillon SANS page — seul à le gérer ; absent dès qu'une page porte la boutique. */

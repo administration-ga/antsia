@@ -9,6 +9,8 @@ import { catalogOfferFixture, catalogPageFixture, OFFER_REF } from "./__tests__/
 import { centeringClasses, frameClasses } from "./__tests__/frame-classes"
 
 const mocks = vi.hoisted(() => ({ query: vi.fn() }))
+// CM-09 : le bouton « Enregistrer » a ses propres tests (`save-offer-button.test.tsx`) ; ici, sa seule présence.
+vi.mock("@/components/shops/save-offer-button", () => ({ SaveOfferButton: ({ offer, layout }: { offer: { offerRef: string }; layout?: string }) => <span data-save-offer={offer.offerRef} data-save-layout={layout ?? "overlay"} /> }))
 vi.mock("@antsia/api/engine", () => ({ api: { modules: { shops: { catalog: { list: "list", offer: "offer", postOffer: "postOffer" }, shops: { storefront: "storefront" }, checkout: { context: "checkoutContext" } } } } }))
 vi.mock("@antsia/api/network", () => ({ useNetwork: () => ({ networkId: "root", personId: "reader" }) }))
 vi.mock("@antsia/api/hooks", () => ({ useAuthenticatedConvexQuery: mocks.query }))
@@ -39,6 +41,8 @@ describe("catalogue membre et slot reliés aux projections réelles", () => {
     expect(value).toContain(">Filtrer</button>")
     expect(value).toContain("aria-label=\"Retirer sac\"")
     expect(value).toContain("Première page")
+    // CM-09 : chaque carte du membre porte le bouton « Enregistrer », dans le coin de sa photo.
+    expect(value).toContain(`data-save-offer="${OFFER_REF}" data-save-layout="overlay"`)
   })
   it("un refus ne conserve aucune offre provenant d'un DTO précédent", () => {
     mocks.query.mockReturnValue({ data: catalogPageFixture(), isError: true, isPending: false, isFetching: false })
@@ -119,5 +123,7 @@ describe("SU06 — le menu d'une adresse food", () => {
     const detail = html(<MemberOfferScreen handle="atelier" offerRef={OFFER_REF} />)
     expect(detail).toContain(">Revenir au menu</a>")
     expect(detail).toContain(routes.shopCatalog("atelier"))
+    // CM-09 : la fiche porte « Enregistrer » parmi ses actions, en bouton à texte visible.
+    expect(detail).toContain(`data-save-offer="${OFFER_REF}" data-save-layout="inline"`)
   })
 })

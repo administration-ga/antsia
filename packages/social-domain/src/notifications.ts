@@ -48,6 +48,17 @@ export const NOTIFICATION_KINDS = [
   "association_event_cancelled",
   /** EV-03 : une place s'est libérée et la personne en attente l'OBTIENT — sans acteur ni contenu. */
   "association_event_seat_confirmed",
+  /**
+   * PG-01 : la personne est INVITÉE à signer pour une page (habilitation à accepter) — avis du
+   * système, sans acteur, sans nom de page ni rôle ; le sujet est la PAGE. Résolu à la réponse
+   * (acceptée, déclinée) ou au retrait de l'invitation (annulée).
+   */
+  "page_signatory_invite",
+  /**
+   * PG-01 : la modération du réseau a TRANCHÉ la revendication de la personne — à elle seule,
+   * sans acteur, sans nom de page, sens de la décision ni motif ; le sujet est la REVENDICATION.
+   */
+  "page_claim_decided",
   /** Une page que je suis a publié : le sujet est la PUBLICATION, sans acteur (c'est la page qui parle). */
   "page_post",
   /** Une personne que je suis a publié un album (première publication seulement) : le sujet est l'ALBUM. */
@@ -102,6 +113,20 @@ export function isAssociationEventNoticeKind(kind: string): kind is AssociationE
 }
 
 /**
+ * Les avis de GOUVERNANCE d'une page (PG-01) : avis du système, sans acteur ni contenu ;
+ * relus avec leur garde à l'écriture, avant tout transport et à l'ouverture. La cloche les
+ * mène à la page, relue pour le lecteur.
+ */
+export const PAGE_GOVERNANCE_NOTICE_KINDS = ["page_signatory_invite", "page_claim_decided"] as const satisfies readonly NotificationKind[]
+
+export type PageGovernanceNoticeKind = (typeof PAGE_GOVERNANCE_NOTICE_KINDS)[number]
+
+/** Un avis de gouvernance d'une page ? Liste fermée, comparée telle quelle. */
+export function isPageGovernanceNoticeKind(kind: string): kind is PageGovernanceNoticeKind {
+  return (PAGE_GOVERNANCE_NOTICE_KINDS as readonly string[]).includes(kind)
+}
+
+/**
  * Ce qu'est DEVENUE une notification actionnable — posé par le serveur dans la
  * transaction qui tranche, jamais par un écran. « Lu » n'a jamais voulu dire
  * « traité ».
@@ -115,8 +140,9 @@ export type NotificationResolution = (typeof NOTIFICATION_RESOLUTIONS)[number]
  * `liveSession` : la session de direct que désignent `live_started`,
  * `live_invite`, `live_antenna_invite` et `live_replay_published` — relue avec
  * sa garde à l'ouverture (la page de conférence sert le direct ou sa rediffusion).
+ * `page` et `pageClaim` (PG-01) : la page d'une invitation à signer, la revendication tranchée.
  */
-export const NOTIFICATION_SUBJECT_KINDS = ["post", "connection", "fileScan", "thematicGroup", "groupThread", "commercialThread", "contextualThread", "event", "album", "call", "voicemail", "liveSession", "report"] as const
+export const NOTIFICATION_SUBJECT_KINDS = ["post", "connection", "fileScan", "thematicGroup", "groupThread", "commercialThread", "contextualThread", "event", "album", "call", "voicemail", "liveSession", "report", "page", "pageClaim"] as const
 
 export type NotificationSubjectKind = (typeof NOTIFICATION_SUBJECT_KINDS)[number]
 

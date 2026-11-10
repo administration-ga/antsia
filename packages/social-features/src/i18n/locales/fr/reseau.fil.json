@@ -294,7 +294,10 @@
       "withdrawFailed": "Le retrait de la lecture publique n’a pas pu être enregistré.",
       "availableOnRoot": "Lisible aussi dans {{brand}}."
     },
-    "pageKind": "Page"
+    "pageKind": "Page",
+    "moderation": {
+      "pendingReview": "En relecture : visible de vous seul pour l'instant."
+    }
   },
   "sharePostDialog": {
     "title": "Partager la publication de {{name}}",
@@ -314,6 +317,7 @@
     "share": "Partager",
     "toast": {
       "shared": "Publication partagée.",
+      "pendingReview": "Partage en relecture : visible de vous seul pour l'instant.",
       "failed": "Le partage n'a pas pu être enregistré."
     }
   },
@@ -392,6 +396,7 @@
     "remaining_other": "{{count}} caractères restants",
     "toast": {
       "published": "Publication en ligne.",
+      "pendingReview": "En relecture : visible de vous seul pour l'instant.",
       "failed": "La publication n'a pas pu être enregistrée."
     },
     "publication": {

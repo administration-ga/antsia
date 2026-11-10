@@ -7,6 +7,8 @@ import { I18nextProvider } from "react-i18next"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 const mocks = vi.hoisted(() => ({ query: vi.fn(), push: vi.fn(), toast: vi.fn(), width: 390 }))
+// CM-09 : le bouton « Enregistrer » a ses propres tests (`save-offer-button.test.tsx`) ; ici, sa seule présence.
+vi.mock("@/components/shops/save-offer-button", () => ({ SaveOfferButton: ({ offer, layout }: { offer: { offerRef: string }; layout?: string }) => <span data-save-offer={offer.offerRef} data-save-layout={layout ?? "overlay"} /> }))
 vi.mock("@antsia/api/engine", () => ({ api: { modules: { shops: { catalog: { list: "list", offer: "offer" }, shops: { storefront: "storefront" }, checkout: { context: "checkoutContext" } }, pages: { pages: { follow: "follow", unfollow: "unfollow" } }, commercialMessaging: { threads: { findMyThread: "thread" } } } } }))
 vi.mock("@antsia/api/hooks", () => ({ useAuthenticatedConvexQuery: (...args: unknown[]) => mocks.query(...args) }))
 vi.mock("@antsia/api/network", () => ({ useNetwork: () => ({ networkId: "root", personId: "reader" }) }))

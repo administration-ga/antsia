@@ -8,7 +8,7 @@
  */
 import { type ConnectionInviteState, pendingStateOf } from "@antsia/social-domain/connectionState"
 import type { FileScanStatus } from "@antsia/social-domain/filePolicy"
-import { isAssociationEventNoticeKind, NOTIFICATION_UNREAD_CAP, type NotificationKind, type NotificationResolution, type NotificationSubject } from "@antsia/social-domain/notifications"
+import { isAssociationEventNoticeKind, isPageGovernanceNoticeKind, NOTIFICATION_UNREAD_CAP, type NotificationKind, type NotificationResolution, type NotificationSubject } from "@antsia/social-domain/notifications"
 import { type CommerceNotificationKind, isCommerceNotificationKind } from "@antsia/social-domain/commerceNotifications"
 import { isContextualNotificationKind } from "@antsia/social-domain/contextualMessaging"
 import type { NotificationOpenTarget } from "@antsia/social-domain/notificationOpenTarget"
@@ -115,8 +115,9 @@ async function toDto(ctx: Pick<QueryCtx, "db" | "storage">, me: Id<"persons">, r
     ...(isAssociationEventNoticeKind(row.kind) ? { associationEvent: event && eventPage ? { eventId: event._id, pageHandle: eventPage.handle } : null } : {}),
     ...(isDiasporaServiceNotificationKind(row.kind) ? { serviceNotice: await serviceNoticeView(ctx, row) } : {}),
     ...(isDiasporaCommunityNotificationKind(row.kind) ? { communityNotice: await communityNoticeView(ctx, row) } : {}),
-    // P14B : destination typée relue (avis commerce, décision de modération) ; SU01d : avis au déclarant.
-    ...(isCommerceNotificationKind(row.kind) || row.kind === "moderation_decision" || isReporterNoticeKind(row.kind) || isContextualNotificationKind(row.kind) ? { target: await notificationOpenTargetOf(ctx, row) } : {}),
+    // P14B : destination typée relue (avis commerce, décision de modération) ; SU01d : avis au déclarant ;
+    // PG-01 : la page d'un avis de gouvernance (invitation à signer, revendication tranchée).
+    ...(isCommerceNotificationKind(row.kind) || row.kind === "moderation_decision" || isReporterNoticeKind(row.kind) || isContextualNotificationKind(row.kind) || isPageGovernanceNoticeKind(row.kind) ? { target: await notificationOpenTargetOf(ctx, row) } : {}),
   }
 }
 

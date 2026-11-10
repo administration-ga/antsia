@@ -60,6 +60,9 @@ describe("native notification sentences", () => {
   it.each([
     ["association_event_cancelled", "Un événement auquel vous êtes inscrit ou en liste d'attente est annulé.", "An event you registered or are waitlisted for has been cancelled."],
     ["association_event_seat_confirmed", "Une place s'est libérée : votre inscription à un événement est confirmée.", "A place opened up: your registration for an event is confirmed."],
+    // PG-01 : avis de gouvernance d'une page, sans acteur, nom de page ni motif.
+    ["page_signatory_invite", "Vous êtes invité à signer pour une page. Ouvrez-la pour répondre.", "You have been invited to sign for a page. Open it to respond."],
+    ["page_claim_decided", "Une décision a été prise sur votre demande concernant une page. Ouvrez la page pour la consulter.", "A decision has been made on your request about a page. Open the page to read it."],
   ] as const)("phrases the page event notice %s as a system event without actor or content", (kind, french, english) => {
     expect(nativeNotificationSentence(item({ kind, actor }), fr)).toBe(french)
     expect(nativeNotificationSentence(item({ kind, actor: null }), en)).toBe(english)

@@ -95,6 +95,9 @@ export const DATA_TABLE_POLICIES: Record<string, { shared?: boolean; owners?: re
   pages: {shared: true},
   pageFollows: {},
   pageSignatories: {owners: ["personId"]},
+  // PG-01 : pièces purgées au retrait (aussitôt) et, pour une demande tranchée, au terme de
+  // `PAGE_CLAIM_EVIDENCE_RETENTION_DAYS` (90 j, à valider par le propriétaire et le juriste) ;
+  // la revendication (décision et motif) part avec l'effacement de son demandeur.
   pageClaims: {owners: ["claimantPersonId"]},
   pageIdentityHistory: {shared: true},
   // Boutiques (P07) : un brouillon SANS page est à son préparateur (effacé avec son
@@ -121,6 +124,8 @@ export const DATA_TABLE_POLICIES: Record<string, { shared?: boolean; owners?: re
   shopPaymentRequests: {owners: ["personId"]},
   shopPurchaseSnapshots: {owners: ["personId"]},
   shopPurchaseRequests: {owners: ["personId"]},
+  // CM-09 : un favori d'offre est à la seule personne (références seules) et suit aussi sa boutique.
+  savedOffers: {owners: ["personId"], parents: ["shopId"]},
   commerceCatalogIndexes: {shared: true},
   commerceCatalogMappings: {shared: true},
   commerceCatalogHeads: {parents: ["shopId"]},

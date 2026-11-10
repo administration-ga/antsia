@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/modules/reseauPages/pages.ts @ ad2e7fdc2 — adaptations : réécrit (owner map §6.15) — pages GÉNÉRIQUES par réseau, CRÉÉES par un membre vérifié (association, entreprise, média, communauté ; l'institution naît d'une décision tracée, `admin.ts`) au lieu d'être activées pour une organisation ; identité lue sur la page ; lues dans leur réseau, ou depuis la racine si elles y sont ; publier et retirer exigent un SIGNATAIRE VIVANT (au lieu de `communication.publish`) ; audiences `public` (communiqué) et `followers` (note aux abonnés, au lieu de la note de service `organisation`) ; visibilité par la RÈGLE de la page, pays et portée des publications locales tirés de la page (EXF-DG-23) ; abonnés prévenus par la DIFFUSION PAR LOTS, re-gardés au moment de sonner ; abonnés et publications comptés par l'agrégat (D02) ; annuaire par confiance puis récence (au lieu des plus suivies), filtré par pays, cherché sans accents, borné (`discover`) ou paginé (`paginateDiscover`) ; « mes pages suivies » paginées ; mur par fenêtres bornées et curseur composite (le patron du mur d'une personne), chaque ligne re-gardée ; débit sur chaque écriture (D14) ; refus indistinct à code. Désabonnement : coupure des directs réservés aux abonnés de la page (`live.revocation.kickUserFromPageDirects`, lot 16).
+// Dupliqué de socle/convex/modules/reseauPages/pages.ts @ ad2e7fdc2 — adaptations : réécrit (owner map §6.15) — pages GÉNÉRIQUES par réseau, CRÉÉES par un membre vérifié (association, entreprise, média, communauté ; l'institution naît d'une décision tracée, `admin.ts`) au lieu d'être activées pour une organisation ; identité lue sur la page ; lues dans leur réseau, ou depuis la racine si elles y sont ; publier et retirer exigent un SIGNATAIRE VIVANT (au lieu de `communication.publish`) ; audiences `public` (communiqué) et `followers` (note aux abonnés, au lieu de la note de service `organisation`) ; visibilité par la RÈGLE de la page, pays et portée des publications locales tirés de la page (EXF-DG-23) ; abonnés prévenus par la DIFFUSION PAR LOTS, re-gardés au moment de sonner ; abonnés et publications comptés par l'agrégat (D02) ; annuaire par confiance puis récence (au lieu des plus suivies), filtré par pays, cherché sans accents, borné (`discover`) ou paginé (`paginateDiscover`) ; « mes pages suivies » paginées ; mur par fenêtres bornées et curseur composite (le patron du mur d'une personne), chaque ligne re-gardée ; débit sur chaque écriture (D14) ; refus indistinct à code. Désabonnement : coupure des directs réservés aux abonnés de la page (`live.revocation.kickUserFromPageDirects`, lot 16). Publication de page : placement jugé, puis règle de placement de la tranche qui gouverne le réseau, avant toute écriture (HB-03, issue antsia#96) ; état de modération rendu au signataire qui dépose (FD-04, issue antsia#108).
 /**
  * Les PAGES d'un réseau — créer, lire, suivre, publier en leur nom, lire leur
  * mur, les découvrir.
@@ -41,6 +41,8 @@ import { markPostRemoved } from "../posts/contentRemoval"
 import { countPageFollowers, countPagePosts, recordPageFollower, unrecordPageFollower } from "../posts/counters"
 import { hasNativePostAuthor, requireNativePostAuthor } from "../posts/nativeAuthor"
 import { notifyMentions, writePost } from "../posts/postWrite"
+import { ownPostModerationValidator, writtenPostModeration } from "../posts/authorModeration"
+import { assertPostPlacement, placementOf } from "../posts/placement"
 import { refreshReaderContexts } from "../posts/feedMaterialization"
 import {
   clampLimit,
@@ -463,10 +465,13 @@ function placePagePost(page: Doc<"pages">, reach: string | undefined, reachValue
 /**
  * Publier au nom d'une page — un SIGNATAIRE VIVANT, depuis le réseau de la page.
  * Gardes, dans cet ordre : débit ; rejeu (la clé rend la publication EXISTANTE,
- * de cette page seulement) ; autorité actuelle ; vérité du stockage pour les
- * médias ; le domaine juge le contenu et la forme (`public` ou `followers`,
- * jamais de groupe ni de partage). La visibilité suit la RÈGLE de la page ; les
- * abonnés sont prévenus par la diffusion par lots, chacun re-gardé.
+ * de cette page seulement) ; autorité actuelle ; placement (le pays de la page)
+ * puis, dans un réseau gouverné, la RÈGLE DE PLACEMENT de sa tranche (HB-03),
+ * avant toute écriture ; vérité du stockage pour les médias ; le domaine juge le
+ * contenu et la forme (`public` ou `followers`, jamais de groupe ni de partage).
+ * La visibilité suit la RÈGLE de la page ; les abonnés sont prévenus par la
+ * diffusion par lots, chacun re-gardé. Le retour dit au signataire qui dépose
+ * l'état de modération de la publication (FD-04), l'état COURANT au rejeu.
  */
 export const publishAsPage = networkMutation({
   minStatus: "declaree",
@@ -480,7 +485,7 @@ export const publishAsPage = networkMutation({
     alsoOnRoot: v.optional(v.boolean()),
     idempotencyKey: v.optional(v.string()),
   },
-  returns: v.object({ postId: v.id("posts"), created: v.boolean() }),
+  returns: v.object({ postId: v.id("posts"), created: v.boolean(), moderation: ownPostModerationValidator }),
   handler: async (ctx, args) => {
     await enforceRateLimit(ctx, "page.publish", ctx.person._id)
     if (args.idempotencyKey !== undefined) {
@@ -489,10 +494,13 @@ export const publishAsPage = networkMutation({
         .withIndex("by_author_and_idempotencyKey", (q) => q.eq("authorPersonId", ctx.person._id).eq("idempotencyKey", args.idempotencyKey))
         .unique()
       // Une clé rejouée pour une AUTRE page (ou ailleurs) ne publie pas ici : la clé appartient à son composeur.
-      if (replay) return replay.pageId === args.pageId && replay.networkId === ctx.networkId ? { postId: replay._id, created: false } : fail("conflict")
+      if (replay) return replay.pageId === args.pageId && replay.networkId === ctx.networkId ? { postId: replay._id, created: false, moderation: await writtenPostModeration(ctx, replay._id) } : fail("conflict")
     }
     const { page } = await requireManagedPage(ctx, { networkId: ctx.networkId, personId: ctx.person._id }, args.pageId, "signatory")
     const audience = args.audience ?? "public"
+    // Le PLACEMENT, jugé AVANT toute écriture (HB-03) : le pays de la page, puis la règle de la tranche.
+    const placed = placePagePost(page, args.reach, ctx.network.reachValues)
+    await assertPostPlacement(ctx, { network: ctx.network, authorPersonId: ctx.person._id, page, ...placementOf(placed) })
     // L'acteur est le SIGNATAIRE qui dépose : c'est lui qui a déposé les fichiers.
     const media = await verifyDeclaredMedia(ctx, { actorPersonId: ctx.person._id, networkId: ctx.networkId, usage: "media_social", source: "post_media", declared: args.media ?? [] })
     checked(() =>
@@ -501,7 +509,6 @@ export const publishAsPage = networkMutation({
     // SD-03 : la durée DÉCLARÉE d'une vidéo, même borne que la publication personnelle.
     checked(() => assertPostVideoDuration(media))
     const body = checked(() => assertPostContent({ body: args.body, mediaCount: media.length, isShare: false }))
-    const placed = placePagePost(page, args.reach, ctx.network.reachValues)
     // Le nouveau choix sans compte porte les NATIVES ; les pages enfants gardent leur règle collective.
     const visibility = effectiveVisibility({ networkKind: ctx.network.kind, audienceIsPublic: audience === "public", authorRequestedRoot: ctx.network.kind === "root" && (args.alsoOnRoot ?? false), ruleVisibility: page.visibility })
     const { postId } = await writePost(ctx, {
@@ -518,7 +525,7 @@ export const publishAsPage = networkMutation({
     })
     // Sans acteur : c'est la page qui parle (la cloche dit « nouvelle publication de… », relue à l'ouverture).
     await enqueueFanout(ctx, { networkId: page.networkId, kind: "page_post", subject: { post: postId }, source: { kind: "pageFollowers", postId } })
-    return { postId, created: true }
+    return { postId, created: true, moderation: await writtenPostModeration(ctx, postId) }
   },
 })
 
