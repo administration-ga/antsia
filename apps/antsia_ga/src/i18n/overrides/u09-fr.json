@@ -197,6 +197,7 @@
     "LIVE_JOIN_AS_VIEWER_FIRST": "Rejoignez d'abord ce direct comme spectateur.",
     "LIVE_HOST_STAYS_ON_STAGE": "L'hôte ne quitte pas l'antenne : il termine le direct.",
     "LIVE_TARGET_EXCLUDED": "Cette personne a été exclue de ce direct.",
+    "LIVE_RECORDING_CONSENT_REQUIRED": "Ce direct est enregistré : chaque intervenant doit accepter l'enregistrement avant de prendre l'antenne.",
     "LIVE_CHAT_CLOSED": "La discussion de ce direct est fermée.",
     "LIVE_SELF_EXCLUDE": "Vous ne pouvez pas vous exclure de votre propre direct.",
     "LIVE_HOST_NOT_MODERATABLE": "L'hôte du direct ne peut pas être modéré.",

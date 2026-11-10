@@ -149,6 +149,7 @@
   "LIVE_PROMOTE_CONNECTIONS_ONLY": "Only a connection can be brought on stage.",
   "LIVE_TARGET_EXCLUDED": "This person has been removed from this conference.",
   "LIVE_HOST_MUTES_SELF": "The host mutes their own microphone.",
+  "LIVE_RECORDING_CONSENT_REQUIRED": "This conference is being recorded: each speaker must accept the recording before going on stage.",
   "LIVE_COMMENT_EMPTY": "A comment cannot be empty.",
   "LIVE_COMMENT_TOO_LONG": "A comment is limited to {{max}} characters.",
   "LIVE_CHAT_CLOSED": "The chat of this conference is closed.",

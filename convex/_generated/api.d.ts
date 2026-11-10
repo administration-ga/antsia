@@ -242,6 +242,7 @@ import type * as modules_live_permissions from "../modules/live/permissions.js";
 import type * as modules_live_presence from "../modules/live/presence.js";
 import type * as modules_live_reactions from "../modules/live/reactions.js";
 import type * as modules_live_reap from "../modules/live/reap.js";
+import type * as modules_live_recordingConsent from "../modules/live/recordingConsent.js";
 import type * as modules_live_replay from "../modules/live/replay.js";
 import type * as modules_live_replayComposition from "../modules/live/replayComposition.js";
 import type * as modules_live_retention from "../modules/live/retention.js";
@@ -715,6 +716,7 @@ declare const fullApi: ApiFromModules<{
   "modules/live/presence": typeof modules_live_presence;
   "modules/live/reactions": typeof modules_live_reactions;
   "modules/live/reap": typeof modules_live_reap;
+  "modules/live/recordingConsent": typeof modules_live_recordingConsent;
   "modules/live/replay": typeof modules_live_replay;
   "modules/live/replayComposition": typeof modules_live_replayComposition;
   "modules/live/retention": typeof modules_live_retention;

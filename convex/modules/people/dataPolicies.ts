@@ -148,6 +148,9 @@ export const DATA_TABLE_POLICIES: Record<string, { shared?: boolean; owners?: re
   liveSessions: {owners: ["hostPersonId"]},
   liveSessionCounters: {parents: ["sessionId"]},
   liveSpeakers: {parents: ["sessionId"]},
+  // DL-02 : l'accord à l'enregistrement est à la personne qui l'a donné ; il part avec elle,
+  // avec la session, et avec la rediffusion (purge de `live/recordingConsent.ts`).
+  liveRecordingConsents: {owners: ["personId"], parents: ["sessionId"]},
   liveViewerGrants: {parents: ["sessionId"]},
   liveAntennaRequests: {parents: ["sessionId"]},
   liveAntennaInvitations: {owners: ["inviterPersonId","inviteePersonId"],parents: ["sessionId"]},

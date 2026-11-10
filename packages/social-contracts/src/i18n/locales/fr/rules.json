@@ -149,6 +149,7 @@
   "LIVE_PROMOTE_CONNECTIONS_ONLY": "Seule une relation peut être promue à l'antenne.",
   "LIVE_TARGET_EXCLUDED": "Cette personne a été exclue de cette conférence.",
   "LIVE_HOST_MUTES_SELF": "L'hôte coupe son micro lui-même.",
+  "LIVE_RECORDING_CONSENT_REQUIRED": "Cette conférence est enregistrée : chaque intervenant doit accepter l'enregistrement avant de prendre l'antenne.",
   "LIVE_COMMENT_EMPTY": "Un commentaire ne peut pas être vide.",
   "LIVE_COMMENT_TOO_LONG": "Un commentaire est limité à {{max}} caractères.",
   "LIVE_CHAT_CLOSED": "La conversation de cette conférence est fermée.",

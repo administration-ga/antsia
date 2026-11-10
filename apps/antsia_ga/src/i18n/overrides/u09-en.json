@@ -163,6 +163,7 @@
     "LIVE_JOIN_AS_VIEWER_FIRST": "Join this live as a viewer first.",
     "LIVE_HOST_STAYS_ON_STAGE": "The host does not leave the stage: they end the live.",
     "LIVE_TARGET_EXCLUDED": "This person has been removed from this live.",
+    "LIVE_RECORDING_CONSENT_REQUIRED": "This live is being recorded: each speaker must accept the recording before going on stage.",
     "LIVE_CHAT_CLOSED": "The chat of this live is closed.",
     "LIVE_SELF_EXCLUDE": "You cannot remove yourself from your own live.",
     "LIVE_HOST_NOT_MODERATABLE": "The live host cannot be moderated.",

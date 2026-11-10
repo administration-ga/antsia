@@ -179,6 +179,8 @@ export const DOMAIN_RULES = [
   "LIVE_PROMOTE_CONNECTIONS_ONLY",
   "LIVE_TARGET_EXCLUDED",
   "LIVE_HOST_MUTES_SELF",
+  // Direct : l'accord explicite à l'enregistrement avant de prendre l'antenne (DL-02)
+  "LIVE_RECORDING_CONSENT_REQUIRED",
   // Direct : la conversation, la modération, les délégations
   "LIVE_COMMENT_EMPTY",
   "LIVE_COMMENT_TOO_LONG",
