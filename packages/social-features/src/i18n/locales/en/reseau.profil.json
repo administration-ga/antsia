@@ -47,7 +47,7 @@
       "requested": "Invitation sent",
       "accept": "Accept invitation",
       "decline": "Decline",
-      "blocked": "Blocked",
+      "unblock": "Unblock",
       "connect": "Connect",
       "sending": "Sending…"
     },
@@ -70,7 +70,31 @@
       "unfollowed": "You are no longer following.",
       "followFailed": "The action failed.",
       "unpinned": "Post unpinned.",
-      "unpinFailed": "Unpinning failed."
+      "unpinFailed": "Unpinning failed.",
+      "muted": "Posts from {{name}} no longer appear in your feed.",
+      "unmuted": "Posts from {{name}} are back in your feed.",
+      "muteFailed": "The mute could not be saved."
+    },
+    "overflow": {
+      "trigger": "More actions on {{name}}'s profile",
+      "menu": "Actions on {{name}}'s profile",
+      "mute": {
+        "label": "Mute",
+        "hint": "Their posts leave your feed in this network. They are not told, and you can still write to each other."
+      },
+      "unmute": {
+        "label": "Unmute their posts",
+        "hint": "Their posts come back to your feed in this network."
+      },
+      "block": {
+        "label": "Block @{{handle}}",
+        "hint": "You will no longer see each other, in any network. The person is not told."
+      }
+    },
+    "blockedByMe": {
+      "title": "You blocked @{{handle}}",
+      "message": "Their profile and posts stay closed to you, and yours to them, across all your ANTSIA networks. They were not told.",
+      "unblock": "Unblock"
     }
   },
   "profilPersonne": {
@@ -222,8 +246,8 @@
       },
       "block": {
         "label": "Block a person",
-        "consequence": "The link is cut both ways and in every network: no more messages, no more invitations, nothing of one reaches the other. Blocking is silent — the person is not told.",
-        "reversibility": "The block can be lifted, but the broken connection does not come back by itself: you have to invite again."
+        "consequence": "The link is cut both ways and in every network: no more messages, no more invitations, no more following each other, nothing of one reaches the other. Blocking is silent — the person is not told.",
+        "reversibility": "The block can be lifted, but neither the broken connection nor the removed follows come back by themselves: you have to invite or follow again."
       }
     }
   }

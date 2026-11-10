@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/ProfilReseauSection.tsx @ ad2e7fdc2 — adaptations : la gestion de MON profil social (montée sur ma fiche, `ProfilPersonnePage`) au lieu d'un onglet des paramètres de l'espace ; ma personne lue sur le moteur (`people.persons.getMyPerson`, sur soi) — plus de compte administratif (`functions.users.getMe`) ni de « photo du compte » à reprendre (rien n'est repris du compte : invariant 7), d'où le retrait de la panne du compte et du lien vers les paramètres du compte (`parametresHref`) ; aperçu offert pour un profil PUBLIÉ seulement, à l'adresse de ma fiche composée par `useRoutes().profile(handle)` (`profileApercuHref`) ; copie de visibilité lue par `visibilityFacts(t)` / `visibilityActions(t)` ; « vu par mes collègues » devient « vu par les membres du réseau » ; textes par l'i18n (`reseau:profilReseauSection.*`) ; historique du compte plateforme du socle retiré des commentaires.
+// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/ProfilReseauSection.tsx @ ad2e7fdc2 — adaptations : la gestion de MON profil social (montée sur ma fiche, `ProfilPersonnePage`) au lieu d'un onglet des paramètres de l'espace ; ma personne lue sur le moteur (`people.persons.getMyPerson`, sur soi) — plus de compte administratif (`functions.users.getMe`) ni de « photo du compte » à reprendre (rien n'est repris du compte : invariant 7), d'où le retrait de la panne du compte et du lien vers les paramètres du compte (`parametresHref`) ; aperçu offert pour un profil PUBLIÉ seulement, à l'adresse de ma fiche composée par `useRoutes().profile(handle)` (`profileApercuHref`) ; copie de visibilité lue par `visibilityFacts(t)` / `visibilityActions(t)` ; « vu par mes collègues » devient « vu par les membres du réseau » ; textes par l'i18n (`reseau:profilReseauSection.*`) ; historique du compte plateforme du socle retiré des commentaires ; liste « Personnes bloquées » (`BlockedPeopleSection`) montée sous mes listes de confidentialité (PF-01).
 "use client"
 
 /**
@@ -20,6 +20,7 @@ import { useRoutes } from "@antsia/api/network"
 import { useRouter } from "@antsia/api/routing"
 import { Alert } from "@antsia/ui"
 import { useTranslation } from "react-i18next"
+import { BlockedPeopleSection } from "./BlockedPeopleSection"
 import { ProfilePublicationCard } from "./ProfilePublicationCard"
 import { PrivacyLists } from "./PrivacyLists"
 import { profileApercuHref } from "./profil-personne"
@@ -100,13 +101,18 @@ export function ProfilReseauSection() {
 
       <ProfilePublicationCard />
       <PrivacyLists />
+      {/* Mes blocages, tous réseaux, et le geste qui les lève (PF-01) : un geste
+          silencieux qu'on ne peut pas relire est un piège. Le plan 06 pourra
+          ranger cette liste sous Paramètres › Confidentialité. */}
+      <BlockedPeopleSection />
 
       {/* Deux gestes DISTINCTS, et la carte ci-dessus porte les deux boutons :
           les dire d'une seule voix ferait promettre à l'un ce que seul l'autre
           fait. Chacun s'annonce en deux moitiés — ce qu'il produit, ce qu'il
           laisse intact — parce qu'un retrait dont on ignore la réversibilité
           ne se tente pas. « Sourdine », « masquer » et « bloquer » visent une
-          AUTRE personne : ils vivent dans les listes ci-dessus, pas ici. */}
+          AUTRE personne : ils se posent depuis sa fiche ou ses publications, et
+          se relisent dans les listes ci-dessus, pas ici. */}
       <div
         style={{
           display: "flex",

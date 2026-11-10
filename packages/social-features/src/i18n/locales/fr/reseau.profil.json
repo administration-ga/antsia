@@ -47,7 +47,7 @@
       "requested": "Invitation envoyée",
       "accept": "Accepter l'invitation",
       "decline": "Refuser",
-      "blocked": "Bloqué",
+      "unblock": "Débloquer",
       "connect": "Se connecter",
       "sending": "Envoi…"
     },
@@ -70,7 +70,31 @@
       "unfollowed": "Suivi retiré.",
       "followFailed": "L'action a échoué.",
       "unpinned": "Publication désépinglée.",
-      "unpinFailed": "Le désépinglage a échoué."
+      "unpinFailed": "Le désépinglage a échoué.",
+      "muted": "Les publications de {{name}} ne s'affichent plus dans votre fil.",
+      "unmuted": "Les publications de {{name}} reviennent dans votre fil.",
+      "muteFailed": "La sourdine n'a pas pu être enregistrée."
+    },
+    "overflow": {
+      "trigger": "Autres actions sur le profil de {{name}}",
+      "menu": "Actions sur le profil de {{name}}",
+      "mute": {
+        "label": "Mettre en sourdine",
+        "hint": "Ses publications quittent votre fil de ce réseau. Rien ne lui est signalé, et vous pouvez toujours vous écrire."
+      },
+      "unmute": {
+        "label": "Réactiver ses publications",
+        "hint": "Ses publications reviennent dans votre fil de ce réseau."
+      },
+      "block": {
+        "label": "Bloquer @{{handle}}",
+        "hint": "Vous ne vous verrez plus, dans aucun réseau. La personne n'est pas prévenue."
+      }
+    },
+    "blockedByMe": {
+      "title": "Vous avez bloqué @{{handle}}",
+      "message": "Son profil et ses publications vous restent fermés, et les vôtres lui sont fermés, dans tous vos réseaux ANTSIA. La personne n'en a pas été prévenue.",
+      "unblock": "Débloquer"
     }
   },
   "profilPersonne": {
@@ -222,8 +246,8 @@
       },
       "block": {
         "label": "Bloquer une personne",
-        "consequence": "Le lien est rompu dans les deux sens et dans tous les réseaux : plus de messages, plus d'invitations, plus rien de l'un chez l'autre. Le blocage est silencieux — la personne n'en reçoit pas l'annonce.",
-        "reversibility": "Le blocage se lève, mais la relation rompue ne revient pas d'elle-même : il faut réinviter."
+        "consequence": "Le lien est rompu dans les deux sens et dans tous les réseaux : plus de messages, plus d'invitations, plus d'abonnement de l'un à l'autre, plus rien de l'un chez l'autre. Le blocage est silencieux — la personne n'en reçoit pas l'annonce.",
+        "reversibility": "Le blocage se lève, mais ni la relation rompue ni les abonnements retirés ne reviennent d'eux-mêmes : il faut réinviter ou se réabonner."
       }
     }
   }

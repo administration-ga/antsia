@@ -1,5 +1,5 @@
 // @vitest-environment edge-runtime
-// Dupliqué de socle/convex/modules/reseauPersonnel/marks.test.ts @ ad2e7fdc2 — adaptations : personnes et réseaux (marques et sourdines PAR RÉSEAU) ; listes paginées seules (`paginateBookmarks`, `paginateHiddenPosts`, `paginateMyMutes`) ; départ d'un groupe posé sur la ligne d'appartenance (le module des groupes arrive au lot 9) ; publications de série insérées directement (débit réel de `publish`) ; test neuf : une marque vaut dans le réseau où elle est posée.
+// Dupliqué de socle/convex/modules/reseauPersonnel/marks.test.ts @ ad2e7fdc2 — adaptations : personnes et réseaux (marques et sourdines PAR RÉSEAU) ; listes paginées seules (`paginateBookmarks`, `paginateHiddenPosts`, `paginateMyMutes`) ; départ d'un groupe posé sur la ligne d'appartenance (le module des groupes arrive au lot 9) ; publications de série insérées directement (débit réel de `publish`) ; test neuf : une marque vaut dans le réseau où elle est posée ; `isAuthorMuted` (PF-01).
 import { engineErrorCode } from "@antsia/social-contracts/errors"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
@@ -244,5 +244,27 @@ describe("mise en sourdine", () => {
     expect(await recents(bob, root)).toHaveLength(3)
     await bob.as.mutation(api.modules.marks.marks.muteAuthor, { networkId: root, targetPersonId: bob.personId })
     expect((await bob.as.query(api.modules.marks.marks.paginateMyMutes, { networkId: root, paginationOpts: PAGE })).page).toEqual([])
+  })
+
+  it("isAuthorMuted (PF-01) ne lit que MA sourdine, dans CE réseau, derrière la garde d'adhésion", async () => {
+    const t = testConvex()
+    const { root, testClosed } = await seed(t)
+    const alice = await enter(t, root, "alice")
+    const bob = await enter(t, root, "bob")
+    const carol = await enter(t, root, "carol")
+    await t.run(async (ctx) => {
+      await ctx.db.insert("networkMemberships", { networkId: testClosed, personId: bob.personId, status: "declaree", role: "member", joinedAt: 1, statusChangedAt: 1 })
+    })
+    const muted = (who: Person, networkId: Id<"networks">) => who.as.query(api.modules.marks.marks.isAuthorMuted, { networkId, targetPersonId: alice.personId })
+    expect(await muted(bob, root)).toBe(false)
+    await bob.as.mutation(api.modules.marks.marks.muteAuthor, { networkId: root, targetPersonId: alice.personId })
+    expect(await muted(bob, root)).toBe(true)
+    // La sourdine d'un autre lecteur ne se lit pas ; celle de ce réseau ne vaut pas dans un autre.
+    expect(await muted(carol, root)).toBe(false)
+    expect(await muted(bob, testClosed)).toBe(false)
+    await bob.as.mutation(api.modules.marks.marks.unmuteAuthor, { networkId: root, targetPersonId: alice.personId })
+    expect(await muted(bob, root)).toBe(false)
+    expect(engineErrorCode(await caught(t.query(api.modules.marks.marks.isAuthorMuted, { networkId: root, targetPersonId: alice.personId })))).toBe("unauthenticated")
+    expect(engineErrorCode(await caught(muted(carol, testClosed)))).toBe("notFound")
   })
 })

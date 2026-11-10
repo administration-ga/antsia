@@ -105,6 +105,10 @@
       "label": "Stop seeing posts from {{name}}",
       "hint": "Only in your feed. The person can still be found, and you can still write to each other."
     },
+    "blockAuthor": {
+      "label": "Block {{name}}",
+      "hint": "You will no longer see each other, in any network. The person is not told."
+    },
     "report": {
       "label": "Report",
       "hint": "Sent to the platform's moderation. The post leaves your feed right away."

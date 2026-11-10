@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/modules/reseau/connections.ts (avec la façade socle/convex/modules/reseauPersonnel/connections.ts) @ ad2e7fdc2 — adaptations : RÉÉCRIT sur personnes et réseaux, une seule façade (plus de délégation par `runMutation`) ; garde d'adhésion par le constructeur, débit, message borné par le domaine ; adressage par identifiant OU par personne, avec la MÊME exigence de découvrabilité (manque du socle sur l'API brute, EXF-AN-15) ; FUITE DU BLOCAGE CORRIGÉE (D12 : le bloqué reçoit la réponse d'une demande envoyée, sans rien écrire) ; blocage posé et lu sur toute la paire, tous réseaux ; demandes reçues listées par un index (`recipientPersonId`) au lieu d'un `.filter()` ; listes historiques plafonnées (`listMine`, `listPendingForMe`, qui levaient au-delà de 200) non recopiées, la pagination native les remplace (D04) ; fonction et administration (`resolvePostIdentities`) retirées ; poser ou lever le blocage d'une paire déplace la pastille de messagerie à l'écriture (D38) et recompte les conversations de groupe partagées (D23) ; la paire qui se FERME planifie la coupure de ses directs (`live/revocation.revokeConnectionDirects`, les deux expulsions symétriques du helper `revokeConnectionDirects` du socle, une fois au lieu de chaque `block`) ; `paginateMine` lit ses deux côtés par le flux de convex-helpers dans UNE exécution (`acceptedSidePage`), jamais par sous-requête : correctif du socle du 25/10/2026 (PR 776) repris, `paginateMineSide`, appelée seule par le client, reste native.
+// Dupliqué de socle/convex/modules/reseau/connections.ts (avec la façade socle/convex/modules/reseauPersonnel/connections.ts) @ ad2e7fdc2 — adaptations : RÉÉCRIT sur personnes et réseaux, une seule façade (plus de délégation par `runMutation`) ; garde d'adhésion par le constructeur, débit, message borné par le domaine ; adressage par identifiant OU par personne, avec la MÊME exigence de découvrabilité (manque du socle sur l'API brute, EXF-AN-15) ; FUITE DU BLOCAGE CORRIGÉE (D12 : le bloqué reçoit la réponse d'une demande envoyée, sans rien écrire) ; blocage posé et lu sur toute la paire, tous réseaux ; demandes reçues listées par un index (`recipientPersonId`) au lieu d'un `.filter()` ; listes historiques plafonnées (`listMine`, `listPendingForMe`, qui levaient au-delà de 200) non recopiées, la pagination native les remplace (D04) ; fonction et administration (`resolvePostIdentities`) retirées ; poser ou lever le blocage d'une paire déplace la pastille de messagerie à l'écriture (D38) et recompte les conversations de groupe partagées (D23) ; la paire qui se FERME planifie la coupure de ses directs (`live/revocation.revokeConnectionDirects`, les deux expulsions symétriques du helper `revokeConnectionDirects` du socle, une fois au lieu de chaque `block`) ; `paginateMine` lit ses deux côtés par le flux de convex-helpers dans UNE exécution (`acceptedSidePage`), jamais par sous-requête : correctif du socle du 25/10/2026 (PR 776) repris, `paginateMineSide`, appelée seule par le client, reste native ; bloquer retire aussi les abonnements de la paire, dans les deux sens et dans tous les réseaux, décompte de l'agrégat compris (PF-01, décision D1 du propriétaire du 9/11/2026).
 /**
  * Connexions personne ↔ personne dans un réseau : demander, répondre, bloquer.
  *
@@ -33,7 +33,8 @@ import { onPairBlockChangedInGroups } from "../groups/unread"
 import { onPairBlockChanged } from "../messaging/threads"
 import { notifyPerson, resolveNotifications } from "../notifications/notify"
 import { findPublishedPersonByHandle, isDiscoverablePerson, isPublishedPerson, miniProfileCache } from "../people/miniProfile"
-import { acceptedCounterpartIds, findConnection, isBlockedBetween, pairBlockState } from "./graph"
+import { followerCounts } from "./follows"
+import { acceptedCounterpartIds, findConnection, isBlockedBetween, pairBlockState, pairFollows } from "./graph"
 import { connectionStatusValidator } from "./tables"
 import { refreshReaderFeed, scheduleReaderRefresh } from "../posts/feedMaterialization"
 
@@ -202,7 +203,11 @@ export const cancelSentRequest = networkMutation({
  * Bloquer une personne : unilatéral, sans notification — une protection, pas une
  * sanction publique. Possible sans relation préalable. Le blocage s'écrit sur
  * TOUTES les lignes de la paire (tous réseaux) : il ferme le réseau personnel
- * partout, dans les deux sens.
+ * partout, dans les deux sens, et retire les abonnements de la paire dans les
+ * deux sens (D1 du plan 05, décidée par le propriétaire le 9/11/2026).
+ *
+ * C'est LE geste de blocage, commun à toutes les surfaces (fiche, menu d'une
+ * publication, conversation, application mobile) : aucune ne le réécrit.
  */
 export const blockPerson = networkMutation({
   minStatus: "en_attente",
@@ -221,12 +226,17 @@ export const blockPerson = networkMutation({
 /**
  * Le blocage lui-même, une fois la garde passée (adhésion du bloqueur, débit,
  * cible vivante) : l'intention de son auteur, toutes les lignes de la paire (tous
- * réseaux), la ligne de ce réseau au besoin, puis — si la paire était ouverte —
- * sa fermeture (fils, pastilles, conversations de groupe, directs). Rejoué sur
- * une paire déjà bloquée par son auteur, il n'écrit rien. Partagé par
- * `blockPerson` et par les comptes de démonstration de DIASPORALE
- * (`diaspora/demoAccounts`, développement local), qui posent le blocage d'un
- * acteur par un autre.
+ * réseaux), la ligne de ce réseau au besoin, le retrait des abonnements de la
+ * paire dans les deux sens et dans tous les réseaux (D1), puis — si la paire
+ * était ouverte — sa fermeture (fils, pastilles, conversations de groupe,
+ * directs). Rejoué sur une paire déjà bloquée par son auteur et sans abonnement
+ * restant, il n'écrit rien. Partagé par `blockPerson` et par les comptes de
+ * démonstration de DIASPORALE (`diaspora/demoAccounts`, développement local),
+ * qui posent le blocage d'un acteur par un autre.
+ *
+ * Toutes les lectures bornées sont faites AVANT la première écriture : une paire
+ * trop grande (lignes de connexion ou abonnements au-delà de `PAIR_ROWS_MAX`)
+ * est refusée sans effet partiel.
  */
 export async function blockPair(
   ctx: MutationCtx,
@@ -234,8 +244,11 @@ export async function blockPair(
 ): Promise<void> {
   const { networkId, blockerPersonId, targetPersonId } = args
   const now = Date.now()
-  const pair = await pairBlockState(ctx, blockerPersonId, targetPersonId)
-  if (pair.overflow) return fail("conflict")
+  const [pair, follows] = await Promise.all([
+    pairBlockState(ctx, blockerPersonId, targetPersonId),
+    pairFollows(ctx, blockerPersonId, targetPersonId),
+  ])
+  if (pair.overflow || follows.overflow) return fail("conflict")
   const rows = pair.rows
   const wasBlocked = pair.blocked
   if (!pair.firstIntent) {
@@ -260,10 +273,20 @@ export async function blockPair(
       updatedAt: now,
     })
   }
-  // La paire SE FERME : la pastille de messagerie de chaque côté perd les non-lus du fil (D38).
-  if (!wasBlocked) {
+  // D1 : les abonnements de la paire tombent, dans les deux sens et dans tous les
+  // réseaux, avec leur décompte dans la même transaction. `deleteIfExists` : un
+  // agrégat désaccordé ne doit jamais empêcher quelqu'un de se protéger.
+  for (const follow of follows.rows) {
+    await followerCounts.deleteIfExists(ctx, follow)
+    await ctx.db.delete(follow._id)
+  }
+  // Un abonnement retiré change le fil de son abonné, même sur une paire déjà fermée.
+  if (!wasBlocked || follows.rows.length > 0) {
     await scheduleReaderRefresh(ctx, blockerPersonId)
     await scheduleReaderRefresh(ctx, targetPersonId)
+  }
+  // La paire SE FERME : la pastille de messagerie de chaque côté perd les non-lus du fil (D38).
+  if (!wasBlocked) {
     await onPairBlockChanged(ctx, blockerPersonId, targetPersonId, true)
     await onPairBlockChangedInGroups(ctx, blockerPersonId, targetPersonId)
     await ctx.scheduler.runAfter(0, internal.modules.live.revocation.revokeConnectionDirects, { firstPersonId: blockerPersonId, secondPersonId: targetPersonId })
@@ -272,8 +295,9 @@ export async function blockPair(
 
 /**
  * Lever MES blocages envers une personne (tous réseaux). Débloquer ne rétablit
- * aucune relation : la paire passe à « refusée », ce qui rouvre seulement la
- * possibilité d'en demander une. Sans blocage de ma part : refus indistinct.
+ * aucune relation ni aucun abonnement retiré au blocage (D1) : la paire passe à
+ * « refusée », ce qui rouvre seulement la possibilité d'en demander une, ou de
+ * s'abonner de nouveau. Sans blocage de ma part : refus indistinct.
  */
 export const unblockPerson = networkMutation({
   minStatus: "en_attente",
