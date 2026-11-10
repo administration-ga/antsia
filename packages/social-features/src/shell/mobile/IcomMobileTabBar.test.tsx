@@ -60,6 +60,15 @@ describe("IcomMobileTabBar", () => {
     expect(screen.getByRole("link", { name: "Relations" })).toBeTruthy()
   })
 
+  it("IC-02 : iAppel porte les messages vocaux non écoutés, avec leur phrase", () => {
+    renderWithEngine(
+      <IcomMobileTabBar active="ichat" badges={{ unreadMessages: 2, unheardVoicemails: 3 }} />,
+    )
+    const appels = screen.getByRole("link", { name: /iAppel.*3 messages vocaux non écoutés/ })
+    expect(appels.querySelector(".rm-tab-badge")?.textContent).toBe("3")
+    expect(screen.getByRole("link", { name: /iChat.*2 messages non lus/ })).toBeTruthy()
+  })
+
   it("porte les repères mesurés par les surfaces flottantes et ne se montre qu'au téléphone", () => {
     renderWithEngine(<IcomMobileTabBar active="ichat" badges={{}} />)
     const barre = screen.getByRole("navigation", { name: "Navigation iCom" })

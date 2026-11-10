@@ -12,6 +12,7 @@ import {
 	icomMobileTabHref,
 	icomMobileTabText,
 	parseIcomBrique,
+	voicemailTabBadge,
 } from "./icom-mobile-tabs"
 
 const t = createAppI18n({ locale: "fr", appResources: { fr: {}, en: {} }, defaultNS: "messagerie" }).t
@@ -148,10 +149,23 @@ describe("icomMobileBadge — deux pastilles, jamais additionnées", () => {
 		)
 	})
 
+	it("IC-02 : iAppel porte les messages vocaux non écoutés, et eux seuls", () => {
+		expect(icomMobileBadge("iappel", { unheardVoicemails: 2 }, t)).toEqual({
+			badge: "2",
+			label: "2 messages vocaux non écoutés",
+		})
+		expect(icomMobileBadge("iappel", { unheardVoicemails: 1 }, tEn)?.label).toBe("1 unheard voicemail")
+		expect(icomMobileBadge("iappel", { unheardVoicemails: 0 }, t)).toBeNull()
+		expect(icomMobileBadge("iappel", { unheardVoicemails: 150 }, t)?.badge).toBe("99+")
+		expect(icomMobileBadge("ichat", { unheardVoicemails: 4 }, t)).toBeNull()
+		expect(voicemailTabBadge(3, t)).toEqual({ badge: "3", label: "3 messages vocaux non écoutés" })
+		expect(voicemailTabBadge(undefined, t)).toBeNull()
+	})
+
 	it("les autres emplacements ne portent RIEN — même chargés de compteurs", () => {
-		const counts = { unreadMessages: 9, unseenActus: 9 }
+		const counts = { unreadMessages: 9, unseenActus: 9, unheardVoicemails: 9 }
 		expect(icomMobileBadge("menu_principal", counts, t)).toBeNull()
-		expect(icomMobileBadge("iappel", counts, t)).toBeNull()
+		expect(icomMobileBadge("iappel", { unreadMessages: 9, unseenActus: 9 }, t)).toBeNull()
 		expect(icomMobileBadge("icontact", counts, t)).toBeNull()
 	})
 })

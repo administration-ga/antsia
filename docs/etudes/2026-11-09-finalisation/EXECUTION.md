@@ -34,7 +34,7 @@ Plan : [`01_ICOM_MESSAGERIE_ET_APPELS.md`](01_ICOM_MESSAGERIE_ET_APPELS.md)
 | Lot | Titre | Priorité | Taille | Session | Porte | État |
 |---|---|---|---|---|---|---|
 | IC-01 | Recette réelle iCom et appels à deux identités | P0 | M | S1 | clés du propriétaire ; accord écrit pour toute publication. | à faire |
-| IC-02 | Messagerie vocale : écouter, marquer lu, supprimer | P0 | S | S1 | aucune. | à faire |
+| IC-02 | Messagerie vocale : écouter, marquer lu, supprimer | P0 | S | S1 | aucune. | fusionné |
 | IC-03 | Signaler et bloquer depuis la conversation | P0 | M | S1 | aucune. | à faire |
 | IC-04 | Écran « Réglages iCom » : appels, présence, accusés | P0 | M | S1 | décision 1 du § 7. | à faire |
 | IC-05 | Jetons de rôle et nom « iCom » | P1 | S | S1 | aucune. | à faire |

@@ -60,7 +60,9 @@
     "unreadMessages_one": "{{count}} unread message",
     "unreadMessages_other": "{{count}} unread messages",
     "unseenStatuses_one": "{{count}} unseen status",
-    "unseenStatuses_other": "{{count}} unseen statuses"
+    "unseenStatuses_other": "{{count}} unseen statuses",
+    "unheardVoicemails_one": "{{count}} unheard voicemail",
+    "unheardVoicemails_other": "{{count}} unheard voicemails"
   },
   "messagerieComposeView": {
     "back": "Back to the conversation list",

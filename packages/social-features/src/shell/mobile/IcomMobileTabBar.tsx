@@ -1,4 +1,4 @@
-// Réécrit d'après socle/packages/agent-features/src/features/messagerie/IcomMobileTabBar.tsx @ ad2e7fdc2 — barre déplacée dans la coque (`shell/mobile/`) ; sans le menu principal de l'espace agent (`EspaceMobileVoletsRow`, volets iProfil · iRéseau · iBoîte · iCom) ni `personal-nav` : le premier emplacement est un LIEN vers l'accueil du réseau (`useRoutes().home()`), là où vivent sa barre et son menu, au lieu de basculer la barre ; seuil mobile `MOBILE_ONLY_CLASS` de `@antsia/ui/overlay` ; adresses des briques composées depuis la base injectée (`useRoutes().messages()`) ; libellés et pastilles traduits (`icomMobileTabText`, `icomMobileBadge`, clés `icomMobileTabBar.*`) ; mêmes props (`active`, `badges`), mêmes repères (`data-mobile-nav`, `data-icom-mobile-nav`) et mêmes classes de géométrie (`.esp-reseau-tabbar`, `.rm-*`).
+// Réécrit d'après socle/packages/agent-features/src/features/messagerie/IcomMobileTabBar.tsx @ ad2e7fdc2 — barre déplacée dans la coque (`shell/mobile/`) ; sans le menu principal de l'espace agent (`EspaceMobileVoletsRow`, volets iProfil · iRéseau · iBoîte · iCom) ni `personal-nav` : le premier emplacement est un LIEN vers l'accueil du réseau (`useRoutes().home()`), là où vivent sa barre et son menu, au lieu de basculer la barre ; seuil mobile `MOBILE_ONLY_CLASS` de `@antsia/ui/overlay` ; adresses des briques composées depuis la base injectée (`useRoutes().messages()`) ; libellés et pastilles traduits (`icomMobileTabText`, `icomMobileBadge`, clés `icomMobileTabBar.*`) ; mêmes props (`active`, `badges`), mêmes repères (`data-mobile-nav`, `data-icom-mobile-nav`) et mêmes classes de géométrie (`.esp-reseau-tabbar`, `.rm-*`) ; IC-02 : pastille des messages vocaux non écoutés sur iAppel (`badges.unheardVoicemails`).
 "use client"
 
 /**
@@ -47,7 +47,8 @@ import { ICOM_VIEWS } from "../../features/messagerie/icom-views"
 export interface IcomMobileTabBarProps {
   /** La brique affichée — le retour (`menu_principal`) n'est jamais actif. */
   active: IcomMobileBrique
-  badges: { unreadMessages?: number; unseenActus?: number }
+  /** IC-02 : `unheardVoicemails` — les messages vocaux non écoutés, sur iAppel. */
+  badges: { unreadMessages?: number; unseenActus?: number; unheardVoicemails?: number }
 }
 
 export function IcomMobileTabBar({ active, badges }: IcomMobileTabBarProps) {

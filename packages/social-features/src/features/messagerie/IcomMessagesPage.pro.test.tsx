@@ -3,7 +3,14 @@ import { cleanup, render, screen } from "@testing-library/react"
 import type { ReactNode } from "react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
-const state = vi.hoisted(() => ({ search: "", list: vi.fn(), push: vi.fn(), replace: vi.fn() }))
+const state = vi.hoisted(() => ({ search: "", list: vi.fn(), push: vi.fn(), replace: vi.fn(), unheard: 0, voicemailsEnabled: [] as boolean[] }))
+// IC-02 : la messagerie vocale reçue, lue par le crochet partagé (souscription et pastille de la vue Appels).
+vi.mock("../iappel/use-voicemail-inbox", () => ({
+  useVoicemailInbox: (enabled = true) => {
+    state.voicemailsEnabled.push(enabled)
+    return { items: [], unreadCount: enabled ? state.unheard : 0, truncated: false, isLoading: false, isError: false }
+  },
+}))
 vi.mock("@antsia/api/network", () => ({
   useNetwork: () => ({ networkId: "network-a", personId: "person-a" }),
   useNetworkNavigationLayout: () => ({ adaptive: true, mobile: false }),
@@ -38,7 +45,7 @@ const commercial = { renderList: () => <p>Boutiques</p>, renderConversation: (id
 const contextual = { renderList: () => <p>Mises en relation</p>, renderConversation: (id: string) => <p>Mise en relation {id}</p> }
 const pro: IcomProInjection = { renderConversations: (activity) => <p>Conversations pro {activity ?? "défaut"}</p>, renderContacts: () => <p>Contacts pro</p> }
 
-beforeEach(() => { state.search = ""; vi.clearAllMocks(); __resetListStatesForTests(); activateListSession(JSON.stringify(["network-a", "person-a"])) })
+beforeEach(() => { state.search = ""; state.unheard = 0; state.voicemailsEnabled = []; vi.clearAllMocks(); __resetListStatesForTests(); activateListSession(JSON.stringify(["network-a", "person-a"])) })
 afterEach(() => { cleanup(); __resetListStatesForTests() })
 
 describe("ADR-0036 — iCom et iCom Pro dans la page de messagerie", () => {
@@ -74,6 +81,21 @@ describe("ADR-0036 — iCom et iCom Pro dans la page de messagerie", () => {
     render(<IcomMessagesPage isMobile={false} conversationKey="commerce:thread-1" commercial={commercial} contextual={contextual} pro={pro} />)
     expect(screen.getByRole("heading", { level: 1 }).getAttribute("data-space")).toBe("pro")
     expect(screen.getByText("Conversation boutique thread-1")).toBeTruthy()
+  })
+  it("IC-02 : la vue Appels d'iCom porte les messages vocaux non écoutés ; iCom Pro ne les lit pas", () => {
+    state.unheard = 2
+    render(<IcomMessagesPage isMobile={false} commercial={commercial} contextual={contextual} pro={pro} />)
+    const calls = screen.getByRole("link", { name: /^messagerie:icomViews\.calls/ })
+    // Le chiffre est décoratif ; la phrase (`sr-only`) entre dans le nom du lien.
+    expect(calls.querySelector('.msg-badge [aria-hidden="true"]')?.textContent).toBe("2")
+    expect(calls.querySelector(".msg-badge .sr-only")?.textContent).toBe("messagerie:icomMobileTabs.unheardVoicemails")
+    expect(screen.getByRole("link", { name: "messagerie:icomViews.contacts" }).querySelector(".msg-badge")).toBeNull()
+    expect(state.voicemailsEnabled.at(-1)).toBe(true)
+    cleanup()
+    state.search = "espace=pro"
+    render(<IcomMessagesPage isMobile={false} commercial={commercial} contextual={contextual} pro={pro} />)
+    expect(screen.getByRole("link", { name: "messagerie:icomViews.calls" }).querySelector(".msg-badge")).toBeNull()
+    expect(state.voicemailsEnabled.at(-1)).toBe(false)
   })
   it("sans injection iCom Pro (DIASPORALE), la messagerie unique reste telle quelle", () => {
     state.search = "espace=pro&brique=iappel"

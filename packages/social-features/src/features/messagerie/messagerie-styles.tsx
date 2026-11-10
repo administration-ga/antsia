@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/messagerie/messagerie-styles.tsx @ ad2e7fdc2 — adaptations : fenêtre détachée au format téléphone UNIQUE du moteur, 440 × 956 (largeur suivant la hauteur disponible — formule de la fenêtre d'appel flottante —, hauteur dérivée ; l'iCom flottant du socle était en 390 × 844) ; plus aucune couleur littérale : ombre de déplacement et contraste obligé du code QR par jetons (`--icom-float-drag-shadow`, `--qr-code-surface`, `--qr-code-ink`) ; règles du sur-titre de fonction des fils de poste (`.msg-row-eyebrow`) retirées avec la branche poste ; feuille portée par la constante exportée `MESSAGERIE_STYLES_CSS` (le gabarit n'est plus un texte enfant du JSX) ; doc : cliquet de couleur du moteur, pile z sans iAsted. ; contour des surfaces posées sur la page lu dans --esp-surface-border, filet d'origine en repli (aucun contour quand le thème distingue déjà la carte du fond). ; système épuré (ADR-0027) : filtres en puces grises sans filet (`--esp-chip-*`), filtre actif et onglet actif en pastille tonale (`--esp-tab-active-*`), décompte des non-lus aux couleurs des réactions (`--role-react-*`), facture d'origine en repli. ; réactions de message (`data-mine`) à la teinte des réactions (`--role-react-soft`) ; couleurs par fonction (ADR-0027) : « Écrire » d'une relation (`data-role="message"`) et bouton d'envoi du composeur aux couleurs des messages (`--role-message-*`), pastille de non-lus `.msg-badge` aux couleurs des réactions (`--role-react-*`), facture d'origine en repli. ; « Écrire à » du journal d'appels (`.icom-relations-action[data-role="message"]`) en tonal des messages (`--role-message-soft`, `--role-message-ink`), facture d'origine en repli ; aplats d'identité et leur texte selon les chartes (`--esp-identity-fill`, `--primary-fill-on`, pastille tonale des états actifs ; ADR-0027), facture d'origine en repli.
+// Dupliqué de socle/packages/agent-features/src/features/messagerie/messagerie-styles.tsx @ ad2e7fdc2 — adaptations : fenêtre détachée au format téléphone UNIQUE du moteur, 440 × 956 (largeur suivant la hauteur disponible — formule de la fenêtre d'appel flottante —, hauteur dérivée ; l'iCom flottant du socle était en 390 × 844) ; plus aucune couleur littérale : ombre de déplacement et contraste obligé du code QR par jetons (`--icom-float-drag-shadow`, `--qr-code-surface`, `--qr-code-ink`) ; règles du sur-titre de fonction des fils de poste (`.msg-row-eyebrow`) retirées avec la branche poste ; feuille portée par la constante exportée `MESSAGERIE_STYLES_CSS` (le gabarit n'est plus un texte enfant du JSX) ; doc : cliquet de couleur du moteur, pile z sans iAsted. ; contour des surfaces posées sur la page lu dans --esp-surface-border, filet d'origine en repli (aucun contour quand le thème distingue déjà la carte du fond). ; système épuré (ADR-0027) : filtres en puces grises sans filet (`--esp-chip-*`), filtre actif et onglet actif en pastille tonale (`--esp-tab-active-*`), décompte des non-lus aux couleurs des réactions (`--role-react-*`), facture d'origine en repli. ; réactions de message (`data-mine`) à la teinte des réactions (`--role-react-soft`) ; couleurs par fonction (ADR-0027) : « Écrire » d'une relation (`data-role="message"`) et bouton d'envoi du composeur aux couleurs des messages (`--role-message-*`), pastille de non-lus `.msg-badge` aux couleurs des réactions (`--role-react-*`), facture d'origine en repli. ; « Écrire à » du journal d'appels (`.icom-relations-action[data-role="message"]`) en tonal des messages (`--role-message-soft`, `--role-message-ink`), facture d'origine en repli ; aplats d'identité et leur texte selon les chartes (`--esp-identity-fill`, `--primary-fill-on`, pastille tonale des états actifs ; ADR-0027), facture d'origine en repli. ; IC-02 : rangée de la messagerie vocale du journal (`.iappel-voicemail-*`) et pastille des messages vocaux non écoutés sur la brique et la vue des appels (`.icom-tab-badge`, `.icom-view-badge`).
 "use client"
 
 /**
@@ -74,12 +74,23 @@ export const MESSAGERIE_STYLES_CSS = `
         }
         .icom-tab:hover { color: var(--ink-900); }
         .icom-tab-icon {
+          position: relative;
           display: inline-flex;
           align-items: center;
           justify-content: center;
           width: 44px;
           height: 26px;
           border-radius: 999px;
+        }
+        /* IC-02 : les messages vocaux non écoutés, en pastille sur l'icône de la brique des appels. */
+        .icom-tab-badge {
+          position: absolute;
+          top: -5px;
+          right: 0;
+          min-width: 18px;
+          height: 18px;
+          padding: 0 5px;
+          font-size: 10px;
         }
         .icom-tab[aria-selected="true"] {
           color: var(--ink-900);
@@ -267,6 +278,32 @@ export const MESSAGERIE_STYLES_CSS = `
           padding: 16px 14px;
           font-size: 13px;
           color: var(--ink-500);
+        }
+        /* IC-02 : la messagerie vocale du journal d'appels — la rangée, puis le
+           lecteur, la retenue ou la confirmation, alignés sous le nom. */
+        .iappel-voicemail-icon { flex: 0 0 auto; color: var(--ink-600); }
+        .iappel-voicemail-dot {
+          display: inline-block;
+          width: 8px;
+          height: 8px;
+          margin-right: 6px;
+          border-radius: 999px;
+          vertical-align: middle;
+          /* Non écouté : la couleur des non-lus (ADR-0027), danger en repli. */
+          background: var(--role-react-fill, var(--danger-fill));
+        }
+        .iappel-voicemail-time {
+          flex: 0 0 auto;
+          font-size: 11.5px;
+          color: var(--ink-500);
+        }
+        .iappel-voicemail-detail { padding: 0 12px 10px 40px; }
+        .iappel-voicemail-note {
+          margin: 0;
+          padding: 0 12px 10px 40px;
+          font-size: 12px;
+          line-height: 1.45;
+          color: var(--ink-600);
         }
         .msg-dock {
           display: block;
@@ -1421,6 +1458,8 @@ export const MESSAGERIE_STYLES_CSS = `
         .icom-page-navigation { display: flex; gap: 4px; flex: 0 0 auto; padding: 8px; border-bottom: 1px solid var(--border); }
         .icom-page-navigation a { display: flex; flex: 1; align-items: center; justify-content: center; min-height: 44px; padding: 4px 8px; border-radius: var(--radius-lg); font-size: 14px; color: var(--muted-foreground); }
         .icom-page-navigation a[aria-current="page"] { background: var(--esp-tab-active-bg, var(--accent)); color: var(--esp-tab-active-fg, var(--accent-foreground)); font-weight: 700; }
+        /* IC-02 : les messages vocaux non écoutés, à droite du nom de la vue Appels. */
+        .icom-page-navigation a .icom-view-badge { margin-left: 6px; }
         .icom-page-navigation a:focus-visible, .icom-page-heading a:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
         /* ADR-0036 : la pilule interrupteur iCom | iCom Pro, aux jetons des chartes. */
         .icom-space-switch { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 2px; padding: 3px; border: 1px solid var(--border); border-radius: 999px; background: var(--muted); }
