@@ -57,6 +57,13 @@ describe("native notification sentences", () => {
       expect(nativeNotificationSentence(item({ kind, actor: { ...actor, displayName: "  " } }), translate)).toBe(translate(prefix + actorKey, { actor: translate("mobile.notificationUi.notificationTargets.unknownActor") }))
     }
   })
+  it.each([
+    ["association_event_cancelled", "Un événement auquel vous êtes inscrit ou en liste d'attente est annulé.", "An event you registered or are waitlisted for has been cancelled."],
+    ["association_event_seat_confirmed", "Une place s'est libérée : votre inscription à un événement est confirmée.", "A place opened up: your registration for an event is confirmed."],
+  ] as const)("phrases the page event notice %s as a system event without actor or content", (kind, french, english) => {
+    expect(nativeNotificationSentence(item({ kind, actor }), fr)).toBe(french)
+    expect(nativeNotificationSentence(item({ kind, actor: null }), en)).toBe(english)
+  })
   it("keeps names neutral without a public actor and never names a moderator on a system withdrawal", () => {
     expect(nativeNotificationSentence(item({ kind: "post_comment", actor: { ...actor, displayName: null } }), fr)).toBe("Membre du réseau a commenté votre publication.")
     expect(nativeNotificationSentence(item({ kind: "sponsorship_withdrawn", actor: null }), fr)).toBe("Votre parrainage a été retiré.")
