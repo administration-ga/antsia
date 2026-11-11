@@ -53,6 +53,20 @@ import { deferRestorationToJudicialHold } from "./judicialHolds"
 export type ModerationTarget = Infer<typeof moderationTargetValidator>
 export type ResolvedTarget = { target: ModerationTarget; networkId: Id<"networks">; ownerPersonId?: Id<"persons"> }
 
+/**
+ * antsia#114, point 2 — un signataire VIVANT d'une page (`liveSignatoryRole` : administrateur comme signataire,
+ * habilitation acceptée, membre actif, identité forte pour une page Officielle) ne signale jamais ce qui parle au
+ * nom de SA page : la page elle-même, un évènement qu'elle organise, une publication en sa voix. Le refus est celui
+ * d'une cible inconnue (`notFound`), même par un appel direct. Une personne retirée de l'équipe, une invitation qui
+ * attend ou une page inactive ou reflétée ne donnent aucune voix : la personne signale comme tout lecteur.
+ * Une seule règle pour les deux portes : `cases.report` (ci-dessous) et le chemin historique `moderation.reportPost`.
+ */
+export async function speaksForPage(ctx: Pick<MutationCtx, "db">, pageId: Id<"pages"> | undefined, personId: Id<"persons">): Promise<boolean> {
+  if (pageId === undefined) return false
+  const page = await ctx.db.get(pageId)
+  return page !== null && (await liveSignatoryRole(ctx, page, personId)) !== null
+}
+
 export async function resolveVisibleTarget(ctx: MutationCtx, network: Doc<"networks">, personId: Id<"persons">, target: ModerationTarget): Promise<ResolvedTarget> {
   if (!(await canReadModeratedContent(ctx, target.kind, target.id, personId))) return notFound()
   const base = { target, networkId: network._id }
@@ -103,7 +117,8 @@ export async function resolveVisibleTarget(ctx: MutationCtx, network: Doc<"netwo
     }
     case "post": {
       const post = await assertVisiblePost(ctx, { personId, network }, target.id)
-      if (post.status !== "published") return notFound()
+      // #114 : une publication en voix de page ne se signale par aucun de ses signataires vivants, pas seulement son rédacteur.
+      if (post.status !== "published" || await speaksForPage(ctx, post.pageId, personId)) return notFound()
       return { ...base, networkId: post.networkId, ownerPersonId: post.authorPersonId }
     }
     case "comment": {
@@ -121,11 +136,14 @@ export async function resolveVisibleTarget(ctx: MutationCtx, network: Doc<"netwo
     }
     case "event": {
       const { event } = await requireEventAccess(ctx, network._id, target.id, personId)
+      // #114 : l'évènement d'une page n'a pas de propriétaire personnel ; ses signataires vivants ne le signalent pas.
+      if (await speaksForPage(ctx, event.organizerPageId, personId)) return notFound()
       return { ...base, ...(event.organizerPageId ? {} : event.organizerPersonId ? { ownerPersonId: event.organizerPersonId } : {}) }
     }
     case "page": {
       const page = await readablePageOrNull(ctx, network, target.id, personId)
-      if (!page) return notFound()
+      // #114 : ni son créateur (propriétaire du dossier) ni aucun de ses signataires vivants ne la signalent.
+      if (!page || await speaksForPage(ctx, page._id, personId)) return notFound()
       return { ...base, networkId: page.networkId, ...(page.createdByPersonId ? { ownerPersonId: page.createdByPersonId } : {}) }
     }
     case "person": {
