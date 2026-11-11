@@ -181,5 +181,23 @@
     "arrival": "New message from {{name}}",
     "arrivalWithText": "New message from {{name}}: {{text}}",
     "arrivalWithAttachment": "New message from {{name}}, with an attachment"
+  },
+  "personProtection": {
+    "title": "Report or block",
+    "titleBlockOnly": "Block",
+    "trigger": "Report or block {{name}}",
+    "triggerBlockOnly": "Block {{name}}",
+    "close": "Close",
+    "reportBeforeBlock": "To do both, report first: once blocked, the person can no longer be reported.",
+    "report": {
+      "label": "Report {{name}}",
+      "labelUnnamed": "Report this person",
+      "hint": "Moderators review their profile; you receive an acknowledgement, then the decision. The person does not know who reported them."
+    },
+    "block": {
+      "label": "Block {{name}}",
+      "labelUnnamed": "Block this person",
+      "hint": "Your one-to-one conversation closes on both sides, in every network, and your group messages are hidden from each other. The person is not told."
+    }
   }
 }

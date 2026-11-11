@@ -204,6 +204,8 @@
     "blockTitle": "Block {{name}}?",
     "blockTitleUnnamed": "Block this person?",
     "listHint": "You will find this block under “Blocked people”, in “Edit my profile”, to lift it.",
+    "reportFirstHint": "Do you also want to report them? Do it first: once blocked, they can no longer be reported.",
+    "reportFirst": "Report first",
     "confirmBlock": "Block",
     "blocked": "You blocked {{name}}.",
     "blockedUnnamed": "Block saved.",

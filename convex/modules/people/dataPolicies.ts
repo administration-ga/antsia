@@ -89,6 +89,11 @@ export const DATA_TABLE_POLICIES: Record<string, { shared?: boolean; owners?: re
   groupTyping: {},
   events: {owners: ["organizerPersonId"]},
   eventParticipants: {owners: ["personId"],parents: ["eventId"]},
+  // SD-01 : une Story est purgée (ligne, vues, blob) au passage de purge qui suit ses 24 h ou son retrait —
+  // SAUF sous signalement ouvert (`open`, `reviewing`) : elle est alors conservée, lisible par la seule
+  // modération et invisible des membres, jusqu'à la décision ; le passage suivant l'efface. Aucune borne
+  // n'est posée avant la décision (un dossier sans délai légal peut attendre) : à valider par le propriétaire
+  // et le juriste. L'effacement de son auteur, lui, n'attend pas : la ligne et son blob partent avec lui.
   stories: {owners: ["authorPersonId"]},
   storyViews: {parents: ["storyId"]},
   suggestionDismissals: {},
