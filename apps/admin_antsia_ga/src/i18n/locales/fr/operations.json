@@ -320,7 +320,8 @@
       "unsupported_media": "Image distante en attente de prise en charge",
       "source_conflict": "Référence ou révision de la source en conflit",
       "consent_required": "Accord personnel courant requis",
-      "identity_not_linked": "Identité IDN non corrélée ou accès indisponible"
+      "identity_not_linked": "Identité IDN non corrélée ou accès indisponible",
+      "prohibited_category": "Offre refusée : catégorie interdite, aucun contenu conservé"
     },
     "outcome": {
       "deduplicated": "Le reçu est déjà appliqué. Aucun traitement supplémentaire n’a été effectué.",
@@ -737,6 +738,16 @@
     "enable": "Rattacher {{name}} à {{emitter}}",
     "enableUnselected": "Choisissez un émetteur pour rattacher la boutique",
     "disable": "Retirer le rattachement de {{name}}"
+  },
+  "categoryRulings": {
+    "title": "Catégories encadrées : refus et relectures",
+    "lead": "Ce que la liste des catégories interdites et réglementées a décidé des offres reflétées de ce réseau. Une offre interdite n’entre ni dans la marketplace ni dans sa vitrine ; une offre réglementée fait passer sa vitrine sous la politique de relecture. Aucune ligne tant que la liste est vide : elle reste à fixer par le propriétaire et un conseil.",
+    "rule": {
+      "prohibited": "Refusée : catégorie interdite",
+      "regulated": "Réglementée : vitrine soumise à relecture"
+    },
+    "reference": "Offre {{reference}} · Révision {{revision}} · Liste version {{version}}",
+    "withdrew": "Offre déjà reflétée, retirée de la marketplace et de la vitrine."
   },
   "checkoutPolicy": {
     "title": "Préparation des commandes",

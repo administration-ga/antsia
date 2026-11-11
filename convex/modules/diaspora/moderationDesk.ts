@@ -39,7 +39,8 @@
  *   il ne délimite aucune compétence.
  * - AS-01 : les revendications de page en attente (« Pages à vérifier ») se
  *   relisent ici par fenêtres, filtrées par le pays de la PAGE, avec la garde du
- *   moteur (`pages/claims` n'admet que le rôle de réseau, `networkRoleCapacity`) ;
+ *   moteur (`pages/claims.pageClaimReviewCapacity` : rôle de réseau, ou membre de
+ *   l'équipe de modération vivante compétente pour les pages) ;
  *   la fiche, les pièces et la décision restent `pages/claims` (`getPageClaim`,
  *   `decidePageClaim`). `party` y dit le conflit d'intérêts : le demandeur, ou
  *   toute personne qui a une ligne de signataire sur la page, même invitée.
@@ -58,6 +59,7 @@ import { requireReportCapacity, teamCapacity } from "../moderation/cases"
 import { contentState } from "../moderation/policy"
 import { moderationSurfaceValidator, moderationTargetValidator, sanctionKindValidator } from "../moderation/tables"
 import { liveSignatoryRole, pageCardOf, signatoryRowOf } from "../pages/access"
+import { pageClaimReviewCapacity } from "../pages/claims"
 import { pageCardValidator } from "../pages/validators"
 import { findPublishedPersonByHandle, livePersonProfile } from "../people/miniProfile"
 import { canHoldNetworkRole, NETWORK_RESPONSIBLE_ROLES, NETWORK_ROLE_HOLDERS_MAX } from "../people/networkRoles"
@@ -914,7 +916,8 @@ export const teamCandidate = networkQuery({
 /**
  * AS-01 — une fenêtre des revendications de page EN ATTENTE (« Pages à
  * vérifier »), filtrée par le pays de la page, la plus ancienne d'abord. La
- * garde est celle de `pages/claims.paginatePageClaims` (rôle de réseau, sinon
+ * garde est celle de `pages/claims.paginatePageClaims` (`pageClaimReviewCapacity` :
+ * rôle de réseau, ou membre de l'équipe vivante compétente pour les pages ; sinon
  * le refus indistinct) ; aucune note, aucune pièce, aucun demandeur ici : la
  * fiche et la décision restent `pages/claims`. `party` dit le conflit
  * d'intérêts : le demandeur (`author`) ou toute personne qui a une ligne de
@@ -927,7 +930,8 @@ export const pageClaimQueue = networkQuery({
   returns: v.object({ items: v.array(claimValidator), continueCursor: cursorValidator, isDone: v.boolean() }),
   handler: async (ctx, args) => {
     guardDesk(ctx, args.expectedPersonId)
-    if (networkRoleCapacity(ctx.membership.role) === null) return notFound()
+    // La règle du moteur, à l'identique : l'écran n'ouvre jamais une file que `pages/claims` refuserait.
+    if ((await pageClaimReviewCapacity(ctx, ctx)) === null) return notFound()
     const zone = zoneOf(args.zone)
     const result = await ctx.db
       .query("pageClaims")

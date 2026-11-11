@@ -12,6 +12,8 @@ import { useNativeAppearance } from "../appearance"
 import { Action, Field, Label, QueryBoundary, Status, useNativeGuard } from "../components/ui"
 import { nativeFeedText, nativeMediaCanAdvance, nativeRelativeTime } from "../lib/feed-presentation"
 import { mergeNativePages, nativeCursorKey } from "../lib/native-pagination"
+import { nativeNamedKey, nativeReportNote } from "../lib/native-safety"
+import { NativeSafetyMenu } from "./safety-actions"
 
 type CommentPage = FunctionReturnType<typeof api.modules.engagement.engagement.paginateComments>
 type ReplyPage = FunctionReturnType<typeof api.modules.engagement.engagement.paginateReplies>
@@ -46,6 +48,16 @@ function CommentWriter({ postId, parentCommentId, onSubmitted, onRefresh }: { po
   </View>
 }
 
+/** MB-04 : Signaler le commentaire d'autrui (motif, précision) et Bloquer son auteur ; le signalement part d'abord. */
+function CommentSafetyMenu({ comment }: { comment: Reply }) {
+  const guard = useNativeGuard(), { t } = useNativeAppearance()
+  const report = useMutation(api.modules.moderation.moderation.reportComment)
+  const menu = nativeNamedKey("mobile.safety.menu.comment", comment.author.displayName)
+  const person = comment.author.personId !== guard.runtime.personId ? { personId: comment.author.personId, name: comment.author.displayName } : undefined
+  return <NativeSafetyMenu label={t(menu.key, menu.values)} {...(person ? { person } : {})}
+    report={{ kind: "comment", actionLabel: t("mobile.safety.report.action.comment"), send: form => report({ networkId: guard.runtime.networkId, commentId: comment.commentId, reason: form.reason, ...nativeReportNote("comment", form.note) }) }} />
+}
+
 function CommentLine({ comment, onReply, onOpenProfile }: { comment: Reply; onReply?: () => void; onOpenProfile?: (handle: string) => void }) {
   const guard = useNativeGuard(), { t, tokens, locale } = useNativeAppearance()
   const [pending, setPending] = useState(false), [error, setError] = useState(false)
@@ -66,7 +78,7 @@ function CommentLine({ comment, onReply, onOpenProfile }: { comment: Reply; onRe
     <Text style={{ color: tokens.mutedForeground, fontSize: 12 }}>{nativeRelativeTime(comment.createdAt, Date.now(), locale, t)}</Text>
     <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
       {onReply ? <Action label={t("mobile.feedUi.reply")} disabled={!guard.canAct || !guard.runtime.canWrite} onPress={() => { if (guard.current()) onReply() }} /> : null}
-      {comment.isMine ? <Action label={t("mobile.feedUi.commentRemove")} pending={pending} disabled={!guard.canAct || !guard.runtime.canWrite} onPress={() => Alert.alert(t("mobile.feedUi.commentRemoveConfirm"), undefined, [{ text: t("mobile.feedUi.cancel"), style: "cancel" }, { text: t("mobile.feedUi.commentRemove"), style: "destructive", onPress: () => { void removeOwn() } }])} /> : null}
+      {comment.isMine ? <Action label={t("mobile.feedUi.commentRemove")} pending={pending} disabled={!guard.canAct || !guard.runtime.canWrite} onPress={() => Alert.alert(t("mobile.feedUi.commentRemoveConfirm"), undefined, [{ text: t("mobile.feedUi.cancel"), style: "cancel" }, { text: t("mobile.feedUi.commentRemove"), style: "destructive", onPress: () => { void removeOwn() } }])} /> : <CommentSafetyMenu comment={comment} />}
     </View>
     <Status error label={error ? t("mobile.common.unavailable") : ""} />
   </View>

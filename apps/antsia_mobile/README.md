@@ -188,6 +188,17 @@ hors du dépôt. Aucune donnée applicative ni session existante n'est modifiée
 - Sortie native par une porte asynchrone : fermeture des gestes, arrêt des lecteurs, tentative
   de révocation globale, sortie SDK, purge de la seule clé de ce moteur, remplacement du client
   SDK et démontage des clients Convex/caches. Révocation et purge ont des résultats distincts.
+- Protection (MB-04, PF-04) : signaler une publication, un commentaire, une personne (depuis sa
+  fiche ou la conversation) ou un message reçu, et bloquer depuis la fiche, la publication, le commentaire et la
+  conversation ; le signalement part toujours avant le blocage. Débloquer depuis la fiche
+  refusée, la conversation fermée ou Réglages › Personnes bloquées. Suppression du compte dans
+  l'application, double confirmation (conséquences, puis mot saisi), puis sortie par la porte
+  ci-dessus ; annulation pendant les 30 jours de grâce ; non proposée dans la démonstration
+  partagée. Contact de l'éditeur : Réglages › Aide, contact et règles. Sources et tests purs
+  seulement : recette au simulateur et sur téléphone à faire.
+- Parité (MB-01) : `src/lib/parity.ts` donne l'état de chaque route du site (`native`, `renvoi`,
+  `absent`, `ferme`) et des gestes de protection ; `parity.test.ts` relit le fichier de routes
+  du site et échoue dès qu'une route n'a pas d'entrée. La matrice décrit le code, pas une recette.
 
 ## Appels et notifications d’appel — P17c
 

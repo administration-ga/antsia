@@ -692,6 +692,12 @@ export const MESSAGERIE_STYLES_CSS = `
           font-size: 13px;
           outline: none;
         }
+        /* EX-18 (WCAG 2.4.7) : le champ sans contour propre, c'est la RANGÉE qui montre le focus,
+           à l'anneau de la charte, comme la recherche des infos du fil. */
+        .msg-search-row:focus-within {
+          outline: 2px solid var(--ring);
+          outline-offset: 1px;
+        }
         /* 16 px : sous ce seuil, iOS ZOOME sur le champ au focus et ne
            revient jamais en arriere. C'est la regle anti-zoom, pas un gout. */
         .msg-panel[data-variant="page"] .msg-search-row { padding: 10px 14px; }

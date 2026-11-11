@@ -66,6 +66,10 @@ describe("parity with the enabled web mobile shell", () => {
     expect(nativeTab({ name: "profile", handle: "other.demo" }, "person.demo")).toBe("explore")
     expect(nativeTab({ name: "bookmarks" })).toBe("me")
     expect(nativeTab({ name: "clips" })).toBe("clips")
+    // MB-04 : la suppression du compte et les textes publics restent sous Profil, jamais une sixième destination.
+    expect(nativeTab({ name: "accountDeletion" })).toBe("me")
+    expect(nativeTab({ name: "legal", kind: "legal" })).toBe("me")
+    expect(nativeRouteFromUrl("owned-antsia://suppression", "owned-antsia")).toBe(null)
   })
   it("keeps notifications, post shares and account links inside the selected environment", () => {
     const site = "https://site.example"

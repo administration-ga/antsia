@@ -30,5 +30,7 @@ describe("journal des décisions — détail et motif", () => {
   it("seul le système agit sans acteur", () => {
     expect(isSystemCapacity("system")).toBe(true)
     expect(isSystemCapacity("network_moderator")).toBe(false)
+    // AS-01 : le membre d'une équipe de modération agit en personne, jamais sans acteur.
+    expect(isSystemCapacity("moderation_team_member")).toBe(false)
   })
 })

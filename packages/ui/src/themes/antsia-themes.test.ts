@@ -111,6 +111,8 @@ const TEXT_PAIRS: readonly (readonly [string, string])[] = [
 const NON_TEXT_PAIRS: readonly (readonly [string, string])[] = [
   ["--input", "--background"], ["--input", "--card"], ["--input", "--popover"], ["--input", "--muted"], ["--ink-300", "--ink-0"],
   ["--ink-300", "--ink-100"], ["--ink-400", "--ink-0"], ["--ring", "--background"], ["--ring", "--card"], ["--ring", "--popover"], ["--ring", "--muted"],
+  // EX-18 : l'anneau de focus des champs du paquet se pose aussi sur leur surface (`--ink-0`).
+  ["--ring", "--ink-0"],
   ["--outline-ring", "--background"], ["--outline-ring", "--card"], ["--outline-ring", "--popover"], ["--primary-300", "--background"],
   ["--primary-300", "--card"], ["--primary-300", "--popover"], ["--primary-400", "--card"], ["--primary-400", "--background"],
   ["--warning", "--card"], ["--role-react-ink", "--card"], ["--role-react-ink", "--background"],
@@ -366,6 +368,42 @@ describe("les sept thèmes d'antsia.ga (ADR-0027)", () => {
       ["../components/form.tsx", 'style={{ color: "var(--primary-fill-on, var(--on-fill))" }}', 1],
     ]
     for (const [path, expression, count] of IDENTITY_SITES) expect(read(path).split(expression).length - 1, `${path} : ${expression}`).toBe(count)
+  })
+
+  it("EX-18 : les champs montrent leur focus au clavier à l'anneau de la charte, sans `outline` supprimée en ligne", () => {
+    const FOCUS_SITES: readonly (readonly [string, string, number])[] = [
+      // Nouveau site (EX-18, A11Y-01) : la classe des champs du paquet, dans la couche de base.
+      ["../styles/theme.css", ".ui-field:focus-visible {\n    outline: 2px solid var(--ring);", 1],
+      // Nouveau site (EX-18, A11Y-02) : la rangée de recherche d'iCom, dont le champ n'a pas de contour propre.
+      ["../../../social-features/src/features/messagerie/messagerie-styles.tsx", ".msg-search-row:focus-within {\n          outline: 2px solid var(--ring);", 1],
+      // Un style en ligne l'emporterait sur la classe : plus aucun dans les champs du paquet.
+      ["../components/form.tsx", 'outline: "none"', 0],
+      ["../components/form.tsx", "className={fieldControlClass(className)}", 3],
+    ]
+    for (const [path, expression, count] of FOCUS_SITES) expect(read(path).split(expression).length - 1, `${path} : ${expression}`).toBe(count)
+  })
+
+  it("EX-18 : la console (charte de base, thème quasi vide) borde ses champs et pose son anneau à 3:1 au moins, en clair et en sombre", () => {
+    const cascade = new TokenCascade([...BASE_SHEETS, { name: "admin-antsia.css", css: read("./admin-antsia.css") }])
+    const FIELD_PAIRS: readonly (readonly [string, string])[] = [
+      ["--input", "--background"], ["--input", "--card"], ["--input", "--popover"], ["--input", "--muted"],
+      ["--ink-300", "--ink-0"], ["--ink-300", "--ink-100"], ["--ink-300", "--background"], ["--ink-300", "--muted"],
+      ["--ring", "--background"], ["--ring", "--card"], ["--ring", "--popover"], ["--ring", "--muted"], ["--ring", "--ink-0"],
+    ]
+    for (const dark of [false, true]) {
+      for (const nested of [false, true]) {
+        const node: ChartedNode = { charte: "admin-antsia", dark, nested }
+        const paint = (token: string) => {
+          const parsed = parseColor(cascade.resolve(node, token) ?? "")
+          if (!parsed) throw new Error(`console : ${token} ne se résout pas en couleur`)
+          return parsed
+        }
+        for (const [foreground, background] of FIELD_PAIRS) {
+          const label = `console ${dark ? "sombre" : "clair"}${nested ? " (portail)" : ""} : ${foreground} sur ${background}`
+          expect(contrastRatio(paint(foreground), paint(background), paint("--background")), label).toBeGreaterThanOrEqual(3)
+        }
+      }
+    }
   })
 
   it("aucun aplat d'identité ne porte le texte commun `--on-fill` : le texte de l'aplat (`--primary-fill-on`), repli `--on-fill`", () => {

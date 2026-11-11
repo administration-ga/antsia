@@ -150,7 +150,7 @@ Plan : [`05_PROFIL_RELATIONS_ALBUMS.md`](05_PROFIL_RELATIONS_ALBUMS.md)
 | PF-01 | Bloquer, débloquer et liste des bloqués | P0 | M | S1 | D1 seulement pour la suppression des abonnements ; le reste n'a aucune porte. | fusionné |
 | PF-02 | Signaler un profil et un album | P0 | S | S1 | aucune. | à faire |
 | PF-03 | Images de profil : recadrage et retrait des métadonnées | P0 | M | S1 | aucune. | fusionné |
-| PF-04 | Mobile : bloquer et signaler | P0 | S | S3 | publication sur TestFlight sur accord écrit du propriétaire. | à faire |
+| PF-04 | Mobile : bloquer et signaler | P0 | S | S3 | publication sur TestFlight sur accord écrit du propriétaire. | fusionné |
 | PF-05 | Rompre une relation | P1 | M | S1 | D4. | à faire |
 | PF-06 | Partager mon profil : lien et code QR | P1 | S | S1 | aucune. | à faire |
 | PF-07 | Mes abonnés, Suivre en retour, compteurs à soi | P1 | M | S1 | D2 et D3 ; fichier partagé `convex/convex.config.ts` (S1). | à faire |
@@ -221,7 +221,7 @@ Plan : [`08_COMMERCE_MARKETPLACE_BOUTIQUES.md`](08_COMMERCE_MARKETPLACE_BOUTIQUE
 | Lot | Titre | Priorité | Taille | Session | Porte | État |
 |---|---|---|---|---|---|---|
 | CM-01 | Chaîne réelle du catalogue PRO.GA vers ANTSIA | P0 | M | S1 | propriétaire (clés, compte, déploiement PRO.GA, choix de l'environnement : sandbox, démo, production). | à faire |
-| CM-02 | Catégories interdites et réglementées | P0 | M | S1 | propriétaire et conseil (liste). | à faire |
+| CM-02 | Catégories interdites et réglementées | P0 | M | S1 | propriétaire et conseil (liste). | fusionné |
 | CM-03 | Majorité pour acheter | P0 | S | S1 | avis du juriste (arbitrages A1 à A4 de SU01). | à faire |
 | CM-04 | Commande réglée à la remise (D04) | P0 | L | S1 (et PRO.GA) | décision du propriétaire ; publication de PRO.GA ; publication ANTSIA. | à faire |
 | CM-05 | Avis de commerce des produits | P1 | M | S1 | aucune. | à faire |
@@ -368,7 +368,7 @@ Plan : [`13_CONSOLE_EXPLOITATION_LANCEMENT.md`](13_CONSOLE_EXPLOITATION_LANCEMEN
 | EX-15 | Remise à zéro de la démonstration | P2 | M | S1 | chaque exécution est une opération sur un environnement en ligne : accord du propriétaire. | à faire |
 | EX-16 | Gabarit d'application légère de réseau fermé | P2 | L | S1 | décision du propriétaire ; création de dépôt et de domaine par lui. | à faire |
 | EX-17 | Garde antivirus fermée et file des fichiers retenus | P0 | S | S1 | publication. | fusionné |
-| EX-18 | Corrections d'accessibilité AA | P0 | L | S1 | aucune. | à faire |
+| EX-18 | Corrections d'accessibilité AA | P0 | L | S1 | aucune. | en cours |
 | EX-19 | Liste de contrôle du lancement et bascule de domaine | P0 | M | S1 | domaines, hébergement, clés : propriétaire. | à faire |
 | EX-20 | Hygiène du dépôt public | P1 | S | S1 | aucune pour le code ; évaluation du risque (rotation éventuelle du jeton antivirus) par le propriétaire. | fusionné |
 | EX-21 | Mesure d'usage activée | P2 | S | S1 | projet et jeton par le propriétaire ; texte de consentement validé (plan 12). | à faire |
@@ -379,10 +379,10 @@ Plan : [`14_APPLICATION_MOBILE.md`](14_APPLICATION_MOBILE.md)
 
 | Lot | Titre | Priorité | Taille | Session | Porte | État |
 |---|---|---|---|---|---|---|
-| MB-01 | Matrice de parité tenue par le code | P0 | M | S3 | aucune (backend local et variables : accord du propriétaire). | à faire |
+| MB-01 | Matrice de parité tenue par le code | P0 | M | S3 | aucune (backend local et variables : accord du propriétaire). | fusionné |
 | MB-02 | Premier binaire iOS depuis `main` (build 14) | P0 | M | S3 | accord du propriétaire (compilation), second accord (TestFlight) ; disque ≥ 20 Go libres. | à faire |
 | MB-03 | Android depuis `main` : APK puis AAB | P0 | M | S3 | accord du propriétaire ; compte Google Play (propriétaire). | à faire |
-| MB-04 | Exigences des boutiques : bloquer, signaler, supprimer son compte | P0 | M | S3 | aucune. | à faire |
+| MB-04 | Exigences des boutiques : bloquer, signaler, supprimer son compte | P0 | M | S3 | aucune. | fusionné |
 | MB-05 | Dossier des boutiques d'applications | P0 | M | S3 + propriétaire | propriétaire (comptes des boutiques, entité éditrice, assistance) ; juriste pour l'âge (SU01b, SU01c). | à faire |
 | MB-06 | Essais sur appareils physiques | P0 | S | S3 + propriétaire | présence du propriétaire ; disque ≥ 15 Go avant de brancher l'iPhone (piège `iOS DeviceSupport`). | à faire |
 | MB-07 | Retour d'arrière-plan sans perte d'état | P0 | M | S3 | aucune. | à faire |

@@ -19,7 +19,7 @@ import { applyCommerceJobsEnvelope } from "./commerceJobs"
 import { COMMERCE_SERVICE_NOTICE_CONTRACT } from "@antsia/social-domain/commerce-service-notices"
 import { applyCommerceServiceNotice } from "./commerceServiceNotices"
 
-export type FederationApplyFailure = "unsupported_contract" | "contract_not_allowed" | "invalid_payload" | "unsupported_event" | "unsupported_media" | "source_conflict" | "consent_required" | "identity_not_linked"
+export type FederationApplyFailure = "unsupported_contract" | "contract_not_allowed" | "invalid_payload" | "unsupported_event" | "unsupported_media" | "source_conflict" | "consent_required" | "identity_not_linked" | "prohibited_category"
 export type FederationApplyResult = { applied: true } | { applied: false; reason: FederationApplyFailure }
 
 /** Une charge connue mais non gérée est refusée avant conservation d’un corps nouveau. */
@@ -27,6 +27,15 @@ export async function validImplementedFederationPayload(envelope: FederationEnve
   if (envelope.contract !== RESEAU_PUBLIC_CONTRACT) return true
   const parsed = parseReseauPublicEvent(envelope.payload, envelope.objectRef, now)
   return parsed.ok && (!isReseauPublicPersonEvent(parsed.event) || parsed.event.agentRef === `agent:${await federationBodyDigest(parsed.event.consentRef)}`)
+}
+
+/**
+ * CM-02 : un refus pour catégorie interdite est une décision métier définitive sous la liste en vigueur. Sa lettre
+ * morte garde le motif, l'empreinte et les références, JAMAIS le corps (le contenu d'une offre interdite n'est pas
+ * conservé) ; rien n'est à rejouer : l'émetteur publie une nouvelle révision dans une catégorie admise.
+ */
+export function isContentFreeFederationFailure(reason: FederationApplyFailure): boolean {
+  return reason === "prohibited_category"
 }
 
 /** Les corps des événements personnels ne deviennent jamais des lettres mortes. */

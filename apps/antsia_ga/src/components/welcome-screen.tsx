@@ -194,12 +194,13 @@ export function WelcomeScreen({ publicPostId, notificationReference, shopContact
                   type="checkbox"
                   className="mt-0.5 size-5 shrink-0 accent-primary"
                   aria-invalid={errors.consent ? true : undefined}
+                  aria-describedby={errors.consent ? "consent-error" : undefined}
                   {...form.register("consent")}
                 />
                 <span>{t("antsia:welcome.consentLabel")}</span>
               </label>
               {errors.consent ? (
-                <p role="alert" className="text-sm text-destructive">
+                <p id="consent-error" role="alert" className="text-sm text-destructive">
                   {errors.consent.message}
                 </p>
               ) : null}
