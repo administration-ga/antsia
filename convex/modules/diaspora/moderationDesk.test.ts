@@ -608,16 +608,35 @@ describe("AS-01 — pages à vérifier : les revendications en attente, par pays
     expect(rows.map((row) => [row.claimId, row.party])).toEqual([[byModerator, "author"], [onSigned, "page"], [onFree, null]])
   })
 
-  it("refuse indistinctement un membre sans rôle de réseau, une équipe, un autre réseau et une autre personne attendue", async () => {
+  it("refuse indistinctement un membre sans rôle ni équipe compétente, une équipe d'une autre nature, un autre réseau et une autre personne attendue", async () => {
     const f = await fixture()
     const pageFr = await page(f.t, f.network, "FR")
     await claim(f.t, f.network, pageFr, f.author.personId)
-    const teamId = await f.t.run(async (ctx) => ctx.db.insert("moderationTeams", { networkId: f.network, name: "France (fixture)", active: true, createdAt: NOW }))
+    const teamId = await f.t.run(async (ctx) => ctx.db.insert("moderationTeams", { networkId: f.network, name: "Publications (fixture)", scope: "post", active: true, createdAt: NOW }))
     await f.t.run(async (ctx) => ctx.db.insert("moderationTeamMembers", { networkId: f.network, teamId, personId: f.reader.personId, active: true, updatedAt: NOW }))
-    // Membre d'une équipe sans rôle de réseau : `pages/claims` ne l'admet pas (issue de la modération par pays).
+    // Une équipe d'une autre nature ne gagne rien sur les pages (`pages/claims.pageClaimReviewCapacity`).
     expect(await codeOf(f.reader.as.query(D.pageClaimQueue, claimArgs(f.network, f.reader, ALL)))).toBe("notFound")
     expect(await codeOf(f.author.as.query(D.pageClaimQueue, claimArgs(f.network, f.author, ALL)))).toBe("notFound")
     expect(await codeOf(f.moderator.as.query(D.pageClaimQueue, claimArgs(f.root, f.moderator, ALL)))).toBe("notFound")
     expect(await codeOf(f.moderator.as.query(D.pageClaimQueue, { ...claimArgs(f.network, f.moderator, ALL), expectedPersonId: f.reader.personId }))).toBe("notFound")
+  })
+
+  it("admet le membre de l'équipe vivante compétente pour les pages, comme `pages/claims` : l'équipe « page », à défaut l'équipe sans nature", async () => {
+    const f = await fixture()
+    const pageFr = await page(f.t, f.network, "FR")
+    const pending = await claim(f.t, f.network, pageFr, f.moderator.personId)
+    const general = await f.t.run(async (ctx) => ctx.db.insert("moderationTeams", { networkId: f.network, name: "Générale (fixture)", active: true, createdAt: NOW }))
+    await f.t.run(async (ctx) => ctx.db.insert("moderationTeamMembers", { networkId: f.network, teamId: general, personId: f.reader.personId, active: true, updatedAt: NOW }))
+    // Sans équipe « page », l'équipe sans nature reçoit les signalements de page : son membre instruit.
+    const read = await f.reader.as.query(D.pageClaimQueue, claimArgs(f.network, f.reader, ALL))
+    expect(read.items.map((row) => [row.claimId, row.party])).toEqual([[pending, null]])
+    expect(await f.reader.as.query(api.modules.pages.claims.myPageClaimReview, { networkId: f.network })).toEqual({ canReview: true })
+
+    // Une équipe « page » vivante prend la compétence : son membre lit la file, l'équipe sans nature la perd.
+    const pages = await f.t.run(async (ctx) => ctx.db.insert("moderationTeams", { networkId: f.network, name: "Pages (fixture)", scope: "page", active: true, createdAt: NOW }))
+    await f.t.run(async (ctx) => ctx.db.insert("moderationTeamMembers", { networkId: f.network, teamId: pages, personId: f.author.personId, active: true, updatedAt: NOW }))
+    expect((await f.author.as.query(D.pageClaimQueue, claimArgs(f.network, f.author, FR))).items.map((row) => row.claimId)).toEqual([pending])
+    expect(await codeOf(f.reader.as.query(D.pageClaimQueue, claimArgs(f.network, f.reader, ALL)))).toBe("notFound")
+    expect(await f.reader.as.query(api.modules.pages.claims.myPageClaimReview, { networkId: f.network })).toEqual({ canReview: false })
   })
 })
