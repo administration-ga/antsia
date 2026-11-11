@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/modules/reseauPersonnel/notifications.ts (l. 255-499) @ ad2e7fdc2 — adaptations : personnes et réseaux (la cloche d'un réseau) ; `myNotifications` à curseur temporel (qui LEVAIT à égalité de date, D18) non recopiée, la pagination native `paginateNotifications` la remplace ; `unreadCount` rend sa lacune (`capped`, D19) ; `markAllRead` lit l'index jusqu'à la date du clic au lieu d'un `.filter()` ; sujet rendu en `{ kind, id }` avec l'état VIVANT d'une demande de relation et d'une analyse de fichier ; acteur par le mini-profil publié (badges compris) ; la PAGE d'un `page_post` par sa carte publique relue (nom, badge calculé — lot F2) ; débit sur les marquages.
+// Dupliqué de socle/convex/modules/reseauPersonnel/notifications.ts (l. 255-499) @ ad2e7fdc2 — adaptations : personnes et réseaux (la cloche d'un réseau) ; `myNotifications` à curseur temporel (qui LEVAIT à égalité de date, D18) non recopiée, la pagination native `paginateNotifications` la remplace ; `unreadCount` rend sa lacune (`capped`, D19) ; `markAllRead` lit l'index jusqu'à la date du clic au lieu d'un `.filter()` ; sujet rendu en `{ kind, id }` avec l'état VIVANT d'une demande de relation et d'une analyse de fichier ; acteur par le mini-profil publié (badges compris) ; la PAGE d'un `page_post` par sa carte publique relue (nom, badge calculé — lot F2) ; débit sur les marquages ; filtre « non lues » servi par l'index des non-lues (`unreadOnly`, NP-04, issue #149).
 /**
  * La cloche d'un réseau, côté lecteur : lister, compter, marquer lu.
  *
@@ -78,7 +78,8 @@ export type NotificationDto = {
   communityNotice?: CommunityNoticeDto | null
   /**
    * P14B : la destination TYPÉE relue à l'instant (avis commerce P14/P15, décision de
-   * modération) ; références opaques seules, l'écran compose l'adresse sur SES routes.
+   * modération ; NP-04 : la fiche du groupe d'une invitation) ; références opaques seules,
+   * l'écran compose l'adresse sur SES routes.
    * Absente pour les autres genres ; `null` : aucune destination servie.
    */
   target?: NotificationOpenTarget | null
@@ -116,20 +117,26 @@ async function toDto(ctx: Pick<QueryCtx, "db" | "storage">, me: Id<"persons">, r
     ...(isDiasporaServiceNotificationKind(row.kind) ? { serviceNotice: await serviceNoticeView(ctx, row) } : {}),
     ...(isDiasporaCommunityNotificationKind(row.kind) ? { communityNotice: await communityNoticeView(ctx, row) } : {}),
     // P14B : destination typée relue (avis commerce, décision de modération) ; SU01d : avis au déclarant ;
-    // PG-01 : la page d'un avis de gouvernance (invitation à signer, revendication tranchée).
-    ...(isCommerceNotificationKind(row.kind) || row.kind === "moderation_decision" || isReporterNoticeKind(row.kind) || isContextualNotificationKind(row.kind) || isPageGovernanceNoticeKind(row.kind) ? { target: await notificationOpenTargetOf(ctx, row) } : {}),
+    // PG-01 : la page d'un avis de gouvernance (invitation à signer, revendication tranchée) ;
+    // NP-04 : la fiche du groupe d'une invitation.
+    ...(isCommerceNotificationKind(row.kind) || row.kind === "moderation_decision" || isReporterNoticeKind(row.kind) || isContextualNotificationKind(row.kind) || isPageGovernanceNoticeKind(row.kind) || row.kind === "thematic_group_invite" ? { target: await notificationOpenTargetOf(ctx, row) } : {}),
   }
 }
 
-/** MES notifications dans le réseau, du plus récent au plus ancien — curseur NATIF (aucune ligne sautée). */
+/**
+ * MES notifications dans le réseau, du plus récent au plus ancien — curseur NATIF (aucune ligne sautée).
+ * NP-04 (issue #149) : `unreadOnly` ne sert que les non-lues, par l'index des non-lues (le filtre a
+ * lieu dans la base, pas sur la page déjà chargée). Un curseur appartient à SON filtre : changer de
+ * filtre repart du début (`cursor: null`).
+ */
 export const paginateNotifications = networkQuery({
-  args: { paginationOpts: paginationOptsValidator },
+  args: { paginationOpts: paginationOptsValidator, unreadOnly: v.optional(v.boolean()) },
   handler: async (ctx, args): Promise<PaginationResult<NotificationDto>> => {
-    const result = await ctx.db
-      .query("notifications")
-      .withIndex("by_network_recipient_createdAt", (q) => q.eq("networkId", ctx.networkId).eq("recipientPersonId", ctx.person._id))
-      .order("desc")
-      .paginate(args.paginationOpts)
+    const mine = ctx.db.query("notifications")
+    const rows = args.unreadOnly === true
+      ? mine.withIndex("by_network_recipient_readAt_createdAt", (q) => q.eq("networkId", ctx.networkId).eq("recipientPersonId", ctx.person._id).eq("readAt", undefined))
+      : mine.withIndex("by_network_recipient_createdAt", (q) => q.eq("networkId", ctx.networkId).eq("recipientPersonId", ctx.person._id))
+    const result = await rows.order("desc").paginate(args.paginationOpts)
     const caches: DtoCaches = { profileOf: miniProfileCache(ctx), pageOf: pageCardCache(ctx) }
     const page: NotificationDto[] = []
     for (const row of result.page) {

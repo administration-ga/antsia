@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/modules/reseauPersonnel/access.ts @ ad2e7fdc2 — adaptations : CONTEXTE DE LECTURE — une publication se lit dans son réseau, ou depuis la racine si elle est `root` (une publication `network` de DIASPORALE n'est rendue par aucune lecture de la racine, R4) ; garde `isVisibleTo` du moteur (réseau, blocage, audience) ; le BLOCAGE l'emporte sur toute audience (cahier §12.3) et se lit sur toute la paire ; connexion lue dans le réseau de la publication, et seulement pour l'audience qui la demande ; branche organisation (l. 135-140) et `isPlatformAccount` retirées ; publication de PAGE (lot 13, l. 97-106 rebranchées sur les pages du moteur) : la page doit être servable, personne n'en est l'auteur (le signataire historique ne garde rien), le blocage entre personnes ne s'y applique pas, la note aux abonnés (`followers`) s'ouvre aux abonnés et signataires vivants ; refus indistinct par code.
+// Dupliqué de socle/convex/modules/reseauPersonnel/access.ts @ ad2e7fdc2 — adaptations : CONTEXTE DE LECTURE — une publication se lit dans son réseau, ou depuis la racine si elle est `root` (une publication `network` de DIASPORALE n'est rendue par aucune lecture de la racine, R4) ; garde `isVisibleTo` du moteur (réseau, blocage, audience) ; le BLOCAGE l'emporte sur toute audience (cahier §12.3) et se lit sur toute la paire ; connexion lue dans le réseau de la publication, et seulement pour l'audience qui la demande ; branche organisation (l. 135-140) et `isPlatformAccount` retirées ; publication de PAGE (lot 13, l. 97-106 rebranchées sur les pages du moteur) : la page doit être servable, personne n'en est l'auteur (le signataire historique ne garde rien), le blocage entre personnes ne s'y applique pas, la note aux abonnés (`followers`) s'ouvre aux abonnés et signataires vivants ; refus indistinct par code ; l'annonce d'un direct retiré par la modération se referme avec lui (relecture de l'état de modération du direct).
 /**
  * LE point de passage : voir une publication.
  *
@@ -62,6 +62,11 @@ export async function canSeePostDoc(ctx: ReadCtx, reader: ReaderContext, post: D
   if (!(await canAccessAssociationGroupPost(ctx, post, reader.personId, reader.network._id))) return false
   if (reader.network.kind === "root" && origin._id !== reader.network._id && (origin.kind !== "closed" || origin.parentId !== reader.network._id)) return false
   if (!(await canReadModeratedContent(ctx, "post", post._id, reader.personId))) return false
+  // L'ANNONCE d'un direct se referme avec SON direct, comme la publication d'une page avec sa page :
+  // retiré par la modération, en relecture, ou signalé par ce lecteur, le direct ne s'ouvre plus
+  // (`live/access.directSessionAccessDecision`, même règle) et son annonce ne se sert plus. Un
+  // recours admis rouvre l'un et l'autre, sans rien réécrire.
+  if (post.liveSessionId !== undefined && !(await canReadModeratedContent(ctx, "live", post.liveSessionId, reader.personId))) return false
   if (!(await isFederatedContentAvailable(ctx, "posts", post._id))) return false
   if (post.pageId !== undefined) return await canSeePagePostDoc(ctx, reader, post, post.pageId)
   if (!hasNativePostAuthor(post)) return false

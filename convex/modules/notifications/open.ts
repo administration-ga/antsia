@@ -24,7 +24,9 @@
  * conversation que l'équipe lit déjà (services P14), la fiche de candidature
  * (P15), les décisions de la page dont le lecteur est signataire VIVANT ou ses
  * décisions personnelles (`moderation_decision`), un sujet générique pour la
- * mise en relation DIASPORALE ; `null` pour tout autre genre.
+ * mise en relation DIASPORALE ; NP-04 : la fiche du groupe d'une invitation
+ * (`thematic_group_invite`), relue par la garde de la fiche ; `null` pour tout
+ * autre genre.
  */
 import { isRingingCallStatus, isTerminalCallStatus } from "@antsia/social-domain/callJournal"
 import { NOTIFICATION_SUBJECT_KINDS } from "@antsia/social-domain/notifications"

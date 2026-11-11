@@ -4,6 +4,13 @@ import { demoAccountsAllowed, devToolsAllowed } from "../lib/devTools"
 
 type Env = Record<string, string | undefined>
 
+/**
+ * Durée de vie d'un code à usage unique : cinq minutes. LA constante : les greffons OTP
+ * (`auth.ts`), le code de développement affiché (`delivery.ts`) et la configuration publique
+ * (`platform/authentication.configuration`, EA-08) la lisent ici, jamais une valeur recopiée.
+ */
+export const OTP_TTL_SECONDS = 300
+
 export function parseOriginList(raw: string | undefined): string[] {
   return [...new Set((raw ?? "").split(/[\s,]+/).flatMap((value) => {
     if (!value) return []

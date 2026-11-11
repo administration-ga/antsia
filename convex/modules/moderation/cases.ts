@@ -117,13 +117,20 @@ async function notifyPageCase(ctx: MutationCtx, row: Pick<Doc<"reports">, "_id" 
   }
 }
 
+/**
+ * À quel titre cette personne tranche ce qui revient à cette équipe (ou au réseau, sans équipe) :
+ * la qualité inscrite au journal, `null` sans compétence. Un rôle de réseau garde SA qualité ; le
+ * membre actif d'une équipe vivante qui n'en a aucun tranche comme `moderation_team_member` (AS-01),
+ * jamais comme un modérateur du réseau qu'il n'est pas.
+ */
 export async function teamCapacity(ctx: ReadCtx, actor: NetworkActor, scope: string, teamId?: Id<"moderationTeams">): Promise<AuditCapacity | null> {
   if (actor.membership.role === "network_admin") return "network_admin"
   if (teamId === undefined) return networkRoleCapacity(actor.membership.role)
   const team = await ctx.db.get(teamId)
   if (!team || !team.active || team.networkId !== actor.networkId || (team.scope !== undefined && team.scope !== scope)) return null
   const member = await ctx.db.query("moderationTeamMembers").withIndex("by_team_person", (q) => q.eq("teamId", teamId).eq("personId", actor.person._id)).unique()
-  return member?.active ? "network_moderator" : null
+  if (!member?.active) return null
+  return networkRoleCapacity(actor.membership.role) ?? "moderation_team_member"
 }
 
 export async function requireReportCapacity(ctx: ReadCtx, actor: NetworkActor, row: Doc<"reports">): Promise<AuditCapacity | null> {
@@ -319,7 +326,9 @@ async function applyDecision(ctx: MutationCtx, row: Doc<"reports">, actorPersonI
   await ctx.db.patch(row._id, { status: decision, decisionReason: reason, reviewedByPersonId: actorPersonId, reviewedAt: now, updatedAt: now, removedTarget: removesTarget })
   const legacy = await ctx.db.query("contentReports").withIndex("by_reportId", (q) => q.eq("reportId", row._id)).unique()
   if (legacy) await ctx.db.patch(legacy._id, { status: decision, decisionReason: reason, reviewedByPersonId: actorPersonId, reviewedAt: now, updatedAt: now })
-  await appendAudit(ctx, { action: "moderation.report_decide", capacity, actorPersonId, networkId: row.networkId, subject: { table: "reports", id: row._id }, details: { reason, targetKind: row.targetKind, decision, sanctionCount: sanctions.length } })
+  await appendAudit(ctx, { action: "moderation.report_decide", capacity, actorPersonId, networkId: row.networkId, subject: { table: "reports", id: row._id }, details: { reason, targetKind: row.targetKind, decision, sanctionCount: sanctions.length,
+    // AS-01 : l'équipe par qui un membre sans rôle de réseau a tranché (comme `pages/claims`).
+    ...(capacity === "moderation_team_member" && row.teamId !== undefined ? { teamId: row.teamId } : {}) } })
   // MD-07 (antsia#99) : seule une mesure prise s'annonce à l'auteur, ou aux signataires de la page qui porte
   // le contenu ; un classement ne lui laisse aucun avis. La porte des avis relit la même règle (`authorSeesCase`).
   if (decision === "actioned") {
@@ -581,7 +590,9 @@ export const reviewContent = networkMutation({
         if (created) await notifyPageCase(ctx, created)
       }
     }
-    await appendAudit(ctx, { action: "moderation.content_review", capacity, actorPersonId: ctx.person._id, networkId: ctx.networkId, subject: { table: "moderationContentStates", id: state._id }, details: { reason, approve: args.approve, surface: args.target.kind } })
+    await appendAudit(ctx, { action: "moderation.content_review", capacity, actorPersonId: ctx.person._id, networkId: ctx.networkId, subject: { table: "moderationContentStates", id: state._id }, details: { reason, approve: args.approve, surface: args.target.kind,
+      // AS-01 : l'équipe par qui un membre sans rôle de réseau a tranché (comme `pages/claims`).
+      ...(capacity === "moderation_team_member" && team !== undefined ? { teamId: team._id } : {}) } })
     return null
   },
 })

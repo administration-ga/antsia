@@ -123,7 +123,8 @@ export interface NotificationTargetInput {
 	inviteState?: ConnectionInviteState | null
 	/**
 	 * P14B : la destination TYPÉE relue par le serveur (avis commerce, décision de
-	 * modération) — elle l'emporte sur le sujet commun ; `undefined`/`null` : le sujet.
+	 * modération) — elle l'emporte sur le sujet commun ; `undefined`/`null` : le sujet
+	 * (NP-04 : sauf la fiche d'un groupe, qu'un `null` relu par le serveur ne sert plus).
 	 */
 	target?: NotificationOpenTarget | null
 }
@@ -250,6 +251,11 @@ function typedTarget(target: NotificationOpenTarget, routes: NotificationRoutes,
 			const href = handle === null ? null : routes.page?.(handle) ?? null
 			return handle === null || href === null ? null : { kind: "page", id: clean(target.pageId) ?? handle, href, label: t(OPEN_LABEL) }
 		}
+		// NP-04 : la fiche du groupe d'une invitation, servie à ce lecteur par la garde de la fiche ; l'invitation s'y tranche.
+		case "thematicGroup": {
+			const id = clean(target.groupId)
+			return id === null ? null : { kind: "group", id, href: reseauAgentGroupeHref(id, routes.home()), label: t(OPEN_LABEL) }
+		}
 		default:
 			return unknownTarget(target)
 	}
@@ -301,6 +307,9 @@ export function notificationTarget(item: NotificationTargetInput, routes: Notifi
 			return href === null ? null : { kind: "groupThread", id, href, label: t(OPEN_LABEL) }
 		}
 		case "thematicGroup":
+			// NP-04 : le serveur a relu la fiche pour ce lecteur et ne la sert plus (`target: null`) — aucun lien
+			// vers une fiche qui se refuserait. Un serveur antérieur, sans destination (`undefined`), garde le sujet.
+			if (item.target === null) return null
 			return { kind: "group", id, href: reseauAgentGroupeHref(id, routes.home()), label: t(OPEN_LABEL) }
 		case "event":
 			return { kind: "event", id, href: reseauAgentHref("evenements", routes.home()), label: t(OPEN_LABEL) }

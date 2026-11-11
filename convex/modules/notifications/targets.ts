@@ -16,7 +16,9 @@
  *    public et adresse de page relus par la tranche (`serviceNoticeView`) — que l'application
  *    DIASPORALE route elle-même ;
  *  - `page_signatory_invite`, `page_claim_decided` (PG-01) : la page, lisible par le destinataire à
- *    l'instant (`pageGovernanceTarget`).
+ *    l'instant (`pageGovernanceTarget`) ;
+ *  - `thematic_group_invite` (NP-04, issue #149) : la fiche du groupe, servie au destinataire à
+ *    l'instant par la garde même de la fiche (`servedThematicGroupOrNull`).
  * Aucun autre genre n'a de destination typée : `null`, et l'écran garde la cible de son sujet commun.
  */
 import { isCommerceNotificationKind } from "@antsia/social-domain/commerceNotifications"
@@ -34,6 +36,7 @@ import { contextualNotificationTarget } from "../contextualMessaging/access"
 import { owningPageOfReport } from "../moderation/policy"
 import { liveSignatoryRole } from "../pages/access"
 import { pageGovernanceTarget } from "../pages/governanceNoticeAccess"
+import { servedThematicGroupOrNull } from "../thematicGroups/access"
 import { commerceNoticeView } from "./commerceAccess"
 import { isReporterNoticeKind, reporterNoticeRecipient } from "./policy"
 import { isDiasporaCommunityNotificationKind, isDiasporaServiceNotificationKind } from "./tables"
@@ -77,6 +80,8 @@ export const notificationOpenTargetValidator = v.union(
   }),
   // PG-01 : la page d'un avis de gouvernance, lisible par le destinataire à l'instant.
   v.object({ kind: v.literal("page"), pageId: v.string(), pageHandle: v.string() }),
+  // NP-04 : la fiche du groupe d'une invitation, servie au destinataire à l'instant.
+  v.object({ kind: v.literal("thematicGroup"), groupId: v.string() }),
 )
 
 /**
@@ -126,6 +131,17 @@ export function diasporaCommunityNoticeTarget(view: CommunityNoticeDto | null): 
   return { kind: "diasporaCommunityNotice", audience: view.audience, opens: view.opens, objectId: view.objectId, pageHandle: view.pageHandle }
 }
 
+/**
+ * NP-04 : l'invitation à un groupe mène à SA fiche, si `getGroup` la servirait au destinataire depuis
+ * le réseau de l'avis (groupe de ce réseau, ni en suppression, ni retiré par la modération, ni signalé
+ * par lui, découvrable pour lui) ; `null` sinon — la ligne garde alors « Marquer lu ».
+ */
+async function thematicGroupInviteTarget(ctx: ReadCtx, row: Doc<"notifications">): Promise<NotificationOpenTarget | null> {
+  if (row.subjectThematicGroupId === undefined) return null
+  const group = await servedThematicGroupOrNull(ctx, row.networkId, row.subjectThematicGroupId, row.recipientPersonId)
+  return group === null ? null : { kind: "thematicGroup", groupId: group._id }
+}
+
 /** La destination typée d'une ligne, relue MAINTENANT pour son destinataire ; `null` : aucune. */
 export async function notificationOpenTargetOf(ctx: ReadCtx, row: Doc<"notifications">): Promise<NotificationOpenTarget | null> {
   if (isCommerceNotificationKind(row.kind)) return (await commerceNoticeView(ctx, row))?.target ?? null
@@ -138,5 +154,6 @@ export async function notificationOpenTargetOf(ctx: ReadCtx, row: Doc<"notificat
   if (isContextualNotificationKind(row.kind)) return await contextualNotificationTarget(ctx, row)
   // PG-01 : invitation à signer, revendication tranchée — la page, relue avec les droits du lecteur.
   if (isPageGovernanceNoticeKind(row.kind)) return await pageGovernanceTarget(ctx, row)
+  if (row.kind === "thematic_group_invite") return await thematicGroupInviteTarget(ctx, row)
   return null
 }
