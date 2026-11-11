@@ -6,6 +6,7 @@ import { Resend } from "@convex-dev/resend"
 import catalog from "../../deploy/catalog.json"
 import { api, components, internal } from "../_generated/api"
 import { createTestSession, testConvex } from "../test.setup"
+import { OTP_TTL_SECONDS } from "./auth"
 import { otpPresentation } from "./delivery"
 
 const PRIMARY_ORIGIN = "http://localhost:3030"
@@ -36,6 +37,18 @@ function record(value: unknown): Record<string, unknown> {
   return value as Record<string, unknown>
 }
 
+/** EA-08 : un refus de débit porte son délai restant (corps et en-tête), et rien d'autre. */
+function expectRetryAfter(refusal: { data: unknown; retryAfter: string | null }, maxMs: number, identifier: string) {
+  const body = record(refusal.data)
+  expect(body).toEqual({ code: "rateLimited", message: "rateLimited", retryAfterMs: expect.any(Number) })
+  const retryAfterMs = body.retryAfterMs as number
+  expect(Number.isInteger(retryAfterMs)).toBe(true)
+  expect(retryAfterMs).toBeGreaterThan(0)
+  expect(retryAfterMs).toBeLessThanOrEqual(maxMs)
+  expect(refusal.retryAfter).toBe(String(Math.ceil(retryAfterMs / 1_000)))
+  expect(JSON.stringify(body).toLowerCase()).not.toContain(identifier.toLowerCase())
+}
+
 function textField(value: unknown, key: string): string {
   const field = record(value)[key]
   if (typeof field !== "string" || !field) throw new Error(`Champ de recette absent : ${key}`)
@@ -55,7 +68,7 @@ async function request(t: T, path: string, { method = "POST", body, token, origi
       headers,
       ...(body ? { body: JSON.stringify(body) } : {}),
     }))
-    return { status: result.status, body: await result.text(), tokenHeader: result.headers.get("set-auth-token"), hasBrowserCookie: result.headers.has("set-better-auth-cookie") }
+    return { status: result.status, body: await result.text(), tokenHeader: result.headers.get("set-auth-token"), hasBrowserCookie: result.headers.has("set-better-auth-cookie"), retryAfter: result.headers.get("retry-after") }
   })
   return { ...response, data: response.body ? JSON.parse(response.body) as unknown : null }
 }
@@ -196,6 +209,8 @@ describe("connexion légère e-mail et SMS réelle dans Better Auth", () => {
       : await request(t, "/phone-number/send-otp", { body: { phoneNumber: PHONE } })
     expect(refusal.status).toBe(429)
     expect(record(refusal.data).code).toBe("rateLimited")
+    // EA-08 : le délai restant accompagne le refus — un jeton du seau (3 par 5 min) revient en 100 s au plus.
+    expectRetryAfter(refusal, 100_000, channel === "email" ? EMAIL : PHONE)
   })
 
   it("le seau de connexion compte aussi les essais sans code existant", async () => {
@@ -204,6 +219,25 @@ describe("connexion légère e-mail et SMS réelle dans Better Auth", () => {
     const refusal = await signIn(t, "email", "000000")
     expect(refusal.status).toBe(429)
     expect(record(refusal.data).code).toBe("rateLimited")
+    // EA-08 : 5 essais par 15 min — un essai revient en 180 s au plus.
+    expectRetryAfter(refusal, 180_000, EMAIL)
+  })
+
+  it("EA-08 : la configuration publique dit la durée de validité réelle d'un code, lue de la constante des greffons", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] })
+    vi.setSystemTime(Date.UTC(2026, 10, 11, 9, 0, 0))
+    const t = testConvex({ automaticSessions: false })
+    const configuration = await t.query(api.modules.platform.authentication.configuration, {})
+    expect(configuration.otpTtlSeconds).toBe(OTP_TTL_SECONDS)
+    // La durée publiée est celle que les deux greffons appliquent (ligne de vérification de Better Auth),
+    // et celle du code de développement affiché : e-mail et SMS.
+    for (const [channel, identifier] of [["email", `sign-in-otp-${EMAIL}`], ["phone", PHONE]] as const) {
+      const issuedAt = Date.now()
+      const code = await issueCode(t, channel)
+      const verification: unknown = await t.query(components.betterAuth.adapter.findOne, { model: "verification", where: [{ field: "identifier", value: identifier }] })
+      expect(Number(record(verification).expiresAt) - issuedAt).toBe(OTP_TTL_SECONDS * 1_000)
+      expect(code.expiresAt - issuedAt).toBe(OTP_TTL_SECONDS * 1_000)
+    }
   })
 
   it("refuse un téléphone non international avant l'envoi", async () => {
