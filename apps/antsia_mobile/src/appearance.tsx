@@ -17,6 +17,9 @@ import profileEn from "./i18n/profile.en.json"
 import navigationFr from "./i18n/navigation.fr.json"
 import navigationEn from "./i18n/navigation.en.json"
 
+import safetyFr from "./i18n/safety.fr.json"
+import safetyEn from "./i18n/safety.en.json"
+
 type Appearance = {
   tokens: NativeThemeTokens
   theme: MemberThemeId
@@ -35,7 +38,7 @@ export function NativeAppearanceProvider({ children }: { children: ReactNode }) 
   const system = useColorScheme()
   const tokens = nativeThemeTokens(theme, mode === "system" ? system === "dark" ? "dark" : "light" : mode)
   const t = useCallback((key: string, params?: Record<string, string | number>) => {
-    const messages: Record<string, string> = locale === "fr" ? { ...fr, ...entryFr, ...feedFr, ...profileFr, ...navigationFr } : { ...en, ...entryEn, ...feedEn, ...profileEn, ...navigationEn }
+    const messages: Record<string, string> = locale === "fr" ? { ...fr, ...entryFr, ...feedFr, ...profileFr, ...navigationFr, ...safetyFr } : { ...en, ...entryEn, ...feedEn, ...profileEn, ...navigationEn, ...safetyEn }
     return (messages[key] ?? key).replace(/\{\{\s*([\w]+)\s*\}\}/gu, (placeholder, name: string) => params?.[name] === undefined ? placeholder : String(params[name]))
   }, [locale])
   const value = useMemo(() => ({ tokens, theme, mode, locale, setTheme, setMode, setLocale, t }), [tokens, theme, mode, locale, t])
