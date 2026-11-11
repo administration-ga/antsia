@@ -40,6 +40,14 @@ export const DIASPORA_SERVICE_NOTIFICATION_KINDS = [
   "service_booking_no_show",
   /** Équipe de la page : la personne qui demande conteste l'absence constatée (ajout 19/10/2026, délégué par ANTSIA). */
   "service_no_show_contested",
+  /**
+   * L'autre partie d'un rendez-vous confirmé — le demandeur, ou l'équipe vivante de la page : un
+   * nouvel horaire lui est proposé (SV-03, issue #133 ; ajout 11/11/2026, délégué par ANTSIA).
+   * Ni horaire, ni nom, ni lieu dans l'avis : la fiche de la demande les montre.
+   */
+  "service_booking_reschedule_proposed",
+  /** Le proposant : l'autre partie a accepté le nouvel horaire, le rendez-vous est déplacé (SV-03, issue #133). */
+  "service_booking_rescheduled",
   /** Responsables vivants de l'association : une demande d'adhésion est arrivée. */
   "association_membership_requested",
   /** La personne : sa demande d'adhésion est acceptée. */

@@ -3,9 +3,10 @@
  * PROPRIÉTAIRE : session DIASPORALE, chantier « notifications de mise en relation ».
  *
  * Un professionnel apprend qu'une demande lui arrive ; un demandeur, que la page lui
- * propose, décline, annule ou constate ; une association, qu'on veut la rejoindre ; une
- * personne, ce que les responsables ont décidé ; l'auteur d'un avis, que la page lui a
- * répondu.
+ * propose, décline, annule ou constate ; l'une ou l'autre partie, qu'un nouvel horaire est
+ * proposé pour le rendez-vous, puis le proposant, qu'il est accepté (SV-03) ; une
+ * association, qu'on veut la rejoindre ; une personne, ce que les responsables ont décidé ;
+ * l'auteur d'un avis, que la page lui a répondu.
  *
  * - Écriture par la porte unique (`notifyPerson`), dans la transaction du geste et JUSTE
  *   APRÈS son écriture : un geste refusé n'émet rien. Ce module n'écrit jamais lui-même
@@ -19,7 +20,9 @@
  *   rôle retiré, une suspension, une sortie du réseau ou un effacement demandé : rien n'est
  *   écrit, et une ligne déjà écrite ne se présente plus.
  * - Idempotence : la clé porte le sujet, son état ÉCRIT et sa version (proposition, ligne
- *   d'adhésion) ; un rejeu n'empile ni ne rouvre rien.
+ *   d'adhésion) ; un rejeu n'empile ni ne rouvre rien. Une proposition de nouvel horaire ne
+ *   change ni l'état ni la version : sa clé porte en plus l'instant de la proposition
+ *   (`reschedule.proposedAt`), et un nouvel accord fait une nouvelle version.
  * - Équipe : au plus `SERVICE_TEAM_NOTICE_MAX` signataires avisés par geste, administrateurs
  *   d'abord ; l'échéance passe par un job par demande, hors du lot d'expiration.
  * - Aucune fonction publique ici ; la seule fonction Convex est interne (le job d'échéance).
@@ -68,7 +71,14 @@ export type ServiceNoticeSubject =
 // ═══════════════════════════════════════════════════════════════
 
 type NoticeRule =
-  | { readonly family: "request"; readonly status: Doc<"serviceRequests">["status"]; readonly requester: boolean; readonly provider: boolean }
+  | {
+    readonly family: "request"
+    readonly status: Doc<"serviceRequests">["status"]
+    readonly requester: boolean
+    readonly provider: boolean
+    /** SV-03 : annonce une proposition de nouvel horaire EN ATTENTE ; la clé porte son instant. */
+    readonly reschedule?: true
+  }
   | { readonly family: "membership"; readonly status: Doc<"associationMemberships">["status"]; readonly audience: "responsible" | "member" }
   | { readonly family: "review" }
 
@@ -84,6 +94,9 @@ const NOTICE_RULES: Readonly<Record<DiasporaServiceNotificationKind, NoticeRule>
   service_booking_no_show: { family: "request", status: "no_show", requester: true, provider: false },
   // DG-015 : la personne qui demande conteste l'absence ; l'état écrit reste `no_show`.
   service_no_show_contested: { family: "request", status: "no_show", requester: false, provider: true },
+  // SV-03 : l'AUTRE partie apprend qu'un nouvel horaire est proposé ; le PROPOSANT, qu'il est accepté. L'état reste `confirmed`.
+  service_booking_reschedule_proposed: { family: "request", status: "confirmed", requester: true, provider: true, reschedule: true },
+  service_booking_rescheduled: { family: "request", status: "confirmed", requester: true, provider: true },
   association_membership_requested: { family: "membership", status: "requested", audience: "responsible" },
   association_membership_accepted: { family: "membership", status: "accepted", audience: "member" },
   association_membership_declined: { family: "membership", status: "rejected", audience: "member" },
@@ -110,6 +123,8 @@ type NoticeTarget = {
   readonly reference: string
   /** L'état écrit relu ; `null` pour une réponse à un avis. */
   readonly status: string | null
+  /** SV-03 : l'instant de la proposition de nouvel horaire en attente, pour un genre qui l'annonce. */
+  readonly rescheduleProposedAt?: number
 }
 
 function idsOfSubject(subject: NotificationSubjectRef | undefined): SubjectIds | null {
@@ -137,14 +152,18 @@ async function readableHandle(ctx: ReadCtx, network: Doc<"networks">, pageId: Id
 async function requestTarget(ctx: ReadCtx, network: Doc<"networks">, recipientPersonId: Id<"persons">, rule: RequestRule, requestId: Id<"serviceRequests">): Promise<NoticeTarget | null> {
   const request = await ctx.db.get(requestId)
   if (!request || request.networkId !== network._id) return null
-  const reference = `serviceRequest:${request._id}:${request.status}:${request.proposalVersion}`
+  const base = `serviceRequest:${request._id}:${request.status}:${request.proposalVersion}`
+  // SV-03 : une proposition de nouvel horaire ne change ni l'état ni la version ; son instant distingue deux propositions.
+  const pending = rule.reschedule && request.bookingId ? (await ctx.db.get(request.bookingId))?.reschedule : undefined
+  const reference = pending ? `${base}:reschedule:${pending.proposedAt}` : base
+  const proposedAt = pending ? { rescheduleProposedAt: pending.proposedAt } : {}
   if (rule.requester && request.requesterPersonId === recipientPersonId) {
-    return { audience: "requester", requestId: request._id, pageHandle: await readableHandle(ctx, network, request.pageId, recipientPersonId), reference, status: request.status }
+    return { audience: "requester", requestId: request._id, pageHandle: await readableHandle(ctx, network, request.pageId, recipientPersonId), reference, status: request.status, ...proposedAt }
   }
   if (!rule.provider) return null
   const page = await ctx.db.get(request.pageId)
   if (!page || page.networkId !== network._id || (await liveSignatoryRole(ctx, page, recipientPersonId)) === null) return null
-  return { audience: "provider", requestId: request._id, pageHandle: await readableHandle(ctx, network, page._id, recipientPersonId), reference, status: request.status }
+  return { audience: "provider", requestId: request._id, pageHandle: await readableHandle(ctx, network, page._id, recipientPersonId), reference, status: request.status, ...proposedAt }
 }
 
 /**
@@ -234,6 +253,8 @@ export async function serviceNoticeAdmission(
   if (target === null) return null
   const rule = NOTICE_RULES[kind]
   if (rule.family !== "review" && rule.status !== target.status) return null
+  // SV-03 : une proposition de nouvel horaire ne s'annonce que si elle attend encore l'accord.
+  if (rule.family === "request" && rule.reschedule && target.rescheduleProposedAt === undefined) return null
   return { reference: target.reference }
 }
 
@@ -344,6 +365,35 @@ export async function noticeServiceRequestCancelled(ctx: MutationCtx, requestId:
     return
   }
   await notice(ctx, { networkId: request.networkId, recipientPersonId: request.requesterPersonId, kind: "service_request_cancelled", subject, sourcePersonId: authorPersonId })
+}
+
+/**
+ * SV-03 — après une proposition de nouvel horaire : l'AUTRE partie, l'équipe vivante quand le
+ * demandeur propose, le demandeur quand la page propose. Ni horaire, ni nom, ni lieu dans l'avis.
+ */
+export async function noticeServiceRescheduleProposed(ctx: MutationCtx, requestId: Id<"serviceRequests">, by: ServiceRequestActor, authorPersonId: Id<"persons">): Promise<void> {
+  const request = await ctx.db.get(requestId)
+  if (!request) return
+  const subject = { serviceRequest: request._id }
+  const kind = "service_booking_reschedule_proposed"
+  if (by === "requester") {
+    await noticeTeam(ctx, { networkId: request.networkId, pageId: request.pageId, kind, subject, sourcePersonId: authorPersonId })
+    return
+  }
+  await notice(ctx, { networkId: request.networkId, recipientPersonId: request.requesterPersonId, kind, subject, sourcePersonId: authorPersonId })
+}
+
+/** SV-03 — après l'accord sur le nouvel horaire : le PROPOSANT, le demandeur ou l'équipe vivante de la page. */
+export async function noticeServiceRescheduled(ctx: MutationCtx, requestId: Id<"serviceRequests">, proposedBy: ServiceRequestActor, authorPersonId: Id<"persons">): Promise<void> {
+  const request = await ctx.db.get(requestId)
+  if (!request) return
+  const subject = { serviceRequest: request._id }
+  const kind = "service_booking_rescheduled"
+  if (proposedBy === "requester") {
+    await notice(ctx, { networkId: request.networkId, recipientPersonId: request.requesterPersonId, kind, subject, sourcePersonId: authorPersonId })
+    return
+  }
+  await noticeTeam(ctx, { networkId: request.networkId, pageId: request.pageId, kind, subject, sourcePersonId: authorPersonId })
 }
 
 /** Après la contestation d'une absence par le demandeur (DG-015) : l'équipe vivante de la page. */

@@ -16,9 +16,12 @@ import { api, internal } from "../../_generated/api"
 import type { Id } from "../../_generated/dataModel"
 import { SEED_CONFIRMATION } from "../../seeds/foundations"
 import { createTestSession, testConvex } from "../../test.setup"
+import { isCommerceNotificationKind } from "@antsia/social-domain/commerceNotifications"
 import { DIASPORA_COMMUNITY_NOTICE_AUDIENCES, DIASPORA_COMMUNITY_NOTICE_OPENS } from "@antsia/social-domain/notificationOpenTarget"
+import { NOTIFICATION_KINDS } from "@antsia/social-domain/notifications"
 import { COMMUNITY_NOTICE_AUDIENCES, COMMUNITY_NOTICE_OPENS } from "../diaspora/communityNotifications"
 import { notifyPerson } from "./notify"
+import { notificationRowCategory } from "./policy"
 import { DIASPORA_COMMUNITY_NOTIFICATION_KINDS, DIASPORA_SERVICE_NOTIFICATION_KINDS, isDiasporaCommunityNotificationKind, isDiasporaServiceNotificationKind } from "./tables"
 import { diasporaCommunityNoticeTarget, diasporaNoticeTarget } from "./targets"
 
@@ -117,6 +120,23 @@ describe("moderation_decision d'un dossier de page — carte et destination pour
     const bell = await outsider.as.query(bellPage, { networkId: root, paginationOpts: PAGE })
     expect(bell.page.find((item) => item.kind === "moderation_decision")).toMatchObject({ page: null, target: { kind: "personalDecisions" } })
     expect(await outsider.as.query(openTarget, { networkId: root, reference: await jobFor(t, notificationId) })).toMatchObject({ target: { kind: "personalDecisions" } })
+  })
+})
+
+describe("avis de mise en relation DIASPORALE : le déplacement d'un rendez-vous (SV-03, issue #133)", () => {
+  it("deux genres de la mise en relation, distincts de la vie communautaire, du commerce et du domaine commun", () => {
+    for (const kind of ["service_booking_reschedule_proposed", "service_booking_rescheduled"] as const) {
+      expect(DIASPORA_SERVICE_NOTIFICATION_KINDS, kind).toContain(kind)
+      expect(isDiasporaServiceNotificationKind(kind), kind).toBe(true)
+      expect(isDiasporaCommunityNotificationKind(kind), kind).toBe(false)
+      expect(isCommerceNotificationKind(kind), kind).toBe(false)
+      expect((NOTIFICATION_KINDS as readonly string[]).includes(kind), kind).toBe(false)
+      // Catégorie de préférences des avis de la tranche : « social », comme les autres genres de la mise en relation.
+      expect(notificationRowCategory(kind), kind).toBe("social")
+    }
+    // Seize genres : onze de la demande et du rendez-vous (absence contestée et déplacement compris), quatre de l'adhésion associative, la réponse à un avis.
+    expect(DIASPORA_SERVICE_NOTIFICATION_KINDS).toHaveLength(16)
+    expect(new Set(DIASPORA_SERVICE_NOTIFICATION_KINDS).size).toBe(DIASPORA_SERVICE_NOTIFICATION_KINDS.length)
   })
 })
 

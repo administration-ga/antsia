@@ -74,6 +74,8 @@ import {
   noticeServicePageGesture,
   noticeServiceProposalAccepted,
   noticeServiceRequestCancelled,
+  noticeServiceRescheduled,
+  noticeServiceRescheduleProposed,
   noticeServiceRequestSent,
   scheduleServiceRequestExpiredNotices,
 } from "./serviceNotifications"
@@ -837,9 +839,9 @@ async function rescheduleScope(ctx: WriteScope, requestId: Id<"serviceRequests">
  * durée, mêmes conditions. L'une ou l'autre partie propose, une seule
  * proposition à la fois ; le créneau doit être libre pour la page (capacité du
  * rendez-vous, lui-même non compté). Rien ne change tant que l'autre partie
- * n'accepte pas ; à l'échéance, le rendez-vous reste tel quel.
- * Aucun avis de cloche : le genre manque au moteur (issue [S1]) ; la demande
- * remonte en tête des listes des deux parties et sa fiche montre la proposition.
+ * n'accepte pas ; à l'échéance, le rendez-vous reste tel quel. L'autre partie
+ * en reçoit un avis de cloche (SV-03, `service_booking_reschedule_proposed`) ; la
+ * demande remonte aussi en tête des listes des deux parties.
  */
 export const proposeServiceReschedule = networkMutation({
   args: { requestId: v.id("serviceRequests"), expectedProposalVersion: v.number(), startAt: v.number(), timeZone: v.string(), expiresAt: v.number() },
@@ -856,6 +858,7 @@ export const proposeServiceReschedule = networkMutation({
     await ctx.db.patch(booking._id, { reschedule: { ...slot, proposedBy: actor, proposedAt: now }, updatedAt: now })
     await ctx.db.patch(request._id, { updatedAt: now })
     await syncContextualConversation(ctx, conversationOf(request._id))
+    await noticeServiceRescheduleProposed(ctx, request._id, actor, ctx.person._id)
     return null
   },
 })
@@ -866,7 +869,8 @@ export const proposeServiceReschedule = networkMutation({
  * proposition (mêmes conditions, nouvel horaire, auteur inchangé : le signataire
  * qui a fait accepter les conditions) devient celle du rendez-vous, qui garde
  * son identité. Deux accords concurrents : un seul réussit. L'avis du demandeur
- * reste admissible sur le rendez-vous déplacé.
+ * reste admissible sur le rendez-vous déplacé ; le proposant reçoit un avis de cloche
+ * (SV-03, `service_booking_rescheduled`).
  */
 export const acceptServiceReschedule = networkMutation({
   args: { requestId: v.id("serviceRequests"), expectedProposalVersion: v.number(), expectedStartAt: v.number() },
@@ -909,6 +913,8 @@ export const acceptServiceReschedule = networkMutation({
     await ctx.db.patch(booking._id, { proposalId, startAt: pending.startAt, endAt: pending.endAt, timeZone: pending.timeZone, reschedule: undefined, updatedAt: now })
     await ctx.db.patch(request._id, { currentProposalId: proposalId, proposalVersion: version, updatedAt: now })
     await syncContextualConversation(ctx, conversationOf(request._id))
+    // SV-03 : le proposant apprend l'accord ; la nouvelle version fait la clé de l'avis.
+    await noticeServiceRescheduled(ctx, request._id, pending.proposedBy, ctx.person._id)
     return { version }
   },
 })
