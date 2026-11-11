@@ -102,6 +102,11 @@ async function targetPreview(ctx: QueryCtx, networkId: Id<"networks">, target: M
       const row = await ctx.db.get(target.id)
       return row?.networkId === networkId ? { ...empty, available: true, title: excerpt(row.title, 200) } : empty
     }
+    case "liveComment": {
+      // DL-03 : le SEUL commentaire, borné ; ni le direct, ni son auteur, ni les commentaires voisins.
+      const row = await ctx.db.get(target.id)
+      return row?.networkId === networkId ? { ...empty, available: true, body: excerpt(row.body) } : empty
+    }
     case "story": {
       const row = await ctx.db.get(target.id)
       const now = Date.now()

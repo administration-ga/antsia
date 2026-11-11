@@ -78,7 +78,7 @@ const TARGET_TABLES: ReadonlyMap<string, TableNames> = new Map(moderationTargetV
 
 /** Le champ qui désigne l'AUTEUR d'un contenu, quand le contenu n'a pas encore d'état de modération qui le porte. */
 const OWNER_FIELDS: Partial<Record<ModerationSurface, string>> = {
-  post: "authorPersonId", comment: "authorPersonId", story: "authorPersonId", live: "hostPersonId", album: "ownerPersonId",
+  post: "authorPersonId", comment: "authorPersonId", story: "authorPersonId", live: "hostPersonId", liveComment: "authorPersonId", album: "ownerPersonId",
   event: "organizerPersonId", groupMessage: "senderPersonId", personalMessage: "senderPersonId", commercialMessage: "senderPersonId",
   contextualMessage: "authorPersonId", professionalProfile: "personId", professionalCollaboration: "fromPersonId", serviceReview: "authorPersonId",
   diasporaAidQuestion: "authorPersonId", diasporaAidAnswer: "authorPersonId", diasporaMentorProfile: "personId", diasporaMentoringRequest: "menteePersonId",

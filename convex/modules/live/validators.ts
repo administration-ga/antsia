@@ -144,7 +144,7 @@ export const directAntennaInvitationStatusValidator = literals(DIRECT_ANTENNA_IN
  */
 export const directAntennaInviteStateValidator = literals(DIRECT_ANTENNA_INVITE_STATES)
 
-/** Statut d'un commentaire — retiré, pas supprimé (même règle que le fil). */
+/** Statut d'un commentaire — retiré, pas supprimé (même règle que le fil) ; DL-03 : retenu pour relecture. */
 export const directCommentStatusValidator = literals(DIRECT_COMMENT_STATUSES)
 
 /**
