@@ -17,6 +17,9 @@ export type NativeRoute =
   | { name: "page"; handle: string }
   | { name: "post"; id: string }
   | { name: "conversation"; id: string }
+  // MB-04 : supprimer son compte, et les textes publics (contact de l'éditeur) lus par un membre.
+  | { name: "accountDeletion" }
+  | { name: "legal"; kind: "about" | "legal" | "privacy" }
 
 export function nativeRouteFromUrl(raw: string, scheme: string | null): NativeRoute | null {
   if (!scheme || raw.length > 512) return null
@@ -80,7 +83,7 @@ export const NATIVE_MEMBER_TABS = [
 ] as const
 export function nativeTab(route: NativeRoute, myHandle?: string): NativeTab {
   if (route.name === "profile") return route.handle === myHandle ? "me" : "explore"
-  if (["settings", "bookmarks", "me"].includes(route.name)) return "me"
+  if (["settings", "bookmarks", "me", "accountDeletion", "legal"].includes(route.name)) return "me"
   if (["shop", "offer", "page", "search", "business", "explore"].includes(route.name)) return "explore"
   if (route.name === "conversation" || route.name === "messages") return "messages"
   if (route.name === "clips") return "clips"

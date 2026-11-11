@@ -12,7 +12,9 @@ import { canAppendNativeCursor, mergeNativePages, nativeCursorKey } from "../lib
 import { nativeLinkedPageCursors } from "../lib/native-pages"
 import { NATIVE_PROFILE_ENTRIES, PROFILE_MAX_ITEMS, PROFILE_MAX_PAGES, PROFILE_PAGE_SIZE, nativeBookmarkIdentity, nativePostsForProfile, nativeProfileText, nativePublishedProfileHandle, type NativeProfileEntry } from "../lib/native-profile-view"
 import type { NativeAccountSection } from "../lib/routes"
+import { nativeNamedKey } from "../lib/native-safety"
 import { useNativeRuntime } from "../runtime"
+import { NativeSafetyMenu, NativeUnblockAction } from "./safety-actions"
 import { NativePostCard, type NativeFeedPost, type NativePostNavigation } from "./feed-screen"
 
 type PublicProfile = NonNullable<FunctionReturnType<typeof api.modules.people.profile.getPublicProfile>>
@@ -69,6 +71,8 @@ export type ProfileHubScreenProps = {
   onWebSection: (section: NativeAccountSection) => void
   onSignOut: () => void
   onDemoOptions?: () => void
+  /** MB-04 : la suppression du compte, native. */
+  onDeleteAccount: () => void
 }
 
 export function ProfileHubScreen(props: ProfileHubScreenProps) {
@@ -81,6 +85,7 @@ export function ProfileHubScreen(props: ProfileHubScreenProps) {
     if (entry.id === "bookmarks") props.onBookmarks()
     else if (entry.id === "activities") props.onActivities()
     else if (entry.id === "settings") props.onSettings()
+    else if (entry.id === "accountDeletion") props.onDeleteAccount()
     else props.onWebSection(entry.id)
   }
   if (!guard.canRead) return <RuntimeNotice />
@@ -113,6 +118,28 @@ export type PublicProfileScreenProps = {
   onSearchTag?: (tag: string) => void
 }
 
+/** PF-04 : Signaler et Bloquer depuis la fiche d'autrui ; signaler part avant le blocage. */
+function ProfileSafetyMenu({ profile }: { profile: PublicProfile }) {
+  const { t } = useNativeAppearance(), guard = useNativeGuard()
+  const report = useMutation(api.modules.moderation.cases.report)
+  const person = { personId: profile.personId, name: profile.displayName }
+  const { key, values } = nativeNamedKey("mobile.safety.menu.person", profile.displayName)
+  const actionLabel = nativeNamedKey("mobile.safety.report.action.person", profile.displayName)
+  return <NativeSafetyMenu label={t(key, values)} person={person}
+    report={{ kind: "person", actionLabel: t(actionLabel.key, actionLabel.values), send: form => report({ networkId: guard.runtime.networkId, target: { kind: "person", id: profile.personId }, reason: form.reason }) }} />
+}
+
+/**
+ * La fiche refusée : refus indistinct dans les deux sens. Seul l'AUTEUR d'un
+ * blocage l'apprend (`graph.blocks.myBlockByHandle`), pour le lever d'ici.
+ */
+function RefusedProfileUnblock({ handle }: { handle: string }) {
+  const guard = useNativeGuard(), { t } = useNativeAppearance()
+  const mine = useQuery(api.modules.graph.blocks.myBlockByHandle, guard.canRead ? { networkId: guard.runtime.networkId, handle } : "skip")
+  if (!mine) return null
+  return <View style={{ gap: 8 }}><Label>{t("mobile.safety.profile.blockedByMe")}</Label><NativeUnblockAction person={{ personId: mine.targetPersonId, name: null }} /></View>
+}
+
 function PublicProfileIdentity({ profile }: { profile: PublicProfile }) {
   const { tokens, t } = useNativeAppearance()
   const badges = [...new Set(profile.badges.filter(badge => badge !== "community"))]
@@ -120,7 +147,7 @@ function PublicProfileIdentity({ profile }: { profile: PublicProfile }) {
     <ProfilePicture key={profile.cover.url ?? "cover"} delivery={profile.cover} name={profile.displayName} cover />
     <View style={{ marginTop: -46, paddingHorizontal: 14, gap: 10 }}>
       <View style={{ alignSelf: "flex-start", padding: 4, borderRadius: 52, backgroundColor: tokens.background }}><ProfilePicture key={profile.avatar.url ?? "avatar"} delivery={profile.avatar} name={profile.displayName} size={96} /></View>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 10, flexWrap: "wrap" }}><Text variant="display" accessibilityRole="header" style={{ color: tokens.foreground, fontSize: 24, fontWeight: "600", flexShrink: 1 }}>{profile.displayName}</Text>{profile.isMe ? <Text style={{ color: tokens.primaryInk, fontSize: 13, fontWeight: "600" }}>{nativeProfileText(t, "you")}</Text> : null}</View>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 10, flexWrap: "wrap" }}><Text variant="display" accessibilityRole="header" style={{ color: tokens.foreground, fontSize: 24, fontWeight: "600", flexShrink: 1 }}>{profile.displayName}</Text>{profile.isMe ? <Text style={{ color: tokens.primaryInk, fontSize: 13, fontWeight: "600" }}>{nativeProfileText(t, "you")}</Text> : <View style={{ marginLeft: "auto" }}><ProfileSafetyMenu profile={profile} /></View>}</View>
       <Text style={{ color: tokens.mutedForeground, fontSize: 15 }}>@{profile.handle}</Text>
       {badges.length ? <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>{badges.map(badge => <View key={badge} style={{ paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, backgroundColor: tokens.tabActive }}><Text style={{ color: tokens.tabActiveInk, fontSize: 12, fontWeight: "600" }}>{nativeProfileText(t, `badge.${badge}`)}</Text></View>)}</View> : null}
       {profile.headline ? <Text style={{ color: tokens.foreground, fontSize: 16, lineHeight: 24 }}>{profile.headline}</Text> : null}
@@ -165,7 +192,7 @@ function PublicProfileBody({ handle, onOpenPost, ...navigation }: PublicProfileS
   const guard = useNativeGuard(), { t } = useNativeAppearance(), publishedHandle = nativePublishedProfileHandle(handle)
   const profile = useQuery(api.modules.people.profile.getPublicProfile, guard.canRead && publishedHandle ? { networkId: guard.runtime.networkId, handle: publishedHandle } : "skip")
   if (!guard.canRead) return <RuntimeNotice />
-  if (!publishedHandle || profile === null) return <Card><Label strong>{nativeProfileText(t, "refusedTitle")}</Label><Label muted>{nativeProfileText(t, "refusedMessage")}</Label></Card>
+  if (!publishedHandle || profile === null) return <Card><Label strong>{nativeProfileText(t, "refusedTitle")}</Label><Label muted>{nativeProfileText(t, "refusedMessage")}</Label>{publishedHandle ? <RefusedProfileUnblock handle={publishedHandle} /> : null}</Card>
   if (profile === undefined) return <Status label={t("mobile.common.loading")} busy />
   return <ProfilePublications key={profile.personId} profile={profile} header={<PublicProfileIdentity profile={profile} />} onOpenPost={onOpenPost} {...navigation} />
 }
