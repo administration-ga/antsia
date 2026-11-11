@@ -60,5 +60,7 @@
   "mobile.profile.badge.official": "Official",
   "mobile.profile.badge.verified": "Verified",
   "mobile.profile.badge.public_agent": "Public servant",
-  "mobile.profile.demoOptions": "Demo accounts"
+  "mobile.profile.demoOptions": "Demo accounts",
+  "mobile.profile.accountDeletionLabel": "Delete my account",
+  "mobile.profile.accountDeletionHint": "Erasure request in the app, with 30 days to cancel."
 }

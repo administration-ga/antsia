@@ -147,3 +147,26 @@ describe("BlockPersonDialog — débloquer", () => {
     expect(onClose).toHaveBeenCalledOnce()
   })
 })
+
+describe("BlockPersonDialog — signaler d'abord (IC-03)", () => {
+  it("la surface qui sait aussi signaler : la boîte dit l'ordre et propose « Signaler d'abord », sans rien bloquer", () => {
+    const onReportFirst = vi.fn()
+    const onClose = vi.fn()
+    renderWithEngine(<BlockPersonDialog mode="block" targetPersonId={TARGET} name="Awa NDONG" onClose={onClose} onReportFirst={onReportFirst} />)
+    const dialog = screen.getByRole("dialog")
+    expect(within(dialog).getByText(t("reseau:personBlock.reportFirstHint"))).toBeTruthy()
+    fireEvent.click(within(dialog).getByRole("button", { name: "Signaler d'abord" }))
+    expect(onReportFirst).toHaveBeenCalledOnce()
+    expect(mocks.block).not.toHaveBeenCalled()
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
+  it("sans `onReportFirst` (fiche, publication) et au déblocage, rien de plus n'est dit", () => {
+    const first = show()
+    expect(within(first.dialog).queryByText(t("reseau:personBlock.reportFirstHint"))).toBeNull()
+    expect(within(first.dialog).queryByRole("button", { name: "Signaler d'abord" })).toBeNull()
+    cleanup()
+    renderWithEngine(<BlockPersonDialog mode="unblock" targetPersonId={TARGET} name="Awa NDONG" onClose={vi.fn()} onReportFirst={vi.fn()} />)
+    expect(screen.queryByRole("button", { name: "Signaler d'abord" })).toBeNull()
+  })
+})

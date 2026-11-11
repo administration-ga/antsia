@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/messagerie/ConversationHeader.tsx @ ad2e7fdc2 — adaptations : TQ* — branche poste élaguée (prop `eyebrow`, la fonction au-dessus du titre, ADR-0021 du socle) ; libellés traduits (espace de noms `messagerie`, clés `conversationHeader.*`, `callActionsFor(…, t)`) ; doctrine d'appel du moteur (`calls.direct.callMember`, `calls.groupCalls.startFromThread`) au lieu de `callByHandle` et de l'évènement de réunion. ; IM-01 (IC-04) : boutons d'appel retirés quand l'application déclare `callsAvailable={false}`.
+// Dupliqué de socle/packages/agent-features/src/features/messagerie/ConversationHeader.tsx @ ad2e7fdc2 — adaptations : TQ* — branche poste élaguée (prop `eyebrow`, la fonction au-dessus du titre, ADR-0021 du socle) ; libellés traduits (espace de noms `messagerie`, clés `conversationHeader.*`, `callActionsFor(…, t)`) ; doctrine d'appel du moteur (`calls.direct.callMember`, `calls.groupCalls.startFromThread`) au lieu de `callByHandle` et de l'évènement de réunion. ; IM-01 (IC-04) : boutons d'appel retirés quand l'application déclare `callsAvailable={false}` ; IC-03 : emplacement `protection` après les appels (« Signaler ou bloquer » la personne d'un fil à deux, rendu par la vue).
 "use client"
 
 /**
@@ -18,6 +18,10 @@
  * n'embarque AUCUNE surface flottante : sous `.rp-scope` (`container-type:
  * inline-size`, donc `contain: layout`), tout `position: fixed` se fait
  * cadrer par la grille du fil au lieu du viewport.
+ *
+ * IC-03 : `protection` reçoit, DÉJÀ RENDU par la vue, le bouton « Signaler ou
+ * bloquer » de la personne d'un fil à deux (`PersonProtectionMenu`). L'en-tête
+ * reste une présentation : aucune mutation, aucune feuille ici.
  *
  * ⚠️ Le 1:1 appelle une personne au profil PUBLIÉ (`calls.direct.callMember`),
  * dont le HANDLE est l'adresse. Un correspondant sans profil publié n'en a
@@ -60,6 +64,8 @@ export interface ConversationHeaderProps {
 	/** Repli de la carte — la page n'a rien à replier. */
 	open?: boolean
 	onToggleOpen?: () => void
+	/** IC-03 : « Signaler ou bloquer », rendu par la vue, en dernier dans la rangée. */
+	protection?: ReactNode
 }
 
 export function ConversationHeader({
@@ -79,6 +85,7 @@ export function ConversationHeader({
 	callPending = false,
 	open = true,
 	onToggleOpen,
+	protection,
 }: ConversationHeaderProps) {
 	const { t } = useTranslation("messagerie")
 	// IM-01 : une application sans appels (`callsAvailable={false}`) ne propose ni audio, ni vidéo, ni appel de groupe.
@@ -93,6 +100,9 @@ export function ConversationHeader({
 		t,
 	)
 	const repliable = isRepliablePose(variant) && onToggleOpen !== undefined
+	const withProtection = protection !== undefined && protection !== null
+	// La marge du bord, en pose compacte, revient au DERNIER élément de la rangée.
+	const edgeMargin = isCompactPose(variant) ? { marginRight: 6 } : undefined
 	/*
 	 * Le titre et le chevron n'ont PAS le même rôle :
 	 *  - surface ouverte : l'identité mène au profil ou aux informations du groupe ;
@@ -182,7 +192,7 @@ export function ConversationHeader({
 						className="icom-action-group"
 						role="group"
 						aria-label={t("conversationHeader.callActions", { title })}
-						style={isCompactPose(variant) ? { marginRight: 6 } : undefined}
+						style={withProtection ? undefined : edgeMargin}
 					>
 						{actions.audio.available ? (
 							<button
@@ -220,6 +230,10 @@ export function ConversationHeader({
 						) : null}
 					</div>
 				) : null}
+
+			{withProtection ? (
+				<div style={{ display: "flex", flex: "0 0 auto", ...edgeMargin }}>{protection}</div>
+			) : null}
 
 			{/* ⚠️ Le bouton « groupe » a été RETIRÉ le 2026-08-22. Il existait
 			    parce que l'appel de groupe partait sur le canal des RÉUNIONS,
