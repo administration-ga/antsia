@@ -240,7 +240,10 @@ describe("AS-01 — l'équipe de modération du réseau instruit les revendicati
   async function setMember(admin: Person, rootId: Id<"networks">, teamId: Id<"moderationTeams">, person: Person, active: boolean): Promise<void> {
     await admin.as.mutation(CASES.setTeamMember, { networkId: rootId, teamId, personId: person.personId, active, reason: "Nomination de la recette AS-01." })
   }
-  /** Ce que la personne obtient de la file et de la fiche : `admitted`, le code du refus, ou `unexpected` (erreur hors moteur). */
+  /**
+   * Ce que la personne obtient de la file et de la fiche (`admitted`, le code du refus, ou `unexpected` pour
+   * une erreur hors moteur), et ce que lui dit `myPageClaimReview` (l'onglet de `/moderation`).
+   */
   async function reach(who: Person, rootId: Id<"networks">, claimId: Id<"pageClaims">) {
     const outcome = async (promise: Promise<unknown>) => {
       try {
@@ -253,6 +256,7 @@ describe("AS-01 — l'équipe de modération du réseau instruit les revendicati
     return {
       queue: await outcome(who.as.query(C.paginatePageClaims, { networkId: rootId, paginationOpts: FIRST })),
       detail: await outcome(who.as.query(C.getPageClaim, { networkId: rootId, claimId })),
+      review: (await who.as.query(C.myPageClaimReview, { networkId: rootId })).canReview,
     }
   }
 
@@ -272,7 +276,8 @@ describe("AS-01 — l'équipe de modération du réseau instruit les revendicati
     const detail = await teammate.as.query(C.getPageClaim, { networkId: root, claimId })
     expect(detail).toMatchObject({ claimId, status: "pending", canDecide: true, evidencePurgeAt: null, evidence: [{ url: null, withheld: "fileScanPending" }] })
     // Un tiers du réseau, hors équipe : le refus indistinct, partout.
-    expect(await reach(curious, root, claimId)).toEqual({ queue: "notFound", detail: "notFound" })
+    expect(await reach(curious, root, claimId)).toEqual({ queue: "notFound", detail: "notFound", review: false })
+    expect(await reach(teammate, root, claimId)).toEqual({ queue: "admitted", detail: "admitted", review: true })
     expect(await codeOf(curious.as.mutation(C.decidePageClaim, { networkId: root, claimId, decision: "approved", reason: REASON }))).toBe("notFound")
 
     expect(await teammate.as.mutation(C.decidePageClaim, { networkId: root, claimId, decision: "approved", reason: REASON })).toEqual({ status: "approved" })
@@ -296,8 +301,8 @@ describe("AS-01 — l'équipe de modération du réseau instruit les revendicati
     await setMember(admin, root, generalTeam, generalist, true)
     const { pageId } = await unclaimedAssociation(t, root)
     const { claimId } = await claim(t, presidente, root, pageId)
-    const ADMITTED = { queue: "admitted", detail: "admitted" }
-    const REFUSED = { queue: "notFound", detail: "notFound" }
+    const ADMITTED = { queue: "admitted", detail: "admitted", review: true }
+    const REFUSED = { queue: "notFound", detail: "notFound", review: false }
 
     // Sans équipe « page » : l'équipe générale reçoit les pages ; l'équipe des publications, jamais.
     expect(await reach(postsOnly, root, claimId)).toEqual(REFUSED)
@@ -309,8 +314,9 @@ describe("AS-01 — l'équipe de modération du réseau instruit les revendicati
     await setMember(admin, root, pagesTeam, pagesMember, true)
     expect(await reach(generalist, root, claimId)).toEqual(REFUSED)
     expect(await reach(pagesMember, root, claimId)).toEqual(ADMITTED)
-    // Le rôle de réseau reste admis, dans aucune équipe.
+    // Le rôle de réseau reste admis, dans aucune équipe ; l'administration aussi.
     expect(await reach(moderator, root, claimId)).toEqual(ADMITTED)
+    expect(await reach(admin, root, claimId)).toEqual(ADMITTED)
     expect((await moderator.as.query(C.getPageClaim, { networkId: root, claimId })).canDecide).toBe(true)
 
     // Membre retiré de l'équipe : plus rien.

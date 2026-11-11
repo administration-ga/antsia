@@ -242,6 +242,19 @@ export const paginateMyPageClaims = networkQuery({
 })
 
 /**
+ * AS-01 — le lecteur instruit-il les revendications de ce réseau (`pageClaimReviewCapacity`) ?
+ * Il ne parle que de lui-même : `false` n'est pas un refus, et rien n'est dit des équipes ni de
+ * leurs membres. `/moderation` d'antsia.ga en tire l'onglet « Pages à vérifier ». Même statut
+ * minimal que `cases.myCapacity`, que cet écran lit à côté.
+ */
+export const myPageClaimReview = networkQuery({
+  minStatus: "declaree",
+  args: {},
+  returns: v.object({ canReview: v.boolean() }),
+  handler: async (ctx) => ({ canReview: (await pageClaimReviewCapacity(ctx, ctx)) !== null }),
+})
+
+/**
  * La FILE des revendications d'un réseau (« pages à vérifier ») — sa modération
  * seule (rôle de réseau, ou membre de l'équipe compétente : `pageClaimReviewCapacity`) ;
  * tout autre lecteur reçoit le refus indistinct. Les plus anciennes d'abord : une
