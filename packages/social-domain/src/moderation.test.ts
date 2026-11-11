@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import {
+  authorDecisionOutcome,
   canDecideReport,
   CONTENT_REPORT_REASONS,
   isTerminalReportStatus,
@@ -99,5 +100,27 @@ describe("dossiers de signalement — transitions", () => {
       expect(isTerminalReportStatus(from)).toBe(true)
       for (const to of ["reviewing", "dismissed", "actioned"] as const) expect(canDecideReport(from, to)).toBe(false)
     }
+  })
+})
+
+describe("MD-07 — ce que l'auteur d'un contenu signalé apprend", () => {
+  it("une mesure prise, avec ou sans recours en cours ou confirmé", () => {
+    expect(authorDecisionOutcome("actioned", [])).toBe("actioned")
+    expect(authorDecisionOutcome("actioned", ["open"])).toBe("actioned")
+    expect(authorDecisionOutcome("actioned", ["upheld", "open"])).toBe("actioned")
+  })
+
+  it("une mesure annulée sur son recours reste lue : le dossier est repassé à « classé », le recours dit « annulée »", () => {
+    expect(authorDecisionOutcome("dismissed", ["overturned"])).toBe("overturned")
+    expect(authorDecisionOutcome("dismissed", ["upheld", "overturned"])).toBe("overturned")
+  })
+
+  it("jamais un dossier ouvert ou en examen, ni un classement sans suite, ni une relecture approuvée", () => {
+    expect(authorDecisionOutcome("open", [])).toBeNull()
+    expect(authorDecisionOutcome("reviewing", [])).toBeNull()
+    expect(authorDecisionOutcome("dismissed", [])).toBeNull()
+    // Un recours sans annulation ne fait pas d'un classement une mesure.
+    expect(authorDecisionOutcome("dismissed", ["upheld"])).toBeNull()
+    expect(authorDecisionOutcome("open", ["overturned"])).toBeNull()
   })
 })

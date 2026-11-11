@@ -27,7 +27,7 @@ describe("native profile views", () => {
   })
   it("keeps each account entry unique and in a real native or delegated destination", () => {
     expect(new Set(NATIVE_PROFILE_ENTRIES.map(entry => entry.id)).size).toBe(NATIVE_PROFILE_ENTRIES.length)
-    expect(NATIVE_PROFILE_ENTRIES.filter(entry => entry.group === "account").map(entry => entry.id)).toEqual(["moderation", "personalData"])
+    expect(NATIVE_PROFILE_ENTRIES.filter(entry => entry.group === "account").map(entry => entry.id)).toEqual(["moderation", "personalData", "accountDeletion"])
     expect(NATIVE_PROFILE_ENTRIES.some(entry => entry.id === "bookmarks")).toBe(true)
   })
   it("interpolates a translated title while preserving unknown placeholders", () => {

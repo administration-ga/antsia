@@ -60,5 +60,7 @@
   "mobile.profile.badge.official": "Officiel",
   "mobile.profile.badge.verified": "Vérifié",
   "mobile.profile.badge.public_agent": "Agent public",
-  "mobile.profile.demoOptions": "Comptes démo"
+  "mobile.profile.demoOptions": "Comptes démo",
+  "mobile.profile.accountDeletionLabel": "Supprimer mon compte",
+  "mobile.profile.accountDeletionHint": "Demande d’effacement dans l’application, avec 30 jours pour annuler."
 }

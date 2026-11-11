@@ -1,4 +1,5 @@
 /** Garde PA5 partagée ; aucune fonction publique ni dépendance aux constructeurs. */
+import { authorDecisionOutcome } from "@antsia/social-domain/moderation"
 import { contentNeedsReview, effectiveModerationPolicy, isSanctionLive, MODERATION_SCAN_LIMIT, type ModerationSurface } from "@antsia/social-domain/moderationPolicy"
 
 import type { Doc, Id } from "../../_generated/dataModel"
@@ -61,6 +62,19 @@ export async function owningPageOfReport(ctx: ReadCtx, report: Pick<Doc<"reports
   if (report.target.kind === "page") return await ctx.db.get(report.target.id)
   const state = await contentState(ctx, report.target.kind, report.target.id)
   return state?.ownerPageId ? await ctx.db.get(state.ownerPageId) : null
+}
+
+/**
+ * MD-07 (antsia#99) — le dossier se montre-t-il, et s'annonce-t-il, à son auteur (ou au signataire de
+ * la page qui porte le contenu) ? Une mesure prise, ou cette mesure annulée sur recours
+ * (`authorDecisionOutcome`) ; jamais un dossier ouvert, en examen ou classé. Relu à l'émission et à la
+ * lecture de chaque avis `moderation_decision`.
+ */
+export async function authorSeesCase(ctx: ReadCtx, report: Pick<Doc<"reports">, "_id" | "status">): Promise<boolean> {
+  if (report.status !== "dismissed") return authorDecisionOutcome(report.status, []) !== null
+  // borné : un recours au plus par niveau (réseau, plateforme) sur l'index `by_report_level`.
+  const appeals = await ctx.db.query("appeals").withIndex("by_report_level", (q) => q.eq("reportId", report._id)).take(2)
+  return authorDecisionOutcome(report.status, appeals.map((appeal) => appeal.status)) !== null
 }
 
 /** Aucun texte n'est gardé dans cette table. Une édition retirée n'est jamais une republication. */

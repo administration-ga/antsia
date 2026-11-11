@@ -138,3 +138,18 @@ describe("IM-01 — une application sans appels déclarés (callsAvailable={fals
 		expect(screen.getByRole("button", { name: "Informations du groupe Test Groupe" })).toBeInTheDocument()
 	})
 })
+
+describe("IC-03 — l'emplacement « Signaler ou bloquer »", () => {
+	it("rendu en DERNIER dans la rangée, après les appels ; absent, la rangée est inchangée", () => {
+		const { container } = renderWithEngine(
+			<ConversationHeader variant="page" kind="chat" title={TITRE} counterpartHandle="awa" onBack={vi.fn()} onCallAudio={vi.fn()} onCallVideo={vi.fn()} protection={<button type="button" data-testid="protection" />} />,
+		)
+		const row = container.querySelector(".msg-head-row")
+		const buttons = [...(row?.querySelectorAll("button") ?? [])]
+		expect(buttons.at(-1)).toBe(screen.getByTestId("protection"))
+		expect(buttons.indexOf(screen.getByRole("button", { name: "Appel vidéo" }))).toBeLessThan(buttons.length - 1)
+		cleanup()
+		renderWithEngine(<ConversationHeader variant="page" kind="chat" title={TITRE} counterpartHandle="awa" onBack={vi.fn()} />)
+		expect(screen.queryByTestId("protection")).toBeNull()
+	})
+})
