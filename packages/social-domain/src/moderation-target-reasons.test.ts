@@ -11,18 +11,23 @@ import {
 } from "./moderation"
 
 const JOB_REASONS = ["job_fee_requested", "job_impersonation"]
+// Les natures qui reçoivent les motifs d'emploi : le poste d'une boutique et l'offre d'emploi de DIASPORALE.
+const JOB_KINDS = ["commerceJob", "diasporaJobOffer"] as const
 
 describe("UM-03 — motifs propres à une nature d'objet", () => {
-  it("le poste reçoit ses deux motifs en tête, puis ceux de tout objet, « autre » en dernier", () => {
-    const reasons = reportReasonsFor("commerceJob")
-    expect(reasons.slice(0, 2)).toEqual(JOB_REASONS)
-    expect(reasons.slice(2)).toEqual([...CONTENT_REPORT_REASONS])
-    expect(reasons.at(-1)).toBe("other")
-    expect(new Set(reasons).size).toBe(reasons.length)
+  it("le poste et l'offre d'emploi de DIASPORALE reçoivent les deux motifs en tête, puis ceux de tout objet, « autre » en dernier", () => {
+    for (const kind of JOB_KINDS) {
+      const reasons = reportReasonsFor(kind)
+      expect(reasons.slice(0, 2)).toEqual(JOB_REASONS)
+      expect(reasons.slice(2)).toEqual([...CONTENT_REPORT_REASONS])
+      expect(reasons.at(-1)).toBe("other")
+      expect(new Set(reasons).size).toBe(reasons.length)
+    }
+    expect(Object.keys(TARGET_REPORT_REASONS).sort()).toEqual([...JOB_KINDS].sort())
   })
 
   it("aucune autre nature ne propose un motif d'emploi, et la liste de tout objet n'en contient aucun", () => {
-    for (const kind of ["commerceOffer", "commerceStorefront", "page", "person", "post", "publication", "commentaire", "live", "story", "diasporaJobOffer"]) {
+    for (const kind of ["commerceOffer", "commerceStorefront", "page", "person", "post", "publication", "commentaire", "live", "story", "diasporaTalentProfile", "diasporaJobApplication"]) {
       expect(reportReasonsFor(kind)).toEqual([...CONTENT_REPORT_REASONS])
     }
     for (const reason of JOB_REASONS) expect(CONTENT_REPORT_REASONS as readonly string[]).not.toContain(reason)
@@ -30,13 +35,13 @@ describe("UM-03 — motifs propres à une nature d'objet", () => {
     expect(reportReasonsFor("toString")).toEqual([...CONTENT_REPORT_REASONS])
   })
 
-  it("le moteur n'admet un motif d'emploi que pour un poste ; tout autre code bien formé reste admis", () => {
+  it("le moteur n'admet un motif d'emploi que pour un poste ou une offre d'emploi ; tout autre code bien formé reste admis", () => {
     for (const reason of JOB_REASONS) {
-      expect(isReportReasonAllowedFor(reason, "commerceJob")).toBe(true)
-      for (const kind of ["commerceOffer", "commerceStorefront", "post", "page", "serviceReview"]) expect(isReportReasonAllowedFor(reason, kind)).toBe(false)
+      for (const kind of JOB_KINDS) expect(isReportReasonAllowedFor(reason, kind)).toBe(true)
+      for (const kind of ["commerceOffer", "commerceStorefront", "post", "page", "serviceReview", "diasporaTalentProfile", "diasporaJobApplication"]) expect(isReportReasonAllowedFor(reason, kind)).toBe(false)
     }
     for (const reason of [...CONTENT_REPORT_REASONS, "spam", "fraud", "misleading_offer"]) {
-      expect(isReportReasonAllowedFor(reason, "commerceJob")).toBe(true)
+      for (const kind of JOB_KINDS) expect(isReportReasonAllowedFor(reason, kind)).toBe(true)
       expect(isReportReasonAllowedFor(reason, "post")).toBe(true)
     }
   })
@@ -51,6 +56,6 @@ describe("UM-03 — motifs propres à une nature d'objet", () => {
     for (const reason of CONTENT_REPORT_REASONS) expect(isKnownReportReason(reason)).toBe(true)
     expect(isKnownReportReason("misleading_offer")).toBe(false)
     expect(Object.isFrozen(TARGET_REPORT_REASONS)).toBe(true)
-    expect(Object.isFrozen(TARGET_REPORT_REASONS.commerceJob)).toBe(true)
+    for (const kind of JOB_KINDS) expect(Object.isFrozen(TARGET_REPORT_REASONS[kind])).toBe(true)
   })
 })

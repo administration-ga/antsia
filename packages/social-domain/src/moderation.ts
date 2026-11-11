@@ -35,15 +35,17 @@ export type ContentReportReason = (typeof CONTENT_REPORT_REASONS)[number]
  * UM-03 (plan 09, 11/11/2026) — les motifs PROPRES à une nature d'objet : proposés pour elle seule, en tête
  * de sa liste, et refusés par le moteur pour toute autre cible. `CONTENT_REPORT_REASONS` reste la liste
  * proposée pour TOUT objet (et le validateur des publications et commentaires) : un motif d'emploi n'y entre
- * pas, il n'apparaît donc ni sous une publication, ni dans l'application mobile, ni dans DIASPORALE.
+ * pas, il n'apparaît donc ni sous une publication ni dans l'application mobile.
  *
- * Poste (`commerceJob`) : `job_fee_requested`, frais demandés au candidat ; `job_impersonation`,
- * usurpation d'une entreprise. AUCUN délai réglementé (`reportLegalBasis` → `null`) : l'art. 24 de
+ * Poste d'une boutique (`commerceJob`) et offre d'emploi de DIASPORALE (`diasporaJobOffer`, demande de la
+ * session DIASPORALE du 11/11 : plans EM-01 et MD-13) : `job_fee_requested`, frais demandés au candidat ;
+ * `job_impersonation`, usurpation d'une entreprise. AUCUN délai réglementé (`reportLegalBasis` → `null`) : l'art. 24 de
  * l'ordonnance n° 0011/PR/2026 ne vise que le cyberharcèlement et le contenu préjudiciable impliquant un
  * mineur (étude SU01, ligne 24) ; une fausse offre d'emploi n'en relève pas.
  */
 export const TARGET_REPORT_REASONS = Object.freeze({
   commerceJob: Object.freeze(["job_fee_requested", "job_impersonation"] as const),
+  diasporaJobOffer: Object.freeze(["job_fee_requested", "job_impersonation"] as const),
 })
 export type TargetReportReasonKind = keyof typeof TARGET_REPORT_REASONS
 export type TargetReportReason = (typeof TARGET_REPORT_REASONS)[TargetReportReasonKind][number]
