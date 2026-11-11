@@ -38,6 +38,8 @@ const COMMERCE_TABLES = [
   "serviceOffers", "serviceRequests", "serviceProposals", "serviceBookings", "serviceReviews", "serviceReviewReplies",
   // MP04 — état collectif de construction de l'index marketplace : ni titulaire personnel ni secret.
   "commerceCatalogIndexes",
+  // CM-02 — décision de la liste des catégories sur une offre reflétée : références seules, suit la boutique.
+  "commerceCatalogCategoryRulings",
 ] as const
 
 const OWNER = "owner_person", STRANGER = "stranger_person"

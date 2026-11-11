@@ -6,7 +6,7 @@ import { internalMutation } from "../../_generated/server"
 import { enforceRateLimit } from "../../lib/rateLimit"
 import { federationBodyDigest, verifyFederationSignature } from "./signature"
 import { federationApplicationStatusValidator, federationEnvironmentValidator, federationReceiptStatusValidator } from "./tables"
-import { applyFederationEnvelope, isPersonalFederationEnvelope, validImplementedFederationPayload } from "./reseauPublic"
+import { applyFederationEnvelope, isContentFreeFederationFailure, isPersonalFederationEnvelope, validImplementedFederationPayload } from "./reseauPublic"
 import { correlatedFederationReceipt, validateCommerceTransportBody } from "./commerceTransport"
 
 export const admit = internalMutation({
@@ -49,7 +49,9 @@ export const admit = internalMutation({
       await ctx.db.patch(receiptId, { status: "discarded", updatedAt: now })
       return { outcome: "accepted" as const, status: "discarded" as const, ...correlatedFederationReceipt(envelope.eventId, bodySha256, "discarded") }
     }
-    await ctx.db.insert("federationDeadLetters", { networkId: emitter.networkId, emitterId: emitter._id, environment: emitter.environment, receiptId, eventId: envelope.eventId, contract: envelope.contract, objectRef: envelope.objectRef, bodySha256, rawBody: args.rawBody, reason: application.reason, status: "dead_letter", attempts: 1, firstFailedAt: now, lastAttemptAt: now })
+    // CM-02 : un refus sans contenu ne garde pas le corps ; décision définitive, la lettre est close d'emblée.
+    const contentFree = isContentFreeFederationFailure(application.reason)
+    await ctx.db.insert("federationDeadLetters", { networkId: emitter.networkId, emitterId: emitter._id, environment: emitter.environment, receiptId, eventId: envelope.eventId, contract: envelope.contract, objectRef: envelope.objectRef, bodySha256, rawBody: contentFree ? "" : args.rawBody, reason: application.reason, status: contentFree ? "resolved" : "dead_letter", attempts: 1, firstFailedAt: now, lastAttemptAt: now, ...(contentFree ? { resolvedAt: now } : {}) })
     await ctx.db.patch(receiptId, { status: "dead_letter", updatedAt: now })
     return { outcome: "accepted" as const, status: "dead_letter" as const, ...correlatedFederationReceipt(envelope.eventId, bodySha256, "dead_letter") }
   },

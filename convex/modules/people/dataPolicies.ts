@@ -135,6 +135,8 @@ export const DATA_TABLE_POLICIES: Record<string, { shared?: boolean; owners?: re
   commerceCatalogMappings: {shared: true},
   commerceCatalogHeads: {parents: ["shopId"]},
   commerceCatalogMediaAssets: {parents: ["headId"]},
+  // CM-02 : décision de la liste des catégories sur une offre reflétée — contenu collectif de la boutique (références seules).
+  commerceCatalogCategoryRulings: {parents: ["shopId"]},
   // P15 : politique collective ; offres reflétées = contenu de la boutique ; sujets,
   // pièces (blobs compris) et candidatures = données du seul candidat.
   commerceJobPolicies: {shared: true},

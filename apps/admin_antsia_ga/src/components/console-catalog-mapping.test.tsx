@@ -34,6 +34,8 @@ const OTHER_NETWORK = "network-b" as Id<"networks">
 const MAPPINGS = "modules/shops/catalogControl:paginateMappings"
 const EMITTERS = "modules/federation/emitters:paginate"
 const CONFIGURE = "modules/shops/catalogControl:configureMapping"
+const RULINGS = "modules/shops/catalogControl:paginateCategoryRulings"
+type Ruling = FunctionReturnType<typeof api.modules.shops.catalogControl.paginateCategoryRulings>["page"][number]
 const i18n = createAppI18n({ locale: "fr", appResources, defaultNS: "operations" })
 const page = <T,>(rows: T[], isDone = true, continueCursor = "next-window") => ({ page: rows, isDone, continueCursor })
 function shop(overrides: Partial<CatalogShop> = {}): CatalogShop {
@@ -216,5 +218,44 @@ describe("rattachement des catalogues depuis la vraie politique console", () => 
     expect(confirm).not.toHaveBeenCalled()
     await act(async () => resolve(null))
     expect(state.pending.mock.calls.at(-1)?.[0]).toBe(false)
+  })
+})
+
+describe("CM-02 — vue console des catégories encadrées", () => {
+  function ruling(overrides: Partial<Ruling> = {}): Ruling {
+    return { rulingId: "opaque-ruling-001" as Ruling["rulingId"], shopId: "opaque-shop-001" as Id<"shops">, shopName: "Épicerie du quartier", shopHandle: "epicerie-du-quartier", offerRef: "pro.ga:offer:01JA00000000000000000000P2", rule: "prohibited", categoryKey: "electronics.phones", listVersion: 2, revision: 3, withdrewReflection: true, firstAt: 1_000, updatedAt: 2_000, ...overrides }
+  }
+
+  it("dit qu'aucune ligne n'existe tant que la liste est vide, sans rien inventer", async () => {
+    state.data[RULINGS] = page([])
+    await render()
+    const view = section(i18n.t("categoryRulings.title"))
+    expect(view.textContent).toContain(i18n.t("categoryRulings.lead"))
+    expect(view.textContent).toContain(i18n.t("common.empty"))
+    expect(state.queries).toHaveBeenCalledWith(RULINGS, expect.objectContaining({ networkId: NETWORK, paginationOpts: expect.objectContaining({ cursor: null, numItems: 20 }) }))
+  })
+
+  it("montre refus et relectures par boutique, catégorie, référence et version, sans identifiant interne ni contenu d'offre", async () => {
+    state.data[RULINGS] = page([ruling(), ruling({ rulingId: "opaque-ruling-002" as Ruling["rulingId"], rule: "regulated", categoryKey: "beauty", withdrewReflection: false, shopName: null, shopHandle: null })])
+    await render()
+    const view = section(i18n.t("categoryRulings.title"))
+    const rows = [...view.querySelectorAll("li")]
+    expect(rows.map(row => row.getAttribute("data-category-ruling"))).toEqual(["prohibited", "regulated"])
+    expect(rows[0]!.textContent).toContain("Épicerie du quartier")
+    expect(rows[0]!.textContent).toContain("@epicerie-du-quartier")
+    expect(rows[0]!.textContent).toContain(i18n.t("categoryRulings.rule.prohibited"))
+    expect(rows[0]!.textContent).toContain("electronics.phones")
+    expect(rows[0]!.textContent).toContain(i18n.t("categoryRulings.reference", { reference: "pro.ga:offer:01JA00000000000000000000P2", revision: 3, version: 2 }))
+    expect(rows[0]!.textContent).toContain(i18n.t("categoryRulings.withdrew"))
+    expect(rows[1]!.textContent).toContain(i18n.t("catalogMapping.unnamedShop"))
+    expect(rows[1]!.textContent).toContain(i18n.t("categoryRulings.rule.regulated"))
+    expect(rows[1]!.textContent).not.toContain(i18n.t("categoryRulings.withdrew"))
+    expect(view.textContent).not.toContain("opaque-ruling")
+    expect(view.textContent).not.toContain("opaque-shop")
+    expect(state.mutation).not.toHaveBeenCalled()
+  })
+
+  it("traduit le motif de lettre morte d'une offre interdite", () => {
+    expect(i18n.t("federation.failure.prohibited_category")).not.toBe("federation.failure.prohibited_category")
   })
 })

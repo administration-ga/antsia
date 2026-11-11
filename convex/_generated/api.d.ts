@@ -183,6 +183,7 @@ import type * as modules_federation_commerceCatalogClient from "../modules/feder
 import type * as modules_federation_commerceCatalogMedia from "../modules/federation/commerceCatalogMedia.js";
 import type * as modules_federation_commerceCatalogMediaActions from "../modules/federation/commerceCatalogMediaActions.js";
 import type * as modules_federation_commerceCatalogMediaHttp from "../modules/federation/commerceCatalogMediaHttp.js";
+import type * as modules_federation_commerceCatalogRulings from "../modules/federation/commerceCatalogRulings.js";
 import type * as modules_federation_commerceJobs from "../modules/federation/commerceJobs.js";
 import type * as modules_federation_commerceServiceNotices from "../modules/federation/commerceServiceNotices.js";
 import type * as modules_federation_commerceTransport from "../modules/federation/commerceTransport.js";
@@ -679,6 +680,7 @@ declare const fullApi: ApiFromModules<{
   "modules/federation/commerceCatalogMedia": typeof modules_federation_commerceCatalogMedia;
   "modules/federation/commerceCatalogMediaActions": typeof modules_federation_commerceCatalogMediaActions;
   "modules/federation/commerceCatalogMediaHttp": typeof modules_federation_commerceCatalogMediaHttp;
+  "modules/federation/commerceCatalogRulings": typeof modules_federation_commerceCatalogRulings;
   "modules/federation/commerceJobs": typeof modules_federation_commerceJobs;
   "modules/federation/commerceServiceNotices": typeof modules_federation_commerceServiceNotices;
   "modules/federation/commerceTransport": typeof modules_federation_commerceTransport;
