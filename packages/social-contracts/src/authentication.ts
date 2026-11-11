@@ -47,7 +47,7 @@ export function otpLocale(acceptLanguage: string | null | undefined, deploymentL
 }
 
 /**
- * EA-08 (issue #151) — la durée de validité d'un code chez un moteur qui ne la publie pas encore
+ * EA-08 (issue 151 d'antsia) — la durée de validité d'un code chez un moteur qui ne la publie pas encore
  * (`platform/authentication.configuration` sans `otpTtlSeconds`) : les cinq minutes que ces moteurs
  * appliquaient. Un écran ne s'en sert qu'à défaut de la durée publiée ; la durée en vigueur reste
  * celle du moteur (`OTP_TTL_SECONDS`), jamais recopiée ici.
