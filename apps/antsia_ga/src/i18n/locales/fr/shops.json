@@ -866,5 +866,8 @@
     "saved": "La boutique est fermée temporairement.",
     "reopened": "La boutique est rouverte.",
     "required": "Choisissez la date de réouverture."
+  },
+  "report": {
+    "signIn": "Se connecter pour signaler"
   }
 }

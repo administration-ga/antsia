@@ -6,6 +6,7 @@ import { api } from "@antsia/api/engine"
 import { useAuthenticatedConvexQuery } from "@antsia/api/hooks"
 import { useNetwork } from "@antsia/api/network"
 import { useMutation } from "convex/react"
+import { ReportTargetButton } from "@antsia/social-features/features/reseau-personnel/report-content-entry"
 import { effectiveActivityConfiguration } from "@antsia/social-domain/activityConfiguration"
 import { Clock, MapPin } from "lucide-react"
 import { useTranslation } from "react-i18next"
@@ -68,7 +69,8 @@ export function StorefrontBody({ shop, publications = true }: { shop: Storefront
     <ShopPauseBanner handle={shop.handle} />
     {special ? <DailySpecialCard handle={shop.handle} offerRef={special} /> : null}
     {shop.blocks.map((block) => block === "catalog" || block === "services" ? <MemberCatalogPreview key={block} handle={shop.handle} kind={block === "catalog" ? "product" : "service"} title={food && block === "catalog" ? t("food.menu") : undefined} /> : block === "about" ? <Card key={block}><div className="grid gap-4"><h2 className="mp-subtitle">{t("storefront.about")}</h2>{shop.description ? <p className="whitespace-pre-wrap">{shop.description}</p> : null}<dl className="grid gap-4 sm:grid-cols-2">{facts.map((field) => shop[field] ? <div key={field}><dt className="text-sm font-medium text-muted-foreground">{t(`storefront.${field}`)}</dt><dd className="whitespace-pre-wrap">{shop[field]}</dd></div> : null)}</dl></div></Card> : block === "publications" && publications ? <Card key={block}><div className="grid justify-items-start gap-3"><h2 className="mp-subtitle">{t("blocks.publications")}</h2><p className="text-sm text-muted-foreground">{t("storefront.publicationsHint")}</p><ShopLink href={routes.page(shop.handle)}>{t("storefront.socialPage")}</ShopLink></div></Card> : null)}
-    <StorefrontTerms value={shop.storefrontTerms} locale={i18n.resolvedLanguage === "en" ? "en" : "fr"} t={t} />
+    {/* UM-03 : les conditions d'autrui se signalent ; ni le gérant ni son équipe ne reçoivent la cible. */}
+    <StorefrontTerms value={shop.storefrontTerms} locale={i18n.resolvedLanguage === "en" ? "en" : "fr"} t={t} action={shop.reportTarget ? <ReportTargetButton target={shop.reportTarget} size="md" /> : undefined} />
     <MemberShopJobsPreview handle={shop.handle} />
   </>
 }

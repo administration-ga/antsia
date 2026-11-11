@@ -2,6 +2,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 
 import { PUBLIC_CTA, PUBLIC_LINK, PublicShell } from "@/components/public/public-shell"
+import { PublicReportInvite } from "@/components/public/public-report-invite"
 import { PublicStatus } from "@/components/public/public-status"
 import { getAppT } from "@/i18n/server"
 import { publicMetadata, publicSearch } from "@/lib/public-data"
@@ -42,6 +43,10 @@ export async function PublicJobScreen(props: Props) {
   return <PublicShell viewer={result.viewer}><div className="antsia-page antsia-copy mx-auto w-full max-w-5xl">
     <Link href={routes.publicStorefront(job.shopHandle)} prefetch={false} className={`${PUBLIC_LINK} justify-self-start`}>{t("jobs:shop.backToShop")}</Link>
     <JobDetails job={job} locale={locale} t={(key, options) => t(`jobs:${key}`, options)} employerHref={routes.publicStorefront(job.shopHandle)}
-      actionSlot={job.status === "open" ? <Link href={applyHref} prefetch={false} className={`${PUBLIC_CTA} justify-self-start`}>{t(result.viewer === "authenticated" ? "jobs:details.apply" : "jobs:details.signInToApply")}</Link> : undefined} />
+      actionSlot={<>
+        {job.status === "open" ? <Link href={applyHref} prefetch={false} className={`${PUBLIC_CTA} justify-self-start`}>{t(result.viewer === "authenticated" ? "jobs:details.apply" : "jobs:details.signInToApply")}</Link> : null}
+        {/* UM-03 : sans compte, signaler une offre (même close) invite à se connecter ; on signale depuis la fiche membre. */}
+        {result.viewer === "anonymous" ? <PublicReportInvite href={routes.signIn()} label={t("jobs:details.signInToReport")} /> : null}
+      </>} />
   </div></PublicShell>
 }
