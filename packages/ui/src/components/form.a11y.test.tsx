@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/ui-v2/src/components/form.a11y.test.tsx @ ad2e7fdc2 — adaptations : environnement jsdom déclaré en tête (l'environnement par défaut du paquet est `node`). ; EX-18 : classe de focus des champs et absence d'outline en ligne, obligation transmise au champ (`aria-required`).
+// Dupliqué de socle/packages/ui-v2/src/components/form.a11y.test.tsx @ ad2e7fdc2 — adaptations : environnement jsdom déclaré en tête (l'environnement par défaut du paquet est `node`). ; EX-18 : classe de focus des champs et absence d'outline en ligne, obligation transmise au champ (`aria-required`). EX-18, second volet : focus au clavier des cases, choix radio et interrupteurs sur leur visuel.
 // @vitest-environment jsdom
 /**
  * Cliquet de LIAISON ÉTIQUETTE ↔ CHAMP sur `Field`.
@@ -20,7 +20,7 @@
  */
 import { render, screen } from "@testing-library/react"
 import { describe, expect, test } from "vitest"
-import { Field, Select, TextArea, TextInput } from "./form"
+import { Checkbox, Field, Radio, Select, TextArea, TextInput, Toggle } from "./form"
 
 /** L'étiquette pointe-t-elle vers un élément qui existe vraiment ? */
 const lieEtChamp = (labelText: string) => {
@@ -173,5 +173,50 @@ describe("Field — champ obligatoire (EX-18, WCAG 1.3.1)", () => {
       </Field>,
     )
     expect(screen.getByRole("textbox")).not.toHaveAttribute("aria-required")
+  })
+})
+
+/**
+ * EX-18, second volet (WCAG 2.4.7, échec F78) : `Checkbox`, `Radio` et `Toggle` cachent leur
+ * entrée native (`opacity: 0`) derrière un visuel de remplacement. Le focus arrive sur
+ * l'entrée ; c'est son visuel qui doit le montrer. La règle de la couche de base
+ * (`styles/theme.css`, `.ui-choice-input:focus-visible + .ui-choice-mark`, épinglée avec son
+ * anneau par `themes/antsia-themes.test.ts`) vise le visuel FRÈRE SUIVANT de l'entrée : ces
+ * tests tiennent la structure qu'elle suppose, et l'absence d'`outline` en ligne qui l'annulerait.
+ */
+describe("cases, choix radio et interrupteurs — indicateur de focus au clavier", () => {
+  test("chaque entrée, focalisable, précède immédiatement son visuel, qui ne porte aucune outline en ligne", () => {
+    render(
+      <>
+        <Checkbox label="Accepter les conditions" onChange={() => {}} />
+        <Radio name="audience" value="network" label="Mon réseau" onChange={() => {}} />
+        <Toggle label="Recevoir les alertes" onChange={() => {}} />
+      </>,
+    )
+    const entrees = [
+      screen.getByRole("checkbox", { name: "Accepter les conditions" }),
+      screen.getByRole("radio", { name: "Mon réseau" }),
+      screen.getByRole("checkbox", { name: "Recevoir les alertes" }),
+    ]
+    for (const entree of entrees) {
+      expect(entree).toHaveClass("ui-choice-input")
+      const visuel = entree.nextElementSibling as HTMLElement | null
+      expect(visuel, "aucun visuel juste après l'entrée").not.toBeNull()
+      expect(visuel).toHaveClass("ui-choice-mark")
+      expect(visuel!.style.outline).toBe("")
+      expect(visuel!.style.outlineStyle).toBe("")
+      // Invisible, l'entrée reste atteignable au clavier.
+      entree.focus()
+      expect(document.activeElement).toBe(entree)
+    }
+    // Le sélecteur de la règle (sans sa pseudo-classe) trouve exactement les trois visuels.
+    expect(document.querySelectorAll(".ui-choice-input + .ui-choice-mark")).toHaveLength(3)
+  })
+
+  test("cocher passe toujours par l'entrée native : l'étiquette et son visuel la commandent", () => {
+    const changes: boolean[] = []
+    render(<Checkbox label="Rejoindre le groupe" onChange={(next) => changes.push(next)} />)
+    screen.getByText("Rejoindre le groupe").click()
+    expect(changes).toEqual([true])
   })
 })

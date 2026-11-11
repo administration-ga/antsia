@@ -113,6 +113,8 @@ const NON_TEXT_PAIRS: readonly (readonly [string, string])[] = [
   ["--ink-300", "--ink-100"], ["--ink-400", "--ink-0"], ["--ring", "--background"], ["--ring", "--card"], ["--ring", "--popover"], ["--ring", "--muted"],
   // EX-18 : l'anneau de focus des champs du paquet se pose aussi sur leur surface (`--ink-0`).
   ["--ring", "--ink-0"],
+  // EX-18, second volet : l'anneau d'un choix radio coché du paquet se pose sur sa carte teintée (`--primary-50`).
+  ["--ring", "--primary-50"],
   ["--outline-ring", "--background"], ["--outline-ring", "--card"], ["--outline-ring", "--popover"], ["--primary-300", "--background"],
   ["--primary-300", "--card"], ["--primary-300", "--popover"], ["--primary-400", "--card"], ["--primary-400", "--background"],
   ["--warning", "--card"], ["--role-react-ink", "--card"], ["--role-react-ink", "--background"],
@@ -370,7 +372,7 @@ describe("les sept thèmes d'antsia.ga (ADR-0027)", () => {
     for (const [path, expression, count] of IDENTITY_SITES) expect(read(path).split(expression).length - 1, `${path} : ${expression}`).toBe(count)
   })
 
-  it("EX-18 : les champs montrent leur focus au clavier à l'anneau de la charte, sans `outline` supprimée en ligne", () => {
+  it("EX-18 : les champs et les choix montrent leur focus au clavier à l'anneau de la charte, sans `outline` supprimée en ligne", () => {
     const FOCUS_SITES: readonly (readonly [string, string, number])[] = [
       // Nouveau site (EX-18, A11Y-01) : la classe des champs du paquet, dans la couche de base.
       ["../styles/theme.css", ".ui-field:focus-visible {\n    outline: 2px solid var(--ring);", 1],
@@ -379,16 +381,34 @@ describe("les sept thèmes d'antsia.ga (ADR-0027)", () => {
       // Un style en ligne l'emporterait sur la classe : plus aucun dans les champs du paquet.
       ["../components/form.tsx", 'outline: "none"', 0],
       ["../components/form.tsx", "className={fieldControlClass(className)}", 3],
+      // Nouveau site (EX-18, second volet) : le visuel des cases, choix radio et interrupteurs du paquet,
+      // frère suivant de leur entrée native invisible, dans la couche de base.
+      ["../styles/theme.css", ".ui-choice-input:focus-visible + .ui-choice-mark {\n    outline: 2px solid var(--ring);", 1],
+      // … porté par les trois composants (`Checkbox`, `Radio`, `Toggle`) : l'entrée, puis son visuel.
+      ["../components/form.tsx", "className={CHOICE_INPUT_CLASS}", 3],
+      ["../components/form.tsx", "className={CHOICE_MARK_CLASS}", 3],
+      // Nouveaux sites (EX-18, second volet) : le champ de quantité d'une ligne du panier et celui de la
+      // barre d'achat d'une offre, sans contour propre, montrent leur focus à l'anneau de la charte
+      // (3 et 4 sites avec les boutons de pas et les liens qui l'avaient déjà) ; plus aucun contour ôté sans relais.
+      ["../../../../apps/antsia_ga/src/components/cart/cart-layout.tsx", "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", 3],
+      ["../../../../apps/antsia_ga/src/components/cart/cart-layout.tsx", 'focus-visible:outline-none"', 0],
+      ["../../../../apps/antsia_ga/src/components/cart/offer-cart-actions.tsx", "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", 4],
+      ["../../../../apps/antsia_ga/src/components/cart/offer-cart-actions.tsx", 'focus-visible:outline-none"', 0],
+      // Nouveau site (EX-18, second volet) : la console prend l'anneau natif plein (`--outline-ring`), comme les neuf autres chartes.
+      ["./admin-antsia.css", "--outline-ring: var(--ring);", 1],
     ]
     for (const [path, expression, count] of FOCUS_SITES) expect(read(path).split(expression).length - 1, `${path} : ${expression}`).toBe(count)
   })
 
-  it("EX-18 : la console (charte de base, thème quasi vide) borde ses champs et pose son anneau à 3:1 au moins, en clair et en sombre", () => {
+  it("EX-18 : la console (charte de base, thème quasi vide) borde ses champs et pose ses anneaux à 3:1 au moins, en clair et en sombre", () => {
     const cascade = new TokenCascade([...BASE_SHEETS, { name: "admin-antsia.css", css: read("./admin-antsia.css") }])
     const FIELD_PAIRS: readonly (readonly [string, string])[] = [
       ["--input", "--background"], ["--input", "--card"], ["--input", "--popover"], ["--input", "--muted"],
       ["--ink-300", "--ink-0"], ["--ink-300", "--ink-100"], ["--ink-300", "--background"], ["--ink-300", "--muted"],
       ["--ring", "--background"], ["--ring", "--card"], ["--ring", "--popover"], ["--ring", "--muted"], ["--ring", "--ink-0"],
+      // EX-18, second volet : choix radio coché (carte teintée) et anneau natif du navigateur (`--outline-ring`).
+      ["--ring", "--primary-50"],
+      ["--outline-ring", "--background"], ["--outline-ring", "--card"], ["--outline-ring", "--popover"], ["--outline-ring", "--muted"], ["--outline-ring", "--ink-0"],
     ]
     for (const dark of [false, true]) {
       for (const nested of [false, true]) {
