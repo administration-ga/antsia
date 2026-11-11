@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/direct/DirectPage.tsx @ ad2e7fdc2 — adaptations : DTO moteur, préflight avant démarrage, studio consommant la salle persistante et gestion d’antenne par permissions serveur, i18n et routes injectées ; couleurs par fonction (ADR-0027) : « Rejoindre la salle » en participation (variante `commerce`, aplat d’identité en repli) ; DL-02 : pastille « REC » pendant la capture, accord à l’enregistrement (case décochée) avant d’entrer à l’antenne, place d’invité intervenant ouverte par l’accord.
+// Dupliqué de socle/packages/agent-features/src/features/direct/DirectPage.tsx @ ad2e7fdc2 — adaptations : DTO moteur, préflight avant démarrage, studio consommant la salle persistante et gestion d’antenne par permissions serveur, i18n et routes injectées ; couleurs par fonction (ADR-0027) : « Rejoindre la salle » en participation (variante `commerce`, aplat d’identité en repli) ; DL-02 : pastille « REC » pendant la capture, accord à l’enregistrement (case décochée) avant d’entrer à l’antenne, place d’invité intervenant ouverte par l’accord ; DL-03 (plan 04) : « Signaler » dans l’en-tête du direct d’autrui, par la brique commune (`ReportTargetButton`, cible `live`), jamais sur le sien.
 "use client"
 
 import { themedActionStyle } from "../themed-action-style"
@@ -17,6 +17,7 @@ import { useTranslation } from "react-i18next"
 import { useDirectRoom } from "../../stores/direct-room-registry"
 import { directSessionStore, useDirectSessionStore } from "../../stores/direct-session-store"
 import { postEngineErrorText } from "../reseau-personnel/post-overflow"
+import { ReportTargetButton } from "../reseau-personnel/ReportTarget"
 import { describeCallMediaError } from "../iappel/media-errors"
 import { DirectStudio } from "./DirectStudio"
 import { DirectManagement } from "./DirectManagement"
@@ -147,7 +148,7 @@ function DirectSessionView({ session }: { session: DirectSession }) {
       <Link href={routes.home()} className="inline-flex min-h-11 items-center text-sm">{t("back")}</Link>
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div><p className="text-sm text-muted-foreground">{t(`status.${session.status}`)}</p><h1 className="text-2xl font-semibold" style={{ fontFamily: "var(--esp-heading-font-family, inherit)", fontSize: "var(--esp-page-title-size, 1.5rem)", fontWeight: "var(--esp-heading-font-weight, 600)", lineHeight: "var(--esp-page-title-leading, 2rem)", letterSpacing: "var(--esp-page-title-tracking, normal)" }}>{session.title}</h1><p className="text-sm text-muted-foreground">{session.host.displayName ?? t("person")}</p>{session.page ? <Link href={routes.page(session.page.handle)} className="text-sm">{t("create.signedPage", { name: session.page.name })}</Link> : null}</div>
-        <div className="flex flex-wrap items-center gap-2"><DirectRecordingBadge session={session} /><span className="rounded-full border border-border px-3 py-1 text-sm">{t(`audience.${session.audience}`)}</span></div>
+        <div className="flex flex-wrap items-center gap-2"><DirectRecordingBadge session={session} /><span className="rounded-full border border-border px-3 py-1 text-sm">{t(`audience.${session.audience}`)}</span>{/* DL-03 : le direct d'autrui seulement ; le moteur rejuge l'audience et refuse l'auto-signalement. */}{session.viewerRole === "host" ? null : <ReportTargetButton target={{ kind: "live", id: session.sessionId }} />}</div>
       </header>
       {anotherRoom ? <p role="alert">{t("anotherRoom")} <Link href={routes.conference(state.sessionId!)}>{t("returnToRoom")}</Link></p> : null}
       {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}

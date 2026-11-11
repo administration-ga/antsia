@@ -115,7 +115,7 @@ function OfferBuyBar({ formId, form, quantity, disabled }: { formId: string; for
   return <FloatingLayer><div ref={setBar} data-offer-buy-bar style={{ bottom }} className="fixed inset-x-0 z-30 flex items-center gap-3 border-t border-[color:var(--esp-surface-border)] bg-card px-3 py-2 text-card-foreground shadow-[var(--esp-shadow-float)]">
     <div className="flex shrink-0 items-center rounded-[var(--ui2-button-radius)] bg-muted" role="group" aria-label={t("quantity")}>
       <button type="button" aria-label={t("quantityLess")} disabled={current <= 1} onClick={() => step(-1)} className="inline-flex size-11 items-center justify-center rounded-full disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><Minus aria-hidden className="size-4" /></button>
-      <input form={formId} inputMode="numeric" autoComplete="off" aria-label={t("quantity")} className="w-10 bg-transparent text-center text-base font-semibold focus-visible:outline-none" {...form.register("quantity")} />
+      <input form={formId} inputMode="numeric" autoComplete="off" aria-label={t("quantity")} className="w-10 rounded-md bg-transparent text-center text-base font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" {...form.register("quantity")} />
       <button type="button" aria-label={t("quantityMore")} disabled={current >= 999} onClick={() => step(1)} className="inline-flex size-11 items-center justify-center rounded-full disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><Plus aria-hidden className="size-4" /></button>
     </div>
     <Button type="submit" form={formId} variant="commerce" className="min-w-0 flex-1" disabled={disabled}>{t("add")}</Button>

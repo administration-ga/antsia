@@ -64,7 +64,7 @@ export function CartLine({ item, offer, available, locked, locale, update, remov
     <form className="col-span-full flex flex-wrap items-center justify-between gap-3 min-[768px]:col-span-1 min-[768px]:justify-end" onSubmit={(event) => { event.preventDefault(); commit() }}>
       <div role="group" aria-label={t("quantity")} className="flex items-center rounded-[var(--ui2-button-radius)] bg-muted">
         <button type="button" aria-label={t("quantityLess")} disabled={locked || item.quantity <= 1} onClick={() => step(-1)} className={STEP_BUTTON}><Minus aria-hidden className="size-4" /></button>
-        <input value={quantity} disabled={locked} inputMode="numeric" autoComplete="off" aria-label={t("quantity")} aria-invalid={!valid} onChange={(event) => setQuantity(event.target.value)} onBlur={commit} className="w-12 bg-transparent text-center text-base font-semibold focus-visible:outline-none" />
+        <input value={quantity} disabled={locked} inputMode="numeric" autoComplete="off" aria-label={t("quantity")} aria-invalid={!valid} onChange={(event) => setQuantity(event.target.value)} onBlur={commit} className="w-12 rounded-md bg-transparent text-center text-base font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
         <button type="button" aria-label={t("quantityMore")} disabled={locked || item.quantity >= 999} onClick={() => step(1)} className={STEP_BUTTON}><Plus aria-hidden className="size-4" /></button>
       </div>
       <button type="button" aria-label={t("removeNamed", { title })} disabled={locked} onClick={remove} className={`${STEP_BUTTON} text-destructive hover:bg-muted`}><Trash2 aria-hidden className="size-5" /></button>
