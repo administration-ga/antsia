@@ -127,6 +127,12 @@ export { BlockedPeopleSection } from "./BlockedPeopleSection"
 // d'une publication et la conversation (IC-03) la montent, sans la réécrire.
 export { BlockPersonDialog, type BlockPersonDialogProps } from "./BlockPersonDialog"
 export { personBlockCopy, type PersonBlockCopy, type PersonBlockMode } from "./person-block"
+// Signaler depuis n'importe quel objet (MC-01) : LA brique commune — la boîte
+// pilotée par la cible du moteur, et le bouton qui l'ouvre là où aucun menu
+// n'existe. Story (SD-01), direct (DL-03), conversation (IC-03), profil et
+// album (PF-02), offre d'emploi (UM-03) la montent, sans la réécrire.
+export { ReportTargetButton, type ReportTargetButtonProps, ReportTargetDialog, type ReportTargetDialogProps } from "./ReportTarget"
+export { REPORT_DIALOG_KINDS, REPORT_TARGET_KINDS, type ReportAcknowledgement, type ReportDialogKind, type ReportTarget, type ReportTargetKind } from "./report-target"
 export { ProfileOverflowMenu, type ProfileOverflowMenuProps } from "./ProfileOverflowMenu"
 export { profileOverflowEntriesFor, type ProfileOverflowAction, type ProfileOverflowEntry, type ProfileOverflowInput } from "./profile-overflow"
 // Chaînes natives partagées avec les applications : pas de copie du réducteur.

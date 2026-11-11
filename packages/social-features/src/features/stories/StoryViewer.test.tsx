@@ -7,7 +7,7 @@ import { EngineTestWrapper, TEST_ROUTES } from "../../tests/engine-wrapper"
 const mocks = vi.hoisted(() => ({ items: [] as unknown[], mutation: vi.fn<(args: unknown) => Promise<void>>().mockResolvedValue(undefined), viewers: vi.fn() }))
 vi.mock("@antsia/api/engine", () => ({ api: { modules: { stories: { stories: {
   myActive: "mine", listByAuthor: "author", markSeen: "seen", remove: "remove",
-} } } } }))
+} }, moderation: { cases: { report: "report" } } } } }))
 vi.mock("@antsia/api/hooks", () => ({ useAuthenticatedConvexQuery: (_ref: string, args: unknown) => ({
   data: args === "skip" ? undefined : mocks.items, isError: false, refetch: vi.fn(),
 }) }))
@@ -342,5 +342,29 @@ describe("StoryViewer — média retenu par la garde des fichiers", () => {
     expect(screen.getByText("L'analyse de sécurité n'a pas pu être terminée. Le fichier reste indisponible jusqu'à sa vérification.")).toBeInTheDocument()
     expect(screen.queryByText("fileScanUnavailable")).toBeNull()
     expect(screen.queryByRole("img", { name: "scan" })).toBeNull()
+  })
+})
+
+describe("StoryViewer — signaler (MC-01)", () => {
+  it("propose « Signaler » sur la Story d'autrui, retient la lecture pendant la boîte, puis passe à la suivante", async () => {
+    mocks.items = [story("first", NOW + 60_000), story("second", NOW + 60_000)]
+    mocks.mutation.mockImplementation(async () => ({ reportId: "reports_1", created: true, hidden: true }) as never)
+    render(<EngineTestWrapper><StoryViewer {...props} now={NOW} onExhausted={vi.fn()} /></EngineTestWrapper>)
+    fireEvent.click(screen.getByRole("button", { name: "Signaler" }))
+    expect(screen.getByRole("dialog", { name: "Signaler cette Story" })).toBeInTheDocument()
+    // La boîte ouverte, l'horloge ne court pas : la Story ne file pas sous les yeux du déclarant.
+    advanceFrame(1_000)
+    advanceFrame(20_000)
+    expect(progress()).toBe(0)
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Transmettre" })) })
+    expect(mocks.mutation).toHaveBeenCalledWith(expect.objectContaining({ target: { kind: "story", id: "first" }, reason: "harassment" }))
+    expect(screen.queryByRole("dialog")).toBeNull()
+    expect(screen.getByRole("img", { name: "second" })).toBeInTheDocument()
+  })
+
+  it("ne propose jamais « Signaler » sur sa propre Story", () => {
+    mocks.items = [{ ...story("mine", NOW + 60_000), isOwn: true, viewCount: 0 }]
+    render(<EngineTestWrapper><StoryViewer {...props} handle="me" now={NOW} onExhausted={vi.fn()} /></EngineTestWrapper>)
+    expect(screen.queryByRole("button", { name: "Signaler" })).toBeNull()
   })
 })

@@ -1,7 +1,7 @@
 // @vitest-environment edge-runtime
 /** MC-02 — réglages de modération du réseau : lectures bornées, droits, journal, défauts prudents et mots bloqués. */
 import { engineErrorCode, engineErrorRule } from "@antsia/social-contracts/errors"
-import { MODERATION_POLICY_DEFAULTS, MODERATION_SURFACES } from "@antsia/social-domain/moderationPolicy"
+import { MODERATION_POLICY_DEFAULTS, MODERATION_POLICY_SURFACES } from "@antsia/social-domain/moderationPolicy"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { api, internal } from "../../_generated/api"
@@ -92,7 +92,8 @@ describe("MC-02 — lectures bornées et journal des réglages", () => {
     const f = await fixture()
     const initial = await f.admin.as.query(M.policies, { networkId: f.root })
     expect(initial.defaults).toEqual(MODERATION_POLICY_DEFAULTS)
-    expect(initial.surfaces.map((row) => row.surface)).toEqual([...MODERATION_SURFACES])
+    // MC-01 : les surfaces signalables seulement (groupe thématique, message personnel) n'ont aucune règle d'écriture à régler.
+    expect(initial.surfaces.map((row) => row.surface)).toEqual([...MODERATION_POLICY_SURFACES])
     expect(initial.surfaces.every((row) => row.policy === null)).toBe(true)
     // Sans réglage, l'écran dit la règle réelle de chaque surface : défauts, relecture d'office, ou aucune règle (DIASPORALE).
     const rule = (surface: string) => initial.surfaces.find((row) => row.surface === surface)?.withoutPolicy

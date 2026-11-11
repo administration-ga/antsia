@@ -61,12 +61,12 @@ describe("ProfileOverflowMenu — ce qu'il propose", () => {
     expect(mocks.queries).toEqual([{ name: "modules/marks/marks:isAuthorMuted", args: { networkId: TEST_NETWORK_ID, targetPersonId: TARGET } }])
   })
 
-  it("ouvre le menu, focus sur la première entrée : sourdine puis blocage", () => {
+  it("ouvre le menu, focus sur la première entrée : sourdine, blocage, puis le signalement en dernier", () => {
     show()
     fireEvent.click(trigger())
     const menu = screen.getByRole("menu", { name: "Actions sur le profil de Awa NDONG" })
     const items = within(menu).getAllByRole("menuitem")
-    expect(items.map((item) => item.querySelector(".pp-of-label")?.textContent)).toEqual(["Mettre en sourdine", "Bloquer @awa"])
+    expect(items.map((item) => item.querySelector(".pp-of-label")?.textContent)).toEqual(["Mettre en sourdine", "Bloquer @awa", "Signaler le profil"])
     expect(document.activeElement).toBe(items[0])
     expect(trigger()).toHaveAttribute("aria-expanded", "true")
     fireEvent.keyDown(items[0]!, { key: "ArrowDown" })
@@ -85,7 +85,7 @@ describe("ProfileOverflowMenu — ce qu'il propose", () => {
     mocks.muted = undefined
     show()
     fireEvent.click(trigger())
-    expect(screen.getAllByRole("menuitem").map((item) => item.querySelector(".pp-of-label")?.textContent)).toEqual(["Bloquer @awa"])
+    expect(screen.getAllByRole("menuitem").map((item) => item.querySelector(".pp-of-label")?.textContent)).toEqual(["Bloquer @awa", "Signaler le profil"])
   })
 })
 
@@ -116,6 +116,18 @@ describe("ProfileOverflowMenu — les gestes", () => {
     expect(mocks.mutations["modules/graph/connections:blockPerson"]).toHaveBeenCalledExactlyOnceWith({ networkId: TEST_NETWORK_ID, targetPersonId: TARGET })
     expect(mocks.success).toHaveBeenCalledWith("Vous avez bloqué Awa NDONG.")
     expect(router.calls).toContainEqual({ method: "push", href: reseauAgentHref("relations", TEST_ROUTES.home()) })
+    expect(screen.queryByRole("dialog")).toBeNull()
+  })
+
+  it("signaler ouvre la brique commune ; transmis, le moteur reçoit la personne et l'accusé se dit (MC-01)", async () => {
+    mocks.mutations["modules/moderation/cases:report"] = vi.fn(async () => ({ reportId: "reports_1", created: true, hidden: true }))
+    show()
+    fireEvent.click(trigger())
+    fireEvent.click(screen.getByRole("menuitem", { name: /Signaler le profil/ }))
+    const dialog = screen.getByRole("dialog", { name: "Signaler ce profil" })
+    await act(async () => { fireEvent.click(within(dialog).getByRole("button", { name: "Transmettre" })) })
+    expect(mocks.mutations["modules/moderation/cases:report"]).toHaveBeenCalledExactlyOnceWith({ networkId: TEST_NETWORK_ID, target: { kind: "person", id: TARGET }, reason: "harassment" })
+    expect(mocks.success).toHaveBeenCalledWith("Signalement transmis. Ce contenu est masqué pour vous ; l’accusé de réception arrive dans vos notifications.")
     expect(screen.queryByRole("dialog")).toBeNull()
   })
 

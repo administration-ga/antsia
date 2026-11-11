@@ -89,6 +89,10 @@
       "block": {
         "label": "Block @{{handle}}",
         "hint": "You will no longer see each other, in any network. The person is not told."
+      },
+      "report": {
+        "label": "Report the profile",
+        "hint": "Moderation reviews it; you receive an acknowledgement, then the decision. The person does not learn who reported them."
       }
     },
     "blockedByMe": {

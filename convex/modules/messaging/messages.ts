@@ -20,7 +20,7 @@ import { networkMutation, networkQuery } from "../../lib/functions"
 import { enforceRateLimit } from "../../lib/rateLimit"
 import { guardUploadUrl } from "../../lib/uploadPolicy"
 import { attachmentFileValidator, verifyDeclaredAttachments } from "./attachmentStorage"
-import { enrichMessagePage, type MessageDto, requireSameThreadReply, requireThread } from "./participation"
+import { enrichMessagePage, isPersonalMessageServedTo, type MessageDto, requireSameThreadReply, requireThread } from "./participation"
 import { adjustPersonalUnreadTotal, appendPersonalMessage, assertMessageIdempotencyKey, findIdempotentReplay, isHiddenFor, isUnreadFor, otherParticipant, previewColumns } from "./threads"
 
 /** Marquage par lots bornés, poursuivi par continuation interne. */
@@ -40,7 +40,9 @@ export const paginateMessages = networkQuery({
       .withIndex("by_thread_createdAt", (q) => q.eq("threadId", thread._id))
       .order("desc")
       .paginate(args.paginationOpts)
-    const visible = result.page.filter((message) => !isHiddenFor(message, ctx.person._id))
+    // MC-01 : un message retiré par la modération, ou signalé par moi, n'est plus servi (comme un message masqué pour moi).
+    const visible: Doc<"personalMessages">[] = []
+    for (const message of result.page) if (await isPersonalMessageServedTo(ctx, message, ctx.person._id)) visible.push(message)
     return { ...result, page: await enrichMessagePage(ctx, thread, ctx.person._id, visible) }
   },
 })

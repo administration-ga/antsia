@@ -46,6 +46,16 @@
  * reste tombe — on ne cite pas, on ne réagit pas et on ne copie pas un message
  * dont le corps n'existe plus.
  *
+ * ═══════════════════════════════════════════════════════════════════════════
+ * SIGNALER (MC-01) : LE MESSAGE D'UN AUTRE, ET LUI SEUL, EN DERNIER
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * Un message reçu, servi, d'un fil envoyé (1:1 ou groupe) se signale par la
+ * brique commune (`ReportTargetDialog`). Jamais le sien (le moteur refuse
+ * l'auto-signalement), jamais une pierre tombale (plus rien à examiner),
+ * jamais un corps masqué (auteur bloqué : le moteur refuse), jamais un
+ * brouillon (rien n'est parti). Bloquer depuis la conversation relève d'IC-03.
+ *
  * Un seul import, de type : la fonction de traduction des libellés, reçue en
  * dernier paramètre (clés QUALIFIÉES, résolues par n'importe quel `t`).
  */
@@ -63,6 +73,7 @@ export type MessageActionId =
 	| "modifier"
 	| "supprimerPourMoi"
 	| "supprimerPourTous"
+	| "signaler"
 
 export interface MessageAction {
 	id: MessageActionId
@@ -82,6 +93,7 @@ const LABEL_KEYS: Readonly<Record<MessageActionId, string>> = Object.freeze({
 	modifier: "messagerie:messageActions.edit",
 	supprimerPourMoi: "messagerie:messageActions.deleteForMe",
 	supprimerPourTous: "messagerie:messageActions.deleteForEveryone",
+	signaler: "messagerie:messageActions.report",
 })
 
 /** L'ordre d'affichage — les destructions en bas, toujours. */
@@ -95,6 +107,7 @@ const ORDRE: readonly MessageActionId[] = Object.freeze([
 	"modifier",
 	"supprimerPourMoi",
 	"supprimerPourTous",
+	"signaler",
 ])
 
 export interface MessageActionContext {
@@ -237,9 +250,14 @@ export function actionsFor(
 		retenues.add("modifier")
 	}
 
+	// SIGNALER (MC-01) : le message servi d'un AUTRE, dans un fil envoyé.
+	if (!context.mine && !context.deleted && filEnvoye && context.masked !== true) {
+		retenues.add("signaler")
+	}
+
 	return ORDRE.filter((id) => retenues.has(id)).map((id) => ({
 		id,
 		label: t(LABEL_KEYS[id]),
-		destructive: id === "supprimerPourMoi" || id === "supprimerPourTous",
+		destructive: id === "supprimerPourMoi" || id === "supprimerPourTous" || id === "signaler",
 	}))
 }

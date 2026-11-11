@@ -49,6 +49,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 import { SWIPE_HYSTERESIS_PX } from "../../shell/mobile/gestures"
+import { ReportTargetDialog } from "../reseau-personnel/ReportTarget"
 import { StoryOverlay } from "./StoryOverlay"
 import { DailySpecialStoryCard } from "./DailySpecialStoryCard"
 import { StoryProgressBar } from "./StoryProgressBar"
@@ -153,6 +154,8 @@ function StoryViewerContent({
 	const [stalled, setStalled] = useState(false)
 	const [muted, setMuted] = useState(true)
 	const [viewersOpen, setViewersOpen] = useState(false)
+	/** MC-01 : la boîte de signalement d'une Story d'autrui est ouverte — la lecture attend. */
+	const [reportOpen, setReportOpen] = useState(false)
 	const [removeArmed, setRemoveArmed] = useState(false)
 	/** L'autoplay a été REFUSÉ : la vidéo attend un geste (chip « Lire »). */
 	const [needsTap, setNeedsTap] = useState(false)
@@ -202,7 +205,7 @@ function StoryViewerContent({
 	// défiler une story que personne ne regarde (vécu avec l'autoplay refusé).
 	const halted = isPlaybackHalted({
 		active,
-		paused: paused || userPaused || offerFocused,
+		paused: paused || userPaused || offerFocused || reportOpen,
 		stalled,
 		viewersOpen,
 		needsTap,
@@ -214,7 +217,7 @@ function StoryViewerContent({
 	// C'est le gel « écran noir » de toutes les vidéos d'actu (2026-08-20).
 	const mediaHalted = isMediaHalted({
 		active,
-		paused: paused || userPaused || offerFocused,
+		paused: paused || userPaused || offerFocused || reportOpen,
 		stalled,
 		viewersOpen,
 		needsTap,
@@ -237,7 +240,7 @@ function StoryViewerContent({
 	// élément vidéo pour une autre story. Elle ne décide plus de cette lecture.
 	useLayoutEffect(() => {
 		playbackAttempt.current += 1
-	}, [active, currentId, failed, paused, userPaused, offerFocused, viewersOpen])
+	}, [active, currentId, failed, paused, userPaused, offerFocused, viewersOpen, reportOpen])
 	useEffect(() => {
 		setTimer(STORY_TIMER_ZERO)
 		setRemoveArmed(false)
@@ -365,7 +368,7 @@ function StoryViewerContent({
 		// Les raisons sont aussi suivies séparément : pendant un play() manuel,
 		// needsTap tient encore mediaHalted à true ; une nouvelle pause doit
 		// néanmoins interrompre cette tentative avant sa résolution.
-	}, [mediaHalted, muted, currentId, startPlayback, active, paused, userPaused, offerFocused, viewersOpen, failed])
+	}, [mediaHalted, muted, currentId, startPlayback, active, paused, userPaused, offerFocused, viewersOpen, reportOpen, failed])
 
 	/**
 	 * Rejoue quand la DÉCISION dit « joue » et que l'élément s'est pourtant
@@ -715,10 +718,43 @@ function StoryViewerContent({
 										: t("storyViewer.remove")}
 								</button>
 							</>
-						) : null}
+						) : (
+							/* MC-01 : « Signaler » sur la Story d'AUTRUI seulement, en dernier
+							   (la brique commune). La conservation d'une Story signalée
+							   jusqu'à la décision relève du lot SD-01. */
+							<button
+								type="button"
+								className="st-chip esp-story-chip"
+								aria-haspopup="dialog"
+								onClick={() => setReportOpen(true)}
+							>
+								{t("storyViewer.report")}
+							</button>
+						)}
 					</>
 				}
 			/>
+
+			{reportOpen && !current.isOwn ? (
+				/* Les gestes de la boîte (portail) remontent l'arbre React jusqu'à la
+				   scène : arrêtés ici, ils ne changent ni de Story ni de pause. */
+				<div
+					role="presentation"
+					style={{ display: "contents" }}
+					onPointerDown={(event) => event.stopPropagation()}
+					onPointerUp={(event) => event.stopPropagation()}
+					onPointerMove={(event) => event.stopPropagation()}
+					onClick={(event) => event.stopPropagation()}
+					onKeyDown={(event) => event.stopPropagation()}
+				>
+					<ReportTargetDialog
+						target={{ kind: "story", id: current.storyId }}
+						onClose={() => setReportOpen(false)}
+						// Masquée pour le déclarant dès l'envoi : la série passe à la suivante.
+						onReported={() => goNext()}
+					/>
+				</div>
+			) : null}
 
 			{current.isOwn ? (
 				<StoryViewersSheet

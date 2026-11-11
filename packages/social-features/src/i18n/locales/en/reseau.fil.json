@@ -202,7 +202,20 @@
       "professionalProfile": "Report this professional profile",
       "professionalCollaboration": "Report this collaboration request",
       "editorialVersion": "Report this article",
-      "editorialMedia": "Report this media outlet"
+      "editorialMedia": "Report this media outlet",
+      "person": "Report this profile",
+      "page": "Report this page",
+      "thematicGroup": "Report this group",
+      "event": "Report this event",
+      "story": "Report this Story",
+      "live": "Report this live stream",
+      "album": "Report this album",
+      "commerceOffer": "Report this offer",
+      "commerceStorefront": "Report this shop’s terms",
+      "commerceJob": "Report this job opening",
+      "serviceReview": "Report this review",
+      "groupMessage": "Report this message",
+      "personalMessage": "Report this message"
     },
     "description": "The platform reviews the report. The author does not learn who you are.",
     "followUp": "You will receive an acknowledgement, then the decision, in your notifications and under “My data and appeals”.",
@@ -225,7 +238,13 @@
     "noteAriaLabel": "Details of the report",
     "cancel": "Cancel",
     "submitting": "Sending…",
-    "submit": "Send"
+    "submit": "Send",
+    "open": "Report",
+    "reported": "Reported",
+    "acknowledgement": {
+      "sent": "Report sent. This content is hidden for you; the acknowledgement arrives in your notifications.",
+      "already": "You had already reported this content. Follow it under “My data and appeals”."
+    }
   },
   "postReactionControl": {
     "trigger": "{{label}}. Long press or arrow key to pick a reaction.",

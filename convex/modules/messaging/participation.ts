@@ -16,6 +16,7 @@ import type { QueryCtx } from "../../_generated/server"
 import { notFound } from "../../lib/errors"
 import { resolveFileDelivery, withheldCodeOf } from "../files/storageGuard"
 import { isBlockedBetween } from "../graph/graph"
+import { canReadModeratedContent } from "../moderation/policy"
 import { miniProfileCache, type PersonMiniProfile, publishedMiniProfile } from "../people/miniProfile"
 import type { StoredAttachment } from "./attachmentStorage"
 import { isForwardedOriginAlive } from "./forwardedFrom"
@@ -25,6 +26,15 @@ type ReadCtx = Pick<QueryCtx, "db">
 
 /** MES réactions sur une conversation, lues UNE fois par page — jamais par message. */
 const MY_REACTIONS_SCAN = 200
+
+/**
+ * MC-01 (plan 12) : ce message M'est-il servi ? Ni masqué pour moi, ni retiré
+ * par une décision de modération, ni signalé par moi (le masque du déclarant,
+ * comme pour tout contenu signalé). La ligne, elle, ne bouge pas.
+ */
+export async function isPersonalMessageServedTo(ctx: ReadCtx, message: Doc<"personalMessages">, readerId: Id<"persons">): Promise<boolean> {
+  return !isHiddenFor(message, readerId) && (await canReadModeratedContent(ctx, "personalMessage", message._id, readerId))
+}
 
 /**
  * Le fil, si j'y suis partie dans CE réseau et qu'aucun blocage ne nous
@@ -70,7 +80,8 @@ export async function projectReplyTo(ctx: ReadCtx, replyToMessageId: Id<"persona
   if (replyToMessageId === undefined) return null
   const cited = await ctx.db.get(replyToMessageId)
   if (!cited) return null
-  const deleted = cited.deletedAt !== undefined || isHiddenFor(cited, readerId)
+  // MC-01 : un message retiré par la modération ou signalé par moi ne ressurgit pas dans une citation.
+  const deleted = cited.deletedAt !== undefined || !(await isPersonalMessageServedTo(ctx, cited, readerId))
   return { messageId: cited._id, senderPersonId: cited.senderPersonId, excerpt: deleted ? "" : replyExcerpt(cited.content), deleted }
 }
 

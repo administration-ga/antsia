@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { admissibleBlockedTerm, BLOCKED_TERMS_ACTIVE_MAX, contentNeedsReview, effectiveModerationPolicy, isSanctionLive, LEGAL_DEADLINE_STATUSES, legalDeadlineDisclosure, legalDeadlineStatus, MODERATION_POLICY_BOUNDS, MODERATION_POLICY_DEFAULTS, MODERATION_SCAN_LIMIT, moderationPolicyProblem, normalizeBlockedTerm, TRANSPARENCY_MIN_CASES, validSanctionDuration } from "./moderationPolicy"
+import { admissibleBlockedTerm, BLOCKED_TERMS_ACTIVE_MAX, contentNeedsReview, effectiveModerationPolicy, isReportOnlySurface, isSanctionLive, LEGAL_DEADLINE_STATUSES, legalDeadlineDisclosure, legalDeadlineStatus, MODERATION_POLICY_BOUNDS, MODERATION_POLICY_DEFAULTS, MODERATION_POLICY_SURFACES, MODERATION_SCAN_LIMIT, MODERATION_SURFACES, moderationPolicyProblem, normalizeBlockedTerm, REPORT_ONLY_SURFACES, TRANSPARENCY_MIN_CASES, validSanctionDuration } from "./moderationPolicy"
 
 describe("modération PA5 — règles pures", () => {
   it("normalise sans accents et sans ambiguïté de casse", () => {
@@ -128,5 +128,18 @@ describe("SU01d — état des échéances légales dans l'export de la console",
     expect(legalDeadlineStatus(closed)).toBe("unmeasured")
     expect(legalDeadlineStatus({ ...closed, legalMet: 9, legalMissed: 0 })).toBe("unmeasured")
     expect(legalDeadlineStatus({ periodEnd: 2_000, generatedAt: 1_999, legalMet: 40, legalMissed: 0, legalAuthors: 5 })).toBe("unmeasured")
+  })
+})
+
+describe("MC-01 — surfaces signalables seulement", () => {
+  it("ajoute le groupe thématique et le message personnel sans rien retirer, et les tient hors des réglages d'écriture", () => {
+    expect(MODERATION_SURFACES).toContain("thematicGroup")
+    expect(MODERATION_SURFACES).toContain("personalMessage")
+    expect([...REPORT_ONLY_SURFACES]).toEqual(["thematicGroup", "personalMessage"])
+    expect(REPORT_ONLY_SURFACES.every((surface) => isReportOnlySurface(surface))).toBe(true)
+    expect(isReportOnlySurface("post")).toBe(false)
+    // Les surfaces réglables : toutes les autres, dans l'ordre du moteur.
+    expect([...MODERATION_POLICY_SURFACES]).toEqual(MODERATION_SURFACES.filter((surface) => surface !== "thematicGroup" && surface !== "personalMessage"))
+    expect(MODERATION_POLICY_SURFACES).toHaveLength(MODERATION_SURFACES.length - 2)
   })
 })

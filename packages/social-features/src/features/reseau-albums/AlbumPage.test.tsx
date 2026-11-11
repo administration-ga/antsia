@@ -356,3 +356,17 @@ describe("AlbumPage — ce que seul le propriétaire voit", () => {
     expect(mocks.withdraw).toHaveBeenCalledTimes(2)
   })
 })
+
+describe("AlbumPage — signaler (MC-01)", () => {
+  it("propose « Signaler » sur l'album publié d'autrui", () => {
+    mocks.result = ok(DETAIL)
+    renderWithEngine(<AlbumPage handle="awa" albumId="al-1" />)
+    expect(screen.getByRole("button", { name: "Signaler" })).toBeTruthy()
+  })
+
+  it("ne le propose jamais à son propriétaire", () => {
+    mocks.result = ok({ ...DETAIL, album: { ...DETAIL.album, isOwner: true } })
+    renderWithEngine(<AlbumPage handle="awa" albumId="al-1" />)
+    expect(screen.queryByRole("button", { name: "Signaler" })).toBeNull()
+  })
+})

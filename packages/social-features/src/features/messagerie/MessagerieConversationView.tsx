@@ -91,6 +91,8 @@ import {
 } from "./conversation-scroll"
 import { dockStore, useDockState } from "./dock-store"
 import { ForwardMessageSheet } from "./ForwardMessageSheet"
+import { ReportTargetDialog } from "../reseau-personnel/ReportTarget"
+import type { ReportTarget } from "../reseau-personnel/report-target"
 import type { ForwardTargetRow } from "./forward-targets"
 import type { MessageActionId } from "./message-actions"
 import type { MessageAttachmentData } from "./MessageAttachment"
@@ -531,6 +533,8 @@ function ConversationContent({
 	// ── Transfert (ADR-0143) ──────────────────────────────────────────────
 	/** Le message en cours de transfert — `null` : la feuille est fermée. */
 	const [transfert, setTransfert] = useState<BubbleMessage | null>(null)
+	/** MC-01 : le message reçu en cours de signalement — `null` : la boîte est fermée. */
+	const [signalement, setSignalement] = useState<Extract<ReportTarget, { kind: "groupMessage" | "personalMessage" }> | null>(null)
 	const [transfertErreur, setTransfertErreur] = useState<string | null>(null)
 	/** La clé de la ligne choisie pendant l'envoi — les autres se ferment. */
 	const [transfertEnCours, setTransfertEnCours] = useState<string | null>(null)
@@ -968,6 +972,13 @@ function ConversationContent({
 					if (message.deleted === true || message.masked === true) return
 					setTransfertErreur(null)
 					setTransfert(message)
+					return
+				case "signaler":
+					// MC-01 : `actionsFor` ne l'offre que sur le message servi d'un autre ;
+					// la garde reste ici, le moteur rejuge (partie au fil, blocage).
+					if (message.deleted === true || message.masked === true) return
+					if (groupeId !== null) setSignalement({ kind: "groupMessage", id: message.id as Id<"groupMessages"> })
+					else if (filId !== null) setSignalement({ kind: "personalMessage", id: message.id as Id<"personalMessages"> })
 					return
 				default:
 					return
@@ -1850,6 +1861,9 @@ function ConversationContent({
 						errorMessage={transfertErreur}
 						onSelect={(row) => void transfererVers(row)}
 					/>
+
+					{/* MC-01 : la brique commune ; le message signalé disparaît aussitôt de MA vue. */}
+					{signalement !== null ? <ReportTargetDialog target={signalement} onClose={() => setSignalement(null)} /> : null}
 				</>
 			) : null}
 		</>
