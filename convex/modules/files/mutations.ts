@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/modules/fileGuard/mutations.ts @ ad2e7fdc2 — adaptations : table `fileScans` ; quarantaine iDocument et triage IA retirés (le statut bloquant EST la retenue ; l'avis part par la cloche sociale, `notify.ts`) ; libération par un MODÉRATEUR du réseau du fichier ou un opérateur (au lieu de `settings.manage` d'une administration), relance par un opérateur (au lieu du superadmin) ; `logAudit` (journal de l'archive iDocument) remplacé par le journal du moteur (`appendAudit` : libération, relance, purge, avec la qualité de l'acteur) ; débit sur les gestes humains ; coupe-circuit respecté par l'analyse et le balayeur (fail-closed) ; purge indexée sur `blobPurgedAt` (D31 : une ligne purgée ne bloque plus la file) ; `_ageScanForTests` non recopiée (les tests vieillissent la ligne eux-mêmes) ; refus à code du moteur. ; `_markRunning` rend la taille STOCKÉE (`sizeBytes`, table `_storage`) pour que l'analyse écarte un fichier trop gros AVANT de le télécharger (lot 16) ; lots pleins poursuivis par chaîne pour la relance et la purge (lot 17) ; EX-17 : relance MOTIVÉE depuis la console (motif obligatoire, écrit au journal) et refusée (`conflict`) pour un fichier plus lourd que le plafond d'analyse — l'analyse le sauterait, et un enregistrement produit par la plateforme y perdrait sa servabilité.
+// Dupliqué de socle/convex/modules/fileGuard/mutations.ts @ ad2e7fdc2 — adaptations : table `fileScans` ; quarantaine iDocument et triage IA retirés (le statut bloquant EST la retenue ; l'avis part par la cloche sociale, `notify.ts`) ; libération par un MODÉRATEUR du réseau du fichier ou un opérateur (au lieu de `settings.manage` d'une administration), relance par un opérateur (au lieu du superadmin) ; `logAudit` (journal de l'archive iDocument) remplacé par le journal du moteur (`appendAudit` : libération, relance, purge, avec la qualité de l'acteur) ; débit sur les gestes humains ; coupe-circuit respecté par l'analyse et le balayeur (fail-closed) ; purge indexée sur `blobPurgedAt` (D31 : une ligne purgée ne bloque plus la file) ; `_ageScanForTests` non recopiée (les tests vieillissent la ligne eux-mêmes) ; refus à code du moteur. ; `_markRunning` rend la taille STOCKÉE (`sizeBytes`, table `_storage`) pour que l'analyse écarte un fichier trop gros AVANT de le télécharger (lot 16) ; lots pleins poursuivis par chaîne pour la relance et la purge (lot 17) ; EX-17 : relance MOTIVÉE depuis la console (motif obligatoire, écrit au journal) et refusée (`conflict`) pour un fichier plus lourd que le plafond d'analyse — l'analyse le sauterait, et un enregistrement produit par la plateforme y perdrait sa servabilité. ; AZ-F1 : libération réservée à l'opérateur dans sa session de console scellée par IDN et journalisée, ou au modérateur du réseau du fichier au statut d'accès effectif (suspension racine et sanction globale comprises), par `fileDecisionCapacity`.
 /**
  * Garde des fichiers — MUTATIONS.
  *
@@ -13,17 +13,17 @@
  * d'analyse ; tout échec après `_markRunning` finit dans `_record`. Le balayeur
  * `retryStale` rattrape le crash pur du runtime.
  */
-import { type AuditCapacity, assertDecisionReason } from "@antsia/social-domain/audit"
+import { assertDecisionReason } from "@antsia/social-domain/audit"
 import { v } from "convex/values"
 
 import { internal } from "../../_generated/api"
 import type { Doc, Id } from "../../_generated/dataModel"
 import { internalMutation, type MutationCtx } from "../../_generated/server"
-import { getMembership } from "../../lib/access"
 import { checked, fail, notFound } from "../../lib/errors"
 import { operatorMutation, personMutation } from "../../lib/functions"
 import { enforceRateLimit } from "../../lib/rateLimit"
-import { appendAudit, networkRoleCapacity, operatorCapacity } from "../platform/audit"
+import { appendAudit, operatorCapacity } from "../platform/audit"
+import { fileDecisionCapacity } from "./moderatorAccess"
 import { deliverVerdictNotice } from "./notify"
 import {
   FILE_GUARD_MAX_ATTEMPTS,
@@ -158,33 +158,19 @@ export const _record = internalMutation({
 })
 
 /**
- * La qualité qui autorise une personne à trancher sur ce fichier : opérateur de
- * plateforme, ou modérateur (administrateur) du réseau du fichier ; `null` sinon.
- */
-async function moderationCapacityFor(ctx: MutationCtx, scan: Doc<"fileScans">, personId: Doc<"persons">["_id"]): Promise<AuditCapacity | null> {
-  const operator = await ctx.db
-    .query("operators")
-    .withIndex("by_person", (q) => q.eq("personId", personId))
-    .unique()
-  if (operator && operator.revokedAt === undefined) return operatorCapacity(operator)
-  if (!scan.networkId) return null
-  const membership = await getMembership(ctx, scan.networkId, personId)
-  if (!membership || (membership.status !== "declaree" && membership.status !== "verifiee")) return null
-  return networkRoleCapacity(membership.role)
-}
-
-/**
  * Libération HUMAINE d'un fichier `suspicious` ou `error`, avec motif. Jamais un
  * `infected` : il ne redevient servable que par une nouvelle analyse saine.
- * Autorité : un modérateur du réseau du fichier, ou un opérateur ; un fichier
- * sans réseau (profil) ne se libère que par un opérateur. Refus indistinct.
+ * Autorité (`fileDecisionCapacity`) : un modérateur du réseau du fichier, au
+ * statut d'accès effectif de ce réseau, ou un opérateur dans sa session de
+ * console scellée et journalisée ; un fichier sans réseau (profil) ne se libère
+ * que par un opérateur. Refus indistinct.
  */
 export const releaseScan = personMutation({
   args: { scanId: v.id("fileScans"), reason: v.string() },
   returns: v.object({ status: fileScanStatusValidator }),
   handler: async (ctx, args) => {
     const scan = await ctx.db.get(args.scanId)
-    const capacity = scan ? await moderationCapacityFor(ctx, scan, ctx.person._id) : null
+    const capacity = scan ? await fileDecisionCapacity(ctx, scan, ctx.person) : null
     if (!scan || !capacity) return notFound()
     await enforceRateLimit(ctx, "file.moderate", ctx.person._id)
     const reason = checked(() => assertDecisionReason(args.reason, MIN_RELEASE_REASON_CHARS))

@@ -210,8 +210,10 @@ export function IdentityEntry({ authClient, callbackURL, errorCallbackURL, onAut
                 {(["email", "sms"] as const).map((choice) => <Button key={choice} type="button" variant={selectedMethod === choice ? "primary" : "outline"} disabled={busy} aria-pressed={selectedMethod === choice} style={compact ? { minHeight: 44, padding: "8px 12px" } : undefined} onClick={() => { setMethod(choice); destinationForm.reset(); setError(null) }}>{choice === "email" ? t("email") : t("sms")}</Button>)}
               </div>
             ) : null}
-            <Field htmlFor={identifierId} label={compact ? undefined : identifierLabel} hint={selectedMethod === "sms" ? t("phoneHint") : undefined} error={destinationForm.formState.errors.identifier?.message}>
-              <TextInput id={identifierId} aria-label={compact ? identifierLabel : undefined} type={selectedMethod === "email" ? "email" : "tel"} inputMode={selectedMethod === "email" ? "email" : "tel"} autoComplete={selectedMethod === "email" ? "email" : "tel"} placeholder={compact && selectedMethod === "email" ? identifierLabel : selectedMethod === "email" ? t("emailPlaceholder") : t("phonePlaceholder")} style={compact ? { minHeight: 48, fontSize: 16 } : undefined} disabled={busy || !available} {...destinationForm.register("identifier")} />
+            {/* EX-18 (WCAG 3.3.2) : l'étiquette reste visible au-dessus du champ, présentation compacte comprise ;
+                le texte indicatif n'est qu'un exemple, il disparaît à la saisie. */}
+            <Field htmlFor={identifierId} label={identifierLabel} hint={selectedMethod === "sms" ? t("phoneHint") : undefined} error={destinationForm.formState.errors.identifier?.message}>
+              <TextInput id={identifierId} type={selectedMethod === "email" ? "email" : "tel"} inputMode={selectedMethod === "email" ? "email" : "tel"} autoComplete={selectedMethod === "email" ? "email" : "tel"} placeholder={selectedMethod === "email" ? t("emailPlaceholder") : t("phonePlaceholder")} style={compact ? { minHeight: 48, fontSize: 16 } : undefined} disabled={busy || !available} {...destinationForm.register("identifier")} />
             </Field>
             {!available && configuration !== undefined ? <p className="text-sm text-muted-foreground">{t("codeUnavailable")}</p> : null}
             <Button type="submit" size="lg" disabled={busy || !available} aria-busy={pending === "send" || undefined}>

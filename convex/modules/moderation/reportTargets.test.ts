@@ -268,3 +268,75 @@ describe("MC-01 — signaler un message personnel", () => {
     expect(await history(f.recipient, f.root, f.threadId)).not.toContain("Texte injurieux de test")
   })
 })
+
+describe("AZ-F1 — un message iCom modéré ne se réécrit pas et l'aperçu commun ne le republie pas", () => {
+  // Horloge figée : chaque message a son instant, l'aperçu reflète une ligne précise.
+  async function fixture() {
+    vi.useFakeTimers()
+    vi.setSystemTime(Date.UTC(2026, 10, 11, 9, 0, 0))
+    const { t, root } = await seed()
+    const sender = await enter(t, root, "expediteur")
+    const recipient = await enter(t, root, "destinataire")
+    const moderator = await enter(t, root, "moderatrice", "network_moderator")
+    await connect(t, root, sender, recipient)
+    const { threadId } = await sender.as.mutation(MSG.inbox.startThreadWithHandle, { networkId: root, handle: recipient.handle, initialMessage: "Bonjour" })
+    vi.advanceTimersByTime(1_000)
+    const { messageId } = await sender.as.mutation(MSG.messages.sendMessage, { networkId: root, threadId, content: "Texte injurieux de test" })
+    vi.advanceTimersByTime(1_000)
+    return { t, root, sender, recipient, moderator, threadId, messageId }
+  }
+  type Fixture = Awaited<ReturnType<typeof fixture>>
+
+  const listed = async (f: Fixture, person: Person) =>
+    (await person.as.query(MSG.inbox.paginateMyThreads, { networkId: f.root })).items.find((item) => item.threadId === f.threadId)
+
+  async function removeByDecision(f: Fixture) {
+    const report = await f.recipient.as.mutation(M.report, { networkId: f.root, target: { kind: "personalMessage", id: f.messageId }, reason: "harassment" })
+    await f.moderator.as.mutation(M.decide, { networkId: f.root, reportId: report.reportId, decision: "actioned", reason: "Atteinte confirmée.", sanctions: [{ kind: "removal" }] })
+  }
+
+  it("retiré par décision, le message ne se modifie ni ne se retire plus (refus indistinct) ; le texte jugé demeure", async () => {
+    const f = await fixture()
+    await removeByDecision(f)
+    expect(await errorCode(f.sender.as.mutation(MSG.messages.editMessage, { networkId: f.root, messageId: f.messageId, content: "Texte réécrit après décision" }))).toBe("notFound")
+    expect(await errorCode(f.sender.as.mutation(MSG.messages.deleteMessage, { networkId: f.root, messageId: f.messageId }))).toBe("notFound")
+    expect(await f.t.run(async (ctx) => (await ctx.db.get(f.messageId))?.content)).toBe("Texte injurieux de test")
+    for (const person of [f.sender, f.recipient]) {
+      const row = JSON.stringify(await listed(f, person))
+      expect(row).not.toContain("réécrit")
+      expect(row).not.toContain("injurieux")
+    }
+  })
+
+  it("retirer pour tous le message suivant rembobine l'aperçu sur un message que la modération laisse lire", async () => {
+    const f = await fixture()
+    await removeByDecision(f)
+    const { messageId: next } = await f.sender.as.mutation(MSG.messages.sendMessage, { networkId: f.root, threadId: f.threadId, content: "Suite" })
+    await f.sender.as.mutation(MSG.messages.deleteMessage, { networkId: f.root, messageId: next })
+    for (const person of [f.sender, f.recipient]) expect(await listed(f, person)).toMatchObject({ lastMessageText: "Bonjour" })
+  })
+
+  it("tenu en relecture par la modération, le message ne se modifie plus ; son aperçu ne sort que chez son auteur", async () => {
+    const f = await fixture()
+    await f.t.run(async (ctx) => {
+      await ctx.db.insert("moderationContentStates", { networkId: f.root, targetKind: "personalMessage", targetId: f.messageId, ownerPersonId: f.sender.personId, status: "pending_review", createdAt: Date.now(), updatedAt: Date.now() })
+    })
+    expect(await errorCode(f.sender.as.mutation(MSG.messages.editMessage, { networkId: f.root, messageId: f.messageId, content: "Texte réécrit pendant la relecture" }))).toBe("notFound")
+    expect(await f.t.run(async (ctx) => (await ctx.db.get(f.messageId))?.content)).toBe("Texte injurieux de test")
+    expect(await listed(f, f.recipient)).toMatchObject({ lastMessageText: null, lastMessageKind: null })
+    expect(await listed(f, f.sender)).toMatchObject({ lastMessageText: "Texte injurieux de test" })
+  })
+
+  it("l'aperçu de ma liste ne garde ni le dernier message que j'ai signalé ni celui que j'ai masqué pour moi ; l'autre garde le sien", async () => {
+    const f = await fixture()
+    await f.recipient.as.mutation(M.report, { networkId: f.root, target: { kind: "personalMessage", id: f.messageId }, reason: "harassment" })
+    expect(await listed(f, f.recipient)).toMatchObject({ lastMessageText: null, lastMessageKind: null })
+    expect(await listed(f, f.sender)).toMatchObject({ lastMessageText: "Texte injurieux de test" })
+
+    const { messageId: secret } = await f.sender.as.mutation(MSG.messages.sendMessage, { networkId: f.root, threadId: f.threadId, content: "Second message" })
+    expect(await listed(f, f.recipient)).toMatchObject({ lastMessageText: "Second message" })
+    await f.recipient.as.mutation(MSG.messages.deleteMessageForMe, { networkId: f.root, messageId: secret })
+    expect(await listed(f, f.recipient)).toMatchObject({ lastMessageText: null, lastMessageKind: null })
+    expect(await listed(f, f.sender)).toMatchObject({ lastMessageText: "Second message" })
+  })
+})

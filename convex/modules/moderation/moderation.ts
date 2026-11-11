@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/modules/reseauPersonnel/moderation.ts @ ad2e7fdc2 — adaptations : signaler dans un réseau (`networkMutation`, adhésion, débit), contenu re-gardé par la garde du moteur (contexte de lecture, blocage) ; la file et la décision passent du back-office de plateforme (`isPlatformAdmin`) aux MODÉRATEURS et ADMINISTRATEURS du réseau du contenu, l'opérateur de plateforme en dernier ressort (`decideAsOperator`) ; motifs et transitions du domaine ; motif de décision borné (`assertDecisionReason`) ; `appendContextAudit` → journal du moteur (`appendAudit`, avec la qualité du décideur) ; retrait par les aides du moteur (agrégats décomptés) ; refus à code.
+// Dupliqué de socle/convex/modules/reseauPersonnel/moderation.ts @ ad2e7fdc2 — adaptations : signaler dans un réseau (`networkMutation`, adhésion, débit), contenu re-gardé par la garde du moteur (contexte de lecture, blocage) ; la file et la décision passent du back-office de plateforme (`isPlatformAdmin`) aux MODÉRATEURS et ADMINISTRATEURS du réseau du contenu, l'opérateur de plateforme en dernier ressort (`decideAsOperator`) ; motifs et transitions du domaine ; motif de décision borné (`assertDecisionReason`) ; `appendContextAudit` → journal du moteur (`appendAudit`, avec la qualité du décideur) ; retrait par les aides du moteur (agrégats décomptés) ; refus à code. ; AZ-F1 : la décision de réseau sur ce module est fermée — un modérateur ou un administrateur tranche par `cases.decide`, seule porte des dossiers — et la décision d'opérateur applique la règle de conflit d'intérêts de `cases.ts` (auteur du contenu, signataire vivant de la page porteuse).
 /**
  * Signalement lecteur et file de modération du réseau.
  *
@@ -20,9 +20,11 @@ import { enforceRateLimit } from "../../lib/rateLimit"
 import { literals } from "../../lib/validators"
 import { appendAudit, type AuditEntry, networkRoleCapacity, operatorCapacity } from "../platform/audit"
 import { notifyPerson } from "../notifications/notify"
+import { liveSignatoryRole } from "../pages/access"
 import { assertVisiblePost, type ReaderContext } from "../posts/access"
 import { markCommentRemoved, markPostRemoved } from "../posts/contentRemoval"
 import { requireReportCapacity } from "./cases"
+import { contentState } from "./policy"
 import { acknowledgeReport, legalDeadlineColumns, notifyReporterOfDecision } from "./reporterNotices"
 import { contentReportReasonValidator, contentReportStatusValidator } from "./tables"
 
@@ -168,6 +170,26 @@ export const paginateQueue = networkQuery({
 })
 
 /**
+ * La règle de conflit d'intérêts de `cases.ts` (`applyDecision`), pour un dossier de
+ * publication ou de commentaire : l'auteur du contenu ne tranche jamais son dossier, un
+ * signataire vivant de la page qui porte le contenu non plus. Refus indistinct.
+ */
+async function assertNoDecisionConflict(ctx: MutationCtx, report: Doc<"contentReports">, actorPersonId: Id<"persons">): Promise<void> {
+  const linked = report.reportId ? await ctx.db.get(report.reportId) : null
+  if (linked?.ownerPersonId === actorPersonId) return notFound()
+  const post = await ctx.db.get(report.postId)
+  const comment = report.commentId ? await ctx.db.get(report.commentId) : null
+  const target = report.targetKind === "comment" ? comment : post
+  if (target?.authorPersonId === actorPersonId) return notFound()
+  const state = target ? await contentState(ctx, report.targetKind, target._id) : null
+  const pageIds = [state?.ownerPageId, report.targetKind === "post" ? post?.pageId : undefined].filter((pageId): pageId is Id<"pages"> => pageId !== undefined)
+  for (const pageId of new Set(pageIds)) {
+    const page = await ctx.db.get(pageId)
+    if (page && (await liveSignatoryRole(ctx, page, actorPersonId)) !== null) return notFound()
+  }
+}
+
+/**
  * Trancher un dossier : motivé, et — s'il est suivi d'effet — le contenu est
  * retiré (agrégats décomptés). Rend la ligne de journal que le DÉCIDEUR écrit
  * lui-même (`appendAudit`, cliquet `operator-audit`) : qui, à quel titre,
@@ -179,6 +201,7 @@ async function decideReport(
   args: { report: Doc<"contentReports">; status: ContentReportDecision; decisionReason: string; actorPersonId: Id<"persons">; capacity: AuditCapacity },
 ): Promise<AuditEntry> {
   const { report } = args
+  await assertNoDecisionConflict(ctx, report, args.actorPersonId)
   if (!canDecideReport(report.status, args.status)) return fail("conflict")
   const decisionReason = checked(() => assertDecisionReason(args.decisionReason, 3))
   const now = Date.now()
@@ -228,22 +251,9 @@ async function decideReport(
 
 const decisionArgs = { reportId: v.id("contentReports"), status: literals(CONTENT_REPORT_DECISIONS), decisionReason: v.string() }
 
-/** Trancher un dossier de MON réseau — modérateur ou administrateur. */
-export const decide = networkMutation({
-  minStatus: "declaree",
-  args: decisionArgs,
-  returns: v.object({ status: literals(CONTENT_REPORT_DECISIONS) }),
-  handler: async (ctx, args) => {
-    const report = await ctx.db.get(args.reportId)
-    if (!report || report.networkId !== ctx.networkId) return notFound()
-    const linked = report.reportId ? await ctx.db.get(report.reportId) : null
-    const capacity = linked ? await requireReportCapacity(ctx, ctx, linked) : networkRoleCapacity(ctx.membership.role)
-    if (!capacity) return notFound()
-    await enforceRateLimit(ctx, "moderation.decide", ctx.person._id)
-    await appendAudit(ctx, await decideReport(ctx, { report, status: args.status, decisionReason: args.decisionReason, actorPersonId: ctx.person._id, capacity }))
-    return { status: args.status }
-  },
-})
+// Un modérateur ou un administrateur de réseau tranche par la SEULE porte des dossiers
+// (`cases.decide`) : ses règles (compétence, conflit d'intérêts, sanctions) ne se contournent
+// par aucune autre. Ce module ne garde que la décision d'opérateur, en dernier ressort.
 
 /** L'opérateur de plateforme, en DERNIER RESSORT, sur un dossier de n'importe quel réseau — tracé comme tel. */
 export const decideAsOperator = operatorMutation({

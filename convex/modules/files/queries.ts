@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/modules/fileGuard/queries.ts @ ad2e7fdc2 — adaptations : adhésion au réseau au lieu de `hasOrgAccess` (`statusByStorageIds` borné au réseau, l'ÉTAT seul) ; rapport lisible par le déposant, un modérateur du réseau du fichier ou un opérateur, refus INDISTINCT sinon ; console réservée aux opérateurs (`listForConsole`, `stats`) ; `getScanByStorageId` et `_reportForTriage` (triage IA, V2) non recopiées ; noms d'organisation retirés ; EX-17 : l'état rendu est celui que la garde APPLIQUE (`getScanStatus` : un dépôt sauté sans analyse se lit `error`), et le rapport porte le motif d'un saut (`skipReason`) pour la console.
+// Dupliqué de socle/convex/modules/fileGuard/queries.ts @ ad2e7fdc2 — adaptations : adhésion au réseau au lieu de `hasOrgAccess` (`statusByStorageIds` borné au réseau, l'ÉTAT seul) ; rapport lisible par le déposant, un modérateur du réseau du fichier ou un opérateur, refus INDISTINCT sinon ; console réservée aux opérateurs (`listForConsole`, `stats`) ; `getScanByStorageId` et `_reportForTriage` (triage IA, V2) non recopiées ; noms d'organisation retirés ; EX-17 : l'état rendu est celui que la garde APPLIQUE (`getScanStatus` : un dépôt sauté sans analyse se lit `error`), et le rapport porte le motif d'un saut (`skipReason`) pour la console. ; AZ-F1 : `statusByStorageIds` ne rend que les fichiers du réseau appelé ou déposés par l'appelant (`null` sinon) ; rapport lu par le déposant ou par la qualité de `fileDecisionCapacity` (opérateur en session de console scellée et journalisée, modérateur au statut d'accès effectif).
 /**
  * Garde des fichiers — QUERIES.
  *
@@ -12,11 +12,11 @@ import { v } from "convex/values"
 
 import type { Doc } from "../../_generated/dataModel"
 import type { QueryCtx } from "../../_generated/server"
-import { getMembership } from "../../lib/access"
 import { fail, notFound } from "../../lib/errors"
 import { networkQuery, operatorQuery, personQuery } from "../../lib/functions"
+import { fileDecisionCapacity } from "./moderatorAccess"
 import { FILE_SCAN_STATUSES, type FileScanStatus } from "./policy"
-import { getScanStatus } from "./storageGuard"
+import { appliedScanStatus, getScanForStorage } from "./storageGuard"
 import { fileScanAvValidator, fileScanFindingValidator, fileScanSourceValidator, fileScanStatusValidator } from "./tables"
 
 const STATUS_BATCH_MAX = 100
@@ -24,7 +24,9 @@ const STATS_SAMPLE_CAP = 1000
 
 /**
  * L'état d'analyse de fichiers que l'appelant voit dans ce réseau — l'état
- * SEUL, qui ne révèle rien du contenu. Borné à 100 identifiants.
+ * SEUL, qui ne révèle rien du contenu. Borné à 100 identifiants. Seuls les
+ * fichiers de ce réseau, ou déposés par l'appelant, ont un état ; tout autre
+ * identifiant se lit `null`, comme un fichier inconnu de la garde.
  */
 export const statusByStorageIds = networkQuery({
   args: { storageIds: v.array(v.id("_storage")) },
@@ -33,24 +35,20 @@ export const statusByStorageIds = networkQuery({
     if (args.storageIds.length > STATUS_BATCH_MAX) return fail("invalidArgument", { field: "storageIds" })
     const out: { storageId: (typeof args.storageIds)[number]; status: FileScanStatus | null }[] = []
     for (const storageId of args.storageIds) {
+      const scan = await getScanForStorage(ctx, storageId)
+      // Un fichier de CE réseau, ou déposé par l'appelant ; sinon `null`, la réponse d'un fichier inconnu.
+      const readable = scan !== null && (scan.networkId === ctx.networkId || scan.uploadedByPersonId === ctx.person._id)
       // L'état APPLIQUÉ par la garde de délivrance, jamais un « sauté » qui ne serait pas servi.
-      out.push({ storageId, status: await getScanStatus(ctx, storageId) })
+      out.push({ storageId, status: readable ? appliedScanStatus(scan) : null })
     }
     return out
   },
 })
 
-/** Le déposant, un modérateur du réseau du fichier, ou un opérateur. */
-async function canReadReport(ctx: QueryCtx, scan: Doc<"fileScans">, personId: Doc<"persons">["_id"]): Promise<boolean> {
-  if (scan.uploadedByPersonId === personId) return true
-  const operator = await ctx.db
-    .query("operators")
-    .withIndex("by_person", (q) => q.eq("personId", personId))
-    .unique()
-  if (operator && operator.revokedAt === undefined) return true
-  if (!scan.networkId) return false
-  const membership = await getMembership(ctx, scan.networkId, personId)
-  return membership !== null && (membership.status === "declaree" || membership.status === "verifiee") && (membership.role === "network_moderator" || membership.role === "network_admin")
+/** Le déposant, ou qui peut trancher sur le fichier (`fileDecisionCapacity` : opérateur en session de console, modérateur du réseau). */
+async function canReadReport(ctx: QueryCtx, scan: Doc<"fileScans">, person: Doc<"persons">): Promise<boolean> {
+  if (scan.uploadedByPersonId === person._id) return true
+  return (await fileDecisionCapacity(ctx, scan, person)) !== null
 }
 
 const scanReportValidator = v.object({
@@ -103,7 +101,7 @@ export const getScan = personQuery({
   returns: scanReportValidator,
   handler: async (ctx, args) => {
     const scan = await ctx.db.get(args.scanId)
-    if (!scan || !(await canReadReport(ctx, scan, ctx.person._id))) return notFound()
+    if (!scan || !(await canReadReport(ctx, scan, ctx.person))) return notFound()
     return toReport(scan)
   },
 })

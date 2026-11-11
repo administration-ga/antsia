@@ -1,9 +1,25 @@
 /*
  * Thème de la console du moteur (`apps/admin_antsia_ga`, `data-charte="admin-antsia"`).
  *
- * VIDE À DESSEIN jusqu'à la passe de direction artistique de la console
- * (prompt PA7 ; candidates du programme : `papier-encre` ou `marianne`) :
- * la console hérite de la charte de base. Mêmes règles que `antsia.css`.
+ * VIDE À DESSEIN, à une exception près, jusqu'à la passe de direction
+ * artistique de la console (prompt PA7 ; candidates du programme :
+ * `papier-encre` ou `marianne`) : la console hérite de la charte de base.
+ * Mêmes règles que `antsia.css`.
+ *
+ * Exception (EX-18, WCAG 1.4.11) : le contour des champs. Celui de la base
+ * (`--input` à 1,59:1, `--ink-300` à 1,32:1 sur la carte claire) se perd sur
+ * le fond ; la console prend celui de la charte du réseau (`antsia.css`),
+ * ≥ 3:1 sur la carte, le fond, le creux et le menu, en clair (3,32:1 au plus
+ * bas) comme en sombre (3,24:1), et le filet des champs du paquet
+ * (`--ink-300`) le suit. Contrôlé par `antsia-themes.test.ts`.
  */
 [data-charte="admin-antsia"] {
+  --esp-neutral-field: #878787;
+  --esp-night-input: #707070;
+}
+
+[data-charte="admin-antsia"],
+.dark[data-charte="admin-antsia"],
+.dark [data-charte="admin-antsia"] {
+  --ink-300: var(--input);
 }
