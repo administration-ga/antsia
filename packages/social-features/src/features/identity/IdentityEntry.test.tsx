@@ -93,6 +93,9 @@ describe("IdentityEntry — portes et disponibilité", () => {
     expect(container.querySelector('[data-slot="card"]')).toBeNull()
     expect(screen.getAllByRole("button")[0]).toHaveTextContent("Continuer avec mon identité IDN")
     expect(screen.getByLabelText("Adresse e-mail")).toBeVisible()
+    // EX-18 (WCAG 3.3.2) : même compacte, l'entrée garde une étiquette visible au-dessus du champ.
+    expect(screen.getByText("Adresse e-mail", { selector: "label" })).toBeVisible()
+    expect(screen.getByLabelText("Adresse e-mail")).not.toHaveAttribute("aria-label")
     await enterEmail()
     fireEvent.change(screen.getByLabelText("Code à six chiffres"), { target: { value: "123456" } })
     fireEvent.click(screen.getByRole("button", { name: "Me connecter" }))

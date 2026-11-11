@@ -85,7 +85,11 @@ describe("accueil ANTSIA — accès réel", () => {
     await mount()
     expect(host.querySelector("h1")?.textContent).toBe(BRAND_NAME)
     expect(host.querySelector("h2")?.textContent).toBe("Connexion")
-    expect(host.querySelector('input[type="email"]')?.getAttribute("aria-label")).toBe("Adresse e-mail")
+    // EX-18 (WCAG 3.3.2) : une étiquette VISIBLE nomme le champ, pas un texte indicatif ni un nom caché.
+    const email = host.querySelector<HTMLInputElement>('input[type="email"]')
+    expect(email?.labels?.[0]?.textContent).toBe("Adresse e-mail")
+    expect(email?.getAttribute("aria-label")).toBeNull()
+    expect(email?.getAttribute("placeholder")).not.toBe("Adresse e-mail")
     expect(host.querySelector('input[type="password"]')).toBeNull()
     const buttons = Array.from(host.querySelectorAll("button"))
     expect(buttons[0]?.textContent).toContain("Continuer avec mon identité IDN")
