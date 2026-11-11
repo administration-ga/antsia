@@ -3,7 +3,7 @@
  * s'écrit (cliquet `no-hardcoded-urls`). Les paquets du moteur ne connaissent
  * aucune URL : l'application leur passe cet adaptateur (PA6).
  */
-export const CONSOLE_SECTIONS = ["networks", "teams", "appeals", "federation", "pages", "incidents", "audit", "health", "files", "export"] as const
+export const CONSOLE_SECTIONS = ["networks", "teams", "appeals", "measures", "federation", "pages", "incidents", "audit", "health", "files", "export"] as const
 export type ConsoleSection = (typeof CONSOLE_SECTIONS)[number]
 
 /** Un paramètre ne devient jamais un Id : seule la liste canonique du moteur le résout. */
