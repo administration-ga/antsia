@@ -18,6 +18,7 @@ import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 import { z } from "zod"
 
+import { JudicialMeasureAlert } from "./console-measures"
 import { ConsoleQueryBoundary } from "./console-operation-controls"
 import { OperationsPanel } from "./console-operations"
 import { CONSOLE_SECTIONS, readConsoleState, routes, type ConsoleSection } from "@/lib/routes"
@@ -416,8 +417,13 @@ function AdmittedWorkspace({ operator }: { operator: ConsoleOperator }) {
   if (networks === undefined || !locationReady) return <p role="status">{t("common.loading")}</p>
   return <div className="grid min-w-0 gap-5 lg:grid-cols-[14rem_minmax(0,1fr)]">
     {pending ? <p role="status" className="rounded-lg border border-border bg-muted p-3 text-sm lg:col-span-2">{t("common.pendingNavigation")}</p> : null}
+    {section !== "measures" ? <div className="lg:col-span-2"><ConsoleQueryBoundary fallback={() => null}><JudicialMeasureAlert onOpen={() => changeSection("measures")} /></ConsoleQueryBoundary></div> : null}
     <aside className="space-y-4"><nav aria-label={t("console.navigation")} className="hidden flex-col gap-1 lg:flex">{SECTIONS.map((item) => <button key={item} type="button" disabled={pending} onClick={() => changeSection(item)} aria-current={item === section ? "page" : undefined} className={"min-h-11 rounded-lg px-3 py-2 text-left text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 " + (section === item ? "bg-primary text-primary-foreground" : "hover:bg-muted")}>{t("sections." + item)}</button>)}</nav><div className="lg:hidden"><Field label={t("console.navigation")}><Select style={CONTROL_STYLE} className={FIELD_CLASS} value={section} disabled={pending} onChange={(event) => { const next = SECTIONS.find((value) => value === event.target.value); if (next) changeSection(next) }}>{SECTIONS.map((item) => <option key={item} value={item}>{t("sections." + item)}</option>)}</Select></Field></div>{section !== "networks" && section !== "files" ? <><Field label={t("console.network")}><Select style={CONTROL_STYLE} className={FIELD_CLASS} value={selected?._id ?? ""} disabled={pending} onChange={(event) => changeNetwork(event.target.value)}><option value="" disabled>{t("console.selectNetwork")}</option>{networks.map((network) => <option key={network._id} value={network._id}>{network.name + (network.status === "archived" ? " · " + t("networks.statuses.archived") : "")}</option>)}</Select></Field><p className="text-xs text-muted-foreground">{t("console.networkHint")}</p></> : null}</aside>
     <div ref={contentRef} tabIndex={-1} role="region" aria-label={t("sections." + section)} className="min-w-0 focus-visible:outline-2 focus-visible:outline-offset-4">
+      {/* EX-18 (A11Y-05, WCAG 3.3.2) : l'astérisque des étiquettes est décoratif (`aria-hidden`) et le
+          champ dit lui-même son obligation (`aria-required`) ; la légende, une fois en tête des outils,
+          explique l'astérisque à qui le voit. */}
+      <p className="mb-4 text-sm text-muted-foreground">{t("console.requiredLegend")}</p>
       <ConsoleQueryBoundary key={section} fallback={(error, retry) => <QueryFailure error={error} retry={retry} />}>{section === "networks" ? <NetworksPanel networks={networks} operator={operator} onSelect={(id) => navigate(section, id)} onDirtyChange={setDirty} onPendingChange={setPending} /> : <OperationsPanel section={section} networkId={selected?._id} canAdmin={operator.role === "platform_admin"} onDirtyChange={setDirty} onPendingChange={setPending} />}</ConsoleQueryBoundary>
     </div>
   </div>

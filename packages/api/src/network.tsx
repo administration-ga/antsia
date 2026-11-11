@@ -181,6 +181,9 @@ export type EnginePostOfferRenderer = ComponentType<{ networkId: Id<"networks">;
 /** MP13 : aperçu éditorial relu par l'application ; absent, aucune surface ajoutée. */
 export type EnginePostArticleRenderer = ComponentType<{ networkId: Id<"networks">; postId: Id<"posts"> }>
 
+/** SU01h : avis ordonnés par le juge (correctif, étiquette d'origine) au-dessus du contenu ; absent, rien n'est rendu. */
+export type EnginePostNoticeRenderer = ComponentType<{ networkId: Id<"networks">; postId: Id<"posts"> }>
+
 export interface NetworkContextValue {
   networkId: Id<"networks">
   /** Identifiant lisible du réseau (`antsia`, `diaspora`…). */
@@ -222,6 +225,7 @@ export interface NetworkContextValue {
   wordmark: string | null
   PostOfferRenderer?: EnginePostOfferRenderer
   PostArticleRenderer?: EnginePostArticleRenderer
+  PostNoticeRenderer?: EnginePostNoticeRenderer
   /** Contrat d'`OrgProvider` lu par les surfaces du socle : toujours l'espace personnel. */
   personalMode: true
   personalSpaceIsElsewhere: false
@@ -335,6 +339,7 @@ export function NetworkProvider(props: {
   wordmark?: string
   PostOfferRenderer?: EnginePostOfferRenderer
   PostArticleRenderer?: EnginePostArticleRenderer
+  PostNoticeRenderer?: EnginePostNoticeRenderer
   children: ReactNode
 }) {
   const storageNamespace = props.storageNamespace ?? ""
@@ -381,6 +386,7 @@ export function NetworkProvider(props: {
     wordmark: resolveEngineWordmark(props.wordmark),
     PostOfferRenderer: props.PostOfferRenderer,
     PostArticleRenderer: props.PostArticleRenderer,
+    PostNoticeRenderer: props.PostNoticeRenderer,
     personalMode: true,
     personalSpaceIsElsewhere: false,
     activeOrgId: null,

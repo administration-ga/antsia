@@ -7,6 +7,7 @@ import { notFound } from "../../lib/errors"
 import { networkQuery } from "../../lib/functions"
 import { literals } from "../../lib/validators"
 import { readerMarks } from "../marks/marks"
+import { judicialDelistReader } from "../moderation/judicialHolds"
 import { canSeePostDoc } from "../posts/access"
 import { hasNativePostAuthor } from "../posts/nativeAuthor"
 import { enrichment, feedItemValidator, readerOf, toFeedItem, type FeedItem } from "../posts/posts"
@@ -24,9 +25,11 @@ export const rootFeed = networkQuery({
     const reader = readerOf(ctx)
     const tag = args.tag?.trim().toLowerCase()
     const enriched = enrichment(ctx, await readerMarks(ctx, ctx.networkId, ctx.person._id))
+    // SU01h : une publication déréférencée sur ordre du juge sort de Découvrir, sans être supprimée.
+    const delisted = await judicialDelistReader(ctx)
     const page: FeedItem[] = []
     for (const post of result.page) {
-      if (post.audience !== "public" || tag && !(post.tags ?? []).includes(tag) || !await canSeePostDoc(ctx, reader, post)) continue
+      if (post.audience !== "public" || tag && !(post.tags ?? []).includes(tag) || await delisted("post", post._id) || !await canSeePostDoc(ctx, reader, post)) continue
       const hidden = await ctx.db.query("postMarks").withIndex("by_network_person_kind_post", (q) => q.eq("networkId", ctx.networkId).eq("personId", ctx.person._id).eq("kind", "hidden").eq("postId", post._id)).unique()
       if (hidden) continue
       if (post.pageId === undefined) {

@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/modules/reseauPersonnel/messagerie.ts @ ad2e7fdc2 — adaptations : la boîte PERSONNELLE d'un réseau seulement — gardés `assertPeutOuvrirFilPersonnel` (connexion DANS le réseau, ou fil existant), `lastMessageKindOf`, `estDansLaBoitePersonnelle`, `lireCote`/`blocageCache`/`pagePersonnelle` (`paginateMyThreads`), `getThread`, `totalUnread`, `findThreadWithHandle`, `startThreadWithHandle` ; `projeterFil` réécrit (sans poste ni « Poste vacant », interlocuteur par le contrat `counterpartLabel`, jamais d'état civil ni d'e-mail) ; exclus : `getPosteThread`, `listMyPosteThreads`, `projeterMesFils`/`listMyThreads` (la page par activité les remplace), `callByHandle` (→ module des appels) ; `totalUnread` lit le compteur, que le BLOCAGE met à jour à l'écriture (D38 : plus de correction à la lecture) ; refus à code ; débit à l'ouverture d'un fil. ; IC-04 : « lu par l'autre » de l'aperçu servi selon la réciprocité des accusés de lecture (`readReceiptsServed`).
+// Dupliqué de socle/convex/modules/reseauPersonnel/messagerie.ts @ ad2e7fdc2 — adaptations : la boîte PERSONNELLE d'un réseau seulement — gardés `assertPeutOuvrirFilPersonnel` (connexion DANS le réseau, ou fil existant), `lastMessageKindOf`, `estDansLaBoitePersonnelle`, `lireCote`/`blocageCache`/`pagePersonnelle` (`paginateMyThreads`), `getThread`, `totalUnread`, `findThreadWithHandle`, `startThreadWithHandle` ; `projeterFil` réécrit (sans poste ni « Poste vacant », interlocuteur par le contrat `counterpartLabel`, jamais d'état civil ni d'e-mail) ; exclus : `getPosteThread`, `listMyPosteThreads`, `projeterMesFils`/`listMyThreads` (la page par activité les remplace), `callByHandle` (→ module des appels) ; `totalUnread` lit le compteur, que le BLOCAGE met à jour à l'écriture (D38 : plus de correction à la lecture) ; refus à code ; débit à l'ouverture d'un fil. ; IC-04 : « lu par l'autre » de l'aperçu servi selon la réciprocité des accusés de lecture (`readReceiptsServed`). ; AZ-F1 : l'aperçu commun du fil n'est servi que si le message qu'il reflète est servi au lecteur (ni masqué pour lui, ni retiré ou tenu par la modération, ni signalé par lui) ; sinon il est neutre.
 /**
  * La boîte de messagerie PERSONNELLE d'un réseau — la surface, pas le stockage.
  *
@@ -17,7 +17,7 @@ import { enforceRateLimit } from "../../lib/rateLimit"
 import { isBlockedBetween, isConnectedTo } from "../graph/graph"
 import { findPublishedPersonByHandle, miniProfileCache } from "../people/miniProfile"
 import { attachmentFileValidator } from "./attachmentStorage"
-import { counterpartOf, readReceiptsServed } from "./participation"
+import { counterpartOf, isPersonalMessageServedTo, readReceiptsServed } from "./participation"
 import { findPersonalThread, openOrContinuePersonalThread, otherParticipant, readPersonalUnreadTotal, unreadForThread } from "./threads"
 
 type ReadCtx = Pick<QueryCtx, "db">
@@ -80,11 +80,32 @@ function isInInbox(thread: Doc<"personalThreads">): boolean {
   return thread.status === "active"
 }
 
+/** Lignes relues au plus pour retrouver le message que reflète l'aperçu (ex æquo à la milliseconde compris). */
+const PREVIEW_SOURCE_SCAN = 3
+
+/**
+ * L'aperçu du fil est une colonne COMMUNE aux deux participants. Il ne sort que
+ * si le message qu'il reflète m'est encore servi (`isPersonalMessageServedTo` :
+ * ni masqué pour moi, ni retiré ou tenu par la modération, ni signalé par moi) ;
+ * sinon l'aperçu est neutre, comme celui d'un message retiré. Fail-closed sur un
+ * ex æquo : chaque ligne de même instant doit m'être servie.
+ */
+async function previewServedTo(ctx: ReadCtx, thread: Doc<"personalThreads">, me: Id<"persons">): Promise<boolean> {
+  const at = thread.lastMessageAt
+  if (at === undefined) return true
+  const sources = await ctx.db
+    .query("personalMessages")
+    .withIndex("by_thread_createdAt", (q) => q.eq("threadId", thread._id).eq("createdAt", at))
+    .take(PREVIEW_SOURCE_SCAN)
+  for (const message of sources) if (!(await isPersonalMessageServedTo(ctx, message, me))) return false
+  return true
+}
+
 /** UN fil projeté — le corps partagé par la page et l'accès direct. */
 async function projectThread(ctx: QueryCtx, thread: Doc<"personalThreads">, me: Id<"persons">, profileOf: ReturnType<typeof miniProfileCache>): Promise<ThreadDto | null> {
   const other = otherParticipant(thread, me)
   if (other === null) return null
-  const [counterpart, unread, last] = await Promise.all([
+  const [counterpart, unread, last, served] = await Promise.all([
     counterpartOf(ctx, other, profileOf),
     unreadForThread(ctx, thread, me, UNREAD_CAP),
     ctx.db
@@ -92,14 +113,15 @@ async function projectThread(ctx: QueryCtx, thread: Doc<"personalThreads">, me: 
       .withIndex("by_thread_createdAt", (q) => q.eq("threadId", thread._id))
       .order("desc")
       .first(),
+    previewServedTo(ctx, thread, me),
   ])
   return {
     threadId: thread._id,
     lastMessageAt: thread.lastMessageAt ?? null,
-    lastMessageText: thread.lastMessageText ?? null,
+    lastMessageText: served ? (thread.lastMessageText ?? null) : null,
     // L'aperçu du fil fait foi (il se rembobine au retrait) ; la ligne ne sert que de repli.
-    lastMessageKind: thread.lastMessageKind ?? (last === null ? null : lastMessageKindOf(last)),
-    lastMessageAttachmentCount: thread.lastMessageAttachmentCount ?? null,
+    lastMessageKind: served ? (thread.lastMessageKind ?? (last === null ? null : lastMessageKindOf(last))) : null,
+    lastMessageAttachmentCount: served ? (thread.lastMessageAttachmentCount ?? null) : null,
     lastMessageByMe: thread.lastMessageByPersonId === me,
     lastMessageId: last?._id ?? null,
     // IC-04 : réciproque — sans accusés actifs des deux côtés, mon dernier message reste « envoyé ».

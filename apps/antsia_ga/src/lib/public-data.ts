@@ -80,6 +80,14 @@ export const loadPublicTransparency = cache((handoff = false) => projected(api.m
 /** SU01d : projection à part, que les écrans antérieurs ignorent ; indisponible, la page reste lisible sans elle. */
 export const loadPublicTransparencyDeadlines = cache((handoff = false) => projected(api.modules.public.projections.transparencyDeadlines, {}, publicTransparencyDeadlinesSchema, handoff))
 
+/**
+ * SU01h : correctif et étiquette d'origine ordonnés par le juge — projection À PART, que les écrans
+ * antérieurs ignorent ; absente ou indisponible, la page reste lisible sans elle.
+ */
+export const publicJudicialNoticesSchema = z.array(z.object({ kind: z.enum(["pin_correction", "origin_label"]), text: z.string().max(1000), startsAt: timestamp }).strict()).max(50)
+export type PublicJudicialNoticeTarget = { kind: "post"; id: string } | { kind: "person" | "page"; handle: string }
+export const loadPublicJudicialNotices = cache((kind: PublicJudicialNoticeTarget["kind"], ref: string, handoff = false) => projected(api.modules.public.judicialNotices.notices, { target: kind === "post" ? { kind, id: ref } : { kind, handle: ref } }, publicJudicialNoticesSchema, handoff))
+
 export function publicMetadata(title: string, description: string, path: string, admitted = true): Metadata {
   const origin = configuredMetadataOrigin()
   return {

@@ -135,6 +135,8 @@ export const DATA_TABLE_POLICIES: Record<string, { shared?: boolean; owners?: re
   commerceCatalogMappings: {shared: true},
   commerceCatalogHeads: {parents: ["shopId"]},
   commerceCatalogMediaAssets: {parents: ["headId"]},
+  // CM-02 : décision de la liste des catégories sur une offre reflétée — contenu collectif de la boutique (références seules).
+  commerceCatalogCategoryRulings: {parents: ["shopId"]},
   // P15 : politique collective ; offres reflétées = contenu de la boutique ; sujets,
   // pièces (blobs compris) et candidatures = données du seul candidat.
   commerceJobPolicies: {shared: true},
@@ -232,6 +234,12 @@ export const DATA_TABLE_POLICIES: Record<string, { shared?: boolean; owners?: re
   moderationPolicies: {shared: true},
   moderationContentStates: {owners: ["ownerPersonId"],parents: ["targetId"]},
   moderationTransparency: {shared: true},
+  // SU01h : une mesure sur ordre du juge est la preuve d'exécution de l'exploitant (comme un dossier de
+  // modération) : la ligne demeure, ses références personnelles sont anonymisées à l'effacement, le texte
+  // ordonné (correctif, étiquette) disparaît avec la personne visée ; la ligne levée est purgée au terme
+  // de `JUDICIAL_MEASURE_RETENTION_MS` (90 j, à valider par le propriétaire et le juriste, A12). La
+  // personne visée l'exporte sans la référence de l'ordonnance ni l'identité des opérateurs.
+  judicialMeasures: {shared: true},
   notificationPreferences: {},
   pushSubscriptions: {},
   notificationDeliveryJobs: {parents: ["notificationId"]},

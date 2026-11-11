@@ -1,6 +1,7 @@
 /** P09 : seule une décision opérateur ouvre politique/mapping ; aucune configuration exécutée ici. */
 import { assertDecisionReason } from "@antsia/social-domain/audit"
 import { isCommercePublicContract } from "@antsia/social-domain/commerce/primitives"
+import { COMMERCE_CATEGORY_RULES } from "@antsia/social-domain/commerce-prohibited-categories"
 import { federationEnvironment } from "@antsia/social-domain/federationProtocol"
 import { paginationOptsValidator } from "convex/server"
 import { v } from "convex/values"
@@ -14,6 +15,7 @@ import { appendAudit, operatorCapacity } from "../platform/audit"
 import { liveShopCommerceLink } from "./commerceLinkLifecycle"
 import { requireManagedShop } from "./access"
 import { liveCatalogMapping } from "./catalogAccess"
+import { regulatedCategoryOfShop } from "./decisions"
 
 /** Finitions (DP-37) : la décision courante d'un réseau, lue par la console de l'administration de la plateforme seule. */
 export const getPolicy = operatorQuery({
@@ -103,6 +105,72 @@ export const configureMapping = operatorMutation({
     }
     await appendAudit(ctx, { action: "catalog.mapping_set", capacity: operatorCapacity(ctx.operator), actorPersonId: ctx.person._id, networkId: args.networkId, subject: { table: "shops", id: args.shopId }, details: { reason, enabled: args.enabled } })
     return null
+  },
+})
+
+const categoryRuleValidator = v.union(v.literal("prohibited"), v.literal("regulated"))
+
+/**
+ * CM-02 — la vue console des décisions de la liste des catégories dans un réseau : refus (catégorie interdite)
+ * et offres réglementées, une ligne courante par offre. Références, clé de taxonomie et version de la liste
+ * seules, jamais un contenu d'offre.
+ */
+export const paginateCategoryRulings = operatorQuery({
+  args: { networkId: v.id("networks"), paginationOpts: paginationOptsValidator },
+  returns: v.object({
+    page: v.array(v.object({
+      rulingId: v.id("commerceCatalogCategoryRulings"), shopId: v.id("shops"), shopName: v.union(v.string(), v.null()), shopHandle: v.union(v.string(), v.null()),
+      offerRef: v.string(), rule: categoryRuleValidator, categoryKey: v.string(), listVersion: v.number(), revision: v.number(),
+      withdrewReflection: v.boolean(), firstAt: v.number(), updatedAt: v.number(),
+    })),
+    isDone: v.boolean(), continueCursor: v.string(),
+  }),
+  handler: async (ctx, args) => {
+    await requireFederationAdmin(ctx, ctx)
+    if ((await ctx.db.get(args.networkId))?.status !== "active") return notFound()
+    const requested = args.paginationOpts.numItems
+    const numItems = Number.isFinite(requested) ? Math.min(20, Math.max(1, Math.floor(requested))) : 20
+    const window = await ctx.db.query("commerceCatalogCategoryRulings").withIndex("by_network_updatedAt", (q) => q.eq("networkId", args.networkId)).order("desc").paginate({ ...args.paginationOpts, numItems })
+    const page = []
+    for (const row of window.page) {
+      const shop = await ctx.db.get(row.shopId)
+      const identity = shop?.pageId ? await ctx.db.get(shop.pageId) : null
+      const visiblePage = identity?.networkId === args.networkId && identity.status === "active" ? identity : null
+      page.push({
+        rulingId: row._id, shopId: row.shopId, shopName: visiblePage?.name ?? null, shopHandle: visiblePage?.handle ?? null,
+        offerRef: row.objectRef, rule: row.rule, categoryKey: row.categoryKey, listVersion: row.listVersion, revision: row.revision,
+        withdrewReflection: row.withdrewReflection, firstAt: row.firstAt, updatedAt: row.updatedAt,
+      })
+    }
+    return { page, isDone: window.isDone, continueCursor: window.continueCursor }
+  },
+})
+
+/** Fenêtre de refus montrée au gérant (les plus récents d'abord). */
+const MANAGER_REFUSALS_MAX = 20
+
+/**
+ * CM-02 — le motif lisible par les GÉRANTS : les offres de leur catalogue refusées pour leur catégorie interdite
+ * (fenêtre des plus récentes) et la catégorie réglementée qui fait relire leur vitrine. Ni titre ni contenu :
+ * l'offre se reconnaît par sa référence PRO.GA et sa catégorie.
+ */
+export const categoryRulings = networkQuery({
+  args: { shopId: v.id("shops") },
+  returns: v.object({
+    listVersion: v.number(),
+    refusals: v.array(v.object({ offerRef: v.string(), categoryKey: v.string(), listVersion: v.number(), revision: v.number(), withdrewReflection: v.boolean(), refusedAt: v.number() })),
+    truncated: v.boolean(),
+    regulatedCategory: v.union(v.string(), v.null()),
+  }),
+  handler: async (ctx, args) => {
+    await requireManagedShop(ctx, { networkId: ctx.networkId, personId: ctx.person._id }, args.shopId)
+    const rows = await ctx.db.query("commerceCatalogCategoryRulings").withIndex("by_shop_rule_updatedAt", (q) => q.eq("shopId", args.shopId).eq("rule", "prohibited")).order("desc").take(MANAGER_REFUSALS_MAX + 1)
+    return {
+      listVersion: COMMERCE_CATEGORY_RULES.version,
+      refusals: rows.slice(0, MANAGER_REFUSALS_MAX).map((row) => ({ offerRef: row.objectRef, categoryKey: row.categoryKey, listVersion: row.listVersion, revision: row.revision, withdrewReflection: row.withdrewReflection, refusedAt: row.updatedAt })),
+      truncated: rows.length > MANAGER_REFUSALS_MAX,
+      regulatedCategory: await regulatedCategoryOfShop(ctx, args.shopId),
+    }
   },
 })
 

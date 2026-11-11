@@ -10,14 +10,15 @@ import { FederationPanel } from "./console-federation"
 import { FilesPanel } from "./console-files"
 import { HealthPanel } from "./console-health"
 import { IncidentsPanel } from "./console-incidents"
+import { MeasuresPanel } from "./console-measures"
 import { NetworkRolesPanel } from "./console-network-roles"
 import { OperationDraftProvider } from "./console-operation-controls"
 import { PagesPanel } from "./console-pages"
 import { TeamsPanel } from "./console-teams"
 
-export type OperationsSection = "teams" | "appeals" | "federation" | "pages" | "incidents" | "audit" | "health" | "files" | "export"
-/** Les sections qui couvrent toute la plateforme : elles s'ouvrent sans réseau choisi. */
-const PLATFORM_SECTIONS: readonly OperationsSection[] = ["incidents", "audit", "files"]
+export type OperationsSection = "teams" | "appeals" | "measures" | "federation" | "pages" | "incidents" | "audit" | "health" | "files" | "export"
+/** Les sections qui couvrent toute la plateforme : elles s'ouvrent sans réseau choisi (SU01h : le réseau choisi sert de cible à l'art. 44). */
+const PLATFORM_SECTIONS: readonly OperationsSection[] = ["measures", "incidents", "audit", "files"]
 export type OperationsPanelProps = { section: OperationsSection; networkId?: Id<"networks">; canAdmin: boolean; onDirtyChange?: (dirty: boolean) => void; onPendingChange?: (pending: boolean) => void }
 
 /** La clé détruit curseurs et brouillons au changement de périmètre, avant toute nouvelle lecture. */
@@ -32,6 +33,8 @@ function OperationSection({ section, networkId, canAdmin }: OperationsPanelProps
     // EX-08 : les responsables du réseau précèdent ses équipes de modération, dans la même section.
     case "teams": return networkId ? <div className="flex min-w-0 flex-col gap-5"><NetworkRolesPanel networkId={networkId} canAdmin={canAdmin} /><TeamsPanel networkId={networkId} /></div> : null
     case "appeals": return networkId ? <AppealsPanel networkId={networkId} /> : null
+    // SU01h : mesures sur ordre du juge, pour toute la plateforme.
+    case "measures": return <MeasuresPanel networkId={networkId} />
     case "federation": return networkId ? <FederationPanel networkId={networkId} canAdmin={canAdmin} /> : null
     case "pages": return networkId ? <PagesPanel networkId={networkId} canAdmin={canAdmin} /> : null
     case "incidents": return <IncidentsPanel networkId={networkId} />

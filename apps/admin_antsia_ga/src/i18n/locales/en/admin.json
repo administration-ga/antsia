@@ -81,6 +81,7 @@
     "navigation": "Console tools",
     "network": "Working network",
     "networkHint": "Network-specific tools use this selection. Audit logs and health cover the engine.",
+    "requiredLegend": "Fields marked with an asterisk (*) are required.",
     "role": {
       "platform_operator": "Platform operator",
       "platform_admin": "Platform administrator"
@@ -91,6 +92,7 @@
     "networks": "Networks",
     "teams": "Moderation: teams and settings",
     "appeals": "Appeals",
+    "measures": "Court-ordered measures",
     "federation": "Federation",
     "pages": "Official pages",
     "incidents": "Incidents",

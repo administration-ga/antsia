@@ -2,6 +2,7 @@
 import { parseCommerceRef } from "@antsia/social-domain/commerce/primitives"
 import { parseCommerceServiceProfile } from "@antsia/social-domain/commerce/serviceProfile"
 import { catalogFacetsMatchKind, parseCommerceCatalogFacets } from "@antsia/social-domain/commerce/catalogFacets"
+import { COMMERCE_CATEGORY_RULES, isCommerceCategoryProhibited } from "@antsia/social-domain/commerce-prohibited-categories"
 import { effectiveActivityConfiguration, visibleActivityBlocks, type ActivityBlock } from "@antsia/social-domain/activityConfiguration"
 import { commerceOfferPublicView, type CommerceAvailabilityEvent, parseCommercePublicBody } from "@antsia/social-domain/commerce/projection"
 import type { OrderedQuery, PaginationOptions } from "convex/server"
@@ -47,6 +48,9 @@ async function project(ctx: ReadCtx, context: CatalogReadContext, head: Doc<"com
   if (offer.serviceProfile && (!serviceProfile || offer.kind !== "service")) return null
   const facets = parseCommerceCatalogFacets(offer.facets)
   if (facets && !catalogFacetsMatchKind(facets, offer.kind)) return null
+  // CM-02 : une catégorie interdite n'est lue nulle part (marketplace, vitrine, fiche, publication, panier),
+  // même pour une tête reflétée avant que la liste ne l'interdise.
+  if (facets && isCommerceCategoryProhibited(facets.categoryPath, COMMERCE_CATEGORY_RULES)) return null
   const available = await ctx.db.query("commerceCatalogHeads").withIndex("by_emitter_object_sequence", (q) => q.eq("emitterId", head.emitterId).eq("objectRef", head.objectRef).eq("sequence", "availability")).unique()
   let availability: CommerceAvailabilityEvent | null = null
   if (available?.state === "active" && headBelongsToCurrentCatalog(available, live)) {

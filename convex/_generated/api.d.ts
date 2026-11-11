@@ -183,6 +183,7 @@ import type * as modules_federation_commerceCatalogClient from "../modules/feder
 import type * as modules_federation_commerceCatalogMedia from "../modules/federation/commerceCatalogMedia.js";
 import type * as modules_federation_commerceCatalogMediaActions from "../modules/federation/commerceCatalogMediaActions.js";
 import type * as modules_federation_commerceCatalogMediaHttp from "../modules/federation/commerceCatalogMediaHttp.js";
+import type * as modules_federation_commerceCatalogRulings from "../modules/federation/commerceCatalogRulings.js";
 import type * as modules_federation_commerceJobs from "../modules/federation/commerceJobs.js";
 import type * as modules_federation_commerceServiceNotices from "../modules/federation/commerceServiceNotices.js";
 import type * as modules_federation_commerceTransport from "../modules/federation/commerceTransport.js";
@@ -207,6 +208,7 @@ import type * as modules_federation_withdrawal from "../modules/federation/withd
 import type * as modules_files_admission from "../modules/files/admission.js";
 import type * as modules_files_avProviders from "../modules/files/avProviders.js";
 import type * as modules_files_inspect from "../modules/files/inspect.js";
+import type * as modules_files_moderatorAccess from "../modules/files/moderatorAccess.js";
 import type * as modules_files_mutations from "../modules/files/mutations.js";
 import type * as modules_files_notify from "../modules/files/notify.js";
 import type * as modules_files_orphans from "../modules/files/orphans.js";
@@ -274,7 +276,9 @@ import type * as modules_messaging_typing from "../modules/messaging/typing.js";
 import type * as modules_moderation_cases from "../modules/moderation/cases.js";
 import type * as modules_moderation_commerceOfferText from "../modules/moderation/commerceOfferText.js";
 import type * as modules_moderation_editorialReviewSource from "../modules/moderation/editorialReviewSource.js";
+import type * as modules_moderation_judicialHolds from "../modules/moderation/judicialHolds.js";
 import type * as modules_moderation_maintenance from "../modules/moderation/maintenance.js";
+import type * as modules_moderation_measures from "../modules/moderation/measures.js";
 import type * as modules_moderation_moderation from "../modules/moderation/moderation.js";
 import type * as modules_moderation_networkAppeals from "../modules/moderation/networkAppeals.js";
 import type * as modules_moderation_openReports from "../modules/moderation/openReports.js";
@@ -382,6 +386,7 @@ import type * as modules_public_aggregate from "../modules/public/aggregate.js";
 import type * as modules_public_catalog from "../modules/public/catalog.js";
 import type * as modules_public_editorial from "../modules/public/editorial.js";
 import type * as modules_public_jobs from "../modules/public/jobs.js";
+import type * as modules_public_judicialNotices from "../modules/public/judicialNotices.js";
 import type * as modules_public_professionals from "../modules/public/professionals.js";
 import type * as modules_public_projections from "../modules/public/projections.js";
 import type * as modules_public_recette from "../modules/public/recette.js";
@@ -676,6 +681,7 @@ declare const fullApi: ApiFromModules<{
   "modules/federation/commerceCatalogMedia": typeof modules_federation_commerceCatalogMedia;
   "modules/federation/commerceCatalogMediaActions": typeof modules_federation_commerceCatalogMediaActions;
   "modules/federation/commerceCatalogMediaHttp": typeof modules_federation_commerceCatalogMediaHttp;
+  "modules/federation/commerceCatalogRulings": typeof modules_federation_commerceCatalogRulings;
   "modules/federation/commerceJobs": typeof modules_federation_commerceJobs;
   "modules/federation/commerceServiceNotices": typeof modules_federation_commerceServiceNotices;
   "modules/federation/commerceTransport": typeof modules_federation_commerceTransport;
@@ -700,6 +706,7 @@ declare const fullApi: ApiFromModules<{
   "modules/files/admission": typeof modules_files_admission;
   "modules/files/avProviders": typeof modules_files_avProviders;
   "modules/files/inspect": typeof modules_files_inspect;
+  "modules/files/moderatorAccess": typeof modules_files_moderatorAccess;
   "modules/files/mutations": typeof modules_files_mutations;
   "modules/files/notify": typeof modules_files_notify;
   "modules/files/orphans": typeof modules_files_orphans;
@@ -767,7 +774,9 @@ declare const fullApi: ApiFromModules<{
   "modules/moderation/cases": typeof modules_moderation_cases;
   "modules/moderation/commerceOfferText": typeof modules_moderation_commerceOfferText;
   "modules/moderation/editorialReviewSource": typeof modules_moderation_editorialReviewSource;
+  "modules/moderation/judicialHolds": typeof modules_moderation_judicialHolds;
   "modules/moderation/maintenance": typeof modules_moderation_maintenance;
+  "modules/moderation/measures": typeof modules_moderation_measures;
   "modules/moderation/moderation": typeof modules_moderation_moderation;
   "modules/moderation/networkAppeals": typeof modules_moderation_networkAppeals;
   "modules/moderation/openReports": typeof modules_moderation_openReports;
@@ -875,6 +884,7 @@ declare const fullApi: ApiFromModules<{
   "modules/public/catalog": typeof modules_public_catalog;
   "modules/public/editorial": typeof modules_public_editorial;
   "modules/public/jobs": typeof modules_public_jobs;
+  "modules/public/judicialNotices": typeof modules_public_judicialNotices;
   "modules/public/professionals": typeof modules_public_professionals;
   "modules/public/projections": typeof modules_public_projections;
   "modules/public/recette": typeof modules_public_recette;

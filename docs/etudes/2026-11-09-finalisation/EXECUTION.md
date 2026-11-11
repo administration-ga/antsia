@@ -122,7 +122,7 @@ Plan : [`04_DIRECT_ET_CONFERENCES.md`](04_DIRECT_ET_CONFERENCES.md)
 |---|---|---|---|---|---|---|
 | DL-01 | Recette média réelle LiveKit et Egress | P0 | M | S1 | clé externe ; aucune commande vers la production sans accord écrit. | à faire |
 | DL-02 | Consentement explicite à l'enregistrement | P0 | M | S1 | décision du propriétaire (décision 4). | fusionné |
-| DL-03 | Signaler et contrôler la discussion | P0 | M | S1 | aucune. | à faire |
+| DL-03 | Signaler et contrôler la discussion | P0 | M | S1 | aucune. | fusionné |
 | DL-04 | Spectateur en 3G : audio seul et qualité basse | P0 | M | S1 | aucune pour le code ; clé LiveKit pour la preuve. | fusionné |
 | DL-05 | Rediffusion légère | P1 | M | S1 | décision du propriétaire (profil, coût de stockage). | à faire |
 | DL-06 | Programmer un direct et me le rappeler | P1 | M | S1 | aucune. | à faire |
@@ -221,7 +221,7 @@ Plan : [`08_COMMERCE_MARKETPLACE_BOUTIQUES.md`](08_COMMERCE_MARKETPLACE_BOUTIQUE
 | Lot | Titre | Priorité | Taille | Session | Porte | État |
 |---|---|---|---|---|---|---|
 | CM-01 | Chaîne réelle du catalogue PRO.GA vers ANTSIA | P0 | M | S1 | propriétaire (clés, compte, déploiement PRO.GA, choix de l'environnement : sandbox, démo, production). | à faire |
-| CM-02 | Catégories interdites et réglementées | P0 | M | S1 | propriétaire et conseil (liste). | à faire |
+| CM-02 | Catégories interdites et réglementées | P0 | M | S1 | propriétaire et conseil (liste). | fusionné |
 | CM-03 | Majorité pour acheter | P0 | S | S1 | avis du juriste (arbitrages A1 à A4 de SU01). | à faire |
 | CM-04 | Commande réglée à la remise (D04) | P0 | L | S1 (et PRO.GA) | décision du propriétaire ; publication de PRO.GA ; publication ANTSIA. | à faire |
 | CM-05 | Avis de commerce des produits | P1 | M | S1 | aucune. | à faire |
@@ -323,7 +323,7 @@ Plan : [`12_MODERATION_CONFORMITE_SECURITE.md`](12_MODERATION_CONFORMITE_SECURIT
 
 | Lot | Titre | Priorité | Taille | Session | Porte | État |
 |---|---|---|---|---|---|---|
-| SU01h | Mesures sur ordre du juge (référé numérique) | P0 | M | S1 | avis du juriste conseillé [A12] ; décision 2 du § 7 (double validation) ; publication. | à faire |
+| SU01h | Mesures sur ordre du juge (référé numérique) | P0 | M | S1 | avis du juriste conseillé [A12] ; décision 2 du § 7 (double validation) ; publication. | fusionné |
 | MC-01 | Signaler depuis chaque objet | P0 | L | S1 | aucune. | fusionné |
 | MC-02 | Réglages de modération du réseau | P0 | M | S1 | décision 3 du § 7. | fusionné |
 | MC-03 | Sanctions complètes et récidive | P1 | M | S1 | aucune. | à faire |
@@ -368,7 +368,7 @@ Plan : [`13_CONSOLE_EXPLOITATION_LANCEMENT.md`](13_CONSOLE_EXPLOITATION_LANCEMEN
 | EX-15 | Remise à zéro de la démonstration | P2 | M | S1 | chaque exécution est une opération sur un environnement en ligne : accord du propriétaire. | à faire |
 | EX-16 | Gabarit d'application légère de réseau fermé | P2 | L | S1 | décision du propriétaire ; création de dépôt et de domaine par lui. | à faire |
 | EX-17 | Garde antivirus fermée et file des fichiers retenus | P0 | S | S1 | publication. | fusionné |
-| EX-18 | Corrections d'accessibilité AA | P0 | L | S1 | aucune. | à faire |
+| EX-18 | Corrections d'accessibilité AA | P0 | L | S1 | aucune. | fusionné |
 | EX-19 | Liste de contrôle du lancement et bascule de domaine | P0 | M | S1 | domaines, hébergement, clés : propriétaire. | en cours |
 | EX-20 | Hygiène du dépôt public | P1 | S | S1 | aucune pour le code ; évaluation du risque (rotation éventuelle du jeton antivirus) par le propriétaire. | fusionné |
 | EX-21 | Mesure d'usage activée | P2 | S | S1 | projet et jeton par le propriétaire ; texte de consentement validé (plan 12). | à faire |

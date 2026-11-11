@@ -7,11 +7,13 @@
  */
 import { computePersonBadges } from "@antsia/social-domain/badges"
 import { effectiveAccessStatus } from "@antsia/social-domain/membership"
+import type { RestrictableFeature } from "@antsia/social-domain/judicialMeasures"
 import { DAY, HOUR, MINUTE, type RateLimitConfig, RateLimiter } from "@convex-dev/rate-limiter"
 
 import { components } from "../_generated/api"
 import type { Doc, Id } from "../_generated/dataModel"
 import type { MutationCtx } from "../_generated/server"
+import { isFeatureRestricted } from "../modules/moderation/judicialHolds"
 import { effectiveMembershipStatus } from "./access"
 import { fail } from "./errors"
 
@@ -196,6 +198,9 @@ const RATE_LIMITS = {
   "operator.network": { kind: "token bucket", rate: 30, period: HOUR, capacity: 10 },
   "operator.membership": { kind: "token bucket", rate: 60, period: HOUR, capacity: 20 },
   "operator.page": { kind: "token bucket", rate: 30, period: HOUR, capacity: 10 },
+  // SU01h : mesures sur ordre du juge (ouvrir, confirmer, noter l'action au fond, lever) ; une ordonnance
+  // peut viser plusieurs comptes ou contenus d'un coup. Valeur de départ.
+  "operator.judicial": { kind: "token bucket", rate: 60, period: HOUR, capacity: 20 },
   // Tranche DIASPORALE (`convex/modules/diaspora`, PD1). Entrer et régler sa
   // facette consomment « network.join » et « person.facet » : une personne n'a
   // qu'un budget, quel que soit le chemin. Les quotas MÉTIER (10 parrainages
@@ -376,7 +381,38 @@ export async function erasePersonalRateLimits(ctx: MutationCtx, personId: string
  * Consomme un jeton du seau pour la clé donnée (la personne, le plus souvent) ;
  * `rateLimited` (avec le délai) au-delà du seuil.
  */
+/**
+ * SU01h (art. 44) : les seaux qu'une restriction de fonction sur ordre du juge coupe, par fonction du
+ * registre fermé (`RESTRICTABLE_FEATURES`). Chaque écriture de ces surfaces consomme déjà son seau
+ * (cliquet `rate-limited-writes`) : la coupure se lit donc ici, avant tout jeton consommé.
+ */
+const JUDICIAL_FEATURE_BUCKETS = {
+  publish: ["post.publish", "page.publish"],
+  comment: ["comment.create", "live.comment"],
+  forward: ["message.forward"],
+  live: ["live.create"],
+  stories: ["story.publish"],
+  media_upload: ["upload.url"],
+} as const satisfies Record<RestrictableFeature, readonly RateLimitBucket[]>
+const JUDICIAL_FEATURE_OF_BUCKET: ReadonlyMap<string, RestrictableFeature> = new Map(
+  (Object.entries(JUDICIAL_FEATURE_BUCKETS) as [RestrictableFeature, readonly RateLimitBucket[]][]).flatMap(([feature, buckets]) => buckets.map((bucket) => [bucket, feature] as const)),
+)
+
+/** La racine d'une restriction : celle du contexte s'il la porte, sinon UNE lecture bornée, pour ces seaux seulement. */
+async function judicialRootId(ctx: MutationCtx & NetworkRateContext): Promise<Id<"networks"> | undefined> {
+  if (ctx.rootNetwork) return ctx.rootNetwork._id
+  if (ctx.network?.kind === "root") return ctx.network._id
+  return (await ctx.db.query("networks").withIndex("by_kind_and_status", (q) => q.eq("kind", "root").eq("status", "active")).first())?._id
+}
+
+/** La fonction du registre fermé que ce seau porte, ou `undefined`. */
+export function judicialFeatureOfBucket(bucket: RateLimitBucket): RestrictableFeature | undefined {
+  return JUDICIAL_FEATURE_OF_BUCKET.get(bucket)
+}
+
 export async function enforceRateLimit(ctx: MutationCtx & NetworkRateContext, bucket: RateLimitBucket, key: string): Promise<void> {
+  const feature = judicialFeatureOfBucket(bucket)
+  if (feature && await isFeatureRestricted(ctx, feature, ctx.networkId ?? ctx.network?._id, await judicialRootId(ctx))) fail("policyRefused")
   const reinforced = Object.prototype.hasOwnProperty.call(REINFORCED_BUCKETS, bucket)
     ? REINFORCED_BUCKETS[bucket as keyof typeof REINFORCED_BUCKETS]
     : undefined

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import { getFunctionName } from "convex/server"
 import { I18nextProvider } from "react-i18next"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
@@ -280,5 +280,26 @@ describe("DL-02 — accord à l'enregistrement et pastille de capture", () => {
     fireEvent.click(screen.getByRole("button", { name: "Accepter l'enregistrement" }))
     await waitFor(() => expect(mocks.mutation).toHaveBeenCalledWith("modules/live/antenna:acceptRecording", { networkId: "network-a", sessionId }))
     expect(mocks.token).not.toHaveBeenCalled()
+  })
+})
+
+describe("DL-03 — signaler le direct d'autrui depuis son en-tête", () => {
+  it("offre « Signaler » au spectateur et transmet la cible `live` par la brique commune", async () => {
+    render(tree())
+    fireEvent.click(screen.getByRole("button", { name: "Signaler" }))
+    const dialog = screen.getByRole("dialog", { name: "Signaler ce direct" })
+    fireEvent.change(within(dialog).getByRole("combobox", { name: /^Motif/ }), { target: { value: "violence" } })
+    await act(async () => { fireEvent.click(within(dialog).getByRole("button", { name: "Transmettre" })) })
+    expect(mocks.mutation).toHaveBeenCalledWith("modules/moderation/cases:report", { networkId: "network-a", target: { kind: "live", id: sessionId }, reason: "violence" })
+    expect(screen.queryByRole("dialog")).toBeNull()
+  })
+
+  it("l'offre aussi à un intervenant, jamais à l'hôte sur son propre direct", () => {
+    mocks.session = session({ viewerRole: "speaker" })
+    const view = render(tree())
+    expect(screen.getByRole("button", { name: "Signaler" })).toBeInTheDocument()
+    mocks.session = session({ status: "scheduled", viewerRole: "host" })
+    view.rerender(tree())
+    expect(screen.queryByRole("button", { name: "Signaler" })).toBeNull()
   })
 })

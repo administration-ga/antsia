@@ -2,7 +2,7 @@
 
 import { cn } from "@antsia/ui/lib/cn"
 import { LoaderCircle } from "lucide-react"
-import { type ButtonHTMLAttributes, forwardRef, type InputHTMLAttributes, type ReactNode, type TextareaHTMLAttributes } from "react"
+import { type ButtonHTMLAttributes, cloneElement, forwardRef, Fragment, type InputHTMLAttributes, isValidElement, type ReactNode, type TextareaHTMLAttributes } from "react"
 import { buttonClassName, type ButtonVariant } from "./button-class"
 
 /**
@@ -44,13 +44,30 @@ export const TextArea = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<H
   return <textarea ref={ref} {...props} className={cn(fieldClass, "min-h-[var(--esp-textarea-min-height,112px)] resize-y", className)} />
 })
 
+type DescribedControlProps = { "aria-describedby"?: string; "aria-invalid"?: boolean | "true" | "false" }
+
+/**
+ * Étiquette, aide et erreur d'un champ. L'aide et l'erreur sont RELIÉES au champ
+ * (`aria-describedby`) et l'erreur le marque `aria-invalid` (WCAG 1.3.1 et 3.3.1) :
+ * un lecteur d'écran qui revient sur le champ entend encore l'erreur. Les
+ * références déjà posées par l'écran sont gardées ; un enfant qui n'est pas un
+ * élément unique (fragment, texte) est rendu tel quel.
+ */
 export function Field(props: { id: string; label: string; hint?: string; error?: string; children: ReactNode }) {
+  const described = [props.hint ? `${props.id}-hint` : null, props.error ? `${props.id}-error` : null].filter((id): id is string => id !== null)
+  const child = props.children
+  const control = isValidElement<DescribedControlProps>(child) && child.type !== Fragment
+    ? cloneElement(child, {
+        "aria-describedby": [...new Set([...(child.props["aria-describedby"]?.split(/\s+/).filter(Boolean) ?? []), ...described])].join(" ") || undefined,
+        "aria-invalid": child.props["aria-invalid"] ?? (props.error ? true : undefined),
+      })
+    : child
   return (
     <div className="flex flex-col gap-1.5">
       <label htmlFor={props.id} className="text-sm font-medium text-foreground">
         {props.label}
       </label>
-      {props.children}
+      {control}
       {props.hint ? (
         <p id={`${props.id}-hint`} className="text-xs text-muted-foreground">
           {props.hint}

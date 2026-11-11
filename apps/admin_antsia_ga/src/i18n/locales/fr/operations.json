@@ -32,6 +32,7 @@
     "page": "Pages",
     "person": "Profils",
     "live": "Directs",
+    "liveComment": "Commentaires des directs",
     "story": "Stories",
     "album": "Albums",
     "serviceReview": "Avis de prestations",
@@ -117,6 +118,143 @@
     "uphold": "Maintenir la décision",
     "overturn": "Annuler la décision"
   },
+  "measures": {
+    "title": "Mesures sur ordre du juge",
+    "lead": "Référé numérique (ordonnance n° 0011/PR/2026, art. 39 à 44) : un opérateur exécute la décision tout de suite, un second opérateur la confirme ensuite. Une mesure non confirmée reste en vigueur et s’affiche en alerte.",
+    "rules": "Confirmation attendue sous {{hours}} h par un autre opérateur. Restriction de fonction et suspension d’accès : {{max}} h au plus. Sans action au fond notée, la caducité est à vérifier à partir du {{days}}e jour.",
+    "alerts": {
+      "confirmationOverdue_one": "{{count}} mesure sur ordre attend sa confirmation depuis plus de {{hours}} h.",
+      "confirmationOverdue_other": "{{count}} mesures sur ordre attendent leur confirmation depuis plus de {{hours}} h.",
+      "lapseDue_one": "{{count}} mesure sur ordre dépasse {{days}} jours sans action au fond notée : vérifiez sa caducité.",
+      "lapseDue_other": "{{count}} mesures sur ordre dépassent {{days}} jours sans action au fond notée : vérifiez leur caducité.",
+      "truncated": "Seules les 200 mesures actives les plus récentes sont comptées.",
+      "open": "Ouvrir les mesures sur ordre"
+    },
+    "tabs": {
+      "label": "État des mesures",
+      "active": "En vigueur",
+      "lifted": "Levées"
+    },
+    "kinds": {
+      "suspend_account": "Suspendre un compte",
+      "suspend_content": "Suspendre un contenu",
+      "delist": "Déréférencer",
+      "pin_correction": "Épingler un correctif",
+      "origin_label": "Apposer une étiquette d’origine",
+      "restrict_feature": "Restreindre une fonction",
+      "suspend_access": "Suspendre l’accès au réseau"
+    },
+    "kindHints": {
+      "suspend_account": "Une personne est suspendue partout ; une page est mise hors ligne.",
+      "suspend_content": "Le contenu est retiré de toutes les lectures, sans être supprimé.",
+      "delist": "Retiré de la recherche, de Découvrir et des pages publiques, sans rien supprimer.",
+      "pin_correction": "Le texte ordonné s’affiche au-dessus du contenu ou du profil.",
+      "origin_label": "L’étiquette ordonnée s’affiche au-dessus du contenu ou du profil.",
+      "restrict_feature": "Article 44 : une fonction est coupée pour le réseau choisi, 72 h au plus.",
+      "suspend_access": "Article 44 : l’accès au réseau choisi est suspendu, 72 h au plus."
+    },
+    "features": {
+      "publish": "Publier (publications, partages, publications de page)",
+      "comment": "Commenter (publications et directs)",
+      "forward": "Transférer un message",
+      "live": "Lancer un direct",
+      "stories": "Publier une Story",
+      "media_upload": "Déposer un fichier"
+    },
+    "targets": {
+      "person": "Profil d’une personne",
+      "page": "Page",
+      "post": "Publication",
+      "comment": "Commentaire",
+      "story": "Story",
+      "live": "Direct",
+      "album": "Album",
+      "event": "Évènement",
+      "groupMessage": "Message de groupe",
+      "thematicGroup": "Groupe",
+      "network": "Réseau"
+    },
+    "states": {
+      "none": "Publié, sans dossier de modération",
+      "published": "Publié",
+      "pending_review": "En relecture",
+      "removed": "Retiré"
+    },
+    "open": {
+      "show": "Exécuter une mesure",
+      "title": "Exécuter une mesure sur ordre",
+      "lead": "Vérifiez la cible, saisissez la référence de l’ordonnance et ses dates, puis exécutez. La mesure prend effet tout de suite.",
+      "kind": "Genre de mesure",
+      "targetKind": "Nature de la cible",
+      "ref": "Cible",
+      "refHintHandle": "Adresse publique, par exemple @nom, ou identifiant.",
+      "refHintId": "Identifiant du contenu, relevé dans son adresse.",
+      "verify": "Vérifier la cible",
+      "previewNone": "Aucune cible ne correspond. Vérifiez la nature et l’identifiant.",
+      "previewTarget": "Cible vérifiée",
+      "previewCreated": "Créée le",
+      "previewState": "État de modération",
+      "previewActive_one": "{{count}} autre mesure est déjà active sur cette cible.",
+      "previewActive_other": "{{count}} autres mesures sont déjà actives sur cette cible.",
+      "networkMissing": "Choisissez dans la colonne le réseau visé par la mesure.",
+      "orderReference": "Référence de l’ordonnance",
+      "orderReferenceHint": "Numéro de rôle ou de minute, sans pièce jointe ni nom des parties.",
+      "startsAt": "Date d’effet ordonnée",
+      "startsAtHint": "Heure locale de ce navigateur ; au plus un mois avant l’exécution.",
+      "endsAt": "Échéance",
+      "endsAtHint": "Facultative : sans échéance, la mesure dure jusqu’à sa levée.",
+      "endsAtHintArt44": "Obligatoire : {{hours}} h au plus après la date d’effet.",
+      "feature": "Fonction restreinte",
+      "featureChoose": "Choisir une fonction",
+      "correctionText": "Texte du correctif",
+      "correctionHint": "Le texte ordonné, tel qu’il sera lu au-dessus du contenu.",
+      "originLabel": "Étiquette d’origine",
+      "originHint": "Le libellé ordonné, sur une ligne.",
+      "submit": "Exécuter maintenant",
+      "executed": "Mesure exécutée et inscrite au journal. Un autre opérateur doit la confirmer.",
+      "invalid": {
+        "required": "Ce champ est requis.",
+        "reference": "La référence doit contenir entre {{min}} et {{max}} caractères, sur une ligne.",
+        "startsAt": "La date d’effet doit être passée, au plus d’un mois.",
+        "endsAt": "L’échéance doit venir après maintenant et après la date d’effet, dans la limite d’un an.",
+        "endsAtArt44": "Une mesure de l’article 44 exige une échéance, {{hours}} h au plus après la date d’effet.",
+        "feature": "Choisissez une fonction du registre.",
+        "correction": "Le correctif doit contenir entre {{min}} et {{max}} caractères.",
+        "origin": "L’étiquette doit contenir entre {{min}} et {{max}} caractères, sur une ligne."
+      }
+    },
+    "card": {
+      "active": "En vigueur",
+      "lifted": "Levée",
+      "unknown": "Inconnu",
+      "target": "Cible",
+      "network": "Réseau",
+      "reference": "Référence de l’ordonnance",
+      "startsAt": "Date d’effet",
+      "executedAt": "Exécutée le",
+      "endsAt": "Échéance",
+      "noEnd": "Jusqu’à sa levée",
+      "confirmation": "Confirmation",
+      "confirmBefore": "À confirmer avant le",
+      "feature": "Fonction restreinte",
+      "merits": "Action au fond notée le",
+      "liftedAt": "Levée le",
+      "liftedExpired": "à son échéance",
+      "correction": "Correctif affiché",
+      "origin": "Étiquette affichée",
+      "confirmationOverdue": "Délai de confirmation dépassé : la mesure reste en vigueur, un autre opérateur doit la confirmer.",
+      "lapseDue": "Plus de {{days}} jours sans action au fond notée : vérifiez la caducité (art. 43).",
+      "confirm": "Confirmer la mesure",
+      "confirmOwn": "Un autre opérateur confirme les mesures que vous exécutez.",
+      "confirmed": "Mesure confirmée et inscrite au journal.",
+      "noteMerits": "Noter l’action au fond",
+      "meritsNoted": "Action au fond notée au journal.",
+      "lift": "Lever la mesure",
+      "liftDone": "Mesure levée et inscrite au journal.",
+      "journal": "Voir le journal de la mesure",
+      "journalHide": "Masquer le journal de la mesure"
+    }
+  },
   "federation": {
     "title": "Fédération",
     "lead": "Émetteurs, reçus, transferts de médias et lettres mortes de ce réseau. La réception technique ne prouve pas l’application d’un reflet.",
@@ -182,7 +320,8 @@
       "unsupported_media": "Image distante en attente de prise en charge",
       "source_conflict": "Référence ou révision de la source en conflit",
       "consent_required": "Accord personnel courant requis",
-      "identity_not_linked": "Identité IDN non corrélée ou accès indisponible"
+      "identity_not_linked": "Identité IDN non corrélée ou accès indisponible",
+      "prohibited_category": "Offre refusée : catégorie interdite, aucun contenu conservé"
     },
     "outcome": {
       "deduplicated": "Le reçu est déjà appliqué. Aucun traitement supplémentaire n’a été effectué.",
@@ -297,7 +436,8 @@
     "hiddenActor": "Acteur non visible",
     "subjectType": "Type de sujet : {{table}}",
     "subjectHistory": "Voir l’historique du sujet",
-    "back": "Revenir au journal"
+    "back": "Revenir au journal",
+    "orderReference": "Référence de l’ordonnance : {{reference}}"
   },
   "health": {
     "title": "Santé du réseau",
@@ -598,6 +738,16 @@
     "enable": "Rattacher {{name}} à {{emitter}}",
     "enableUnselected": "Choisissez un émetteur pour rattacher la boutique",
     "disable": "Retirer le rattachement de {{name}}"
+  },
+  "categoryRulings": {
+    "title": "Catégories encadrées : refus et relectures",
+    "lead": "Ce que la liste des catégories interdites et réglementées a décidé des offres reflétées de ce réseau. Une offre interdite n’entre ni dans la marketplace ni dans sa vitrine ; une offre réglementée fait passer sa vitrine sous la politique de relecture. Aucune ligne tant que la liste est vide : elle reste à fixer par le propriétaire et un conseil.",
+    "rule": {
+      "prohibited": "Refusée : catégorie interdite",
+      "regulated": "Réglementée : vitrine soumise à relecture"
+    },
+    "reference": "Offre {{reference}} · Révision {{revision}} · Liste version {{version}}",
+    "withdrew": "Offre déjà reflétée, retirée de la marketplace et de la vitrine."
   },
   "checkoutPolicy": {
     "title": "Préparation des commandes",

@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/functions/chats.ts (l. 503-980 et 1378-1573 : `listMessages`, `paginateMessages`, `generateAttachmentUploadUrl`, `sendMessage`, `markReadBatchForParticipant`, `markRead`, `markReadBatch`, `deleteMessage`, `editMessage`, `deleteMessageForMe`) @ ad2e7fdc2 — adaptations : participant, réseau et BLOCAGE par la garde du fil (D13 : un bloqué n'écrit plus) ; `sendMessage` réécrit — adhésion par le constructeur, débit, contenu borné par le contrat, pièces vérifiées par la garde des fichiers (`verifyDeclaredAttachments`), aperçu en nature (D39 : jugé sur les pièces VÉRIFIÉES), pastille de l'autre, par le point d'insertion unique (`appendPersonalMessage`) ; `listMessages` (fenêtre par instant, ex æquo perdus) non recopiée, la pagination native seule ; push reporté (PA5, D20) ; standard et iAsted retirés ; un événement (appel, système) ne se modifie ni ne se retire ; retrait « pour tout le monde » rembobine l'aperçu sur le dernier message survivant ou l'efface (plus de « [Message supprimé] » écrit en base) et RETIRE le contenu (`undefined`, D37) ; refus à code.
+// Dupliqué de socle/convex/functions/chats.ts (l. 503-980 et 1378-1573 : `listMessages`, `paginateMessages`, `generateAttachmentUploadUrl`, `sendMessage`, `markReadBatchForParticipant`, `markRead`, `markReadBatch`, `deleteMessage`, `editMessage`, `deleteMessageForMe`) @ ad2e7fdc2 — adaptations : participant, réseau et BLOCAGE par la garde du fil (D13 : un bloqué n'écrit plus) ; `sendMessage` réécrit — adhésion par le constructeur, débit, contenu borné par le contrat, pièces vérifiées par la garde des fichiers (`verifyDeclaredAttachments`), aperçu en nature (D39 : jugé sur les pièces VÉRIFIÉES), pastille de l'autre, par le point d'insertion unique (`appendPersonalMessage`) ; `listMessages` (fenêtre par instant, ex æquo perdus) non recopiée, la pagination native seule ; push reporté (PA5, D20) ; standard et iAsted retirés ; un événement (appel, système) ne se modifie ni ne se retire ; retrait « pour tout le monde » rembobine l'aperçu sur le dernier message survivant ou l'efface (plus de « [Message supprimé] » écrit en base) et RETIRE le contenu (`undefined`, D37) ; refus à code. ; AZ-F1 : un message retiré ou tenu par la modération ne se modifie ni ne se retire plus (refus indistinct, la ligne jugée demeure) et l'aperçu rembobiné ne remonte jamais un tel message.
 /**
  * Les messages d'un fil personnel : lire, envoyer, marquer lu, modifier,
  * retirer pour tous, masquer pour soi.
@@ -19,6 +19,7 @@ import { checked, failRule, notFound } from "../../lib/errors"
 import { networkMutation, networkQuery } from "../../lib/functions"
 import { enforceRateLimit } from "../../lib/rateLimit"
 import { guardUploadUrl } from "../../lib/uploadPolicy"
+import { canReadModeratedContent } from "../moderation/policy"
 import { attachmentFileValidator, verifyDeclaredAttachments } from "./attachmentStorage"
 import { enrichMessagePage, isPersonalMessageServedTo, type MessageDto, requireSameThreadReply, requireThread } from "./participation"
 import { adjustPersonalUnreadTotal, appendPersonalMessage, assertMessageIdempotencyKey, findIdempotentReplay, isHiddenFor, isUnreadFor, otherParticipant, previewColumns } from "./threads"
@@ -157,7 +158,8 @@ async function requireMessage(ctx: MutationCtx & { networkId: Id<"networks"> }, 
 /**
  * Retirer MON message POUR TOUT LE MONDE, dans la fenêtre d'édition. La ligne
  * demeure (`deletedAt`, contenu vidé) ; l'épingle tombe ; un non-lu de l'autre
- * sort de sa pastille ; l'aperçu se rembobine sur le dernier survivant.
+ * sort de sa pastille ; l'aperçu se rembobine sur le dernier survivant que la
+ * modération laisse lire.
  */
 export const deleteMessage = networkMutation({
   minStatus: "en_attente",
@@ -167,6 +169,8 @@ export const deleteMessage = networkMutation({
     await enforceRateLimit(ctx, "message.edit", ctx.person._id)
     const { message, thread, otherPersonId } = await requireMessage(ctx, args.messageId, ctx.person._id)
     if (message.senderPersonId !== ctx.person._id) return notFound()
+    // Le texte jugé DEMEURE : un message retiré ou tenu par la modération ne se retire plus (un recours admis le rend).
+    if (!(await canReadModeratedContent(ctx, "personalMessage", message._id))) return notFound()
     if (message.type !== undefined && message.type !== "text") return failRule("MESSAGE_NOT_EDITABLE")
     if (message.deletedAt !== undefined) return { deleted: true as const, alreadyDeleted: true }
     const now = Date.now()
@@ -180,7 +184,15 @@ export const deleteMessage = networkMutation({
         .withIndex("by_thread_createdAt", (q) => q.eq("threadId", thread._id))
         .order("desc")
         .take(5)
-      const survivor = recent.find((row) => row._id !== message._id && row.deletedAt === undefined)
+      // L'aperçu est COMMUN aux deux participants : jamais un message retiré ou tenu par la modération.
+      let survivor: Doc<"personalMessages"> | undefined
+      for (const row of recent) {
+        if (row._id === message._id || row.deletedAt !== undefined) continue
+        if (await canReadModeratedContent(ctx, "personalMessage", row._id)) {
+          survivor = row
+          break
+        }
+      }
       await ctx.db.patch(
         thread._id,
         survivor
@@ -192,7 +204,11 @@ export const deleteMessage = networkMutation({
   },
 })
 
-/** Modifier MON message dans la fenêtre d'édition ; l'aperçu suit s'il était le dernier. */
+/**
+ * Modifier MON message dans la fenêtre d'édition ; l'aperçu suit s'il était le dernier.
+ * Un message retiré ou tenu par la modération ne se modifie plus (refus indistinct) :
+ * la décision porte sur le texte jugé, et l'aperçu commun ne le republie jamais.
+ */
 export const editMessage = networkMutation({
   minStatus: "declaree",
   args: { messageId: v.id("personalMessages"), content: v.string() },
@@ -201,6 +217,7 @@ export const editMessage = networkMutation({
     await enforceRateLimit(ctx, "message.edit", ctx.person._id)
     const { message, thread } = await requireMessage(ctx, args.messageId, ctx.person._id)
     if (message.senderPersonId !== ctx.person._id) return notFound()
+    if (!(await canReadModeratedContent(ctx, "personalMessage", message._id))) return notFound()
     if (message.type !== undefined && message.type !== "text") return failRule("MESSAGE_NOT_EDITABLE")
     if (message.deletedAt !== undefined) return failRule("MESSAGE_ALREADY_DELETED")
     const now = Date.now()

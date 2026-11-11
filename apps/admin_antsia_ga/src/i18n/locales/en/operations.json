@@ -32,6 +32,7 @@
     "page": "Pages",
     "person": "Profiles",
     "live": "Live sessions",
+    "liveComment": "Live session comments",
     "story": "Stories",
     "album": "Albums",
     "serviceReview": "Service reviews",
@@ -117,6 +118,143 @@
     "uphold": "Uphold decision",
     "overturn": "Overturn decision"
   },
+  "measures": {
+    "title": "Court-ordered measures",
+    "lead": "Digital summary proceedings (ordinance No. 0011/PR/2026, art. 39 to 44): one operator executes the decision immediately, a second operator then confirms it. An unconfirmed measure stays in force and is shown as an alert.",
+    "rules": "Confirmation by another operator is expected within {{hours}} h. Feature restriction and access suspension: {{max}} h at most. Without a recorded action on the merits, lapse must be checked from day {{days}}.",
+    "alerts": {
+      "confirmationOverdue_one": "{{count}} court-ordered measure has been awaiting confirmation for more than {{hours}} h.",
+      "confirmationOverdue_other": "{{count}} court-ordered measures have been awaiting confirmation for more than {{hours}} h.",
+      "lapseDue_one": "{{count}} court-ordered measure has run more than {{days}} days without a recorded action on the merits: check whether it has lapsed.",
+      "lapseDue_other": "{{count}} court-ordered measures have run more than {{days}} days without a recorded action on the merits: check whether they have lapsed.",
+      "truncated": "Only the 200 most recent active measures are counted.",
+      "open": "Open court-ordered measures"
+    },
+    "tabs": {
+      "label": "Measure status",
+      "active": "In force",
+      "lifted": "Lifted"
+    },
+    "kinds": {
+      "suspend_account": "Suspend an account",
+      "suspend_content": "Suspend content",
+      "delist": "Delist",
+      "pin_correction": "Pin a correction",
+      "origin_label": "Apply an origin label",
+      "restrict_feature": "Restrict a feature",
+      "suspend_access": "Suspend access to the network"
+    },
+    "kindHints": {
+      "suspend_account": "A person is suspended everywhere; a page is taken offline.",
+      "suspend_content": "The content is withdrawn from every read, without being deleted.",
+      "delist": "Removed from search, Discover and public pages, with nothing deleted.",
+      "pin_correction": "The ordered text is shown above the content or profile.",
+      "origin_label": "The ordered label is shown above the content or profile.",
+      "restrict_feature": "Article 44: one feature is cut for the chosen network, 72 h at most.",
+      "suspend_access": "Article 44: access to the chosen network is suspended, 72 h at most."
+    },
+    "features": {
+      "publish": "Publish (posts, shares, page posts)",
+      "comment": "Comment (posts and lives)",
+      "forward": "Forward a message",
+      "live": "Start a live",
+      "stories": "Publish a Story",
+      "media_upload": "Upload a file"
+    },
+    "targets": {
+      "person": "A person’s profile",
+      "page": "Page",
+      "post": "Post",
+      "comment": "Comment",
+      "story": "Story",
+      "live": "Live",
+      "album": "Album",
+      "event": "Event",
+      "groupMessage": "Group message",
+      "thematicGroup": "Group",
+      "network": "Network"
+    },
+    "states": {
+      "none": "Published, no moderation case",
+      "published": "Published",
+      "pending_review": "Under review",
+      "removed": "Withdrawn"
+    },
+    "open": {
+      "show": "Execute a measure",
+      "title": "Execute a court-ordered measure",
+      "lead": "Check the target, enter the order reference and its dates, then execute. The measure takes effect immediately.",
+      "kind": "Kind of measure",
+      "targetKind": "Kind of target",
+      "ref": "Target",
+      "refHintHandle": "Public handle, for example @name, or identifier.",
+      "refHintId": "Identifier of the content, taken from its address.",
+      "verify": "Check the target",
+      "previewNone": "No target matches. Check the kind and the identifier.",
+      "previewTarget": "Checked target",
+      "previewCreated": "Created on",
+      "previewState": "Moderation state",
+      "previewActive_one": "{{count}} other measure is already active on this target.",
+      "previewActive_other": "{{count}} other measures are already active on this target.",
+      "networkMissing": "Choose the network targeted by the measure in the side column.",
+      "orderReference": "Order reference",
+      "orderReferenceHint": "Docket or minute number, with no attachment or party names.",
+      "startsAt": "Ordered effective date",
+      "startsAtHint": "This browser’s local time; at most one month before execution.",
+      "endsAt": "End date",
+      "endsAtHint": "Optional: without an end date, the measure lasts until it is lifted.",
+      "endsAtHintArt44": "Required: at most {{hours}} h after the effective date.",
+      "feature": "Restricted feature",
+      "featureChoose": "Choose a feature",
+      "correctionText": "Correction text",
+      "correctionHint": "The ordered text, as it will be read above the content.",
+      "originLabel": "Origin label",
+      "originHint": "The ordered label, on one line.",
+      "submit": "Execute now",
+      "executed": "Measure executed and recorded in the log. Another operator must confirm it.",
+      "invalid": {
+        "required": "This field is required.",
+        "reference": "The reference must contain between {{min}} and {{max}} characters, on one line.",
+        "startsAt": "The effective date must be in the past, by one month at most.",
+        "endsAt": "The end date must come after now and after the effective date, within one year.",
+        "endsAtArt44": "An article 44 measure requires an end date, at most {{hours}} h after the effective date.",
+        "feature": "Choose a feature from the register.",
+        "correction": "The correction must contain between {{min}} and {{max}} characters.",
+        "origin": "The label must contain between {{min}} and {{max}} characters, on one line."
+      }
+    },
+    "card": {
+      "active": "In force",
+      "lifted": "Lifted",
+      "unknown": "Unknown",
+      "target": "Target",
+      "network": "Network",
+      "reference": "Order reference",
+      "startsAt": "Effective date",
+      "executedAt": "Executed on",
+      "endsAt": "End date",
+      "noEnd": "Until lifted",
+      "confirmation": "Confirmation",
+      "confirmBefore": "To be confirmed before",
+      "feature": "Restricted feature",
+      "merits": "Action on the merits recorded on",
+      "liftedAt": "Lifted on",
+      "liftedExpired": "at its end date",
+      "correction": "Displayed correction",
+      "origin": "Displayed label",
+      "confirmationOverdue": "Confirmation deadline passed: the measure stays in force, another operator must confirm it.",
+      "lapseDue": "More than {{days}} days without a recorded action on the merits: check whether it has lapsed (art. 43).",
+      "confirm": "Confirm the measure",
+      "confirmOwn": "Another operator confirms the measures you execute.",
+      "confirmed": "Measure confirmed and recorded in the log.",
+      "noteMerits": "Record the action on the merits",
+      "meritsNoted": "Action on the merits recorded in the log.",
+      "lift": "Lift the measure",
+      "liftDone": "Measure lifted and recorded in the log.",
+      "journal": "Show the measure’s log",
+      "journalHide": "Hide the measure’s log"
+    }
+  },
   "federation": {
     "title": "Federation",
     "lead": "Emitters, receipts, media transfers and dead letters for this network. Technical receipt does not prove that a mirror was applied.",
@@ -182,7 +320,8 @@
       "unsupported_media": "Remote image support pending",
       "source_conflict": "Conflicting source reference or revision",
       "consent_required": "Current personal consent required",
-      "identity_not_linked": "IDN identity not correlated or access unavailable"
+      "identity_not_linked": "IDN identity not correlated or access unavailable",
+      "prohibited_category": "Offer refused: prohibited category, no content kept"
     },
     "outcome": {
       "deduplicated": "The receipt is already applied. No additional processing was performed.",
@@ -297,7 +436,8 @@
     "hiddenActor": "Hidden actor",
     "subjectType": "Subject type: {{table}}",
     "subjectHistory": "View subject history",
-    "back": "Return to audit log"
+    "back": "Return to audit log",
+    "orderReference": "Order reference: {{reference}}"
   },
   "health": {
     "title": "Network health",
@@ -598,6 +738,16 @@
     "enable": "Connect {{name}} to {{emitter}}",
     "enableUnselected": "Choose an emitter to connect the shop",
     "disable": "Remove the mapping for {{name}}"
+  },
+  "categoryRulings": {
+    "title": "Restricted categories: refusals and reviews",
+    "lead": "What the list of prohibited and regulated categories decided for the mirrored offers of this network. A prohibited offer enters neither the marketplace nor its storefront; a regulated offer places its storefront under the review policy. No rows while the list is empty: it remains to be set by the owner and an advisory board.",
+    "rule": {
+      "prohibited": "Refused: prohibited category",
+      "regulated": "Regulated: storefront under review"
+    },
+    "reference": "Offer {{reference}} · Revision {{revision}} · List version {{version}}",
+    "withdrew": "Offer already mirrored, removed from the marketplace and the storefront."
   },
   "checkoutPolicy": {
     "title": "Order preparation",

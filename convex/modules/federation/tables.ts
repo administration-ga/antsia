@@ -14,6 +14,8 @@ export const federationFailureValidator = v.union(
   v.literal("invalid_payload"), v.literal("unsupported_event"),
   v.literal("unsupported_media"), v.literal("source_conflict"),
   v.literal("consent_required"), v.literal("identity_not_linked"),
+  // CM-02 : offre de catégorie interdite, lettre morte sans corps (`isContentFreeFederationFailure`).
+  v.literal("prohibited_category"),
 )
 
 export const federationTables = {

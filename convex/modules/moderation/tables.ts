@@ -6,6 +6,7 @@
  */
 import { CONTENT_REPORT_REASONS, CONTENT_REPORT_STATUSES, REPORT_LEGAL_BASES } from "@antsia/social-domain/moderation"
 import { MODERATION_SURFACES, SANCTION_KINDS } from "@antsia/social-domain/moderationPolicy"
+import { JUDICIAL_LIFT_CAUSES, JUDICIAL_MEASURE_KINDS, JUDICIAL_MEASURE_STATUSES, JUDICIAL_TARGET_KINDS, RESTRICTABLE_FEATURES } from "@antsia/social-domain/judicialMeasures"
 import { defineTable } from "convex/server"
 import { v } from "convex/values"
 
@@ -31,6 +32,8 @@ export const moderationTargetValidator = v.union(
   v.object({ kind: v.literal("page"), id: v.id("pages") }),
   v.object({ kind: v.literal("person"), id: v.id("persons") }),
   v.object({ kind: v.literal("live"), id: v.id("liveSessions") }),
+  // DL-03 (plan 04) : le commentaire d'un direct — signalable, et relu à l'écriture comme un commentaire du fil.
+  v.object({ kind: v.literal("liveComment"), id: v.id("liveComments") }),
   v.object({ kind: v.literal("story"), id: v.id("stories") }),
   v.object({ kind: v.literal("album"), id: v.id("albums") }),
   v.object({ kind: v.literal("serviceReview"), id: v.id("serviceReviews") }),
@@ -144,4 +147,55 @@ export const moderationTables = {
     // Les signalements d'une publication (cascade de la suppression d'un groupe).
     .index("by_post", ["postId"])
     .index("by_reportId", ["reportId"]),
+  /**
+   * SU01h (ordonnance n° 0011/PR/2026, art. 39 à 44) — une mesure sur ordre du juge (référé numérique),
+   * exécutée tout de suite par un opérateur et confirmée ensuite par un SECOND (décision du propriétaire
+   * du 9/11/2026). La cible : un contenu ou un compte de la modération, ou un réseau (art. 44). La référence
+   * de l'ordonnance est bornée, sans pièce jointe ; le correctif et l'étiquette d'origine sont le texte
+   * ordonné, borné. `subjectPersonId` : la personne visée (le compte, ou l'auteur du contenu), qui voit la
+   * mesure dans `/mes-donnees`. `effects` : ce que CETTE mesure a changé (suspension racine, page hors
+   * ligne, contenu retiré), à défaire à la levée ou à transmettre à une mesure encore vivante sur la même
+   * cible. Le motif de chaque geste vit dans le journal (`engineAudit`), pas ici.
+   */
+  judicialMeasures: defineTable({
+    networkId: v.id("networks"),
+    kind: literals(JUDICIAL_MEASURE_KINDS),
+    target: v.union(...moderationTargetValidator.members, v.object({ kind: v.literal("network"), id: v.id("networks") })),
+    targetKind: literals(JUDICIAL_TARGET_KINDS),
+    targetId: v.string(),
+    subjectPersonId: v.optional(v.id("persons")),
+    orderReference: v.string(),
+    feature: v.optional(literals(RESTRICTABLE_FEATURES)),
+    correctionText: v.optional(v.string()),
+    originLabel: v.optional(v.string()),
+    status: literals(JUDICIAL_MEASURE_STATUSES),
+    startsAt: v.number(),
+    endsAt: v.optional(v.number()),
+    executedAt: v.number(),
+    createdByPersonId: v.id("persons"),
+    confirmedAt: v.optional(v.number()),
+    confirmedByPersonId: v.optional(v.id("persons")),
+    meritsActionNotedAt: v.optional(v.number()),
+    effects: v.object({ membershipSuspended: v.boolean(), pageDeactivated: v.boolean(), contentRemoved: v.boolean() }),
+    liftedAt: v.optional(v.number()),
+    liftCause: v.optional(literals(JUDICIAL_LIFT_CAUSES)),
+    liftedByPersonId: v.optional(v.id("persons")),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    // La levée à l'échéance (passage d'une minute) ; `endsAt` absent : jusqu'à mainlevée ou caducité.
+    .index("by_status_endsAt", ["status", "endsAt"])
+    // La purge des mesures levées, au terme de la conservation.
+    .index("by_status_liftedAt", ["status", "liftedAt"])
+    // Les gardes : ce qui tient une cible (compte, page, contenu, réseau).
+    .index("by_target_status", ["targetKind", "targetId", "status"])
+    // Les mesures d'un genre (déréférencements, restrictions et suspensions d'accès vivants).
+    .index("by_kind_status", ["kind", "status"])
+    .index("by_status_createdAt", ["status", "createdAt"])
+    .index("by_network_createdAt", ["networkId", "createdAt"])
+    // « Mes données » : les mesures qui visent la personne, la plus récente d'abord.
+    .index("by_subject_createdAt", ["subjectPersonId", "createdAt"]),
 }
+
+/** SU01h : la cible d'une mesure sur ordre du juge — un contenu ou un compte de la modération, ou un réseau. */
+export const judicialMeasureTargetValidator = moderationTables.judicialMeasures.validator.fields.target

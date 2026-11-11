@@ -45,8 +45,9 @@ beforeEach(() => {
 afterEach(cleanup)
 
 describe("report-target — les natures et leurs titres", () => {
-  it("couvre les treize objets de la liste du plan, et titre chacun en français et en anglais", () => {
-    expect(REPORT_TARGET_KINDS).toHaveLength(13)
+  it("couvre les treize objets de la liste du plan 12 et le commentaire de direct (DL-03), et titre chacun en français et en anglais", () => {
+    expect(REPORT_TARGET_KINDS).toHaveLength(14)
+    expect(REPORT_TARGET_KINDS).toContain("liveComment")
     const titles = (catalog: { reportContentDialog: { title: Record<string, string> } }) => catalog.reportContentDialog.title
     for (const kind of REPORT_DIALOG_KINDS) {
       expect(titles(fr)[kind], `fr : ${kind}`).toMatch(/^Signaler /)

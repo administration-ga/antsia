@@ -614,3 +614,77 @@ describe("politique de dépôt sur le harnais", () => {
     expect((await scanOf(t, storageId))?.filename).toBe("plus-tard.pdf")
   })
 })
+
+describe("AZ-F1 — qui tranche sur un fichier retenu", () => {
+  async function suspicious(t: T, networkId: Id<"networks">, uploaderId: Id<"persons">) {
+    const storageId = await store(t, PNG, "application/pdf")
+    const { scanId } = await admit(t, storageId, "application/pdf", { networkId, uploadedByPersonId: uploaderId, filename: "faux.pdf" })
+    await runScan(t, scanId)
+    expect((await scanOf(t, storageId))?.status).toBe("suspicious")
+    return { storageId, scanId }
+  }
+
+  it("un opérateur sans session de console scellée et journalisée ne libère ni ne lit le rapport (refus indistinct)", async () => {
+    const t = testConvex()
+    const rootId = await seedRoot(t)
+    const uploader = await member(t, rootId, "deposante")
+    // Inscrit opérateur, mais entré à antsia.ga par un simple code : aucune preuve de session IDN.
+    const bare = await member(t, rootId, "operateur-sans-session")
+    await t.run(async (ctx) => {
+      await ctx.db.insert("operators", { personId: bare.personId, role: "platform_operator", grantedAt: Date.now() })
+    })
+    // Session scellée par IDN, mais accès à la console jamais journalisé.
+    const unlogged = await operator(t, rootId, "operateur-non-journalise")
+    const proofs = await t.run(async (ctx) => {
+      // La seule preuve de session du test est la sienne.
+      const rows = await ctx.db.query("operatorSessionProofs").take(2)
+      for (const proof of rows) await ctx.db.patch(proof._id, { accessLoggedAt: undefined })
+      return rows.length
+    })
+    expect(proofs).toBe(1)
+    const { storageId, scanId } = await suspicious(t, rootId, uploader.personId)
+    for (const who of [bare, unlogged]) {
+      expect(engineErrorCode(await caught(who.as.mutation(api.modules.files.mutations.releaseScan, { scanId, reason: "Faux positif" })))).toBe("notFound")
+      expect(engineErrorCode(await caught(who.as.query(api.modules.files.queries.getScan, { scanId })))).toBe("notFound")
+    }
+    expect(await scanOf(t, storageId)).toMatchObject({ status: "suspicious" })
+    expect(await auditOf(t, scanId)).toEqual([])
+  })
+
+  it("un modérateur d'un réseau fermé suspendu à la racine ne libère plus les fichiers de ce réseau", async () => {
+    const t = testConvex()
+    const { root: rootId, testClosed } = await t.mutation(internal.seeds.foundations.run, { confirmNonProduction: SEED_CONFIRMATION })
+    const uploader = await member(t, rootId, "deposant")
+    const moderator = await member(t, rootId, "moderatrice-suspendue")
+    await t.run(async (ctx) => {
+      for (const person of [uploader, moderator]) {
+        await ctx.db.insert("networkMemberships", { networkId: testClosed, personId: person.personId, status: "declaree", role: person === moderator ? "network_moderator" : "member", joinedAt: 1, statusChangedAt: 1 })
+      }
+    })
+    const { storageId, scanId } = await suspicious(t, testClosed, uploader.personId)
+    // Avant la suspension, elle lit le rapport : le refus qui suit vient bien de la suspension.
+    expect((await moderator.as.query(api.modules.files.queries.getScan, { scanId }))._id).toBe(scanId)
+    // Suspendue partout : seule l'adhésion RACINE change, son adhésion locale reste `declaree`.
+    await t.run(async (ctx) => {
+      const row = await ctx.db.query("networkMemberships").withIndex("by_network_and_person", (q) => q.eq("networkId", rootId).eq("personId", moderator.personId)).unique()
+      if (row) await ctx.db.patch(row._id, { status: "suspendue", statusBeforeSuspension: "declaree" })
+    })
+    expect(engineErrorCode(await caught(moderator.as.mutation(api.modules.files.mutations.releaseScan, { scanId, reason: "Faux positif" })))).toBe("notFound")
+    expect(engineErrorCode(await caught(moderator.as.query(api.modules.files.queries.getScan, { scanId })))).toBe("notFound")
+    expect(await scanOf(t, storageId)).toMatchObject({ status: "suspicious" })
+    expect(await auditOf(t, scanId)).toEqual([])
+  })
+
+  it("l'état d'un fichier ne se lit que dans son réseau ou par son déposant ; ailleurs, la réponse d'un fichier inconnu", async () => {
+    vi.useFakeTimers()
+    const t = testConvex()
+    const { root: rootId, testClosed } = await t.mutation(internal.seeds.foundations.run, { confirmNonProduction: SEED_CONFIRMATION })
+    const uploader = await member(t, rootId, "deposante")
+    const other = await member(t, rootId, "autre")
+    const storageId = await store(t, PDF, "application/pdf")
+    await admit(t, storageId, "application/pdf", { networkId: testClosed, uploadedByPersonId: uploader.personId })
+    const unknown = await store(t, PDF, "application/pdf")
+    expect(await other.as.query(api.modules.files.queries.statusByStorageIds, { networkId: rootId, storageIds: [storageId, unknown] })).toEqual([{ storageId, status: null }, { storageId: unknown, status: null }])
+    expect(await uploader.as.query(api.modules.files.queries.statusByStorageIds, { networkId: rootId, storageIds: [storageId] })).toEqual([{ storageId, status: "pending" }])
+  })
+})

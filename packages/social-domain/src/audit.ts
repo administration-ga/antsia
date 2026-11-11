@@ -34,6 +34,9 @@ export const AUDIT_ACTIONS = [
   "moderation.team_create", "moderation.team_member_set", "moderation.policy_set", "moderation.term_set",
   "moderation.appeal_file", "moderation.appeal_decide", "moderation.content_review",
   "moderation.sanction_expire", "moderation.transparency_compute",
+  // SU01h : mesures sur ordre du juge (référé numérique, art. 39 à 44) — exécution par un opérateur,
+  // confirmation par un second, action au fond notée, levée motivée ou à l'échéance (système).
+  "judicial.measure_open", "judicial.measure_confirm", "judicial.merits_action_note", "judicial.measure_lift", "judicial.measure_expire",
   "data.erasure_request", "data.erasure_cancel", "data.erasure_complete", "data.export_request",
   "federation.emitter_set", "federation.replay", "federation.media_retry",
   "federation.agent_consent", "federation.agent_withdraw",
@@ -91,7 +94,7 @@ export const AUDIT_CAPACITIES = ["platform_admin", "platform_operator", "network
 export type AuditCapacity = (typeof AUDIT_CAPACITIES)[number]
 
 /** Les tables qu'une décision peut viser — une référence, jamais un contenu. */
-export const AUDIT_SUBJECT_TABLES = ["networks", "networkArchiveRequests", "operators", "consoleIncidents", "consoleMetrics", "persons", "fileScans", "contentReports", "posts", "pages", "pageClaims", "reports", "moderationTeams", "sanctions", "appeals", "moderationPolicies", "blockedTerms", "moderationContentStates", "moderationTransparency", "dataErasureJobs", "dataExports", "federationEmitters", "federationDeadLetters", "mirrors", "shops"] as const
+export const AUDIT_SUBJECT_TABLES = ["networks", "networkArchiveRequests", "operators", "consoleIncidents", "consoleMetrics", "persons", "fileScans", "contentReports", "posts", "pages", "pageClaims", "reports", "moderationTeams", "sanctions", "appeals", "moderationPolicies", "blockedTerms", "moderationContentStates", "moderationTransparency", "dataErasureJobs", "dataExports", "federationEmitters", "federationDeadLetters", "mirrors", "shops", "judicialMeasures"] as const
 export type AuditSubjectTable = (typeof AUDIT_SUBJECT_TABLES)[number]
 
 export type AuditSubject = { table: AuditSubjectTable; id: string }
