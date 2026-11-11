@@ -4,7 +4,7 @@ import { I18nextProvider } from "react-i18next"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { createAppI18n, type Locale } from "../../i18n"
-import { IdentityEntry, identityErrorKey, type IdentityAuthClient, type IdentityEntryProps } from "./IdentityEntry"
+import { IdentityEntry, identityErrorKey, identityErrorMessage, type IdentityAuthClient, type IdentityEntryProps } from "./IdentityEntry"
 
 const configuration = { idn: true, emailOtp: true, smsOtp: true, localCodes: false }
 
@@ -288,4 +288,81 @@ describe("IdentityEntry — codes et retours utilisateur", () => {
 
 describe("identityErrorKey — codes publics seulement", () => {
   it.each([[{ code: "OTP_EXPIRED" }, "errors.expiredCode"], [{ code: "OTP_NOT_FOUND" }, "errors.expiredCode"], [{ status: 429 }, "errors.rateLimited"], [{ code: "TOO_MANY_ATTEMPTS" }, "errors.rateLimited"], [{ code: "otpDeliveryUnavailable" }, "errors.deliveryUnavailable"], [{ code: "INVALID_PHONE_NUMBER" }, "errors.invalidPhone"], [new TypeError("private transport details"), "errors.network"], [{ message: "private provider details" }, "errors.generic"]])("traduit le refus %j sans exposer son texte", (error, key) => { expect(identityErrorKey(error)).toBe(key) })
+})
+
+describe("EA-08 — durée du code publiée et délai d'un refus de débit", () => {
+  /** Le refus `rateLimited` du moteur tel que le client Better Auth le rend : son corps, plus le statut. */
+  const rateLimited = (retryAfterMs?: number) => ({ code: "rateLimited", message: "rateLimited", ...(retryAfterMs === undefined ? {} : { retryAfterMs }), status: 429, statusText: "Too Many Requests" })
+
+  it("l'indice du code dit la durée publiée par le moteur, en minutes, au pluriel juste", async () => {
+    const tenMinutes = mount({ configuration: { ...configuration, otpTtlSeconds: 600 } })
+    await enterEmail()
+    expect(screen.getByLabelText("Code à six chiffres")).toHaveAccessibleDescription("Le code est valable 10 minutes et ne peut être utilisé qu’une fois.")
+    tenMinutes.unmount()
+    const oneMinute = mount({ configuration: { ...configuration, otpTtlSeconds: 60 } })
+    await enterEmail()
+    expect(screen.getByLabelText("Code à six chiffres")).toHaveAccessibleDescription("Le code est valable 1 minute et ne peut être utilisé qu’une fois.")
+    oneMinute.unmount()
+    mount({ configuration: { ...configuration, otpTtlSeconds: 120 } }, "en")
+    fireEvent.change(screen.getByLabelText("Email address"), { target: { value: "awa@example.ga" } })
+    fireEvent.click(screen.getByRole("button", { name: "Receive a code" }))
+    expect(await screen.findByLabelText("Six-digit code")).toHaveAccessibleDescription("The code is valid for 2 minutes and can only be used once.")
+  })
+
+  it("un moteur qui ne publie pas la durée garde les cinq minutes d'aujourd'hui", async () => {
+    mount()
+    await enterEmail()
+    expect(screen.getByLabelText("Code à six chiffres")).toHaveAccessibleDescription("Le code est valable 5 minutes et ne peut être utilisé qu’une fois.")
+  })
+
+  it("un envoi refusé par le seau dit quand réessayer, sans quitter les coordonnées", async () => {
+    const authClient = client()
+    authClient.emailOtp.sendVerificationOtp.mockResolvedValueOnce({ data: null, error: rateLimited(100_000) } as unknown as Awaited<ReturnType<typeof authClient.emailOtp.sendVerificationOtp>>)
+    mount({ authClient })
+    fireEvent.change(screen.getByLabelText("Adresse e-mail"), { target: { value: "awa@example.ga" } })
+    fireEvent.click(screen.getByRole("button", { name: "Recevoir un code" }))
+    expect(await screen.findByRole("alert")).toHaveTextContent("Trop de tentatives. Réessayez dans 2 minutes.")
+    expect(screen.queryByLabelText("Code à six chiffres")).not.toBeInTheDocument()
+    expect(screen.getByLabelText("Adresse e-mail")).toHaveValue("awa@example.ga")
+  })
+
+  it("une connexion refusée par le seau dit le délai en secondes sous la minute, en anglais aussi", async () => {
+    const french = client()
+    french.signIn.emailOtp.mockResolvedValueOnce({ data: null, error: rateLimited(8_200) } as unknown as Awaited<ReturnType<typeof french.signIn.emailOtp>>)
+    const { onAuthenticated, unmount } = mount({ authClient: french })
+    await enterEmail()
+    fireEvent.change(screen.getByLabelText("Code à six chiffres"), { target: { value: "123456" } })
+    fireEvent.click(screen.getByRole("button", { name: "Me connecter" }))
+    expect(await screen.findByRole("alert")).toHaveTextContent("Trop de tentatives. Réessayez dans 9 secondes.")
+    expect(onAuthenticated).not.toHaveBeenCalled()
+    unmount()
+    const english = client()
+    english.signIn.emailOtp.mockResolvedValueOnce({ data: null, error: rateLimited(60_000) } as unknown as Awaited<ReturnType<typeof english.signIn.emailOtp>>)
+    mount({ authClient: english }, "en")
+    fireEvent.change(screen.getByLabelText("Email address"), { target: { value: "awa@example.ga" } })
+    fireEvent.click(screen.getByRole("button", { name: "Receive a code" }))
+    fireEvent.change(await screen.findByLabelText("Six-digit code"), { target: { value: "123456" } })
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }))
+    expect(await screen.findByRole("alert")).toHaveTextContent("Too many attempts. Try again in 1 minute.")
+  })
+
+  it("un refus de débit sans délai lisible garde la phrase d'avant", async () => {
+    const authClient = client()
+    authClient.emailOtp.sendVerificationOtp.mockResolvedValueOnce({ data: null, error: rateLimited() } as unknown as Awaited<ReturnType<typeof authClient.emailOtp.sendVerificationOtp>>)
+    mount({ authClient })
+    fireEvent.change(screen.getByLabelText("Adresse e-mail"), { target: { value: "awa@example.ga" } })
+    fireEvent.click(screen.getByRole("button", { name: "Recevoir un code" }))
+    expect(await screen.findByRole("alert")).toHaveTextContent("Trop de tentatives. Patientez avant de réessayer.")
+  })
+
+  it.each([
+    [rateLimited(100_000), { key: "errors.rateLimitedMinutes", count: 2 }],
+    [rateLimited(1_000), { key: "errors.rateLimitedSeconds", count: 1 }],
+    [rateLimited(), { key: "errors.rateLimited" }],
+    [{ code: "TOO_MANY_ATTEMPTS", retryAfterMs: 60_000 }, { key: "errors.rateLimited" }],
+    [{ code: "INVALID_OTP", retryAfterMs: 60_000 }, { key: "errors.invalidCode" }],
+    [new TypeError("rateLimited"), { key: "errors.network" }],
+  ])("identityErrorMessage(%j) ne lit le délai que d'un refus de débit", (error, message) => {
+    expect(identityErrorMessage(error)).toEqual(message)
+  })
 })

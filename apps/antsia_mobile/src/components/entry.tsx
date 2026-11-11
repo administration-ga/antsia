@@ -10,7 +10,7 @@ import { nativeRequest } from "@antsia/social-native/request"
 import { BRAND_NAME } from "@antsia/social-contracts/brand"
 import { useNativeAppearance } from "../appearance"
 import { nativeFieldLabel } from "../lib/accessibility"
-import { NATIVE_OTP_COOLDOWN_MS, nativeEntryChannel, nativeEntryError, nativeEntryText, nativeOtpCooldownKey, nativeOtpRemaining, nativeOtpSendAccepted, type NativeEntryChannel, type NativeEntryIntent, type NativePublicLegalKind } from "../lib/native-entry-model"
+import { NATIVE_OTP_COOLDOWN_MS, nativeEntryChannel, nativeEntryRefusal, nativeEntryText, nativeOtpCodeHint, nativeOtpCooldownKey, nativeOtpRemaining, nativeOtpSendAccepted, nativePluralKey, type NativeEntryChannel, type NativeEntryIntent, type NativeEntryMessage, type NativePublicLegalKind } from "../lib/native-entry-model"
 import type { NativeSessionController } from "../lib/session-controller"
 import { NativeIcon, type NativeIconName } from "./icon"
 import { Status } from "./ui"
@@ -40,7 +40,7 @@ export function NativeEntry({ controller, webUrl, scheme, intent, onRegistration
   const [method, setMethod] = useState<NativeEntryChannel>("email"), channel = nativeEntryChannel(method, configuration)
   const [destination, setDestination] = useState<Destination | null>(null)
   const [pendingKind, setPending] = useState<"send" | "verify" | "resend" | null>(null)
-  const [error, setError] = useState<string | null>(null), [notice, setNotice] = useState<string | null>(null)
+  const [error, setError] = useState<NativeEntryMessage | null>(null), [notice, setNotice] = useState<string | null>(null)
   const [cooldownUntil, setCooldownUntil] = useState(0), [now, setNow] = useState(Date.now)
   const cooldowns = useRef(new Map<string, number>()), pending = useRef(false), alive = useRef(true)
   const entryId = useId(), signUp = localIntent === "sign-up", busy = pendingKind !== null || controller.idnBusy
@@ -51,22 +51,24 @@ export function NativeEntry({ controller, webUrl, scheme, intent, onRegistration
   const contact = useForm<{ identifier: string }>({ resolver: zodResolver(schema), defaultValues: { identifier: "" } })
   const code = useForm<{ code: string }>({ resolver: zodResolver(z.object({ code: z.string().trim().regex(/^\d{6}$/, t("mobile.entry.identity.errors.codeFormat")) })), defaultValues: { code: "" } })
   const remaining = nativeOtpRemaining(cooldownUntil, now), channelReady = channel === "email" ? configuration?.emailOtp === true : configuration?.smsOtp === true
+  // EA-08 : un message qui porte son compte (durée du code, délai d'un refus de débit) prend sa forme plurielle.
+  const say = (message: NativeEntryMessage) => message.count === undefined ? text(message.key, { count: remaining }) : text(nativePluralKey(message.key, message.count, locale), { count: message.count })
   const perform = async (kind: NonNullable<typeof pendingKind>, work: () => Promise<void>) => {
     if (controller.idnBusy || pending.current) return
     pending.current = true; setPending(kind); setError(null); setNotice(null)
-    try { await work() } catch (failure) { if (alive.current) setError(nativeEntryError(failure)) }
+    try { await work() } catch (failure) { if (alive.current) setError(nativeEntryRefusal(failure)) }
     finally { pending.current = false; if (alive.current) setPending(null) }
   }
   const sendTo = async (target: Destination): Promise<boolean> => {
     if (!configuration || !(target.channel === "email" ? configuration.emailOtp : configuration.smsOtp)) return false
     const key = nativeOtpCooldownKey(target.channel, target.identifier), deadline = cooldowns.current.get(key) ?? 0
-    if (deadline > Date.now()) { if (alive.current) { setCooldownUntil(deadline); setNow(Date.now()); setError("mobile.entry.identity.cooldown") }; return false }
+    if (deadline > Date.now()) { if (alive.current) { setCooldownUntil(deadline); setNow(Date.now()); setError({ key: "mobile.entry.identity.cooldown" }) }; return false }
     const response = target.channel === "email"
       ? await nativeRequest(signal => controller.auth.emailOtp.sendVerificationOtp({ email: target.identifier, type: "sign-in", fetchOptions: { signal, headers: { "Accept-Language": locale }, throw: false } }))
       : await nativeRequest(signal => controller.auth.phoneNumber.sendOtp({ phoneNumber: target.identifier, fetchOptions: { signal, headers: { "Accept-Language": locale }, throw: false } }))
     if (!alive.current) return false
-    if (response.error) { setError(nativeEntryError(response.error)); return false }
-    if (!nativeOtpSendAccepted(target.channel, response)) { setError("mobile.entry.identity.errors.generic"); return false }
+    if (response.error) { setError(nativeEntryRefusal(response.error)); return false }
+    if (!nativeOtpSendAccepted(target.channel, response)) { setError({ key: "mobile.entry.identity.errors.generic" }); return false }
     const nextDeadline = Date.now() + NATIVE_OTP_COOLDOWN_MS
     if (cooldowns.current.size >= 8 && !cooldowns.current.has(key)) cooldowns.current.delete(cooldowns.current.keys().next().value ?? "")
     cooldowns.current.set(key, nextDeadline); setCooldownUntil(nextDeadline); setNow(Date.now())
@@ -81,8 +83,8 @@ export function NativeEntry({ controller, webUrl, scheme, intent, onRegistration
         ? await nativeRequest(signal => controller.auth.signIn.emailOtp({ email: destination.identifier, otp, fetchOptions: { signal, throw: false } }))
         : await nativeRequest(signal => controller.auth.phoneNumber.verify({ phoneNumber: destination.identifier, code: otp, fetchOptions: { signal, throw: false } }))
       if (!alive.current) return
-      if (controller.vault.generation !== generation) { if (!controller.vault.hasCredential) setError("mobile.entry.identity.errors.generic"); return }
-      if (response.error || !controller.vault.hasCredential) { controller.vault.fence(); setError(response.error ? nativeEntryError(response.error) : "mobile.entry.identity.errors.generic"); return }
+      if (controller.vault.generation !== generation) { if (!controller.vault.hasCredential) setError({ key: "mobile.entry.identity.errors.generic" }); return }
+      if (response.error || !controller.vault.hasCredential) { controller.vault.fence(); setError(response.error ? nativeEntryRefusal(response.error) : { key: "mobile.entry.identity.errors.generic" }); return }
       code.reset(); await controller.resume()
     } catch (failure) { if (alive.current && controller.vault.generation === generation) controller.vault.fence(); throw failure }
   }))()
@@ -102,7 +104,7 @@ export function NativeEntry({ controller, webUrl, scheme, intent, onRegistration
     <View style={{ gap: 12, width: "100%", maxWidth: 420, alignSelf: "center", padding: 20, borderWidth: 1, borderColor: tokens.border, borderRadius: tokens.radiusCard, backgroundColor: tokens.card }}>
       <Text variant="display" accessibilityRole="header" style={{ color: tokens.foreground, fontSize: 20, lineHeight: 26, fontWeight: "600" }}>{destination ? t("mobile.entry.identity.codeTitle") : text(signUp ? "mobile.entry.access.signUpTitle" : "mobile.entry.access.signInTitle")}</Text>
       {destination ? <Text style={{ color: tokens.mutedForeground, fontSize: 14, lineHeight: 20 }}>{text("mobile.entry.identity.codeLead", { identifier: destination.identifier })}</Text> : signUp ? <Text style={{ color: tokens.mutedForeground, fontSize: 14, lineHeight: 20 }}>{t("mobile.entry.access.signUpLead")}</Text> : null}
-      <Status label={error ? text(error, { count: remaining }) : controller.idnError ? t("mobile.entry.identity.errors.generic") : ""} error={error !== null || controller.idnError} />
+      <Status label={error ? say(error) : controller.idnError ? t("mobile.entry.identity.errors.generic") : ""} error={error !== null || controller.idnError} />
       <Status label={notice ? t(notice) : ""} />
       <Status busy={configuration === undefined} label={configuration === undefined ? t("mobile.entry.identity.loading") : configuration === null ? t("mobile.entry.identity.configurationUnavailable") : ""} error={configuration === null} />
       {!destination ? <>
@@ -121,7 +123,7 @@ export function NativeEntry({ controller, webUrl, scheme, intent, onRegistration
       </> : <>
         <Text style={{ color: tokens.foreground, fontSize: 14, fontWeight: "500" }}>{t("mobile.entry.identity.codeLabel")}</Text>
         <Controller control={code.control} name="code" render={({ field }) => <TextInput ref={field.ref} accessibilityLabel={nativeFieldLabel(t("mobile.entry.identity.codeLabel"), codeError)} accessibilityState={{ disabled: busy }} value={field.value} onChangeText={field.onChange} onBlur={field.onBlur} editable={!busy} autoCorrect={false} keyboardType="number-pad" textContentType="oneTimeCode" maxLength={6} style={{ ...inputStyle, letterSpacing: 5, fontSize: 20 }} />} />
-        <Text style={{ color: tokens.mutedForeground, fontSize: 12, lineHeight: 18 }}>{t("mobile.entry.identity.codeHint")}</Text>
+        <Text style={{ color: tokens.mutedForeground, fontSize: 12, lineHeight: 18 }}>{say(nativeOtpCodeHint(configuration))}</Text>
         {codeError ? <Status error label={codeError} /> : null}
         <EntryAction icon="key" label={t(pendingKind === "verify" ? "mobile.entry.identity.verifying" : "mobile.entry.identity.verify")} busy={pendingKind === "verify"} disabled={busy} onPress={() => { void verify() }} />
         <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", gap: 4 }}>

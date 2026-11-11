@@ -1,9 +1,42 @@
 /** Native counterparts of the Web IdentityEntry presentation rules; no session authority. */
+import { authRetryAfterMs, authRetryDelay, otpTtlMinutes } from "@antsia/social-contracts/authentication"
+
 export type NativeEntryChannel = "email" | "phone"
 export type NativeEntryIntent = "sign-in" | "sign-up"
 export type NativePublicLegalKind = "about" | "legal" | "privacy"
-export type NativeEntryConfiguration = { idn: boolean; emailOtp: boolean; smsOtp: boolean }
+export type NativeEntryConfiguration = {
+  idn: boolean; emailOtp: boolean; smsOtp: boolean
+  /** EA-08 : la durée de validité d'un code publiée par le moteur, en secondes ; absente chez un moteur plus ancien. */
+  otpTtlSeconds?: number
+}
 export const NATIVE_OTP_COOLDOWN_MS = 60_000
+
+/** Un message de l'entrée : sa clé, et le compte qui en choisit la forme plurielle quand il en porte un. */
+export type NativeEntryMessage = { key: string; count?: number }
+
+/**
+ * Le traducteur natif est un dictionnaire plat, sans pluriel (`appearance.tsx`) : la forme se
+ * choisit ici, pour les deux langues du moteur et un compte entier positif — « one » pour 1
+ * (et 0 en français), « other » au-delà.
+ */
+export function nativePluralKey(key: string, count: number, locale: "fr" | "en"): string {
+  const one = locale === "fr" ? count >= 0 && count < 2 : count === 1
+  return `${key}_${one ? "one" : "other"}`
+}
+
+/** EA-08 — l'indice du code : la durée publiée par le moteur, en minutes ; cinq à défaut (moteur plus ancien). */
+export function nativeOtpCodeHint(configuration: NativeEntryConfiguration | null | undefined): NativeEntryMessage {
+  return { key: "mobile.entry.identity.codeHint", count: otpTtlMinutes(configuration?.otpTtlSeconds) }
+}
+
+/** EA-08 — le refus à dire ; un refus de débit qui porte son délai restant (`retryAfterMs`) le dit, en secondes ou en minutes. */
+export function nativeEntryRefusal(error: unknown): NativeEntryMessage {
+  const key = nativeEntryError(error)
+  const retryAfterMs = key === "mobile.entry.identity.errors.rateLimited" ? authRetryAfterMs(error) : null
+  if (retryAfterMs === null) return { key }
+  const delay = authRetryDelay(retryAfterMs)
+  return { key: delay.unit === "seconds" ? "mobile.entry.identity.errors.rateLimitedSeconds" : "mobile.entry.identity.errors.rateLimitedMinutes", count: delay.count }
+}
 
 export function nativeEntryChannel(selected: NativeEntryChannel, configuration: NativeEntryConfiguration | null | undefined): NativeEntryChannel {
   return selected === "email" && configuration?.emailOtp === false && configuration.smsOtp ? "phone" : selected
