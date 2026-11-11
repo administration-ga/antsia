@@ -8,6 +8,7 @@
  * l'administration du réseau. Données de fixture fictives.
  */
 import { engineErrorCode } from "@antsia/social-contracts/errors"
+import { MODERATION_POLICY_DEFAULTS } from "@antsia/social-domain/moderationPolicy"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { api, internal } from "../../_generated/api"
@@ -172,18 +173,18 @@ describe("myDesk — la compétence vivante, sans divulgation", () => {
     const f = await fixture()
     expect(await f.reader.as.query(D.myDesk, { networkId: f.network, expectedPersonId: f.reader.personId })).toBeNull()
     expect(await f.moderator.as.query(D.myDesk, { networkId: f.network, expectedPersonId: f.moderator.personId })).toEqual({
-      role: "network_moderator", networkWide: true, canReviewAppeals: false, canManageTeams: false, teams: [],
+      role: "network_moderator", networkWide: true, canReviewAppeals: false, canManageTeams: false, canManagePolicy: false, teams: [],
     })
     const teamId = await f.t.run(async (ctx) => ctx.db.insert("moderationTeams", { networkId: f.network, name: "France (fixture)", active: true, createdAt: NOW }))
     expect(await f.admin.as.query(D.myDesk, { networkId: f.network, expectedPersonId: f.admin.personId })).toEqual({
-      role: "network_admin", networkWide: true, canReviewAppeals: true, canManageTeams: true,
+      role: "network_admin", networkWide: true, canReviewAppeals: true, canManageTeams: true, canManagePolicy: true,
       teams: [{ teamId, name: "France (fixture)", scope: null, isMember: false }],
     })
     // Un modérateur réseau hors de l'équipe ne la voit pas : aucun coéquipier n'est révélé.
     expect((await f.moderator.as.query(D.myDesk, { networkId: f.network, expectedPersonId: f.moderator.personId }))?.teams).toEqual([])
     await f.t.run(async (ctx) => ctx.db.insert("moderationTeamMembers", { networkId: f.network, teamId, personId: f.reader.personId, active: true, updatedAt: NOW }))
     expect(await f.reader.as.query(D.myDesk, { networkId: f.network, expectedPersonId: f.reader.personId })).toEqual({
-      role: "team_member", networkWide: false, canReviewAppeals: false, canManageTeams: false,
+      role: "team_member", networkWide: false, canReviewAppeals: false, canManageTeams: false, canManagePolicy: false,
       teams: [{ teamId, name: "France (fixture)", scope: null, isMember: true }],
     })
   })
@@ -512,5 +513,111 @@ describe("recours du réseau — à l'administration seule, par pays", () => {
 
     await f.admin.as.mutation(CASES.reviewNetworkAppeal, { networkId: f.network, appealId: ids.appealId, overturn: false, reason: "Décision confirmée après examen indépendant." })
     expect((await f.admin.as.query(D.appealQueue, args(ALL))).items).toEqual([])
+  })
+})
+
+describe("MD-04 — réglages de modération de DIASPORALE, réseau gouverné par la tranche", () => {
+  it("l'administration du réseau lit les défauts du moteur et la règle de chaque rubrique, puis pose un réglage et un mot bloqué motivés, inscrits au journal", async () => {
+    const f = await fixture()
+    const initial = await f.admin.as.query(CASES.policies, { networkId: f.network })
+    expect(initial.defaults).toEqual(MODERATION_POLICY_DEFAULTS)
+    const rule = (surface: string) => initial.surfaces.find((row) => row.surface === surface)?.withoutPolicy
+    // Sans réglage : la vague H publiée sans règle, avis et réponses relus d'office, le reste aux défauts du moteur.
+    expect(["diasporaJobOffer", "diasporaKitResource", "serviceReview", "serviceReviewReply", "event", "post", "page"].map(rule)).toEqual(["unchecked", "unchecked", "held", "held", "defaults", "defaults", "defaults"])
+    expect(initial.surfaces.every((row) => row.policy === null)).toBe(true)
+
+    const { maxLinks, maxWrites, windowMs } = MODERATION_POLICY_DEFAULTS
+    await f.admin.as.mutation(CASES.setPolicy, { networkId: f.network, surface: "diasporaJobOffer", preReview: true, maxLinks, maxWrites, windowMs, reason: "Relecture des offres d'emploi au lancement du pilote." })
+    await f.admin.as.mutation(CASES.setBlockedTerm, { networkId: f.network, term: "  Consulat ", active: true, reason: "Nom réservé aux postes consulaires." })
+    const settings = await f.admin.as.query(CASES.policies, { networkId: f.network })
+    expect(settings.surfaces.find((row) => row.surface === "diasporaJobOffer")?.policy).toMatchObject({ preReview: true, maxLinks, maxWrites, windowMs })
+    expect((await f.admin.as.query(CASES.blockedTermsPage, { networkId: f.network, paginationOpts: PAGE })).page.map((row) => row.term)).toEqual(["consulat"])
+
+    const audit = await f.t.run(async (ctx) =>
+      (await ctx.db.query("engineAudit").withIndex("by_network_at", (q) => q.eq("networkId", f.network)).take(100))
+        .filter((row) => row.action === "moderation.policy_set" || row.action === "moderation.term_set"),
+    )
+    expect(audit.map((row) => ({ action: row.action, capacity: row.capacity, actorPersonId: row.actorPersonId, details: row.details }))).toMatchObject([
+      { action: "moderation.policy_set", capacity: "network_admin", actorPersonId: f.admin.personId, details: { reason: "Relecture des offres d'emploi au lancement du pilote.", surface: "diasporaJobOffer", preReview: true } },
+      { action: "moderation.term_set", capacity: "network_admin", actorPersonId: f.admin.personId, details: { reason: "Nom réservé aux postes consulaires.", active: true } },
+    ])
+  })
+
+  it("un modérateur du réseau et un simple membre reçoivent le même refus, sans écriture", async () => {
+    const f = await fixture()
+    for (const person of [f.moderator, f.reader]) {
+      expect(await codeOf(person.as.query(CASES.policies, { networkId: f.network }))).toBe("notFound")
+      expect(await codeOf(person.as.query(CASES.blockedTermsPage, { networkId: f.network, paginationOpts: PAGE }))).toBe("notFound")
+      expect(await codeOf(person.as.mutation(CASES.setPolicy, { networkId: f.network, surface: "event", preReview: false, maxLinks: 0, maxWrites: 1, windowMs: 60_000, reason: "Tentative sans le droit de régler." }))).toBe("notFound")
+      expect(await codeOf(person.as.mutation(CASES.setBlockedTerm, { networkId: f.network, term: "ambassade", active: true, reason: "Tentative sans le droit de régler." }))).toBe("notFound")
+    }
+    const counts = await f.t.run(async (ctx) => ({
+      policies: (await ctx.db.query("moderationPolicies").withIndex("by_network_surface", (q) => q.eq("networkId", f.network)).take(5)).length,
+      terms: (await ctx.db.query("blockedTerms").withIndex("by_network_active", (q) => q.eq("networkId", f.network)).take(5)).length,
+    }))
+    expect(counts).toEqual({ policies: 0, terms: 0 })
+  })
+})
+
+describe("AS-01 — pages à vérifier : les revendications en attente, par pays de la page", () => {
+  async function claim(t: T, networkId: Id<"networks">, pageId: Id<"pages">, claimantPersonId: Id<"persons">, fields: { status?: "pending" | "approved"; at?: number; evidence?: number } = {}): Promise<Id<"pageClaims">> {
+    sequence += 1
+    const at = fields.at ?? NOW + sequence
+    return await t.run(async (ctx) => {
+      const evidenceStorageIds: Id<"_storage">[] = []
+      for (let n = 0; n < (fields.evidence ?? 0); n++) evidenceStorageIds.push(await ctx.storage.store(new Blob([`pièce fictive ${n}`])))
+      return ctx.db.insert("pageClaims", { networkId, pageId, claimantPersonId, evidenceStorageIds, status: fields.status ?? "pending", createdAt: at, updatedAt: at })
+    })
+  }
+  const claimArgs = (networkId: Id<"networks">, viewer: Member, zone: typeof ALL | typeof NONE | typeof FR | typeof BE) => ({ networkId, expectedPersonId: viewer.personId, zone, paginationOpts: PAGE })
+
+  it("range les demandes en attente au pays de leur page, la plus ancienne d'abord, sans note ni pièce ni demandeur", async () => {
+    const f = await fixture()
+    const pageFr = await page(f.t, f.network, "FR")
+    const pageBe = await page(f.t, f.network, "BE")
+    const pageNone = await page(f.t, f.network, null)
+    const fr = await claim(f.t, f.network, pageFr, f.author.personId, { at: NOW + 1, evidence: 2 })
+    const be = await claim(f.t, f.network, pageBe, f.reader.personId, { at: NOW + 2 })
+    const none = await claim(f.t, f.network, pageNone, f.author.personId, { at: NOW + 3 })
+    await claim(f.t, f.network, pageFr, f.reader.personId, { status: "approved" })
+
+    const all = await f.moderator.as.query(D.pageClaimQueue, claimArgs(f.network, f.moderator, ALL))
+    expect(all.items.map((row) => row.claimId)).toEqual([fr, be, none])
+    expect(all.items[0]).toMatchObject({ claimId: fr, country: "FR", evidenceCount: 2, createdAt: NOW + 1, party: null, page: { pageId: pageFr, badge: "community", ownerKind: "association" } })
+    expect(Object.keys(all.items[0] ?? {}).sort()).toEqual(["claimId", "country", "createdAt", "evidenceCount", "page", "party"])
+    expect((await f.moderator.as.query(D.pageClaimQueue, claimArgs(f.network, f.moderator, FR))).items.map((row) => row.claimId)).toEqual([fr])
+    expect((await f.moderator.as.query(D.pageClaimQueue, claimArgs(f.network, f.moderator, BE))).items.map((row) => row.claimId)).toEqual([be])
+    expect((await f.moderator.as.query(D.pageClaimQueue, claimArgs(f.network, f.moderator, NONE))).items.map((row) => row.claimId)).toEqual([none])
+    // L'administration du réseau lit la même file.
+    expect((await f.admin.as.query(D.pageClaimQueue, claimArgs(f.network, f.admin, ALL))).items).toHaveLength(3)
+  })
+
+  it("dit le conflit d'intérêts : le demandeur, et toute personne qui a une ligne de signataire sur la page, même invitée", async () => {
+    const f = await fixture()
+    const own = await page(f.t, f.network, "FR")
+    const signed = await page(f.t, f.network, "FR")
+    const free = await page(f.t, f.network, "FR")
+    await f.t.run(async (ctx) => {
+      // Une invitation en attente (aucune acceptation) suffit à écarter le décideur.
+      await ctx.db.insert("pageSignatories", { networkId: f.network, pageId: signed, personId: f.moderator.personId, role: "signatory", createdAt: NOW, updatedAt: NOW })
+    })
+    const byModerator = await claim(f.t, f.network, own, f.moderator.personId, { at: NOW + 1 })
+    const onSigned = await claim(f.t, f.network, signed, f.author.personId, { at: NOW + 2 })
+    const onFree = await claim(f.t, f.network, free, f.author.personId, { at: NOW + 3 })
+    const rows = (await f.moderator.as.query(D.pageClaimQueue, claimArgs(f.network, f.moderator, ALL))).items
+    expect(rows.map((row) => [row.claimId, row.party])).toEqual([[byModerator, "author"], [onSigned, "page"], [onFree, null]])
+  })
+
+  it("refuse indistinctement un membre sans rôle de réseau, une équipe, un autre réseau et une autre personne attendue", async () => {
+    const f = await fixture()
+    const pageFr = await page(f.t, f.network, "FR")
+    await claim(f.t, f.network, pageFr, f.author.personId)
+    const teamId = await f.t.run(async (ctx) => ctx.db.insert("moderationTeams", { networkId: f.network, name: "France (fixture)", active: true, createdAt: NOW }))
+    await f.t.run(async (ctx) => ctx.db.insert("moderationTeamMembers", { networkId: f.network, teamId, personId: f.reader.personId, active: true, updatedAt: NOW }))
+    // Membre d'une équipe sans rôle de réseau : `pages/claims` ne l'admet pas (issue de la modération par pays).
+    expect(await codeOf(f.reader.as.query(D.pageClaimQueue, claimArgs(f.network, f.reader, ALL)))).toBe("notFound")
+    expect(await codeOf(f.author.as.query(D.pageClaimQueue, claimArgs(f.network, f.author, ALL)))).toBe("notFound")
+    expect(await codeOf(f.moderator.as.query(D.pageClaimQueue, claimArgs(f.root, f.moderator, ALL)))).toBe("notFound")
+    expect(await codeOf(f.moderator.as.query(D.pageClaimQueue, { ...claimArgs(f.network, f.moderator, ALL), expectedPersonId: f.reader.personId }))).toBe("notFound")
   })
 })
