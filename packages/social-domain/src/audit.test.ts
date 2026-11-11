@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { assertDecisionReason, AUDIT_DETAIL_STRING_MAX, auditDetailsProblems, DECISION_REASON_MAX, isSystemCapacity } from "./audit"
+import { assertDecisionReason, AUDIT_ACTIONS, AUDIT_DETAIL_STRING_MAX, AUDIT_SUBJECT_TABLES, auditDetailsProblems, DECISION_REASON_MAX, isSystemCapacity } from "./audit"
 import { DomainViolation } from "./violation"
 
 describe("journal des décisions — détail et motif", () => {
@@ -25,6 +25,15 @@ describe("journal des décisions — détail et motif", () => {
       expect(caught).toBeInstanceOf(DomainViolation)
       expect(caught).toMatchObject({ code: "DECISION_REASON_LENGTH", params: { min: 10, max: DECISION_REASON_MAX } })
     }
+  })
+
+  it("tranche diaspora : l'admission fondatrice et son retrait sont des actions du journal, sur la personne, au détail plat", () => {
+    expect(AUDIT_ACTIONS).toEqual(expect.arrayContaining(["diaspora.founder_admit", "diaspora.founder_withdraw"]))
+    expect(AUDIT_SUBJECT_TABLES).toContain("persons")
+    // Le détail que la tranche écrit : le motif nettoyé, et la dispense d'ancienneté ou la cause du retrait.
+    const reason = assertDecisionReason("  Animatrice reconnue de la communauté locale.  ", 10)
+    expect(auditDetailsProblems({ reason, seniorityWaiver: true })).toEqual([])
+    expect(auditDetailsProblems({ reason: "x".repeat(DECISION_REASON_MAX), cause: "operator" })).toEqual([])
   })
 
   it("seul le système agit sans acteur", () => {

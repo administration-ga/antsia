@@ -79,6 +79,20 @@ export const AUDIT_ACTIONS = [
   // Tranche `diaspora` (émis par `convex/modules/diaspora/`)
   /** Un parrainage retiré par la MODÉRATION du réseau (le retrait par le parrain n'est pas une décision). */
   "diaspora.sponsorship_revoke",
+  /**
+   * Une personne admise dans la cohorte fondatrice du réseau par un opérateur de plateforme
+   * (EA-01 de DIASPORALE). Sujet : la personne admise (`persons`). Détail : `reason`, le motif
+   * nettoyé par `assertDecisionReason`, et `seniorityWaiver`, la dispense d'ancienneté pour
+   * parrainer (booléen).
+   */
+  "diaspora.founder_admit",
+  /**
+   * L'admission fondatrice en vigueur retirée par un opérateur de plateforme (EA-01 de
+   * DIASPORALE). Sujet : la personne (`persons`). Détail : `reason`, le motif nettoyé, et
+   * `cause`, la cause du retrait inscrite sur l'admission (`operator` pour cette décision).
+   * L'extinction par le départ de la personne n'est pas une décision : l'admission la date.
+   */
+  "diaspora.founder_withdraw",
 ] as const
 export type AuditAction = (typeof AUDIT_ACTIONS)[number]
 
