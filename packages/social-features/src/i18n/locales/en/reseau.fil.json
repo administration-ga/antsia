@@ -232,6 +232,8 @@
       "institution_impersonation": "Imitation of a State institution",
       "impersonation": "Identity theft",
       "privacy_or_honor": "Invasion of privacy or attack on reputation",
+      "job_fee_requested": "Candidate asked to pay fees",
+      "job_impersonation": "Impersonating a company",
       "misinformation": "Misleading information",
       "other": "Other reason"
     },

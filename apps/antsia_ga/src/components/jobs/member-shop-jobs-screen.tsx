@@ -3,6 +3,7 @@
 import { api } from "@antsia/api/engine"
 import { useAuthenticatedConvexQuery } from "@antsia/api/hooks"
 import { useNetwork } from "@antsia/api/network"
+import { ReportTargetButton } from "@antsia/social-features/features/reseau-personnel/report-content-entry"
 import { useCallback, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 
@@ -71,7 +72,11 @@ function MemberJobQuery({ handle, jobRef }: { handle: string; jobRef: string }) 
     {query.isError ? <ShopQueryFailure href={routes.storefront(handle)} retry={() => { void query.refetch() }} />
       : query.isPending || query.data === undefined ? <CenteredStatus label={t("details.loading")} />
         : query.data === null ? <Card><div className="grid gap-2"><h2 className="text-lg font-semibold">{t("details.unavailableTitle")}</h2><p>{t("details.unavailableBody")}</p><ShopLink href={routes.storefront(handle)}>{t("shop.backToShop")}</ShopLink></div></Card>
-          : <JobDetails job={query.data} locale={i18n.resolvedLanguage ?? "fr"} t={(key, options) => t(key, options)} employerHref={routes.storefront(query.data.shopHandle)} heading="h2" actionSlot={<JobApplicationSlot job={query.data} onReview={refreshJob} initialDraft={draft.current} onDraft={saveDraft} />} />}
+          : <JobDetails job={query.data} locale={i18n.resolvedLanguage ?? "fr"} t={(key, options) => t(key, options)} employerHref={routes.storefront(query.data.shopHandle)} heading="h2" actionSlot={<>
+            <JobApplicationSlot job={query.data} onReview={refreshJob} initialDraft={draft.current} onDraft={saveDraft} />
+            {/* UM-03 : « Signaler » en dernier geste, pour l'offre d'autrui (ni l'employeur ni son équipe ne reçoivent la cible). */}
+            {query.data.reportTarget ? <div className="flex flex-wrap" data-job-report><ReportTargetButton target={query.data.reportTarget} size="md" /></div> : null}
+          </>} />}
   </ShopFrame>
 }
 

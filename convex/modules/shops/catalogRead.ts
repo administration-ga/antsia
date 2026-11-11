@@ -13,10 +13,10 @@ import { fail } from "../../lib/errors"
 import { contactEnabledForShop } from "../commercialMessaging/access"
 import { catalogMediaDto } from "../federation/commerceCatalogMedia"
 import { canReadModeratedContent, contentState } from "../moderation/policy"
-import { findPageByHandle } from "../pages/access"
+import { findPageByHandle, liveSignatoryRole } from "../pages/access"
 import { isStorefrontInReadingContext, shopOfPage } from "./access"
 import { headBelongsToCurrentCatalog, readableCatalogMapping } from "./catalogAccess"
-import { catalogServiceProfileDto, type CatalogList, type CatalogOffer } from "./catalogValidators"
+import { catalogServiceProfileDto, type CatalogList, type CatalogOffer, type MemberCatalogOffer } from "./catalogValidators"
 import { demoCatalogForShop, isDemoCollectionRef, isDemoOfferRef, resolveDemoCatalogOffer } from "./demoCatalog"
 import { catalogFacetsDto } from "./catalogFacetValidators"
 import { applyServiceDiscoveryFilters, serviceDiscoveryOfferMatches, marketplaceFiltersOf, type MarketplaceFilters, type NormalizedMarketplaceFilters } from "./catalogSearchRules"
@@ -81,13 +81,35 @@ export async function projectCatalogHead(ctx: CatalogReadCtx, context: CatalogRe
   return live ? await project(ctx, context, head, live) : null
 }
 
-export async function resolveCatalogOffer(ctx: ReadCtx, context: CatalogReadContext, shopId: Id<"shops">, offerRef: string): Promise<CatalogOffer | null> {
-  if (isDemoOfferRef(offerRef)) return await resolveDemoCatalogOffer(ctx, context, shopId, offerRef)
+/** L'offre reflétée lue par ce lecteur, avec la tête qui la porte et la page de sa boutique ; jamais une offre fictive. */
+async function resolveReflectedOffer(ctx: ReadCtx, context: CatalogReadContext, shopId: Id<"shops">, offerRef: string) {
   if (parseCommerceRef(offerRef)?.kind !== "offer") return null
   const live = await contextFor(ctx, context, shopId)
   if (!live) return null
   const head = await ctx.db.query("commerceCatalogHeads").withIndex("by_emitter_object_sequence", (q) => q.eq("emitterId", live.mapping.emitterId).eq("objectRef", offerRef).eq("sequence", "catalog")).unique()
-  return head ? await project(ctx, context, head, live) : null
+  const offer = head ? await project(ctx, context, head, live) : null
+  return head && offer ? { offer, head, page: live.page } : null
+}
+
+export async function resolveCatalogOffer(ctx: ReadCtx, context: CatalogReadContext, shopId: Id<"shops">, offerRef: string): Promise<CatalogOffer | null> {
+  if (isDemoOfferRef(offerRef)) return await resolveDemoCatalogOffer(ctx, context, shopId, offerRef)
+  return (await resolveReflectedOffer(ctx, context, shopId, offerRef))?.offer ?? null
+}
+
+/**
+ * UM-03 : la fiche MEMBRE d'une offre. Même DTO que partout, plus la cible de son signalement
+ * (`reportTarget`, facultative) : présente seulement pour une offre reflétée que ce lecteur voit, et s'il ne
+ * tient AUCUN rôle sur la page de la boutique (ni gérant, ni membre de l'équipe). Une offre fictive de
+ * démonstration n'a pas de tête : rien à signaler. La projection publique n'en sait rien.
+ */
+export async function memberCatalogOfferByHandle(ctx: ReadCtx, context: CatalogReadContext & { readerPersonId: Id<"persons"> }, handle: string, offerRef: string): Promise<MemberCatalogOffer | null> {
+  const page = await findPageByHandle(ctx, handle)
+  const shop = page ? await shopOfPage(ctx, page._id) : null
+  if (!shop) return null
+  if (isDemoOfferRef(offerRef)) return await resolveDemoCatalogOffer(ctx, context, shop._id, offerRef)
+  const reflected = await resolveReflectedOffer(ctx, context, shop._id, offerRef)
+  if (!reflected) return null
+  return await liveSignatoryRole(ctx, reflected.page, context.readerPersonId) === null ? { ...reflected.offer, reportTarget: { kind: "commerceOffer", id: reflected.head._id } } : reflected.offer
 }
 
 export async function resolvePostOffer(ctx: ReadCtx, post: Doc<"posts">, context: CatalogReadContext): Promise<CatalogOffer | null> {

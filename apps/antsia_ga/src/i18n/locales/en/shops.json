@@ -866,5 +866,8 @@
     "saved": "The shop is temporarily closed.",
     "reopened": "The shop has reopened.",
     "required": "Choose the reopening date."
+  },
+  "report": {
+    "signIn": "Sign in to report"
   }
 }

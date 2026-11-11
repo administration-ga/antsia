@@ -1,4 +1,4 @@
-import { BriefcaseBusiness, CalendarClock, MapPin, Users } from "lucide-react"
+import { BriefcaseBusiness, CalendarClock, MapPin, ShieldCheck, Users } from "lucide-react"
 import Link from "next/link"
 import type { ReactNode } from "react"
 
@@ -48,7 +48,8 @@ export function JobDetails({ job, locale, t, actionSlot, employerHref, heading =
     </dl>
     <section className="grid gap-2"><h2 className="text-lg font-semibold">{t("details.skills")}</h2>{job.skills.length > 0 ? <ul className="flex flex-wrap gap-2">{job.skills.map((skill) => <li key={skill} className="rounded-full border border-border px-3 py-1 text-sm">{skill}</li>)}</ul> : <p className="text-sm text-muted-foreground">{t("details.skillsNone")}</p>}</section>
     {job.description ? <section className="grid gap-2"><h2 className="text-lg font-semibold">{t("details.description")}</h2><p className="whitespace-pre-wrap">{job.description}</p></section> : null}
-    <p className="text-sm text-muted-foreground">{t("details.noFees")}</p>
+    {/* UM-03 (plan 09) : le rappel contre les faux recruteurs, lisible sur chaque fiche, juste avant « Candidater ». */}
+    <p className="flex items-start gap-2 rounded-lg border border-border p-3 text-sm" data-job-no-fees><ShieldCheck aria-hidden="true" className="mt-0.5 size-4 shrink-0" />{t("details.noFees")}</p>
     {actionSlot}
   </article>
 }

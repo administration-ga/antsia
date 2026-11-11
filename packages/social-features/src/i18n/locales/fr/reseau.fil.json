@@ -232,6 +232,8 @@
       "institution_impersonation": "Imitation d'une institution de l'État",
       "impersonation": "Usurpation d'identité",
       "privacy_or_honor": "Atteinte à la vie privée ou à l'honneur",
+      "job_fee_requested": "Frais demandés au candidat",
+      "job_impersonation": "Usurpation d'une entreprise",
       "misinformation": "Information trompeuse",
       "other": "Autre motif"
     },

@@ -2,6 +2,7 @@ import { notFound } from "next/navigation"
 import { effectiveActivityConfiguration } from "@antsia/social-domain/activityConfiguration"
 
 import { PublicShell } from "@/components/public/public-shell"
+import { PublicReportInvite } from "@/components/public/public-report-invite"
 import { PublicStatus } from "@/components/public/public-status"
 import { getAppT } from "@/i18n/server"
 import { publicMetadata, publicSearch } from "@/lib/public-data"
@@ -52,5 +53,7 @@ export async function PublicStorefrontScreen(props: PublicStorefrontProps) {
   ])
   if (catalog && catalog.status !== "ready") return <PublicShell viewer={catalog.status}><PublicStatus status={catalog.status} locale={locale} /></PublicShell>
   if (special?.status === "refused" || special?.status === "handoff") return <PublicShell viewer={special.status}><PublicStatus status={special.status} locale={locale} /></PublicShell>
-  return <PublicShell viewer={result.viewer} specialized={{ kind: "storefront", handle }} food={food}><PublicStorefrontCard storefront={result.data} locale={locale} dailySpecial={special?.status === "ready" ? special.data : null} pause={pause.status === "ready" ? pause.data : null} catalog={catalog?.status === "ready" ? <PublicCatalogPreview page={catalog.data} handle={handle} locale={locale} food={food} /> : undefined} /></PublicShell>
+  // UM-03 : sans compte, signaler les conditions invite à se connecter, puis ramène à la vitrine membre.
+  const termsAction = result.viewer === "anonymous" ? <PublicReportInvite href={routes.signIn(undefined, undefined, undefined, undefined, { kind: "storefront", handle })} label={getAppT(locale).t("shops:report.signIn")} /> : undefined
+  return <PublicShell viewer={result.viewer} specialized={{ kind: "storefront", handle }} food={food}><PublicStorefrontCard storefront={result.data} locale={locale} dailySpecial={special?.status === "ready" ? special.data : null} pause={pause.status === "ready" ? pause.data : null} catalog={catalog?.status === "ready" ? <PublicCatalogPreview page={catalog.data} handle={handle} locale={locale} food={food} /> : undefined} termsAction={termsAction} /></PublicShell>
 }

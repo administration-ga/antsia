@@ -6,9 +6,10 @@ import type { ReactNode } from "react"
  * Même contenu public pour membre et anonyme ; l'absence n'est jamais une gratuité. Présentées en cartes (la
  * réassurance des ventes privées, 22/10/2026), les cinq rubriques restent toujours là : ce que la boutique a
  * déclaré, sinon « Non renseigné », jamais un engagement supposé. `compact` (colonne étroite du panier) : une
- * seule carte en lignes, comme quand rien n'est publié.
+ * seule carte en lignes, comme quand rien n'est publié. `action` (UM-03) : le geste « Signaler » de ces conditions
+ * (bouton membre, ou invitation à se connecter en public), rendu seulement quand des conditions sont publiées.
  */
-export function StorefrontTerms({ value, locale, t, compact = false }: { value: unknown; locale: string; t: (key: string, options?: Record<string, unknown>) => string; compact?: boolean }) {
+export function StorefrontTerms({ value, locale, t, compact = false, action }: { value: unknown; locale: string; t: (key: string, options?: Record<string, unknown>) => string; compact?: boolean; action?: ReactNode }) {
   const terms = parseCommerceStorefrontTerms(value)
   const money = (amount: number) => new Intl.NumberFormat(locale, { style: "currency", currency: "XAF", currencyDisplay: "code", maximumFractionDigits: 0 }).format(amount)
   const items: { key: "pickup" | "delivery" | "fees" | "returns" | "warranty"; icon: LucideIcon; content: ReactNode }[] = [
@@ -30,5 +31,6 @@ export function StorefrontTerms({ value, locale, t, compact = false }: { value: 
       {items.map(({ key, icon: Icon, content }) => <div key={key} className="contents"><dt className="flex min-w-0 items-start gap-2 font-semibold"><Icon aria-hidden className="mt-0.5 size-4 shrink-0 text-[color:var(--role-commerce-ink,var(--primary))]" />{t(`storefrontTerms.${key}`)}</dt><dd className={`min-w-0 whitespace-pre-wrap ${content === null ? "text-muted-foreground" : ""}`}>{content ?? t("storefrontTerms.unknown")}</dd></div>)}
     </dl>}
     {terms ? <p className="text-xs text-muted-foreground">{t("storefrontTerms.updated", { date: new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeZone: "Africa/Libreville" }).format(terms.publishedAt) })}</p> : null}
+    {terms && action ? <div className="flex min-w-0 flex-wrap gap-3" data-storefront-terms-action>{action}</div> : null}
   </section>
 }
