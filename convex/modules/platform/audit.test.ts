@@ -150,6 +150,51 @@ describe("lire le journal", () => {
   })
 })
 
+describe("tranche diaspora : admissions fondatrices (EA-01)", () => {
+  it("admettre puis retirer : deux lignes sur la personne, lues dans son histoire, motif et dispense ou cause au détail", async () => {
+    const t = testConvex()
+    const { root } = await seed(t)
+    const operator = await makeOperator(t, await enter(t, root, "operatrice"))
+    const awa = await enter(t, root, "awa")
+    const subject = { table: "persons" as const, id: awa.personId }
+    // La ligne qu'écrira la mutation d'opérateur de la tranche, dans la transaction de sa décision.
+    await t.run(async (ctx) => {
+      const db = ctx as unknown as MutationCtx
+      await appendAudit(db, {
+        action: "diaspora.founder_admit",
+        capacity: "platform_operator",
+        actorPersonId: operator.personId,
+        networkId: root,
+        subject,
+        details: { reason: "Animatrice reconnue de la communauté locale.", seniorityWaiver: true },
+        at: 1_000,
+      })
+      await appendAudit(db, {
+        action: "diaspora.founder_withdraw",
+        capacity: "platform_operator",
+        actorPersonId: operator.personId,
+        networkId: root,
+        subject,
+        details: { reason: "Retrait demandé par la personne admise.", cause: "operator" },
+        at: 2_000,
+      })
+    })
+
+    const history = await operator.as.query(api.modules.platform.audit.paginateSubjectAudit, { subjectTable: "persons", subjectId: awa.personId, paginationOpts: PAGE })
+    expect(history.page).toMatchObject([
+      {
+        action: "diaspora.founder_withdraw",
+        capacity: "platform_operator",
+        actor: { personId: operator.personId, handle: "operatrice" },
+        networkId: root,
+        subject,
+        details: { reason: "Retrait demandé par la personne admise.", cause: "operator" },
+      },
+      { action: "diaspora.founder_admit", subject, details: { reason: "Animatrice reconnue de la communauté locale.", seniorityWaiver: true } },
+    ])
+  })
+})
+
 describe("une ligne incohérente est une faute de programmation", () => {
   it("le système n'a pas d'acteur, un humain en a un, et le détail reste borné", async () => {
     const t = testConvex()
