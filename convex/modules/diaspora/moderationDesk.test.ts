@@ -355,6 +355,26 @@ describe("relecture préalable — pages à vérifier, évènements en relecture
   })
 })
 
+describe("DL-03 — un commentaire de direct retenu entre au guichet", () => {
+  it("range le commentaire au pays de la page de sa session, comme le direct, et le sert sous sa nature", async () => {
+    const f = await fixture()
+    const pageFr = await page(f.t, f.network, "FR")
+    const commentId = await f.t.run(async (ctx) => {
+      const sessionId = await ctx.db.insert("liveSessions", {
+        networkId: f.network, hostPersonId: f.author.personId, title: "Direct de fixture", roomName: "direct-guichet-fixture", status: "live",
+        audience: "public", pageId: pageFr, chatMode: "open", maxViewers: 100, replayRequested: false, createdAt: NOW, updatedAt: NOW,
+      })
+      const id = await ctx.db.insert("liveComments", { networkId: f.network, sessionId, authorPersonId: f.reader.personId, body: "Commentaire de fixture", status: "pending_review", offsetMs: 0, createdAt: NOW })
+      await ctx.db.insert("moderationContentStates", { networkId: f.network, targetKind: "liveComment", targetId: id, ownerPersonId: f.reader.personId, status: "pending_review", createdAt: NOW, updatedAt: NOW })
+      return id
+    })
+    const expected = { target: { kind: "liveComment", id: commentId }, surface: "liveComment", country: "FR", teamName: null, updatedAt: NOW, party: null }
+    expect((await f.moderator.as.query(D.pendingQueue, queueArgs(f.network, f.moderator, FR))).items).toEqual([expected])
+    expect((await f.moderator.as.query(D.pendingQueue, queueArgs(f.network, f.moderator, ALL, { surface: "liveComment" }))).items).toEqual([expected])
+    expect((await f.moderator.as.query(D.pendingQueue, queueArgs(f.network, f.moderator, BE))).items).toEqual([])
+  })
+})
+
 describe("MC-01 — un groupe thématique et un message personnel entrent au guichet", () => {
   const PREVIEW = api.modules.moderation.reviewProjection.preview
 
