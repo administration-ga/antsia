@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/modules/fileGuard/storageGuard.ts @ ad2e7fdc2 — adaptations : FAIL-CLOSED (aucune ligne = retenu, jamais « antériorité servable ») ; table `fileScans` ; codes de retenue du moteur (`fileScanPending`, `fileQuarantined`) levés par `fail` ; `scanStateForFiles` (rows `documents`) retiré ; EX-17 : un dépôt sauté sans analyse (`isUnanalyzedUpload`) est retenu comme une analyse en échec, seul un fichier produit par la plateforme sert sans analyse.
+// Dupliqué de socle/convex/modules/fileGuard/storageGuard.ts @ ad2e7fdc2 — adaptations : FAIL-CLOSED (aucune ligne = retenu, jamais « antériorité servable ») ; table `fileScans` ; codes de retenue du moteur (`fileScanPending`, `fileQuarantined`) levés par `fail` ; `scanStateForFiles` (rows `documents`) retiré ; EX-17 : un dépôt sauté sans analyse (`isUnanalyzedUpload`) est retenu comme une analyse en échec, seul un fichier produit par la plateforme sert sans analyse. ; AZ-F1 : la règle du statut appliqué se lit aussi sur une ligne déjà chargée (`appliedScanStatus`).
 /**
  * Garde des fichiers — la GARDE DE DÉLIVRANCE, par fichier.
  *
@@ -38,7 +38,11 @@ export async function getScanForStorage(ctx: ReadCtx, storageId: Id<"_storage">)
  */
 export async function getScanStatus(ctx: ReadCtx, storageId: Id<"_storage">): Promise<FileScanStatus | null> {
   const scan = await getScanForStorage(ctx, storageId)
-  if (!scan) return null
+  return scan ? appliedScanStatus(scan) : null
+}
+
+/** Le statut que la garde APPLIQUE à une ligne déjà lue (même règle que `getScanStatus`). */
+export function appliedScanStatus(scan: Doc<"fileScans">): FileScanStatus {
   if (isUnanalyzedUpload(scan)) return "error"
   if (scan.requiresFullScan && isServableStatus(scan.status) && !(scan.status === "clean" && scan.av?.verdict === "clean")) return "error"
   return scan.status

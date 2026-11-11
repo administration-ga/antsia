@@ -207,6 +207,7 @@ import type * as modules_federation_withdrawal from "../modules/federation/withd
 import type * as modules_files_admission from "../modules/files/admission.js";
 import type * as modules_files_avProviders from "../modules/files/avProviders.js";
 import type * as modules_files_inspect from "../modules/files/inspect.js";
+import type * as modules_files_moderatorAccess from "../modules/files/moderatorAccess.js";
 import type * as modules_files_mutations from "../modules/files/mutations.js";
 import type * as modules_files_notify from "../modules/files/notify.js";
 import type * as modules_files_orphans from "../modules/files/orphans.js";
@@ -699,6 +700,7 @@ declare const fullApi: ApiFromModules<{
   "modules/files/admission": typeof modules_files_admission;
   "modules/files/avProviders": typeof modules_files_avProviders;
   "modules/files/inspect": typeof modules_files_inspect;
+  "modules/files/moderatorAccess": typeof modules_files_moderatorAccess;
   "modules/files/mutations": typeof modules_files_mutations;
   "modules/files/notify": typeof modules_files_notify;
   "modules/files/orphans": typeof modules_files_orphans;
