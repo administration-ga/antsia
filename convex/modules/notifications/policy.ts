@@ -17,7 +17,7 @@ import { isBlockedBetween } from "../graph/graph"
 import { liveMembershipOrNull } from "../groups/access"
 import { directReplayAccessDecision, directSessionAccessDecision } from "../live/access"
 import { canSeePostDoc } from "../posts/access"
-import { owningPageOfReport } from "../moderation/policy"
+import { authorSeesCase, owningPageOfReport } from "../moderation/policy"
 import { liveSignatoryRole } from "../pages/access"
 import { pageGovernanceNoticeVisible } from "../pages/governanceNoticeAccess"
 import { serviceNoticeVisible } from "../diaspora/serviceNotifications"
@@ -35,6 +35,8 @@ export { notificationConsent } from "./consent"
  * Exception étroite : seule sa propre décision, aucun accès aux contenus du réseau. P16 : un
  * dossier SANS propriétaire personnel (contenu porté par une page) s'annonce aux signataires
  * VIVANTS de cette page, et à eux seuls (relu aussi à la livraison et à la lecture de la cloche).
+ * MD-07 : seule une mesure prise, ou cette mesure annulée sur recours, s'annonce (`authorSeesCase`) ;
+ * un dossier ouvert, en examen ou classé n'émet aucun avis et n'en ouvre aucun.
  */
 export async function moderationNoticeRecipient(ctx: ReadCtx, networkId: Id<"networks">, personId: Id<"persons">, reportId: Id<"reports">): Promise<boolean> {
   const report = await ctx.db.get(reportId)
@@ -42,9 +44,22 @@ export async function moderationNoticeRecipient(ctx: ReadCtx, networkId: Id<"net
   const member = await getMembership(ctx, networkId, personId)
   const person = await ctx.db.get(personId)
   if (!report || report.networkId !== networkId || !network || network.status !== "active" || !member || member.status === "partie" || !person || person.deletionRequestedAt !== undefined) return false
+  if (!(await authorSeesCase(ctx, report))) return false
   if (report.ownerPersonId === personId) return true
   const page = await owningPageOfReport(ctx, report)
   return page !== null && (await liveSignatoryRole(ctx, page, personId)) !== null
+}
+
+/**
+ * MD-07 — un avis `moderation_decision` déjà émis dont le dossier ne se montre plus à son auteur (un
+ * classement annoncé avant ce correctif) : la cloche ne le présente plus, ni dans la liste ni dans le
+ * compte des non-lues. Plus étroit que `notificationStillVisible` : un ancien signataire garde sa ligne,
+ * sans carte ni destination (P14B), et un dossier disparu ne change rien.
+ */
+export async function moderationNoticeWithdrawn(ctx: ReadCtx, row: Doc<"notifications">): Promise<boolean> {
+  if (row.kind !== "moderation_decision" || row.subjectReportId === undefined) return false
+  const report = await ctx.db.get(row.subjectReportId)
+  return report !== null && !(await authorSeesCase(ctx, report))
 }
 
 /**

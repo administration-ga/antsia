@@ -32,8 +32,14 @@ import { resolveDailySpecialSource } from "../stories/dailySpecialSource"
 type Preview = { kind: ModerationTarget["kind"]; available: boolean; title: string | null; body: string | null; media: PostMediaDto[]; context?: { kind: ContextualKind } | null; sourceRevision?: number; sourceDigest?: string }
 const excerpt = (value: string | undefined, maximum = 4_000) => value ? value.slice(0, maximum) : null
 
-/** Aucun stockage brut, auteur, contact, participant ou contenu voisin ne sort. */
-async function targetPreview(ctx: QueryCtx, networkId: Id<"networks">, target: ModerationTarget, readerPersonId: Id<"persons">): Promise<Preview> {
+/**
+ * Aucun stockage brut, auteur, contact, participant ou contenu voisin ne sort.
+ *
+ * `underOpenReport` (SD-01) : l'extrait est demandé PAR un dossier encore ouvert (`open`,
+ * `reviewing`), et non par la relecture préalable. Une Story l'est alors jusqu'à la décision, même
+ * expirée ou retirée par son auteur : la purge l'attend (`stories.purgeExpired`, `hasOpenReport`).
+ */
+async function targetPreview(ctx: QueryCtx, networkId: Id<"networks">, target: ModerationTarget, readerPersonId: Id<"persons">, underOpenReport: boolean): Promise<Preview> {
   const empty: Preview = { kind: target.kind, available: false, title: null, body: null, media: [] }
   switch (target.kind) {
     case "editorialMedia": {
@@ -96,10 +102,17 @@ async function targetPreview(ctx: QueryCtx, networkId: Id<"networks">, target: M
       const row = await ctx.db.get(target.id)
       return row?.networkId === networkId ? { ...empty, available: true, title: excerpt(row.title, 200) } : empty
     }
+    case "liveComment": {
+      // DL-03 : le SEUL commentaire, borné ; ni le direct, ni son auteur, ni les commentaires voisins.
+      const row = await ctx.db.get(target.id)
+      return row?.networkId === networkId ? { ...empty, available: true, body: excerpt(row.body) } : empty
+    }
     case "story": {
       const row = await ctx.db.get(target.id)
       const now = Date.now()
-      if (!row || row.networkId !== networkId || row.expiresAt <= now || row.removedAt !== undefined) return empty
+      if (!row || row.networkId !== networkId) return empty
+      // SD-01 : sous un dossier ouvert, la Story reste lisible par la modération jusqu'à la décision ; hors dossier, la fenêtre vivante.
+      if (!underOpenReport && (row.expiresAt <= now || row.removedAt !== undefined)) return empty
       if (row.media.kind === "daily_special") {
         const network = await ctx.db.get(networkId), root = await getRootNetwork(ctx)
         if (!network || !root) return empty
@@ -198,7 +211,7 @@ export const preview = networkQuery({
     if (args.reportId !== undefined) {
       const report = await ctx.db.get(args.reportId)
       if (!report || report.networkId !== ctx.networkId || (report.status !== "open" && report.status !== "reviewing") || !await requireReportCapacity(ctx, ctx, report)) return notFound()
-      return await targetPreview(ctx, ctx.networkId, report.target, ctx.person._id)
+      return await targetPreview(ctx, ctx.networkId, report.target, ctx.person._id, true)
     }
     const target = args.target
     if (!target) return notFound()
@@ -208,6 +221,6 @@ export const preview = networkQuery({
     if (teams.length > 100) return notFound()
     const team = teams.find((row) => row.scope === target.kind) ?? teams.find((row) => row.scope === undefined)
     if (!await teamCapacity(ctx, ctx, target.kind, team?._id)) return notFound()
-    return await targetPreview(ctx, ctx.networkId, target, ctx.person._id)
+    return await targetPreview(ctx, ctx.networkId, target, ctx.person._id, false)
   },
 })

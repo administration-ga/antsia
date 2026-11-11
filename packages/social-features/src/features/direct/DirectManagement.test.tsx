@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // Dupliqué de socle/packages/agent-features/src/features/direct/ParticipantsPanel.test.tsx @ ad2e7fdc2 — adaptations : matrice serveur et API réseau ANTSIA, volets opt-in, consentement et curseurs ; scénarios regroupés sur la surface branchée.
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import type { Id } from "@antsia/api/engine"
 import { directPermissionsFor, noDirectPermissions } from "@antsia/social-domain/live/permissions"
 import { getFunctionName } from "convex/server"
@@ -199,5 +199,34 @@ describe("DL-02 — l'antenne d'un direct enregistré exige mon accord", () => {
     view.unmount()
     render(tree({ ...host(), recording: { ...recorded, consentedAt: 1 } })); fireEvent.click(screen.getByRole("button", { name: "Antenne" }))
     expect(screen.getByText("Cette conférence est enregistrée : une personne ne monte à l'antenne qu'après avoir accepté l'enregistrement.")).toBeInTheDocument()
+  })
+})
+
+describe("DL-03 — signaler un commentaire de la discussion", () => {
+  const PENDING = "En attente de relecture : personne d’autre ne le voit pour l’instant."
+  const comment = (patch: Record<string, unknown>) => ({ commentId: "comment-autrui", authorPersonId: "awa", author: profile, body: "Propos d’Awa", offsetMs: 0, createdAt: 1, isMine: false, mutedForChat: false, pendingReview: false, ...patch })
+
+  it("« Signaler » sur le commentaire d'autrui seulement ; mon commentaire retenu dit qu'il attend une relecture", async () => {
+    mocks.data["modules/live/comments:list"] = [comment({}), comment({ commentId: "comment-moi", authorPersonId: "person-self", body: "Mon commentaire", isMine: true, pendingReview: true })]
+    render(tree(session())); fireEvent.click(screen.getByRole("button", { name: "Discussion" }))
+    const [autrui, moi] = screen.getAllByRole("listitem")
+    expect(within(autrui!).getByRole("button", { name: "Signaler" })).toBeInTheDocument()
+    expect(within(autrui!).queryByText(PENDING)).toBeNull()
+    expect(within(moi!).queryByRole("button", { name: "Signaler" })).toBeNull()
+    expect(within(moi!).getByText(PENDING)).toBeInTheDocument()
+    expect(within(moi!).getByRole("button", { name: "Retirer le commentaire" })).toBeInTheDocument()
+
+    fireEvent.click(within(autrui!).getByRole("button", { name: "Signaler" }))
+    const dialog = screen.getByRole("dialog", { name: "Signaler ce commentaire" })
+    await act(async () => { fireEvent.click(within(dialog).getByRole("button", { name: "Transmettre" })) })
+    expect(mocks.mutation).toHaveBeenCalledWith("modules/moderation/cases:report", { networkId: "network-a", target: { kind: "liveComment", id: "comment-autrui" }, reason: "harassment" })
+  })
+
+  it("l'hôte qui modère retire ET signale le commentaire d'autrui", () => {
+    mocks.data["modules/live/comments:list"] = [comment({})]
+    render(tree(host())); fireEvent.click(screen.getByRole("button", { name: "Discussion" }))
+    const [autrui] = screen.getAllByRole("listitem")
+    expect(within(autrui!).getByRole("button", { name: "Retirer le commentaire" })).toBeInTheDocument()
+    expect(within(autrui!).getByRole("button", { name: "Signaler" })).toBeInTheDocument()
   })
 })

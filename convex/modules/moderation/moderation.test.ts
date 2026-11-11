@@ -181,6 +181,50 @@ describe("AZ-F1 — une seule porte de décision, sans conflit d'intérêts", ()
     expect(row).toMatchObject({ status: "open" })
   })
 
+  it("un signalement par l'ancien chemin arrive à la file sous sa ligne jumelle ; `cases.decide` la tranche et la décision vaut partout", async () => {
+    const t = testConvex()
+    const { root } = await seed(t)
+    const alice = await enter(t, root, "alice")
+    const bob = await enter(t, root, "bob")
+    const carol = await enter(t, root, "carol")
+    const moderator = await enter(t, root, "moderatrice", "network_moderator")
+    const dora = await enter(t, root, "dora")
+    const CASES = api.modules.moderation.cases
+    const { postId } = await alice.as.mutation(api.modules.posts.posts.publish, { networkId: root, body: "Publication signalée par l'ancien chemin" })
+    const { commentId } = await alice.as.mutation(api.modules.engagement.engagement.comment, { networkId: root, postId, body: "Commentaire signalé" })
+    const onPost = await bob.as.mutation(api.modules.moderation.moderation.reportPost, { networkId: root, postId, reason: "harassment" })
+    const onComment = await carol.as.mutation(api.modules.moderation.moderation.reportComment, { networkId: root, commentId, reason: "harassment" })
+    const twinOf = async (reportId: Id<"contentReports">) => {
+      const twin = await t.run(async (ctx) => (await ctx.db.get(reportId))?.reportId)
+      if (!twin) throw new Error("dossier historique sans ligne jumelle")
+      return twin
+    }
+    const postTwin = await twinOf(onPost.reportId)
+    const commentTwin = await twinOf(onComment.reportId)
+
+    // 1. La file du réseau (celle des écrans de modération et du guichet de DIASPORALE) lit la ligne jumelle.
+    const queue = await moderator.as.query(CASES.paginateQueue, { networkId: root, paginationOpts: PAGE })
+    expect(queue.page.map((row) => row.reportId).sort()).toEqual([postTwin, commentTwin].sort())
+    expect(queue.page.find((row) => row.reportId === postTwin)).toMatchObject({ target: { kind: "post", id: postId }, status: "open" })
+
+    expect(await dora.as.query(api.modules.posts.posts.getPost, { networkId: root, postId })).toMatchObject({ _id: postId })
+
+    // 2. Trancher la ligne jumelle vaut pour le dossier historique, le déclarant et l'auteur.
+    await moderator.as.mutation(CASES.decide, { networkId: root, reportId: postTwin, decision: "actioned", reason: "Harcèlement avéré.", sanctions: [{ kind: "removal" }] })
+    await moderator.as.mutation(CASES.decide, { networkId: root, reportId: commentTwin, decision: "dismissed", reason: "Propos admissible.", sanctions: [] })
+    const legacy = await t.run(async (ctx) => [await ctx.db.get(onPost.reportId), await ctx.db.get(onComment.reportId)])
+    expect(legacy[0]).toMatchObject({ status: "actioned", decisionReason: "Harcèlement avéré.", reviewedByPersonId: moderator.personId })
+    expect(legacy[1]).toMatchObject({ status: "dismissed", decisionReason: "Propos admissible.", reviewedByPersonId: moderator.personId })
+    // La file historique les voit tranchés : plus aucun dossier ouvert.
+    expect((await moderator.as.query(api.modules.moderation.moderation.paginateQueue, { networkId: root, paginationOpts: PAGE })).page).toEqual([])
+    // Le déclarant lit l'issue dans « Mes signalements » ; l'auteur lit la mesure, pas le classement.
+    expect((await bob.as.query(CASES.myReports, { paginationOpts: PAGE })).page[0]).toMatchObject({ reportId: postTwin, outcome: "removed" })
+    expect((await carol.as.query(CASES.myReports, { paginationOpts: PAGE })).page[0]).toMatchObject({ reportId: commentTwin, outcome: "dismissed" })
+    expect((await alice.as.query(CASES.myDecisions, { paginationOpts: PAGE })).page.map((row) => row.reportId)).toEqual([postTwin])
+    // La mesure a retiré la publication, pour un lecteur qui n'a rien signalé.
+    expect(await codeOf(dora.as.query(api.modules.posts.posts.getPost, { networkId: root, postId }))).toBe("notFound")
+  })
+
   it("l'opérateur auteur de la publication ou du commentaire signalé ne tranche pas son dossier (refus indistinct)", async () => {
     const t = testConvex()
     const { root } = await seed(t)

@@ -12,7 +12,7 @@ import type { FunctionReturnType } from "convex/server"
 import { Download, LogOut, ShieldCheck } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { CONTENT_REPORT_REASONS } from "@antsia/social-domain/moderation"
+import { authorDecisionOutcome, CONTENT_REPORT_REASONS } from "@antsia/social-domain/moderation"
 import { useEffect, useId, useRef, useState } from "react"
 import { useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
@@ -45,13 +45,18 @@ function AppealForm({ reportId }: { reportId: Id<"reports"> }) {
   </form>
 }
 
-function Decisions() {
+/**
+ * MD-07 (antsia#99) : le moteur ne rend que les mesures prises et celles annulées sur recours ; une
+ * mesure annulée (dossier repassé à « classé », recours « annulé ») se dit « Décision révisée »,
+ * jamais « Sans suite ».
+ */
+export function MyModerationDecisions() {
   const { t } = useTranslation("antsia")
   const { results, status, loadMore } = usePaginatedQuery(api.modules.moderation.cases.myDecisions, {}, { initialNumItems: 10 })
   return <Card><h2 className="mb-4 text-xl font-semibold">{t("personal.decisionsTitle")}</h2>
     {status === "LoadingFirstPage" ? <p role="status">{t("personal.loading")}</p> : !results.length ? <p className="text-muted-foreground">{t("personal.noDecisions")}</p> : null}
     <div className="flex flex-col gap-4">{results.map((decision) => <article key={decision.reportId} className="rounded-[var(--ui2-card-radius)] border border-border p-4">
-      <p className="font-medium">{t(`personal.statuses.${decision.status}`)}</p>
+      <p className="font-medium">{t(`personal.statuses.${authorDecisionOutcome(decision.status, decision.appeals.map((appeal) => appeal.status)) ?? decision.status}`)}</p>
       {decision.decisionReason ? <p className="my-3 break-words text-sm">{decision.decisionReason}</p> : null}
       {decision.status === "actioned" && decision.appeals.length < 2 ? <AppealForm reportId={decision.reportId} /> : null}
     </article>)}</div>
@@ -182,7 +187,7 @@ export function PersonalControls() {
     </nav></header>
     <main id="contenu" tabIndex={-1} className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-8 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
       <header><ShieldCheck aria-hidden="true" className="mb-3 size-6 text-primary" /><h1 className="text-3xl">{t("personal.title")}</h1><p className="mt-3 text-muted-foreground">{t("personal.lead")}</p><Link className="mt-4 inline-flex min-h-11 items-center text-sm underline" href={routes.feed()}>{t("personal.home")}</Link></header>
-      <PreferencesControls /><PublicAgentControls key={`${person._id}:agent`} /><AnalyticsControls /><PersonalCommerceControls key={`${person._id}:commerce`} personId={person._id} /><DataRights /><Decisions /><Reports />
+      <PreferencesControls /><PublicAgentControls key={`${person._id}:agent`} /><AnalyticsControls /><PersonalCommerceControls key={`${person._id}:commerce`} personId={person._id} /><DataRights /><MyModerationDecisions /><Reports />
       {root && active ? <PageModerationDecisions key={`${person._id}:pages`} networkId={root._id} personId={person._id} /> : null}
       {root && memberships?.some((membership) => membership.networkId === root._id) ? <NotificationControls networkId={root._id} canActivate={Boolean(active)} /> : null}
       <MyJudicialMeasures />

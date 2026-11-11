@@ -342,6 +342,7 @@
     "comments": "Recent comments",
     "empty": "No comments yet.",
     "remove": "Remove comment",
+    "pendingReview": "Awaiting review: no one else can see it yet.",
     "closed": "A manager has closed the discussion.",
     "write": "My comment",
     "invalid": "Enter 1 to 500 characters.",

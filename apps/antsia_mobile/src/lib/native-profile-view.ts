@@ -6,7 +6,7 @@ export const PROFILE_MAX_PAGES = 10
 export const PROFILE_MAX_ITEMS = 200
 export type NativeProfileGroup = "activity" | "preferences" | "account"
 export type NativeProfileEntry = Readonly<{
-  id: "bookmarks" | "activities" | "settings" | NativeAccountSection
+  id: "bookmarks" | "activities" | "settings" | "accountDeletion" | NativeAccountSection
   group: NativeProfileGroup
   label: string
   hint: string
@@ -27,6 +27,8 @@ export const NATIVE_PROFILE_ENTRIES: readonly NativeProfileEntry[] = [
   { id: "feedPreferences", group: "preferences", label: "feedPreferencesLabel", hint: "feedPreferencesHint" },
   { id: "moderation", group: "account", label: "moderationLabel", hint: "moderationHint" },
   { id: "personalData", group: "account", label: "personalDataLabel", hint: "personalDataHint" },
+  // MB-04 : la suppression du compte se fait dans l'application (exigence des boutiques), sans renvoi au site.
+  { id: "accountDeletion", group: "account", label: "accountDeletionLabel", hint: "accountDeletionHint" },
 ]
 
 export function nativePublishedProfileHandle(raw: string | undefined): string | null {

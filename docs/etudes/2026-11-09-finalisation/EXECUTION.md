@@ -35,7 +35,7 @@ Plan : [`01_ICOM_MESSAGERIE_ET_APPELS.md`](01_ICOM_MESSAGERIE_ET_APPELS.md)
 |---|---|---|---|---|---|---|
 | IC-01 | Recette réelle iCom et appels à deux identités | P0 | M | S1 | clés du propriétaire ; accord écrit pour toute publication. | à faire |
 | IC-02 | Messagerie vocale : écouter, marquer lu, supprimer | P0 | S | S1 | aucune. | fusionné |
-| IC-03 | Signaler et bloquer depuis la conversation | P0 | M | S1 | aucune. | à faire |
+| IC-03 | Signaler et bloquer depuis la conversation | P0 | M | S1 | aucune. | fusionné |
 | IC-04 | Écran « Réglages iCom » : appels, présence, accusés | P0 | M | S1 | décision 1 du § 7. | fusionné |
 | IC-05 | Jetons de rôle et nom « iCom » | P1 | S | S1 | aucune. | à faire |
 | ICP-3 | iCom Pro : horaires, absence, accueil, réponses rapides, assignation | P1 | L | S1 | décision 6 du § 7 (message d'accueil). | à faire |
@@ -91,7 +91,7 @@ Plan : [`03_STORIES_CLIPS_DECOUVERTE_RECHERCHE.md`](03_STORIES_CLIPS_DECOUVERTE_
 
 | Lot | Titre | Priorité | Taille | Session | Porte | État |
 |---|---|---|---|---|---|---|
-| SD-01 | Signaler une Story | P0 | S | S1 | aucune. | à faire |
+| SD-01 | Signaler une Story | P0 | S | S1 | aucune. | fusionné |
 | SD-02 | Photos nettoyées et allégées avant envoi | P0 | M | S1 | aucune. | fusionné |
 | SD-03 | Vidéos lisibles partout et bornées | P0 | M | S1 | aucune. | fusionné |
 | SD-04 | Économie de données et lecture automatique | P1 | M | S1 | aucune. | à faire |
@@ -122,7 +122,7 @@ Plan : [`04_DIRECT_ET_CONFERENCES.md`](04_DIRECT_ET_CONFERENCES.md)
 |---|---|---|---|---|---|---|
 | DL-01 | Recette média réelle LiveKit et Egress | P0 | M | S1 | clé externe ; aucune commande vers la production sans accord écrit. | à faire |
 | DL-02 | Consentement explicite à l'enregistrement | P0 | M | S1 | décision du propriétaire (décision 4). | fusionné |
-| DL-03 | Signaler et contrôler la discussion | P0 | M | S1 | aucune. | à faire |
+| DL-03 | Signaler et contrôler la discussion | P0 | M | S1 | aucune. | fusionné |
 | DL-04 | Spectateur en 3G : audio seul et qualité basse | P0 | M | S1 | aucune pour le code ; clé LiveKit pour la preuve. | fusionné |
 | DL-05 | Rediffusion légère | P1 | M | S1 | décision du propriétaire (profil, coût de stockage). | à faire |
 | DL-06 | Programmer un direct et me le rappeler | P1 | M | S1 | aucune. | à faire |
@@ -150,7 +150,7 @@ Plan : [`05_PROFIL_RELATIONS_ALBUMS.md`](05_PROFIL_RELATIONS_ALBUMS.md)
 | PF-01 | Bloquer, débloquer et liste des bloqués | P0 | M | S1 | D1 seulement pour la suppression des abonnements ; le reste n'a aucune porte. | fusionné |
 | PF-02 | Signaler un profil et un album | P0 | S | S1 | aucune. | à faire |
 | PF-03 | Images de profil : recadrage et retrait des métadonnées | P0 | M | S1 | aucune. | fusionné |
-| PF-04 | Mobile : bloquer et signaler | P0 | S | S3 | publication sur TestFlight sur accord écrit du propriétaire. | à faire |
+| PF-04 | Mobile : bloquer et signaler | P0 | S | S3 | publication sur TestFlight sur accord écrit du propriétaire. | fusionné |
 | PF-05 | Rompre une relation | P1 | M | S1 | D4. | à faire |
 | PF-06 | Partager mon profil : lien et code QR | P1 | S | S1 | aucune. | à faire |
 | PF-07 | Mes abonnés, Suivre en retour, compteurs à soi | P1 | M | S1 | D2 et D3 ; fichier partagé `convex/convex.config.ts` (S1). | à faire |
@@ -379,10 +379,10 @@ Plan : [`14_APPLICATION_MOBILE.md`](14_APPLICATION_MOBILE.md)
 
 | Lot | Titre | Priorité | Taille | Session | Porte | État |
 |---|---|---|---|---|---|---|
-| MB-01 | Matrice de parité tenue par le code | P0 | M | S3 | aucune (backend local et variables : accord du propriétaire). | à faire |
+| MB-01 | Matrice de parité tenue par le code | P0 | M | S3 | aucune (backend local et variables : accord du propriétaire). | fusionné |
 | MB-02 | Premier binaire iOS depuis `main` (build 14) | P0 | M | S3 | accord du propriétaire (compilation), second accord (TestFlight) ; disque ≥ 20 Go libres. | à faire |
 | MB-03 | Android depuis `main` : APK puis AAB | P0 | M | S3 | accord du propriétaire ; compte Google Play (propriétaire). | à faire |
-| MB-04 | Exigences des boutiques : bloquer, signaler, supprimer son compte | P0 | M | S3 | aucune. | à faire |
+| MB-04 | Exigences des boutiques : bloquer, signaler, supprimer son compte | P0 | M | S3 | aucune. | fusionné |
 | MB-05 | Dossier des boutiques d'applications | P0 | M | S3 + propriétaire | propriétaire (comptes des boutiques, entité éditrice, assistance) ; juriste pour l'âge (SU01b, SU01c). | à faire |
 | MB-06 | Essais sur appareils physiques | P0 | S | S3 + propriétaire | présence du propriétaire ; disque ≥ 15 Go avant de brancher l'iPhone (piège `iOS DeviceSupport`). | à faire |
 | MB-07 | Retour d'arrière-plan sans perte d'état | P0 | M | S3 | aucune. | à faire |

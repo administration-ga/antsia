@@ -197,12 +197,18 @@ describe("PG-01 — décision motivée et confirmée", () => {
   })
 })
 
-describe("PG-01 — l'onglet relève de la modération du réseau", () => {
-  it("admis pour un modérateur du réseau, refusé à une équipe seule et avec une équipe dans l'adresse", () => {
-    const networkWide = { networkWide: true, canReviewAppeals: false, canManagePolicy: false, teams: [{ teamId: "team" }] }
+describe("PG-01, AS-01 — l'onglet suit la capacité serveur des revendications", () => {
+  it("admis pour un rôle de réseau ou un membre de l'équipe compétente, refusé sans cette capacité et avec une équipe dans l'adresse", () => {
+    const networkWide = { networkWide: true, canReviewAppeals: false, canManagePolicy: false, canReviewPageClaims: true, teams: [{ teamId: "team" }] }
     expect(moderationWindow({ view: "claims" }, networkWide)).toMatchObject({ valid: true, view: "claims" })
     expect(moderationWindow({ view: "claims", cursor: "suite" }, networkWide)).toMatchObject({ valid: true, cursor: "suite" })
     expect(moderationWindow({ view: "claims", team: "team" }, networkWide).valid).toBe(false)
-    expect(moderationWindow({ view: "claims" }, { networkWide: false, teams: [{ teamId: "team" }] }).valid).toBe(false)
+    // AS-01 : le membre de l'équipe compétente, sans rôle de réseau.
+    const pagesTeam = { networkWide: false, canReviewPageClaims: true, teams: [{ teamId: "team" }] }
+    expect(moderationWindow({ view: "claims" }, pagesTeam)).toMatchObject({ valid: true, view: "claims", team: undefined })
+    expect(moderationWindow({ view: "claims", team: "team" }, pagesTeam).valid).toBe(false)
+    // Sans la capacité serveur, ni une équipe (des publications) ni la seule portée du réseau n'ouvrent la vue.
+    expect(moderationWindow({ view: "claims" }, { networkWide: false, canReviewPageClaims: false, teams: [{ teamId: "team" }] }).valid).toBe(false)
+    expect(moderationWindow({ view: "claims" }, { networkWide: true, teams: [] }).valid).toBe(false)
   })
 })

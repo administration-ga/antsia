@@ -6,8 +6,9 @@
  *   rendu tel quel, une fenêtre filtrée peut être vide et annoncer sa suite) et
  *   ne garde que les dossiers dont la CIBLE porte le pays demandé : publication
  *   (son pays, sinon celui de sa page), commentaire (celui de sa publication),
- *   page, évènement et direct d'une page, avis et réponse d'avis (zone de
- *   l'offre, sinon pays de la page). Vague H (G9) : question d'entraide et sa
+ *   page, évènement et direct d'une page (DL-03 : ses commentaires, le pays de
+ *   la session), avis et réponse d'avis (zone de l'offre, sinon pays de la
+ *   page). Vague H (G9) : question d'entraide et sa
  *   réponse (zone de la question), mission (zone de la mission, sinon pays de sa
  *   page), ressource du kit (son pays), offre d'emploi (zone de l'offre, sinon
  *   pays de la page) et candidature (pays de l'offre), profil de mentor ou de
@@ -39,7 +40,8 @@
  *   il ne délimite aucune compétence.
  * - AS-01 : les revendications de page en attente (« Pages à vérifier ») se
  *   relisent ici par fenêtres, filtrées par le pays de la PAGE, avec la garde du
- *   moteur (`pages/claims` n'admet que le rôle de réseau, `networkRoleCapacity`) ;
+ *   moteur (`pages/claims.pageClaimReviewCapacity` : rôle de réseau, ou membre de
+ *   l'équipe de modération vivante compétente pour les pages) ;
  *   la fiche, les pièces et la décision restent `pages/claims` (`getPageClaim`,
  *   `decidePageClaim`). `party` y dit le conflit d'intérêts : le demandeur, ou
  *   toute personne qui a une ligne de signataire sur la page, même invitée.
@@ -58,6 +60,7 @@ import { requireReportCapacity, teamCapacity } from "../moderation/cases"
 import { contentState } from "../moderation/policy"
 import { moderationSurfaceValidator, moderationTargetValidator, sanctionKindValidator } from "../moderation/tables"
 import { liveSignatoryRole, pageCardOf, signatoryRowOf } from "../pages/access"
+import { pageClaimReviewCapacity } from "../pages/claims"
 import { pageCardValidator } from "../pages/validators"
 import { findPublishedPersonByHandle, livePersonProfile } from "../people/miniProfile"
 import { canHoldNetworkRole, NETWORK_RESPONSIBLE_ROLES, NETWORK_ROLE_HOLDERS_MAX } from "../people/networkRoles"
@@ -286,6 +289,13 @@ async function targetFacts(ctx: ReadCtx, networkId: Id<"networks">, target: Targ
       const session = await ctx.db.get(target.id)
       return session && session.networkId === networkId ? await pageFacts(ctx, networkId, session.pageId) : NO_FACTS
     }
+    // DL-03 : un commentaire de direct porte le pays et les pages de SA session, comme le direct lui-même.
+    case "liveComment": {
+      const comment = await ctx.db.get(target.id)
+      if (!comment || comment.networkId !== networkId) return NO_FACTS
+      const session = await ctx.db.get(comment.sessionId)
+      return session && session.networkId === networkId ? await pageFacts(ctx, networkId, session.pageId) : NO_FACTS
+    }
     case "serviceReview": {
       const review = await ctx.db.get(target.id)
       return review && review.networkId === networkId ? await offerFacts(ctx, networkId, review.offerId, review.pageId) : NO_FACTS
@@ -393,6 +403,10 @@ function typedTarget(ctx: ReadCtx, kind: ModerationSurface, id: string): Target 
     case "live": {
       const typed = ctx.db.normalizeId("liveSessions", id)
       return typed === null ? null : { kind: "live" as const, id: typed }
+    }
+    case "liveComment": {
+      const typed = ctx.db.normalizeId("liveComments", id)
+      return typed === null ? null : { kind: "liveComment" as const, id: typed }
     }
     case "story": {
       const typed = ctx.db.normalizeId("stories", id)
@@ -914,7 +928,8 @@ export const teamCandidate = networkQuery({
 /**
  * AS-01 — une fenêtre des revendications de page EN ATTENTE (« Pages à
  * vérifier »), filtrée par le pays de la page, la plus ancienne d'abord. La
- * garde est celle de `pages/claims.paginatePageClaims` (rôle de réseau, sinon
+ * garde est celle de `pages/claims.paginatePageClaims` (`pageClaimReviewCapacity` :
+ * rôle de réseau, ou membre de l'équipe vivante compétente pour les pages ; sinon
  * le refus indistinct) ; aucune note, aucune pièce, aucun demandeur ici : la
  * fiche et la décision restent `pages/claims`. `party` dit le conflit
  * d'intérêts : le demandeur (`author`) ou toute personne qui a une ligne de
@@ -927,7 +942,8 @@ export const pageClaimQueue = networkQuery({
   returns: v.object({ items: v.array(claimValidator), continueCursor: cursorValidator, isDone: v.boolean() }),
   handler: async (ctx, args) => {
     guardDesk(ctx, args.expectedPersonId)
-    if (networkRoleCapacity(ctx.membership.role) === null) return notFound()
+    // La règle du moteur, à l'identique : l'écran n'ouvre jamais une file que `pages/claims` refuserait.
+    if ((await pageClaimReviewCapacity(ctx, ctx)) === null) return notFound()
     const zone = zoneOf(args.zone)
     const result = await ctx.db
       .query("pageClaims")

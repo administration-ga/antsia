@@ -388,3 +388,138 @@ describe("DTO et réseaux", () => {
     expect(await tray(bob, testClosed)).toEqual([])
   })
 })
+
+// ═══════════════════════════════════════════════════════════════
+// SD-01 — une Story signalée reste lisible par la modération jusqu'à la décision
+// ═══════════════════════════════════════════════════════════════
+
+describe("SD-01 — une Story signalée attend la décision", () => {
+  const M = api.modules.moderation.cases
+  const preview = api.modules.moderation.reviewProjection.preview
+
+  async function moderator(t: T, rootId: Id<"networks">): Promise<Person> {
+    const person = await enter(t, rootId, "moderatrice")
+    await t.run(async (ctx) => {
+      const row = await ctx.db.query("networkMemberships").withIndex("by_network_and_person", (q) => q.eq("networkId", rootId).eq("personId", person.personId)).unique()
+      if (row) await ctx.db.patch(row._id, { role: "network_moderator" })
+    })
+    return person
+  }
+
+  /** La ligne ET le blob de la Story existent-ils encore ? */
+  async function kept(t: T, story: { storyId: Id<"stories">; storageId: Id<"_storage"> }) {
+    return await t.run(async (ctx) => ({
+      row: (await ctx.db.get(story.storyId)) !== null,
+      blob: (await ctx.db.system.get("_storage", story.storageId)) !== null,
+    }))
+  }
+
+  /** Un passage du cron de purge, chaîne replanifiée comprise. */
+  async function purge(t: T) {
+    await t.mutation(internal.modules.stories.stories.purgeExpired, {})
+    await t.finishAllScheduledFunctions(vi.runAllTimers)
+  }
+
+  it("après ses 24 h, la Story signalée reste à la modération et à elle seule ; la décision la livre à la purge suivante", async () => {
+    const t = testConvex()
+    const { root } = await seed(t)
+    const alice = await enter(t, root, "alice")
+    const bob = await enter(t, root, "bob")
+    const carol = await enter(t, root, "carol")
+    const mod = await moderator(t, root)
+    const story = await publishStory(t, alice, root, { caption: "Au marché" })
+    const target = { kind: "story" as const, id: story.storyId }
+    // Jamais sur soi : l'auteur ne signale pas sa propre Story (refus indistinct).
+    expect(await codeOf(alice.as.mutation(M.report, { networkId: root, target, reason: "harassment" }))).toBe("notFound")
+    const report = await bob.as.mutation(M.report, { networkId: root, target, reason: "harassment" })
+    expect(report).toMatchObject({ created: true })
+
+    vi.setSystemTime(Date.now() + STORY_TTL_MS + 60_000)
+    await purge(t)
+    expect(await kept(t, story)).toEqual({ row: true, blob: true })
+
+    // Les membres ne la voient plus : ni au plateau, ni au mur, ni l'auteur parmi ses Stories actives.
+    expect(await tray(carol, root)).toEqual([])
+    expect(await carol.as.query(S.listByAuthor, { networkId: root, handle: "alice", now: Date.now() })).toEqual([])
+    expect(await codeOf(carol.as.mutation(S.markSeen, { networkId: root, storyId: story.storyId }))).toBe("notFound")
+    expect(await alice.as.query(S.myActive, { networkId: root, now: Date.now() })).toEqual([])
+
+    // Expirée, elle ne se signale plus : le même refus qu'une Story déjà purgée.
+    const purged = await publishStory(t, alice, root)
+    await alice.as.mutation(S.remove, { networkId: root, storyId: purged.storyId })
+    vi.setSystemTime(Date.now() + 1000)
+    await purge(t)
+    expect(await kept(t, purged)).toEqual({ row: false, blob: false })
+    const expiredRefusal = await codeOf(carol.as.mutation(M.report, { networkId: root, target, reason: "harassment" }))
+    expect(expiredRefusal).toBe("notFound")
+    expect(await codeOf(carol.as.mutation(M.report, { networkId: root, target: { kind: "story", id: purged.storyId }, reason: "harassment" }))).toBe(expiredRefusal)
+
+    // La modération relit la Story signalée, média compris, malgré l'expiration.
+    const seen = await mod.as.query(preview, { networkId: root, reportId: report.reportId })
+    expect(seen).toMatchObject({ kind: "story", available: true, body: "Au marché" })
+    expect(seen.media).toHaveLength(1)
+
+    // Le dossier tranché, la purge suivante l'efface (ligne et blob) ; le dossier clos ne se relit plus.
+    await mod.as.mutation(M.decide, { networkId: root, reportId: report.reportId, decision: "dismissed", reason: "Aucune atteinte constatée.", sanctions: [] })
+    expect(await kept(t, story)).toEqual({ row: true, blob: true })
+    await purge(t)
+    expect(await kept(t, story)).toEqual({ row: false, blob: false })
+    expect(await codeOf(mod.as.query(preview, { networkId: root, reportId: report.reportId }))).toBe("notFound")
+  })
+
+  it("retirée par son auteur après le signalement, elle attend aussi la décision ; un retrait par la modération la libère", async () => {
+    const t = testConvex()
+    const { root } = await seed(t)
+    const alice = await enter(t, root, "alice")
+    const bob = await enter(t, root, "bob")
+    const carol = await enter(t, root, "carol")
+    const mod = await moderator(t, root)
+    const story = await publishStory(t, alice, root)
+    const report = await bob.as.mutation(M.report, { networkId: root, target: { kind: "story", id: story.storyId }, reason: "harassment" })
+    await alice.as.mutation(S.remove, { networkId: root, storyId: story.storyId })
+    vi.setSystemTime(Date.now() + 1000)
+    await purge(t)
+    expect(await kept(t, story)).toEqual({ row: true, blob: true })
+    expect(await tray(carol, root)).toEqual([])
+    expect(await mod.as.query(preview, { networkId: root, reportId: report.reportId })).toMatchObject({ kind: "story", available: true })
+
+    await mod.as.mutation(M.decide, { networkId: root, reportId: report.reportId, decision: "actioned", reason: "Atteinte confirmée.", sanctions: [{ kind: "removal" }] })
+    await purge(t)
+    expect(await kept(t, story)).toEqual({ row: false, blob: false })
+  })
+
+  it("une tête de Stories retenues n'arrête jamais la purge des autres ; un dossier tranché ne retient rien, un dossier en examen retient", async () => {
+    const t = testConvex()
+    const { root } = await seed(t)
+    const alice = await enter(t, root, "alice")
+    const ids = await t.run(async (ctx) => {
+      const insertStory = async (expiresAt: number) => {
+        const storageId = await ctx.storage.store(new Blob([new Uint8Array(8)]))
+        return await ctx.db.insert("stories", { networkId: root, authorPersonId: alice.personId, media: { storageId, kind: "image", mimeType: "image/png", sizeBytes: 8 }, audience: "public", publishedAt: 1, expiresAt })
+      }
+      const fileReport = async (storyId: Id<"stories">, status: "open" | "reviewing" | "dismissed" | "actioned") => {
+        await ctx.db.insert("reports", { networkId: root, target: { kind: "story", id: storyId }, targetKind: "story", targetId: storyId, reason: "harassment", level: "network", status, createdAt: 1, updatedAt: 1 })
+      }
+      // Les plus anciennes d'abord : un lot plein de Stories retenues, devant le reste de la fenêtre.
+      const held: Id<"stories">[] = []
+      for (let index = 0; index < PURGE_BATCH; index += 1) {
+        const storyId = await insertStory(2 + index)
+        await fileReport(storyId, index % 2 === 0 ? "open" : "reviewing")
+        held.push(storyId)
+      }
+      const decided = await insertStory(PURGE_BATCH + 10)
+      await fileReport(decided, "dismissed")
+      const actioned = await insertStory(PURGE_BATCH + 11)
+      await fileReport(actioned, "actioned")
+      const plain = await insertStory(PURGE_BATCH + 12)
+      return { held, freed: [decided, actioned, plain] }
+    })
+    const remaining = async () => await t.run(async (ctx) => (await ctx.db.query("stories").withIndex("by_expiresAt").take(200)).map((row) => row._id))
+
+    await purge(t)
+    expect(new Set(await remaining())).toEqual(new Set(ids.held))
+    // Le passage suivant du cron relit la tête retenue, ne l'efface pas, et s'arrête.
+    await purge(t)
+    expect(new Set(await remaining())).toEqual(new Set(ids.held))
+  })
+})

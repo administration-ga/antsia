@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/modules/direct/comments.ts @ ad2e7fdc2 — adaptations : constructeurs `networkMutation` / `networkQuery`, visibilité par le lecteur du réseau (`assertVisibleDirectSession(ctx, directCaller(ctx), …)` : session inconnue, d'un autre réseau ou hors audience → `notFound` indistinct) ; table `liveComments` (avec `networkId`, copié de la session), personne (`authorPersonId`) au lieu de l'utilisateur ; refus à CODE au lieu des phrases : règles `LIVE_NOT_LIVE`, `LIVE_CHAT_CLOSED`, `LIVE_CHAT_MUTED`, corps jugé au bord du domaine (`checked` : `LIVE_COMMENT_EMPTY`, `LIVE_COMMENT_TOO_LONG{max}`), commentaire inconnu ou d'autrui sans droit de modérer → `notFound` ; débit `live.comment` par `enforceRateLimit` (le limiteur `directComment` du socle, mêmes valeurs ; refus `rateLimited` avec délai, plus de phrase) ; auteur nommé par le profil PUBLIÉ du moteur (`people/miniProfile.miniProfileCache` : nom `null` sans profil publié, que l'écran traduit ; photo par la garde de délivrance) ; DTO `authorPersonId` au lieu d'`authorUserId` ; commentaires rapportés au moteur (compteurs dans `liveSessionCounters`, D28).
+// Dupliqué de socle/convex/modules/direct/comments.ts @ ad2e7fdc2 — adaptations : constructeurs `networkMutation` / `networkQuery`, visibilité par le lecteur du réseau (`assertVisibleDirectSession(ctx, directCaller(ctx), …)` : session inconnue, d'un autre réseau ou hors audience → `notFound` indistinct) ; table `liveComments` (avec `networkId`, copié de la session), personne (`authorPersonId`) au lieu de l'utilisateur ; refus à CODE au lieu des phrases : règles `LIVE_NOT_LIVE`, `LIVE_CHAT_CLOSED`, `LIVE_CHAT_MUTED`, corps jugé au bord du domaine (`checked` : `LIVE_COMMENT_EMPTY`, `LIVE_COMMENT_TOO_LONG{max}`), commentaire inconnu ou d'autrui sans droit de modérer → `notFound` ; débit `live.comment` par `enforceRateLimit` (le limiteur `directComment` du socle, mêmes valeurs ; refus `rateLimited` avec délai, plus de phrase) ; auteur nommé par le profil PUBLIÉ du moteur (`people/miniProfile.miniProfileCache` : nom `null` sans profil publié, que l'écran traduit ; photo par la garde de délivrance) ; DTO `authorPersonId` au lieu d'`authorUserId` ; commentaires rapportés au moteur (compteurs dans `liveSessionCounters`, D28) ; DL-03 (plan 04) : chaque commentaire passe la règle de relecture du réseau (`moderateContentWrite`, surface `liveComment`) comme un commentaire du fil — retenu (`pending_review`), il n'est lu que par son auteur et sort des compteurs ; la file relit la garde commune (`canReadModeratedContent` : décision de retrait, masque du déclarant).
 /**
  * Les COMMENTAIRES du direct — persistés, bornés, JAMAIS un canal de données.
  * API publique : `api.modules.live.comments.*`
@@ -13,6 +13,9 @@
  *  · l'écran ne rend que la FILE des 40 derniers (`DIRECT_COMMENTS_WINDOW`),
  *    et l'abonnement est OPT-IN côté client (le panneau fermé ne souscrit
  *    pas) ;
+ *  · chaque commentaire passe la RÈGLE DE RELECTURE du réseau (DL-03, surface
+ *    `liveComment`), comme un commentaire du fil : retenu, il attend la décision
+ *    de la modération, visible de son seul auteur et hors des compteurs ;
  *  · le chemin chaud n'écrit JAMAIS la session ni ses compteurs — les compteurs
  *    agrégés sont l'affaire de l'écrivain unique (`reap.recomputeAggregates`,
  *    D28). Un compteur tenu ici aurait réveillé toutes les souscriptions de la
@@ -26,6 +29,7 @@ import type { Id } from "../../_generated/dataModel"
 import { checked, failRule, notFound } from "../../lib/errors"
 import { networkMutation, networkQuery } from "../../lib/functions"
 import { enforceRateLimit } from "../../lib/rateLimit"
+import { canReadModeratedContent, moderateContentWrite } from "../moderation/policy"
 import { miniProfileCache } from "../people/miniProfile"
 import { assertVisibleDirectSession, chatMuteRow, directCaller, directPermissionsOf } from "./access"
 import { assertDirectCommentBody, DIRECT_COMMENTS_WINDOW } from "./domain"
@@ -33,7 +37,7 @@ import { assertDirectCommentBody, DIRECT_COMMENTS_WINDOW } from "./domain"
 /** Fenêtre brute balayée (les retirés comptent dans l'index, pas à l'écran). */
 const COMMENTS_SCAN = 80
 
-/** Écrire un commentaire — session LIVE, chat OUVERT, débit borné. */
+/** Écrire un commentaire — session LIVE, chat OUVERT, débit borné, règle de relecture du réseau (DL-03). */
 export const send = networkMutation({
   args: {
     sessionId: v.id("liveSessions"),
@@ -65,6 +69,11 @@ export const send = networkMutation({
       offsetMs: Math.max(0, now - (session.startedAt ?? now)),
       createdAt: now,
     })
+    // DL-03 — la règle de relecture du réseau (relecture préalable, mots bloqués, liens, cadence), comme
+    // un commentaire du fil (`engagement.comment`) : un commentaire RETENU attend la décision de la
+    // modération. Aucun texte n'est copié dans l'état de modération ; seule la ligne du commentaire change.
+    const admitted = await moderateContentWrite(ctx, { networkId: session.networkId, ownerPersonId: ctx.person._id, kind: "liveComment", id: commentId, text: body })
+    if (!admitted) await ctx.db.patch(commentId, { status: "pending_review" })
     return { commentId }
   },
 })
@@ -120,11 +129,21 @@ export type DirectCommentDto = {
    * publique que personne n'a prononcée.
    */
   mutedForChat: boolean
+  /**
+   * DL-03 — mon commentaire est RETENU pour relecture : je suis seul à le lire.
+   * Toujours `false` pour le commentaire d'autrui (un retenu d'autrui n'est jamais servi).
+   */
+  pendingReview: boolean
 }
 
 /**
  * La FILE — les 40 derniers vivants, du plus ancien au plus récent (l'ordre
  * de lecture d'un chat). L'abonnement à cette query est OPT-IN côté client.
+ *
+ * DL-03 — « vivant » se juge par lecteur, comme au fil : publié et admis par
+ * la garde commune (ni retiré par décision, ni masqué pour qui l'a signalé),
+ * ou RETENU et écrit par ce lecteur. Les 80 lignes balayées bornent les
+ * lectures (deux par ligne au plus).
  */
 export const list = networkQuery({
   args: { sessionId: v.id("liveSessions") },
@@ -137,10 +156,14 @@ export const list = networkQuery({
       .order("desc")
       .take(COMMENTS_SCAN)
 
-    const live = rows
-      .filter((row) => row.status === "published")
-      .slice(0, DIRECT_COMMENTS_WINDOW)
-      .reverse()
+    const me = ctx.person._id
+    const visible: typeof rows = []
+    for (const row of rows) {
+      if (visible.length >= DIRECT_COMMENTS_WINDOW) break
+      const readable = row.status === "published" || (row.status === "pending_review" && row.authorPersonId === me)
+      if (readable && (await canReadModeratedContent(ctx, "liveComment", row._id, me))) visible.push(row)
+    }
+    const live = visible.reverse()
 
     // La sourdine n'est lue QUE pour un lecteur qui modère, et une seule fois
     // par personne : la fenêtre fait 40 lignes, souvent de dix personnes.
@@ -171,8 +194,9 @@ export const list = networkQuery({
         body: row.body,
         offsetMs: row.offsetMs,
         createdAt: row.createdAt,
-        isMine: row.authorPersonId === ctx.person._id,
+        isMine: row.authorPersonId === me,
         mutedForChat: await isMuted(row.authorPersonId),
+        pendingReview: row.status === "pending_review",
       })
     }
     return items

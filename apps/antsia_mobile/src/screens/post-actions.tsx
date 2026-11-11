@@ -1,7 +1,6 @@
 import { NativeText as Text } from "../components/native-text"
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
-import { Alert, Modal, Pressable, ScrollView, Share, View } from "react-native"
-import { SafeAreaView } from "react-native-safe-area-context"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { Alert, Pressable, ScrollView, Share } from "react-native"
 import { Controller, useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -9,25 +8,17 @@ import { randomUUID } from "expo-crypto"
 import { useMutation } from "convex/react"
 import { api, type Id } from "@antsia/api/engine"
 import { PERSONAL_POST_MAX_LENGTH } from "@antsia/social-domain/content"
-import { CONTENT_REPORT_REASONS, type ContentReportReason } from "@antsia/social-domain/moderation"
 import { useNativeAppearance } from "../appearance"
 import { NativeIcon } from "../components/icon"
 import { Action, Field, Label, Status, useNativeGuard } from "../components/ui"
-import { nativeCanonicalPostUrl, nativeFeedText, nativeQuoteIntent, type NativeQuoteIntent } from "../lib/feed-presentation"
+import { nativeCanonicalPostUrl, nativeQuoteIntent, type NativeQuoteIntent } from "../lib/feed-presentation"
+import { nativeReportAcknowledgementKey, nativeReportNote, nativeSafetyOutcome, nativeSafetySteps, type NativeReportForm, type NativeSafetyStep } from "../lib/native-safety"
 import type { NativeFeedPost } from "./feed-screen"
 
-export function PostSheet({ title, open, onClose, children }: { title: string; open: boolean; onClose: () => void; children: ReactNode }) {
-  const { tokens, t } = useNativeAppearance(), guard = useNativeGuard()
-  return <Modal visible={open && guard.canAct} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-    <SafeAreaView style={{ flex: 1, backgroundColor: tokens.background }}>
-      <View style={{ minHeight: 56, flexDirection: "row", alignItems: "center", paddingHorizontal: 16, gap: 12, borderBottomColor: tokens.border, borderBottomWidth: 1 }}>
-        <Text variant="display" accessibilityRole="header" style={{ flex: 1, color: tokens.foreground, fontSize: 19, fontWeight: "700" }}>{title}</Text>
-        <Pressable accessibilityRole="button" accessibilityLabel={t("mobile.feedUi.close")} onPress={onClose} style={{ minWidth: 44, minHeight: 44, alignItems: "center", justifyContent: "center" }}><NativeIcon name="close" /></Pressable>
-      </View>
-      {children}
-    </SafeAreaView>
-  </Modal>
-}
+import { PostSheet } from "../components/sheet"
+import { confirmNativeBlock, nativeSafetyBlockLabel, NativeReportFormView, useNativeSafetyRunner, type NativeSafetyPerson } from "./safety-actions"
+
+export { PostSheet }
 
 export function PostShareAction({ post, onSharePost }: { post: NativeFeedPost; onSharePost?: (postId: Id<"posts">) => void | Promise<void> }) {
   const { t, tokens } = useNativeAppearance(), guard = useNativeGuard()
@@ -79,16 +70,26 @@ export function PostShareAction({ post, onSharePost }: { post: NativeFeedPost; o
   </>
 }
 
+/**
+ * Le menu « … » d'une publication. PF-04 / MB-04 : « Bloquer l'auteur »
+ * (personne seulement, jamais soi ni une page) et le formulaire de signalement
+ * commun, qui propose de bloquer aussi l'auteur — le signalement part d'abord.
+ * Signaler et bloquer suivent la garde de session sans exiger `canWrite` (le
+ * moteur les admet dès l'adhésion en attente) ; masquer, mettre en sourdine,
+ * épingler et supprimer gardent leur règle.
+ */
 export function PostOverflowAction({ post }: { post: NativeFeedPost }) {
-  const { t, tokens } = useNativeAppearance(), guard = useNativeGuard()
-  const [open, setOpen] = useState(false), [reporting, setReporting] = useState(false), [reason, setReason] = useState<ContentReportReason>("other")
-  const [note, setNote] = useState(""), [busy, setBusy] = useState(false), [message, setMessage] = useState(""), [error, setError] = useState(false)
+  const { t, tokens } = useNativeAppearance(), guard = useNativeGuard(), safety = useNativeSafetyRunner()
+  const [open, setOpen] = useState(false), [reporting, setReporting] = useState<{ alsoBlock: boolean } | null>(null)
+  const [busy, setBusy] = useState(false), [message, setMessage] = useState(""), [error, setError] = useState(false)
   const lock = useRef(false), mounted = useRef(true)
   const { registerCleanup } = guard.runtime
-  useEffect(() => { mounted.current = true; const unregister = registerCleanup(() => { setOpen(false); setNote("") }); return () => { mounted.current = false; unregister() } }, [registerCleanup])
+  useEffect(() => { mounted.current = true; const unregister = registerCleanup(() => { setOpen(false); setReporting(null) }); return () => { mounted.current = false; unregister() } }, [registerCleanup])
   const hide = useMutation(api.modules.marks.marks.hidePost), mute = useMutation(api.modules.marks.marks.muteAuthor)
   const report = useMutation(api.modules.moderation.moderation.reportPost), remove = useMutation(api.modules.posts.posts.remove), pin = useMutation(api.modules.posts.posts.pinOnMyWall)
-  const act = async (kind: "hide" | "mute" | "report" | "remove" | "pin") => {
+  const block = useMutation(api.modules.graph.connections.blockPerson)
+  const author: NativeSafetyPerson | null = post.page === null && post.author.personId && post.author.personId !== guard.runtime.personId && !post.isMine ? { personId: post.author.personId, name: post.author.displayName } : null
+  const act = async (kind: "hide" | "mute" | "remove" | "pin") => {
     if (lock.current || !guard.current() || !guard.runtime.canWrite) return
     lock.current = true; setBusy(true); setMessage(""); setError(false)
     const current = guard.capture()
@@ -96,25 +97,43 @@ export function PostOverflowAction({ post }: { post: NativeFeedPost }) {
       const args = { networkId: guard.runtime.networkId, postId: post._id }
       if (kind === "hide") await hide(args)
       else if (kind === "mute" && post.page === null && post.author.personId && post.author.personId !== guard.runtime.personId) await mute({ networkId: guard.runtime.networkId, targetPersonId: post.author.personId })
-      else if (kind === "report" && !post.isMine) await report({ ...args, reason, ...(note.trim() ? { note: note.trim() } : {}) })
       else if (kind === "remove" && post.isMine) await remove(args)
       else if (kind === "pin" && post.isMine && !post.page && post.audience !== "group") await pin(args)
       else return
-      if (current()) { setOpen(false); setMessage(t(`mobile.feedUi.${kind === "hide" ? "hidden" : kind === "mute" ? "muted" : kind === "report" ? "reported" : kind === "pin" ? "pinned" : "removed"}`)) }
+      if (current()) { setOpen(false); setMessage(t(`mobile.feedUi.${kind === "hide" ? "hidden" : kind === "mute" ? "muted" : kind === "pin" ? "pinned" : "removed"}`)) }
     } catch { if (current()) { setError(true); setMessage(t("mobile.common.unavailable")) } }
     finally { lock.current = false; if (mounted.current) setBusy(false) }
   }
+  const protect = async (steps: readonly NativeSafetyStep[], form?: NativeReportForm) => {
+    let reportAck: string | undefined
+    const networkId = guard.runtime.networkId
+    const result = await safety.run(steps, async step => {
+      if (step === "report" && form && !post.isMine) reportAck = nativeReportAcknowledgementKey(await report({ networkId, postId: post._id, reason: form.reason, ...nativeReportNote("post", form.note) }))
+      else if (step === "block" && author) await block({ networkId, targetPersonId: author.personId })
+      else throw new Error("nativeSafetyStepUnavailable")
+    })
+    const outcome = nativeSafetyOutcome(t, result, { name: author?.name ?? null, reportAck })
+    if (!outcome) return
+    // Le masque du déclarant ou le blocage retire souvent la publication : l'avis de session survit à la carte.
+    safety.notify(outcome.text, outcome.error)
+    if (mounted.current) {
+      setMessage(outcome.text); setError(outcome.error)
+      if (!outcome.error || result.status === "failed" && result.completed.length > 0) { setOpen(false); setReporting(null) }
+    }
+  }
+  const pending = busy || safety.pending
   if (!guard.canRead) return null
   return <>
-    <Pressable accessibilityRole="button" accessibilityLabel={t("mobile.feedUi.menu")} accessibilityState={{ expanded: open, disabled: !guard.canAct }} disabled={!guard.canAct} onPress={() => { if (guard.current()) { setOpen(true); setReporting(false) } }} style={{ width: 44, minHeight: 44, alignItems: "center", justifyContent: "center" }}><Text accessible={false} style={{ color: tokens.foreground, fontSize: 26, fontWeight: "700" }}>⋯</Text></Pressable>
-    <PostSheet title={t(reporting ? "mobile.feedUi.report" : "mobile.feedUi.menu")} open={open} onClose={() => { if (!busy) setOpen(false) }}><ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20, gap: 12 }}>
-      {reporting ? <><Label strong>{t("mobile.feedUi.reportReason")}</Label>{CONTENT_REPORT_REASONS.map(value => <Action key={value} label={nativeFeedText(t, `reason.${value}`)} accessibilityRole="radio" checked={reason === value} tone={reason === value ? "primary" : "neutral"} disabled={busy} onPress={() => setReason(value)} />)}<Field label={t("mobile.feedUi.reportNote")} value={note} onChangeText={setNote} maxLength={1000} multiline disabled={busy} /><Action label={t("mobile.feedUi.reportSend")} tone="primary" pending={busy} disabled={!guard.runtime.canWrite} onPress={() => { void act("report") }} /></> : <>
-        <Action label={t("mobile.feedUi.hide")} disabled={busy || !guard.runtime.canWrite} onPress={() => { void act("hide") }} />
-        {!post.page && post.author.personId && post.author.personId !== guard.runtime.personId ? <Action label={t("mobile.feedUi.mute")} disabled={busy || !guard.runtime.canWrite} onPress={() => { void act("mute") }} /> : null}
-        {!post.isMine ? <Action label={t("mobile.feedUi.report")} disabled={busy || !guard.runtime.canWrite} onPress={() => setReporting(true)} /> : <>
-          {!post.page && post.audience !== "group" ? <Action label={t("mobile.feedUi.pin")} disabled={busy || !guard.runtime.canWrite} onPress={() => { void act("pin") }} /> : null}
-          <Action label={t("mobile.feedUi.remove")} tone="danger" disabled={busy || !guard.runtime.canWrite} onPress={() => Alert.alert(t("mobile.feedUi.removeConfirm"), undefined, [{ text: t("mobile.feedUi.cancel"), style: "cancel" }, { text: t("mobile.feedUi.remove"), style: "destructive", onPress: () => { void act("remove") } }])} />
+    <Pressable accessibilityRole="button" accessibilityLabel={t("mobile.feedUi.menu")} accessibilityState={{ expanded: open, disabled: !guard.canAct }} disabled={!guard.canAct} onPress={() => { if (guard.current()) { setOpen(true); setReporting(null); setMessage(""); setError(false) } }} style={{ width: 44, minHeight: 44, alignItems: "center", justifyContent: "center" }}><Text accessible={false} style={{ color: tokens.foreground, fontSize: 26, fontWeight: "700" }}>⋯</Text></Pressable>
+    <PostSheet title={t(reporting ? "mobile.feedUi.report" : "mobile.feedUi.menu")} open={open} onClose={() => { if (!pending) { setOpen(false); setReporting(null) } }}><ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20, gap: 12 }}>
+      {reporting && !post.isMine ? <NativeReportFormView kind="post" {...(author ? { blockName: author.name } : {})} initialAlsoBlock={reporting.alsoBlock} pending={safety.pending} onSubmit={form => { void protect(nativeSafetySteps({ report: true, block: form.alsoBlock && author !== null }), form) }} /> : <>
+        <Action label={t("mobile.feedUi.hide")} disabled={pending || !guard.runtime.canWrite} onPress={() => { void act("hide") }} />
+        {!post.page && post.author.personId && post.author.personId !== guard.runtime.personId ? <Action label={t("mobile.feedUi.mute")} disabled={pending || !guard.runtime.canWrite} onPress={() => { void act("mute") }} /> : null}
+        {!post.isMine ? <Action label={t("mobile.feedUi.report")} disabled={pending} onPress={() => { setReporting({ alsoBlock: false }); setMessage(""); setError(false) }} /> : <>
+          {!post.page && post.audience !== "group" ? <Action label={t("mobile.feedUi.pin")} disabled={pending || !guard.runtime.canWrite} onPress={() => { void act("pin") }} /> : null}
+          <Action label={t("mobile.feedUi.remove")} tone="danger" disabled={pending || !guard.runtime.canWrite} onPress={() => Alert.alert(t("mobile.feedUi.removeConfirm"), undefined, [{ text: t("mobile.feedUi.cancel"), style: "cancel" }, { text: t("mobile.feedUi.remove"), style: "destructive", onPress: () => { void act("remove") } }])} />
         </>}
+        {author ? <Action label={t("mobile.safety.block.authorAction")} accessibilityLabel={nativeSafetyBlockLabel(t, author.name)} tone="danger" pending={safety.pending} disabled={pending} onPress={() => confirmNativeBlock(t, author.name, () => { void protect(["block"]) }, () => { setReporting({ alsoBlock: true }); setMessage(""); setError(false) })} /> : null}
       </>}
       <Status error={error} label={message} />
     </ScrollView></PostSheet>
