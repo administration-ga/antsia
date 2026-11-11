@@ -234,6 +234,12 @@ export const DATA_TABLE_POLICIES: Record<string, { shared?: boolean; owners?: re
   moderationPolicies: {shared: true},
   moderationContentStates: {owners: ["ownerPersonId"],parents: ["targetId"]},
   moderationTransparency: {shared: true},
+  // SU01h : une mesure sur ordre du juge est la preuve d'exécution de l'exploitant (comme un dossier de
+  // modération) : la ligne demeure, ses références personnelles sont anonymisées à l'effacement, le texte
+  // ordonné (correctif, étiquette) disparaît avec la personne visée ; la ligne levée est purgée au terme
+  // de `JUDICIAL_MEASURE_RETENTION_MS` (90 j, à valider par le propriétaire et le juriste, A12). La
+  // personne visée l'exporte sans la référence de l'ordonnance ni l'identité des opérateurs.
+  judicialMeasures: {shared: true},
   notificationPreferences: {},
   pushSubscriptions: {},
   notificationDeliveryJobs: {parents: ["notificationId"]},

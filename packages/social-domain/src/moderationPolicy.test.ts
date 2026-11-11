@@ -143,3 +143,11 @@ describe("MC-01 — surfaces signalables seulement", () => {
     expect(MODERATION_POLICY_SURFACES).toHaveLength(MODERATION_SURFACES.length - 2)
   })
 })
+
+describe("DL-03 — le commentaire d'un direct", () => {
+  it("est une surface modérée et RÉGLABLE, rangée juste après le direct : chaque commentaire passe la règle de relecture", () => {
+    expect(MODERATION_SURFACES.indexOf("liveComment")).toBe(MODERATION_SURFACES.indexOf("live") + 1)
+    expect(isReportOnlySurface("liveComment")).toBe(false)
+    expect(MODERATION_POLICY_SURFACES).toContain("liveComment")
+  })
+})

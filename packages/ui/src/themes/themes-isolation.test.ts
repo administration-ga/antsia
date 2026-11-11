@@ -10,11 +10,13 @@ import { ANTSIA_THEME_IDS, antsiaCharteFor } from "./antsia-themes"
  * Non-régression des autres consommateurs de la charte (lot P01).
  *
  * - La console (`apps/admin_antsia_ga`, `data-charte="admin-antsia"`, thème vide
- *   à dessein) rend la charte de base telle quelle : ses jetons résolus sont
- *   figés au lot P01 (`tests/fixtures/charte-base-resolved.json`). Toute valeur
- *   existante qui changerait — dans la charte, la couche de communication ou la
- *   couche Tailwind — se voit ici ; un jeton AJOUTÉ au contrat reste permis.
- *   Ce gel garde aussi la part de la base dont héritent les autres thèmes.
+ *   à dessein, sauf le contour des champs et l'anneau natif) rend la charte de base : ses jetons
+ *   résolus sont figés au lot P01 (`tests/fixtures/charte-base-resolved.json`).
+ *   Toute valeur existante qui changerait — dans la charte, la couche de
+ *   communication ou la couche Tailwind — se voit ici ; un jeton AJOUTÉ au
+ *   contrat reste permis. Ce gel garde aussi la part de la base dont héritent
+ *   les autres thèmes. Seules exceptions de la console, nommées jeton par jeton :
+ *   le contour des champs et l'anneau natif du navigateur (EX-18, WCAG 1.4.11, `CONSOLE_A11Y_TOKENS`).
  * - DIASPORALE et la console ne voient rien du thème ANTSIA, même chargé dans
  *   la même feuille, avant ou après le leur. Le thème DIASPORALE, écrit par sa
  *   session, n'est volontairement pas figé ici : seule l'absence d'effet
@@ -52,17 +54,36 @@ const NODES = (charte: string): ChartedNode[] =>
   [false, true].flatMap((dark) => [false, true].map((nested) => ({ charte, dark, nested })))
 const label = (node: ChartedNode) => `${node.charte} ${node.dark ? "sombre" : "clair"}${node.nested ? " (portail)" : ""}`
 
+/**
+ * EX-18 (WCAG 1.4.11) : les SEULS jetons figés que le thème de la console change — le
+ * contour des champs, celui de la charte du réseau, et l'anneau natif plein (`--outline-ring`, second
+ * volet), comme les autres chartes —, avec leur valeur résolue.
+ */
+const CONSOLE_A11Y_TOKENS: Record<"clair" | "sombre", Record<string, string>> = {
+  clair: { "--esp-neutral-field": "#878787", "--esp-night-input": "#707070", "--input": "#878787", "--ink-300": "#878787", "--outline-ring": "#0b4f9c" },
+  sombre: { "--esp-neutral-field": "#878787", "--esp-night-input": "#707070", "--input": "#707070", "--ink-300": "#707070", "--outline-ring": "#5b9bdf" },
+}
+
 describe("non-régression des chartes voisines", () => {
-  it("la console garde chaque jeton résolu de la charte de base, figé au lot P01", () => {
-    const console_ = new TokenCascade([...BASE, ADMIN])
+  it("la charte de base garde chaque jeton résolu figé au lot P01", () => {
+    const base = new TokenCascade(BASE)
     for (const mode of ["clair", "sombre"] as const) {
-      const resolved = console_.resolveAll({ charte: "admin-antsia", dark: mode === "sombre", nested: false })
+      const resolved = base.resolveAll({ charte: "admin-antsia", dark: mode === "sombre", nested: false })
       const changed = Object.entries(FROZEN[mode])
         .filter(([token, frozen]) => resolved.get(token) !== frozen)
         .map(([token, frozen]) => `${mode} ${token} : ${frozen} → ${resolved.get(token) ?? "absent"}`)
       expect(changed).toEqual([])
     }
     expect(Object.keys(FROZEN.clair).length).toBeGreaterThan(200)
+  })
+
+  it("la console garde chaque jeton figé de la base, sauf le contour des champs et l'anneau natif, nommés jeton par jeton (EX-18)", () => {
+    const console_ = new TokenCascade([...BASE, ADMIN])
+    for (const mode of ["clair", "sombre"] as const) {
+      const resolved = console_.resolveAll({ charte: "admin-antsia", dark: mode === "sombre", nested: false })
+      const changed = Object.fromEntries(Object.entries(FROZEN[mode]).filter(([token, frozen]) => resolved.get(token) !== frozen).map(([token]) => [token, resolved.get(token) ?? "absent"]))
+      expect(changed, mode).toEqual(CONSOLE_A11Y_TOKENS[mode])
+    }
   })
 
   it.each(NEIGHBORS)("%s ne voit rien des sept thèmes ANTSIA, chargés avant ou après le sien", (charte, own) => {

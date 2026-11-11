@@ -23,6 +23,7 @@ import { networkQuery } from "../../lib/functions"
 import { badgeValidator } from "../../lib/validators"
 import { servableUrl } from "../files/storageGuard"
 import { isBlockedBetween } from "../graph/graph"
+import { judicialDelistReader } from "../moderation/judicialHolds"
 import { isDiscoverablePerson } from "./miniProfile"
 import { badgesOf } from "./persons"
 
@@ -155,8 +156,10 @@ export const searchPeople = networkQuery({
     }
 
     const hits: PersonHit[] = []
+    // SU01h : un profil déréférencé sur ordre du juge sort de la recherche, sans être retiré.
+    const delisted = await judicialDelistReader(ctx)
     for (const personId of personIds.slice(0, limit)) {
-      if (personId === ctx.person._id) continue
+      if (personId === ctx.person._id || await delisted("person", personId)) continue
       // Un blocage, dans un sens ou dans l'autre, retire la personne de l'annuaire.
       if (await isBlockedBetween(ctx, ctx.person._id, personId)) continue
       const person = await ctx.db.get(personId)

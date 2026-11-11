@@ -48,6 +48,7 @@ import { notifyMentions } from "../posts/postWrite"
 import { canReadModeratedContent, contentState, setContentModerationStatus } from "./policy"
 import type { moderationTargetValidator } from "./tables"
 import { editorialMediaReviewSource, editorialReviewSource } from "./editorialReviewSource"
+import { deferRestorationToJudicialHold } from "./judicialHolds"
 
 export type ModerationTarget = Infer<typeof moderationTargetValidator>
 export type ResolvedTarget = { target: ModerationTarget; networkId: Id<"networks">; ownerPersonId?: Id<"persons"> }
@@ -137,6 +138,14 @@ export async function resolveVisibleTarget(ctx: MutationCtx, network: Doc<"netwo
     case "live": {
       const session = await assertVisibleDirectSession(ctx, { personId, networkId: network._id, membershipProven: true }, target.id)
       return { ...base, ownerPersonId: session.hostPersonId }
+    }
+    case "liveComment": {
+      // DL-03 : un commentaire PUBLIÉ d'un direct que le déclarant voit MAINTENANT depuis ce réseau — la garde de la
+      // salle (adhésion, audience, blocage de l'hôte, exclusion) rend le refus indistinct ; l'auteur en est le propriétaire.
+      const comment = await ctx.db.get(target.id)
+      if (!comment || comment.status !== "published" || comment.networkId !== network._id) return notFound()
+      await assertVisibleDirectSession(ctx, { personId, networkId: network._id, membershipProven: true }, comment.sessionId)
+      return { ...base, ownerPersonId: comment.authorPersonId }
     }
     case "story": {
       const story = await ctx.db.get(target.id)
@@ -254,6 +263,10 @@ export async function removeTarget(ctx: MutationCtx, target: ResolvedTarget): Pr
   } else if (target.target.kind === "page") {
     await ctx.scheduler.runAfter(0, internal.modules.live.revocation.closePageDirects, { pageId: target.target.id, cursor: null, revokedAt: Date.now() })
   } else if (target.target.kind === "live") {
+    // La rediffusion part avec le direct : l'état `removed` ferme la garde de la session
+    // (`directSessionAccessDecision`), donc celle de sa copie (`directReplayAccessDecision`), pour TOUS,
+    // l'hôte compris — aucune URL, aucune liste (« Mes directs », replays). Le fichier demeure jusqu'à son
+    // échéance de conservation : un recours admis rend la rediffusion telle quelle (DL-03).
     const session = await ctx.db.get(target.target.id)
     if (session) {
       if (session.status !== "ended") {
@@ -263,6 +276,11 @@ export async function removeTarget(ctx: MutationCtx, target: ResolvedTarget): Pr
       await ctx.scheduler.runAfter(0, internal.modules.live.livekitActions.closeDirectRoom, { roomName: session.roomName })
       if (session.egressId) await ctx.scheduler.runAfter(0, internal.modules.live.livekitActions.stopDirectEgress, { egressId: session.egressId })
     }
+  } else if (target.target.kind === "liveComment") {
+    // DL-03 : retiré pour tous, la ligne DEMEURE (un recours admis la rend) ; un retrait antérieur de son auteur ou
+    // de l'hôte reste tel quel. Le compteur de la salle suit au prochain passage de l'écrivain unique (D28).
+    const comment = await ctx.db.get(target.target.id)
+    if (comment && comment.status !== "removed") await ctx.db.patch(comment._id, { status: "removed", removedAt: Date.now() })
   } else if (target.target.kind === "groupMessage") {
     const message = await ctx.db.get(target.target.id)
     if (message) {
@@ -290,6 +308,8 @@ export async function removeTarget(ctx: MutationCtx, target: ResolvedTarget): Pr
 
 /** Rétablir l'accès ne redémarre jamais une salle ni une capture. */
 export async function restoreTarget(ctx: MutationCtx, target: ResolvedTarget): Promise<void> {
+  // SU01h : un contenu suspendu sur ordre du juge reste retiré ; la mesure vivante le rétablira à sa levée.
+  if (await deferRestorationToJudicialHold(ctx, target.target.kind, target.target.id, "suspend_content", "contentRemoved")) return
   if (target.target.kind === "editorialMedia" && !await editorialMediaReviewSource(ctx, target.networkId, target.target.id)) return notFound()
   if (target.target.kind === "editorialVersion" && !await editorialReviewSource(ctx, target.networkId, target.target.id)) return notFound()
   if ((target.target.kind === "post" || target.target.kind === "page") && !(await isFederatedContentAvailable(ctx, target.target.kind === "post" ? "posts" : "pages", target.target.id))) return notFound()
@@ -343,6 +363,13 @@ export async function restoreTarget(ctx: MutationCtx, target: ResolvedTarget): P
       await recordComment(ctx, comment)
       const post = await ctx.db.get(comment.postId)
       if (post?.authorPersonId) await notifyPerson(ctx, { networkId: comment.networkId, recipientPersonId: post.authorPersonId, actorPersonId: comment.authorPersonId, kind: "post_comment", subject: { post: post._id } })
+    }
+  } else if (target.target.kind === "liveComment") {
+    // DL-03 : retenu puis admis, le commentaire paraît ; retiré par décision, il revient sur recours admis. Celui que
+    // son auteur (ou l'hôte) a retiré pendant la relecture ne revient pas : il n'est plus `pending_review`.
+    const comment = await ctx.db.get(target.target.id)
+    if (comment && ((previous?.status === "pending_review" && comment.status === "pending_review") || (previous?.status === "removed" && comment.status === "removed"))) {
+      await ctx.db.patch(comment._id, { status: "published", removedAt: undefined })
     }
   } else if (target.target.kind === "event") {
     const event = await ctx.db.get(target.target.id)

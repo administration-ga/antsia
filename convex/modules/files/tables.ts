@@ -76,5 +76,6 @@ export const filesTables = {
     .index("by_status_purged_updatedAt", ["status", "blobPurgedAt", "updatedAt"])
     .index("by_network_status", ["networkId", "status"])
     // Effacement et lecture « mes fichiers » (PA5).
-    .index("by_uploader", ["uploadedByPersonId"]),
+    .index("by_uploader", ["uploadedByPersonId"])
+    .index("by_releasedByPersonId", ["releasedByPersonId"]),
 }

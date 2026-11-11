@@ -201,7 +201,8 @@ export const liveTables = {
     // Corrélation du webhook Egress — le chemin du fichier porte la session, l'évènement porte l'egressId.
     .index("by_egressId", ["egressId"])
     // Les conférences d'une PAGE, par statut : son retrait les ferme sans balayer tout le direct (V38).
-    .index("by_page_status", ["pageId", "status"]),
+    .index("by_page_status", ["pageId", "status"])
+    .index("by_spotlightPersonId", ["spotlightPersonId"]),
 
   /**
    * Les COMPTEURS d'une session (D28) — UNE ligne par session, hors du document
@@ -253,7 +254,8 @@ export const liveTables = {
   })
     .index("by_session_person", ["sessionId", "personId"])
     // Les intervenants VIVANTS d'une session, sans balayage des rétrogradés.
-    .index("by_session_removedAt", ["sessionId", "removedAt"]),
+    .index("by_session_removedAt", ["sessionId", "removedAt"])
+    .index("by_personId", ["personId"]),
 
   /**
    * L'ACCORD EXPLICITE et horodaté d'une personne à l'enregistrement d'un
@@ -276,7 +278,8 @@ export const liveTables = {
     sessionId: v.id("liveSessions"),
     personId: v.id("persons"),
     acceptedAt: v.number(),
-  }).index("by_session_person", ["sessionId", "personId"]),
+  }).index("by_session_person", ["sessionId", "personId"])
+    .index("by_personId", ["personId"]),
 
   /**
    * Une admission SPECTATEUR durable pour la session — ET son bail de présence.
@@ -311,7 +314,8 @@ export const liveTables = {
      * l'admission ET la recomposition lisent. Les lignes sans `lastSeenAt` sont
      * HORS de toute borne `.gte(…)` : jamais comptées présentes.
      */
-    .index("by_session_lastSeenAt", ["sessionId", "lastSeenAt"]),
+    .index("by_session_lastSeenAt", ["sessionId", "lastSeenAt"])
+    .index("by_personId", ["personId"]),
 
   /** Une main levée durable par spectateur et direct. */
   liveAntennaRequests: defineTable({
@@ -323,7 +327,8 @@ export const liveTables = {
     updatedAt: v.number(),
   })
     .index("by_session_person", ["sessionId", "personId"])
-    .index("by_session_status_updatedAt", ["sessionId", "status", "updatedAt"]),
+    .index("by_session_status_updatedAt", ["sessionId", "status", "updatedAt"])
+    .index("by_personId", ["personId"]),
 
   /** Une invitation durable par personne et direct, sans révéler de présence SFU. */
   liveAntennaInvitations: defineTable({
@@ -336,7 +341,9 @@ export const liveTables = {
     updatedAt: v.number(),
   })
     .index("by_session_invitee", ["sessionId", "inviteePersonId"])
-    .index("by_session_status_updatedAt", ["sessionId", "status", "updatedAt"]),
+    .index("by_session_status_updatedAt", ["sessionId", "status", "updatedAt"])
+    .index("by_inviteePersonId", ["inviteePersonId"])
+    .index("by_inviterPersonId", ["inviterPersonId"]),
 
   /**
    * Une EXCLUSION durable, LEVABLE (D-11), toujours par SESSION — un nouveau
@@ -356,7 +363,10 @@ export const liveTables = {
     liftedAt: v.optional(v.number()),
     /** Qui l'a levée. Même exigence d'audit que `byPersonId`. */
     liftedByPersonId: v.optional(v.id("persons")),
-  }).index("by_session_banned", ["sessionId", "bannedPersonId"]),
+  }).index("by_session_banned", ["sessionId", "bannedPersonId"])
+    .index("by_bannedPersonId", ["bannedPersonId"])
+    .index("by_byPersonId", ["byPersonId"])
+    .index("by_liftedByPersonId", ["liftedByPersonId"]),
 
   /**
    * Les rôles de GESTION délégués par l'hôte (D-11, ADR-0144).
@@ -384,7 +394,9 @@ export const liveTables = {
   })
     .index("by_session_person", ["sessionId", "personId"])
     // Les délégations VIVANTES d'une session, sans balayer les révoquées.
-    .index("by_session_revokedAt", ["sessionId", "revokedAt"]),
+    .index("by_session_revokedAt", ["sessionId", "revokedAt"])
+    .index("by_grantedByPersonId", ["grantedByPersonId"])
+    .index("by_personId", ["personId"]),
 
   /**
    * Les INVITÉS NOMINATIFS d'une conférence (ADR-0150).
@@ -420,7 +432,8 @@ export const liveTables = {
      * facette d'audience : la découverte y précharge UNE fois par page les
      * sessions où le lecteur est invité vivant.
      */
-    .index("by_network_person_revokedAt", ["networkId", "personId", "revokedAt"]),
+    .index("by_network_person_revokedAt", ["networkId", "personId", "revokedAt"])
+    .index("by_invitedByPersonId", ["invitedByPersonId"]),
 
   /**
    * La SOURDINE de conversation d'une personne (D-11) — à ne pas confondre avec
@@ -436,7 +449,10 @@ export const liveTables = {
     createdAt: v.number(),
     liftedAt: v.optional(v.number()),
     liftedByPersonId: v.optional(v.id("persons")),
-  }).index("by_session_person", ["sessionId", "personId"]),
+  }).index("by_session_person", ["sessionId", "personId"])
+    .index("by_byPersonId", ["byPersonId"])
+    .index("by_liftedByPersonId", ["liftedByPersonId"])
+    .index("by_personId", ["personId"]),
 
   /**
    * Un COMMENTAIRE du direct — PERSISTÉ (jamais un canal de données : le
@@ -453,7 +469,8 @@ export const liveTables = {
     offsetMs: v.number(),
     createdAt: v.number(),
     removedAt: v.optional(v.number()),
-  }).index("by_session_createdAt", ["sessionId", "createdAt"]),
+  }).index("by_session_createdAt", ["sessionId", "createdAt"])
+    .index("by_authorPersonId", ["authorPersonId"]),
 
   /**
    * Les RÉACTIONS d'une personne à une session — UNE ligne par (session,
@@ -472,7 +489,8 @@ export const liveTables = {
     // Unicité et incrément en un seul coup.
     .index("by_session_person_kind", ["sessionId", "personId", "kind"])
     // Recomposition des totaux par `reap`.
-    .index("by_session", ["sessionId"]),
+    .index("by_session", ["sessionId"])
+    .index("by_personId", ["personId"]),
 
   /**
    * Le BAIL DE PRÉSENCE DE L'HÔTE — UNE ligne par session (D-14), réécrite,
@@ -492,5 +510,6 @@ export const liveTables = {
     /** Quand l'absence a été CONSTATÉE — posé par la récolte, jamais par le client. */
     absentSince: v.optional(v.number()),
     updatedAt: v.number(),
-  }).index("by_session", ["sessionId"]),
+  }).index("by_session", ["sessionId"])
+    .index("by_hostPersonId", ["hostPersonId"]),
 }

@@ -15,5 +15,6 @@ export const suggestionsTables = {
     createdAt: v.number(),
   })
     .index("by_network_person_dismissed", ["networkId", "personId", "dismissedPersonId"])
-    .index("by_network_person_createdAt", ["networkId", "personId", "createdAt"]),
+    .index("by_network_person_createdAt", ["networkId", "personId", "createdAt"])
+    .index("by_dismissedPersonId", ["dismissedPersonId"]),
 }

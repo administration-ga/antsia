@@ -42,5 +42,6 @@ export const marksTables = {
     createdAt: v.number(),
   })
     .index("by_network_person_muted", ["networkId", "personId", "mutedPersonId"])
-    .index("by_network_person_createdAt", ["networkId", "personId", "createdAt"]),
+    .index("by_network_person_createdAt", ["networkId", "personId", "createdAt"])
+    .index("by_mutedPersonId", ["mutedPersonId"]),
 }

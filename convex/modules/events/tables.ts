@@ -50,7 +50,8 @@ export const eventsTables = {
     .index("by_organizer_idempotency", ["organizerPersonId", "idempotencyKey"])
     .index("by_network_organizer_startAt", ["networkId", "organizerPersonId", "startAt"])
     .index("by_network_page_startAt", ["networkId", "organizerPageId", "startAt"])
-    .index("by_page_idempotency", ["organizerPageId", "idempotencyKey"]),
+    .index("by_page_idempotency", ["organizerPageId", "idempotencyKey"])
+    .index("by_createdByPersonId", ["createdByPersonId"]),
 
   /** Une ligne par (évènement, personne) : pending = invitation personnelle, ou attente de page avec séquence. */
   eventParticipants: defineTable({
@@ -85,5 +86,6 @@ export const eventsTables = {
     .index("by_event_status_pageRegistrationSequence", ["eventId", "status", "pageRegistrationSequence"])
     .index("by_event_pageAttendanceTokenHash", ["eventId", "pageAttendanceTokenHash"])
     .index("by_event_pageAttendanceCheckedInAt", ["eventId", "pageAttendanceCheckedInAt"])
-    .index("by_network_person_eventStartAt", ["networkId", "personId", "eventStartAt"]),
+    .index("by_network_person_eventStartAt", ["networkId", "personId", "eventStartAt"])
+    .index("by_invitedByPersonId", ["invitedByPersonId"]),
 }

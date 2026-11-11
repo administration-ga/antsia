@@ -1,5 +1,5 @@
 // @vitest-environment edge-runtime
-// Dupliqué de socle/convex/modules/direct/comments.test.ts @ ad2e7fdc2 — adaptations : harnais et outillage du moteur (`test.setup`, `live/fixtures.setup` : réseau racine amorcé, personnes membres, session EN DIRECT posée en base au lieu de `sessions.create` + `goLive`) ; le compteur se lit dans `liveSessionCounters` (D28), et la « valeur posée par le chemin chaud » du socle devient une ligne de compteurs posée en base, comme l'aurait laissée une récolte précédente — le chemin chaud n'écrit aucun compteur (l'en-tête du socle disait encore que `send` incrémentait la session : ce n'était plus le cas) ; cas NEUFS des adaptations : refus à CODE (`LIVE_NOT_LIVE`, `LIVE_CHAT_CLOSED`, `LIVE_CHAT_MUTED`, `LIVE_COMMENT_EMPTY`, `LIVE_COMMENT_TOO_LONG{max}`), refus indistinct `notFound` (hors audience, autre réseau, commentaire d'autrui sans droit de modérer), débit `live.comment` par personne, DTO du moteur (`authorPersonId`, profil PUBLIÉ ou nom neutre, sourdine dite au seul modérateur) et file des 40 derniers vivants.
+// Dupliqué de socle/convex/modules/direct/comments.test.ts @ ad2e7fdc2 — adaptations : harnais et outillage du moteur (`test.setup`, `live/fixtures.setup` : réseau racine amorcé, personnes membres, session EN DIRECT posée en base au lieu de `sessions.create` + `goLive`) ; le compteur se lit dans `liveSessionCounters` (D28), et la « valeur posée par le chemin chaud » du socle devient une ligne de compteurs posée en base, comme l'aurait laissée une récolte précédente — le chemin chaud n'écrit aucun compteur (l'en-tête du socle disait encore que `send` incrémentait la session : ce n'était plus le cas) ; cas NEUFS des adaptations : refus à CODE (`LIVE_NOT_LIVE`, `LIVE_CHAT_CLOSED`, `LIVE_CHAT_MUTED`, `LIVE_COMMENT_EMPTY`, `LIVE_COMMENT_TOO_LONG{max}`), refus indistinct `notFound` (hors audience, autre réseau, commentaire d'autrui sans droit de modérer), débit `live.comment` par personne, DTO du moteur (`authorPersonId`, profil PUBLIÉ ou nom neutre, sourdine dite au seul modérateur) et file des 40 derniers vivants ; DL-03 : l'état de modération écrit avec le commentaire, sans texte, et `pendingReview` au DTO.
 /**
  * Les COMMENTAIRES du direct — persistés, bornés, et leur compteur tenu par
  * l'écrivain unique (D28) :
@@ -225,7 +225,7 @@ describe("adaptations du moteur — refus à code, réseau, débit", () => {
     expect(await file(alice, root, une)).toHaveLength(5)
   })
 
-  it("n'écrit ni la session ni ses compteurs : le commentaire est sa seule ligne", async () => {
+  it("n'écrit ni la session ni ses compteurs : le commentaire et son état de modération, sans texte (DL-03)", async () => {
     const { t, root, alice, bob } = await cast()
     const sessionId = await insertSession(t, { networkId: root, host: alice })
     const avant = await sessionDoc(t, sessionId)
@@ -245,6 +245,10 @@ describe("adaptations du moteur — refus à code, réseau, débit", () => {
     const ligne = must(await t.run(async (ctx) => ctx.db.get(commentId)))
     expect(ligne.networkId).toBe(root)
     expect(ligne.status).toBe("removed")
+    // DL-03 : la règle de relecture du réseau a jugé le commentaire ; son état ne porte aucun texte.
+    const etat = must(await t.run(async (ctx) => ctx.db.query("moderationContentStates").withIndex("by_target", (q) => q.eq("targetKind", "liveComment").eq("targetId", commentId)).unique()))
+    expect(etat).toMatchObject({ networkId: root, ownerPersonId: bob.personId, status: "published" })
+    expect(JSON.stringify(etat)).not.toContain("Bonjour")
   })
 })
 
@@ -270,6 +274,7 @@ describe("la file — ce que l'écran reçoit", () => {
         createdAt: T0 + 1_000,
         isMine: false,
         mutedForChat: false,
+        pendingReview: false,
       },
       expect.objectContaining({ authorPersonId: carol.personId, offsetMs: 2_000, isMine: false, mutedForChat: true }),
     ])

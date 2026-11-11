@@ -10,7 +10,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { api, internal } from "../../_generated/api"
 import type { Id } from "../../_generated/dataModel"
 import { SEED_CONFIRMATION } from "../../seeds/foundations"
-import { testConvex } from "../../test.setup"
+import { createTestOperatorProof, testConvex } from "../../test.setup"
 import { reporterNoticeRecipient } from "../notifications/policy"
 
 type T = ReturnType<typeof testConvex>
@@ -139,14 +139,18 @@ describe("SU01d — décision notifiée au déclarant (art. 24)", () => {
 
   it("le chemin historique des publications pose le délai, accuse réception et notifie la fermeture, pas l'examen", async () => {
     const f = await fixture()
+    // AZ-F1 : sur ce chemin, seul l'opérateur tranche encore (`decideAsOperator`) ; un modérateur passe par `cases.decide`.
+    const operator = await enter(f.t, f.root, "operatrice")
+    await f.t.run(async (ctx) => ctx.db.insert("operators", { personId: operator.personId, role: "platform_operator", grantedAt: 1 }))
+    await createTestOperatorProof(f.t, operator.as, operator.personId)
     const filed = await f.reader.as.mutation(L.reportPost, { networkId: f.root, postId: f.postId, reason: "minor_harm", note: "Un mineur est visé." })
     const legacy = await f.t.run(async (ctx) => await ctx.db.get(filed.reportId))
     const linked = await f.t.run(async (ctx) => legacy?.reportId ? await ctx.db.get(legacy.reportId) : null)
     expect(linked).toMatchObject({ legalBasis: "art24", reporterNetworkId: f.root })
     expect(linked!.acknowledgedAt).toBeDefined()
-    await f.moderator.as.mutation(L.decide, { networkId: f.root, reportId: filed.reportId, status: "reviewing", decisionReason: "Examen en cours." })
+    await operator.as.mutation(L.decideAsOperator, { reportId: filed.reportId, status: "reviewing", decisionReason: "Examen en cours." })
     expect((await noticesOf(f.t, f.root, f.reader.personId)).some((notice) => notice.kind === "report_decided")).toBe(false)
-    await f.moderator.as.mutation(L.decide, { networkId: f.root, reportId: filed.reportId, status: "dismissed", decisionReason: "Contenu conforme." })
+    await operator.as.mutation(L.decideAsOperator, { reportId: filed.reportId, status: "dismissed", decisionReason: "Contenu conforme." })
     expect((await noticesOf(f.t, f.root, f.reader.personId)).some((notice) => notice.kind === "report_decided")).toBe(true)
     expect((await f.reader.as.query(M.myReports, { paginationOpts: PAGE })).page[0]).toMatchObject({ outcome: "dismissed", legalBasis: "art24" })
   })

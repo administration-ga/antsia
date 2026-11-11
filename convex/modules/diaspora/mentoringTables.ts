@@ -102,7 +102,9 @@ export const mentoringTables = {
     // Chercher par pays ET domaine.
     .index("by_network_and_state_and_country_and_domain_and_listedAt", ["networkId", "state", "country", "domain", "listedAt"])
     // Recopier ou retirer les lignes d'un profil.
-    .index("by_mentor_profile", ["mentorProfileId"]),
+    .index("by_mentor_profile", ["mentorProfileId"])
+    // DP-F1 (antsia#166) : l'export et l'effacement d'une personne lisent ces lignes par index, sans balayage.
+    .index("by_personId", ["personId"]),
 
   mentoringRequests: defineTable({
     networkId: v.id("networks"),
@@ -153,5 +155,7 @@ export const mentoringTables = {
     // La boîte d'un mentor : ses demandes en attente non échues.
     .index("by_network_and_mentor_and_status_and_expiresAt", ["networkId", "mentorPersonId", "status", "expiresAt"])
     // Le passage d'expiration (à planifier par ANTSIA).
-    .index("by_status_and_expiresAt", ["status", "expiresAt"]),
+    .index("by_status_and_expiresAt", ["status", "expiresAt"])
+    // DP-F1 (antsia#166) : l'export et l'effacement d'une personne lisent ces lignes par index, sans balayage.
+    .index("by_mentorProfileId", ["mentorProfileId"]),
 }

@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/modules/reseauPersonnel/groupesThematiquesAccess.ts @ ad2e7fdc2 — adaptations : personnes ; libellés remplacés par des codes (`notFound`, `groupMembershipRequired`) ; le groupe doit appartenir au réseau de l'acte (le contrôle du réseau est chez l'appelant, qui passe son `networkId`).
+// Dupliqué de socle/convex/modules/reseauPersonnel/groupesThematiquesAccess.ts @ ad2e7fdc2 — adaptations : personnes ; libellés remplacés par des codes (`notFound`, `groupMembershipRequired`) ; le groupe doit appartenir au réseau de l'acte (le contrôle du réseau est chez l'appelant, qui passe son `networkId`) ; garde de la fiche partagée avec la destination de l'invitation (`servedThematicGroupOrNull`, NP-04).
 /**
  * L'APPARTENANCE à un groupe thématique — les lectures que tout le monde
  * partage.
@@ -46,6 +46,18 @@ export async function isThematicGroupRemovedByModeration(ctx: ReadCtx, groupId: 
  */
 export async function isThematicGroupServedTo(ctx: ReadCtx, group: Doc<"thematicGroups">, personId: Id<"persons">): Promise<boolean> {
   return (await canDiscoverThematicGroup(ctx, group, personId)) && (await canReadModeratedContent(ctx, "thematicGroup", group._id, personId))
+}
+
+/**
+ * NP-04 (issue #149) — LA garde de la fiche (`thematicGroups.getGroup`) : le groupe de CE réseau,
+ * hors suppression en cours, servi à ce lecteur (`isThematicGroupServedTo`) ; `null` sinon. La
+ * destination de l'invitation à un groupe la relit à l'identique : elle ne mène jamais à une fiche
+ * qui se refuserait.
+ */
+export async function servedThematicGroupOrNull(ctx: ReadCtx, networkId: Id<"networks">, groupId: Id<"thematicGroups">, personId: Id<"persons">): Promise<Doc<"thematicGroups"> | null> {
+  const group = await ctx.db.get(groupId)
+  if (!group || group.networkId !== networkId || group.deletingAt !== undefined) return null
+  return (await isThematicGroupServedTo(ctx, group, personId)) ? group : null
 }
 
 /** DG-010 : la page native d'association active et lisible dans SON réseau. */

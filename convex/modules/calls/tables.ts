@@ -101,7 +101,8 @@ export const callsTables = {
     .index("by_status_commercial_thread", ["status", "commercialThreadId"])
     // CC-4 : l'appel vivant d'un fil contextuel (au plus un), et la revalidation paginée des appels contextuels vivants.
     .index("by_contextual_thread_status", ["contextualThreadId", "status"])
-    .index("by_status_contextual_thread", ["status", "contextualThreadId"]),
+    .index("by_status_contextual_thread", ["status", "contextualThreadId"])
+    .index("by_answeredByPersonId", ["answeredByPersonId"]),
 
   /** Une personne d'un appel : l'hôte (qui a composé) ou un participant (appelé, invité). */
   callParticipants: defineTable({
@@ -196,7 +197,8 @@ export const callsTables = {
     // Ma messagerie vocale dans ce réseau, la plus récente d'abord.
     .index("by_network_recipient_createdAt", ["networkId", "recipientPersonId", "createdAt"])
     // Un appel n'accepte qu'UN message : cet index porte l'idempotence.
-    .index("by_call", ["callId"]),
+    .index("by_call", ["callId"])
+    .index("by_fromPersonId", ["fromPersonId"]),
 
   /** La présence d'une personne dans un réseau — ce que voient ses relations, et ce qui prouve qu'elle est hors ligne. */
   personPresence: defineTable({

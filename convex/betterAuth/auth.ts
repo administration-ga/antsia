@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/betterAuth/auth.ts @ ad2e7fdc2 — adaptations : PA4, IDN avec PKCE et preuve serveur minimale, comptes légers par OTP e-mail/SMS, aucune route de mot de passe ; origines du catalogue et de l'environnement ; session sept jours et JWT trente minutes avec sessionId contrôlé côté serveur ; OTT trois minutes ; délivrance locale bornée ou transport configuré, erreurs et limitation de débit du moteur ; refus ou abandon chez IDN renvoyé à la porte de départ de confiance (issue #122).
+// Dupliqué de socle/convex/betterAuth/auth.ts @ ad2e7fdc2 — adaptations : PA4, IDN avec PKCE et preuve serveur minimale, comptes légers par OTP e-mail/SMS, aucune route de mot de passe ; origines du catalogue et de l'environnement ; session sept jours et JWT trente minutes avec sessionId contrôlé côté serveur ; OTT trois minutes ; délivrance locale bornée ou transport configuré, erreurs et limitation de débit du moteur ; refus ou abandon chez IDN renvoyé à la porte de départ de confiance (issue #122) ; refus de débit porteur du délai restant, `retryAfterMs` et `Retry-After` (EA-08, issue #151).
 /**
  * Better Auth du moteur — l'émetteur UNIQUE des jetons Convex (ADR-0002).
  *
@@ -24,14 +24,12 @@ import { devToolsAllowed } from "../lib/devTools"
 import { deliverOtp, type OtpRequest } from "./delivery"
 import { idnRefusalReturn } from "./idnRefusalReturn"
 import { isNativeIdnOAuth, nativeIdn } from "./nativeIdn"
-import { authenticationConfiguration, idnConfiguration, idnProfileProof, isE164Phone, trustedOrigins } from "./settings"
+import { authenticationConfiguration, idnConfiguration, idnProfileProof, isE164Phone, OTP_TTL_SECONDS, trustedOrigins } from "./settings"
 
-export { parseOriginList, trustedOrigins } from "./settings"
+// Durée de vie d'un code à usage unique : la constante vit dans `settings.ts`, que lit aussi la configuration publique (EA-08).
+export { OTP_TTL_SECONDS, parseOriginList, trustedOrigins } from "./settings"
 
 export const authComponent = createClient<DataModel>(components.betterAuth)
-
-/** Durée de vie d'un code à usage unique : cinq minutes. */
-export const OTP_TTL_SECONDS = 300
 
 /** L'origine principale, lue dans le déploiement — jamais une adresse écrite ici (dépôt public). */
 function primarySiteUrl(): string {
@@ -71,7 +69,7 @@ function canRunMutation(ctx: unknown): ctx is RunMutationCtx {
 }
 
 // Limitation de débit : avant l'envoi d'un code et avant une connexion. Clé =
-// adresse normalisée ; au-delà du quota, 429 avec le code `rateLimited`.
+// adresse normalisée ; au-delà du quota, 429 avec le code `rateLimited` et le délai restant.
 const RL_LOGIN_PATHS = new Set<string>(["/sign-in/email-otp", "/phone-number/verify"])
 const RL_OTP_SEND_PATHS = new Set<string>(["/email-otp/send-verification-otp", "/phone-number/send-otp"])
 // Les plugins OTP exposent aussi des réinitialisations capables de créer un
@@ -92,6 +90,20 @@ function isPasswordRequest(hookCtx: { path?: string; body?: unknown }): boolean 
 /** L'origine et la langue de la requête qui demande un code ; l'origine de `createAuth` à défaut d'en-têtes. */
 function otpRequestOf(endpoint: { headers?: Headers | null } | undefined, requestOrigin: string | null | undefined): OtpRequest {
   return { origin: endpoint?.headers?.get("origin") ?? requestOrigin, acceptLanguage: endpoint?.headers?.get("accept-language") }
+}
+
+/**
+ * EA-08 (issue #151) — le refus de débit dit QUAND réessayer : `retryAfterMs` dans le corps (la
+ * clé des refus `rateLimited` du moteur) et `Retry-After` en secondes entières (RFC 9110). Un
+ * délai, rien d'autre : ni l'adresse, ni le seau, ni le compte de demandes.
+ */
+export function rateLimitedRefusal(retryAfterMs: number): APIError {
+  const delayMs = Number.isFinite(retryAfterMs) && retryAfterMs > 0 ? Math.ceil(retryAfterMs) : 0
+  return new APIError(
+    "TOO_MANY_REQUESTS",
+    { message: "rateLimited", code: "rateLimited", retryAfterMs: delayMs },
+    { "Retry-After": String(Math.max(1, Math.ceil(delayMs / 1_000))) },
+  )
 }
 
 type DeliveryState = { attempted: boolean; delivered: boolean }
@@ -140,7 +152,7 @@ const rateLimitPlugin = (ctx: GenericCtx<DataModel>): BetterAuthPlugin => ({
             internal.modules.platform.authRateLimit.checkAuthRateLimit as never,
             { bucket, key } as never,
           )) as { ok: boolean; retryAfterMs: number }
-          if (!result.ok) throw new APIError("TOO_MANY_REQUESTS", { message: "rateLimited", code: "rateLimited" })
+          if (!result.ok) throw rateLimitedRefusal(result.retryAfterMs)
         }),
       },
     ],

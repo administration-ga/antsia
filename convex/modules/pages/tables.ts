@@ -70,7 +70,8 @@ export const pagesTables = {
     .index("by_root_status_trustRank_createdAt", ["onRoot", "status", "trustRank", "createdAt"])
     .index("by_root_status_country_trustRank_createdAt", ["onRoot", "status", "country", "trustRank", "createdAt"])
     /** VERSIONNÉ : un index de recherche ne se modifie pas en place. */
-    .searchIndex("search_name_v1", { searchField: "searchText", filterFields: ["networkId", "status", "onRoot", "country"] }),
+    .searchIndex("search_name_v1", { searchField: "searchText", filterFields: ["networkId", "status", "onRoot", "country"] })
+    .index("by_createdByPersonId", ["createdByPersonId"]),
 
   /**
    * L'abonnement d'une PERSONNE à une PAGE — unilatéral, sans accord, et il
@@ -119,7 +120,8 @@ export const pagesTables = {
     // « Mes pages » dans un réseau (le composeur « publier en tant que »).
     .index("by_network_person", ["networkId", "personId"])
     // Toutes mes pages (le fil de la racine, l'effacement).
-    .index("by_person", ["personId"]),
+    .index("by_person", ["personId"])
+    .index("by_grantedByPersonId", ["grantedByPersonId"]),
 
   /**
    * Une REVENDICATION (EXF-AN-17) : un membre demande la main sur une page non
@@ -153,7 +155,8 @@ export const pagesTables = {
     // Une revendication en cours par (page, demandeur).
     .index("by_page_claimant_status", ["pageId", "claimantPersonId", "status"])
     // Mes revendications.
-    .index("by_network_claimant_createdAt", ["networkId", "claimantPersonId", "createdAt"]),
+    .index("by_network_claimant_createdAt", ["networkId", "claimantPersonId", "createdAt"])
+    .index("by_decidedByPersonId", ["decidedByPersonId"]),
 
   /**
    * L'HISTORIQUE d'identité d'une page : chaque changement de nom, de sigle, de
@@ -180,5 +183,6 @@ export const pagesTables = {
       bannerChanged: v.optional(v.boolean()),
     }),
     at: v.number(),
-  }).index("by_page_at", ["pageId", "at"]),
+  }).index("by_page_at", ["pageId", "at"])
+    .index("by_actorPersonId", ["actorPersonId"]),
 }

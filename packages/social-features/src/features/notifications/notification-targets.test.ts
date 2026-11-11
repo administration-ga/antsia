@@ -63,6 +63,18 @@ describe("notificationTarget — une adresse par nature de sujet", () => {
 			expect(notificationTarget({ ...notice, target: null }, routes, t), kind).toBeNull()
 		}
 	})
+	it("NP-04 : mène l'invitation à un groupe à la fiche relue par le serveur ; un `null` relu ne mène plus nulle part", () => {
+		const invite = item({ kind: "thematic_group_invite", actor: { handle: "awa" }, subject: subject("thematicGroup", "grp-1") })
+		// La destination typée : la fiche du groupe, sur l'accueil injecté ; le rappel de l'hôte l'emporte toujours.
+		expect(notificationRowAction({ ...invite, target: { kind: "thematicGroup", groupId: "grp-1" } }, ROUTES, {}, t)).toEqual({ mode: "link", kind: "group", href: `${HOME}?tab=groupes&groupe=grp-1`, label: "Ouvrir" })
+		expect(notificationRowAction({ ...invite, target: { kind: "thematicGroup", groupId: "grp-1" } }, ROUTES, { onOpenGroup: vi.fn() }, t)).toEqual({ mode: "callback", kind: "group", id: "grp-1", label: "Ouvrir" })
+		// La fiche ne se sert plus à ce lecteur (groupe retiré, signalé par lui, supprimé) : aucune adresse.
+		expect(notificationTarget({ ...invite, target: null }, ROUTES, t)).toBeNull()
+		expect(notificationRowAction({ ...invite, target: null }, ROUTES, { onOpenGroup: vi.fn() }, t)).toEqual({ mode: "none" })
+		// Un moteur antérieur, sans destination : le sujet commun reste servi tel quel.
+		expect(notificationTarget(invite, ROUTES, t)).toMatchObject({ kind: "group", href: `${HOME}?tab=groupes&groupe=grp-1` })
+		expect(notificationTarget({ ...invite, target: { kind: "thematicGroup", groupId: " " } }, ROUTES, t)).toBeNull()
+	})
 	it("phrase l'invitation à signer et la revendication tranchée sans acteur ni contenu, en français et en anglais ; l'invitation dit sa résolution", () => {
 		const actor = { displayName: "Personne sans rapport" }
 		expect(notificationRowSentence({ kind: "page_signatory_invite", actor }, t)).toBe("Vous êtes invité à signer pour une page. Ouvrez-la pour répondre.")

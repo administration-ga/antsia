@@ -171,6 +171,15 @@ describe("console PA7 — navigation adressable et brouillons protégés", () =>
     expect((await screen.findByTestId("operation-network")).textContent).toBe(network._id)
     expect((screen.getByRole("combobox", { name: "Outils de la console" }) as HTMLSelectElement).value).toBe("teams")
   })
+  it("EX-18 (A11Y-05) : une légende traduite, une seule fois en tête des outils, explique l'astérisque des champs obligatoires", async () => {
+    window.history.replaceState({}, "", routes.consoleState("teams", network._id))
+    mountDashboard()
+    const region = await screen.findByRole("region", { name: "Modération : équipes et réglages" })
+    const legend = screen.getAllByText("Les champs marqués d’un astérisque (*) sont obligatoires.")
+    expect(legend).toHaveLength(1)
+    expect(region.firstElementChild).toBe(legend[0])
+    expect(legend[0]!.getAttribute("aria-hidden")).toBeNull()
+  })
   it("un identifiant forgé ne devient jamais le réseau transmis aux outils", async () => {
     window.history.replaceState({}, "", routes.consoleState("teams", "forged-private-network"))
     mountDashboard()

@@ -33,7 +33,7 @@ import { action, mutation, query, type QueryCtx } from "../_generated/server"
 import { assertSocialWriteAllowed } from "../modules/moderation/policy"
 import { requireMembership, requirePerson } from "./access"
 import { fail } from "./errors"
-import { requireOperatorSession } from "./operatorIdentity"
+import { liveOperatorSessionOrNull, requireOperatorSession } from "./operatorIdentity"
 import { type ActionWriteBucket, enforceRateLimit, type RateLimitBucket } from "./rateLimit"
 
 type NetworkExtra = { minStatus?: ActiveMembershipStatus }
@@ -111,6 +111,22 @@ export async function requireOperator(ctx: QueryCtx): Promise<{ person: Doc<"per
   if (!operator || operator.revokedAt !== undefined) return fail("operatorRequired")
   const operatorSessionProof = await requireOperatorSession(ctx, person)
   return { person, operator, operatorSessionProof }
+}
+
+/**
+ * La MÊME preuve que la console (`operatorQuery`, `operatorMutation`) — opérateur
+ * vivant, session scellée par le retour IDN, accès journalisé —, SANS lever :
+ * pour une porte de personne qui reconnaît aussi l'opérateur. `null` sinon ;
+ * l'appelant rend alors son refus indistinct.
+ */
+export async function liveOperatorOrNull(ctx: QueryCtx, person: Doc<"persons">): Promise<Doc<"operators"> | null> {
+  const operator = await ctx.db
+    .query("operators")
+    .withIndex("by_person", (q) => q.eq("personId", person._id))
+    .unique()
+  if (!operator || operator.revokedAt !== undefined) return null
+  const proof = await liveOperatorSessionOrNull(ctx, person)
+  return proof !== null && proof.accessLoggedAt !== undefined ? operator : null
 }
 
 export const operatorQuery = customQuery(query, {

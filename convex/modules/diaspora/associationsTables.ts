@@ -62,5 +62,7 @@ export const associationsTables = {
     // Mes associations, les plus récemment changées d'abord.
     .index("by_network_and_person_and_statusChangedAt", ["networkId", "personId", "statusChangedAt"])
     // Ma ligne pour une association (une au plus).
-    .index("by_network_and_page_and_person", ["networkId", "pageId", "personId"]),
+    .index("by_network_and_page_and_person", ["networkId", "pageId", "personId"])
+    // DP-F1 (antsia#166) : l'export et l'effacement d'une personne lisent ces lignes par index, sans balayage.
+    .index("by_decidedByPersonId", ["decidedByPersonId"]),
 }

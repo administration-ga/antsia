@@ -9,7 +9,8 @@ export const paymentScopeFields = {
   sessionDigest: v.string(), configFingerprint: v.string(), source: v.string(), environment: v.union(v.literal("sandbox"), v.literal("production")), shopRef: v.string(), subjectRef: v.string(),
 }
 export const paymentTables = {
-  shopPaymentPolicies: defineTable({ networkId: v.id("networks"), enabled: v.boolean(), updatedAt: v.number(), updatedByPersonId: v.optional(v.id("persons")) }).index("by_network", ["networkId"]),
+  shopPaymentPolicies: defineTable({ networkId: v.id("networks"), enabled: v.boolean(), updatedAt: v.number(), updatedByPersonId: v.optional(v.id("persons")) }).index("by_network", ["networkId"])
+    .index("by_updatedByPersonId", ["updatedByPersonId"]),
   shopPaymentOptions: defineTable({ ...paymentScopeFields, options: paymentOptionsValidator, observedAt: v.number(), validUntil: v.number() }).index("by_person_checkout", ["personId", "networkId", "checkoutAttemptId"]).index("by_person", ["personId"]).index("by_validUntil", ["validUntil"]),
   shopPaymentAttempts: defineTable({
     ...paymentScopeFields, paymentAttemptId: v.string(), clientRequestId: v.string(), readinessRef: v.string(), intentionSha256: v.string(),

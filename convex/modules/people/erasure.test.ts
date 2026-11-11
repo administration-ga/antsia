@@ -2,9 +2,41 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { api, components, internal } from "../../_generated/api"
 import type { Id } from "../../_generated/dataModel"
+import type { ValidatorJSON } from "convex/values"
 import { testConvex } from "../../test.setup"
-import { dataTableNames, directlyOwned, exportableRecord, referencesIn, shapeFor, unclassifiedDataTables } from "./dataInventory"
+import { diasporaTables } from "../diaspora/tables"
+import { accessGaps, collectionPersonPaths, COLLECTION_REFERENCE_EXCEPTIONS, COLLECTION_REFERENCES_BY_PARENT, indexPlan, ownerFields, RESIDUAL_SCAN_TABLES, scalarPersonPaths, SHORT_LIVED_TABLES } from "./dataAccess"
+import { dataTableNames, directlyOwned, exportableRecord, exportKeyFields, referencesIn, shapeFor, unclassifiedDataTables } from "./dataInventory"
+import { DATA_TABLE_POLICIES } from "./dataPolicies"
 import { ERASURE_GRACE_MS } from "./erasure"
+
+/** Ligne d'essai tirée du validateur : options présentes ou non, n-ième membre de chaque union. */
+function sampleValue(shape: ValidatorJSON, variant: { optional: boolean; member: number }): unknown {
+  switch (shape.type) {
+    case "id": return `fixture-${shape.tableName}`
+    case "string": return "fixture"
+    case "number": return 1
+    case "bigint": return 1n
+    case "boolean": return true
+    case "null": return null
+    case "literal": return shape.value
+    case "array": return []
+    case "record": return {}
+    case "union": return sampleValue(shape.value[variant.member % shape.value.length]!, variant)
+    case "object": return Object.fromEntries(Object.entries(shape.value).flatMap(([key, field]) => field.optional && !variant.optional ? [] : [[key, sampleValue(field.fieldType, variant)]]))
+    default: return null
+  }
+}
+
+function setAt(row: Record<string, unknown>, path: string, value: string): void {
+  const keys = path.split("."), last = keys.pop()!
+  let target: unknown = row
+  for (const key of keys) {
+    target = target && typeof target === "object" ? (target as Record<string, unknown>)[key] : undefined
+    if (!target || typeof target !== "object" || Array.isArray(target)) return
+  }
+  (target as Record<string, unknown>)[last] = value
+}
 
 beforeEach(() => vi.useFakeTimers())
 afterEach(() => vi.useRealTimers())
@@ -55,6 +87,48 @@ describe("PA5 — inventaire des données", () => {
     expect(exportableRecord("personBlocks", intention, "person")).toBeNull()
     expect(exportableRecord("personBlocks", { ...intention, blockerPersonId: "person", targetPersonId: "other" }, "person")).not.toBeNull()
     expect(directlyOwned("personBlocks", intention, "person")).toBe(true)
+  })
+  it("DP-F1 : chaque chemin de personne, de parent, de chaîne et de copie a un index, ou une exception nommée", () => {
+    expect(accessGaps()).toEqual([])
+    // Repli de propriété : les champs propriétaires sont de vraies références de personne.
+    for (const table of dataTableNames()) for (const field of ownerFields(table)) expect(scalarPersonPaths(table), `${table}.${field}`).toContain(field)
+  })
+  it("DP-F1 : les exceptions restent justes — tranche diaspora seulement, jamais une entrée devenue inutile", () => {
+    for (const [table, reason] of Object.entries(RESIDUAL_SCAN_TABLES)) {
+      expect(Object.keys(diasporaTables), table).toContain(table)
+      expect(reason.length).toBeGreaterThan(10)
+      const uncovered = [...scalarPersonPaths(table), ...(DATA_TABLE_POLICIES[table]?.parents ?? [])].filter((path) => !indexPlan(table, path))
+      expect(uncovered, `${table} : index ajouté, retirer l'exception`).not.toEqual([])
+    }
+    // Tables purgées en secondes : une échéance indexée (lue par la purge planifiée), aucun parent, aucun tableau.
+    for (const table of Object.keys(SHORT_LIVED_TABLES)) {
+      expect(indexPlan(table, "expiresAt"), `${table} : purge par échéance`).not.toBeNull()
+      expect(DATA_TABLE_POLICIES[table]?.parents ?? [], table).toEqual([])
+      expect(collectionPersonPaths(table), table).toEqual([])
+    }
+    const collections = dataTableNames().flatMap((table) => collectionPersonPaths(table).map((path) => `${table}.${path}`)).sort()
+    expect([...Object.keys(COLLECTION_REFERENCES_BY_PARENT), ...Object.keys(COLLECTION_REFERENCE_EXCEPTIONS)].sort()).toEqual(collections)
+  })
+  it("DP-F1 : seuls les champs lus par l'export ouvrent une ligne (aucune autre référence de personne)", () => {
+    for (const table of dataTableNames()) {
+      if (table === "persons") continue
+      const keys = exportKeyFields(table), paths = scalarPersonPaths(table)
+      for (const key of keys) expect(paths, `${table}.${key}`).toContain(key)
+      for (const optional of [false, true]) for (let member = 0; member < 40; member++) {
+        const row = { ...(sampleValue(shapeFor(table), { optional, member }) as Record<string, unknown>), _id: "row", _creationTime: 1 }
+        for (const path of paths) setAt(row, path, keys.includes(path) ? "other" : "person")
+        expect(exportableRecord(table, row, "person"), `${table} (${optional ? "options" : "sans options"}, membre ${member})`).toBeNull()
+      }
+    }
+  })
+  it("PA10 : le curseur de fil s'exporte sans progression technique ni référence étrangère ; entrées et diffusions jamais", () => {
+    const row = { _id: "cursor", _creationTime: 1, networkId: "network", personId: "person", scope: "pour_vous", accessVersion: "privee", generation: 1, status: "building", phase: "follows", step: 3, sourceDone: false, sourceCursor: "progression-privee", postCursor: "progression-privee", activePersonId: "other", windowStart: 1, cutoff: 2, startedAt: 1, updatedAt: 1 }
+    const projected = exportableRecord("feedCursors", row, "person")
+    expect(projected).toMatchObject({ _id: "cursor", networkId: "network", personId: "person", scope: "pour_vous", status: "building", windowStart: 1, startedAt: 1 })
+    for (const field of ["activePersonId", "sourceCursor", "postCursor", "phase", "generation", "cutoff"]) expect(projected).not.toHaveProperty(field)
+    expect(exportableRecord("feedCursors", row, "other")).toBeNull()
+    expect(exportableRecord("feedEntries", { _id: "entry", _creationTime: 1, personId: "person", postId: "post" }, "person")).toBeNull()
+    expect(exportableRecord("feedFanoutJobs", { _id: "fanout", _creationTime: 1, postId: "post" }, "person")).toBeNull()
   })
   it("IC-02 : un message vocal s'exporte à ses deux parties, sans blob ; l'état d'écoute au destinataire seul", () => {
     const voicemail = { _id: "vm", _creationTime: 1, networkId: "network", recipientPersonId: "person", fromPersonId: "other", callId: "call", audioStorageId: "blob", durationMs: 15_000, isRead: true, readAt: 2, createdAt: 1 }

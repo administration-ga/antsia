@@ -22,6 +22,9 @@
  *  - `page` (PG-01) : la page d'un avis de gouvernance (invitation à signer, revendication
  *    tranchée), lisible par CE lecteur à l'instant — l'invitation y attend sa réponse, la décision
  *    s'y relit.
+ *  - `thematicGroup` (NP-04, issue antsia#149) : la fiche du groupe d'une invitation
+ *    (`thematic_group_invite`), servie à CE lecteur à l'instant par la garde de la fiche
+ *    (`thematicGroups.getGroup`) — l'invitation s'y accepte ou s'y décline.
  */
 import type { ContextualKind, ContextualSide } from "./contextualMessaging"
 
@@ -36,6 +39,7 @@ export const NOTIFICATION_OPEN_TARGET_KINDS = [
   "diasporaCommunityNotice",
   "contextualThread",
   "page",
+  "thematicGroup",
 ] as const
 export type NotificationOpenTargetKind = (typeof NOTIFICATION_OPEN_TARGET_KINDS)[number]
 
@@ -101,4 +105,9 @@ export type NotificationOpenTarget =
       pageId: string
       /** Son adresse actuelle, pour composer la route de l'application. */
       pageHandle: string
+    }
+  | {
+      kind: "thematicGroup"
+      /** Le groupe (identifiant du moteur), dont la fiche est servie à ce lecteur à l'instant. */
+      groupId: string
     }

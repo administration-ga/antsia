@@ -26,6 +26,8 @@ import { PersonalCommerceControls } from "./personal-commerce-controls"
 import { ErasureCommerceNotice } from "./erasure-commerce-notice"
 import { PageModerationDecisions } from "./page-moderation-decisions"
 import { PublicAgentControls } from "./public-agent-controls"
+import { MyJudicialMeasures } from "./judicial/my-judicial-measures"
+import { assemblePersonalExport } from "@/lib/personal-data-export"
 import { PERSONAL_REPORTS_ANCHOR, routes } from "@/lib/routes"
 import { signOutAndRedirect } from "@/lib/sign-out"
 
@@ -122,32 +124,20 @@ function DataRights() {
         setExporting(true)
         try {
           const result = await exportData({})
-          let tableIndex = 0, cursor: string | null = null, bytes = 0
-          const chunks: string[] = [JSON.stringify({ table: "authentication", record: JSON.parse(result.accountJson) })]
-          for (let pageNumber = 0; pageNumber < 5_000; pageNumber++) {
-            if (generation.current !== current) return
-            const page: FunctionReturnType<typeof api.modules.people.erasure.exportMyDataPage> = await convex.query(api.modules.people.erasure.exportMyDataPage, { exportId: result.exportId, tableIndex, cursor })
-            if (generation.current !== current) return
-            const records: unknown = JSON.parse(page.json)
-            if (!Array.isArray(records)) throw new Error("Invalid export")
-            for (const record of records) {
-              const chunk = JSON.stringify({ table: page.table, record })
-              bytes += new TextEncoder().encode(chunk).byteLength
-              if (bytes > 64 * 1024 * 1024) throw new Error("Export exceeds browser capacity")
-              chunks.push(chunk)
-            }
-            setProgress({ max: result.tableCount, value: page.nextTableIndex })
-            if (page.done) {
-              const url = URL.createObjectURL(new Blob([`[${chunks.join(",")}]`], { type: "application/json" }))
-              const anchor = document.createElement("a")
-              anchor.href = url; anchor.download = `${BRAND_NAME.toLowerCase()}-${new Date().toISOString().slice(0, 10)}.json`
-              document.body.append(anchor); anchor.click(); anchor.remove()
-              setTimeout(() => URL.revokeObjectURL(url), 1_000)
-              toast.success(t("personal.exportDone")); return
-            }
-            tableIndex = page.nextTableIndex; cursor = page.cursor
-          }
-          throw new Error("Export page limit")
+          const chunks = await assemblePersonalExport({
+            accountJson: result.accountJson,
+            tableCount: result.tableCount,
+            readPage: async (tableIndex, cursor): Promise<FunctionReturnType<typeof api.modules.people.erasure.exportMyDataPage>> => await convex.query(api.modules.people.erasure.exportMyDataPage, { exportId: result.exportId, tableIndex, cursor }),
+            isCurrent: () => generation.current === current,
+            onProgress: (value, max) => setProgress({ max, value }),
+          })
+          if (chunks === null) return
+          const url = URL.createObjectURL(new Blob([`[${chunks.join(",")}]`], { type: "application/json" }))
+          const anchor = document.createElement("a")
+          anchor.href = url; anchor.download = `${BRAND_NAME.toLowerCase()}-${new Date().toISOString().slice(0, 10)}.json`
+          document.body.append(anchor); anchor.click(); anchor.remove()
+          setTimeout(() => URL.revokeObjectURL(url), 1_000)
+          toast.success(t("personal.exportDone"))
         } catch { if (generation.current === current) toast.error(t("personal.error")) }
         finally { if (generation.current === current) setExporting(false) }
       }}><Download aria-hidden="true" className="size-4" />{t(exporting ? "personal.exporting" : "personal.export")}</Button>
@@ -189,6 +179,7 @@ export function PersonalControls() {
       <PreferencesControls /><PublicAgentControls key={`${person._id}:agent`} /><AnalyticsControls /><PersonalCommerceControls key={`${person._id}:commerce`} personId={person._id} /><DataRights /><MyModerationDecisions /><Reports />
       {root && active ? <PageModerationDecisions key={`${person._id}:pages`} networkId={root._id} personId={person._id} /> : null}
       {root && memberships?.some((membership) => membership.networkId === root._id) ? <NotificationControls networkId={root._id} canActivate={Boolean(active)} /> : null}
+      <MyJudicialMeasures />
     </main>
   </div>
 }

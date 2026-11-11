@@ -9,7 +9,7 @@ import { components, internal } from "../_generated/api"
 import type { DataModel } from "../_generated/dataModel"
 import { demoCodeReadable } from "../lib/devTools"
 import { DIASPORA_SLICE_MANIFEST } from "../modules/diaspora/manifest"
-import { type ApplicationKey, applicationOfOrigin, smsConfiguration } from "./settings"
+import { type ApplicationKey, applicationOfOrigin, OTP_TTL_SECONDS, smsConfiguration } from "./settings"
 
 /**
  * Ce que la requête qui demande un code dit du message : d'où elle vient
@@ -45,7 +45,7 @@ export async function deliverOtp(ctx: GenericCtx<DataModel>, channel: "email" | 
   // Développement local : tout code s'affiche à l'écran. Démonstration déclarée :
   // seuls ceux des adresses réservées (jamais routables), les autres partent normalement.
   if (demoCodeReadable(identifier)) {
-    await ctx.runMutation(internal.modules.platform.devTools.recordOtp, { email: identifier, code, expiresAt: Date.now() + 300_000 })
+    await ctx.runMutation(internal.modules.platform.devTools.recordOtp, { email: identifier, code, expiresAt: Date.now() + OTP_TTL_SECONDS * 1_000 })
     return
   }
   const { locale, brand } = otpPresentation(request)

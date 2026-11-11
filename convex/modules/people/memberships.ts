@@ -29,6 +29,7 @@ import {
   networkKindValidator,
 } from "../../lib/validators"
 import { appendAudit, operatorCapacity } from "../platform/audit"
+import { hasJudicialAccountHold } from "../moderation/judicialHolds"
 import { revokeAdministrationForPerson } from "../federation/agentLifecycle"
 import { admitToNetwork, setMembershipStatus, writeNetworkFacet } from "./admission"
 import { assertLeaveKeepsNetworkAdmin } from "./networkRoles"
@@ -167,7 +168,22 @@ export const suspendEverywhere = operatorMutation({
   },
 })
 
-/** Console : lever une suspension à la racine (rend le statut d'avant), motif à l'appui. */
+/**
+ * La levée d'une suspension à la racine elle-même : le statut d'avant rendu, les lectures du fil
+ * rafraîchies. Partagée par la console (`liftSuspension`, qui l'audite) et par la levée d'une mesure sur
+ * ordre du juge (SU01h, `moderation/measures.ts`, qui journalise la sienne).
+ */
+export async function liftRootSuspension(ctx: MutationCtx, rootMembership: Doc<"networkMemberships">): Promise<Doc<"networkMemberships">["status"]> {
+  const restoreTo = rootMembership.statusBeforeSuspension ?? "declaree"
+  await setMembershipStatus(ctx, rootMembership, restoreTo, { statusBeforeSuspension: undefined, suspendedUntil: undefined })
+  await scheduleReaderRefresh(ctx, rootMembership.personId)
+  return restoreTo
+}
+
+/**
+ * Console : lever une suspension à la racine (rend le statut d'avant), motif à l'appui. SU01h : un
+ * compte suspendu sur ordre du juge ne se rétablit pas à la main tant que la mesure vit (`conflict`).
+ */
 export const liftSuspension = operatorMutation({
   args: { personId: v.id("persons"), reason: v.string() },
   returns: v.null(),
@@ -178,9 +194,8 @@ export const liftSuspension = operatorMutation({
     if (!root) return notFound()
     const membership = await getMembership(ctx, root._id, personId)
     if (!membership || membership.status !== "suspendue") return notFound()
-    const restoreTo = membership.statusBeforeSuspension ?? "declaree"
-    await setMembershipStatus(ctx, membership, restoreTo, { statusBeforeSuspension: undefined, suspendedUntil: undefined })
-    await scheduleReaderRefresh(ctx, personId)
+    if (await hasJudicialAccountHold(ctx, personId)) return fail("conflict")
+    const restoreTo = await liftRootSuspension(ctx, membership)
     await appendAudit(ctx, {
       action: "membership.lift_suspension",
       capacity: operatorCapacity(ctx.operator),
