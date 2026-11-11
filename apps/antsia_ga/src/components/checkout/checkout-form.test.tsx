@@ -120,6 +120,26 @@ describe("préparation explicite sans paiement", () => {
     expect(container.querySelectorAll('input[type="radio"][name="establishmentRef"]')).toHaveLength(1)
     expect(container.querySelector('input[name="establishmentRef"]:checked')).toBeNull()
   })
+  it("EX-18 (A11Y-04) : sans accord, l'erreur est reliée à la case et la marque invalide ; l'accord donné, elle s'efface", async () => {
+    await render()
+    await select("variantRef", VARIANT_REF); await select("fulfillmentMode", "pickup"); await select("establishmentRef", ESTABLISHMENT_REF)
+    const consent = container.querySelector<HTMLInputElement>('input[name="consent"]')!
+    expect(consent.hasAttribute("aria-invalid")).toBe(false)
+    expect(consent.hasAttribute("aria-describedby")).toBe(false)
+    await submit()
+    expect(prepare).not.toHaveBeenCalled()
+    expect(consent.getAttribute("aria-invalid")).toBe("true")
+    const described = consent.getAttribute("aria-describedby")
+    expect(described).toBeTruthy()
+    const error = document.getElementById(described!)
+    expect(error?.getAttribute("role")).toBe("alert")
+    expect(error?.textContent).toBe(i18n.t("validation.consent"))
+    // Après une première soumission, le formulaire revalide à chaque changement.
+    await click(consent)
+    expect(consent.hasAttribute("aria-invalid")).toBe(false)
+    expect(consent.hasAttribute("aria-describedby")).toBe(false)
+    expect(document.getElementById(described!)).toBeNull()
+  })
   it("au panier, le total et l'envoi restent ensemble dans la barre collée du téléphone", async () => {
     await act(async () => root.render(<I18nextProvider i18n={i18n}><CheckoutPreparationForm offer={catalogOfferFixture()} options={optionsFixture} consentTextVersion="version-serveur" prepare={prepare} onAttempt={onAttempt} stickyActions /></I18nextProvider>))
     const actions = container.querySelector("[data-checkout-actions]")!

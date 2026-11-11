@@ -1,4 +1,4 @@
-/* Dupliqué de socle/packages/ui/src/styles/globals.css (l. 33-76 : jetons de fenêtre ; l. 2223-2297 : `@theme inline` ; l. 2299-2416 : `@layer base`) @ ad2e7fdc2 — adaptations : polices lues sur la charte (`var(--font-*)`) au lieu des littéraux Inter ; couleurs de la barre de défilement lues sur les jetons (`--ink-300`, `--primary`) au lieu de littéraux ; rayons dérivés de la charte (`var(--radius-*)`) pour que les utilitaires suivent un thème (piège documenté au socle l. 1943-1975) ; transition globale des couleurs retirée (coût de rendu sur un fil long, et `prefers-reduced-motion`) ; couleur d'outline de base et taille du corps lues sur la charte (`--outline-ring`, `--body-font-size`, lot P01b), valeurs par défaut identiques. EX-18 : indicateur de focus au clavier des champs du paquet (`.ui-field:focus-visible`, anneau `--ring`).
+/* Dupliqué de socle/packages/ui/src/styles/globals.css (l. 33-76 : jetons de fenêtre ; l. 2223-2297 : `@theme inline` ; l. 2299-2416 : `@layer base`) @ ad2e7fdc2 — adaptations : polices lues sur la charte (`var(--font-*)`) au lieu des littéraux Inter ; couleurs de la barre de défilement lues sur les jetons (`--ink-300`, `--primary`) au lieu de littéraux ; rayons dérivés de la charte (`var(--radius-*)`) pour que les utilitaires suivent un thème (piège documenté au socle l. 1943-1975) ; transition globale des couleurs retirée (coût de rendu sur un fil long, et `prefers-reduced-motion`) ; couleur d'outline de base et taille du corps lues sur la charte (`--outline-ring`, `--body-font-size`, lot P01b), valeurs par défaut identiques. EX-18 : indicateur de focus au clavier des champs du paquet (`.ui-field:focus-visible`, anneau `--ring`). EX-18, second volet : celui des cases, choix radio et interrupteurs, sur leur visuel (`.ui-choice-input:focus-visible + .ui-choice-mark`).
  *
  * Couche Tailwind v4 du moteur : relie les utilitaires (`bg-card`,
  * `text-muted-foreground`, `rounded-xl`…) aux jetons de la charte. Importée par
@@ -161,6 +161,17 @@
   .ui-field:focus-visible {
     outline: 2px solid var(--ring);
     outline-offset: 1px;
+  }
+
+  /* EX-18, second volet (WCAG 2.4.7) : la case, le choix radio et l'interrupteur
+     du paquet (`Checkbox`, `Radio`, `Toggle`) cachent leur entrée native ; c'est
+     leur visuel, frère suivant de l'entrée (`ui-choice-mark`), qui montre le
+     focus au clavier, au même anneau, décalé de 2 px : entre l'anneau et un
+     visuel coché (aplat d'identité) reste le fond, sur lequel l'anneau est
+     mesuré. */
+  .ui-choice-input:focus-visible + .ui-choice-mark {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
   }
 
   /* ── Mobile native feel ── */
