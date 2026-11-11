@@ -6,8 +6,9 @@
  *   rendu tel quel, une fenêtre filtrée peut être vide et annoncer sa suite) et
  *   ne garde que les dossiers dont la CIBLE porte le pays demandé : publication
  *   (son pays, sinon celui de sa page), commentaire (celui de sa publication),
- *   page, évènement et direct d'une page, avis et réponse d'avis (zone de
- *   l'offre, sinon pays de la page). Vague H (G9) : question d'entraide et sa
+ *   page, évènement et direct d'une page (DL-03 : ses commentaires, le pays de
+ *   la session), avis et réponse d'avis (zone de l'offre, sinon pays de la
+ *   page). Vague H (G9) : question d'entraide et sa
  *   réponse (zone de la question), mission (zone de la mission, sinon pays de sa
  *   page), ressource du kit (son pays), offre d'emploi (zone de l'offre, sinon
  *   pays de la page) et candidature (pays de l'offre), profil de mentor ou de
@@ -288,6 +289,13 @@ async function targetFacts(ctx: ReadCtx, networkId: Id<"networks">, target: Targ
       const session = await ctx.db.get(target.id)
       return session && session.networkId === networkId ? await pageFacts(ctx, networkId, session.pageId) : NO_FACTS
     }
+    // DL-03 : un commentaire de direct porte le pays et les pages de SA session, comme le direct lui-même.
+    case "liveComment": {
+      const comment = await ctx.db.get(target.id)
+      if (!comment || comment.networkId !== networkId) return NO_FACTS
+      const session = await ctx.db.get(comment.sessionId)
+      return session && session.networkId === networkId ? await pageFacts(ctx, networkId, session.pageId) : NO_FACTS
+    }
     case "serviceReview": {
       const review = await ctx.db.get(target.id)
       return review && review.networkId === networkId ? await offerFacts(ctx, networkId, review.offerId, review.pageId) : NO_FACTS
@@ -395,6 +403,10 @@ function typedTarget(ctx: ReadCtx, kind: ModerationSurface, id: string): Target 
     case "live": {
       const typed = ctx.db.normalizeId("liveSessions", id)
       return typed === null ? null : { kind: "live" as const, id: typed }
+    }
+    case "liveComment": {
+      const typed = ctx.db.normalizeId("liveComments", id)
+      return typed === null ? null : { kind: "liveComment" as const, id: typed }
     }
     case "story": {
       const typed = ctx.db.normalizeId("stories", id)
