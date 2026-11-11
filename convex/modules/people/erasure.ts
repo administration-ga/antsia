@@ -1,8 +1,8 @@
-// Dupliqué de socle/convex/crons/dataSubjectErasure.ts @ 25398f565 — adaptations : droits personnels, confirmation/délai/annulation, inventaire du schéma social, cascade/anonymisation bornée avec progression persistée et reprise ; aucune donnée administrative ni export externe.
+// Dupliqué de socle/convex/crons/dataSubjectErasure.ts @ 25398f565 — adaptations : droits personnels, confirmation/délai/annulation, inventaire du schéma social, cascade/anonymisation bornée avec progression persistée et reprise, export et effacement par index de propriétaire et de parent (DP-F1) ; aucune donnée administrative ni export externe.
 import { v } from "convex/values"
 import { components, internal } from "../../_generated/api"
 import type { Doc, Id, TableNames } from "../../_generated/dataModel"
-import { internalMutation, type MutationCtx } from "../../_generated/server"
+import { internalMutation, type MutationCtx, type QueryCtx } from "../../_generated/server"
 import { fail, notFound } from "../../lib/errors"
 import { personMutation, personQuery } from "../../lib/functions"
 import { enforceRateLimit, erasePersonalRateLimits, rateLimiter } from "../../lib/rateLimit"
@@ -12,7 +12,7 @@ import { unrecordComment, unrecordGroupMember, unrecordPageFollower, unrecordPag
 import { unrecordPageEventParticipation } from "../events/pageEventRegistrations"
 import { removeDiasporaCounters } from "../diaspora/contentCounters"
 import { DATA_TABLE_POLICIES } from "./dataPolicies"
-import { feedErasurePage, isFeedDataTable } from "./feedDataPage"
+import { accessGaps, carrierRelations, childRelations, dependentRelations, ERASURE_EXCLUDED_TABLES, exportPlans, isResidualScanTable, matchesPlan, ownerPlans, parseUnitCursor, readUnits, referencePlans, relationsFor, type IndexPlan, type ReadBudget, type UnitCursor } from "./dataAccess"
 import { revokeAdministrationForPerson } from "../federation/agentLifecycle"
 import { revokeCommercialCrmForPerson } from "../commercialMessaging/crm"
 import { revokeCrmPersonRef } from "../commercialMessaging/crmPrivacy"
@@ -27,6 +27,11 @@ import { anonymizeReferences, dataTableNames, directlyOwned, exportableRecord, r
 export const ERASURE_GRACE_MS = 30 * 24 * 60 * 60 * 1000
 const PAGE_SIZE = 20
 const PAGE_BYTES = 2 * 1024 * 1024
+/** Export : une page de lignes de la personne, lue par index (plafond d'octets ci-dessus). */
+const EXPORT_PAGE_SIZE = 100
+/** Sondes d'index (une lecture au plus chacune) par appel d'export et par transaction d'effacement. */
+const EXPORT_MAX_OPS = 128
+const ERASURE_MAX_OPS = 64
 const ANONYMOUS_AUTH_ID = "erased-account"
 
 /** P11 : fermer localement avant l'appel distant, sans attendre sa disponibilité. */
@@ -134,30 +139,58 @@ export const exportMyData = personMutation({
   },
 })
 
-/** @selfScoped Les curseurs ne donnent aucun droit : filtrage par la personne de la session à chaque page. */
+/** Une page de l'export d'une table : `{ table, json, nextTableIndex, cursor, done }`, contrat lu par DIASPORALE. */
+export type ExportTablePage = { table: string; json: string; nextTableIndex: number; cursor: string | null; done: boolean }
+
+/**
+ * DP-F1 : une table par appel ; ses lignes viennent des index des champs qui ouvrent l'export
+ * (`exportKeyFields`), jamais d'un balayage — sauf les tables résiduelles nommées. La personne
+ * fixe chaque plage d'index ; le curseur n'en porte que la position.
+ */
+export async function exportTablePage(db: QueryCtx["db"], input: { personId: Id<"persons">; requestedAt: number; tableIndex: number; cursor: string | null }): Promise<ExportTablePage> {
+  if (accessGaps().length) return fail("invalidArgument", { field: "dataInventory" })
+  const names = dataTableNames()
+  if (!Number.isInteger(input.tableIndex) || input.tableIndex < 0 || input.tableIndex >= names.length) return fail("invalidArgument", { field: "tableIndex" })
+  const table = names[input.tableIndex]! as TableNames, personId = input.personId
+  const page = (rows: DataRecord[], cursor: string | null, planIndex = -1, plans: readonly IndexPlan[] = []): ExportTablePage => {
+    const records = rows.flatMap((row) => {
+      if (row._creationTime > input.requestedAt) return []
+      // Une ligne atteinte par un champ précédent de la même table est déjà rendue.
+      if (plans.slice(0, Math.max(planIndex, 0)).some((plan) => matchesPlan(plan, row, personId))) return []
+      const record = exportableRecord(table, row, personId)
+      return record ? [record] : []
+    })
+    const nextTableIndex = input.tableIndex + (cursor === null ? 1 : 0)
+    return { table, json: JSON.stringify(records), nextTableIndex, cursor, done: nextTableIndex === names.length }
+  }
+  if (table === "persons") {
+    if (input.cursor !== null) return fail("invalidArgument", { field: "cursor" })
+    const own = await db.get(personId)
+    return page(own ? [own as unknown as DataRecord] : [], null)
+  }
+  if (isResidualScanTable(table)) {
+    const scan = await db.query(table).paginate({ numItems: EXPORT_PAGE_SIZE, cursor: input.cursor, maximumBytesRead: PAGE_BYTES })
+    return page(scan.page as unknown as DataRecord[], scan.isDone ? null : scan.continueCursor)
+  }
+  const plans = exportPlans(table)
+  let from: UnitCursor | null = null
+  if (input.cursor !== null) {
+    let parsed: unknown
+    try { parsed = JSON.parse(input.cursor) } catch { return fail("invalidArgument", { field: "cursor" }) }
+    from = parseUnitCursor(db, parsed, plans)
+  }
+  const read = await readUnits(db, plans, personId, from, { ops: 0, paginated: false, maxOps: EXPORT_MAX_OPS }, { numItems: EXPORT_PAGE_SIZE, maximumBytesRead: PAGE_BYTES })
+  return page(read.rows, read.next === null ? null : JSON.stringify(read.next), read.planIndex, plans)
+}
+
+/** @selfScoped Les curseurs ne donnent aucun droit : la personne de la session fixe chaque plage d'index. */
 export const exportMyDataPage = personQuery({
   args: { exportId: v.id("dataExports"), tableIndex: v.number(), cursor: v.union(v.string(), v.null()) },
   returns: v.object({ table: v.string(), json: v.string(), nextTableIndex: v.number(), cursor: v.union(v.string(), v.null()), done: v.boolean() }),
   handler: async (ctx, args) => {
     const job = await ctx.db.get(args.exportId)
     if (!job || job.personId !== ctx.person._id || job.expiresAt <= Date.now()) return notFound()
-    const names = dataTableNames()
-    if (!Number.isInteger(args.tableIndex) || args.tableIndex < 0 || args.tableIndex >= names.length) return fail("invalidArgument", { field: "tableIndex" })
-    const table = names[args.tableIndex]! as TableNames
-    // PA10 : aucune ligne étrangère de fil à parcourir pour un export personnel.
-    const emptyFeedPage = { page: [], isDone: true, continueCursor: "" }
-    const page = table === "feedEntries" || table === "feedFanoutJobs" ? emptyFeedPage
-      : table === "feedCursors"
-        ? await ctx.db.query("feedCursors").withIndex("by_person", q => q.eq("personId", ctx.person._id)).paginate({ numItems: PAGE_SIZE, cursor: args.cursor, maximumBytesRead: PAGE_BYTES, maximumRowsRead: PAGE_SIZE })
-        : await ctx.db.query(table).paginate({ numItems: PAGE_SIZE, cursor: args.cursor, maximumBytesRead: PAGE_BYTES })
-    const rows = page.page.flatMap((item) => {
-      const row = item as unknown as DataRecord
-      if (row._creationTime > job.requestedAt) return []
-      const record = exportableRecord(table, row, ctx.person._id)
-      return record ? [record] : []
-    })
-    const nextTableIndex = args.tableIndex + (page.isDone ? 1 : 0)
-    return { table, json: JSON.stringify(rows), nextTableIndex, cursor: page.isDone ? null : page.continueCursor, done: nextTableIndex === names.length }
+    return await exportTablePage(ctx.db, { personId: ctx.person._id, requestedAt: job.requestedAt, tableIndex: args.tableIndex, cursor: args.cursor })
   },
 })
 
@@ -268,6 +301,194 @@ async function anonymizeRow(ctx: MutationCtx, job: Doc<"dataErasureJobs">, table
   return true
 }
 
+/**
+ * DP-F1 : progression des phases `discover` et `erase`, persistée dans `cursor` (JSON, `v: 2`).
+ * Découverte : lignes possédées par index de propriétaire, puis enfants des lignes marquées par
+ * index de parent, jusqu'au point fixe (une passe sans nouvelle marque). Effacement : références
+ * anonymisées par index, copies et réponses des messages marqués, appels tenus par la personne,
+ * suppression des lignes marquées (blobs, compteurs, aperçus), puis relecture des enfants nés
+ * entre-temps ; une nouvelle marque relance une passe. Un curseur d'un parcours antérieur
+ * (balayage) fait reprendre la phase au début : les marques sont idempotentes.
+ */
+type TargetRef = { t: string; i: string }
+type SocialState =
+  | { v: 2; s: "owned" | "anonymize"; t: number; u: UnitCursor | null }
+  | { v: 2; s: "expand" | "verify" | "dependents"; at: TargetRef | null; r: number; u: UnitCursor | null }
+  | { v: 2; s: "carriers" | "delete"; at: TargetRef | null }
+  | { v: 2; s: "residual"; t: number; c: string | null }
+
+// Listes dérivées du schéma à la première étape (jamais au chargement du module : le schéma importe les modules).
+let tableLists: { generic: string[]; residual: string[]; dependentParents: string[]; carrierChildren: string[] } | null = null
+function erasureTableLists() {
+  return tableLists ??= {
+    generic: dataTableNames().filter((name) => !ERASURE_EXCLUDED_TABLES.has(name) && !isResidualScanTable(name)),
+    residual: dataTableNames().filter((name) => !ERASURE_EXCLUDED_TABLES.has(name) && isResidualScanTable(name)),
+    dependentParents: [...new Set(dependentRelations().flatMap((relation) => relation.parents === "*" ? [] : relation.parents))].sort(),
+    carrierChildren: [...new Set(carrierRelations().map((relation) => relation.table))].sort(),
+  }
+}
+
+function initialSocialState(phase: "discover" | "erase"): SocialState {
+  return { v: 2, s: phase === "discover" ? "owned" : "anonymize", t: 0, u: null }
+}
+
+function decodeSocialState(phase: "discover" | "erase", cursor: string | null): SocialState {
+  if (cursor === null) return initialSocialState(phase)
+  let parsed: unknown
+  try { parsed = JSON.parse(cursor) } catch { return initialSocialState(phase) }
+  if (typeof parsed !== "object" || parsed === null || (parsed as { v?: unknown }).v !== 2) return initialSocialState(phase)
+  const stages = phase === "discover" ? ["owned", "expand", "residual"] : ["anonymize", "dependents", "carriers", "residual", "delete", "verify"]
+  return stages.includes(String((parsed as { s?: unknown }).s)) ? parsed as SocialState : initialSocialState(phase)
+}
+
+/** Cible suivante du travail, dans l'ordre (table, identifiant), sans pagination. */
+async function nextTarget(ctx: MutationCtx, jobId: Id<"dataErasureJobs">, tables: readonly string[] | null, after: TargetRef | null): Promise<TargetRef | null> {
+  const targets = () => ctx.db.query("dataErasureTargets")
+  if (tables === null) {
+    const row = after === null
+      ? await targets().withIndex("by_job_table_target", (q) => q.eq("jobId", jobId)).first()
+      : await targets().withIndex("by_job_table_target", (q) => q.eq("jobId", jobId).eq("table", after.t).gt("targetId", after.i)).first()
+        ?? await targets().withIndex("by_job_table_target", (q) => q.eq("jobId", jobId).gt("table", after.t)).first()
+    return row ? { t: row.table, i: row.targetId } : null
+  }
+  for (const table of tables.slice(after === null ? 0 : Math.max(tables.indexOf(after.t), 0))) {
+    const row = await targets().withIndex("by_job_table_target", (q) => {
+      const prefix = q.eq("jobId", jobId).eq("table", table)
+      return after !== null && after.t === table ? prefix.gt("targetId", after.i) : prefix
+    }).first()
+    if (row) return { t: row.table, i: row.targetId }
+  }
+  return null
+}
+
+async function targetRow(ctx: MutationCtx, target: TargetRef): Promise<DataRecord | null> {
+  const id = ctx.db.normalizeId(target.t as TableNames, target.i)
+  return id ? await ctx.db.get(id) as unknown as DataRecord | null : null
+}
+
+
+type Progress = { phase: "discover" | "erase" | "auth"; state: SocialState; changed: boolean; passes: number; erasedRows: number }
+
+/** Fin d'une passe : une nouvelle marque en relance une, sinon la phase suivante commence. */
+function endOfPass(progress: Progress): void {
+  if (progress.changed) {
+    progress.state = progress.phase === "discover" ? { v: 2, s: "expand", at: null, r: 0, u: null } : initialSocialState("erase")
+    progress.changed = false; progress.passes += 1
+  } else if (progress.phase === "discover") {
+    progress.phase = "erase"; progress.state = initialSocialState("erase"); progress.passes = 0
+  } else progress.phase = "auth"
+}
+
+/** Les cibles d'une étape sont épuisées : étape suivante de la passe. */
+function afterTargets(progress: Progress, stage: "expand" | "verify" | "dependents" | "carriers" | "delete"): void {
+  const residual: SocialState = { v: 2, s: "residual", t: 0, c: null }
+  if (stage === "expand") { if (erasureTableLists().residual.length) progress.state = residual; else endOfPass(progress) }
+  else if (stage === "dependents") progress.state = { v: 2, s: "carriers", at: null }
+  else if (stage === "carriers") progress.state = erasureTableLists().residual.length ? residual : { v: 2, s: "delete", at: null }
+  else if (stage === "delete") progress.state = { v: 2, s: "verify", at: null, r: 0, u: null }
+  else endOfPass(progress)
+}
+
+export async function socialErasureStep(ctx: MutationCtx, job: Doc<"dataErasureJobs">): Promise<void> {
+  const personId = job.personId, jobId = job._id
+  const startPhase = job.phase === "discover" ? "discover" : "erase"
+  const progress: Progress = { phase: startPhase, state: decodeSocialState(startPhase, job.cursor), changed: job.changed, passes: job.passes, erasedRows: job.erasedRows }
+  const budget: ReadBudget = { ops: 0, paginated: false, maxOps: ERASURE_MAX_OPS }
+  const options = { numItems: PAGE_SIZE, maximumBytesRead: PAGE_BYTES }
+  let rowsWork = 0, anonymous: Id<"persons"> | null = null
+  const anonymousId = async () => (anonymous ??= await anonymousPerson(ctx))
+  const owned = async (table: string, row: DataRecord) => directlyOwned(table, row, personId) || await inheritedOwnership(ctx, job, table, row)
+  const markNew = async (table: string, row: DataRecord) => { if (await mark(ctx, jobId, table, row._id)) progress.changed = true }
+  while (progress.phase !== "auth" && budget.ops < ERASURE_MAX_OPS && rowsWork < PAGE_SIZE) {
+    const state = progress.state
+    if (state.s === "owned" || state.s === "anonymize") {
+      const table = erasureTableLists().generic[state.t]
+      if (!table) {
+        // La première expansion relit toutes les cibles : les marques initiales n'exigent pas de passe de plus.
+        if (state.s === "owned") { progress.state = { v: 2, s: "expand", at: null, r: 0, u: null }; progress.changed = false }
+        else progress.state = { v: 2, s: "dependents", at: null, r: 0, u: null }
+        continue
+      }
+      const read = await readUnits(ctx.db, state.s === "owned" ? ownerPlans(table) : referencePlans(table), personId, state.u, budget, options)
+      for (const row of read.rows) {
+        if (state.s === "owned") await mark(ctx, jobId, table, row._id)
+        else if (await marked(ctx, jobId, row._id)) continue
+        else if (await owned(table, row)) await markNew(table, row)
+        else await anonymizeRow(ctx, job, table as TableNames, row, await anonymousId())
+      }
+      rowsWork += read.rows.length
+      progress.state = read.next === null ? { ...state, t: state.t + 1, u: null } : { ...state, u: read.next }
+      if (read.stop) break
+    } else if (state.s === "expand" || state.s === "verify" || state.s === "dependents") {
+      const dependents = state.s === "dependents"
+      const tables = dependents ? erasureTableLists().dependentParents : null
+      const at = state.at
+      const relation = at === null ? undefined : relationsFor(dependents ? dependentRelations() : childRelations(), at.t)[state.r]
+      if (at === null || !relation) {
+        budget.ops += 1
+        const next = await nextTarget(ctx, jobId, tables, at)
+        if (next) progress.state = { ...state, at: next, r: 0, u: null }
+        else afterTargets(progress, state.s)
+        continue
+      }
+      const read = await readUnits(ctx.db, [relation.plan], at.i, state.u, budget, options)
+      for (const row of read.rows) {
+        if (!dependents) await markNew(relation.plan.table, row)
+        else if (!await marked(ctx, jobId, row._id)) await anonymizeRow(ctx, job, relation.plan.table, row, await anonymousId())
+      }
+      rowsWork += read.rows.length
+      progress.state = read.next === null ? { ...state, r: state.r + 1, u: null } : { ...state, u: read.next }
+      if (read.stop) break
+    } else if (state.s === "carriers" || state.s === "delete") {
+      budget.ops += 1
+      const next = await nextTarget(ctx, jobId, state.s === "carriers" ? erasureTableLists().carrierChildren : null, state.at)
+      if (!next) { afterTargets(progress, state.s); continue }
+      progress.state = { ...state, at: next }
+      rowsWork += 1
+      const row = await targetRow(ctx, next)
+      if (!row) continue
+      if (state.s === "delete") {
+        await purgeBlobs(ctx, row, next.t)
+        await clearMessagePreview(ctx, next.t, row)
+        await removeCounters(ctx, next.t, row)
+        await ctx.db.delete(row._id as Id<TableNames>)
+        progress.erasedRows += 1
+        continue
+      }
+      // L'appel que la personne tenait en attente perd son identifiant (tableau `heldBy`).
+      for (const relation of carrierRelations()) {
+        const parentId = row[relation.field]
+        if (relation.table !== next.t || typeof parentId !== "string" || await marked(ctx, jobId, parentId)) continue
+        const parent = await targetRow(ctx, { t: relation.parent, i: parentId })
+        if (parent) await anonymizeRow(ctx, job, relation.parent as TableNames, parent, await anonymousId())
+      }
+    } else if (state.s === "residual") {
+      const table = erasureTableLists().residual[state.t]
+      if (!table) {
+        if (progress.phase === "discover") endOfPass(progress)
+        else progress.state = { v: 2, s: "delete", at: null }
+        continue
+      }
+      // Tranche diaspora encore sans index (exception nommée) : balayage de sa seule table.
+      if (budget.paginated) break
+      budget.paginated = true; budget.ops += 1
+      const scan = await ctx.db.query(table as TableNames).paginate({ numItems: PAGE_SIZE, cursor: state.c, maximumBytesRead: PAGE_BYTES })
+      for (const item of scan.page) {
+        const row = item as unknown as DataRecord
+        if (progress.phase !== "discover" && await marked(ctx, jobId, row._id)) continue
+        if (await owned(table, row)) await markNew(table, row)
+        else if (progress.phase !== "discover") await anonymizeRow(ctx, job, table as TableNames, row, await anonymousId())
+      }
+      rowsWork += scan.page.length
+      progress.state = scan.isDone ? { ...state, t: state.t + 1, c: null } : { ...state, c: scan.continueCursor }
+      break
+    }
+  }
+  await ctx.db.patch(jobId, progress.phase === "auth"
+    ? { phase: "auth", tableIndex: 0, cursor: null, changed: false, erasedRows: progress.erasedRows, passes: progress.passes, updatedAt: Date.now() }
+    : { phase: progress.phase, cursor: JSON.stringify(progress.state), changed: progress.changed, erasedRows: progress.erasedRows, passes: progress.passes, updatedAt: Date.now() })
+}
+
 /** Page interne d'un travail confirmé et échu. L'état persisté rend toute reprise idempotente. */
 export const continueErasure = internalMutation({
   args: { jobId: v.id("dataErasureJobs") }, returns: v.null(),
@@ -276,7 +497,7 @@ export const continueErasure = internalMutation({
     if (!job || job.dueAt > Date.now()) return null
     const person = await ctx.db.get(job.personId)
     if (!person || person.deletionRequestedAt !== job.requestedAt) return null
-    if (unclassifiedDataTables().length) throw new Error("Incomplete erasure inventory")
+    if (unclassifiedDataTables().length || accessGaps().length) throw new Error("Incomplete erasure inventory")
     if (job.phase === "waiting") {
       if (!await revokePaymentDataForPerson(ctx, job.personId)) {
         await ctx.scheduler.runAfter(0, internal.modules.people.erasure.continueErasure, { jobId })
@@ -337,34 +558,7 @@ export const continueErasure = internalMutation({
       }
       await ctx.db.patch(jobId, { phase: "discover", tableIndex: 0, cursor: null, changed: false, updatedAt: Date.now() })
     } else if (job.phase === "discover" || job.phase === "erase") {
-      const names = dataTableNames().filter((name) => !["persons", "idnProofs", "devOtpCodes", "dataErasureJobs", "dataErasureTargets", "dataErasureReceipts"].includes(name))
-      const table = names[job.tableIndex] as TableNames | undefined
-      if (!table) {
-        if (job.phase === "discover" && job.changed) await ctx.db.patch(jobId, { tableIndex: 0, cursor: null, changed: false, passes: job.passes + 1, updatedAt: Date.now() })
-        else if (job.phase === "discover") await ctx.db.patch(jobId, { phase: "erase", tableIndex: 0, cursor: null, changed: false, passes: 0, updatedAt: Date.now() })
-        else if (job.changed) await ctx.db.patch(jobId, { tableIndex: 0, cursor: null, changed: false, passes: job.passes + 1, updatedAt: Date.now() })
-        else await ctx.db.patch(jobId, { phase: "auth", tableIndex: 0, cursor: null, updatedAt: Date.now() })
-      } else {
-        const page = isFeedDataTable(table)
-          ? await feedErasurePage(ctx, { table, personId: job.personId, jobId, cursor: job.cursor, numItems: PAGE_SIZE, maximumBytesRead: PAGE_BYTES })
-          : await ctx.db.query(table).paginate({ numItems: PAGE_SIZE, cursor: job.cursor, maximumBytesRead: PAGE_BYTES })
-        let changed = job.changed, erasedRows = job.erasedRows
-        const anonymousId = job.phase === "erase" ? await anonymousPerson(ctx) : null
-        for (const item of page.page) {
-          const row = item as unknown as DataRecord
-          if (job.phase === "discover") {
-            if (directlyOwned(table, row, job.personId) || await inheritedOwnership(ctx, job, table, row)) changed = await mark(ctx, jobId, table, row._id) || changed
-          } else if (await marked(ctx, jobId, row._id) || directlyOwned(table, row, job.personId) || await inheritedOwnership(ctx, job, table, row)) {
-            await mark(ctx, jobId, table, row._id)
-            await purgeBlobs(ctx, row, table)
-            await clearMessagePreview(ctx, table, row)
-            await removeCounters(ctx, table, row)
-            await ctx.db.delete(row._id as Id<TableNames>)
-            changed = true; erasedRows += 1
-          } else if (anonymousId) changed = await anonymizeRow(ctx, job, table, row, anonymousId) || changed
-        }
-        await ctx.db.patch(jobId, { tableIndex: job.tableIndex + (page.isDone ? 1 : 0), cursor: page.isDone ? null : page.continueCursor, changed, erasedRows, updatedAt: Date.now() })
-      }
+      await socialErasureStep(ctx, job)
     } else if (job.phase === "auth") {
       const models = ["session", "account", "twoFactor", "oauthAccessToken", "oauthConsent", "oauthApplication"] as const
       const model = models[job.tableIndex]
