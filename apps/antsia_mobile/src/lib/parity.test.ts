@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs"
 import { fileURLToPath } from "node:url"
 import { describe, expect, it } from "vitest"
-import { NATIVE_PARITY_STATES, WEB_ROUTE_PARITY, nativeParityCounts, nativeParityProblems } from "./parity"
+import { NATIVE_GESTURE_PARITY, NATIVE_PARITY_STATES, WEB_ROUTE_PARITY, nativeParityCounts, nativeParityProblems } from "./parity"
 import { nativeWebRoutes, type NativeAccountSection } from "./routes"
 
 // MB-01 : le fichier de routes du SITE est lu comme du texte, jamais importé (aucun import croisé entre produits).
@@ -67,6 +67,28 @@ describe("matrice de parité du site et de l'application (MB-01)", () => {
     expect(paths.size).toBeGreaterThan(20)
     for (const section of Object.keys(sections) as NativeAccountSection[]) {
       expect(paths, `section ${section}`).toContain(new URL(nativeWebRoutes.accountSection("https://site.example", section)).pathname)
+    }
+  })
+
+  it("prouve chaque geste natif par l'appel au moteur que son écran contient (MB-04)", () => {
+    for (const [name, gesture] of Object.entries(NATIVE_GESTURE_PARITY)) {
+      expect(gesture.note.trim().length, name).toBeGreaterThan(0)
+      if (gesture.state === "native") {
+        expect(gesture.evidence.length, `${name} : aucune preuve`).toBeGreaterThan(0)
+        expect(gesture.screens.length, `${name} : aucun écran`).toBeGreaterThan(0)
+      }
+      if (gesture.state === "renvoi") expect(gesture.via, name).toBeDefined()
+      if (gesture.state === "absent" || gesture.state === "ferme") expect(gesture.screens, name).toEqual([])
+      for (const { file, call } of gesture.evidence) {
+        const code = readFileSync(fileURLToPath(new URL(`../../${file}`, import.meta.url)), "utf8")
+        expect(code.includes(call), `${name} : ${file} n'appelle pas ${call}`).toBe(true)
+      }
+    }
+  })
+
+  it("couvre les exigences des boutiques : signaler, bloquer, débloquer, supprimer son compte, contact", () => {
+    for (const name of ["reportComment", "reportPerson", "reportPersonalMessage", "blockPerson", "unblockPerson", "blockedPeople", "deleteAccount", "networkContact"]) {
+      expect(NATIVE_GESTURE_PARITY[name]?.state, name).toBe("native")
     }
   })
 

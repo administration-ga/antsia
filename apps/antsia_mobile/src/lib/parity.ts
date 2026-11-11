@@ -108,13 +108,13 @@ export const WEB_ROUTE_PARITY: Readonly<Record<string, NativeRouteParity>> = {
   publicAlbum: absent("Albums : aucun écran natif."),
 
   // ── Textes publics, modération, réglages ───────────────────────────────
-  about: screen("publicEntry", "À propos, mêmes textes que le site, sans compte."),
-  legal: screen("publicEntry", "Mentions légales et contact de l'éditeur, sans compte."),
-  privacy: screen("publicEntry", "Confidentialité, sans compte."),
+  about: screen("legal", "À propos, mêmes textes que le site : sans compte sur l'écran public, pour le membre dans Réglages › Aide, contact et règles."),
+  legal: screen("legal", "Mentions légales et contact de l'éditeur : sans compte sur l'écran public, pour le membre dans Réglages (MB-04, exigence des boutiques)."),
+  privacy: screen("legal", "Confidentialité : sans compte sur l'écran public, pour le membre dans Réglages."),
   transparency: absent("Rapport de transparence : aucun écran natif."),
   moderation: renvoi("me", "accountSection:moderation", "Files de modération, sur le site depuis le hub Profil."),
   moderationView: renvoi("me", "accountSection:moderation", "Le renvoi ouvre l'accueil de la modération ; les vues ciblées se choisissent sur le site."),
-  settings: screen("settings", "Apparence de l'appareil et appels ; notifications par catégorie absentes (MB-15)."),
+  settings: screen("settings", "Apparence de l'appareil, appels, personnes bloquées, contact de l'éditeur et suppression du compte ; notifications par catégorie absentes (MB-15)."),
   dataSettings: renvoi("me", "accountSection:personalData", "Ancienne adresse redirigée vers « Mes données » ; le hub ouvre directement celle-ci."),
   authSession: { state: "native", surface: "technique", screen: null, note: "Session lue par le client Better Auth natif sur l'origine du moteur, jamais par l'API du site." },
   authBase: { state: "native", surface: "technique", screen: null, note: "Transport d'authentification propre au natif (Better Auth sur l'origine du moteur)." },
@@ -179,7 +179,7 @@ export const WEB_ROUTE_PARITY: Readonly<Record<string, NativeRouteParity>> = {
   conference: absent("Conférences : aucun écran natif."),
 
   // ── Mes données, notifications, exploitation ───────────────────────────
-  personalControls: renvoi("me", "accountSection:personalData", "Mes données et mes recours : export, décisions et recours sur le site."),
+  personalControls: renvoi("me", "accountSection:personalData", "Mes données et mes recours : export, décisions et recours sur le site ; la suppression du compte est native (`accountDeletion`, MB-04)."),
   pageModerationDecisions: renvoi("me", "accountSection:personalData", "Décisions visant une page représentée, dans « Mes données » sur le site."),
   personalReports: renvoi("me", "accountSection:personalData", "Suivi de mes signalements (accusé, échéance, issue), dans « Mes données » sur le site."),
   notificationCenter: screen("notifications", "Cloche native : liste, non lus, tout lire."),
@@ -187,6 +187,41 @@ export const WEB_ROUTE_PARITY: Readonly<Record<string, NativeRouteParity>> = {
   pushWorker: absent("Push : le natif n'inscrit aucun appareil hors appels (MB-08).", "technique"),
   health: ferme("Santé fonctionnelle : page d'exploitation, sans objet dans l'application.", "technique"),
   healthApi: ferme("Sonde de santé : adresse d'exploitation, sans objet dans l'application.", "technique"),
+}
+
+/**
+ * Les gestes qui ne sont pas des routes : signaler, bloquer, supprimer son
+ * compte (MB-04, PF-04 — exigences des boutiques pour les contenus
+ * d'utilisateurs), et leurs voisins. Une ligne `native` porte sa PREUVE : le
+ * fichier et l'appel au moteur qu'il contient (`parity.test.ts` les relit) ;
+ * elle ne dit rien d'une recette.
+ */
+export type NativeGestureParity = Readonly<{
+  state: NativeParityState
+  /** Les écrans natifs où le geste est offert. */
+  screens: readonly NativeParityScreen[]
+  via?: NativeParityVia
+  /** Le fichier de l'application (relatif à `apps/antsia_mobile`) et l'appel au moteur qu'il doit contenir. */
+  evidence: readonly Readonly<{ file: string; call: string }>[]
+  note: string
+}>
+
+export const NATIVE_GESTURE_PARITY: Readonly<Record<string, NativeGestureParity>> = {
+  reportPost: { state: "native", screens: ["feed", "post", "profile", "page", "search", "shop"], evidence: [{ file: "src/screens/post-actions.tsx", call: "api.modules.moderation.moderation.reportPost" }], note: "Menu « … » de toute carte de publication (aussi les Clips et Explorer en liste ; pas l'immersion des Clips) : motif, précision, et « Bloquer aussi l'auteur »." },
+  reportComment: { state: "native", screens: ["post"], evidence: [{ file: "src/screens/comments-section.tsx", call: "api.modules.moderation.moderation.reportComment" }], note: "Menu « … » d'un commentaire d'autrui : motif, précision, et « Bloquer aussi »." },
+  reportPerson: { state: "native", screens: ["profile", "conversation"], evidence: [{ file: "src/screens/profile-screens.tsx", call: "api.modules.moderation.cases.report" }, { file: "src/screens/conversation-screen.tsx", call: "api.modules.moderation.cases.report" }], note: "Cible `person` : depuis la fiche d'autrui et l'en-tête d'une conversation, motif seul." },
+  reportPersonalMessage: { state: "native", screens: ["conversation"], evidence: [{ file: "src/screens/conversation-screen.tsx", call: "api.modules.moderation.cases.report" }], note: "Cible `personalMessage` : un message texte reçu, motif seul." },
+  blockPerson: { state: "native", screens: ["profile", "post", "feed", "conversation"], evidence: [{ file: "src/screens/safety-actions.tsx", call: "api.modules.graph.connections.blockPerson" }, { file: "src/screens/post-actions.tsx", call: "api.modules.graph.connections.blockPerson" }], note: "Fiche, publication, commentaire, conversation et message ; confirmation native avec « Signaler, puis bloquer »." },
+  unblockPerson: { state: "native", screens: ["profile", "conversation", "settings"], evidence: [{ file: "src/screens/safety-actions.tsx", call: "api.modules.graph.connections.unblockPerson" }, { file: "src/screens/profile-screens.tsx", call: "api.modules.graph.blocks.myBlockByHandle" }], note: "Fiche refusée de la personne que j'ai bloquée, conversation fermée par mon blocage, liste des réglages." },
+  blockedPeople: { state: "native", screens: ["settings"], evidence: [{ file: "src/screens/safety-actions.tsx", call: "api.modules.graph.blocks.paginateMine" }], note: "Réglages › Personnes bloquées : deux sources fusionnées, lignes neutres, Débloquer confirmé." },
+  deleteAccount: { state: "native", screens: ["accountDeletion"], evidence: [{ file: "src/screens/account-deletion-screen.tsx", call: "api.modules.people.erasure.requestErasure" }, { file: "src/app.tsx", call: "onErased={onErasureRequested}" }], note: "Double confirmation (conséquences, puis mot saisi), puis sortie par la porte existante ; annulation pendant la grâce. Non proposée dans la démonstration partagée." },
+  networkContact: { state: "native", screens: ["settings", "legal"], evidence: [{ file: "src/app.tsx", call: "onOpenLegal(\"legal\")" }], note: "Réglages › Aide, contact et règles : mentions légales (contact de l'éditeur) et confidentialité, natives." },
+  exportData: { state: "renvoi", screens: ["me"], via: "accountSection:personalData", evidence: [], note: "Export de ses données : sur le site, depuis « Mes données et mes recours »." },
+  reportFollowUp: { state: "renvoi", screens: ["me"], via: "accountSection:personalData", evidence: [], note: "Suivi de mes signalements (accusé, échéance, issue) et recours : sur le site." },
+  muteAuthor: { state: "native", screens: ["feed", "post"], evidence: [{ file: "src/screens/post-actions.tsx", call: "api.modules.marks.marks.muteAuthor" }], note: "Sourdine depuis le menu d'une publication ; absente de la fiche." },
+  reportPage: { state: "absent", screens: [], evidence: [], note: "Signaler une page : aucun bouton dans la page native." },
+  reportStory: { state: "absent", screens: [], evidence: [], note: "Signaler une Story : aucun bouton dans le lecteur natif." },
+  reportGroupMessage: { state: "absent", screens: [], evidence: [], note: "Messages de groupe : aucune conversation de groupe native." },
 }
 
 /** Le décompte par état, pour le compte rendu de l'état de la parité. */
