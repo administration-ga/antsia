@@ -68,7 +68,7 @@ import {
   toFeedItem,
   WALL_WINDOWS_MAX,
 } from "../posts/posts"
-import { associationGroupPageOrNull, associationGroupRoleOrNull, canDiscoverThematicGroup, isActiveThematicGroup, isThematicGroupServedTo, liveThematicGroupMembership, requireLiveThematicGroupMembership } from "./access"
+import { associationGroupPageOrNull, associationGroupRoleOrNull, canDiscoverThematicGroup, isActiveThematicGroup, isThematicGroupServedTo, liveThematicGroupMembership, requireLiveThematicGroupMembership, servedThematicGroupOrNull } from "./access"
 
 type ReadCtx = Pick<QueryCtx, "db">
 
@@ -982,9 +982,10 @@ export const getGroup = networkQuery({
     canManage: v.boolean(),
   }),
   handler: async (ctx, args) => {
-    const group = await groupInNetwork(ctx, ctx.networkId, args.groupId)
     // MC-01 : retirée par la modération, ou signalée par le lecteur, la fiche se refuse comme une fiche inconnue.
-    if (!group || !(await isThematicGroupServedTo(ctx, group, ctx.person._id))) return notFound()
+    // NP-04 : la même garde que la destination d'une invitation (`servedThematicGroupOrNull`).
+    const group = await servedThematicGroupOrNull(ctx, ctx.networkId, args.groupId, ctx.person._id)
+    if (!group) return notFound()
     const reader = readerOf(ctx)
     const [membership, invitation] = await Promise.all([
       liveThematicGroupMembership(ctx, group._id, ctx.person._id),
