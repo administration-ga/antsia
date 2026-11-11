@@ -182,6 +182,8 @@ export function exportableRecord(table: string, row: DataRecord, personId: strin
   // P08 : les preuves de possession restent serveur, même dans l'export personnel.
   // P09 : aucun catalogue collectif, corps signé, jeton de média ni mapping dans l'export du signataire.
   if (table === "shopCatalogPolicies" || table === "commerceCatalogMappings" || table === "commerceCatalogHeads" || table === "commerceCatalogMediaAssets") return null
+  // CM-02 : décision collective de la liste des catégories sur le catalogue d'une boutique, jamais une donnée du signataire.
+  if (table === "commerceCatalogCategoryRulings") return null
   // P15 : ni corps signé, session, sujet opaque ni identifiant de stockage ; la candidature et ses pièces au seul candidat.
   if (table === "commerceJobPolicies" || table === "commerceJobHeads" || table === "commerceApplicationSubjects") return null
   if (table === "commerceApplicationIntentFences") return null

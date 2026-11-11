@@ -7,8 +7,8 @@
  * propre définition (cliquet `operator-audit`).
  */
 import type { Doc, Id } from "../../_generated/dataModel"
-import type { MutationCtx } from "../../_generated/server"
-import { isActiveMember } from "../../lib/access"
+import type { MutationCtx, QueryCtx } from "../../_generated/server"
+import { isActiveMember, memberHasStatus } from "../../lib/access"
 import { failAppRule, notFound } from "../../lib/errors"
 import { isFederatedPage } from "../federation/mirrorAccess"
 import { countLiveAdmins } from "../pages/access"
@@ -18,6 +18,8 @@ import { COMMERCE_ACTIVATION_DECISIONS, commerceActivationReady } from "./commer
 import {
   DEFAULT_STOREFRONT_POLICY,
   presentationGaps,
+  publicationOutcome,
+  type PublicationOutcome,
   SHOP_PAGE_OWNER_KIND,
   shopHandleCandidates,
   type StorefrontPolicy,
@@ -25,6 +27,28 @@ import {
   type StorefrontState,
   storefrontTransitionAllowed,
 } from "./rules"
+
+/**
+ * CM-02 — la catégorie RÉGLEMENTÉE que propose le catalogue reflété d'une boutique, ou `null`. Lue sur la ligne
+ * courante consignée au reflet (`commerceCatalogCategoryRulings`), une lecture d'index : aucun contenu, aucun
+ * parcours du catalogue.
+ */
+export async function regulatedCategoryOfShop(ctx: Pick<QueryCtx, "db">, shopId: Id<"shops">): Promise<string | null> {
+  const ruling = await ctx.db.query("commerceCatalogCategoryRulings").withIndex("by_shop_rule_updatedAt", (q) => q.eq("shopId", shopId).eq("rule", "regulated")).first()
+  return ruling?.categoryKey ?? null
+}
+
+/**
+ * Ce que devient la demande de publication de CETTE vitrine : la politique du réseau, le niveau d'adhésion du
+ * demandeur, et CM-02 — une vitrine qui propose une catégorie réglementée passe sous la politique `review`
+ * (jamais d'admission d'office). Utilisé par la demande (`shops.requestStorefrontPublication`) et par l'éditeur.
+ */
+export async function storefrontPublicationOutcome(ctx: Pick<QueryCtx, "db">, shop: Doc<"shops">, requesterPersonId: Id<"persons">): Promise<{ policy: StorefrontPolicy; outcome: PublicationOutcome; regulatedCategory: string | null }> {
+  const policy = await storefrontPolicyOf(ctx, shop.networkId)
+  const regulatedCategory = await regulatedCategoryOfShop(ctx, shop._id)
+  const verified = await memberHasStatus(ctx, shop.networkId, requesterPersonId, "verifiee")
+  return { policy, outcome: publicationOutcome(policy, verified, regulatedCategory !== null), regulatedCategory }
+}
 
 /** Règle la politique d'un réseau ; rend l'ancienne et si elle a changé (rien n'est écrit sinon). */
 export async function applyStorefrontPolicy(

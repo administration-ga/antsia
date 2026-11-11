@@ -12,6 +12,8 @@ vi.mock("react-i18next", () => ({ useTranslation: () => ({ i18n: { resolvedLangu
 // P15 : l'aperçu des offres d'emploi garde ses propres tests ; ici, aucune offre reçue (écrit, non exécuté).
 vi.mock("@/components/jobs/member-shop-jobs-screen", () => ({ MemberShopJobsPreview: () => null }))
 vi.mock("./catalog-member-screen", () => ({ MemberCatalogPreview: () => <div data-testid="catalog-preview" /> }))
+// CM-02 : le motif des catégories a son propre test (catalog-category-notice.test.tsx).
+vi.mock("./catalog-category-notice", () => ({ CatalogCategoryNotice: () => null }))
 
 import { MemberStorefront, MemberStorefrontScreen } from "./member-storefront-screen"
 import { ShopPublicationForm } from "./shop-publication-form"

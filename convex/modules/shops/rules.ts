@@ -234,11 +234,13 @@ export type PublicationOutcome = (typeof PUBLICATION_OUTCOMES)[number]
 
 /**
  * Ce que devient une demande de publication. `auto_verified` lit le NIVEAU
- * D'ADHÉSION du demandeur au moment du geste — jamais un badge.
+ * D'ADHÉSION du demandeur au moment du geste — jamais un badge. CM-02 : une
+ * vitrine qui propose une catégorie RÉGLEMENTÉE passe sous la politique
+ * `review` — jamais d'admission d'office, la file des opérateurs décide.
  */
-export function publicationOutcome(policy: StorefrontPolicy, requesterVerified: boolean): PublicationOutcome {
+export function publicationOutcome(policy: StorefrontPolicy, requesterVerified: boolean, regulatedCategory = false): PublicationOutcome {
   if (policy === "closed") return "closed"
-  if (policy === "auto_verified" && requesterVerified) return "admit"
+  if (policy === "auto_verified" && requesterVerified && !regulatedCategory) return "admit"
   return "queue"
 }
 
