@@ -2,9 +2,11 @@
 /**
  * Revendications de page (EXF-AN-17) — tests neufs : le socle n'avait pas de
  * revendication. Le patron d'audit des décisions de modération est repris
- * (`moderation.report_decide` → `page.claim_decide`).
+ * (`moderation.report_decide` → `page.claim_decide`). AS-01 : l'équipe de modération compétente
+ * pour les pages instruit aussi ; l'échéance de suppression des pièces est servie.
  */
 import { engineErrorCode, engineErrorRule } from "@antsia/social-contracts/errors"
+import { PAGE_CLAIM_EVIDENCE_RETENTION_MS } from "@antsia/social-domain/pages"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { api, internal } from "../../_generated/api"
@@ -18,6 +20,7 @@ type Person = { as: ReturnType<T["withIdentity"]>; personId: Id<"persons">; hand
 const P = api.modules.pages.pages
 const C = api.modules.pages.claims
 const ADMIN = api.modules.pages.admin
+const CASES = api.modules.moderation.cases
 
 beforeEach(() => {
   vi.stubEnv("CONVEX_CLOUD_URL", "http://127.0.0.1:3210")
@@ -34,7 +37,7 @@ async function seed(t: T) {
   return await t.mutation(internal.seeds.foundations.run, { confirmNonProduction: SEED_CONFIRMATION })
 }
 
-async function enter(t: T, rootId: Id<"networks">, handle: string, role: "member" | "network_moderator" = "member"): Promise<Person> {
+async function enter(t: T, rootId: Id<"networks">, handle: string, role: "member" | "network_moderator" | "network_admin" = "member"): Promise<Person> {
   vi.setSystemTime(Date.now() + 1000)
   const as = t.withIdentity({ subject: `auth-${handle}` })
   const personId = await as.mutation(api.modules.people.persons.ensureMyPerson, {})
@@ -82,12 +85,12 @@ async function storeBlob(t: T, contentType: string): Promise<Id<"_storage">> {
 }
 
 /** Une association IMPORTÉE, non revendiquée (aucun signataire), dans la racine. */
-async function unclaimedAssociation(t: T, rootId: Id<"networks">): Promise<{ pageId: Id<"pages">; handle: string }> {
+async function unclaimedAssociation(t: T, rootId: Id<"networks">, handle = "association-de-lyon"): Promise<{ pageId: Id<"pages">; handle: string }> {
   const pageId = await t.run(
     async (ctx) =>
       await ctx.db.insert("pages", {
         networkId: rootId,
-        handle: "association-de-lyon",
+        handle,
         name: "Association de Lyon",
         ownerKind: "association",
         trust: "community",
@@ -95,13 +98,13 @@ async function unclaimedAssociation(t: T, rootId: Id<"networks">): Promise<{ pag
         visibility: "network",
         onRoot: true,
         status: "active",
-        importRef: "asso-lyon",
-        searchText: "Association de Lyon association-de-lyon",
+        importRef: `import-${handle}`,
+        searchText: `Association de Lyon ${handle}`,
         createdAt: 1,
         updatedAt: 1,
       }),
   )
-  return { pageId, handle: "association-de-lyon" }
+  return { pageId, handle }
 }
 
 async function claim(t: T, person: Person, networkId: Id<"networks">, pageId: Id<"pages">, documents = 1) {
@@ -223,5 +226,158 @@ describe("trancher une revendication", () => {
       return { blobs: blobs.filter((row) => row !== null).length, scans: scans.filter((row) => row !== null).length, kept: (await ctx.db.get(claimId))!.evidenceStorageIds.length }
     })
     expect(left).toEqual({ blobs: 0, scans: 0, kept: 0 })
+  })
+})
+
+describe("AS-01 — l'équipe de modération du réseau instruit les revendications", () => {
+  const FIRST = { numItems: 10, cursor: null }
+  const REASON = "Statuts déposés et procès-verbal d'élection conformes."
+
+  /** Une équipe de modération, créée et peuplée par l'administration du réseau (chemins réels du moteur). */
+  async function createTeam(admin: Person, rootId: Id<"networks">, name: string, scope?: "page" | "post"): Promise<Id<"moderationTeams">> {
+    return (await admin.as.mutation(CASES.createTeam, { networkId: rootId, name, ...(scope ? { scope } : {}), reason: "Équipe de la recette AS-01." })).teamId
+  }
+  async function setMember(admin: Person, rootId: Id<"networks">, teamId: Id<"moderationTeams">, person: Person, active: boolean): Promise<void> {
+    await admin.as.mutation(CASES.setTeamMember, { networkId: rootId, teamId, personId: person.personId, active, reason: "Nomination de la recette AS-01." })
+  }
+  /** Ce que la personne obtient de la file et de la fiche : `admitted`, le code du refus, ou `unexpected` (erreur hors moteur). */
+  async function reach(who: Person, rootId: Id<"networks">, claimId: Id<"pageClaims">) {
+    const outcome = async (promise: Promise<unknown>) => {
+      try {
+        await promise
+        return "admitted"
+      } catch (error) {
+        return engineErrorCode(error) ?? "unexpected"
+      }
+    }
+    return {
+      queue: await outcome(who.as.query(C.paginatePageClaims, { networkId: rootId, paginationOpts: FIRST })),
+      detail: await outcome(who.as.query(C.getPageClaim, { networkId: rootId, claimId })),
+    }
+  }
+
+  it("le membre actif de l'équipe vivante lit la file, la fiche et ses pièces, et tranche ; le journal dit sa qualité et son équipe", async () => {
+    const t = testConvex()
+    const { root } = await seed(t)
+    const admin = await enter(t, root, "administratrice", "network_admin")
+    const presidente = await enter(t, root, "presidente")
+    const teammate = await enter(t, root, "equipiere")
+    const curious = await enter(t, root, "curieux")
+    const teamId = await createTeam(admin, root, "Équipe générale")
+    await setMember(admin, root, teamId, teammate, true)
+    const { pageId, handle } = await unclaimedAssociation(t, root)
+    const { claimId } = await claim(t, presidente, root, pageId)
+
+    expect((await teammate.as.query(C.paginatePageClaims, { networkId: root, paginationOpts: FIRST })).page.map((row) => row.claimId)).toEqual([claimId])
+    const detail = await teammate.as.query(C.getPageClaim, { networkId: root, claimId })
+    expect(detail).toMatchObject({ claimId, status: "pending", canDecide: true, evidencePurgeAt: null, evidence: [{ url: null, withheld: "fileScanPending" }] })
+    // Un tiers du réseau, hors équipe : le refus indistinct, partout.
+    expect(await reach(curious, root, claimId)).toEqual({ queue: "notFound", detail: "notFound" })
+    expect(await codeOf(curious.as.mutation(C.decidePageClaim, { networkId: root, claimId, decision: "approved", reason: REASON }))).toBe("notFound")
+
+    expect(await teammate.as.mutation(C.decidePageClaim, { networkId: root, claimId, decision: "approved", reason: REASON })).toEqual({ status: "approved" })
+    expect(await curious.as.query(P.getPage, { networkId: root, handle })).toMatchObject({ badge: "verified" })
+    const journal = await t.run(async (ctx) => await ctx.db.query("engineAudit").withIndex("by_subject_at", (q) => q.eq("subjectTable", "pageClaims").eq("subjectId", claimId)).take(5))
+    expect(journal).toMatchObject([{ action: "page.claim_decide", capacity: "moderation_team_member", actorPersonId: teammate.personId, details: { decision: "approved", teamId } }])
+  })
+
+  it("équipe d'une autre nature, équipe générale quand une équipe « page » existe, membre retiré, équipe éteinte : aucune compétence ; le rôle de réseau reste admis", async () => {
+    const t = testConvex()
+    const { root } = await seed(t)
+    const admin = await enter(t, root, "administratrice", "network_admin")
+    const presidente = await enter(t, root, "presidente")
+    const postsOnly = await enter(t, root, "publications")
+    const generalist = await enter(t, root, "generaliste")
+    const pagesMember = await enter(t, root, "pages")
+    const moderator = await enter(t, root, "moderatrice", "network_moderator")
+    const postsTeam = await createTeam(admin, root, "Équipe des publications", "post")
+    const generalTeam = await createTeam(admin, root, "Équipe générale")
+    await setMember(admin, root, postsTeam, postsOnly, true)
+    await setMember(admin, root, generalTeam, generalist, true)
+    const { pageId } = await unclaimedAssociation(t, root)
+    const { claimId } = await claim(t, presidente, root, pageId)
+    const ADMITTED = { queue: "admitted", detail: "admitted" }
+    const REFUSED = { queue: "notFound", detail: "notFound" }
+
+    // Sans équipe « page » : l'équipe générale reçoit les pages ; l'équipe des publications, jamais.
+    expect(await reach(postsOnly, root, claimId)).toEqual(REFUSED)
+    expect(await codeOf(postsOnly.as.mutation(C.decidePageClaim, { networkId: root, claimId, decision: "approved", reason: REASON }))).toBe("notFound")
+    expect(await reach(generalist, root, claimId)).toEqual(ADMITTED)
+
+    // Une équipe « page » existe : elle seule reçoit les pages (comme un signalement de page), l'équipe générale plus.
+    const pagesTeam = await createTeam(admin, root, "Équipe des pages", "page")
+    await setMember(admin, root, pagesTeam, pagesMember, true)
+    expect(await reach(generalist, root, claimId)).toEqual(REFUSED)
+    expect(await reach(pagesMember, root, claimId)).toEqual(ADMITTED)
+    // Le rôle de réseau reste admis, dans aucune équipe.
+    expect(await reach(moderator, root, claimId)).toEqual(ADMITTED)
+    expect((await moderator.as.query(C.getPageClaim, { networkId: root, claimId })).canDecide).toBe(true)
+
+    // Membre retiré de l'équipe : plus rien.
+    await setMember(admin, root, pagesTeam, pagesMember, false)
+    expect(await reach(pagesMember, root, claimId)).toEqual(REFUSED)
+    expect(await codeOf(pagesMember.as.mutation(C.decidePageClaim, { networkId: root, claimId, decision: "approved", reason: REASON }))).toBe("notFound")
+
+    // L'équipe « page » éteinte, l'équipe générale reprend les pages ; éteinte à son tour, plus personne par équipe.
+    await t.run(async (ctx) => { await ctx.db.patch(pagesTeam, { active: false }) })
+    expect(await reach(generalist, root, claimId)).toEqual(ADMITTED)
+    await t.run(async (ctx) => { await ctx.db.patch(generalTeam, { active: false }) })
+    expect(await reach(generalist, root, claimId)).toEqual(REFUSED)
+    expect(await codeOf(generalist.as.mutation(C.decidePageClaim, { networkId: root, claimId, decision: "approved", reason: REASON }))).toBe("notFound")
+    expect(await t.run(async (ctx) => (await ctx.db.get(claimId))!.status)).toBe("pending")
+  })
+
+  it("le conflit d'intérêts vaut aussi pour l'équipe : le demandeur et un signataire, même invité, sont refusés comme un tiers", async () => {
+    const t = testConvex()
+    const { root } = await seed(t)
+    const admin = await enter(t, root, "administratrice", "network_admin")
+    const presidente = await enter(t, root, "presidente")
+    const signer = await enter(t, root, "signataire")
+    const teammate = await enter(t, root, "equipiere")
+    const curious = await enter(t, root, "curieux")
+    const teamId = await createTeam(admin, root, "Équipe des pages", "page")
+    for (const person of [presidente, signer, teammate]) await setMember(admin, root, teamId, person, true)
+    const { pageId } = await unclaimedAssociation(t, root)
+    // Une invitation à signer, encore en attente (aucune acceptation) : elle suffit au conflit.
+    await t.run(async (ctx) => { await ctx.db.insert("pageSignatories", { networkId: root, pageId, personId: signer.personId, role: "signatory", authorityRevision: 0, createdAt: 1, updatedAt: 1 }) })
+    const { claimId } = await claim(t, presidente, root, pageId)
+
+    for (const who of [presidente, signer]) {
+      expect((await who.as.query(C.getPageClaim, { networkId: root, claimId })).canDecide).toBe(false)
+      expect(await codeOf(who.as.mutation(C.decidePageClaim, { networkId: root, claimId, decision: "approved", reason: REASON }))).toBe("notFound")
+    }
+    // Le même refus que pour un tiers hors équipe : rien ne dit pourquoi.
+    expect(await codeOf(curious.as.mutation(C.decidePageClaim, { networkId: root, claimId, decision: "approved", reason: REASON }))).toBe("notFound")
+    expect((await teammate.as.query(C.getPageClaim, { networkId: root, claimId })).canDecide).toBe(true)
+    expect(await teammate.as.mutation(C.decidePageClaim, { networkId: root, claimId, decision: "rejected", reason: "Le mandat présenté est échu." })).toEqual({ status: "rejected" })
+  })
+
+  it("l'échéance de suppression des pièces se lit par le demandeur et par la modération ; aucune tant que la demande est en attente ou retirée", async () => {
+    const t = testConvex()
+    const { root } = await seed(t)
+    const admin = await enter(t, root, "administratrice", "network_admin")
+    const presidente = await enter(t, root, "presidente")
+    const teammate = await enter(t, root, "equipiere")
+    const moderator = await enter(t, root, "moderatrice", "network_moderator")
+    const teamId = await createTeam(admin, root, "Équipe des pages", "page")
+    await setMember(admin, root, teamId, teammate, true)
+    const decidedPage = await unclaimedAssociation(t, root, "association-de-lyon")
+    const pendingPage = await unclaimedAssociation(t, root, "association-de-lille")
+    const withdrawnPage = await unclaimedAssociation(t, root, "association-de-nantes")
+    const { claimId } = await claim(t, presidente, root, decidedPage.pageId, 2)
+    const pending = (await claim(t, presidente, root, pendingPage.pageId)).claimId
+    const withdrawn = (await claim(t, presidente, root, withdrawnPage.pageId)).claimId
+    await presidente.as.mutation(C.withdrawPageClaim, { networkId: root, claimId: withdrawn })
+    await teammate.as.mutation(C.decidePageClaim, { networkId: root, claimId, decision: "rejected", reason: "Le mandat présenté est échu." })
+    const decidedAt = (await t.run(async (ctx) => (await ctx.db.get(claimId))!.decidedAt))!
+    const purgeAt = decidedAt + PAGE_CLAIM_EVIDENCE_RETENTION_MS
+
+    const mine = (await presidente.as.query(C.paginateMyPageClaims, { networkId: root, paginationOpts: FIRST })).page
+    expect(Object.fromEntries(mine.map((row) => [row.claimId, row.evidencePurgeAt]))).toEqual({ [claimId]: purgeAt, [pending]: null, [withdrawn]: null })
+    for (const who of [presidente, teammate, moderator]) {
+      expect(await who.as.query(C.getPageClaim, { networkId: root, claimId })).toMatchObject({ status: "rejected", evidenceCount: 2, evidencePurgeAt: purgeAt })
+    }
+    expect((await teammate.as.query(C.paginatePageClaims, { networkId: root, status: "rejected", paginationOpts: FIRST })).page).toMatchObject([{ claimId, evidencePurgeAt: purgeAt }])
+    expect((await moderator.as.query(C.getPageClaim, { networkId: root, claimId: pending })).evidencePurgeAt).toBeNull()
   })
 })
