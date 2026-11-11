@@ -55,7 +55,7 @@ import {
   associationMembershipStatusValidator,
   associationResponsibleRoleValidator,
 } from "./associationsTables"
-import { assertDiasporaNetwork } from "./facts"
+import { assertDiasporaNetwork, assertPageOpenTo } from "./facts"
 // Avis neutres de la cloche (DG-010), par la porte unique, juste après chaque écriture réussie.
 import { noticeAssociationMembershipDecided, noticeAssociationMembershipRequested } from "./serviceNotifications"
 
@@ -381,6 +381,8 @@ export const requestAssociationMembership = networkMutation({
     await enforceRateLimit(ctx, "diaspora.association.membership", ctx.person._id)
     const page = await associationPageOrNull(ctx, pageId)
     if (!page) return notFound()
+    // RP-03 : tous les responsables vivants en blocage avec la personne, l'association se tait comme retirée.
+    await assertPageOpenTo(ctx, page, ctx.person._id)
     const text = parseRequestMessage(message)
     if (!text.ok) return refuseAssociation(text.code, { max: ASSOCIATION_REQUEST_MESSAGE_MAX })
     const row = await membershipRowOf(ctx, page._id, ctx.person._id)

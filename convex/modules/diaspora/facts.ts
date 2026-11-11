@@ -30,6 +30,8 @@ import type { Doc, Id } from "../../_generated/dataModel"
 import type { MutationCtx, QueryCtx } from "../../_generated/server"
 import { getMembership } from "../../lib/access"
 import { notFound } from "../../lib/errors"
+import { isBlockedBetween } from "../graph/graph"
+import { liveSignatoryRole, signatoryRowsOf } from "../pages/access"
 import { promoteDerivedRootMembership, setDirectoryListed, setMembershipStatus } from "../people/admission"
 import { liveIdentityLinks } from "../people/persons"
 
@@ -41,6 +43,41 @@ export function isDiasporaNetwork(network: Doc<"networks"> | null): network is D
 /** Garde des fonctions bornées par le réseau : tout autre réseau reçoit le refus indistinct. */
 export function assertDiasporaNetwork(network: Doc<"networks">): void {
   if (!isDiasporaNetwork(network)) notFound()
+}
+
+/**
+ * RP-03 (décision 5 du plan 05 de DIASPORALE) : la page est-elle FERMÉE à cette
+ * personne par les blocages ? Oui quand elle a au moins un signataire VIVANT et
+ * que TOUS ses signataires vivants sont en blocage avec la personne — dans un
+ * sens ou dans l'autre, dans quelque réseau que ce soit (`isBlockedBetween`).
+ *
+ * Un seul signataire ne ferme pas une page collective ; une invitation en
+ * attente ou un signataire parti ne comptent pas (`liveSignatoryRole`) ; une
+ * page sans signataire vivant n'est pas fermée par ce fait ; la personne
+ * elle-même signataire vivante n'est jamais fermée. Matrice et tests :
+ * docs/40 de DIASPORALE, `pageBlocks.test.ts`.
+ *
+ * Bornée : les lignes de signataires sont plafonnées (`signatoryRowsOf`) et la
+ * lecture s'arrête au premier signataire vivant hors blocage.
+ */
+export async function isPageClosedByBlocks(ctx: Pick<QueryCtx, "db">, page: Doc<"pages">, personId: Id<"persons">): Promise<boolean> {
+  let liveBlocked = 0
+  for (const row of await signatoryRowsOf(ctx, page._id)) {
+    if (row.acceptedAt === undefined) continue
+    if ((await liveSignatoryRole(ctx, page, row.personId)) === null) continue
+    if (!(await isBlockedBetween(ctx, row.personId, personId))) return false
+    liveBlocked += 1
+  }
+  return liveBlocked > 0
+}
+
+/**
+ * La garde commune des demandes adressées à une page (RP-03) : une page fermée
+ * par les blocages reçoit le refus INDISTINCT, celui d'une page retirée —
+ * jamais « vous êtes bloqué ». À appeler juste après la lecture de la page.
+ */
+export async function assertPageOpenTo(ctx: Pick<QueryCtx, "db">, page: Doc<"pages">, personId: Id<"persons">): Promise<void> {
+  if (await isPageClosedByBlocks(ctx, page, personId)) notFound()
 }
 
 /**

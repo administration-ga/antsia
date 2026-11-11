@@ -98,7 +98,7 @@ import { liveSignatoryRole, pageCardOf, readablePageOrNull } from "../pages/acce
 import { type PageCard, pageCardValidator } from "../pages/validators"
 import { isDiscoverablePerson, livePersonProfile } from "../people/miniProfile"
 import { noticeJobApplicationDecided, noticeJobApplicationReceived } from "./communityNotifications"
-import { assertDiasporaNetwork } from "./facts"
+import { assertDiasporaNetwork, assertPageOpenTo } from "./facts"
 import {
   isRemovedByModeration,
   isServedTo,
@@ -939,6 +939,8 @@ export const applyToJobOffer = networkMutation({
     if (!offer || offer.networkId !== ctx.networkId || !isJobOfferOpen(stateOf(offer), now)) return notFound()
     const page = await readableEmployerPage(ctx, ctx.network, offer.pageId, ctx.person._id)
     if (!page) return notFound()
+    // RP-03 : toute l'équipe vivante en blocage avec la personne, l'offre se tait comme retirée.
+    await assertPageOpenTo(ctx, page, ctx.person._id)
     // G9 : on ne candidate qu'à une offre que la modération sert à ce lecteur.
     if (!(await isServedTo(ctx, "diasporaJobOffer", offer._id, ctx.person._id))) return notFound()
     if (offer.version !== args.offerVersion) return refuseRule("job_offer_changed")

@@ -67,7 +67,7 @@ import { literals } from "../../lib/validators"
 import { openContextualConversation, syncContextualConversation } from "../contextualMessaging/hooks"
 import { liveSignatoryRole, pageCardOf, readablePageOrNull } from "../pages/access"
 import { livePersonProfile } from "../people/miniProfile"
-import { assertDiasporaNetwork } from "./facts"
+import { assertDiasporaNetwork, assertPageOpenTo } from "./facts"
 // Avis neutres de la cloche (DG-015), par la porte unique, juste après chaque écriture réussie.
 import {
   noticeServiceNoShowContested,
@@ -585,6 +585,8 @@ export const createServiceRequest = networkMutation({
     if (!offer || offer.networkId !== ctx.networkId || offer.status !== "active") return notFound()
     const page = await readablePageOrNull(ctx, ctx.network, offer.pageId, ctx.person._id)
     if (!page || page.networkId !== ctx.networkId) return notFound()
+    // RP-03 : tous les signataires vivants en blocage avec la personne, la page se tait comme retirée.
+    await assertPageOpenTo(ctx, page, ctx.person._id)
     if (offer.version !== args.offerVersion) return refuseRule("request_offer_changed")
     if ((await liveSignatoryRole(ctx, page, ctx.person._id)) !== null) return refuseRule("request_own_page")
     const now = Date.now()
@@ -768,6 +770,8 @@ export const acceptServiceProposal = networkMutation({
     // La page doit encore se lire d'ici : une page retirée ne prend plus de rendez-vous.
     const page = await readablePageOrNull(ctx, ctx.network, request.pageId, ctx.person._id)
     if (!page || page.networkId !== ctx.networkId) return notFound()
+    // RP-03 : ni une page fermée par les blocages de toute son équipe vivante (refus indistinct).
+    await assertPageOpenTo(ctx, page, ctx.person._id)
     // SV-09 : la capacité de la prestation à l'accord, gardée avec le rendez-vous.
     const capacity = await offerCapacityOf(ctx, request)
     if (await slotTaken(ctx, request.pageId, proposal, capacity)) return refuseRule("booking_slot_unavailable")
@@ -799,14 +803,19 @@ export const acceptServiceProposal = networkMutation({
  * Le rendez-vous d'un participant pour un geste de déplacement : la demande, son
  * rôle, le rendez-vous et l'état effectif. Le demandeur ne déplace que vers une
  * page qui se lit encore d'ici ; un signataire est relu vivant (`participantOf`).
+ * RP-03 : un geste du demandeur qui ENGAGE la page (proposer, accepter un autre
+ * horaire) est refusé, indistinctement, quand toute l'équipe vivante est en
+ * blocage avec lui ; décliner ou retirer sa proposition reste ouvert (on ne
+ * retient personne dans un échange que l'équipe a fermé).
  */
-async function rescheduleScope(ctx: WriteScope, requestId: Id<"serviceRequests">) {
+async function rescheduleScope(ctx: WriteScope, requestId: Id<"serviceRequests">, reachesPage: boolean) {
   const access = await participantOf(ctx, requestId)
   if (!access) return notFound()
   const { request, actor } = access
   if (actor === "requester") {
     const page = await readablePageOrNull(ctx, ctx.network, request.pageId, ctx.person._id)
     if (!page || page.networkId !== ctx.networkId) return notFound()
+    if (reachesPage) await assertPageOpenTo(ctx, page, ctx.person._id)
   }
   const booking = request.bookingId ? await ctx.db.get(request.bookingId) : null
   const now = Date.now()
@@ -838,7 +847,7 @@ export const proposeServiceReschedule = networkMutation({
   handler: async (ctx, args) => {
     assertDiasporaNetwork(ctx.network)
     await enforceRateLimit(ctx, "diaspora.service.booking", ctx.person._id)
-    const { request, actor, booking, now, gesture } = await rescheduleScope(ctx, args.requestId)
+    const { request, actor, booking, now, gesture } = await rescheduleScope(ctx, args.requestId, true)
     gesture("propose_reschedule")
     ruled(checkProposalVersion(args.expectedProposalVersion, request.proposalVersion))
     if (!booking) return refuseRule("request_not_open")
@@ -865,7 +874,7 @@ export const acceptServiceReschedule = networkMutation({
   handler: async (ctx, args) => {
     assertDiasporaNetwork(ctx.network)
     await enforceRateLimit(ctx, "diaspora.service.booking", ctx.person._id)
-    const { request, booking, now, gesture } = await rescheduleScope(ctx, args.requestId)
+    const { request, booking, now, gesture } = await rescheduleScope(ctx, args.requestId, true)
     gesture("accept_reschedule")
     ruled(checkProposalVersion(args.expectedProposalVersion, request.proposalVersion))
     const pending = booking?.reschedule
@@ -911,7 +920,7 @@ export const declineServiceReschedule = networkMutation({
   handler: async (ctx, args) => {
     assertDiasporaNetwork(ctx.network)
     await enforceRateLimit(ctx, "diaspora.service.booking", ctx.person._id)
-    const { request, booking, now, gesture } = await rescheduleScope(ctx, args.requestId)
+    const { request, booking, now, gesture } = await rescheduleScope(ctx, args.requestId, false)
     gesture("decline_reschedule")
     if (!booking) return refuseRule("reschedule_not_open")
     await ctx.db.patch(booking._id, { reschedule: undefined, updatedAt: now })
