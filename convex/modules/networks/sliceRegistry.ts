@@ -26,6 +26,7 @@ import type { NetworkSlice } from "@antsia/social-domain/network"
 
 import type { Doc } from "../../_generated/dataModel"
 import type { MutationCtx } from "../../_generated/server"
+import { rederiveMembership } from "../diaspora/facts"
 
 /**
  * Relecture, par la tranche, d'une adhésion ACTIVE (`en_attente`, `declaree`, `verifiee`) à un réseau
@@ -39,5 +40,5 @@ export type ManagedMembershipRederiver = (ctx: MutationCtx, membership: Doc<"net
 export type ManagedMembershipRegistry = { readonly [S in NetworkSlice]: ManagedMembershipRederiver | null }
 
 export const MANAGED_MEMBERSHIP_REDERIVERS: ManagedMembershipRegistry = {
-  diaspora: null,
+  diaspora: (ctx, membership, now) => rederiveMembership(ctx, membership, now),
 }
