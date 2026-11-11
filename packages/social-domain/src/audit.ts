@@ -85,8 +85,12 @@ export const AUDIT_ACTIONS = [
 ] as const
 export type AuditAction = (typeof AUDIT_ACTIONS)[number]
 
-/** À quel titre l'acte a été posé : la qualité qui l'AUTORISAIT au moment de l'acte. */
-export const AUDIT_CAPACITIES = ["platform_admin", "platform_operator", "network_admin", "network_moderator", "page_admin", "member", "system"] as const
+/**
+ * À quel titre l'acte a été posé : la qualité qui l'AUTORISAIT au moment de l'acte.
+ * AS-01 : `moderation_team_member`, le membre actif d'une équipe de modération vivante du réseau
+ * qui n'y tient aucun rôle de réseau (il tranche une revendication de page par son équipe).
+ */
+export const AUDIT_CAPACITIES = ["platform_admin", "platform_operator", "network_admin", "network_moderator", "page_admin", "member", "system", "moderation_team_member"] as const
 export type AuditCapacity = (typeof AUDIT_CAPACITIES)[number]
 
 /** Les tables qu'une décision peut viser — une référence, jamais un contenu. */

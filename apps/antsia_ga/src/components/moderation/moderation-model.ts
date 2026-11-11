@@ -30,13 +30,14 @@ export function moderationDecisionInput(value: { action: ModerationAction; reaso
 }
 
 /** Aucun identifiant d'équipe de l'adresse n'est admis sans projection de capacité. */
-export function moderationWindow(params: { view?: string | string[]; team?: string | string[]; cursor?: string | string[] }, capacity: { networkWide: boolean; canReviewAppeals?: boolean; canManagePolicy?: boolean; teams: readonly { teamId: string }[] }) {
+export function moderationWindow(params: { view?: string | string[]; team?: string | string[]; cursor?: string | string[] }, capacity: { networkWide: boolean; canReviewAppeals?: boolean; canManagePolicy?: boolean; canReviewPageClaims?: boolean; teams: readonly { teamId: string }[] }) {
   const view: ModerationView | null = params.view === undefined || params.view === "reports" ? "reports" : params.view === "pending" ? "pending" : params.view === "appeals" ? "appeals" : params.view === "settings" ? "settings" : params.view === "claims" ? "claims" : null
   const team = params.team === undefined ? undefined : capacity.teams.find((item) => item.teamId === params.team)?.teamId
   const cursor = params.cursor
   // MC-02 : les réglages du réseau sont réservés à sa capacité serveur (administrateur), sans équipe ni curseur.
-  // PG-01 : les revendications de pages relèvent de la modération du RÉSEAU (administrateur ou modérateur), sans équipe.
-  const permitted = view === "settings" ? capacity.canManagePolicy === true && params.team === undefined && cursor === undefined : view === "appeals" ? capacity.canReviewAppeals === true && params.team === undefined : view === "claims" ? capacity.networkWide && params.team === undefined : params.team === undefined ? capacity.networkWide : team !== undefined
+  // PG-01, AS-01 : les revendications de pages suivent la capacité serveur dédiée (`pages.claims.myPageClaimReview` :
+  // rôle de réseau, ou membre de l'équipe compétente pour les pages), sans équipe dans l'adresse.
+  const permitted = view === "settings" ? capacity.canManagePolicy === true && params.team === undefined && cursor === undefined : view === "appeals" ? capacity.canReviewAppeals === true && params.team === undefined : view === "claims" ? capacity.canReviewPageClaims === true && params.team === undefined : params.team === undefined ? capacity.networkWide : team !== undefined
   const valid = view !== null && permitted && (cursor === undefined || (typeof cursor === "string" && cursor.length > 0 && cursor.length <= 4096))
   return { valid, view: view ?? "reports", team, cursor: typeof cursor === "string" ? cursor : null }
 }
