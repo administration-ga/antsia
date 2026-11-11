@@ -97,7 +97,11 @@ export const arrivalKitTables = {
     .index("by_network_proposer_updated", ["networkId", "proposedByPersonId", "updatedAt"])
     .index("by_network_proposer_status", ["networkId", "proposedByPersonId", "status"])
     // ET-04 — chercher par mots dans le kit public d'un pays, par rubrique (la ville se rejuge).
-    .searchIndex("search_by_text", { searchField: "searchText", filterFields: ["networkId", "listed", "country", "category"] }),
+    .searchIndex("search_by_text", { searchField: "searchText", filterFields: ["networkId", "listed", "country", "category"] })
+    // DP-F1 (antsia#166) : l'export et l'effacement d'une personne lisent ces lignes par index, sans balayage.
+    .index("by_authorPersonId", ["authorPersonId"])
+    .index("by_revisedByPersonId", ["revisedByPersonId"])
+    .index("by_reviewedByPersonId", ["reviewedByPersonId"]),
 
   kitResourceReviews: defineTable({
     networkId: v.id("networks"),
@@ -109,7 +113,9 @@ export const arrivalKitTables = {
     /** Obligatoire pour un renvoi ou une mise « à revoir » (borné par le domaine). */
     reason: v.optional(v.string()),
     createdAt: v.number(),
-  }).index("by_resource_and_createdAt", ["resourceId", "createdAt"]),
+  }).index("by_resource_and_createdAt", ["resourceId", "createdAt"])
+    // DP-F1 (antsia#166) : l'export et l'effacement d'une personne lisent ces lignes par index, sans balayage.
+    .index("by_reviewerPersonId", ["reviewerPersonId"]),
 
   kitOutdatedFlags: defineTable({
     networkId: v.id("networks"),
@@ -119,5 +125,7 @@ export const arrivalKitTables = {
     personId: v.id("persons"),
     reason: arrivalKitOutdatedReasonValidator,
     createdAt: v.number(),
-  }).index("by_resource_and_revision_and_person", ["resourceId", "revision", "personId"]),
+  }).index("by_resource_and_revision_and_person", ["resourceId", "revision", "personId"])
+    // DP-F1 (antsia#166) : l'export et l'effacement d'une personne lisent ces lignes par index, sans balayage.
+    .index("by_personId", ["personId"]),
 }

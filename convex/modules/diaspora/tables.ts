@@ -158,7 +158,10 @@ export const diasporaTables = {
   })
     .index("by_network_and_person", ["networkId", "personId"])
     // En vigueur : `withdrawnAt` absent ; retirées : rangées par date de retrait.
-    .index("by_network_and_withdrawnAt", ["networkId", "withdrawnAt"]),
+    .index("by_network_and_withdrawnAt", ["networkId", "withdrawnAt"])
+    // DP-F1 (antsia#166) : l'export et l'effacement d'une personne lisent ces lignes par index, sans balayage.
+    .index("by_admittedByPersonId", ["admittedByPersonId"])
+    .index("by_withdrawnByPersonId", ["withdrawnByPersonId"]),
 
   // Plan global (docs/14 de DIASPORALE) : chaque chantier tient ses tables dans son fichier.
   ...servicesTables,
