@@ -132,7 +132,9 @@ export const jobsTables = {
     .index("by_network_and_candidate_and_idempotencyKey", ["networkId", "candidatePersonId", "idempotencyKey"])
     // Les candidatures d'une offre, toutes ou par état, les plus récentes d'abord.
     .index("by_network_and_offer_and_createdAt", ["networkId", "offerId", "createdAt"])
-    .index("by_network_and_offer_and_status_and_createdAt", ["networkId", "offerId", "status", "createdAt"]),
+    .index("by_network_and_offer_and_status_and_createdAt", ["networkId", "offerId", "status", "createdAt"])
+    // DP-F1 (antsia#166) : l'export et l'effacement d'une personne lisent ces lignes par index, sans balayage.
+    .index("by_decidedByPersonId", ["decidedByPersonId"]),
 
   talentProfiles: defineTable({
     networkId: v.id("networks"),

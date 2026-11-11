@@ -8,9 +8,9 @@
  * lignes de la personne, pas la base.
  *
  * Les seules exceptions sont nommées ici et justifiées : identifiants rangés dans un
- * tableau (aucun index Convex n'atteint un élément), et tables de la tranche `diaspora`
- * encore sans index, relues par un balayage résiduel jusqu'à l'ajout des index demandés
- * à DIASPORALE. `erasure.test.ts` échoue sur tout autre chemin sans index.
+ * tableau (aucun index Convex n'atteint un élément), et, s'il y en avait, des tables de la
+ * tranche `diaspora` encore sans index, relues par un balayage résiduel (aucune depuis que
+ * DIASPORALE a posé les index demandés). `erasure.test.ts` échoue sur tout autre chemin sans index.
  */
 import type { PaginationOptions, PaginationResult } from "convex/server"
 import type { ValidatorJSON } from "convex/values"
@@ -78,21 +78,9 @@ export const COLLECTION_REFERENCE_EXCEPTIONS: Readonly<Record<string, string>> =
  * Tranche `diaspora` (écrite par la session DIASPORALE) : tables encore sans index pour l'un de
  * leurs chemins de personne ou de parent. Elles gardent le balayage de leur seule table, dans le
  * réseau DIASPORALE, jusqu'à l'ajout de l'index demandé. Le test retire toute entrée devenue inutile.
+ * Vide : les douze tables d'abord nommées ici ont reçu leurs index (`by_<champ>`) dans la tranche.
  */
-export const RESIDUAL_SCAN_TABLES: Readonly<Record<string, string>> = {
-  associationMemberships: "index demandé : by_decidedByPersonId (decidedByPersonId)",
-  foundingAdmissions: "index demandés : by_admittedByPersonId, by_withdrawnByPersonId",
-  jobApplications: "index demandé : by_decidedByPersonId (decidedByPersonId)",
-  kitOutdatedFlags: "index demandé : by_personId (personId)",
-  kitResourceReviews: "index demandé : by_reviewerPersonId (reviewerPersonId)",
-  kitResources: "index demandés : by_authorPersonId, by_revisedByPersonId, by_reviewedByPersonId",
-  mentorListings: "index demandé : by_personId (personId)",
-  mentoringRequests: "index demandé : by_mentorProfileId (mentorProfileId)",
-  serviceProposals: "index demandé : by_authorPersonId (authorPersonId)",
-  serviceRequests: "index demandé : by_closedByPersonId (closedByPersonId)",
-  serviceReviewReplies: "index demandé : by_authorPersonId (authorPersonId)",
-  serviceReviews: "index demandés : by_authorPersonId (authorPersonId), by_requestId (requestId)",
-}
+export const RESIDUAL_SCAN_TABLES: Readonly<Record<string, string>> = {}
 
 export const isResidualScanTable = (table: string): boolean => Object.prototype.hasOwnProperty.call(RESIDUAL_SCAN_TABLES, table)
 
