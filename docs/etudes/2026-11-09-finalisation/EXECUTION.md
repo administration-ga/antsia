@@ -148,7 +148,7 @@ Plan : [`05_PROFIL_RELATIONS_ALBUMS.md`](05_PROFIL_RELATIONS_ALBUMS.md)
 | Lot | Titre | Priorité | Taille | Session | Porte | État |
 |---|---|---|---|---|---|---|
 | PF-01 | Bloquer, débloquer et liste des bloqués | P0 | M | S1 | D1 seulement pour la suppression des abonnements ; le reste n'a aucune porte. | fusionné |
-| PF-02 | Signaler un profil et un album | P0 | S | S1 | aucune. | à faire |
+| PF-02 | Signaler un profil et un album | P0 | S | S1 | aucune. | fusionné |
 | PF-03 | Images de profil : recadrage et retrait des métadonnées | P0 | M | S1 | aucune. | fusionné |
 | PF-04 | Mobile : bloquer et signaler | P0 | S | S3 | publication sur TestFlight sur accord écrit du propriétaire. | fusionné |
 | PF-05 | Rompre une relation | P1 | M | S1 | D4. | à faire |

@@ -35,6 +35,7 @@ const mocks = vi.hoisted(() => ({
   result: null as QueryMock | null,
   query: vi.fn(),
   withdraw: vi.fn(),
+  report: vi.fn(),
   toastSuccess: vi.fn(),
   toastError: vi.fn(),
 }))
@@ -56,7 +57,10 @@ vi.mock("@antsia/api/hooks", () => ({
     return mocks.result ?? ok(undefined)
   },
 }))
-vi.mock("convex/react", () => ({ useMutation: () => mocks.withdraw }))
+// PF-02 : le signalement (brique commune de MC-01) a sa propre écriture ; toute autre est le retrait.
+vi.mock("convex/react", () => ({
+  useMutation: (ref: never) => (getFunctionName(ref) === "modules/moderation/cases:report" ? mocks.report : mocks.withdraw),
+}))
 vi.mock("sonner", () => ({
   toast: { success: mocks.toastSuccess, error: mocks.toastError },
 }))
@@ -82,6 +86,8 @@ vi.mock("@antsia/ui", () => ({
   Card: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   Icon: () => null,
   SkeletonCard: () => <div data-testid="skeleton" />,
+  // Le dialogue de signalement (PF-02) : son accessibilité modale est éprouvée par ses propres tests.
+  useModalA11y: () => undefined,
 }))
 
 import { AlbumPage } from "./AlbumPage"
@@ -132,6 +138,8 @@ beforeEach(() => {
   mocks.query.mockReset()
   mocks.withdraw.mockReset()
   mocks.withdraw.mockResolvedValue({ status: "withdrawn" })
+  mocks.report.mockReset()
+  mocks.report.mockResolvedValue({ reportId: "reports_1", created: true, hidden: true })
   mocks.toastSuccess.mockReset()
   mocks.toastError.mockReset()
 })
@@ -366,6 +374,26 @@ describe("AlbumPage — signaler (MC-01)", () => {
 
   it("ne le propose jamais à son propriétaire", () => {
     mocks.result = ok({ ...DETAIL, album: { ...DETAIL.album, isOwner: true } })
+    renderWithEngine(<AlbumPage handle="awa" albumId="al-1" />)
+    expect(screen.queryByRole("button", { name: "Signaler" })).toBeNull()
+  })
+
+  it("PF-02 : transmet l'album au moteur dans ce réseau, dit l'accusé, puis le bouton se fige", async () => {
+    mocks.result = ok(DETAIL)
+    renderWithEngine(<AlbumPage handle="awa" albumId="al-1" />)
+    fireEvent.click(screen.getByRole("button", { name: "Signaler" }))
+    const dialog = screen.getByRole("dialog", { name: "Signaler cet album" })
+    fireEvent.change(within(dialog).getByRole("combobox"), { target: { value: "privacy_or_honor" } })
+    fireEvent.click(within(dialog).getByRole("button", { name: "Transmettre" }))
+    await waitFor(() => expect(mocks.toastSuccess).toHaveBeenCalledWith("Signalement transmis. Ce contenu est masqué pour vous ; l’accusé de réception arrive dans vos notifications."))
+    expect(mocks.report).toHaveBeenCalledExactlyOnceWith({ networkId: TEST_NETWORK_ID, target: { kind: "album", id: "al-1" }, reason: "privacy_or_honor" })
+    expect(mocks.withdraw).not.toHaveBeenCalled()
+    expect(screen.queryByRole("dialog")).toBeNull()
+    expect(screen.getByRole("button", { name: "Signalé" })).toBeDisabled()
+  })
+
+  it("PF-02 : un album retiré par son propriétaire n'offre plus « Signaler »", () => {
+    mocks.result = ok({ ...DETAIL, album: { ...DETAIL.album, status: "withdrawn" as const } })
     renderWithEngine(<AlbumPage handle="awa" albumId="al-1" />)
     expect(screen.queryByRole("button", { name: "Signaler" })).toBeNull()
   })
