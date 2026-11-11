@@ -35,7 +35,9 @@ export const networksTables = {
     status: v.union(v.literal("pending"), v.literal("approved"), v.literal("cancelled")),
     requestedAt: v.number(), expiresAt: v.number(),
     approvedByPersonId: v.optional(v.id("persons")), decidedAt: v.optional(v.number()),
-  }).index("by_network_status_expiry", ["networkId", "status", "expiresAt"]),
+  }).index("by_network_status_expiry", ["networkId", "status", "expiresAt"])
+    .index("by_approvedByPersonId", ["approvedByPersonId"])
+    .index("by_requestedByPersonId", ["requestedByPersonId"]),
 
   networks: defineTable({
     slug: v.string(),
@@ -64,5 +66,6 @@ export const networksTables = {
     settings: v.object({ ...networkSettingsFields, status: networkStatusValidator }),
     reason: v.optional(v.string()),
     at: v.number(),
-  }).index("by_network_and_at", ["networkId", "at"]),
+  }).index("by_network_and_at", ["networkId", "at"])
+    .index("by_actorPersonId", ["actorPersonId"]),
 }

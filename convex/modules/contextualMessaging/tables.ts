@@ -95,7 +95,9 @@ export const contextualMessagingTables = {
     deletedAt: v.optional(v.number()),
   })
     .index("by_thread_createdAt", ["threadId", "createdAt"])
-    .index("by_thread_key", ["threadId", "idempotencyKey"]),
+    .index("by_thread_key", ["threadId", "idempotencyKey"])
+    .index("by_authorPersonId", ["authorPersonId"])
+    .index("by_pageSpeakerPersonId", ["pageSpeakerPersonId"]),
 
   /** Une ligne par personne et par fil, créée au premier geste. Elle ne confère AUCUN droit. */
   contextualPersonStates: defineTable({
@@ -121,5 +123,6 @@ export const contextualMessagingTables = {
     enabled: v.boolean(),
     updatedAt: v.number(),
     updatedByPersonId: v.optional(v.id("persons")),
-  }).index("by_network_kind", ["networkId", "kind"]),
+  }).index("by_network_kind", ["networkId", "kind"])
+    .index("by_updatedByPersonId", ["updatedByPersonId"]),
 }

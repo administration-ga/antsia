@@ -7,5 +7,6 @@ export const editorialSocialTables = {
     networkId: v.id("networks"), pageId: v.id("pages"), articleId: v.id("editorialArticles"), postId: v.id("posts"),
     commentsEnabled: v.boolean(), revision: v.number(), announcedByPersonId: v.id("persons"), announcedAt: v.number(),
     updatedByPersonId: v.id("persons"), updatedAt: v.number(),
-  }).index("by_article", ["articleId"]).index("by_post", ["postId"]).index("by_page", ["pageId"]).index("by_actor", ["announcedByPersonId"]),
+  }).index("by_article", ["articleId"]).index("by_post", ["postId"]).index("by_page", ["pageId"]).index("by_actor", ["announcedByPersonId"])
+    .index("by_updatedByPersonId", ["updatedByPersonId"]),
 }

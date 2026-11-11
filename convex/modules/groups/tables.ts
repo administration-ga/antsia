@@ -51,7 +51,8 @@ export const groupsTables = {
     /** Suppression demandée : toutes les gardes traitent le fil comme introuvable pendant la cascade. */
     deletingAt: v.optional(v.number()),
     createdAt: v.number(),
-  }).index("by_creator_idempotency", ["createdByPersonId", "idempotencyKey"]),
+  }).index("by_creator_idempotency", ["createdByPersonId", "idempotencyKey"])
+    .index("by_lastMessageByPersonId", ["lastMessageByPersonId"]),
 
   /**
    * L'appartenance d'une personne à un fil. Le DÉPART est une date : un membre
@@ -106,7 +107,8 @@ export const groupsTables = {
   })
     .index("by_thread_invitee", ["threadId", "inviteePersonId"])
     .index("by_thread_status_createdAt", ["threadId", "status", "createdAt"])
-    .index("by_network_invitee_status_createdAt", ["networkId", "inviteePersonId", "status", "createdAt"]),
+    .index("by_network_invitee_status_createdAt", ["networkId", "inviteePersonId", "status", "createdAt"])
+    .index("by_invitedByPersonId", ["invitedByPersonId"]),
 
   /** Lien partageable : un jeton opaque, jamais un identifiant ; les révoqués restent invalides. */
   groupInviteLinks: defineTable({
@@ -118,7 +120,8 @@ export const groupsTables = {
     revokedAt: v.optional(v.number()),
   })
     .index("by_thread", ["threadId"])
-    .index("by_token", ["token"]),
+    .index("by_token", ["token"])
+    .index("by_createdByPersonId", ["createdByPersonId"]),
 
   /**
    * Un message de groupe — `text` ou `system`. Le corps d'un expéditeur BLOQUÉ
@@ -151,7 +154,10 @@ export const groupsTables = {
     .index("by_thread_createdAt", ["threadId", "createdAt"])
     .index("by_thread_idempotency", ["threadId", "idempotencyKey"])
     // Les copies d'un message (transferts) : la purge ne détruit pas un blob qu'une copie sert encore.
-    .index("by_forwarded_message", ["forwardedFrom.messageId"]),
+    .index("by_forwarded_message", ["forwardedFrom.messageId"])
+    .index("by_senderPersonId", ["senderPersonId"])
+    .index("by_targetPersonId", ["targetPersonId"])
+    .index("by_replyToMessageId", ["replyToMessageId"]),
 
   /** Une réaction par (message, personne). */
   groupMessageReactions: defineTable({
@@ -163,7 +169,8 @@ export const groupsTables = {
   })
     .index("by_message_person", ["messageId", "personId"])
     .index("by_thread_person", ["threadId", "personId"])
-    .index("by_message", ["messageId"]),
+    .index("by_message", ["messageId"])
+    .index("by_personId", ["personId"]),
 
   /**
    * Suppression « pour moi » (D22) : une ligne par (message, personne) au lieu
@@ -179,7 +186,8 @@ export const groupsTables = {
   })
     .index("by_message_person", ["messageId", "personId"])
     .index("by_thread_person_messageCreatedAt", ["threadId", "personId", "messageCreatedAt"])
-    .index("by_message", ["messageId"]),
+    .index("by_message", ["messageId"])
+    .index("by_personId", ["personId"]),
 
   /** « En train d'écrire » — une ligne éphémère par (fil, personne). */
   groupTyping: defineTable({
@@ -189,5 +197,6 @@ export const groupsTables = {
   })
     .index("by_thread", ["threadId"])
     .index("by_thread_person", ["threadId", "personId"])
-    .index("by_expires", ["expiresAt"]),
+    .index("by_expires", ["expiresAt"])
+    .index("by_personId", ["personId"]),
 }

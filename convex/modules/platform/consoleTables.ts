@@ -16,7 +16,9 @@ export const consoleTables = {
     updatedAt: v.number(),
     openedByPersonId: v.optional(v.id("persons")),
     resolvedByPersonId: v.optional(v.id("persons")),
-  }).index("by_network_createdAt", ["networkId", "createdAt"]).index("by_createdAt", ["createdAt"]),
+  }).index("by_network_createdAt", ["networkId", "createdAt"]).index("by_createdAt", ["createdAt"])
+    .index("by_openedByPersonId", ["openedByPersonId"])
+    .index("by_resolvedByPersonId", ["resolvedByPersonId"]),
 
   consoleMetrics: defineTable({
     networkId: v.id("networks"),
