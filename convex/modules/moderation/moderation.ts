@@ -27,6 +27,7 @@ import { requireReportCapacity } from "./cases"
 import { contentState } from "./policy"
 import { acknowledgeReport, legalDeadlineColumns, notifyReporterOfDecision } from "./reporterNotices"
 import { contentReportReasonValidator, contentReportStatusValidator } from "./tables"
+import { speaksForPage } from "./targets"
 
 const readerOf = (ctx: { person: Doc<"persons">; network: Doc<"networks"> }): ReaderContext => ({ personId: ctx.person._id, network: ctx.network })
 
@@ -97,7 +98,8 @@ export const reportPost = networkMutation({
     const prior = await ctx.db.query("contentReports").withIndex("by_reporter_target", (q) => q.eq("reporterPersonId", ctx.person._id).eq("targetKind", "post").eq("postId", args.postId).eq("commentId", undefined)).unique()
     if (prior) return { reportId: prior._id, created: false, hidden: true as const }
     const post = await assertVisiblePost(ctx, readerOf(ctx), args.postId)
-    if (post.authorPersonId === ctx.person._id || post.status !== "published") return notFound()
+    // #114 : la même règle que `cases.report` — aucun signataire vivant ne signale une publication en voix de SA page.
+    if (post.authorPersonId === ctx.person._id || post.status !== "published" || await speaksForPage(ctx, post.pageId, ctx.person._id)) return notFound()
     return await fileReport(ctx, { kind: "post", post }, args.reason, note)
   },
 })
