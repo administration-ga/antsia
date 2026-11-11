@@ -32,12 +32,16 @@ export async function isLiveOperatorSession(ctx: IdentityCtx, person: Doc<"perso
   return Boolean(session && session._id === proof.sessionId && session.userId === person.authUserId && session.expiresAt > Date.now())
 }
 
-export async function requireOperatorSession(ctx: QueryCtx | MutationCtx, person: Doc<"persons">): Promise<Doc<"operatorSessionProofs">> {
+/** La preuve de session d'opérateur VIVANTE de la session appelante (scellée par le retour IDN), ou `null` — sans lever. */
+export async function liveOperatorSessionOrNull(ctx: QueryCtx | MutationCtx, person: Doc<"persons">): Promise<Doc<"operatorSessionProofs"> | null> {
   const identity = await getActiveIdentity(ctx)
-  if (!identity || typeof identity.sessionId !== "string") return fail("operatorRequired")
+  if (!identity || typeof identity.sessionId !== "string") return null
   const proof = await ctx.db.query("operatorSessionProofs").withIndex("by_session", (q) => q.eq("sessionId", identity.sessionId as string)).unique()
-  if (!await isLiveOperatorSession(ctx, person, proof) || !proof) return fail("operatorRequired")
-  return proof
+  return proof && await isLiveOperatorSession(ctx, person, proof) ? proof : null
+}
+
+export async function requireOperatorSession(ctx: QueryCtx | MutationCtx, person: Doc<"persons">): Promise<Doc<"operatorSessionProofs">> {
+  return (await liveOperatorSessionOrNull(ctx, person)) ?? fail("operatorRequired")
 }
 
 /** La personne est créée seulement par son geste d'entrée ; la preuve peut la précéder. */

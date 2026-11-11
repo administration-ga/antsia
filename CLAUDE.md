@@ -102,7 +102,9 @@ nominale et navigation complète), `rate-limited-writes` (PA5 : admission de dé
 écritures publiques vérifiée par AST), `notification-payload-content` (PA5 : aucune copie
 de contenu social ni contact dans les jobs et transports), `member-screens-full-width` (22/10 :
 aucun écran de membre ne se borne puis se centre ; colonnes responsives de
-`components/shared/screen-layout.ts`, exceptions nommées). La couverture de l'inventaire
+`components/shared/screen-layout.ts`, exceptions nommées), `launch-checklist` (EX-19 : chaque ligne de
+`docs/39` a sa preuve attendue, un état et un responsable fermés, sa référence dès qu'elle avance ; bilan
+recompté, critères du jalon 1 présents). La couverture de l'inventaire
 d'effacement dérivé du schéma est vérifiée par `convex/modules/people/erasure.test.ts`.
 
 ## Pièges déjà payés
@@ -131,6 +133,13 @@ d'effacement dérivé du schéma est vérifiée par `convex/modules/people/erasu
   avant révocation des sessions ; `deleteOne(user)` ne supprime pas ses dépendances.
   Les copies transférées et aperçus de fils sont expurgés avec leur source ; les citations
   restantes utilisent le profil anonyme `erasedAt` / `isDeleted`, sans nom stocké.
+- **DP-F1 / export et effacement par index** : toute référence typée vers `persons` (champ simple ou
+  imbriqué), tout parent de `dataPolicies.ts` et toute copie de message se lit par un index dont le premier
+  champ est ce chemin (ou `networkId` puis ce chemin). Une nouvelle table ou un nouveau champ de personne
+  sans index fait échouer `erasure.test.ts` (`accessGaps`) ; un champ qui ouvre l'export s'ajoute aussi à
+  `exportKeyFields` (`dataInventory.ts`). Exceptions nommées dans `people/dataAccess.ts` seulement (tableaux
+  d'identifiants, tables `diaspora` sans index). Convex n'admet qu'UNE `paginate` par fonction : les autres
+  lectures d'une étape sont des sondes (`first`).
 - **PA5 / preuves externes** : `sent` est une admission technique, pas une réception sur
   appareil. L'inbox signée possède un registre métier fermé : un 202 `dead_letter` ne
   prouve aucun reflet appliqué. Configuration et recette réelles restent distinctes.

@@ -282,10 +282,12 @@ async function authorTrace(f: Fixture, person: Person = f.author) {
 describe("MD-07 (antsia#99) — l'auteur d'un contenu signalé ne lit qu'une décision prise", () => {
   it("ouverture et examen : ni ligne, ni avis chez l'auteur ; le déclarant garde son accusé de réception", async () => {
     const f = await fixture()
-    // Un second dossier, mis en examen par le chemin historique des publications.
+    // Un second dossier, ouvert par le chemin historique des publications puis mis en examen. Seule la décision
+    // d'opérateur pose encore l'examen (AZ-F1 : un modérateur de réseau tranche par `cases.decide`, sans examen).
     const other = await enter(f.t, f.root, "examinee")
     const filed = await other.as.mutation(L.reportPost, { networkId: f.root, postId: f.postId, reason: "hate" })
-    await f.moderator.as.mutation(L.decide, { networkId: f.root, reportId: filed.reportId, status: "reviewing", decisionReason: "Examen en cours." })
+    const examiner = await operatorOf(f, "examinatrice")
+    await examiner.as.mutation(L.decideAsOperator, { reportId: filed.reportId, status: "reviewing", decisionReason: "Examen en cours." })
     const owned = await f.t.run(async (ctx) => await ctx.db.query("reports").withIndex("by_owner_createdAt", (q) => q.eq("ownerPersonId", f.author.personId)).take(10))
     expect(owned.map((row) => row.status).sort()).toEqual(["open", "reviewing"])
     const trace = await authorTrace(f)
@@ -300,10 +302,12 @@ describe("MD-07 (antsia#99) — l'auteur d'un contenu signalé ne lit qu'une dé
   it("classement : un contenu signalé puis classé ne laisse aucune trace chez son auteur ; le déclarant reçoit la décision", async () => {
     const f = await fixture()
     await f.moderator.as.mutation(M.decide, { networkId: f.root, reportId: f.reportId, decision: "dismissed", reason: "Aucun manquement constaté.", sanctions: [] })
-    // Même issue par le chemin historique des publications.
+    // Même issue par le chemin historique des publications : sa ligne `reports` jumelle se tranche par `cases.decide`.
     const other = await enter(f.t, f.root, "classee")
     const filed = await other.as.mutation(L.reportPost, { networkId: f.root, postId: f.postId, reason: "hate" })
-    await f.moderator.as.mutation(L.decide, { networkId: f.root, reportId: filed.reportId, status: "dismissed", decisionReason: "Contenu conforme." })
+    const twin = await f.t.run(async (ctx) => (await ctx.db.get(filed.reportId))?.reportId)
+    if (!twin) throw new Error("dossier historique sans ligne jumelle")
+    await f.moderator.as.mutation(M.decide, { networkId: f.root, reportId: twin, decision: "dismissed", reason: "Contenu conforme.", sanctions: [] })
     const trace = await authorTrace(f)
     expect(trace.decisions.page).toEqual([])
     expect(trace.decisions.isDone).toBe(true)
@@ -370,7 +374,9 @@ describe("MD-07 (antsia#99) — l'auteur d'un contenu signalé ne lit qu'une dé
     await f.reader.as.mutation(M.report, { networkId: f.root, target: { kind: "post", id: postId }, reason: "other" })
     const other = await enter(f.t, f.root, "fenetre")
     const filed = await other.as.mutation(L.reportPost, { networkId: f.root, postId, reason: "hate" })
-    await f.moderator.as.mutation(L.decide, { networkId: f.root, reportId: filed.reportId, status: "reviewing", decisionReason: "Examen en cours." })
+    // L'examen ne se pose plus que par la décision d'opérateur (AZ-F1).
+    const examiner = await operatorOf(f, "examinatrice")
+    await examiner.as.mutation(L.decideAsOperator, { reportId: filed.reportId, status: "reviewing", decisionReason: "Examen en cours." })
     await f.admin.as.mutation(M.setPolicy, { networkId: f.root, surface: "post", preReview: true, maxLinks: 2, maxWrites: 100, windowMs: 60_000, reason: "Relecture préalable." })
     const approved = await f.author.as.mutation(P.publish, { networkId: f.root, body: "Relecture approuvée" })
     await f.admin.as.mutation(M.reviewContent, { networkId: f.root, target: { kind: "post", id: approved.postId }, approve: true, reason: "Contenu admissible." })

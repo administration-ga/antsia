@@ -1,4 +1,4 @@
-import { readableStorefrontTerms } from "./storefrontTerms"
+import { readableStorefrontTermsWithHead } from "./storefrontTerms"
 /**
  * Les BOUTIQUES d'un réseau, côté membre (P07, ADR-0019) — préparer, présenter,
  * demander la publication de la vitrine, la retirer, régler sa diffusion
@@ -25,7 +25,6 @@ import { v } from "convex/values"
 
 import type { Doc, Id } from "../../_generated/dataModel"
 import type { QueryCtx } from "../../_generated/server"
-import { memberHasStatus } from "../../lib/access"
 import { fail, failAppRule, failRule, notFound } from "../../lib/errors"
 import { networkMutation, networkQuery } from "../../lib/functions"
 import { enforceRateLimit } from "../../lib/rateLimit"
@@ -52,7 +51,7 @@ import {
   shopOfPage,
   storefrontPolicyOf,
 } from "./access"
-import { admitStorefront } from "./decisions"
+import { admitStorefront, storefrontPublicationOutcome } from "./decisions"
 import { liveShopCommerceLink, revokeShopCommerceLink } from "./commerceLinkLifecycle"
 import { purgeSavedOffersForShop } from "./savedOffers"
 import { closeDailySpecialStory } from "../stories/dailySpecialSource"
@@ -61,7 +60,6 @@ import {
   checkShopName,
   checkShopOptionalLine,
   presentationGaps,
-  publicationOutcome,
   SHOP_CHECKOUT_MISSING,
   SHOP_DRAFTS_PER_PERSON_MAX,
   SHOP_MANAGEMENT_PAGES_MAX,
@@ -127,8 +125,7 @@ async function editorOf(ctx: ReadCtx, managed: ManagedShop, viewer: { personId: 
   const { shop, page, role } = managed
   const identity = shopIdentityOf(shop, page)
   const logo = identity.logoStorageId ? await resolveFileDelivery(ctx, identity.logoStorageId) : null
-  const policy = await storefrontPolicyOf(ctx, shop.networkId)
-  const verified = await memberHasStatus(ctx, shop.networkId, viewer.personId, "verifiee")
+  const { policy, outcome } = await storefrontPublicationOutcome(ctx, shop, viewer.personId)
   const gaps = presentationGaps(identity)
   const servable = (await servableStorefrontPage(ctx, shop, viewer.personId)) !== null
   const publicNow = (await publicStorefrontPage(ctx, viewer.rootNetwork, shop, viewer.personId)) !== null
@@ -158,7 +155,7 @@ async function editorOf(ctx: ReadCtx, managed: ManagedShop, viewer: { personId: 
     },
     policy,
     publication: {
-      outcome: publicationOutcome(policy, verified),
+      outcome,
       gaps,
       requestable: STOREFRONT_REQUESTABLE.includes(shop.storefront) && gaps.length === 0 && storefrontsOpen(policy),
     },
@@ -189,9 +186,11 @@ async function storefrontOf(ctx: ReadCtx, shop: Doc<"shops">, page: Doc<"pages">
     liveSignatoryRole(ctx, page, readerPersonId),
     publicStorefrontPage(ctx, rootNetwork, shop, readerPersonId),
   ])
-  const storefrontTerms = await readableStorefrontTerms(ctx, rootNetwork, shop._id, readerPersonId)
+  const terms = await readableStorefrontTermsWithHead(ctx, rootNetwork, shop._id, readerPersonId)
   return {
-    ...(storefrontTerms ? { storefrontTerms } : {}),
+    ...(terms ? { storefrontTerms: terms.terms } : {}),
+    // UM-03 : les conditions se signalent par qui ne tient aucun rôle sur la page (ni gérant, ni équipe).
+    ...(terms && role === null ? { reportTarget: { kind: "commerceStorefront" as const, id: terms.headId } } : {}),
     pageId: page._id,
     handle: page.handle,
     name: page.name,
@@ -611,8 +610,8 @@ export const requestStorefrontPublication = networkMutation({
     if (shop.storefront === "suspended") return failAppRule("shop_suspended", {}, "policyRefused")
     if (!STOREFRONT_REQUESTABLE.includes(shop.storefront)) return failAppRule("shop_state_invalid", {}, "conflict")
     if (presentationGaps(shopIdentityOf(shop, page)).length > 0) return failAppRule("shop_presentation_incomplete", {}, "invalidArgument")
-    const policy = await storefrontPolicyOf(ctx, shop.networkId)
-    const outcome = publicationOutcome(policy, await memberHasStatus(ctx, shop.networkId, ctx.person._id, "verifiee"))
+    // CM-02 : une catégorie réglementée met la demande en file, quelle que soit la politique ouverte.
+    const { outcome } = await storefrontPublicationOutcome(ctx, shop, ctx.person._id)
     if (outcome === "closed") return failAppRule("shop_publication_closed", {}, "policyRefused")
     const now = Date.now()
     if (outcome === "queue") {

@@ -31,6 +31,51 @@ export const CONTENT_REPORT_REASONS = [
 ] as const
 export type ContentReportReason = (typeof CONTENT_REPORT_REASONS)[number]
 
+/**
+ * UM-03 (plan 09, 11/11/2026) — les motifs PROPRES à une nature d'objet : proposés pour elle seule, en tête
+ * de sa liste, et refusés par le moteur pour toute autre cible. `CONTENT_REPORT_REASONS` reste la liste
+ * proposée pour TOUT objet (et le validateur des publications et commentaires) : un motif d'emploi n'y entre
+ * pas, il n'apparaît donc ni sous une publication ni dans l'application mobile.
+ *
+ * Poste d'une boutique (`commerceJob`) et offre d'emploi de DIASPORALE (`diasporaJobOffer`, demande de la
+ * session DIASPORALE du 11/11 : plans EM-01 et MD-13) : `job_fee_requested`, frais demandés au candidat ;
+ * `job_impersonation`, usurpation d'une entreprise. AUCUN délai réglementé (`reportLegalBasis` → `null`) : l'art. 24 de
+ * l'ordonnance n° 0011/PR/2026 ne vise que le cyberharcèlement et le contenu préjudiciable impliquant un
+ * mineur (étude SU01, ligne 24) ; une fausse offre d'emploi n'en relève pas.
+ */
+export const TARGET_REPORT_REASONS = Object.freeze({
+  commerceJob: Object.freeze(["job_fee_requested", "job_impersonation"] as const),
+  diasporaJobOffer: Object.freeze(["job_fee_requested", "job_impersonation"] as const),
+})
+export type TargetReportReasonKind = keyof typeof TARGET_REPORT_REASONS
+export type TargetReportReason = (typeof TARGET_REPORT_REASONS)[TargetReportReasonKind][number]
+/** Tout motif que le registre sait nommer : ceux de tout objet et ceux d'une nature. */
+export type KnownReportReason = ContentReportReason | TargetReportReason
+/** Les motifs proposés pour une nature d'objet `K` (union distribuée sur les natures). */
+export type ReportReasonFor<K extends string> = K extends TargetReportReasonKind ? (typeof TARGET_REPORT_REASONS)[K][number] | ContentReportReason : ContentReportReason
+
+function targetReasonsOf(kind: string): readonly TargetReportReason[] {
+  return Object.prototype.hasOwnProperty.call(TARGET_REPORT_REASONS, kind) ? TARGET_REPORT_REASONS[kind as TargetReportReasonKind] : []
+}
+
+/** Les motifs proposés pour une nature d'objet : les siens d'abord, puis ceux de tout objet (« autre » en dernier). */
+export function reportReasonsFor<K extends string>(kind: K): readonly ReportReasonFor<K>[] {
+  // Les motifs propres à une nature n'y entrent que pour elle : la liste a bien le type `ReportReasonFor<K>`,
+  // que TypeScript ne sait pas déduire d'un type conditionnel générique.
+  return [...targetReasonsOf(kind), ...CONTENT_REPORT_REASONS] as readonly KnownReportReason[] as unknown as readonly ReportReasonFor<K>[]
+}
+
+/** Un code que le registre nomme (libellé connu) ; tout autre code se dit tel quel ou « autre ». */
+export function isKnownReportReason(reason: string): reason is KnownReportReason {
+  return (CONTENT_REPORT_REASONS as readonly string[]).includes(reason) || Object.values(TARGET_REPORT_REASONS).some((reasons) => (reasons as readonly string[]).includes(reason))
+}
+
+/** Un motif propre à une nature n'est admis que pour elle ; tout autre code bien formé reste admis (avis, codes historiques). */
+export function isReportReasonAllowedFor(reason: string, kind: string): boolean {
+  const owners = Object.entries(TARGET_REPORT_REASONS).filter(([, reasons]) => (reasons as readonly string[]).includes(reason)).map(([owner]) => owner)
+  return owners.length === 0 || owners.includes(kind)
+}
+
 export const CONTENT_REPORT_STATUSES = ["open", "reviewing", "dismissed", "actioned"] as const
 export type ContentReportStatus = (typeof CONTENT_REPORT_STATUSES)[number]
 

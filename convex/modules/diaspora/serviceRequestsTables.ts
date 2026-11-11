@@ -109,7 +109,9 @@ export const serviceRequestsTables = {
     .index("by_network_and_page_and_updatedAt", ["networkId", "pageId", "updatedAt"])
     .index("by_network_and_page_and_status_and_updatedAt", ["networkId", "pageId", "status", "updatedAt"])
     // Le passage d'expiration (à planifier par ANTSIA).
-    .index("by_status_and_deadlineAt", ["status", "deadlineAt"]),
+    .index("by_status_and_deadlineAt", ["status", "deadlineAt"])
+    // DP-F1 (antsia#166) : l'export et l'effacement d'une personne lisent ces lignes par index, sans balayage.
+    .index("by_closedByPersonId", ["closedByPersonId"]),
 
   serviceProposals: defineTable({
     networkId: v.id("networks"),
@@ -137,7 +139,9 @@ export const serviceRequestsTables = {
     rescheduledFrom: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
-  }).index("by_request_and_version", ["requestId", "version"]),
+  }).index("by_request_and_version", ["requestId", "version"])
+    // DP-F1 (antsia#166) : l'export et l'effacement d'une personne lisent ces lignes par index, sans balayage.
+    .index("by_authorPersonId", ["authorPersonId"]),
 
   serviceBookings: defineTable({
     networkId: v.id("networks"),

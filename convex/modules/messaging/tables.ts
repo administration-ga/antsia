@@ -60,7 +60,9 @@ export const messagingTables = {
     .index("by_pair", ["personLow", "personHigh"])
     // « Mes fils, par activité » : l'union de deux plages, fusionnées par curseur.
     .index("by_network_low_lastMessageAt", ["networkId", "personLow", "lastMessageAt"])
-    .index("by_network_high_lastMessageAt", ["networkId", "personHigh", "lastMessageAt"]),
+    .index("by_network_high_lastMessageAt", ["networkId", "personHigh", "lastMessageAt"])
+    .index("by_initiatedByPersonId", ["initiatedByPersonId"])
+    .index("by_lastMessageByPersonId", ["lastMessageByPersonId"]),
 
   personalMessages: defineTable({
     networkId: v.id("networks"),
@@ -90,7 +92,9 @@ export const messagingTables = {
     // Les NON-LUS d'un fil : les messages de l'autre, sans balayer le fil.
     .index("by_thread_sender_read", ["threadId", "senderPersonId", "readAt"])
     // Les copies d'un message (transferts) : une purge ne détruit pas un blob qu'une copie sert encore.
-    .index("by_forwarded_message", ["forwardedFrom.messageId"]),
+    .index("by_forwarded_message", ["forwardedFrom.messageId"])
+    .index("by_senderPersonId", ["senderPersonId"])
+    .index("by_replyToMessageId", ["replyToMessageId"]),
 
   /** Une réaction par (message, personne) : réagir deux fois bascule, n'empile pas. */
   personalMessageReactions: defineTable({
@@ -102,7 +106,8 @@ export const messagingTables = {
   })
     .index("by_message_and_person", ["messageId", "personId"])
     // MES réactions sur une conversation entière — lues UNE fois par page.
-    .index("by_thread_and_person", ["threadId", "personId"]),
+    .index("by_thread_and_person", ["threadId", "personId"])
+    .index("by_personId", ["personId"]),
 
   /** « En train d'écrire » — une ligne éphémère par (fil, personne). */
   personalTyping: defineTable({

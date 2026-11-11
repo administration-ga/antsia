@@ -5,8 +5,8 @@ import { v } from "convex/values"
 
 import { networkQuery } from "../../lib/functions"
 import { canSeePostDoc } from "../posts/access"
-import { catalogOfferByHandle, listCatalog, resolvePostOffer } from "./catalogRead"
-import { catalogFilterArgs, catalogListValidator, catalogOfferValidator } from "./catalogValidators"
+import { listCatalog, memberCatalogOfferByHandle, resolvePostOffer } from "./catalogRead"
+import { catalogFilterArgs, catalogListValidator, catalogOfferValidator, memberCatalogOfferValidator } from "./catalogValidators"
 import { activityTemplateValidator } from "./validators"
 
 /** L'offre attachée à une publication, avec le gabarit de sa boutique : une adresse `food` y dit « Commander ». */
@@ -16,9 +16,10 @@ export const list = networkQuery({
   args: { handle: v.string(), ...catalogFilterArgs, paginationOpts: paginationOptsValidator }, returns: catalogListValidator,
   handler: async (ctx, args) => await listCatalog(ctx, { root: ctx.rootNetwork, readerPersonId: ctx.person._id, network: ctx.network }, args),
 })
+/** La fiche : le DTO commun ; UM-03 y ajoute la cible facultative du signalement (`reportTarget`), jamais pour les siens. */
 export const offer = networkQuery({
-  args: { handle: v.string(), offerRef: v.string() }, returns: v.union(catalogOfferValidator, v.null()),
-  handler: async (ctx, args) => await catalogOfferByHandle(ctx, { root: ctx.rootNetwork, readerPersonId: ctx.person._id, network: ctx.network }, args.handle, args.offerRef),
+  args: { handle: v.string(), offerRef: v.string() }, returns: v.union(memberCatalogOfferValidator, v.null()),
+  handler: async (ctx, args) => await memberCatalogOfferByHandle(ctx, { root: ctx.rootNetwork, readerPersonId: ctx.person._id, network: ctx.network }, args.handle, args.offerRef),
 })
 export const postOffer = networkQuery({
   args: { postId: v.id("posts") }, returns: v.union(postOfferValidator, v.null()),

@@ -1,9 +1,9 @@
-// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/ReportContentDialog.tsx @ ad2e7fdc2 — adaptations : motifs et borne de la précision lus dans le domaine du moteur (`CONTENT_REPORT_REASONS`, `CONTENT_REPORT_NOTE_MAX` de `@antsia/social-domain/moderation`, type `ReportReason` = `ContentReportReason`) ; libellés par l'i18n (clés `reseau:reportContentDialog.*`, le motif par sa clé) ; voile et ombre par les jetons (`--ui2-scrim`, `--shadow-xl`) au lieu de couleurs littérales ; titre accordé (« Signaler cette publication » — le socle écrivait « ce publication ») ; un échec de transmission ne laisse plus de promesse rejetée sans lecteur (l’appelant le dit, la boîte reste ouverte) ; P18b (A03, A07, A30) : accessibilité modale par le hook partagé `useModalA11y` (focus initial sur le motif, piège de Tab, Échap qui ferme hors transmission, inertage du reste de la page, focus rendu au déclencheur), dialogue nommé et décrit par son titre et sa phrase (`aria-labelledby`, `aria-describedby`), échec doublé d'une alerte dans le dialogue (`role="alert"`, hors de la vue : le toast reste le retour visible), nom accessible de la précision = son libellé visible ; rendu inchangé ; MC-01 : titre par nature d'objet (`ReportDialogKind` de `report-target.ts` : profil, page, groupe, évènement, Story, direct, album, offre, vitrine, poste, avis, message de groupe, message personnel), la brique `ReportTargetDialog` le pilote par la cible du moteur.
+// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/ReportContentDialog.tsx @ ad2e7fdc2 — adaptations : motifs et borne de la précision lus dans le domaine du moteur (`CONTENT_REPORT_REASONS`, `CONTENT_REPORT_NOTE_MAX` de `@antsia/social-domain/moderation`, type `ReportReason` = `ContentReportReason`) ; libellés par l'i18n (clés `reseau:reportContentDialog.*`, le motif par sa clé) ; voile et ombre par les jetons (`--ui2-scrim`, `--shadow-xl`) au lieu de couleurs littérales ; titre accordé (« Signaler cette publication » — le socle écrivait « ce publication ») ; un échec de transmission ne laisse plus de promesse rejetée sans lecteur (l’appelant le dit, la boîte reste ouverte) ; P18b (A03, A07, A30) : accessibilité modale par le hook partagé `useModalA11y` (focus initial sur le motif, piège de Tab, Échap qui ferme hors transmission, inertage du reste de la page, focus rendu au déclencheur), dialogue nommé et décrit par son titre et sa phrase (`aria-labelledby`, `aria-describedby`), échec doublé d'une alerte dans le dialogue (`role="alert"`, hors de la vue : le toast reste le retour visible), nom accessible de la précision = son libellé visible ; rendu inchangé ; MC-01 : titre par nature d'objet (`ReportDialogKind` de `report-target.ts` : profil, page, groupe, évènement, Story, direct, album, offre, vitrine, poste, avis, message de groupe, message personnel), la brique `ReportTargetDialog` le pilote par la cible du moteur ; UM-03 : motifs par nature d'objet (`reportReasonsFor` du domaine : ceux du poste en tête, sélectionnés d'abord).
 "use client"
 
 import { themedActionStyle } from "../themed-action-style"
 import { Button, TextArea, useModalA11y } from "@antsia/ui"
-import { CONTENT_REPORT_NOTE_MAX, CONTENT_REPORT_REASONS, type ContentReportReason } from "@antsia/social-domain/moderation"
+import { CONTENT_REPORT_NOTE_MAX, reportReasonsFor, type ContentReportReason, type ReportReasonFor } from "@antsia/social-domain/moderation"
 import { useEffect, useId, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { useTranslation } from "react-i18next"
@@ -13,25 +13,24 @@ import { reportDialogTitleKey, type ReportDialogKind } from "./report-target"
 
 export type ReportReason = ContentReportReason
 
-/** Les motifs, dans l'ordre du domaine — chacun avec la clé de son libellé. */
-const REASONS: readonly { value: ReportReason; labelKey: string }[] = CONTENT_REPORT_REASONS.map((value) => ({
-  value,
-  labelKey: `reportContentDialog.reasons.${value}`,
-}))
-
 /** Dialogue unique pour tout objet signalé : le déclarant sait ce qui sera
  * transmis et le texte complémentaire reste strictement borné. Le titre suit
  * la nature de l'objet (`kind`) ; pour signaler une cible du moteur en une
- * ligne, monter plutôt `ReportTargetDialog` (MC-01). */
-export function ReportContentDialog({ kind, onClose, onSubmit, allowNote = true }: {
-  kind: ReportDialogKind
+ * ligne, monter plutôt `ReportTargetDialog` (MC-01). UM-03 : les motifs
+ * suivent la nature (`reportReasonsFor`) — un poste propose d'abord « frais
+ * demandés au candidat » et « usurpation d'une entreprise », sélectionné en
+ * premier ; toute autre nature, les motifs de tout objet, harcèlement d'abord. */
+export function ReportContentDialog<K extends ReportDialogKind>({ kind, onClose, onSubmit, allowNote = true }: {
+  kind: K
   onClose: () => void
   /** Le port polymorphe ne transporte que le motif : aucune précision saisie puis ignorée. */
   allowNote?: boolean
-  onSubmit: (reason: ReportReason, note: string) => Promise<void>
+  onSubmit: (reason: ReportReasonFor<K>, note: string) => Promise<void>
 }) {
   const { t } = useTranslation("reseau")
-  const [reason, setReason] = useState<ReportReason>("harassment")
+  // Les motifs de cette nature, dans l'ordre du domaine — jamais vide (« autre » y figure toujours).
+  const reasons = reportReasonsFor(kind)
+  const [reason, setReason] = useState<ReportReasonFor<K>>(reasons[0] as ReportReasonFor<K>)
   const [note, setNote] = useState("")
   const [pending, setPending] = useState(false)
   /** Le refus de la transmission, redit DANS le dialogue (le toast peut être hors d'atteinte). */
@@ -126,9 +125,11 @@ export function ReportContentDialog({ kind, onClose, onSubmit, allowNote = true 
           <select
             ref={reasonRef}
             value={reason}
-            onChange={(event) =>
-              setReason(event.target.value as ReportReason)
-            }
+            onChange={(event) => {
+              // Seules les options rendues ci-dessous peuvent revenir ici.
+              const next = reasons.find((value) => value === event.target.value)
+              if (next !== undefined) setReason(next)
+            }}
             style={{
               minHeight: "40px",
               border: "1px solid var(--input)",
@@ -138,9 +139,9 @@ export function ReportContentDialog({ kind, onClose, onSubmit, allowNote = true 
               padding: "0 10px",
             }}
           >
-            {REASONS.map((item) => (
-              <option key={item.value} value={item.value}>
-                {t(item.labelKey)}
+            {reasons.map((value) => (
+              <option key={value} value={value}>
+                {t(`reportContentDialog.reasons.${value}`)}
               </option>
             ))}
           </select>

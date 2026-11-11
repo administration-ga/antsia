@@ -182,6 +182,8 @@ export function exportableRecord(table: string, row: DataRecord, personId: strin
   // P08 : les preuves de possession restent serveur, même dans l'export personnel.
   // P09 : aucun catalogue collectif, corps signé, jeton de média ni mapping dans l'export du signataire.
   if (table === "shopCatalogPolicies" || table === "commerceCatalogMappings" || table === "commerceCatalogHeads" || table === "commerceCatalogMediaAssets") return null
+  // CM-02 : décision collective de la liste des catégories sur le catalogue d'une boutique, jamais une donnée du signataire.
+  if (table === "commerceCatalogCategoryRulings") return null
   // P15 : ni corps signé, session, sujet opaque ni identifiant de stockage ; la candidature et ses pièces au seul candidat.
   if (table === "commerceJobPolicies" || table === "commerceJobHeads" || table === "commerceApplicationSubjects") return null
   if (table === "commerceApplicationIntentFences") return null
@@ -278,6 +280,50 @@ export function exportableRecord(table: string, row: DataRecord, personId: strin
     return redactExportValue(metadata) as Record<string, unknown>
   }
   return redactExportValue(row) as Record<string, unknown>
+}
+
+/**
+ * DP-F1 : les seuls champs de personne qui ouvrent une ligne à l'export (`exportableRecord`).
+ * L'export lit chaque table par l'index de ces champs, jamais les lignes des autres. Les
+ * branches particulières de `exportableRecord` y sont recopiées ; le reste suit la règle
+ * générique (propriétaires, ou champs personnels nommés). `erasure.test.ts` prouve qu'aucun
+ * autre champ de personne n'ouvre une ligne : une nouvelle branche doit s'ajouter ici.
+ */
+const EXPORT_KEY_FIELDS: Readonly<Record<string, readonly string[]>> = {
+  professionalProfiles: ["personId"], professionalCollaborations: ["fromPersonId", "toPersonId"], savedOffers: ["personId"],
+  shopPurchaseRequests: [], shopPurchaseSnapshots: ["personId"], shopPaymentRequests: [], shopPaymentPolicies: [],
+  shopPaymentOptions: ["personId"], shopPaymentAttempts: ["personId"],
+  checkoutRequests: [], shopCheckoutPolicies: [], checkoutClientIntentFences: [], checkoutAttempts: ["personId"],
+  editorialMedia: ["publicConsentByPersonId", "createdByPersonId"], editorialGrants: ["personId", "invitedByPersonId"],
+  editorialArticles: ["createdByPersonId"], editorialVersions: ["authorPersonId"], editorialEvents: ["actorPersonId"],
+  editorialSocialLinks: ["announcedByPersonId"], editorialAssets: ["uploadedByPersonId"],
+  shopCommerceBuyerSubjects: [], commercialCrmTransfers: ["personId"], commercialThreads: ["requesterPersonId"], commercialBlocks: ["personId"],
+  contextualPolicies: [], contextualThreads: ["requesterPersonId", "responderPersonId"], contextualMessages: ["authorPersonId", "pageSpeakerPersonId"],
+  contextualPersonStates: ["personId"], liveRecordingConsents: ["personId"],
+  feedEntries: [], feedFanoutJobs: [], fileStagingReservations: [], feedCursors: ["personId"],
+  shopCatalogPolicies: [], commerceCatalogMappings: [], commerceCatalogHeads: [], commerceCatalogMediaAssets: [], commerceCatalogCategoryRulings: [],
+  commerceJobPolicies: [], commerceJobHeads: [], commerceApplicationSubjects: [], commerceApplicationIntentFences: [],
+  commerceApplicationFiles: ["personId"], commerceApplications: ["personId"],
+  commerceServicePolicies: [], serviceClientIntentFences: [], commerceServiceFollowupNotices: [],
+  commerceServiceRequests: ["personId"], commerceServiceCommands: ["personId"],
+  shopCommerceLinkCommands: [], shopCommerceSubjects: [], shopCommerceShopRefs: [],
+  shopCommerceLinks: ["personId"], shopCommerceLinkChallenges: ["personId"], federationAgentGrants: ["personId"],
+  // `persons` : la seule ligne de la personne, lue par son identifiant.
+  persons: [],
+  personalThreads: ["personLow", "personHigh"], groupThreads: ["createdByPersonId"],
+  connections: ["personIdLow", "personIdHigh"], personBlocks: ["blockerPersonId"], follows: ["followerPersonId", "targetPersonId"],
+  reports: ["reporterPersonId", "ownerPersonId"], contentReports: ["reporterPersonId"],
+  voicemails: ["recipientPersonId", "fromPersonId"], engineAudit: ["actorPersonId"], judicialMeasures: ["subjectPersonId"],
+  kitResourceReviews: ["reviewerPersonId"], jobApplications: ["candidatePersonId"], mentoringRequests: ["menteePersonId", "mentorPersonId"],
+  dataErasureJobs: ["personId"], pages: ["createdByPersonId"], thematicGroups: ["createdByPersonId"],
+  shops: ["ownerPersonId", "preparedByPersonId", "publicConsentByPersonId"],
+}
+
+export function exportKeyFields(table: string): readonly string[] {
+  if (Object.prototype.hasOwnProperty.call(EXPORT_KEY_FIELDS, table)) return EXPORT_KEY_FIELDS[table] ?? []
+  const policy = DATA_TABLE_POLICIES[table]
+  if (!policy || policy.shared) return []
+  return policy.owners ?? EXPORT_PERSON_FIELDS[table] ?? []
 }
 
 /** Compatibilité : une ligne non exportable devient vide, jamais une projection permissive. */

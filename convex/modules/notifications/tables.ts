@@ -205,7 +205,8 @@ export const notificationsTables = {
     .index("by_network_recipient_createdAt", ["networkId", "recipientPersonId", "createdAt"])
     .index("by_network_recipient_readAt_createdAt", ["networkId", "recipientPersonId", "readAt", "createdAt"])
     .index("by_network_recipient_dedupKey", ["networkId", "recipientPersonId", "dedupKey"])
-    .index("by_readAt_createdAt", ["readAt", "createdAt"]),
+    .index("by_readAt_createdAt", ["readAt", "createdAt"])
+    .index("by_actorPersonId", ["actorPersonId"]),
 
   notificationPreferences: defineTable({
     networkId: v.id("networks"), personId: v.id("persons"),

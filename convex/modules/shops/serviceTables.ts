@@ -42,7 +42,8 @@ export const serviceTables = {
 
   commerceServicePolicies: defineTable({
     networkId: v.id("networks"), enabled: v.boolean(), updatedAt: v.number(), updatedByPersonId: v.optional(v.id("persons")),
-  }).index("by_network", ["networkId"]),
+  }).index("by_network", ["networkId"])
+    .index("by_updatedByPersonId", ["updatedByPersonId"]),
 
   commerceServiceRequests: defineTable({
     networkId: v.id("networks"), shopId: v.id("shops"), personId: v.id("persons"), handle: v.string(),

@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/ui-v2/src/components/form.tsx @ ad2e7fdc2 — adaptations : ombre du curseur de l'interrupteur (noir à 20 %) → jeton `--shadow-knob` (aucune couleur hors des jetons) ; texte d'erreur et astérisque à l'encre de danger `--role-danger-ink` quand le thème la déclare (ADR-0027), `--danger-500` en repli ; aplats d'identité et leur texte selon les chartes (`--esp-identity-fill`, `--primary-fill-on`, pastille tonale des états actifs ; ADR-0027), facture d'origine en repli. champs et choix radio raccordés au rayon opt-in ANTSIA (`--esp-input-radius`), 6 px ailleurs.
+// Dupliqué de socle/packages/ui-v2/src/components/form.tsx @ ad2e7fdc2 — adaptations : ombre du curseur de l'interrupteur (noir à 20 %) → jeton `--shadow-knob` (aucune couleur hors des jetons) ; texte d'erreur et astérisque à l'encre de danger `--role-danger-ink` quand le thème la déclare (ADR-0027), `--danger-500` en repli ; aplats d'identité et leur texte selon les chartes (`--esp-identity-fill`, `--primary-fill-on`, pastille tonale des états actifs ; ADR-0027), facture d'origine en repli. champs et choix radio raccordés au rayon opt-in ANTSIA (`--esp-input-radius`), 6 px ailleurs. EX-18 : indicateur de focus au clavier des champs (`TextInput`, `TextArea`, `Select`) par la classe `ui-field` et l'anneau de la charte, plus aucune `outline` supprimée en ligne ; obligation d'un champ transmise au contrôle (`aria-required`), astérisque décoratif. EX-18, second volet : focus au clavier des cases, choix radio et interrupteurs (`Checkbox`, `Radio`, `Toggle`) — l'entrée native, invisible, précède son visuel (`ui-choice-input` + `ui-choice-mark`) et la couche de base y pose l'anneau de la charte.
 "use client"
 
 import {
@@ -24,6 +24,10 @@ export interface FieldProps {
   children?: ReactNode
   htmlFor?: string
 }
+
+/** Les contrôles qui admettent `aria-required` : les champs natifs et ceux du paquet. */
+const admetObligation = (type: unknown): boolean =>
+  type === "input" || type === "textarea" || type === "select" || type === TextInput || type === TextArea || type === Select
 
 /**
  * Enveloppe de champ.
@@ -56,11 +60,15 @@ export const Field = ({ label, hint, error, required, children, htmlFor }: Field
     id?: string
     "aria-describedby"?: string
     "aria-invalid"?: boolean
+    "aria-required"?: boolean
   }>(children)
     ? cloneElement(children, {
         id: children.props.id ?? controleId,
         "aria-describedby": children.props["aria-describedby"] ?? decritPar,
         "aria-invalid": children.props["aria-invalid"] ?? (error ? true : undefined),
+        // L'obligation se dit au champ lui-même (WCAG 1.3.1) : l'astérisque n'en est que le signe visuel.
+        // `aria-required` n'est pas un attribut global : seulement sur un champ qui l'admet.
+        "aria-required": children.props["aria-required"] ?? (required && admetObligation(children.type) ? true : undefined),
       })
     : children
 
@@ -77,7 +85,7 @@ export const Field = ({ label, hint, error, required, children, htmlFor }: Field
           }}
         >
           {label}
-          {required && <span style={{ color: "var(--role-danger-ink, var(--danger-500))", marginLeft: 4 }}>*</span>}
+          {required && <span aria-hidden="true" style={{ color: "var(--role-danger-ink, var(--danger-500))", marginLeft: 4 }}>*</span>}
         </label>
       )}
       {enfant}
@@ -118,10 +126,20 @@ const INPUT_BASE: CSSProperties = {
   background: "var(--ink-0)",
   border: "1px solid var(--ink-300)",
   borderRadius: "var(--esp-input-radius, 6px)",
-  outline: "none",
+  // Aucune `outline` ici : un style EN LIGNE l'emporterait sur l'indicateur de focus
+  // de la classe `FIELD_CONTROL_CLASS` (WCAG 2.4.7, échec F78).
   width: "100%",
   transition: "border-color .12s, box-shadow .12s",
 }
+
+/**
+ * Classe des trois champs du paquet : son indicateur de focus au clavier vit dans
+ * la couche de base (`styles/theme.css`, `.ui-field:focus-visible`), à l'anneau de
+ * la charte (`--ring`). Une classe passée par l'écran s'y ajoute, jamais ne la remplace.
+ */
+const FIELD_CONTROL_CLASS = "ui-field"
+
+const fieldControlClass = (className: string | undefined) => (className ? `${FIELD_CONTROL_CLASS} ${className}` : FIELD_CONTROL_CLASS)
 
 /* ---------- TextInput ---------- */
 
@@ -130,7 +148,7 @@ export interface TextInputProps extends InputHTMLAttributes<HTMLInputElement> {
 }
 
 export const TextInput = forwardRef<HTMLInputElement, TextInputProps>(function TextInput(
-  { icon, style, ...rest },
+  { icon, style, className, ...rest },
   ref,
 ) {
   return (
@@ -151,6 +169,7 @@ export const TextInput = forwardRef<HTMLInputElement, TextInputProps>(function T
       <input
         ref={ref}
         {...rest}
+        className={fieldControlClass(className)}
         style={{ ...INPUT_BASE, paddingLeft: icon ? 36 : 12, ...style }}
       />
     </div>
@@ -160,11 +179,12 @@ export const TextInput = forwardRef<HTMLInputElement, TextInputProps>(function T
 /* ---------- TextArea ---------- */
 
 export const TextArea = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<HTMLTextAreaElement>>(
-  function TextArea({ style, ...rest }, ref) {
+  function TextArea({ style, className, ...rest }, ref) {
     return (
       <textarea
         ref={ref}
         {...rest}
+        className={fieldControlClass(className)}
         style={{ ...INPUT_BASE, minHeight: "var(--esp-textarea-min-height, 100px)", resize: "vertical", ...style }}
       />
     )
@@ -177,10 +197,11 @@ export interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
   children?: ReactNode
 }
 
-export const Select = ({ children, style, ...rest }: SelectProps) => (
+export const Select = ({ children, style, className, ...rest }: SelectProps) => (
   <div style={{ position: "relative" }}>
     <select
       {...rest}
+      className={fieldControlClass(className)}
       style={{ ...INPUT_BASE, appearance: "none", paddingRight: 36, ...style }}
     >
       {children}
@@ -200,6 +221,22 @@ export const Select = ({ children, style, ...rest }: SelectProps) => (
   </div>
 )
 
+/* ---------- Cases, choix radio, interrupteurs : focus au clavier ---------- */
+
+/**
+ * L'entrée native de `Checkbox`, `Radio` et `Toggle` est invisible : c'est son visuel
+ * de remplacement qui se voit. L'entrée PRÉCÈDE donc ce visuel, frère immédiat, pour
+ * que la couche de base (`styles/theme.css`, `.ui-choice-input:focus-visible +
+ * .ui-choice-mark`) pose sur lui l'anneau de la charte (`--ring`, ≥ 3:1 sur les fonds
+ * de chaque thème et de la console : tests des thèmes) quand le clavier y arrive
+ * (WCAG 2.4.7, échec F78). Le visuel ne porte aucune `outline` en ligne : elle
+ * l'emporterait sur la règle. Une entrée positionnée en absolu ne compte pas dans la
+ * mise en page : la placer avant le visuel ne déplace rien.
+ */
+const CHOICE_INPUT_CLASS = "ui-choice-input"
+const CHOICE_MARK_CLASS = "ui-choice-mark"
+const HIDDEN_CHOICE_INPUT: CSSProperties = { position: "absolute", opacity: 0, pointerEvents: "none" }
+
 /* ---------- Checkbox ---------- */
 
 export interface CheckboxProps {
@@ -215,7 +252,17 @@ export const Checkbox = ({ checked, onChange, label, id, style }: CheckboxProps)
     htmlFor={id}
     style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", ...style }}
   >
+    <input
+      type="checkbox"
+      id={id}
+      className={CHOICE_INPUT_CLASS}
+      checked={Boolean(checked)}
+      onChange={(e) => onChange?.(e.target.checked)}
+      readOnly={!onChange}
+      style={HIDDEN_CHOICE_INPUT}
+    />
     <span
+      className={CHOICE_MARK_CLASS}
       style={{
         width: 18,
         height: 18,
@@ -232,14 +279,6 @@ export const Checkbox = ({ checked, onChange, label, id, style }: CheckboxProps)
     >
       {checked && <Icon name="check" size={12} stroke={3} style={{ color: "var(--primary-fill-on, var(--on-fill))" }} />}
     </span>
-    <input
-      type="checkbox"
-      id={id}
-      checked={Boolean(checked)}
-      onChange={(e) => onChange?.(e.target.checked)}
-      readOnly={!onChange}
-      style={{ position: "absolute", opacity: 0, pointerEvents: "none" }}
-    />
     {label && (
       <span style={{ fontSize: 14, color: "var(--ink-800)", lineHeight: 1.4 }}>{label}</span>
     )}
@@ -273,7 +312,19 @@ export const Radio = ({ checked, onChange, label, id, hint, name, value }: Radio
       transition: "border-color .12s, background .12s",
     }}
   >
+    <input
+      type="radio"
+      id={id}
+      name={name}
+      value={value}
+      className={CHOICE_INPUT_CLASS}
+      checked={Boolean(checked)}
+      onChange={(e) => onChange?.(e.target.checked)}
+      readOnly={!onChange}
+      style={HIDDEN_CHOICE_INPUT}
+    />
     <span
+      className={CHOICE_MARK_CLASS}
       style={{
         width: 18,
         height: 18,
@@ -293,16 +344,6 @@ export const Radio = ({ checked, onChange, label, id, hint, name, value }: Radio
         />
       )}
     </span>
-    <input
-      type="radio"
-      id={id}
-      name={name}
-      value={value}
-      checked={Boolean(checked)}
-      onChange={(e) => onChange?.(e.target.checked)}
-      readOnly={!onChange}
-      style={{ position: "absolute", opacity: 0, pointerEvents: "none" }}
-    />
     <span style={{ display: "flex", flexDirection: "column", gap: 2 }}>
       <span style={{ fontSize: 14, fontWeight: 600, color: "var(--ink-900)" }}>{label}</span>
       {hint && <span style={{ fontSize: 13, color: "var(--ink-600)" }}>{hint}</span>}
@@ -320,7 +361,16 @@ export interface ToggleProps {
 
 export const Toggle = ({ checked, onChange, label }: ToggleProps) => (
   <label style={{ display: "inline-flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+    <input
+      type="checkbox"
+      className={CHOICE_INPUT_CLASS}
+      checked={Boolean(checked)}
+      onChange={(e) => onChange?.(e.target.checked)}
+      readOnly={!onChange}
+      style={HIDDEN_CHOICE_INPUT}
+    />
     <span
+      className={CHOICE_MARK_CLASS}
       style={{
         width: 36,
         height: 20,
@@ -344,13 +394,6 @@ export const Toggle = ({ checked, onChange, label }: ToggleProps) => (
         }}
       />
     </span>
-    <input
-      type="checkbox"
-      checked={Boolean(checked)}
-      onChange={(e) => onChange?.(e.target.checked)}
-      readOnly={!onChange}
-      style={{ position: "absolute", opacity: 0, pointerEvents: "none" }}
-    />
     {label && <span style={{ fontSize: 14, color: "var(--ink-800)" }}>{label}</span>}
   </label>
 )

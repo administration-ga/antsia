@@ -11,7 +11,7 @@ import { formatViewerDate } from "@antsia/api/civil-date"
 import { useAuthenticatedConvexQuery } from "@antsia/api/hooks"
 import { useNetwork } from "@antsia/api/network"
 import { useViewerTimeZone } from "@antsia/api/viewer-preferences"
-import { CONTENT_REPORT_REASONS, type ReportLegalBasis } from "@antsia/social-domain/moderation"
+import { isKnownReportReason, type ReportLegalBasis } from "@antsia/social-domain/moderation"
 import type { FunctionReturnType } from "convex/server"
 import Link from "next/link"
 import { useEffect, useId, useState } from "react"
@@ -54,7 +54,8 @@ export function DeadlineBadge({ basis, dueAt, acknowledgedAt, now }: { basis: Re
 export function ReportArticle({ row, now }: { row: ModerationQueueRow; now?: number }) {
   const { t, i18n } = useTranslation("memberNetwork")
   const timeZone = useViewerTimeZone()
-  const reason = (CONTENT_REPORT_REASONS as readonly string[]).includes(row.reason) ? t(`reseau:reportContentDialog.reasons.${row.reason}`) : row.reason
+  // UM-03 : les motifs propres à une nature (poste) sont nommés comme ceux de tout objet.
+  const reason = isKnownReportReason(row.reason) ? t(`reseau:reportContentDialog.reasons.${row.reason}`) : row.reason
   return <article className="flex min-w-0 flex-col gap-3 rounded-xl border border-border bg-card p-4 sm:p-5">
     <h3 className="text-lg font-semibold">{t(`moderation.surfaces.${row.target.kind}`)}</h3>
     <p className="break-words text-sm text-muted-foreground">{t("moderation.reference", { reference: row.target.id })}</p>

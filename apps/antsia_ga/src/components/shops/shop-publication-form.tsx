@@ -12,6 +12,7 @@ import { Button, Field } from "@/components/shared/controls"
 import { routes } from "@/lib/routes"
 import { publicationActions, type ShopEditorData } from "./shop-model"
 import { ShopPauseForm } from "./shop-pause-form"
+import { CatalogCategoryNotice } from "./catalog-category-notice"
 import { ShopLink, SHOP_SELECT_CLASS, useShopAction } from "./shop-ui"
 
 const schema = z.object({ publicListing: z.boolean(), visibility: z.enum(["network", "root"]) })
@@ -76,6 +77,8 @@ export function ShopPublicationForm({ shop, dirty, onDirty, onPrepare }: { shop:
     </form>
     {shop.publication.gaps.length > 0 ? <div className="grid gap-2"><p>{t("publication.incomplete")}</p><ul className="list-inside list-disc">{shop.publication.gaps.map((gap) => <li key={gap}>{t(`publication.gaps.${gap}`)}</li>)}</ul><Button type="button" variant="outline" onClick={onPrepare} className="w-full sm:w-auto sm:justify-self-start">{t("publication.prepare")}</Button></div> : null}
     {shop.policy === "closed" ? <div className="grid gap-2 rounded-[var(--ui2-card-radius)] bg-muted p-4"><p>{t("publication.closed")}</p><Button type="button" variant="outline" onClick={onPrepare} className="w-full sm:w-auto sm:justify-self-start">{t("publication.prepare")}</Button></div> : null}
+    {/* CM-02 : une catégorie réglementée fait relire la vitrine ; le motif est dit avant la demande. */}
+    <CatalogCategoryNotice shopId={shop.shopId} only="regulated" />
     {dirty || form.formState.isDirty ? <p role="status" className="text-sm">{t("publication.saveFirst")}</p> : null}
     {shop.storefront.state === "suspended" ? <p>{t("publication.suspended")}</p> : null}
     {shop.storefront.state === "pending_review" ? <p>{t("publication.reviewPending")}</p> : null}

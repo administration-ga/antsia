@@ -15,8 +15,11 @@ import { OfferMedia } from "./offer-media"
 import { PublicDailySpecial } from "./public-daily-special"
 import { PublicShopPauseBoundary, ShopPauseNoticeView } from "./shop-pause"
 
-/** SSR : identité et catalogue admis ; aucun état privé du lecteur. `pause` (CM-10) : la fermeture temporaire, lue à part. */
-export function PublicStorefrontCard({ storefront, locale, catalog, dailySpecial, pause }: { storefront: PublicStorefront; locale: Locale; catalog?: ReactNode; dailySpecial?: PublicDailySpecialData | null; pause?: PublicStorefrontPause | null }) {
+/**
+ * SSR : identité et catalogue admis ; aucun état privé du lecteur. `pause` (CM-10) : la fermeture temporaire, lue à
+ * part. `termsAction` (UM-03) : l'invitation à se connecter pour signaler les conditions, posée par la route.
+ */
+export function PublicStorefrontCard({ storefront, locale, catalog, dailySpecial, pause, termsAction }: { storefront: PublicStorefront; locale: Locale; catalog?: ReactNode; dailySpecial?: PublicDailySpecialData | null; pause?: PublicStorefrontPause | null; termsAction?: ReactNode }) {
   const { t } = getAppT(locale)
   const configuration = effectiveActivityConfiguration(storefront.activityConfiguration, storefront.model)
   const food = configuration.template === "food"
@@ -70,7 +73,7 @@ export function PublicStorefrontCard({ storefront, locale, catalog, dailySpecial
           </div> : null)}
         </dl> : null}
       </section> : index === catalogIndex ? catalog : null}</Fragment>)}
-      <StorefrontTerms value={storefront.storefrontTerms} locale={locale} t={(key, options) => t(`shops:${key}`, options)} />
+      <StorefrontTerms value={storefront.storefrontTerms} locale={locale} t={(key, options) => t(`shops:${key}`, options)} action={termsAction} />
       <Link href={routes.storefront(storefront.handle)} prefetch={false} className={`${SHOP_ACTION_CLASS} self-start`}>{t("shops:publicStorefront.memberLink")}</Link>
     </div>
   </article>

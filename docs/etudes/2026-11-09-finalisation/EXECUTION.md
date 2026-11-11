@@ -221,7 +221,7 @@ Plan : [`08_COMMERCE_MARKETPLACE_BOUTIQUES.md`](08_COMMERCE_MARKETPLACE_BOUTIQUE
 | Lot | Titre | Priorité | Taille | Session | Porte | État |
 |---|---|---|---|---|---|---|
 | CM-01 | Chaîne réelle du catalogue PRO.GA vers ANTSIA | P0 | M | S1 | propriétaire (clés, compte, déploiement PRO.GA, choix de l'environnement : sandbox, démo, production). | à faire |
-| CM-02 | Catégories interdites et réglementées | P0 | M | S1 | propriétaire et conseil (liste). | à faire |
+| CM-02 | Catégories interdites et réglementées | P0 | M | S1 | propriétaire et conseil (liste). | fusionné |
 | CM-03 | Majorité pour acheter | P0 | S | S1 | avis du juriste (arbitrages A1 à A4 de SU01). | à faire |
 | CM-04 | Commande réglée à la remise (D04) | P0 | L | S1 (et PRO.GA) | décision du propriétaire ; publication de PRO.GA ; publication ANTSIA. | à faire |
 | CM-05 | Avis de commerce des produits | P1 | M | S1 | aucune. | à faire |
@@ -249,7 +249,7 @@ Plan : [`09_UNIVERS_SERVICES_EMPLOI_RESTAURATION.md`](09_UNIVERS_SERVICES_EMPLOI
 |---|---|---|---|---|---|---|
 | UM-01 | Ouvrir les services après recette croisée P14 | P0 | M | S1 | décision du propriétaire, configuration PRO.GA, durée de conservation, publication. | à faire |
 | UM-02 | Ouvrir les candidatures après recette croisée P15 | P0 | M | S1 | avis du juriste sur la conservation, décision du propriétaire, publication. | à faire |
-| UM-03 | Signaler une offre d'emploi | P0 | S | S1 | aucune. | à faire |
+| UM-03 | Signaler une offre d'emploi | P0 | S | S1 | aucune. | fusionné |
 | UM-04 | Recherche et filtres des offres d'emploi | P1 | M | S1 | aucune. | à faire |
 | SU08 | Emploi et talents réunis | P1 | M | S1 | aucune ; les concours publics restent dans UM-18. | à faire |
 | UM-05 | Offres enregistrées et alertes d'emploi | P1 | M | S1 | décision 4 (fréquence). | à faire |
@@ -368,8 +368,8 @@ Plan : [`13_CONSOLE_EXPLOITATION_LANCEMENT.md`](13_CONSOLE_EXPLOITATION_LANCEMEN
 | EX-15 | Remise à zéro de la démonstration | P2 | M | S1 | chaque exécution est une opération sur un environnement en ligne : accord du propriétaire. | à faire |
 | EX-16 | Gabarit d'application légère de réseau fermé | P2 | L | S1 | décision du propriétaire ; création de dépôt et de domaine par lui. | à faire |
 | EX-17 | Garde antivirus fermée et file des fichiers retenus | P0 | S | S1 | publication. | fusionné |
-| EX-18 | Corrections d'accessibilité AA | P0 | L | S1 | aucune. | à faire |
-| EX-19 | Liste de contrôle du lancement et bascule de domaine | P0 | M | S1 | domaines, hébergement, clés : propriétaire. | à faire |
+| EX-18 | Corrections d'accessibilité AA | P0 | L | S1 | aucune. | fusionné |
+| EX-19 | Liste de contrôle du lancement et bascule de domaine | P0 | M | S1 | domaines, hébergement, clés : propriétaire. | en cours |
 | EX-20 | Hygiène du dépôt public | P1 | S | S1 | aucune pour le code ; évaluation du risque (rotation éventuelle du jeton antivirus) par le propriétaire. | fusionné |
 | EX-21 | Mesure d'usage activée | P2 | S | S1 | projet et jeton par le propriétaire ; texte de consentement validé (plan 12). | à faire |
 

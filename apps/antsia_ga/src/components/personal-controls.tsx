@@ -12,7 +12,7 @@ import type { FunctionReturnType } from "convex/server"
 import { Download, LogOut, ShieldCheck } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { authorDecisionOutcome, CONTENT_REPORT_REASONS } from "@antsia/social-domain/moderation"
+import { authorDecisionOutcome, isKnownReportReason } from "@antsia/social-domain/moderation"
 import { useEffect, useId, useRef, useState } from "react"
 import { useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
@@ -27,6 +27,7 @@ import { ErasureCommerceNotice } from "./erasure-commerce-notice"
 import { PageModerationDecisions } from "./page-moderation-decisions"
 import { PublicAgentControls } from "./public-agent-controls"
 import { MyJudicialMeasures } from "./judicial/my-judicial-measures"
+import { assemblePersonalExport } from "@/lib/personal-data-export"
 import { PERSONAL_REPORTS_ANCHOR, routes } from "@/lib/routes"
 import { signOutAndRedirect } from "@/lib/sign-out"
 
@@ -90,7 +91,7 @@ function Reports() {
       {!loaded ? <p role="status">{t("personal.loading")}</p> : !results.length ? <p className="text-muted-foreground">{t("personal.noReports")}</p> : null}
       <div className="flex flex-col gap-4">{results.map((report) => <article key={report.reportId} className="flex flex-col gap-1 rounded-[var(--ui2-card-radius)] border border-border p-4 text-sm">
         <p className="text-base font-medium">{t(`personal.reportOutcomes.${report.outcome}`)}</p>
-        <p>{t((CONTENT_REPORT_REASONS as readonly string[]).includes(report.reason) ? `reseau:reportContentDialog.reasons.${report.reason}` : "reseau:reportContentDialog.reasons.other")} · {t(`memberNetwork:moderation.surfaces.${report.targetKind}`)}</p>
+        <p>{t(isKnownReportReason(report.reason) ? `reseau:reportContentDialog.reasons.${report.reason}` : "reseau:reportContentDialog.reasons.other")} · {t(`memberNetwork:moderation.surfaces.${report.targetKind}`)}</p>
         <p className="text-muted-foreground">{t("personal.reportedOn", { date: format(report.createdAt) })}</p>
         {report.acknowledgedAt !== null ? <p className="text-muted-foreground">{t("personal.reportAcknowledgedOn", { date: format(report.acknowledgedAt) })}</p> : null}
         {report.legalBasis !== null && report.dueAt !== null ? <p className="text-muted-foreground">{t(`memberNetwork:moderation.deadlines.basis.${report.legalBasis}`)} — {t("personal.reportDueBy", { date: format(report.dueAt) })}</p> : null}
@@ -123,32 +124,20 @@ function DataRights() {
         setExporting(true)
         try {
           const result = await exportData({})
-          let tableIndex = 0, cursor: string | null = null, bytes = 0
-          const chunks: string[] = [JSON.stringify({ table: "authentication", record: JSON.parse(result.accountJson) })]
-          for (let pageNumber = 0; pageNumber < 5_000; pageNumber++) {
-            if (generation.current !== current) return
-            const page: FunctionReturnType<typeof api.modules.people.erasure.exportMyDataPage> = await convex.query(api.modules.people.erasure.exportMyDataPage, { exportId: result.exportId, tableIndex, cursor })
-            if (generation.current !== current) return
-            const records: unknown = JSON.parse(page.json)
-            if (!Array.isArray(records)) throw new Error("Invalid export")
-            for (const record of records) {
-              const chunk = JSON.stringify({ table: page.table, record })
-              bytes += new TextEncoder().encode(chunk).byteLength
-              if (bytes > 64 * 1024 * 1024) throw new Error("Export exceeds browser capacity")
-              chunks.push(chunk)
-            }
-            setProgress({ max: result.tableCount, value: page.nextTableIndex })
-            if (page.done) {
-              const url = URL.createObjectURL(new Blob([`[${chunks.join(",")}]`], { type: "application/json" }))
-              const anchor = document.createElement("a")
-              anchor.href = url; anchor.download = `${BRAND_NAME.toLowerCase()}-${new Date().toISOString().slice(0, 10)}.json`
-              document.body.append(anchor); anchor.click(); anchor.remove()
-              setTimeout(() => URL.revokeObjectURL(url), 1_000)
-              toast.success(t("personal.exportDone")); return
-            }
-            tableIndex = page.nextTableIndex; cursor = page.cursor
-          }
-          throw new Error("Export page limit")
+          const chunks = await assemblePersonalExport({
+            accountJson: result.accountJson,
+            tableCount: result.tableCount,
+            readPage: async (tableIndex, cursor): Promise<FunctionReturnType<typeof api.modules.people.erasure.exportMyDataPage>> => await convex.query(api.modules.people.erasure.exportMyDataPage, { exportId: result.exportId, tableIndex, cursor }),
+            isCurrent: () => generation.current === current,
+            onProgress: (value, max) => setProgress({ max, value }),
+          })
+          if (chunks === null) return
+          const url = URL.createObjectURL(new Blob([`[${chunks.join(",")}]`], { type: "application/json" }))
+          const anchor = document.createElement("a")
+          anchor.href = url; anchor.download = `${BRAND_NAME.toLowerCase()}-${new Date().toISOString().slice(0, 10)}.json`
+          document.body.append(anchor); anchor.click(); anchor.remove()
+          setTimeout(() => URL.revokeObjectURL(url), 1_000)
+          toast.success(t("personal.exportDone"))
         } catch { if (generation.current === current) toast.error(t("personal.error")) }
         finally { if (generation.current === current) setExporting(false) }
       }}><Download aria-hidden="true" className="size-4" />{t(exporting ? "personal.exporting" : "personal.export")}</Button>

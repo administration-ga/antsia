@@ -458,7 +458,18 @@
     "seeCollection": "Voir la collection",
     "sameShop": "Dans la même boutique",
     "choosePhoto": "Choisir une photo",
-    "showPhoto": "Afficher la photo {{index}}"
+    "showPhoto": "Afficher la photo {{index}}",
+    "categoryRules": {
+      "title": "Catégories encadrées sur ANTSIA",
+      "regulated": "Votre catalogue propose la catégorie « {{category}} », réglementée sur ANTSIA. Votre vitrine est donc relue par l’équipe de la plateforme avant sa publication : elle n’est jamais admise d’office.",
+      "refusedLead": "Ces offres de votre catalogue PRO.GA ne sont pas diffusées sur ANTSIA : leur catégorie y est interdite. Elles n’apparaissent ni dans la marketplace ni dans votre vitrine.",
+      "refusedCategory": "Catégorie interdite : {{category}}",
+      "reference": "Référence PRO.GA : {{reference}}",
+      "refusedOn": "Refusée le {{date}}",
+      "withdrawnOn": "Retirée de votre vitrine le {{date}}",
+      "truncated": "Seuls les {{limit}} refus les plus récents sont affichés.",
+      "howToFix": "Pour diffuser une de ces offres, changez sa catégorie dans PRO.GA ou retirez-la : la nouvelle version est relue à sa réception."
+    }
   },
   "link": {
     "title": "Mon activité PRO.GA",
@@ -855,5 +866,8 @@
     "saved": "La boutique est fermée temporairement.",
     "reopened": "La boutique est rouverte.",
     "required": "Choisissez la date de réouverture."
+  },
+  "report": {
+    "signIn": "Se connecter pour signaler"
   }
 }

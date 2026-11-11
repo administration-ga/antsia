@@ -38,6 +38,16 @@ export const catalogOfferValidator = v.object({
   facets: v.optional(catalogFacetsValidator), serviceProfile: v.optional(catalogServiceProfileValidator),
 })
 export type CatalogOffer = Infer<typeof catalogOfferValidator>
+/**
+ * UM-03 : la fiche d'offre MEMBRE (`shops.catalog.offer`) — le DTO commun, plus la cible facultative de son
+ * signalement, présente seulement pour un lecteur sans rôle sur la page de la boutique. Jamais dans une
+ * projection publique, une liste ni le panier (lecteurs stricts) : ils gardent `catalogOfferValidator`.
+ */
+export const memberCatalogOfferValidator = v.object({
+  ...catalogOfferValidator.fields,
+  reportTarget: v.optional(v.object({ kind: v.literal("commerceOffer"), id: v.id("commerceCatalogHeads") })),
+})
+export type MemberCatalogOffer = Infer<typeof memberCatalogOfferValidator>
 export const catalogListValidator = v.object({ page: v.array(catalogOfferValidator), isDone: v.boolean(), continueCursor: v.string(), collections: v.array(catalogCollectionValidator), filteredWindow: v.boolean(), indexStatus: v.optional(v.union(v.literal("building"), v.literal("ready"))) })
 export type CatalogList = Infer<typeof catalogListValidator>
 

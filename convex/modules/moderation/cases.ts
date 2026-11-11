@@ -1,6 +1,6 @@
 /** PA5 : dossiers polymorphes, compétence vivante, décisions et recours sans copie de contenu. */
 import { assertDecisionReason, type AuditCapacity } from "@antsia/social-domain/audit"
-import { authorDecisionOutcome, reportOutcome } from "@antsia/social-domain/moderation"
+import { authorDecisionOutcome, isReportReasonAllowedFor, reportOutcome } from "@antsia/social-domain/moderation"
 import { validSanctionDuration } from "@antsia/social-domain/moderationPolicy"
 import { parseCommercePublicBody } from "@antsia/social-domain/commerce/projection"
 import { paginationOptsValidator } from "convex/server"
@@ -178,6 +178,8 @@ export const report = networkMutation({
     await enforceRateLimit(ctx, "report.create", ctx.person._id)
     const reason = args.reason.trim()
     if (!/^[a-z][a-z0-9_]{2,79}$/.test(reason)) return fail("invalidArgument", { field: "reason" })
+    // UM-03 : un motif propre à une nature (frais demandés, usurpation d'une entreprise : le poste) ne vaut que pour elle.
+    if (!isReportReasonAllowedFor(reason, args.target.kind)) return fail("invalidArgument", { field: "reason" })
     const existing = await ctx.db.query("reports").withIndex("by_reporter_target", (q) => q.eq("reporterPersonId", ctx.person._id).eq("targetKind", args.target.kind).eq("targetId", args.target.id)).unique()
     if (existing) return { reportId: existing._id, created: false, hidden: true }
     const target = await resolveVisibleTarget(ctx, ctx.network, ctx.person._id, args.target)

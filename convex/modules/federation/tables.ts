@@ -14,6 +14,8 @@ export const federationFailureValidator = v.union(
   v.literal("invalid_payload"), v.literal("unsupported_event"),
   v.literal("unsupported_media"), v.literal("source_conflict"),
   v.literal("consent_required"), v.literal("identity_not_linked"),
+  // CM-02 : offre de catégorie interdite, lettre morte sans corps (`isContentFreeFederationFailure`).
+  v.literal("prohibited_category"),
 )
 
 export const federationTables = {
@@ -58,7 +60,8 @@ export const federationTables = {
     networkId: v.id("networks"), emitterId: v.id("federationEmitters"), environment: federationEnvironmentValidator,
     deadLetterId: v.id("federationDeadLetters"), eventId: v.string(), requestedByPersonId: v.id("persons"),
     reason: v.string(), outcome: v.union(v.literal("deduplicated"), v.literal("still_failing"), v.literal("applied"), v.literal("discarded")), requestedAt: v.number(),
-  }).index("by_dead_letter_at", ["deadLetterId", "requestedAt"]).index("by_network_at", ["networkId", "requestedAt"]),
+  }).index("by_dead_letter_at", ["deadLetterId", "requestedAt"]).index("by_network_at", ["networkId", "requestedAt"])
+    .index("by_requestedByPersonId", ["requestedByPersonId"]),
 
   /** Les tombes sans objet local ferment une remise en ligne par révision ancienne. */
   mirrors: defineTable({

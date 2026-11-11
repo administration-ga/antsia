@@ -81,6 +81,7 @@
     "navigation": "Outils de la console",
     "network": "Réseau de travail",
     "networkHint": "Les outils propres à un réseau utilisent cette sélection. Les journaux et la santé concernent le moteur.",
+    "requiredLegend": "Les champs marqués d’un astérisque (*) sont obligatoires.",
     "role": {
       "platform_operator": "Opérateur plateforme",
       "platform_admin": "Administrateur plateforme"

@@ -39,7 +39,10 @@ export const serviceReviewsTables = {
     // La lecture de cette plage rend l'unicité transactionnelle (y compris après retrait).
     .index("by_booking_and_author", ["bookingId", "authorPersonId"])
     .index("by_network_and_offer_and_createdAt", ["networkId", "offerId", "createdAt"])
-    .index("by_network_and_page_and_createdAt", ["networkId", "pageId", "createdAt"]),
+    .index("by_network_and_page_and_createdAt", ["networkId", "pageId", "createdAt"])
+    // DP-F1 (antsia#166) : l'export et l'effacement d'une personne lisent ces lignes par index, sans balayage.
+    .index("by_authorPersonId", ["authorPersonId"])
+    .index("by_requestId", ["requestId"]),
 
   serviceReviewReplies: defineTable({
     networkId: v.id("networks"),
@@ -53,5 +56,7 @@ export const serviceReviewsTables = {
     createdAt: v.number(),
     updatedAt: v.number(),
     withdrawnAt: v.optional(v.number()),
-  }).index("by_review", ["reviewId"]),
+  }).index("by_review", ["reviewId"])
+    // DP-F1 (antsia#166) : l'export et l'effacement d'une personne lisent ces lignes par index, sans balayage.
+    .index("by_authorPersonId", ["authorPersonId"]),
 }
