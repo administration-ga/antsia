@@ -129,7 +129,7 @@ export function PostCard(props: PostCardProps) {
 
 function PostCardContent({ post, now, onTag, onMention, offer }: PostCardProps) {
   const { t, i18n } = useTranslation("reseau")
-  const { networkId, personId, slug, postPresentation, PostOfferRenderer, PostArticleRenderer, navigation, navigationLayout } = useNetwork()
+  const { networkId, personId, slug, postPresentation, PostOfferRenderer, PostArticleRenderer, PostNoticeRenderer, navigation, navigationLayout } = useNetwork()
   // La présentation que l'application déclare : « media » ou « charte » sur
   // opt-in, sinon la carte historique (aucune application ne change sans le
   // demander).
@@ -451,9 +451,11 @@ function PostCardContent({ post, now, onTag, onMention, offer }: PostCardProps) 
    * (`moderation`, absent pour tout autre lecteur) ; la carte le dit tel quel,
    * sous l'en-tête, quand la publication (ou sa modification) est retenue.
    */
-  const moderationNotice = post.moderation === "pending_review" ? (
-    <p role="status" className="m-0 text-xs text-muted-foreground">{t("postCard.moderation.pendingReview")}</p>
-  ) : null
+  // SU01h : le correctif et l'étiquette d'origine ordonnés par le juge, au-dessus du contenu (rendu de l'application).
+  const moderationNotice = <>
+    {PostNoticeRenderer ? <PostNoticeRenderer networkId={networkId} postId={post._id} /> : null}
+    {post.moderation === "pending_review" ? <p role="status" className="m-0 text-xs text-muted-foreground">{t("postCard.moderation.pendingReview")}</p> : null}
+  </>
 
   const withdrawBlock = isOwn && post.visibility === "root" && post.audience === "public" ? <>
           {slug !== ROOT_NETWORK_SLUG && slug !== LEGACY_ROOT_NETWORK_SLUG ? <p className="text-xs text-muted-foreground">{t("postCard.publication.availableOnRoot", { brand: BRAND_NAME })}</p> : null}
