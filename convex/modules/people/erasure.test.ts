@@ -5,7 +5,7 @@ import type { Id } from "../../_generated/dataModel"
 import type { ValidatorJSON } from "convex/values"
 import { testConvex } from "../../test.setup"
 import { diasporaTables } from "../diaspora/tables"
-import { accessGaps, collectionPersonPaths, COLLECTION_REFERENCE_EXCEPTIONS, COLLECTION_REFERENCES_BY_PARENT, indexPlan, ownerFields, RESIDUAL_SCAN_TABLES, scalarPersonPaths } from "./dataAccess"
+import { accessGaps, collectionPersonPaths, COLLECTION_REFERENCE_EXCEPTIONS, COLLECTION_REFERENCES_BY_PARENT, indexPlan, ownerFields, RESIDUAL_SCAN_TABLES, scalarPersonPaths, SHORT_LIVED_TABLES } from "./dataAccess"
 import { dataTableNames, directlyOwned, exportableRecord, exportKeyFields, referencesIn, shapeFor, unclassifiedDataTables } from "./dataInventory"
 import { DATA_TABLE_POLICIES } from "./dataPolicies"
 import { ERASURE_GRACE_MS } from "./erasure"
@@ -99,6 +99,12 @@ describe("PA5 — inventaire des données", () => {
       expect(reason.length).toBeGreaterThan(10)
       const uncovered = [...scalarPersonPaths(table), ...(DATA_TABLE_POLICIES[table]?.parents ?? [])].filter((path) => !indexPlan(table, path))
       expect(uncovered, `${table} : index ajouté, retirer l'exception`).not.toEqual([])
+    }
+    // Tables purgées en secondes : une échéance indexée (lue par la purge planifiée), aucun parent, aucun tableau.
+    for (const table of Object.keys(SHORT_LIVED_TABLES)) {
+      expect(indexPlan(table, "expiresAt"), `${table} : purge par échéance`).not.toBeNull()
+      expect(DATA_TABLE_POLICIES[table]?.parents ?? [], table).toEqual([])
+      expect(collectionPersonPaths(table), table).toEqual([])
     }
     const collections = dataTableNames().flatMap((table) => collectionPersonPaths(table).map((path) => `${table}.${path}`)).sort()
     expect([...Object.keys(COLLECTION_REFERENCES_BY_PARENT), ...Object.keys(COLLECTION_REFERENCE_EXCEPTIONS)].sort()).toEqual(collections)

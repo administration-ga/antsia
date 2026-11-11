@@ -197,6 +197,5 @@ export const groupsTables = {
   })
     .index("by_thread", ["threadId"])
     .index("by_thread_person", ["threadId", "personId"])
-    .index("by_expires", ["expiresAt"])
-    .index("by_personId", ["personId"]),
+    .index("by_expires", ["expiresAt"]),
 }

@@ -12,7 +12,7 @@ import { unrecordComment, unrecordGroupMember, unrecordPageFollower, unrecordPag
 import { unrecordPageEventParticipation } from "../events/pageEventRegistrations"
 import { removeDiasporaCounters } from "../diaspora/contentCounters"
 import { DATA_TABLE_POLICIES } from "./dataPolicies"
-import { accessGaps, carrierRelations, childRelations, dependentRelations, ERASURE_EXCLUDED_TABLES, exportPlans, isResidualScanTable, matchesPlan, ownerPlans, parseUnitCursor, readUnits, referencePlans, relationsFor, type IndexPlan, type ReadBudget, type UnitCursor } from "./dataAccess"
+import { accessGaps, carrierRelations, childRelations, dependentRelations, ERASURE_EXCLUDED_TABLES, exportPlans, isResidualScanTable, isShortLivedTable, matchesPlan, ownerPlans, parseUnitCursor, readUnits, referencePlans, relationsFor, type IndexPlan, type ReadBudget, type UnitCursor } from "./dataAccess"
 import { revokeAdministrationForPerson } from "../federation/agentLifecycle"
 import { revokeCommercialCrmForPerson } from "../commercialMessaging/crm"
 import { revokeCrmPersonRef } from "../commercialMessaging/crmPrivacy"
@@ -168,6 +168,8 @@ export async function exportTablePage(db: QueryCtx["db"], input: { personId: Id<
     const own = await db.get(personId)
     return page(own ? [own as unknown as DataRecord] : [], null)
   }
+  // Signaux de quelques secondes, purgés chaque minute (`SHORT_LIVED_TABLES`) : rien à lire.
+  if (isShortLivedTable(table)) return page([], null)
   if (isResidualScanTable(table)) {
     const scan = await db.query(table).paginate({ numItems: EXPORT_PAGE_SIZE, cursor: input.cursor, maximumBytesRead: PAGE_BYTES })
     return page(scan.page as unknown as DataRecord[], scan.isDone ? null : scan.continueCursor)
@@ -321,7 +323,7 @@ type SocialState =
 let tableLists: { generic: string[]; residual: string[]; dependentParents: string[]; carrierChildren: string[] } | null = null
 function erasureTableLists() {
   return tableLists ??= {
-    generic: dataTableNames().filter((name) => !ERASURE_EXCLUDED_TABLES.has(name) && !isResidualScanTable(name)),
+    generic: dataTableNames().filter((name) => !ERASURE_EXCLUDED_TABLES.has(name) && !isResidualScanTable(name) && !isShortLivedTable(name)),
     residual: dataTableNames().filter((name) => !ERASURE_EXCLUDED_TABLES.has(name) && isResidualScanTable(name)),
     dependentParents: [...new Set(dependentRelations().flatMap((relation) => relation.parents === "*" ? [] : relation.parents))].sort(),
     carrierChildren: [...new Set(carrierRelations().map((relation) => relation.table))].sort(),

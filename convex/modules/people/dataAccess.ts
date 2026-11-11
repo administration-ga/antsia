@@ -96,6 +96,19 @@ export const RESIDUAL_SCAN_TABLES: Readonly<Record<string, string>> = {
 
 export const isResidualScanTable = (table: string): boolean => Object.prototype.hasOwnProperty.call(RESIDUAL_SCAN_TABLES, table)
 
+/**
+ * Tables très écrites dont chaque ligne expire en secondes et qu'un passage planifié purge chaque
+ * minute, par lots chaînés jusqu'au bout : ni index, ni parcours. L'effacement reste effectif — la
+ * personne n'écrit plus après l'échéance (garde de session) et sa dernière ligne disparaît sous une
+ * minute, bien avant la fin du délai de grâce. L'export ne lit pas ces signaux de quelques secondes.
+ */
+export const SHORT_LIVED_TABLES: Readonly<Record<string, string>> = {
+  groupTyping: "« en train d'écrire » d'un groupe : expire 6 s après le dernier signal, purgé chaque minute (`groups-purge-expired-typing`)",
+  personalTyping: "« en train d'écrire » d'iCom : expire 6 s après le dernier signal, purgé chaque minute (`messaging-purge-expired-typing`)",
+}
+
+export const isShortLivedTable = (table: string): boolean => Object.prototype.hasOwnProperty.call(SHORT_LIVED_TABLES, table)
+
 type IdPath = { path: string; tables: Set<string>; inCollection: boolean }
 type IndexDefinition = { indexDescriptor: string; fields: string[] }
 
@@ -253,6 +266,7 @@ export function accessGaps(): string[] {
 function computeAccessGaps(): string[] {
   const gaps: string[] = []
   for (const table of dataTableNames()) {
+    if (isShortLivedTable(table)) continue
     const residual = isResidualScanTable(table)
     for (const path of scalarPersonPaths(table)) if (!residual && !indexPlan(table, path)) gaps.push(`${table}.${path}`)
     for (const field of DATA_TABLE_POLICIES[table]?.parents ?? []) if (!residual && !indexPlan(table, field)) gaps.push(`${table}.${field} (parent)`)

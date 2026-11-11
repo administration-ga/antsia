@@ -117,8 +117,7 @@ export const messagingTables = {
   })
     .index("by_thread", ["threadId"])
     .index("by_thread_person", ["threadId", "personId"])
-    .index("by_expires", ["expiresAt"])
-    .index("by_personId", ["personId"]),
+    .index("by_expires", ["expiresAt"]),
 
   /**
    * La pastille de non-lus d'une personne dans un réseau, tenue par les points
