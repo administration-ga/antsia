@@ -8,7 +8,6 @@ import type { ReactNode } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import { I18nextProvider } from "react-i18next"
 import { createAppI18n } from "@antsia/social-features/i18n"
-import type { CommerceStorefrontTerms } from "@antsia/social-domain/commerce/storefrontTerms"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 const mocks = vi.hoisted(() => ({ offer: null as unknown }))
@@ -31,13 +30,14 @@ import type { Id } from "@antsia/api/engine"
 import { appResources } from "@/i18n/resources"
 import { catalogOfferFixture, OFFER_REF } from "./__tests__/catalog-fixtures"
 import { storefrontFixture } from "./__tests__/fixtures"
+import type { StorefrontData } from "./shop-model"
 import { MemberOfferScreen } from "./catalog-member-screen"
 import { MemberStorefront } from "./member-storefront-screen"
 import { StorefrontTerms } from "./storefront-terms"
 
 const i18n = createAppI18n({ locale: "fr", appResources, defaultNS: "shops" })
 function html(children: ReactNode) { return renderToStaticMarkup(<I18nextProvider i18n={i18n}>{children}</I18nextProvider>) }
-const TERMS: CommerceStorefrontTerms = { version: 1, publishedAt: 1_792_281_600_000, returns: { summary: "Contactez la boutique avant tout retour." } }
+const TERMS: NonNullable<StorefrontData["storefrontTerms"]> = { version: 1, publishedAt: 1_792_281_600_000, returns: { summary: "Contactez la boutique avant tout retour." } }
 const OFFER_TARGET = { kind: "commerceOffer" as const, id: "commerceCatalogHeads_1" as Id<"commerceCatalogHeads"> }
 const TERMS_TARGET = { kind: "commerceStorefront" as const, id: "commerceCatalogHeads_2" as Id<"commerceCatalogHeads"> }
 

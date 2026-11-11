@@ -58,7 +58,9 @@ function targetReasonsOf(kind: string): readonly TargetReportReason[] {
 
 /** Les motifs proposés pour une nature d'objet : les siens d'abord, puis ceux de tout objet (« autre » en dernier). */
 export function reportReasonsFor<K extends string>(kind: K): readonly ReportReasonFor<K>[] {
-  return [...targetReasonsOf(kind), ...CONTENT_REPORT_REASONS] as readonly ReportReasonFor<K>[]
+  // Les motifs propres à une nature n'y entrent que pour elle : la liste a bien le type `ReportReasonFor<K>`,
+  // que TypeScript ne sait pas déduire d'un type conditionnel générique.
+  return [...targetReasonsOf(kind), ...CONTENT_REPORT_REASONS] as readonly KnownReportReason[] as unknown as readonly ReportReasonFor<K>[]
 }
 
 /** Un code que le registre nomme (libellé connu) ; tout autre code se dit tel quel ou « autre ». */

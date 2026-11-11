@@ -136,12 +136,13 @@ async function published() {
   await deliverPublic(f, shopEvent())
   await deliverPublic(f, offerEvent())
   await deliverJob(f, jobEvent())
-  const heads = await f.t.run(async (ctx) => ({
+  const read = await f.t.run(async (ctx) => ({
     shop: await ctx.db.query("commerceCatalogHeads").withIndex("by_emitter_object_sequence", (q) => q.eq("emitterId", f.emitterId).eq("objectRef", SHOP).eq("sequence", "catalog")).unique(),
     offer: await ctx.db.query("commerceCatalogHeads").withIndex("by_emitter_object_sequence", (q) => q.eq("emitterId", f.emitterId).eq("objectRef", OFFER).eq("sequence", "catalog")).unique(),
     job: await ctx.db.query("commerceJobHeads").withIndex("by_emitter_object", (q) => q.eq("emitterId", f.emitterId).eq("objectRef", JOB)).unique(),
   }))
-  if (!heads.shop || !heads.offer || !heads.job) throw new Error("Têtes de fixture absentes")
+  if (!read.shop || !read.offer || !read.job) throw new Error("Têtes de fixture absentes")
+  const heads = { shop: read.shop, offer: read.offer, job: read.job }
   const targets = {
     offer: { kind: "commerceOffer" as const, id: heads.offer._id },
     storefront: { kind: "commerceStorefront" as const, id: heads.shop._id },
