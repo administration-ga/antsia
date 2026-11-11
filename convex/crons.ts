@@ -62,6 +62,9 @@ crons.interval("live-reconcile-replays", { minutes: 15 }, internal.modules.live.
 // PA5 — bornes, reprises et absence de contenu dans les notifications.
 crons.interval("moderation-expire-sanctions", { minutes: 5 }, internal.modules.moderation.maintenance.expireSanctions, {})
 crons.daily("moderation-aggregate-transparency", { hourUTC: 4, minuteUTC: 10 }, internal.modules.moderation.maintenance.aggregateTransparency, {})
+// SU01h (art. 41 à 44) : levée des mesures sur ordre du juge à leur échéance (72 h au plus pour l'art. 44),
+// à la minute près, puis purge des mesures levées au terme de leur conservation ; tranches bornées.
+crons.interval("moderation-judicial-measures", { minutes: 1 }, internal.modules.moderation.measures.runDueMeasures, {})
 crons.interval("notifications-drain-deliveries", { seconds: 30 }, internal.modules.notifications.deliveries.drain, {})
 crons.daily("notifications-reserve-digests", { hourUTC: 7, minuteUTC: 0 }, internal.modules.notifications.deliveries.reserveDigests, {})
 crons.daily("notifications-retention-active", { hourUTC: 3, minuteUTC: 45 }, internal.modules.notifications.retention.run, {})

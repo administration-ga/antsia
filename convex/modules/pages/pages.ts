@@ -25,6 +25,7 @@ import { type Infer, v } from "convex/values"
 
 import { internal } from "../../_generated/api"
 import { canReadModeratedContent, moderateContentWrite } from "../moderation/policy"
+import { judicialDelistReader } from "../moderation/judicialHolds"
 import type { Doc, Id } from "../../_generated/dataModel"
 import type { QueryCtx } from "../../_generated/server"
 import { checked, fail, failRule, notFound } from "../../lib/errors"
@@ -421,8 +422,10 @@ export const discover = networkQuery({
       ? (await query.paginate(categoryDiscoveryPage({ numItems: limit, cursor: null }))).page.slice(0, limit)
       : await query.take(limit)
     const isFollowed = await followingFlags(ctx, readerOf(ctx))
+    // SU01h : une page déréférencée sur ordre du juge sort de l'annuaire, sans être retirée.
+    const delisted = await judicialDelistReader(ctx)
     const out: PageSummary[] = []
-    for (const page of rows) if (await canReadModeratedContent(ctx, "page", page._id, ctx.person._id)) out.push(await toPageSummary(ctx, page, await isFollowed(page._id)))
+    for (const page of rows) if (!(await delisted("page", page._id)) && await canReadModeratedContent(ctx, "page", page._id, ctx.person._id)) out.push(await toPageSummary(ctx, page, await isFollowed(page._id)))
     return out
   },
 })
@@ -441,8 +444,9 @@ export const paginateDiscover = networkQuery({
       : clampPage(args.paginationOpts)
     const result = await discoveryQuery(ctx, ctx.network, filter).paginate(options)
     const isFollowed = await followingFlags(ctx, readerOf(ctx))
+    const delisted = await judicialDelistReader(ctx)
     const page: PageSummary[] = []
-    for (const row of result.page) if (await canReadModeratedContent(ctx, "page", row._id, ctx.person._id)) page.push(await toPageSummary(ctx, row, await isFollowed(row._id)))
+    for (const row of result.page) if (!(await delisted("page", row._id)) && await canReadModeratedContent(ctx, "page", row._id, ctx.person._id)) page.push(await toPageSummary(ctx, row, await isFollowed(row._id)))
     return { ...result, page }
   },
 })

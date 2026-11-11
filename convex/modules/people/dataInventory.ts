@@ -222,6 +222,9 @@ export function exportableRecord(table: string, row: DataRecord, personId: strin
     return row.fromPersonId === personId ? projectedRecord(row, shared) : null
   }
   if (table === "engineAudit") return row.actorPersonId === personId ? projectedRecord(row, [...RECORD_METADATA, "action", "capacity", "subjectTable", "subjectId", "at"]) : null
+  // SU01h : la personne visée exporte la mesure (genre, cible, dates, texte affiché, levée) ; ni la référence
+  // de l'ordonnance (pièce du dossier judiciaire, à demander au greffe), ni les opérateurs, ni les effets internes.
+  if (table === "judicialMeasures") return row.subjectPersonId === personId ? projectedRecord(row, [...RECORD_METADATA, "kind", "target", "targetKind", "feature", "correctionText", "originLabel", "status", "startsAt", "endsAt", "executedAt", "liftedAt", "liftCause"]) : null
   // Tranche DIASPORALE (délégué par ANTSIA le 18/10/2026) : une demande de mentorat appartient aux
   // deux parties ; le mentoré exporte toute sa demande, le mentor jamais l'objectif, le message ni
   // les clés d'idempotence du mentoré (une référence ne vaut pas propriété du contenu d'autrui).
