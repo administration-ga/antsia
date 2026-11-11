@@ -22,6 +22,7 @@ import { NOTIFICATION_REFERENCE_PARAM, parseNotificationReference } from "@/lib/
 import { usageConfiguration, useUsagePermission } from "./analytics-permission"
 import { OfferPostSlot } from "./shops/offer-post-slot"
 import { ArticlePostSlot } from "./editorial/article-post-slot"
+import { PostJudicialNotice } from "./judicial/judicial-notices"
 import { MemberNavigationStyles } from "./member-navigation-styles"
 import { SpecializedNavigationBoundary } from "./specialized-navigation"
 
@@ -112,7 +113,7 @@ export function NetworkShell({ children }: { children: ReactNode }) {
 
   return (
     <NextRouterAdapter>
-      <NetworkProvider networkId={session.root._id} slug={session.root.slug} storageNamespace={demoStorageNamespace()} personId={session.person._id} charte={appearance?.charte ?? CHARTE} routes={engineRoutes} liveAvailable navigation="destinations" navigationLayout="adaptive" icomPro navigationLabels={{ shops: t("marketplace:title"), clips: t("socialExperience:clips"), ...(managesShop ? { myShop: t("shops:nav.myShop") } : {}) }} postPresentation="charte" feedPresentation="immersive" storiesPresentation="rings" wordmark={BRAND_NAME} PostOfferRenderer={OfferPostSlot} PostArticleRenderer={ArticlePostSlot}>
+      <NetworkProvider networkId={session.root._id} slug={session.root.slug} storageNamespace={demoStorageNamespace()} personId={session.person._id} charte={appearance?.charte ?? CHARTE} routes={engineRoutes} liveAvailable navigation="destinations" navigationLayout="adaptive" icomPro navigationLabels={{ shops: t("marketplace:title"), clips: t("socialExperience:clips"), ...(managesShop ? { myShop: t("shops:nav.myShop") } : {}) }} postPresentation="charte" feedPresentation="immersive" storiesPresentation="rings" wordmark={BRAND_NAME} PostOfferRenderer={OfferPostSlot} PostArticleRenderer={ArticlePostSlot} PostNoticeRenderer={PostJudicialNotice}>
         <MemberSessionContext.Provider value={session}>
           <PostHogProvider configuration={usageConfiguration} consented={!permission.paused && session.person.consentsInForce.includes("usage_analytics")} screen={usageScreenForPath(pathname)} networkSlug={session.root.slug} locale={i18n.resolvedLanguage === "en" ? "en" : "fr"}>
             <MemberNavigationStyles />

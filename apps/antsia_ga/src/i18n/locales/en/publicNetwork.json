@@ -209,5 +209,10 @@
         "body": "Identité.ga sign-in opens in the system browser and then returns to ANTSIA. The application keeps session information in the phone’s secure storage. Signing out closes the application session.\nAccess to photos, the camera or microphone depends on the features used and the phone permissions you grant. You can change these permissions in system settings. Refusing a permission limits the feature that needs it."
       }
     }
+  },
+  "judicial": {
+    "region": "Notices ordered by a court",
+    "correction": "Correction published by court order",
+    "origin": "Origin labelled by court order:"
   }
 }

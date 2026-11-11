@@ -209,5 +209,10 @@
         "body": "La connexion Identité.ga s’ouvre dans le navigateur système, puis revient dans ANTSIA. L’application conserve les informations de session dans le stockage sécurisé du téléphone. La déconnexion ferme la session de l’application.\nL’accès aux photos, à la caméra ou au microphone dépend des fonctions utilisées et des autorisations du téléphone. Vous pouvez modifier ces autorisations dans les réglages du système. Refuser une autorisation limite la fonction qui en dépend."
       }
     }
+  },
+  "judicial": {
+    "region": "Avis ordonnés par la justice",
+    "correction": "Correctif publié sur décision de justice",
+    "origin": "Origine signalée sur décision de justice :"
   }
 }

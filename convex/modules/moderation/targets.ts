@@ -45,6 +45,7 @@ import { notifyMentions } from "../posts/postWrite"
 import { canReadModeratedContent, contentState, setContentModerationStatus } from "./policy"
 import type { moderationTargetValidator } from "./tables"
 import { editorialMediaReviewSource, editorialReviewSource } from "./editorialReviewSource"
+import { deferRestorationToJudicialHold } from "./judicialHolds"
 
 export type ModerationTarget = Infer<typeof moderationTargetValidator>
 export type ResolvedTarget = { target: ModerationTarget; networkId: Id<"networks">; ownerPersonId?: Id<"persons"> }
@@ -278,6 +279,8 @@ export async function removeTarget(ctx: MutationCtx, target: ResolvedTarget): Pr
 
 /** Rétablir l'accès ne redémarre jamais une salle ni une capture. */
 export async function restoreTarget(ctx: MutationCtx, target: ResolvedTarget): Promise<void> {
+  // SU01h : un contenu suspendu sur ordre du juge reste retiré ; la mesure vivante le rétablira à sa levée.
+  if (await deferRestorationToJudicialHold(ctx, target.target.kind, target.target.id, "suspend_content", "contentRemoved")) return
   if (target.target.kind === "editorialMedia" && !await editorialMediaReviewSource(ctx, target.networkId, target.target.id)) return notFound()
   if (target.target.kind === "editorialVersion" && !await editorialReviewSource(ctx, target.networkId, target.target.id)) return notFound()
   if ((target.target.kind === "post" || target.target.kind === "page") && !(await isFederatedContentAvailable(ctx, target.target.kind === "post" ? "posts" : "pages", target.target.id))) return notFound()

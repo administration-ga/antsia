@@ -15,6 +15,7 @@ import type { QueryCtx } from "../_generated/server"
 import { fail, notFound } from "./errors"
 import { getActiveIdentity } from "./session"
 import { hasLiveGlobalSanction } from "../modules/moderation/policy"
+import { hasJudicialAccountHold, isNetworkAccessSuspended } from "../modules/moderation/judicialHolds"
 import { hasLiveAdministrationGrant } from "../modules/federation/agentAuthority"
 
 /** La personne liée à la session, ou `null` (pas de session, ou personne pas encore créée). */
@@ -84,11 +85,14 @@ export async function requireMembership(
   minStatus: ActiveMembershipStatus,
 ): Promise<NetworkAccess> {
   const person = await requirePerson(ctx)
-  if (await hasLiveGlobalSanction(ctx, person._id)) return fail("membershipSuspended")
+  // SU01h : une suspension de compte sur ordre du juge vaut partout, comme une suspension racine.
+  if (await hasLiveGlobalSanction(ctx, person._id) || await hasJudicialAccountHold(ctx, person._id)) return fail("membershipSuspended")
   const network = await ctx.db.get(networkId)
   if (!network || network.status !== "active") return notFound()
   const rootNetwork = network.kind === "root" ? network : await getRootNetwork(ctx)
   if (!rootNetwork) return notFound()
+  // SU01h (art. 44) : l'accès au réseau, ou à toute la plateforme par la racine, est suspendu sur ordre.
+  if (await isNetworkAccessSuspended(ctx, network._id, rootNetwork._id)) return fail("policyRefused")
   const membership = await getMembership(ctx, network._id, person._id)
   const rootMembership = network.kind === "root" ? membership : await getMembership(ctx, rootNetwork._id, person._id)
   const status = effectiveAccessStatus({
@@ -126,7 +130,7 @@ export async function memberHasStatus(ctx: Pick<QueryCtx, "db">, networkId: Id<"
 
 /** Le statut d'accès EFFECTIF d'une personne dans un réseau actif (adhésion propre et racine), ou `null`. */
 async function effectiveStatusOf(ctx: Pick<QueryCtx, "db">, networkId: Id<"networks">, personId: Id<"persons">) {
-  if (await hasLiveGlobalSanction(ctx, personId)) return "suspendue"
+  if (await hasLiveGlobalSanction(ctx, personId) || await hasJudicialAccountHold(ctx, personId)) return "suspendue"
   const network = await ctx.db.get(networkId)
   if (!network || network.status !== "active") return null
   const membership = await getMembership(ctx, network._id, personId)
