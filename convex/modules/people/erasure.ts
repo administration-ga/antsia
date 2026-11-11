@@ -240,6 +240,9 @@ async function anonymizeRow(ctx: MutationCtx, job: Doc<"dataErasureJobs">, table
   if (["contentReports", "reports"].includes(table) && row.reporterPersonId === job.personId) delete normalized.note
   if (table === "reports" && row.ownerPersonId === job.personId) { delete normalized.note; delete normalized.decisionReason }
   if (table === "reports" && row.targetKind === "person" && row.targetId === job.personId) normalized.targetId = anonymousId
+  // SU01h : la mesure demeure (preuve d'exécution), sans la personne : le texte ordonné qui la visait part avec elle.
+  if (table === "judicialMeasures" && row.subjectPersonId === job.personId) { delete normalized.correctionText; delete normalized.originLabel }
+  if (table === "judicialMeasures" && row.targetKind === "person" && row.targetId === job.personId) normalized.targetId = anonymousId
   if ((table === "personalMessages" || table === "groupMessages") && typeof row.replyToMessageId === "string" && await marked(ctx, job._id, row.replyToMessageId)) {
     delete normalized.replyToMessageId
     normalized.replyToDeletedAccount = true

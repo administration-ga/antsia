@@ -15,6 +15,7 @@ import { getPublicLocale } from "@/lib/server-session"
 import { getPublicT, publicDate } from "./public-copy"
 import { PublicFeed } from "./public-feed"
 import { PublicLegalContent } from "./public-legal"
+import { PublicJudicialNotices } from "./public-judicial-notices"
 import { PublicIdentity, PublicPostCard } from "./public-post-card"
 import { PUBLIC_CTA, PUBLIC_LINK, PublicShell } from "./public-shell"
 import { PublicStatus } from "./public-status"
@@ -116,6 +117,7 @@ export async function ProfileScreen(props: PublicDynamicProps<"publicHandle">) {
   const { t: tApp } = getAppT(locale)
   const affiliation = result.data.publicAgent
   return <PublicShell viewer={result.viewer}>
+    <div className="mx-auto max-w-3xl"><PublicJudicialNotices target={{ kind: "person", handle: result.data.handle }} locale={locale} /></div>
     <article className="mx-auto max-w-3xl rounded-[var(--ui2-card-radius)] border border-[color:var(--esp-surface-border)] bg-card p-4">
       <p className="mb-6 text-sm font-medium text-primary">{t("profile.public")}</p>
       <PublicIdentity author={{ kind: "person", handle: result.data.handle, displayName: result.data.displayName, avatarUrl: result.data.avatarUrl, badges: result.data.badges }} locale={locale} />
@@ -149,7 +151,7 @@ export async function PageScreen(props: PublicDynamicProps<"handle">) {
   if (result.status !== "ready") return <PublicShell viewer={result.status}><PublicStatus status={result.status} locale={locale} /></PublicShell>
   if (!result.data) notFound()
   const page = result.data, posts = await loadOfficialPagePosts(page.handle, search.cursor, search.handoff)
-  return <PublicShell viewer={result.viewer}><div className="mx-auto max-w-3xl"><header className="mb-7 overflow-hidden rounded-[var(--ui2-card-radius)] border border-[color:var(--esp-surface-border)] bg-card">{page.bannerUrl ? <div className="p-4 pb-0"><Image unoptimized src={page.bannerUrl} width={1200} height={400} alt="" loading="lazy" className="max-h-60 w-full rounded-[var(--esp-media-radius)] object-cover" /></div> : null}<div className="p-4"><PublicIdentity author={{ kind: "page", handle: page.handle, displayName: page.name, avatarUrl: page.logoUrl, badges: [page.badge] }} locale={locale} /><h1 className="mt-5 break-words text-3xl font-semibold">{page.name}</h1>{page.description ? <p className="mt-3 whitespace-pre-wrap break-words text-muted-foreground">{page.description}</p> : null}<p className="mt-4 text-xs text-muted-foreground">{t("post.origin", { name: page.origin.name })}</p><Link href={routes.page(page.handle)} prefetch={false} className={`${PUBLIC_LINK} mt-4`}>{t("page.member")}</Link></div></header><PublicFeed result={posts} locale={locale} base={routes.officialPage(page.handle)} /></div></PublicShell>
+  return <PublicShell viewer={result.viewer}><div className="mx-auto max-w-3xl"><PublicJudicialNotices target={{ kind: "page", handle: page.handle }} locale={locale} handoff={search.handoff} /><header className="mb-7 overflow-hidden rounded-[var(--ui2-card-radius)] border border-[color:var(--esp-surface-border)] bg-card">{page.bannerUrl ? <div className="p-4 pb-0"><Image unoptimized src={page.bannerUrl} width={1200} height={400} alt="" loading="lazy" className="max-h-60 w-full rounded-[var(--esp-media-radius)] object-cover" /></div> : null}<div className="p-4"><PublicIdentity author={{ kind: "page", handle: page.handle, displayName: page.name, avatarUrl: page.logoUrl, badges: [page.badge] }} locale={locale} /><h1 className="mt-5 break-words text-3xl font-semibold">{page.name}</h1>{page.description ? <p className="mt-3 whitespace-pre-wrap break-words text-muted-foreground">{page.description}</p> : null}<p className="mt-4 text-xs text-muted-foreground">{t("post.origin", { name: page.origin.name })}</p><Link href={routes.page(page.handle)} prefetch={false} className={`${PUBLIC_LINK} mt-4`}>{t("page.member")}</Link></div></header><PublicFeed result={posts} locale={locale} base={routes.officialPage(page.handle)} /></div></PublicShell>
 }
 
 export async function PostMetadata(props: PublicDynamicProps<"id">) {
@@ -164,7 +166,7 @@ export async function PostScreen(props: PublicDynamicProps<"id">) {
   const locale = await getPublicLocale(), t = getPublicT(locale), result = await loadPublicPost(id, (await searchOf(props)).handoff)
   if (result.status !== "ready") return <PublicShell viewer={result.status}><PublicStatus status={result.status} locale={locale} /></PublicShell>
   if (!result.data) notFound()
-  return <PublicShell viewer={result.viewer}><div className="mx-auto max-w-3xl"><h1 className="mb-5 text-2xl font-semibold">{t("post.title")}</h1><PublicPostCard post={result.data} locale={locale} /></div></PublicShell>
+  return <PublicShell viewer={result.viewer}><div className="mx-auto max-w-3xl"><h1 className="mb-5 text-2xl font-semibold">{t("post.title")}</h1><PublicJudicialNotices target={{ kind: "post", id: result.data.id }} locale={locale} /><PublicPostCard post={result.data} locale={locale} /></div></PublicShell>
 }
 
 export async function TransparencyMetadata(props: PublicPageProps) {

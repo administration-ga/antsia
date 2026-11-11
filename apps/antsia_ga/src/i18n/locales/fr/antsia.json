@@ -507,5 +507,53 @@
   "carousel": {
     "previous": "Défiler vers la gauche",
     "next": "Défiler vers la droite"
+  },
+  "judicial": {
+    "notices": {
+      "region": "Avis ordonnés par la justice",
+      "correction": "Correctif publié sur décision de justice",
+      "origin": "Origine signalée sur décision de justice :"
+    },
+    "features": {
+      "publish": "publier",
+      "comment": "commenter",
+      "forward": "transférer un message",
+      "live": "lancer un direct",
+      "stories": "publier une Story",
+      "media_upload": "déposer un fichier"
+    },
+    "mine": {
+      "title": "Mesures sur décision de justice",
+      "lead": "Les mesures qu’une juridiction a ordonnées et qui vous concernent. La décision elle-même se demande au greffe de la juridiction qui l’a rendue.",
+      "generalTitle": "Mesures générales en vigueur",
+      "generalLead": "Ordonnées pour tout un réseau, elles s’appliquent à chacun de ses membres.",
+      "kinds": {
+        "suspend_account": "Compte suspendu",
+        "suspend_content": "Contenu suspendu",
+        "delist": "Retiré de la recherche, de Découvrir et des pages publiques",
+        "pin_correction": "Correctif affiché",
+        "origin_label": "Étiquette d’origine affichée",
+        "restrict_feature": "Fonction restreinte",
+        "suspend_access": "Accès suspendu"
+      },
+      "targets": {
+        "person": "Votre compte",
+        "page": "Une page",
+        "post": "Une de vos publications",
+        "comment": "Un de vos commentaires",
+        "story": "Une de vos Stories",
+        "network": "Le réseau {{network}}",
+        "other": "Un de vos contenus"
+      },
+      "since": "Depuis le {{date}}",
+      "until": "jusqu’au {{date}}",
+      "untilLifted": "jusqu’à sa levée",
+      "lifted": "levée le {{date}}",
+      "liftedExpired": "arrivée à échéance le {{date}}",
+      "active": "En vigueur",
+      "ended": "Terminée",
+      "correction": "Texte affiché :",
+      "origin": "Étiquette affichée :"
+    }
   }
 }

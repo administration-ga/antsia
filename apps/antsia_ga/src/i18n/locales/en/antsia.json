@@ -507,5 +507,53 @@
   "carousel": {
     "previous": "Scroll left",
     "next": "Scroll right"
+  },
+  "judicial": {
+    "notices": {
+      "region": "Notices ordered by a court",
+      "correction": "Correction published by court order",
+      "origin": "Origin labelled by court order:"
+    },
+    "features": {
+      "publish": "publish",
+      "comment": "comment",
+      "forward": "forward a message",
+      "live": "start a live",
+      "stories": "publish a Story",
+      "media_upload": "upload a file"
+    },
+    "mine": {
+      "title": "Court-ordered measures",
+      "lead": "Measures ordered by a court that concern you. The decision itself can be requested from the registry of the court that issued it.",
+      "generalTitle": "General measures in force",
+      "generalLead": "Ordered for a whole network, they apply to each of its members.",
+      "kinds": {
+        "suspend_account": "Account suspended",
+        "suspend_content": "Content suspended",
+        "delist": "Removed from search, Discover and public pages",
+        "pin_correction": "Correction displayed",
+        "origin_label": "Origin label displayed",
+        "restrict_feature": "Feature restricted",
+        "suspend_access": "Access suspended"
+      },
+      "targets": {
+        "person": "Your account",
+        "page": "A page",
+        "post": "One of your posts",
+        "comment": "One of your comments",
+        "story": "One of your Stories",
+        "network": "The {{network}} network",
+        "other": "One of your contents"
+      },
+      "since": "Since {{date}}",
+      "until": "until {{date}}",
+      "untilLifted": "until it is lifted",
+      "lifted": "lifted on {{date}}",
+      "liftedExpired": "ended on {{date}}",
+      "active": "In force",
+      "ended": "Ended",
+      "correction": "Displayed text:",
+      "origin": "Displayed label:"
+    }
   }
 }

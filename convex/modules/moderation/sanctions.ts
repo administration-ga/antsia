@@ -6,6 +6,7 @@ import type { MutationCtx } from "../../_generated/server"
 import { getMembership, getRootNetwork } from "../../lib/access"
 import { fail } from "../../lib/errors"
 import { setMembershipStatus } from "../people/admission"
+import { deferRestorationToJudicialHold } from "./judicialHolds"
 
 export async function refreshSuspension(ctx: MutationCtx, personId: Id<"persons">): Promise<void> {
   const root = await getRootNetwork(ctx)
@@ -21,6 +22,8 @@ export async function refreshSuspension(ctx: MutationCtx, personId: Id<"persons"
     const history = await ctx.db.query("sanctions").withIndex("by_person_status", (q) => q.eq("personId", personId).eq("status", "revoked")).take(100)
     const expired = await ctx.db.query("sanctions").withIndex("by_person_status", (q) => q.eq("personId", personId).eq("status", "expired")).take(100)
     if (membership.status === "suspendue" && [...history, ...expired].some((row) => row.kind === "suspension" || row.kind === "exclusion")) {
+      // SU01h : un compte aussi suspendu sur ordre du juge reste suspendu ; la mesure le rétablira à sa levée.
+      if (await deferRestorationToJudicialHold(ctx, "person", personId, "suspend_account", "membershipSuspended")) return
       await setMembershipStatus(ctx, membership, membership.statusBeforeSuspension ?? "declaree", { statusBeforeSuspension: undefined, suspendedUntil: undefined })
     }
     return
