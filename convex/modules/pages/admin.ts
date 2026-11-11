@@ -24,15 +24,16 @@ import { v } from "convex/values"
 
 import { internal } from "../../_generated/api"
 import type { Doc } from "../../_generated/dataModel"
-import type { QueryCtx } from "../../_generated/server"
+import type { MutationCtx, QueryCtx } from "../../_generated/server"
 import { isActiveMember } from "../../lib/access"
-import { checked, failRule, notFound } from "../../lib/errors"
+import { checked, fail, failRule, notFound } from "../../lib/errors"
 import { operatorMutation, operatorQuery } from "../../lib/functions"
 import { requirePlatformAdmin } from "../../lib/operatorIdentity"
 import { enforceRateLimit } from "../../lib/rateLimit"
 import { contentVisibilityValidator, pageTrustValidator } from "../../lib/validators"
 import { assertNativePageManagement, isFederatedPage } from "../federation/mirrorAccess"
 import { notifyPerson } from "../notifications/notify"
+import { hasJudicialPageHold } from "../moderation/judicialHolds"
 import { hasStrongIdentityFor } from "../people/persons"
 import { appendAudit, operatorCapacity } from "../platform/audit"
 import { assertPageHandleFree, isPageOnRoot, liveSignatoryRole, pageSearchText, signatoryRowOf, signatoryRowsOf } from "./access"
@@ -162,9 +163,19 @@ export const setPageTrust = operatorMutation({
 })
 
 /**
+ * L'effet d'un retrait ou d'un rétablissement de page, partagé par la console (`setPageStatus`) et
+ * par les mesures sur ordre du juge (SU01h, `moderation/measures.ts`, qui journalisent leur geste).
+ */
+export async function applyPageStatus(ctx: MutationCtx, page: Doc<"pages">, status: Doc<"pages">["status"], now: number): Promise<void> {
+  await ctx.db.patch(page._id, { status, deactivatedAt: status === "inactive" ? now : undefined, updatedAt: now })
+  if (status === "inactive") await ctx.scheduler.runAfter(0, internal.modules.live.revocation.closePageDirects, { pageId: page._id, cursor: null, revokedAt: now })
+}
+
+/**
  * Retirer (`inactive`) ou rétablir (`active`) une page. RIEN n'est supprimé :
  * ses publications cessent d'être servies — par le fil, le mur, la recherche et
  * leur lien —, ses abonnements demeurent, une réactivation les rend toutes.
+ * SU01h : une page mise hors ligne sur ordre du juge ne se rétablit pas tant que la mesure vit.
  */
 export const setPageStatus = operatorMutation({
   args: { pageId: v.id("pages"), status: pageStatusValidator, reason: v.string() },
@@ -176,9 +187,9 @@ export const setPageStatus = operatorMutation({
     const page = await ctx.db.get(args.pageId)
     if (!page) return notFound()
     if (page.status === args.status) return { changed: false }
+    if (args.status === "active" && await hasJudicialPageHold(ctx, page._id)) return fail("conflict")
     const now = Date.now()
-    await ctx.db.patch(page._id, { status: args.status, deactivatedAt: args.status === "inactive" ? now : undefined, updatedAt: now })
-    if (args.status === "inactive") await ctx.scheduler.runAfter(0, internal.modules.live.revocation.closePageDirects, { pageId: page._id, cursor: null, revokedAt: now })
+    await applyPageStatus(ctx, page, args.status, now)
     await appendAudit(ctx, {
       action: "page.status_set",
       capacity: operatorCapacity(ctx.operator),

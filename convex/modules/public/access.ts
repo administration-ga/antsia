@@ -13,6 +13,7 @@ import { servableUrl } from "../files/storageGuard"
 import { isBlockedBetween } from "../graph/graph"
 import { resolvePostMediaDtos } from "../media/media"
 import { canReadModeratedContent, contentState } from "../moderation/policy"
+import { isJudiciallyDelisted, isNetworkAccessSuspended } from "../moderation/judicialHolds"
 import type { ModerationSurface } from "@antsia/social-domain/moderationPolicy"
 import { findPageByHandle } from "../pages/access"
 import { isDiscoverablePerson } from "../people/miniProfile"
@@ -30,6 +31,8 @@ export type PublicContext = { root: Doc<"networks">; reader: PublicReader }
 export async function publicContext(ctx: QueryCtx, networkId: Id<"networks">): Promise<PublicContext> {
   const root = await ctx.db.get(networkId)
   if (!root || root.kind !== "root" || root.status !== "active") return notFound()
+  // SU01h (art. 44) : un accès suspendu sur ordre du juge ferme aussi les lectures sans compte.
+  if (await isNetworkAccessSuspended(ctx, root._id)) return notFound()
   const rawIdentity = await ctx.auth.getUserIdentity()
   if (!rawIdentity) return { root, reader: null }
   const access = await requireMembership(ctx, networkId, "en_attente")
@@ -49,10 +52,13 @@ export function originDto(network: Doc<"networks">): PublicOrigin {
     : { slug: network.slug, name: network.name }
 }
 
-/** Prélecture interdite sans compte même si le dossier n'a aucun propriétaire nominatif. */
+/**
+ * Prélecture interdite sans compte même si le dossier n'a aucun propriétaire nominatif. SU01h : un
+ * contenu ou un profil déréférencé sur ordre du juge sort des lectures publiques, sans rien supprimer.
+ */
 async function publicContentAllowed(ctx: ReadCtx, kind: ModerationSurface, id: string): Promise<boolean> {
   const state = await contentState(ctx, kind, id)
-  return state === null || state.status === "published"
+  return (state === null || state.status === "published") && !(await isJudiciallyDelisted(ctx, kind, id))
 }
 
 export async function publicPageEligible(ctx: ReadCtx, context: PublicContext, page: Doc<"pages">): Promise<boolean> {
