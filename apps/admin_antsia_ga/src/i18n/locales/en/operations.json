@@ -319,7 +319,8 @@
       "unsupported_media": "Remote image support pending",
       "source_conflict": "Conflicting source reference or revision",
       "consent_required": "Current personal consent required",
-      "identity_not_linked": "IDN identity not correlated or access unavailable"
+      "identity_not_linked": "IDN identity not correlated or access unavailable",
+      "prohibited_category": "Offer refused: prohibited category, no content kept"
     },
     "outcome": {
       "deduplicated": "The receipt is already applied. No additional processing was performed.",
@@ -736,6 +737,16 @@
     "enable": "Connect {{name}} to {{emitter}}",
     "enableUnselected": "Choose an emitter to connect the shop",
     "disable": "Remove the mapping for {{name}}"
+  },
+  "categoryRulings": {
+    "title": "Restricted categories: refusals and reviews",
+    "lead": "What the list of prohibited and regulated categories decided for the mirrored offers of this network. A prohibited offer enters neither the marketplace nor its storefront; a regulated offer places its storefront under the review policy. No rows while the list is empty: it remains to be set by the owner and an advisory board.",
+    "rule": {
+      "prohibited": "Refused: prohibited category",
+      "regulated": "Regulated: storefront under review"
+    },
+    "reference": "Offer {{reference}} · Revision {{revision}} · List version {{version}}",
+    "withdrew": "Offer already mirrored, removed from the marketplace and the storefront."
   },
   "checkoutPolicy": {
     "title": "Order preparation",

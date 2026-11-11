@@ -56,4 +56,21 @@ export const catalogTables = {
     networkId: v.id("networks"), headId: v.id("commerceCatalogHeads"), revision: v.number(), digest: v.string(),
     index: v.number(), publicToken: v.string(), storageId: v.id("_storage"), createdAt: v.number(),
   }).index("by_head", ["headId"]).index("by_public_token", ["publicToken"]).index("by_storage", ["storageId"]),
+  /**
+   * CM-02 : ce que la liste des catégories (`commerce-prohibited-categories`) a décidé d'une offre reflétée — une
+   * ligne COURANTE par offre (émetteur, référence). `prohibited` : l'offre est refusée au reflet ; `regulated` :
+   * l'offre est reflétée et sa vitrine passe sous la politique `review`. La ligne disparaît dès qu'une révision
+   * hors liste de l'offre, ou son retrait, est appliquée. Références, clé de taxonomie et version de la liste
+   * seules : ni titre, ni description, ni média, ni corps signé.
+   */
+  commerceCatalogCategoryRulings: defineTable({
+    networkId: v.id("networks"), shopId: v.id("shops"), mappingId: v.id("commerceCatalogMappings"), mappingGeneration: v.number(),
+    emitterId: v.id("federationEmitters"), environment: literals(COMMERCE_ENVIRONMENTS), objectRef: v.string(),
+    rule: v.union(v.literal("prohibited"), v.literal("regulated")), categoryKey: v.string(), listVersion: v.number(), revision: v.number(),
+    /** Refus seulement : une tête déjà reflétée et active a été retirée de l'index et de la vitrine (par ce refus ou un précédent). */
+    withdrewReflection: v.boolean(),
+    firstAt: v.number(), updatedAt: v.number(),
+  }).index("by_emitter_object", ["emitterId", "objectRef"])
+    .index("by_network_updatedAt", ["networkId", "updatedAt"])
+    .index("by_shop_rule_updatedAt", ["shopId", "rule", "updatedAt"]),
 }

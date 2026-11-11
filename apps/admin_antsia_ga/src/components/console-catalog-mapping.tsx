@@ -8,7 +8,7 @@ import type { FunctionReturnType } from "convex/server"
 import { useEffect, useId, useState } from "react"
 import { useTranslation } from "react-i18next"
 
-import { controlStyle, EmptyRows, inputStyle, LoadingRows, MotiveAction, useOperationDraft, useOperationDraftGuard, useWindowCursor, WindowPagination } from "./console-operation-controls"
+import { ConsoleDate, controlStyle, EmptyRows, inputStyle, LoadingRows, MotiveAction, useOperationDraft, useOperationDraftGuard, useWindowCursor, WindowPagination } from "./console-operation-controls"
 
 type CatalogShop = FunctionReturnType<typeof api.modules.shops.catalogControl.paginateMappings>["page"][number]
 type Emitter = FunctionReturnType<typeof api.modules.federation.emitters.paginate>["page"][number]
@@ -19,7 +19,34 @@ function acceptsCatalog(emitter: Emitter): boolean {
 
 /** La décision choisit une boutique existante ; aucun identifiant technique n'est saisi. */
 export function CatalogMapping({ networkId }: { networkId: Id<"networks"> }) {
-  return <CatalogMappingWindow key={networkId} networkId={networkId} />
+  return <>
+    <CatalogMappingWindow key={networkId} networkId={networkId} />
+    <CategoryRulings key={`rulings-${networkId}`} networkId={networkId} />
+  </>
+}
+
+/**
+ * CM-02 — la vue des refus : ce que la liste des catégories a décidé des offres reflétées du réseau (refus d'une
+ * catégorie interdite, offre réglementée qui fait relire sa vitrine). Une ligne courante par offre ; références,
+ * clé de taxonomie et version de la liste seules, jamais un contenu d'offre.
+ */
+function CategoryRulings({ networkId }: { networkId: Id<"networks"> }) {
+  const { t } = useTranslation("operations")
+  const window = useWindowCursor()
+  const result = useQuery(api.modules.shops.catalogControl.paginateCategoryRulings, { networkId, paginationOpts: { cursor: window.cursor, numItems: 20, maximumRowsRead: 25, maximumBytesRead: 262_144 } })
+  return <section className="flex min-w-0 flex-col gap-4 border-t border-border pt-4" aria-label={t("categoryRulings.title")}>
+    <h4 className="font-semibold">{t("categoryRulings.title")}</h4>
+    <p className="text-sm text-muted-foreground">{t("categoryRulings.lead")}</p>
+    {result === undefined ? <LoadingRows /> : result.page.length === 0 ? <EmptyRows done={result.isDone} /> : <ul className="flex min-w-0 flex-col gap-3">{result.page.map(row => <li key={row.rulingId} data-category-ruling={row.rule} className="flex min-w-0 flex-col gap-1 rounded-lg border border-border p-3">
+      <p className="break-words font-medium">{row.shopName ?? t("catalogMapping.unnamedShop")}{row.shopHandle ? <span className="text-muted-foreground"> · @{row.shopHandle}</span> : null}</p>
+      <p className="text-sm">{t(`categoryRulings.rule.${row.rule}`)}</p>
+      <p className="break-all font-mono text-sm">{row.categoryKey}</p>
+      <p className="break-all text-xs text-muted-foreground">{t("categoryRulings.reference", { reference: row.offerRef, revision: row.revision, version: row.listVersion })}</p>
+      {row.withdrewReflection ? <p className="text-sm text-muted-foreground">{t("categoryRulings.withdrew")}</p> : null}
+      <p className="text-xs text-muted-foreground"><ConsoleDate at={row.updatedAt} /></p>
+    </li>)}</ul>}
+    <WindowPagination window={window} result={result} />
+  </section>
 }
 
 function CatalogMappingWindow({ networkId }: { networkId: Id<"networks"> }) {

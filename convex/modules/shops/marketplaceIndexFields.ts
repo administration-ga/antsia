@@ -1,5 +1,6 @@
 /** MP03 : données de recherche dérivées uniquement d'un fait public validé. */
 import { catalogFacetsMatchKind, parseCommerceCatalogFacets } from "@antsia/social-domain/commerce/catalogFacets"
+import { COMMERCE_CATEGORY_RULES, isCommerceCategoryProhibited } from "@antsia/social-domain/commerce-prohibited-categories"
 import { parseCommerceServiceProfile, commerceServiceZoneKey } from "@antsia/social-domain/commerce/serviceProfile"
 import { COMMERCE_MAX_AMOUNT_XAF } from "@antsia/social-domain/commerce/primitives"
 import { parseCommercePublicBody } from "@antsia/social-domain/commerce/projection"
@@ -38,6 +39,8 @@ export function marketplaceIndexFields(rawBody: string, state: "active" | "withd
   const offer = parsed.value.payload
   const facets = parseCommerceCatalogFacets(offer.facets)
   if (facets && !catalogFacetsMatchKind(facets, offer.kind)) return fields
+  // CM-02 : une catégorie interdite n'entre pas dans la découverte (reconstruction de l'index comprise).
+  if (facets && isCommerceCategoryProhibited(facets.categoryPath, COMMERCE_CATEGORY_RULES)) return fields
   fields.discoveryVersion = MARKETPLACE_DISCOVERY_VERSION
   for (const [index, key] of (["collection1", "collection2", "collection3", "collection4", "collection5"] as const).entries()) fields[key] = offer.collectionRefs[index]
   fields.category1 = facets?.categoryPath[0]
