@@ -27,7 +27,7 @@ import type { PageCard } from "../pages/validators"
 import { serviceNoticeView, type ServiceNoticeDto } from "../diaspora/serviceNotifications"
 import { communityNoticeView, type CommunityNoticeDto } from "../diaspora/communityNotifications"
 import { subjectOf, subjectRefOf } from "./notify"
-import { isReporterNoticeKind, notificationStillVisible } from "./policy"
+import { isReporterNoticeKind, moderationNoticeWithdrawn, notificationStillVisible } from "./policy"
 import { type DiasporaCommunityNotificationKind, type DiasporaServiceNotificationKind, isDiasporaCommunityNotificationKind, isDiasporaServiceNotificationKind } from "./tables"
 import { moderationDecisionPage, notificationOpenTargetOf } from "./targets"
 
@@ -143,6 +143,8 @@ export const paginateNotifications = networkQuery({
       if (isCommerceNotificationKind(row.kind) && !(await notificationStillVisible(ctx, row))) continue
       // CC-2b : un avis contextuel dont le fil ne se lit plus (rôle retiré, sortie, blocage, fil purgé) ne se présente plus.
       if (isContextualNotificationKind(row.kind) && !(await notificationStillVisible(ctx, row))) continue
+      // MD-07 : un avis de décision dont le dossier ne se montre plus à son auteur (classement annoncé avant le correctif) ne se présente plus.
+      if (await moderationNoticeWithdrawn(ctx, row)) continue
       page.push(await toDto(ctx, ctx.person._id, row, caches))
     }
     return { ...result, page }
@@ -171,6 +173,8 @@ export const unreadCount = networkQuery({
     for (const row of unread) if (isCommerceNotificationKind(row.kind) && !(await notificationStillVisible(ctx, row))) visible -= 1
     // CC-2b : de même pour les avis contextuels dont le fil ne se lit plus.
     for (const row of unread) if (isContextualNotificationKind(row.kind) && !(await notificationStillVisible(ctx, row))) visible -= 1
+    // MD-07 : de même pour un avis de décision dont le dossier ne se montre plus à son auteur.
+    for (const row of unread) if (await moderationNoticeWithdrawn(ctx, row)) visible -= 1
     return { count: Math.min(visible, NOTIFICATION_UNREAD_CAP), capped: visible > NOTIFICATION_UNREAD_CAP,
       ...(visible !== unread.length && unread.length > NOTIFICATION_UNREAD_CAP ? { truncated: true } : {}) }
   },
