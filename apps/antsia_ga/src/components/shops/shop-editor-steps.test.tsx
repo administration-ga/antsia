@@ -29,6 +29,7 @@ vi.mock("./shop-publication-form", () => ({
 vi.mock("../payment/merchant-payment-preparation-panel", () => ({ MerchantPaymentPreparationPanel: () => <section data-payment-preparation /> }))
 vi.mock("./shop-commerce-link", () => ({ ShopCommerceLink: () => null }))
 vi.mock("./catalog-reconcile-panel", () => ({ CatalogReconcilePanel: () => null }))
+vi.mock("./catalog-category-notice", () => ({ CatalogCategoryNotice: () => null }))
 vi.mock("./catalog-post-linker", () => ({ CatalogPostLinker: () => null }))
 vi.mock("./contact-team-panel", () => ({ ContactTeamPanel: () => null }))
 
