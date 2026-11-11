@@ -62,6 +62,7 @@ export function EngineTestWrapper(props: {
   navigationLayout?: EngineNavigationLayout
   navigationLabels?: NetworkContextValue["navigationLabels"]
   PostArticleRenderer?: NetworkContextValue["PostArticleRenderer"]
+  callsAvailable?: boolean
 }) {
   const i18n = createAppI18n({ locale: "fr", appResources: { fr: {}, en: {} }, defaultNS: "social" })
   return (
@@ -74,6 +75,7 @@ export function EngineTestWrapper(props: {
           charte="antsia"
           routes={props.routes ?? TEST_ROUTES}
           liveAvailable
+          callsAvailable={props.callsAvailable}
           postPresentation={props.postPresentation}
           navigation={props.navigation}
           navigationLayout={props.navigationLayout}
@@ -88,11 +90,11 @@ export function EngineTestWrapper(props: {
 }
 
 /** `render` de testing-library, dans l'enveloppe du moteur. */
-export function renderWithEngine(ui: ReactElement, options: Omit<RenderOptions, "wrapper"> & { router?: RouterImplementation; personId?: Id<"persons">; routes?: EngineRoutes; postPresentation?: EnginePostPresentation; navigation?: EngineNavigation; navigationLayout?: EngineNavigationLayout; navigationLabels?: NetworkContextValue["navigationLabels"]; PostArticleRenderer?: NetworkContextValue["PostArticleRenderer"] } = {}) {
-  const { router, personId, routes, postPresentation, navigation, navigationLayout, navigationLabels, PostArticleRenderer, ...rest } = options
+export function renderWithEngine(ui: ReactElement, options: Omit<RenderOptions, "wrapper"> & { router?: RouterImplementation; personId?: Id<"persons">; routes?: EngineRoutes; postPresentation?: EnginePostPresentation; navigation?: EngineNavigation; navigationLayout?: EngineNavigationLayout; navigationLabels?: NetworkContextValue["navigationLabels"]; PostArticleRenderer?: NetworkContextValue["PostArticleRenderer"]; callsAvailable?: boolean } = {}) {
+  const { router, personId, routes, postPresentation, navigation, navigationLayout, navigationLabels, PostArticleRenderer, callsAvailable, ...rest } = options
   return render(ui, {
     wrapper: ({ children }) => (
-      <EngineTestWrapper router={router} personId={personId} routes={routes} postPresentation={postPresentation} navigation={navigation} navigationLayout={navigationLayout} navigationLabels={navigationLabels} PostArticleRenderer={PostArticleRenderer}>
+      <EngineTestWrapper router={router} personId={personId} routes={routes} postPresentation={postPresentation} navigation={navigation} navigationLayout={navigationLayout} navigationLabels={navigationLabels} PostArticleRenderer={PostArticleRenderer} callsAvailable={callsAvailable}>
         {children}
       </EngineTestWrapper>
     ),

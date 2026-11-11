@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { internal } from "../../_generated/api"
 import type { Doc, Id } from "../../_generated/dataModel"
 import { testConvex } from "../../test.setup"
-import { callDoc, enter, seed, type T, T0 } from "./fixtures.setup"
+import { callDoc, enterCallable, seed, type T, T0 } from "./fixtures.setup"
 
 beforeEach(() => {
   vi.useFakeTimers()
@@ -34,8 +34,8 @@ async function scheduledRows(t: T) {
 async function world() {
   const t = testConvex()
   const { root, testClosed } = await seed(t)
-  const alice = await enter(t, root, "alice")
-  const bob = await enter(t, root, "bob")
+  const alice = await enterCallable(t, root, "alice")
+  const bob = await enterCallable(t, root, "bob")
   // PA10 : chaque entrée (`joinNetwork` → `refreshReaderContexts`) planifie le rattrapage du fil de la
   // personne (`modules/posts/feedMaterialization:backfill`, sept étapes chaînées). Joué ICI, avant
   // l'étape testée et avec le drain des autres cas de ce fichier : le vrai planificateur des tests ne

@@ -121,7 +121,8 @@ export async function canParticipateCommercialCall(ctx: ReadCtx, call: Doc<"call
   if (!thread || thread.networkId !== call.networkId || !await commercialCallPairAllowed(ctx, thread, call.createdByPersonId, call.calleePersonId)) return false
   // Avant décrochage, un nouveau silence, une occupation ou une absence ne sont pas photographiés au départ.
   if (call.status === "active" && call.answeredAt === undefined) {
-    const admission = await evaluateCallAdmission(ctx, { networkId: call.networkId, calleePersonId: call.calleePersonId, callerPersonId: call.createdByPersonId, now: Date.now() })
+    // IC-04 : la paire vient d'être relue avec ses deux accords d'appel — ils lèvent le réglage « hors de mes relations », comme au départ.
+    const admission = await evaluateCallAdmission(ctx, { networkId: call.networkId, calleePersonId: call.calleePersonId, callerPersonId: call.createdByPersonId, now: Date.now(), viaCommercialConsent: true })
     if (!admission.decision.admitted) return false
   }
   return true

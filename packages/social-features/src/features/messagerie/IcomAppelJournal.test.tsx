@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/messagerie/IcomAppelJournal.test.tsx @ ad2e7fdc2 — adaptations : fonctions du moteur moquées (`calls.direct.callMember`, `calls.history.listCallHistory`, `calls.preferences.markJournalSeen`) et ligne de journal au DTO du moteur (correspondant nommé par `counterpartLabel`) ; rendu dans l'enveloppe du moteur (`renderWithEngine` : i18n français, réseau de test) ; le refus « d'affiliation » du socle (règle administrative absente du moteur) devient un refus à CODE du moteur, dit par sa phrase traduite ; cas neufs : l'appel admis ouvre la fenêtre sortante, l'appel refusé l'écran de fin, tous deux sur l'appel (`callId`) et la personne visée ; P10/CC : `convex/react` doublé aussi de `useConvexAuth` (porte d'envoi liée à la session) et `useConvex` (lecture du fil commercial), porte `commercialMessaging` déclarée, réponse de `callMember` complète (`calleePersonId`, contrat du serveur) ; IC-02 : porte `calls.voicemail` déclarée (le journal lit la messagerie vocale reçue).
+// Dupliqué de socle/packages/agent-features/src/features/messagerie/IcomAppelJournal.test.tsx @ ad2e7fdc2 — adaptations : fonctions du moteur moquées (`calls.direct.callMember`, `calls.history.listCallHistory`, `calls.preferences.markJournalSeen`) et ligne de journal au DTO du moteur (correspondant nommé par `counterpartLabel`) ; rendu dans l'enveloppe du moteur (`renderWithEngine` : i18n français, réseau de test) ; le refus « d'affiliation » du socle (règle administrative absente du moteur) devient un refus à CODE du moteur, dit par sa phrase traduite ; cas neufs : l'appel admis ouvre la fenêtre sortante, l'appel refusé l'écran de fin, tous deux sur l'appel (`callId`) et la personne visée ; P10/CC : `convex/react` doublé aussi de `useConvexAuth` (porte d'envoi liée à la session) et `useConvex` (lecture du fil commercial), porte `commercialMessaging` déclarée, réponse de `callMember` complète (`calleePersonId`, contrat du serveur) ; IC-02 : porte `calls.voicemail` déclarée (le journal lit la messagerie vocale reçue). ; IM-01 (IC-04) : sans appels déclarés, aucun bouton « Rappeler ».
 // @vitest-environment jsdom
 
 import { act, cleanup, fireEvent, screen } from "@testing-library/react"
@@ -146,5 +146,14 @@ describe("IcomAppelJournal — rappeler ouvre l'écran qui convient", () => {
       }),
     )
     expect(mocks.openOutgoingCall).not.toHaveBeenCalled()
+  })
+})
+
+describe("IcomAppelJournal — application sans appels déclarés (IM-01)", () => {
+  it("le journal reste lisible, sans bouton « Rappeler »", () => {
+    renderWithEngine(<IcomAppelJournal />, { callsAvailable: false })
+    expect(screen.getByText("Aline Minko")).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Rappeler Aline Minko" })).toBeNull()
+    expect(mocks.call).not.toHaveBeenCalled()
   })
 })

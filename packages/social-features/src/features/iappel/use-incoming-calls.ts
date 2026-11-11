@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/iappel/use-incoming-calls.ts @ ad2e7fdc2 — adaptations : ce qui sonne vient du moteur (`calls.ringing.listRinging`, fonction de réseau : `networkId` de `useNetwork()`, sans environnement back-office) et son DTO est traduit ici en `RingingCall` (appel `callId`, correspondant nommé par le contrat `counterpartLabel`, identité de groupe avec son fil, titre composé dans la langue de l'écran) ; fenêtre de sonnerie tenue par l'ÉTAT du serveur (plus d'heure serveur `serverNow` ni de filtre sur l'horloge du téléphone) ; réponses rapides par défaut traduites quand la personne n'en a jamais réglé (`quickReplies: null`) ; sonneries du lot W8 (`../../lib/livekit/*`) ; identifiants `Id<"calls">` ; référence `dismissedRef` jamais lue retirée.
+// Dupliqué de socle/packages/agent-features/src/features/iappel/use-incoming-calls.ts @ ad2e7fdc2 — adaptations : ce qui sonne vient du moteur (`calls.ringing.listRinging`, fonction de réseau : `networkId` de `useNetwork()`, sans environnement back-office) et son DTO est traduit ici en `RingingCall` (appel `callId`, correspondant nommé par le contrat `counterpartLabel`, identité de groupe avec son fil, titre composé dans la langue de l'écran) ; fenêtre de sonnerie tenue par l'ÉTAT du serveur (plus d'heure serveur `serverNow` ni de filtre sur l'horloge du téléphone) ; réponses rapides par défaut traduites quand la personne n'en a jamais réglé (`quickReplies: null`) ; sonneries du lot W8 (`../../lib/livekit/*`) ; identifiants `Id<"calls">` ; référence `dismissedRef` jamais lue retirée. ; IC-04 : clés des réponses rapides par défaut sorties dans `quick-replies.ts` (module pur, lu aussi par la rubrique iCom des réglages).
 "use client"
 
 /**
@@ -28,6 +28,7 @@ import { useRingtone } from "../../lib/livekit/use-ringtone"
 import { useWaitingBeep } from "../../lib/livekit/use-waiting-beep"
 import { useCallStore } from "../../stores/call-store"
 import { planIncomingCalls, type IncomingPlan } from "./call-inbox"
+import { DEFAULT_QUICK_REPLY_KEYS } from "./quick-replies"
 import type { RingingCall } from "./call-types"
 import { composeGroupCallTitle } from "./group-stage"
 import { useRingtoneMutedPref } from "./hooks/use-ringtone-muted-pref"
@@ -35,16 +36,6 @@ import { useRingVibration } from "./use-ring-vibration"
 
 /** Une ligne de « ce qui sonne », telle que le moteur la rend. */
 type RingingCallDto = FunctionReturnType<typeof api.modules.calls.ringing.listRinging>["calls"][number]
-
-/**
- * Les réponses rapides proposées quand la personne n'en a JAMAIS réglé (le
- * moteur rend alors `null`, et l'écran propose les siennes, traduites).
- */
-const DEFAULT_QUICK_REPLY_KEYS = [
-	"iappel:useIncomingCalls.defaultQuickReplies.callBack",
-	"iappel:useIncomingCalls.defaultQuickReplies.inMeeting",
-	"iappel:useIncomingCalls.defaultQuickReplies.cannotAnswer",
-] as const
 
 /**
  * Le DTO du moteur, dans le vocabulaire de la surface d'appel.

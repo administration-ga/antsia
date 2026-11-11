@@ -4,6 +4,7 @@ import { useId } from "react"
 import { useTranslation } from "react-i18next"
 
 import { DisplayPreferences } from "@/components/display-preferences"
+import { IcomSettings } from "@/components/icom-settings"
 import { MemberPage } from "@/components/member-chrome"
 import { PreferencesControls } from "@/components/preferences-controls"
 import { Card } from "@/components/shared/controls"
@@ -16,7 +17,8 @@ const RELATED_ENTRY_IDS: readonly string[] = ["feedPreferences", "personalData"]
 
 /**
  * PARAMÈTRES (destination Profil) : l'affichage — apparence, thème, motif de
- * fond —, la langue et le fuseau horaire, puis les réglages voisins. Atteints
+ * fond —, la langue et le fuseau horaire, la rubrique iCom (IC-04 : appels,
+ * « Ne pas déranger », accusés de lecture, présence), puis les réglages voisins. Atteints
  * depuis le rail du bureau et depuis Profil au téléphone. Les mêmes contrôles
  * restent sur « Mes données », ouverte à une personne suspendue.
  */
@@ -45,6 +47,8 @@ export function SettingsScreen() {
         </Card>
 
         <PreferencesControls variant="language" />
+
+        <IcomSettings />
 
         <section aria-labelledby={relatedTitle} className="flex flex-col gap-4">
           <h2 id={relatedTitle} className="text-lg font-semibold">{t("settings.moreTitle")}</h2>

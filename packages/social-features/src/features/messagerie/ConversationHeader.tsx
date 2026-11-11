@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/messagerie/ConversationHeader.tsx @ ad2e7fdc2 — adaptations : TQ* — branche poste élaguée (prop `eyebrow`, la fonction au-dessus du titre, ADR-0021 du socle) ; libellés traduits (espace de noms `messagerie`, clés `conversationHeader.*`, `callActionsFor(…, t)`) ; doctrine d'appel du moteur (`calls.direct.callMember`, `calls.groupCalls.startFromThread`) au lieu de `callByHandle` et de l'évènement de réunion.
+// Dupliqué de socle/packages/agent-features/src/features/messagerie/ConversationHeader.tsx @ ad2e7fdc2 — adaptations : TQ* — branche poste élaguée (prop `eyebrow`, la fonction au-dessus du titre, ADR-0021 du socle) ; libellés traduits (espace de noms `messagerie`, clés `conversationHeader.*`, `callActionsFor(…, t)`) ; doctrine d'appel du moteur (`calls.direct.callMember`, `calls.groupCalls.startFromThread`) au lieu de `callByHandle` et de l'évènement de réunion. ; IM-01 (IC-04) : boutons d'appel retirés quand l'application déclare `callsAvailable={false}`.
 "use client"
 
 /**
@@ -25,6 +25,7 @@
  * échouer à l'appui.
  */
 
+import { useCallsAvailable } from "@antsia/api/network"
 import { ArrowLeft, ChevronDown, Phone, Users, Video } from "lucide-react"
 import type { ReactNode } from "react"
 import { useTranslation } from "react-i18next"
@@ -80,6 +81,8 @@ export function ConversationHeader({
 	onToggleOpen,
 }: ConversationHeaderProps) {
 	const { t } = useTranslation("messagerie")
+	// IM-01 : une application sans appels (`callsAvailable={false}`) ne propose ni audio, ni vidéo, ni appel de groupe.
+	const callsAvailable = useCallsAvailable()
 	const actions = callActionsFor(
 		{
 			kind,
@@ -174,7 +177,7 @@ export function ConversationHeader({
 				</button>
 			) : null}
 
-				{actions.audio.available || actions.video.available ? (
+				{callsAvailable && (actions.audio.available || actions.video.available) ? (
 					<div
 						className="icom-action-group"
 						role="group"

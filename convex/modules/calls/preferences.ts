@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/modules/iappel/preferences.ts @ ad2e7fdc2 — adaptations : réglages de la PERSONNE (constructeurs `personQuery`/`personMutation`, fonctions sur soi) ; miroir du « ne pas déranger » vers la présence d'organisation (`mirrorDndToPresence`, V23) et portée du silence (poste / personnel / tout) retirés ; réponses rapides par défaut → `null` (l'écran propose les siennes, traduites) au lieu de trois phrases françaises stockées dans le code ; nettoyage des réponses rapides par la règle pure du contrat (`normalizeQuickReplies`) ; instant de lecture fourni par l'écran (D16) ; refus à code de règle (`CALL_DND_PAST`, `CALL_DND_TOO_LONG`) ; débit.
+// Dupliqué de socle/convex/modules/iappel/preferences.ts @ ad2e7fdc2 — adaptations : réglages de la PERSONNE (constructeurs `personQuery`/`personMutation`, fonctions sur soi) ; miroir du « ne pas déranger » vers la présence d'organisation (`mirrorDndToPresence`, V23) et portée du silence (poste / personnel / tout) retirés ; réponses rapides par défaut → `null` (l'écran propose les siennes, traduites) au lieu de trois phrases françaises stockées dans le code ; nettoyage des réponses rapides par la règle pure du contrat (`normalizeQuickReplies`) ; instant de lecture fourni par l'écran (D16) ; refus à code de règle (`CALL_DND_PAST`, `CALL_DND_TOO_LONG`) ; débit. ; IC-04 : « qui peut m'appeler » par défaut `silent` pour qui ne l'a jamais réglé (décision du propriétaire du 9/11/2026, défaut lu par `outsideRelationsCallsOf`, partagé avec l'admission) ; accusés de lecture réciproques (`readReceipts`, lus par `readReceiptsEnabledFor` dans la messagerie à deux).
 /**
  * Appels — les RÉGLAGES d'appel d'une personne.
  *
@@ -7,15 +7,48 @@
  * réglages que personne n'a choisis. Chaque mise à jour ne touche que les champs
  * fournis — plusieurs cartes indépendantes à l'écran ne s'écrasent pas.
  */
-import { MAX_DND_DURATION_MS, normalizeQuickReplies } from "@antsia/social-contracts/calls"
+import { DEFAULT_OUTSIDE_RELATIONS_CALLS, DEFAULT_READ_RECEIPTS, MAX_DND_DURATION_MS, normalizeQuickReplies, type OutsideRelationsCallPolicy } from "@antsia/social-contracts/calls"
 import { v } from "convex/values"
 
+import type { Doc, Id } from "../../_generated/dataModel"
+import type { QueryCtx } from "../../_generated/server"
 import { failRule } from "../../lib/errors"
 import { personMutation, personQuery } from "../../lib/functions"
 import { enforceRateLimit } from "../../lib/rateLimit"
 import { autoMeetingDndValidator, outsideRelationsCallsValidator, ringtonePrefsValidator } from "./validators"
 
 const DAY_MS = 24 * 60 * 60 * 1000
+
+type PreferencesRow = Pick<Doc<"callPreferences">, "outsideRelationsCalls" | "readReceipts"> | null | undefined
+
+/**
+ * IC-04 — le réglage « hors de mes relations » EFFECTIF : la valeur posée par la personne, sinon le
+ * défaut du moteur (`silent`, décision du propriétaire du 9/11/2026). Absent = jamais réglé : aucune
+ * écriture ne pose ce champ d'office (`update` ne touche que les champs fournis, `setDnd` et
+ * `markJournalSeen` ne l'écrivent pas), si bien qu'une personne qui a choisi « tout le monde » le
+ * garde et que toutes les autres suivent le défaut, sans migration. SEULE source de ce défaut pour
+ * la lecture (`getMine`), l'admission d'un appel (`evaluate.ts`) et la conversation contextuelle.
+ */
+export function outsideRelationsCallsOf(row: PreferencesRow): OutsideRelationsCallPolicy {
+  return row?.outsideRelationsCalls ?? DEFAULT_OUTSIDE_RELATIONS_CALLS
+}
+
+/** IC-04 — les accusés de lecture de la personne sont-ils actifs ? Absent = défaut (actifs). */
+export function readReceiptsOf(row: PreferencesRow): boolean {
+  return row?.readReceipts ?? DEFAULT_READ_RECEIPTS
+}
+
+/**
+ * IC-04 — la personne émet-elle et voit-elle les accusés de lecture ? Lecture d'index, sans écriture :
+ * la messagerie à deux ne sert un « Lu » que si les DEUX personnes du fil les ont laissés actifs.
+ */
+export async function readReceiptsEnabledFor(ctx: Pick<QueryCtx, "db">, personId: Id<"persons">): Promise<boolean> {
+  const row = await ctx.db
+    .query("callPreferences")
+    .withIndex("by_person", (q) => q.eq("personId", personId))
+    .unique()
+  return readReceiptsOf(row)
+}
 
 /**
  * Mes réglages d'appel, ou les défauts si je n'ai jamais rien réglé. Un « ne pas
@@ -41,8 +74,10 @@ export const getMine = personQuery({
       autoMeetingDnd: row?.autoMeetingDnd ?? null,
       sharePresence: row?.sharePresence ?? true,
       pushIncoming: row?.pushIncoming ?? true,
-      // Absent = `ring` : par défaut, un membre qui n'est pas une relation fait sonner le téléphone.
-      outsideRelationsCalls: row?.outsideRelationsCalls ?? ("ring" as const),
+      // IC-04 : absent = `silent` — par défaut, seules mes relations font sonner mon téléphone.
+      outsideRelationsCalls: outsideRelationsCallsOf(row),
+      /** IC-04 : mes accusés de lecture (réciproques) ; absent = actifs. */
+      readReceipts: readReceiptsOf(row),
       journalSeenAt: row?.journalSeenAt ?? null,
       saved: row !== null,
     }
@@ -94,6 +129,8 @@ export const update = personMutation({
     sharePresence: v.optional(v.boolean()),
     pushIncoming: v.optional(v.boolean()),
     outsideRelationsCalls: v.optional(outsideRelationsCallsValidator),
+    /** IC-04 : facultatif — un écran qui ne le connaît pas ne le touche pas. */
+    readReceipts: v.optional(v.boolean()),
   },
   returns: v.object({ saved: v.literal(true) }),
   handler: async (ctx, args) => {
@@ -108,6 +145,7 @@ export const update = personMutation({
       ...(args.sharePresence !== undefined ? { sharePresence: args.sharePresence } : {}),
       ...(args.pushIncoming !== undefined ? { pushIncoming: args.pushIncoming } : {}),
       ...(args.outsideRelationsCalls !== undefined ? { outsideRelationsCalls: args.outsideRelationsCalls } : {}),
+      ...(args.readReceipts !== undefined ? { readReceipts: args.readReceipts } : {}),
       updatedAt: now,
     }
     const existing = await ctx.db

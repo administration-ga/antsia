@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/modules/iappel/admission.ts @ ad2e7fdc2 — adaptations : décideur PUR du moteur ; ordre `outside_relations` → `dnd` → `in_meeting` → `busy` → `offline` conservé ; horaires de poste, passe-droits d'autorité et de priorité, portée poste / personnel du silence (`silenceApplies`) et secrétariat retirés ; plus de phrase composée pour l'appelant (`callerMessageFor`, `labelOf`, `secretariatUnavailableMessage`, `filteredPosteMessage`) : la décision rend la RAISON, l'écran la dit dans sa langue avec le nom qu'il affiche ; « hors ligne » constaté sur la présence du RÉSEAU de l'appel (le socle le réservait au poste).
+// Dupliqué de socle/convex/modules/iappel/admission.ts @ ad2e7fdc2 — adaptations : décideur PUR du moteur ; ordre `outside_relations` → `dnd` → `in_meeting` → `busy` → `offline` conservé ; horaires de poste, passe-droits d'autorité et de priorité, portée poste / personnel du silence (`silenceApplies`) et secrétariat retirés ; plus de phrase composée pour l'appelant (`callerMessageFor`, `labelOf`, `secretariatUnavailableMessage`, `filteredPosteMessage`) : la décision rend la RAISON, l'écran la dit dans sa langue avec le nom qu'il affiche ; « hors ligne » constaté sur la présence du RÉSEAU de l'appel (le socle le réservait au poste). ; IC-04 : « hors de mes relations » n'est plus dit à l'appelant (écran neutre « sans réponse »), ce qui est révélé est documenté ci-dessous.
 /**
  * Appels — UN APPEL DOIT-IL SONNER ?
  *
@@ -23,9 +23,12 @@
  *  · « en réunion » : seulement si la personne a activé le silence automatique ;
  *  · « hors ligne » : OUI — prévenir tout de suite vaut mieux que deux minutes de
  *    sonnerie dans le vide ; posé preuves en main seulement (`evaluate.ts`) ;
- *  · « ne reçoit les appels que de ses relations » : OUI, c'est un périmètre
- *    déclaré, pas un état — le taire ferait rappeler indéfiniment. Aucune
- *    messagerie vocale n'est offerte sur ce refus.
+ *  · « ne reçoit les appels que de ses relations » : NON depuis IC-04 — c'est
+ *    le défaut du moteur (décision du propriétaire du 9/11/2026) ; la raison
+ *    reste rendue à l'écran, qui la dit à l'appelant comme un appel SANS
+ *    RÉPONSE (écran de fin, journal de l'appelant : `history.ts`), et seul
+ *    l'appelé lit pourquoi son téléphone n'a pas sonné. Aucune messagerie
+ *    vocale n'est offerte sur ce refus.
  *
  * Module PUR : aucun `ctx`. Le serveur rassemble les faits, ce module tranche.
  */

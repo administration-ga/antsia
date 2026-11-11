@@ -147,6 +147,22 @@ export async function setPrefs(t: T, person: Person, prefs: Record<string, unkno
   })
 }
 
+/**
+ * IC-04 : ces personnes ont ÉLARGI « qui peut m'appeler » à tout le réseau (`ring`, l'ancien défaut).
+ * Les tests de la mécanique d'appel entre personnes non reliées le posent ; le défaut « mes relations
+ * seulement » a ses propres tests, qui ne le posent pas.
+ */
+export async function callableByEveryone(t: T, ...persons: Person[]): Promise<void> {
+  for (const person of persons) await setPrefs(t, person, { outsideRelationsCalls: "ring" })
+}
+
+/** Une personne entrée (`enter`) qui a élargi « qui peut m'appeler » à tout le réseau (`callableByEveryone`). */
+export async function enterCallable(t: T, rootId: Id<"networks">, handle: string): Promise<Person> {
+  const person = await enter(t, rootId, handle)
+  await callableByEveryone(t, person)
+  return person
+}
+
 /** Une ligne de présence dans un réseau, au battement donné. */
 export async function presenceAt(t: T, networkId: Id<"networks">, person: Person, lastHeartbeat: number, status: "online" | "offline" = "online"): Promise<void> {
   await t.run(async (ctx) => {

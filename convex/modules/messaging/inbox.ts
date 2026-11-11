@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/modules/reseauPersonnel/messagerie.ts @ ad2e7fdc2 — adaptations : la boîte PERSONNELLE d'un réseau seulement — gardés `assertPeutOuvrirFilPersonnel` (connexion DANS le réseau, ou fil existant), `lastMessageKindOf`, `estDansLaBoitePersonnelle`, `lireCote`/`blocageCache`/`pagePersonnelle` (`paginateMyThreads`), `getThread`, `totalUnread`, `findThreadWithHandle`, `startThreadWithHandle` ; `projeterFil` réécrit (sans poste ni « Poste vacant », interlocuteur par le contrat `counterpartLabel`, jamais d'état civil ni d'e-mail) ; exclus : `getPosteThread`, `listMyPosteThreads`, `projeterMesFils`/`listMyThreads` (la page par activité les remplace), `callByHandle` (→ module des appels) ; `totalUnread` lit le compteur, que le BLOCAGE met à jour à l'écriture (D38 : plus de correction à la lecture) ; refus à code ; débit à l'ouverture d'un fil.
+// Dupliqué de socle/convex/modules/reseauPersonnel/messagerie.ts @ ad2e7fdc2 — adaptations : la boîte PERSONNELLE d'un réseau seulement — gardés `assertPeutOuvrirFilPersonnel` (connexion DANS le réseau, ou fil existant), `lastMessageKindOf`, `estDansLaBoitePersonnelle`, `lireCote`/`blocageCache`/`pagePersonnelle` (`paginateMyThreads`), `getThread`, `totalUnread`, `findThreadWithHandle`, `startThreadWithHandle` ; `projeterFil` réécrit (sans poste ni « Poste vacant », interlocuteur par le contrat `counterpartLabel`, jamais d'état civil ni d'e-mail) ; exclus : `getPosteThread`, `listMyPosteThreads`, `projeterMesFils`/`listMyThreads` (la page par activité les remplace), `callByHandle` (→ module des appels) ; `totalUnread` lit le compteur, que le BLOCAGE met à jour à l'écriture (D38 : plus de correction à la lecture) ; refus à code ; débit à l'ouverture d'un fil. ; IC-04 : « lu par l'autre » de l'aperçu servi selon la réciprocité des accusés de lecture (`readReceiptsServed`).
 /**
  * La boîte de messagerie PERSONNELLE d'un réseau — la surface, pas le stockage.
  *
@@ -17,7 +17,7 @@ import { enforceRateLimit } from "../../lib/rateLimit"
 import { isBlockedBetween, isConnectedTo } from "../graph/graph"
 import { findPublishedPersonByHandle, miniProfileCache } from "../people/miniProfile"
 import { attachmentFileValidator } from "./attachmentStorage"
-import { counterpartOf } from "./participation"
+import { counterpartOf, readReceiptsServed } from "./participation"
 import { findPersonalThread, openOrContinuePersonalThread, otherParticipant, readPersonalUnreadTotal, unreadForThread } from "./threads"
 
 type ReadCtx = Pick<QueryCtx, "db">
@@ -66,7 +66,7 @@ export type ThreadDto = {
   lastMessageAttachmentCount: number | null
   lastMessageByMe: boolean
   lastMessageId: Id<"personalMessages"> | null
-  /** MON dernier message a-t-il été lu ? `null` quand le dernier n'est pas de moi. */
+  /** MON dernier message a-t-il été lu ? `null` quand le dernier n'est pas de moi ; `false` sans accusés actifs des deux côtés (IC-04). */
   lastMessageReadByCounterpart: boolean | null
   /** La dernière LIGNE a été retirée pour tous. */
   lastMessageDeleted: boolean
@@ -102,7 +102,8 @@ async function projectThread(ctx: QueryCtx, thread: Doc<"personalThreads">, me: 
     lastMessageAttachmentCount: thread.lastMessageAttachmentCount ?? null,
     lastMessageByMe: thread.lastMessageByPersonId === me,
     lastMessageId: last?._id ?? null,
-    lastMessageReadByCounterpart: last !== null && last.senderPersonId === me ? last.readAt !== undefined : null,
+    // IC-04 : réciproque — sans accusés actifs des deux côtés, mon dernier message reste « envoyé ».
+    lastMessageReadByCounterpart: last !== null && last.senderPersonId === me ? last.readAt !== undefined && (await readReceiptsServed(ctx, thread, me)) : null,
     lastMessageDeleted: last !== null && last.deletedAt !== undefined,
     unreadCount: unread.count,
     unreadCapped: unread.capped,

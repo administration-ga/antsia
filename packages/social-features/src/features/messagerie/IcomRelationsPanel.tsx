@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/messagerie/IcomRelationsPanel.tsx @ ad2e7fdc2 — adaptations : portée poste/personnel retirée (`useOptionalOrg`, fonction et administration de la ligne d'identité) — toujours l'espace personnel ; appel par `calls.direct.callMember({ networkId, target: { personId } })` au lieu de `reseauPersonnel.messagerie.callByHandle` (la relation porte sa personne, `otherPersonId`) ; refus sans phrase du serveur (raison à code traduite par l'écran de fin) ; groupes par `groups.threads.paginateMyGroupThreads` (une page bornée, comme la liste du socle) ; relations du graphe du réseau (`use-dual-connection-pagination`, `use-relation-search`) avec leurs badges calculés ; nom nul d'une relation rendu par le libellé neutre ; textes traduits (i18n `messagerie`, clés `icomRelationsPanel.…`) ; « iRéseau » devient « le réseau » ; couleurs par fonction (ADR-0027) : « Écrire à » marqué `data-role="message"`, aux couleurs des messages quand il est l'action mise en avant.
+// Dupliqué de socle/packages/agent-features/src/features/messagerie/IcomRelationsPanel.tsx @ ad2e7fdc2 — adaptations : portée poste/personnel retirée (`useOptionalOrg`, fonction et administration de la ligne d'identité) — toujours l'espace personnel ; appel par `calls.direct.callMember({ networkId, target: { personId } })` au lieu de `reseauPersonnel.messagerie.callByHandle` (la relation porte sa personne, `otherPersonId`) ; refus sans phrase du serveur (raison à code traduite par l'écran de fin) ; groupes par `groups.threads.paginateMyGroupThreads` (une page bornée, comme la liste du socle) ; relations du graphe du réseau (`use-dual-connection-pagination`, `use-relation-search`) avec leurs badges calculés ; nom nul d'une relation rendu par le libellé neutre ; textes traduits (i18n `messagerie`, clés `icomRelationsPanel.…`) ; « iRéseau » devient « le réseau » ; couleurs par fonction (ADR-0027) : « Écrire à » marqué `data-role="message"`, aux couleurs des messages quand il est l'action mise en avant. ; IM-01 (IC-04) : boutons d'appel d'une relation et vue « Nouvel appel » retirés quand l'application déclare `callsAvailable={false}`.
 "use client"
 
 /**
@@ -18,7 +18,7 @@
 import { api } from "@antsia/api/engine"
 import type { Id } from "@antsia/api/engine"
 import { useAuthenticatedConvexQuery } from "@antsia/api/hooks"
-import { useNetwork } from "@antsia/api/network"
+import { useCallsAvailable, useNetwork } from "@antsia/api/network"
 import { useMutation } from "convex/react"
 import { MessageCircle, Phone, Search, Users, Video } from "lucide-react"
 import { useId, useState, type ReactNode } from "react"
@@ -127,6 +127,8 @@ export function IcomRelationsPanel({
 }: IcomRelationsPanelProps) {
   const { t } = useTranslation("messagerie")
   const { networkId } = useNetwork()
+  // IM-01 : sans appels déclarés, ni bouton d'appel sur une relation ni vue « Nouvel appel » (le journal reste).
+  const callsAvailable = useCallsAvailable()
   const asPage = variant === "page"
   const bodyOpen = asPage ? true : open
   const bodyId = useId()
@@ -163,7 +165,7 @@ export function IcomRelationsPanel({
     "relations",
   )
   const hasJournal = mode === "appel" && journal !== undefined
-  const showJournal = hasJournal && journalView === "journal"
+  const showJournal = hasJournal && (journalView === "journal" || !callsAvailable)
   const showGroups = mode === "contact" && contactView === "groupes"
   const groupes = useAuthenticatedConvexQuery(
     api.modules.groups.threads.paginateMyGroupThreads,
@@ -267,7 +269,7 @@ export function IcomRelationsPanel({
     mode === "appel"
       ? t("icomRelationsPanel.titleCall")
       : t("icomRelationsPanel.titleContact")
-  const appelViewControls = hasJournal ? (
+  const appelViewControls = hasJournal && callsAvailable ? (
     <>
       <button
         type="button"
@@ -527,7 +529,7 @@ export function IcomRelationsPanel({
                   {/* L'appel VIDÉO n'existait nulle part dans cette carte : la
                       seule façon d'en obtenir un était d'allumer sa caméra en
                       cours d'appel — ce que la reconnexion suivante défaisait. */}
-                  <button
+                  {callsAvailable ? <button
                     type="button"
                     className="icom-action-group-btn"
                     disabled={busy}
@@ -536,8 +538,8 @@ export function IcomRelationsPanel({
                     onClick={() => void ring(identite, "video")}
                   >
                     <Video aria-hidden="true" size={17} />
-                  </button>
-                  <button
+                  </button> : null}
+                  {callsAvailable ? <button
                     type="button"
                     className="icom-action-group-btn"
                     data-primary={mode === "appel" ? "true" : "false"}
@@ -547,7 +549,7 @@ export function IcomRelationsPanel({
                     onClick={() => void ring(identite, "audio")}
                   >
                     <Phone aria-hidden="true" size={17} />
-                  </button>
+                  </button> : null}
                 </span>
               </li>
             )

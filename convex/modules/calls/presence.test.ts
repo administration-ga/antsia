@@ -1,5 +1,5 @@
 // @vitest-environment edge-runtime
-// Dupliqué de socle/convex/modules/iappel/presence.test.ts (avec socle/convex/modules/iappel/preferences.test.ts) @ ad2e7fdc2 — adaptations : présence PAR PERSONNE dans un réseau (`personPresence`), plus d'`agentPresence` d'organisation ni de présence synthétique de planning ; « ne pas déranger » sans portée (les cas de portée poste / personnel partent avec elle) ; `forOrgContacts` et `forOrgMembers` retirés avec leur code (8 cas) ; miroir du silence vers la présence d'organisation retiré (4 cas) ; instant de lecture fourni par l'écran ; réponses rapides par défaut `null` ; tests neufs : relations d'un autre réseau, appel d'un autre réseau non compté, lacune dite, battement et départ explicite, nettoyage indexé et chaîné, débit des réglages.
+// Dupliqué de socle/convex/modules/iappel/presence.test.ts (avec socle/convex/modules/iappel/preferences.test.ts) @ ad2e7fdc2 — adaptations : présence PAR PERSONNE dans un réseau (`personPresence`), plus d'`agentPresence` d'organisation ni de présence synthétique de planning ; « ne pas déranger » sans portée (les cas de portée poste / personnel partent avec elle) ; `forOrgContacts` et `forOrgMembers` retirés avec leur code (8 cas) ; miroir du silence vers la présence d'organisation retiré (4 cas) ; instant de lecture fourni par l'écran ; réponses rapides par défaut `null` ; tests neufs : relations d'un autre réseau, appel d'un autre réseau non compté, lacune dite, battement et départ explicite, nettoyage indexé et chaîné, débit des réglages. ; IC-04 : défauts « mes relations seulement » et accusés de lecture actifs ; les tiers qui appellent une relation hors de leurs propres relations ont élargi leur réglage (`callableByEveryone`).
 /**
  * PRÉSENCE ET RÉGLAGES — ce que mes relations voient de moi, et ce que je règle :
  *  1. la pastille n'est rendue qu'à des relations ÉTABLIES du réseau ;
@@ -12,7 +12,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { internal } from "../../_generated/api"
 import type { Id } from "../../_generated/dataModel"
 import { testConvex } from "../../test.setup"
-import { C, codeOf, connect, connectedCall, enter, type Person, presenceAt, ringingCall, ruleOf, seed, setPrefs, T0, type T, tick } from "./fixtures.setup"
+import { C, callableByEveryone, codeOf, connect, connectedCall, enter, type Person, presenceAt, ringingCall, ruleOf, seed, setPrefs, T0, type T, tick } from "./fixtures.setup"
 
 beforeEach(() => {
   vi.stubEnv("CONVEX_CLOUD_URL", "http://127.0.0.1:3210")
@@ -64,6 +64,8 @@ describe("forMyConnections — la pastille de mes relations", () => {
   it("une relation qui REÇOIT ou qui a LANCÉ un appel décroché est « en appel » ; parqué aussi", async () => {
     const { t, root, me, amie } = await world()
     const tiers = await enter(t, root, "tiers")
+    // IC-04 : `tiers` n'est la relation de personne — amie et lui prennent les appels de tout le réseau.
+    await callableByEveryone(t, amie, tiers)
     const callId = await connectedCall(root, tiers, amie)
     expect((await pastilles(root, me)).statuses[amie.personId]).toBe("in_call")
     await tiers.as.mutation(C.ringing.hold, { networkId: root, callId })
@@ -78,6 +80,7 @@ describe("forMyConnections — la pastille de mes relations", () => {
   it("un appel qui ne fait que sonner ne compte pas ; un appel TERMINÉ non plus", async () => {
     const { t, root, me, amie } = await world()
     const tiers = await enter(t, root, "tiers")
+    await callableByEveryone(t, amie)
     const callId = await ringingCall(root, tiers, amie)
     expect((await pastilles(root, me)).statuses[amie.personId]).toBe("available")
     await amie.as.mutation(C.lifecycle.join, { networkId: root, callId })
@@ -121,6 +124,7 @@ describe("forMyConnections — la pastille de mes relations", () => {
     expect((await pastilles(testClosed, me)).statuses).toEqual({})
     await connect(t, testClosed, me, amie)
     const tiers = await enter(t, root, "tiers")
+    await callableByEveryone(t, amie)
     await connectedCall(root, tiers, amie)
     expect((await pastilles(testClosed, me)).statuses[amie.personId]).toBe("available")
   })
@@ -200,7 +204,9 @@ describe("getMine — défauts rendus sans jamais écrire", () => {
       autoMeetingDnd: null,
       sharePresence: true,
       pushIncoming: true,
-      outsideRelationsCalls: "ring",
+      // IC-04 (décision du propriétaire du 9/11/2026) : mes relations seulement ; accusés de lecture actifs.
+      outsideRelationsCalls: "silent",
+      readReceipts: true,
       journalSeenAt: null,
       saved: false,
     })
@@ -249,14 +255,14 @@ describe("update — patch partiel", () => {
     expect(replies?.[1]).toHaveLength(120)
   })
 
-  it("« hors de mes relations » vaut `ring` par défaut ; `silent` s'écrit et se relit, sans toucher aux autres", async () => {
+  it("« hors de mes relations » vaut `silent` par défaut (IC-04) ; `ring` s'écrit et se relit, sans toucher aux autres", async () => {
     const { t, root, me } = await world()
     await me.as.mutation(C.preferences.update, { callWaiting: false })
-    expect((await me.as.query(C.preferences.getMine, { now: T0 })).outsideRelationsCalls).toBe("ring")
-    await me.as.mutation(C.preferences.update, { outsideRelationsCalls: "silent" })
-    expect(await me.as.query(C.preferences.getMine, { now: T0 })).toMatchObject({ outsideRelationsCalls: "silent", callWaiting: false })
+    expect((await me.as.query(C.preferences.getMine, { now: T0 })).outsideRelationsCalls).toBe("silent")
+    await me.as.mutation(C.preferences.update, { outsideRelationsCalls: "ring" })
+    expect(await me.as.query(C.preferences.getMine, { now: T0 })).toMatchObject({ outsideRelationsCalls: "ring", callWaiting: false })
     const autre = await enter(t, root, "autre")
-    expect((await autre.as.query(C.preferences.getMine, { now: T0 })).outsideRelationsCalls).toBe("ring")
+    expect((await autre.as.query(C.preferences.getMine, { now: T0 })).outsideRelationsCalls).toBe("silent")
   })
 
   it("régler est borné en débit", async () => {

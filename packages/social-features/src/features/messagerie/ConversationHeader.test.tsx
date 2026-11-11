@@ -119,3 +119,22 @@ describe("ConversationHeader — identité et pose indépendantes", () => {
 		expect(appelerVideo).toHaveBeenCalledOnce()
 	})
 })
+
+describe("IM-01 — une application sans appels déclarés (callsAvailable={false})", () => {
+	it("par défaut, l'en-tête d'un tête-à-tête propose l'appel audio et l'appel vidéo", () => {
+		renderWithEngine(<ConversationHeader variant="page" kind="chat" title={TITRE} counterpartHandle="awa" onBack={vi.fn()} onCallAudio={vi.fn()} onCallVideo={vi.fn()} />)
+		expect(screen.getByRole("button", { name: "Appel audio" })).toBeInTheDocument()
+		expect(screen.getByRole("button", { name: "Appel vidéo" })).toBeInTheDocument()
+	})
+
+	it("déclarée fermée : ni audio, ni vidéo, ni appel de groupe dans l'en-tête — le reste demeure", () => {
+		renderWithEngine(<ConversationHeader variant="page" kind="chat" title={TITRE} counterpartHandle="awa" onBack={vi.fn()} onCallAudio={vi.fn()} onCallVideo={vi.fn()} />, { callsAvailable: false })
+		expect(screen.queryByRole("group", { name: `Actions d'appel pour ${TITRE}` })).toBeNull()
+		expect(screen.queryByRole("button", { name: "Appel audio" })).toBeNull()
+		cleanup()
+		renderWithEngine(<ConversationHeader variant="page" kind="groupe" title={TITRE} groupCallLive onBack={vi.fn()} onOpenProfile={vi.fn()} onCallAudio={vi.fn()} onCallVideo={vi.fn()} />, { callsAvailable: false })
+		expect(screen.queryByRole("button", { name: "Rejoindre l'appel en cours" })).toBeNull()
+		expect(screen.queryByRole("button", { name: "Rejoindre en vidéo" })).toBeNull()
+		expect(screen.getByRole("button", { name: "Informations du groupe Test Groupe" })).toBeInTheDocument()
+	})
+})

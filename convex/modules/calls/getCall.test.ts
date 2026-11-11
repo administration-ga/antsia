@@ -12,7 +12,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { api } from "../../_generated/api"
 import { testConvex } from "../../test.setup"
-import { C, connect, connectedCall, enter, groupThread, joinAlso, ringingCall, seed, T0, tick } from "./fixtures.setup"
+import { C, connect, connectedCall, enterCallable, groupThread, joinAlso, ringingCall, seed, T0, tick } from "./fixtures.setup"
 
 beforeEach(() => {
   vi.stubEnv("CONVEX_CLOUD_URL", "http://127.0.0.1:3210")
@@ -28,8 +28,8 @@ afterEach(() => {
 async function duo() {
   const t = testConvex()
   const { root, testClosed } = await seed(t)
-  const alice = await enter(t, root, "alice")
-  const bob = await enter(t, root, "bob")
+  const alice = await enterCallable(t, root, "alice")
+  const bob = await enterCallable(t, root, "bob")
   await connect(t, root, alice, bob)
   return { t, root, testClosed, alice, bob }
 }
@@ -103,7 +103,7 @@ describe("getCall — l'état d'un tête-à-tête", () => {
 describe("getCall — refus indistinct, sans lever", () => {
   it("rend `null` à qui n'a pas de ligne sur l'appel", async () => {
     const { t, root, alice, bob } = await duo()
-    const carol = await enter(t, root, "carol")
+    const carol = await enterCallable(t, root, "carol")
     const callId = await ringingCall(root, alice, bob)
     expect(await carol.as.query(C.lifecycle.getCall, { networkId: root, callId })).toBeNull()
   })
@@ -127,9 +127,9 @@ describe("getCall — appel porté par un fil de groupe", () => {
   it("porte le titre du fil et l'effectif, et se ferme à qui quitte le fil", async () => {
     const t = testConvex()
     const { root } = await seed(t)
-    const alice = await enter(t, root, "alice")
-    const bob = await enter(t, root, "bob")
-    const carol = await enter(t, root, "carol")
+    const alice = await enterCallable(t, root, "alice")
+    const bob = await enterCallable(t, root, "bob")
+    const carol = await enterCallable(t, root, "carol")
     const threadId = await groupThread(t, root, alice, [bob, carol])
     const { callId } = await alice.as.mutation(C.groupCalls.startFromThread, { networkId: root, threadId })
 

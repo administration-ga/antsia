@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/modules/iappel/evaluate.ts @ ad2e7fdc2 — adaptations : l. 72-223 adaptées (« hors ligne » prouvé sur la présence du RÉSEAU de l'appel — une ligne existe et n'est ni en ligne ni fraîche ; appels tenus lus sur les lignes VIVANTES de participation du réseau, groupe compris ; silence de réunion sur l'agenda personnel du réseau, l'agenda de poste `iagenda_*` exclu) ; `evaluateCallAdmission` sans organisation, poste, horaires, autorité ni priorité, réglage « hors de mes relations » relu ICI (le lien n'est lu que si le réglage est actif) ; `voicemailEnabledFor` tel quel ; `insertRefusedCall` sans champs de routage, avec ses lignes de participation déjà closes ; `notifyAutoDeclined` par la porte unique de la cloche (genre `call_missed`, sujet l'appel, aucun titre ni corps stocké) ; routage du secrétariat (l. 397-868) et priorité (l. 519-524, 984-1008) retirés.
+// Dupliqué de socle/convex/modules/iappel/evaluate.ts @ ad2e7fdc2 — adaptations : l. 72-223 adaptées (« hors ligne » prouvé sur la présence du RÉSEAU de l'appel — une ligne existe et n'est ni en ligne ni fraîche ; appels tenus lus sur les lignes VIVANTES de participation du réseau, groupe compris ; silence de réunion sur l'agenda personnel du réseau, l'agenda de poste `iagenda_*` exclu) ; `evaluateCallAdmission` sans organisation, poste, horaires, autorité ni priorité, réglage « hors de mes relations » relu ICI (le lien n'est lu que si le réglage est actif) ; `voicemailEnabledFor` tel quel ; `insertRefusedCall` sans champs de routage, avec ses lignes de participation déjà closes ; `notifyAutoDeclined` par la porte unique de la cloche (genre `call_missed`, sujet l'appel, aucun titre ni corps stocké) ; routage du secrétariat (l. 397-868) et priorité (l. 519-524, 984-1008) retirés. ; IC-04 : réglage « hors de mes relations » EFFECTIF (`outsideRelationsCallsOf` : `silent` pour qui ne l'a jamais réglé, décision du propriétaire du 9/11/2026), donc lien relu pour tout appel personnel ; l'accord d'appel donné dans un fil commercial (P10, `viaCommercialConsent`) le lève comme celui d'une conversation contextuelle (D5 (a)).
 /**
  * Appels — le PONT entre la décision d'admission et les mutations d'appel.
  *
@@ -17,6 +17,7 @@ import { pageEventAccess } from "../events/pageEventAccess"
 import { hasLiveNativeCallChannel } from "../notifications/nativeChannels"
 import { notifyPerson } from "../notifications/notify"
 import { type AdmissionDecision, decideCallAdmission } from "./admission"
+import { outsideRelationsCallsOf } from "./preferences"
 
 type ReadCtx = Pick<QueryCtx, "db"> & Partial<Pick<QueryCtx, "runQuery">>
 
@@ -121,16 +122,28 @@ export interface CallAdmissionContext {
  * fil — cet accord vaut admission pour ce seul fil, au-dessus du réglage « hors
  * de mes relations : silencieux ». « Ne pas déranger », le silence de réunion,
  * l'occupation et l'absence connue restent appliqués.
+ *
+ * `viaCommercialConsent` (IC-04) : l'appel part d'un fil commercial P10 dont la
+ * paire exige les accords d'appel des DEUX côtés, donnés dans ce fil
+ * (`commercialCallPairAllowed`). Même effet que l'accord contextuel : sans lui,
+ * le défaut « mes relations seulement » fermerait tout appel entre un client et
+ * une boutique, qui ne sont presque jamais reliés.
+ *
+ * IC-04 : le réglage lu est le réglage EFFECTIF — `silent` pour qui ne l'a jamais
+ * posé (décision du propriétaire du 9/11/2026). Un appel personnel d'une personne
+ * non reliée ne sonne donc plus par défaut : il est inscrit au journal des deux
+ * côtés (`insertRefusedCall`), sans avis à l'appelé (`notifyAutoDeclined`).
  */
 export async function evaluateCallAdmission(
   ctx: ReadCtx,
-  args: { networkId: Id<"networks">; calleePersonId: Id<"persons">; callerPersonId: Id<"persons">; now: number; viaGroupThread?: boolean; viaContextualConsent?: boolean },
+  args: { networkId: Id<"networks">; calleePersonId: Id<"persons">; callerPersonId: Id<"persons">; now: number; viaGroupThread?: boolean; viaContextualConsent?: boolean; viaCommercialConsent?: boolean },
 ): Promise<CallAdmissionContext> {
   const prefs = await ctx.db
     .query("callPreferences")
     .withIndex("by_person", (q) => q.eq("personId", args.calleePersonId))
     .unique()
-  const silent = prefs?.outsideRelationsCalls === "silent" && args.viaGroupThread !== true && args.viaContextualConsent !== true
+  const consentedInThread = args.viaGroupThread === true || args.viaContextualConsent === true || args.viaCommercialConsent === true
+  const silent = outsideRelationsCallsOf(prefs) === "silent" && !consentedInThread
   const callerIsRelation = silent ? await isConnectedTo(ctx, args.networkId, args.calleePersonId, args.callerPersonId) : null
   const inMeeting = prefs?.autoMeetingDnd?.enabled === true ? await isInAcceptedEvent(ctx, args.networkId, args.calleePersonId, args.now) : false
   const calleeActiveCallCount = await countLiveCalls(ctx, args.networkId, args.calleePersonId)

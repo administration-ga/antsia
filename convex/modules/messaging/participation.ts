@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/functions/chats.ts (l. 118-320 : `validateParticipation`, `requireSameChatReply`, `isDeletedForUser`, `projectChatReplyTo`, `enrichChatMessagePage`) @ ad2e7fdc2 — adaptations : participant ET réseau (le fil appartient au réseau de la fonction appelée) ; un BLOCAGE entre les deux participants ferme le fil (refus indistinct, D13) ; postes et fils standard retirés ; DTO ALLOWLISTÉ (plus de `...message` : ni identifiant de stockage, ni clé d'idempotence, ni liste de masquage), expéditeur nommé par le contrat `counterpartLabel` (profil publié, sinon nom choisi — plus après une demande d'effacement —, jamais d'e-mail — D21) ; pièces par la garde des fichiers (URL ou retenue nommée) ; réponse citée et provenance relues.
+// Dupliqué de socle/convex/functions/chats.ts (l. 118-320 : `validateParticipation`, `requireSameChatReply`, `isDeletedForUser`, `projectChatReplyTo`, `enrichChatMessagePage`) @ ad2e7fdc2 — adaptations : participant ET réseau (le fil appartient au réseau de la fonction appelée) ; un BLOCAGE entre les deux participants ferme le fil (refus indistinct, D13) ; postes et fils standard retirés ; DTO ALLOWLISTÉ (plus de `...message` : ni identifiant de stockage, ni clé d'idempotence, ni liste de masquage), expéditeur nommé par le contrat `counterpartLabel` (profil publié, sinon nom choisi — plus après une demande d'effacement —, jamais d'e-mail — D21) ; pièces par la garde des fichiers (URL ou retenue nommée) ; réponse citée et provenance relues. ; IC-04 : accusé « Lu » servi à l'expéditeur seulement si les DEUX personnes du fil ont laissé leurs accusés de lecture actifs (`readReceiptsServed`, réciprocité).
 /**
  * La garde d'un fil personnel et la projection de ses messages.
  *
@@ -14,6 +14,7 @@ import { deletedAccountReply, type MessageReplyQuote } from "@antsia/social-cont
 import type { Doc, Id } from "../../_generated/dataModel"
 import type { QueryCtx } from "../../_generated/server"
 import { notFound } from "../../lib/errors"
+import { readReceiptsEnabledFor } from "../calls/preferences"
 import { resolveFileDelivery, withheldCodeOf } from "../files/storageGuard"
 import { isBlockedBetween } from "../graph/graph"
 import { canReadModeratedContent } from "../moderation/policy"
@@ -111,7 +112,7 @@ export type MessageDto = {
   forwarded: boolean
   createdAt: number
   editedAt: number | null
-  /** Lu par l'autre — l'accusé n'a de sens que pour MES messages. */
+  /** Lu par l'autre — l'accusé n'a de sens que pour MES messages, et n'est servi que si les deux personnes les ont actifs (IC-04). */
   readAt: number | null
 }
 
@@ -160,8 +161,24 @@ export async function deliverAttachments(ctx: Pick<QueryCtx, "db" | "storage">, 
   return out
 }
 
+/**
+ * IC-04 — les accusés de lecture sont RÉCIPROQUES : le « Lu » d'un fil à deux n'est servi au lecteur
+ * que si lui ET l'autre personne les ont laissés actifs. Qui les coupe n'en émet plus (l'autre ne
+ * voit plus quand il lit) et n'en voit plus (il ne sait plus quand l'autre lit). Les lectures restent
+ * enregistrées (`readAt`, pastille du lecteur) : elles cessent seulement d'être servies, et
+ * reviennent si les deux les rallument. Le réglage de l'autre ne se lit qu'à travers ce « Lu »
+ * absent, indistinct d'un message pas encore lu.
+ */
+export async function readReceiptsServed(ctx: Pick<QueryCtx, "db">, thread: Doc<"personalThreads">, readerId: Id<"persons">): Promise<boolean> {
+  const other = otherParticipant(thread, readerId)
+  if (other === null) return false
+  if (!(await readReceiptsEnabledFor(ctx, readerId))) return false
+  return await readReceiptsEnabledFor(ctx, other)
+}
+
 /** Projette UNE page bornée de messages — la seule projection, partagée par toutes les lectures. */
 export async function enrichMessagePage(ctx: QueryCtx, thread: Doc<"personalThreads">, readerId: Id<"persons">, messages: readonly Doc<"personalMessages">[]): Promise<MessageDto[]> {
+  const receiptsServed = await readReceiptsServed(ctx, thread, readerId)
   const myReactionRows = await ctx.db
     .query("personalMessageReactions")
     .withIndex("by_thread_and_person", (q) => q.eq("threadId", thread._id).eq("personId", readerId))
@@ -186,7 +203,7 @@ export async function enrichMessagePage(ctx: QueryCtx, thread: Doc<"personalThre
       forwarded: await isForwardedOriginAlive(ctx, message.forwardedFrom),
       createdAt: message.createdAt,
       editedAt: message.editedAt ?? null,
-      readAt: message.senderPersonId === readerId ? (message.readAt ?? null) : null,
+      readAt: message.senderPersonId === readerId && receiptsServed ? (message.readAt ?? null) : null,
     })
   }
   return out

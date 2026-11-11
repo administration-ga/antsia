@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/iappel/call-phase.ts @ ad2e7fdc2 — adaptations : branche poste élaguée (horaires de poste `outside_hours`, secrétariat `secretariat_unavailable`, trace du renvoi `routed*` et `routedCallNotice`, sujet « Le poste … ») ; phrase composée par le serveur (`serverMessage`) retirée — le moteur rend des codes, l'écran compose ; libellés et phrases traduits par i18n (`t` ajouté en dernier paramètre de `deriveCallPhase`, `endLabel`, `describeCallEnd` ; clés `iappel:callPhase.…`) ; P05 (18/10/2026) : entrée optionnelle `establishedAt` — fournie, « En communication » et le chrono partent de l'établissement RÉEL des médias (salle connectée + autre participant), et l'appel sortant ne dit « Sonnerie… » que lorsque le serveur l'a mis à sonner (avant : « Appel en préparation… ») ; absente, comportement d'origine inchangé.
+// Dupliqué de socle/packages/agent-features/src/features/iappel/call-phase.ts @ ad2e7fdc2 — adaptations : branche poste élaguée (horaires de poste `outside_hours`, secrétariat `secretariat_unavailable`, trace du renvoi `routed*` et `routedCallNotice`, sujet « Le poste … ») ; phrase composée par le serveur (`serverMessage`) retirée — le moteur rend des codes, l'écran compose ; libellés et phrases traduits par i18n (`t` ajouté en dernier paramètre de `deriveCallPhase`, `endLabel`, `describeCallEnd` ; clés `iappel:callPhase.…`) ; P05 (18/10/2026) : entrée optionnelle `establishedAt` — fournie, « En communication » et le chrono partent de l'établissement RÉEL des médias (salle connectée + autre participant), et l'appel sortant ne dit « Sonnerie… » que lorsque le serveur l'a mis à sonner (avant : « Appel en préparation… ») ; absente, comportement d'origine inchangé. ; IC-04 : « hors de ses relations » dit à l'APPELANT comme un appel sans réponse (titre, phrase et rappel du manqué, jamais de message vocal) — aucune phrase « cette personne vous filtre » ; le réglage d'autrui ne se lit pas sur l'écran de fin.
 /**
  * call-phase — DANS QUEL ÉTAT est l'appel, et QUE DIT-ON quand il se termine.
  *
@@ -340,8 +340,9 @@ export function endLabel(kind: CallEndKind, t: TFunction): string {
 			return t("iappel:callPhase.end.inMeeting")
 		case "offline":
 			return t("iappel:callPhase.end.offline")
+		// IC-04 : l'appelant lit un appel SANS RÉPONSE — jamais le réglage de l'appelé.
 		case "outside_relations":
-			return t("iappel:callPhase.end.outsideRelations")
+			return t("iappel:callPhase.end.missed")
 		case "cancelled":
 			return t("iappel:callPhase.end.cancelled")
 		case "error":
@@ -451,14 +452,19 @@ export function describeCallEnd(
 				canWrite: true,
 			}
 		case "outside_relations":
+			// IC-04 (décision du propriétaire du 9/11/2026) : par défaut, seules
+			// les relations font sonner un téléphone ; l'appel d'une personne non
+			// reliée est inscrit au journal de l'appelé. L'APPELANT lit le même
+			// écran qu'un appel sans réponse — même titre, même phrase, même
+			// rappel — : aucune phrase « cette personne ne prend que ses
+			// relations », qui dirait à qui le demande le réglage d'autrui.
 			return {
 				title: endLabel(kind, t),
-				body: t("iappel:callPhase.copy.outsideRelations", { subject }),
-				canRetry: false,
-				// Un message vocal serait le même appel sous un autre nom :
-				// l'appelé a précisément demandé à ne pas être sonné par qui
-				// n'est pas des siens. « Écrire » reste offert — c'est la voie
-				// que le serveur lui-même indique.
+				body: t("iappel:callPhase.copy.missed", { subject }),
+				canRetry: true,
+				// Jamais de message vocal : le serveur le refuse (décision 6d du
+				// socle) — un message laissé par une personne non reliée serait
+				// le même appel sous un autre nom, et ferait sonner la cloche.
 				canLeaveVoicemail: false,
 				canWrite: true,
 			}
