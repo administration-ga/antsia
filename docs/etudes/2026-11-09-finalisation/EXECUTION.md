@@ -122,7 +122,7 @@ Plan : [`04_DIRECT_ET_CONFERENCES.md`](04_DIRECT_ET_CONFERENCES.md)
 |---|---|---|---|---|---|---|
 | DL-01 | Recette média réelle LiveKit et Egress | P0 | M | S1 | clé externe ; aucune commande vers la production sans accord écrit. | à faire |
 | DL-02 | Consentement explicite à l'enregistrement | P0 | M | S1 | décision du propriétaire (décision 4). | fusionné |
-| DL-03 | Signaler et contrôler la discussion | P0 | M | S1 | aucune. | à faire |
+| DL-03 | Signaler et contrôler la discussion | P0 | M | S1 | aucune. | fusionné |
 | DL-04 | Spectateur en 3G : audio seul et qualité basse | P0 | M | S1 | aucune pour le code ; clé LiveKit pour la preuve. | fusionné |
 | DL-05 | Rediffusion légère | P1 | M | S1 | décision du propriétaire (profil, coût de stockage). | à faire |
 | DL-06 | Programmer un direct et me le rappeler | P1 | M | S1 | aucune. | à faire |
