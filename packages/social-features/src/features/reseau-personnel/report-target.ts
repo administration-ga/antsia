@@ -27,6 +27,8 @@ export const REPORT_TARGET_KINDS = [
   "event",
   "story",
   "live",
+  // DL-03 (plan 04) : un commentaire de la discussion d'un direct.
+  "liveComment",
   "album",
   "commerceOffer",
   "commerceStorefront",

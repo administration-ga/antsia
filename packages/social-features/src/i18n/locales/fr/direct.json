@@ -342,6 +342,7 @@
     "comments": "Derniers commentaires",
     "empty": "Aucun commentaire pour le moment.",
     "remove": "Retirer le commentaire",
+    "pendingReview": "En attente de relecture : personne d’autre ne le voit pour l’instant.",
     "closed": "La discussion est fermée par un responsable.",
     "write": "Mon commentaire",
     "invalid": "Saisissez de 1 à 500 caractères.",
