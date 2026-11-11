@@ -204,6 +204,8 @@
     "blockTitle": "Bloquer {{name}} ?",
     "blockTitleUnnamed": "Bloquer cette personne ?",
     "listHint": "Vous retrouverez ce blocage dans « Personnes bloquées », sous « Modifier mon profil », pour le lever.",
+    "reportFirstHint": "Vous voulez aussi la signaler ? Faites-le d'abord : une fois bloquée, elle ne pourra plus être signalée.",
+    "reportFirst": "Signaler d'abord",
     "confirmBlock": "Bloquer",
     "blocked": "Vous avez bloqué {{name}}.",
     "blockedUnnamed": "Blocage enregistré.",

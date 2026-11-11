@@ -181,5 +181,23 @@
     "arrival": "Nouveau message de {{name}}",
     "arrivalWithText": "Nouveau message de {{name}} : {{text}}",
     "arrivalWithAttachment": "Nouveau message de {{name}}, avec une pièce jointe"
+  },
+  "personProtection": {
+    "title": "Signaler ou bloquer",
+    "titleBlockOnly": "Bloquer",
+    "trigger": "Signaler ou bloquer {{name}}",
+    "triggerBlockOnly": "Bloquer {{name}}",
+    "close": "Fermer",
+    "reportBeforeBlock": "Pour faire les deux, signalez d'abord : une fois bloquée, la personne ne peut plus être signalée.",
+    "report": {
+      "label": "Signaler {{name}}",
+      "labelUnnamed": "Signaler cette personne",
+      "hint": "La modération examine son profil ; vous recevez un accusé de réception, puis la décision. La personne ne sait pas qui l'a signalée."
+    },
+    "block": {
+      "label": "Bloquer {{name}}",
+      "labelUnnamed": "Bloquer cette personne",
+      "hint": "Votre conversation à deux se ferme des deux côtés, dans tous les réseaux, et vos messages de groupe vous sont masqués l'un à l'autre. La personne n'est pas prévenue."
+    }
   }
 }

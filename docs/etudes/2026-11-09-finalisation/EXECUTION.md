@@ -35,7 +35,7 @@ Plan : [`01_ICOM_MESSAGERIE_ET_APPELS.md`](01_ICOM_MESSAGERIE_ET_APPELS.md)
 |---|---|---|---|---|---|---|
 | IC-01 | Recette réelle iCom et appels à deux identités | P0 | M | S1 | clés du propriétaire ; accord écrit pour toute publication. | à faire |
 | IC-02 | Messagerie vocale : écouter, marquer lu, supprimer | P0 | S | S1 | aucune. | fusionné |
-| IC-03 | Signaler et bloquer depuis la conversation | P0 | M | S1 | aucune. | à faire |
+| IC-03 | Signaler et bloquer depuis la conversation | P0 | M | S1 | aucune. | fusionné |
 | IC-04 | Écran « Réglages iCom » : appels, présence, accusés | P0 | M | S1 | décision 1 du § 7. | fusionné |
 | IC-05 | Jetons de rôle et nom « iCom » | P1 | S | S1 | aucune. | à faire |
 | ICP-3 | iCom Pro : horaires, absence, accueil, réponses rapides, assignation | P1 | L | S1 | décision 6 du § 7 (message d'accueil). | à faire |
@@ -91,7 +91,7 @@ Plan : [`03_STORIES_CLIPS_DECOUVERTE_RECHERCHE.md`](03_STORIES_CLIPS_DECOUVERTE_
 
 | Lot | Titre | Priorité | Taille | Session | Porte | État |
 |---|---|---|---|---|---|---|
-| SD-01 | Signaler une Story | P0 | S | S1 | aucune. | à faire |
+| SD-01 | Signaler une Story | P0 | S | S1 | aucune. | fusionné |
 | SD-02 | Photos nettoyées et allégées avant envoi | P0 | M | S1 | aucune. | fusionné |
 | SD-03 | Vidéos lisibles partout et bornées | P0 | M | S1 | aucune. | fusionné |
 | SD-04 | Économie de données et lecture automatique | P1 | M | S1 | aucune. | à faire |

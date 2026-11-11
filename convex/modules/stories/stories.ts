@@ -1,9 +1,13 @@
-// Dupliqué de socle/convex/modules/reseauPersonnel/stories.ts @ ad2e7fdc2 — adaptations : stories PAR RÉSEAU (publiées, lues, comptées et vues dans le réseau appelé ; une story d'un autre réseau est introuvable) ; adhésion par le constructeur ; surfaces `reseau`/`icom` (ADR-0079 du socle) retirées avec leurs paramètres ; délivrance par la garde des fichiers (D05 : plus de `getUrl` brut) — une story dont le média n'est pas servable est omise pour les autres, montrée retenue à son auteur ; `viewCount` dans l'agrégat `engineCounters` (D02) ; l'instant des lectures (`tray`, `listByAuthor`, `myActive`) vient du client (D16) ; « vu par » à curseur NATIF (le socle perdait les ex æquo d'une frontière de page) ; vignette du plateau sans le champ de compatibilité `coverUrl` ; purge du blob ET de sa ligne d'analyse (D10) et des entrées de l'agrégat ; plafond `STORY_ACTIVE_PER_AUTHOR_MAX` par réseau, règle `STORY_ACTIVE_LIMIT` ; refus indistinct à code ; débit (`story.publish`, `story.view`, `story.remove`, D14).
+// Dupliqué de socle/convex/modules/reseauPersonnel/stories.ts @ ad2e7fdc2 — adaptations : stories PAR RÉSEAU (publiées, lues, comptées et vues dans le réseau appelé ; une story d'un autre réseau est introuvable) ; adhésion par le constructeur ; surfaces `reseau`/`icom` (ADR-0079 du socle) retirées avec leurs paramètres ; délivrance par la garde des fichiers (D05 : plus de `getUrl` brut) — une story dont le média n'est pas servable est omise pour les autres, montrée retenue à son auteur ; `viewCount` dans l'agrégat `engineCounters` (D02) ; l'instant des lectures (`tray`, `listByAuthor`, `myActive`) vient du client (D16) ; « vu par » à curseur NATIF (le socle perdait les ex æquo d'une frontière de page) ; vignette du plateau sans le champ de compatibilité `coverUrl` ; purge du blob ET de sa ligne d'analyse (D10) et des entrées de l'agrégat ; plafond `STORY_ACTIVE_PER_AUTHOR_MAX` par réseau, règle `STORY_ACTIVE_LIMIT` ; refus indistinct à code ; débit (`story.publish`, `story.view`, `story.remove`, D14) ; SD-01 : purge suspendue pour une story sous signalement ouvert (lisible par la modération jusqu'à la décision, effacée au passage suivant), parcours de la fenêtre par curseur pour qu'une story retenue n'arrête jamais les autres.
 /**
  * Les STORIES — publier, regarder, purger. ÉPHÉMÈRE PAR CONTRAT.
  *
  *  - **Un seul chemin de purge** : le retrait pose `removedAt` et ramène
  *    `expiresAt` à maintenant ; expiration et retrait sortent par la même porte.
+ *  - **Une story signalée attend la décision** (SD-01) : sous un dossier
+ *    ouvert, la purge la laisse (ligne, vues, blob) pour que la modération la
+ *    relise ; elle reste invisible des membres, et part au passage suivant la
+ *    décision.
  *  - **Le plateau ne lit jamais sans borne** : sources bornées, stories bornées
  *    par auteur (plafond tenu à la publication), vues bornées.
  *  - **Aucun identifiant de stockage ne sort d'un DTO** : l'URL vient de la
@@ -25,6 +29,7 @@ import { v } from "convex/values"
 
 import { internal } from "../../_generated/api"
 import { canReadModeratedContent, contentState, moderateContentWrite } from "../moderation/policy"
+import { hasOpenReport } from "../moderation/openReports"
 import type { Doc, Id } from "../../_generated/dataModel"
 import { internalMutation, type QueryCtx } from "../../_generated/server"
 import { checked, fail, failRule, notFound } from "../../lib/errors"
@@ -466,18 +471,31 @@ export const remove = networkMutation({
  * blob ET sa ligne d'analyse (D10), puis leur ligne. Une story très regardée
  * attend que ses vues soient épuisées ; un blob déjà absent ne fait pas échouer
  * le lot ; la purge se replanifie tant qu'il reste du travail.
+ *
+ * SD-01 : une story sous signalement OUVERT n'est pas touchée — la modération
+ * la relit jusqu'à sa décision (`reviewProjection`), même après ses 24 heures
+ * ou son retrait par l'auteur ; les membres ne la voient plus (fenêtre vivante).
+ * Le passage qui suit la décision l'efface comme les autres.
+ *
+ * ⚠️ La fenêtre se parcourt par CURSEUR, figée à l'instant `before` du premier
+ * passage : relue depuis le début, une tête de cinquante stories retenues
+ * rendrait toujours le même lot plein, replanifié sans fin, et plus rien ne
+ * partirait derrière elle. Une story dont les vues restent à épuiser fait
+ * reprendre un passage complet, depuis le début, en fin de parcours (`revisit`).
  */
 export const purgeExpired = internalMutation({
-  args: {},
+  args: { cursor: v.optional(v.string()), before: v.optional(v.number()), revisit: v.optional(v.literal(true)) },
   returns: v.null(),
-  handler: async (ctx) => {
-    const now = Date.now()
-    const expired = await ctx.db
+  handler: async (ctx, args) => {
+    const before = args.before ?? Date.now()
+    const window = await ctx.db
       .query("stories")
-      .withIndex("by_expiresAt", (q) => q.lt("expiresAt", now))
-      .take(PURGE_BATCH)
-    let viewsRemaining = false
-    for (const story of expired) {
+      .withIndex("by_expiresAt", (q) => q.lt("expiresAt", before))
+      .paginate({ cursor: args.cursor ?? null, numItems: PURGE_BATCH })
+    let viewsRemaining = args.revisit === true
+    for (const story of window.page) {
+      // SD-01 : retenue pour la modération jusqu'à la décision ; aucune vue, aucun blob ne part avant.
+      if (await hasOpenReport(ctx, "story", story._id)) continue
       const views = await ctx.db
         .query("storyViews")
         .withIndex("by_story_seenAt", (q) => q.eq("storyId", story._id))
@@ -493,7 +511,11 @@ export const purgeExpired = internalMutation({
       if (story.media.kind !== "daily_special") await purgeStoredFile(ctx, story.media.storageId)
       await ctx.db.delete(story._id)
     }
-    if (expired.length === PURGE_BATCH || viewsRemaining) await ctx.scheduler.runAfter(0, internal.modules.stories.stories.purgeExpired, {})
+    if (!window.isDone) {
+      await ctx.scheduler.runAfter(0, internal.modules.stories.stories.purgeExpired, { cursor: window.continueCursor, before, ...(viewsRemaining ? { revisit: true as const } : {}) })
+    } else if (viewsRemaining) {
+      await ctx.scheduler.runAfter(0, internal.modules.stories.stories.purgeExpired, {})
+    }
     return null
   },
 })
