@@ -25,6 +25,7 @@ function AuditWindow({ networkId, subject, selectSubject }: { networkId?: Id<"ne
       <p className="text-xs text-muted-foreground"><ConsoleDate at={entry.at} /></p>
       <p className="text-xs text-muted-foreground">{t("audit.subjectType", { table: entry.subject.table })}</p>
       {typeof entry.details?.reason === "string" ? <p className="whitespace-pre-wrap break-words text-sm">{entry.details.reason}</p> : null}
+      {typeof entry.details?.orderReference === "string" ? <p className="break-words text-sm">{t("audit.orderReference", { reference: entry.details.orderReference })}</p> : null}
       {!subject ? <Button variant="outline" style={controlStyle} onClick={() => selectSubject(entry.subject)}>{t("audit.subjectHistory")}</Button> : null}
     </li>)}</ol>}
     <WindowPagination window={window} result={result} />

@@ -26,6 +26,7 @@ import { PersonalCommerceControls } from "./personal-commerce-controls"
 import { ErasureCommerceNotice } from "./erasure-commerce-notice"
 import { PageModerationDecisions } from "./page-moderation-decisions"
 import { PublicAgentControls } from "./public-agent-controls"
+import { MyJudicialMeasures } from "./judicial/my-judicial-measures"
 import { PERSONAL_REPORTS_ANCHOR, routes } from "@/lib/routes"
 import { signOutAndRedirect } from "@/lib/sign-out"
 
@@ -184,6 +185,7 @@ export function PersonalControls() {
       <PreferencesControls /><PublicAgentControls key={`${person._id}:agent`} /><AnalyticsControls /><PersonalCommerceControls key={`${person._id}:commerce`} personId={person._id} /><DataRights /><Decisions /><Reports />
       {root && active ? <PageModerationDecisions key={`${person._id}:pages`} networkId={root._id} personId={person._id} /> : null}
       {root && memberships?.some((membership) => membership.networkId === root._id) ? <NotificationControls networkId={root._id} canActivate={Boolean(active)} /> : null}
+      <MyJudicialMeasures />
     </main>
   </div>
 }

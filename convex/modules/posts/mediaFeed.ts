@@ -11,6 +11,7 @@ import { findPublishedPersonByHandle } from "../people/miniProfile"
 import { exactFeedHidden, exactFeedMuted, liveFeedReason } from "./feedPolicy"
 import { hasNativePostAuthor } from "./nativeAuthor"
 import { enrichment, feedItemValidator, readerOf, toFeedItem, type FeedItem } from "./posts"
+import { judicialDelistReader } from "../moderation/judicialHolds"
 
 /**
  * Le curseur natif avance sur une fenêtre brute de 30 lignes au plus : une
@@ -45,9 +46,12 @@ export const paginate = networkQuery({
         : ctx.db.query("posts").withIndex("by_network_status_publishedAt", q => q.eq("networkId", ctx.networkId).eq("status", "published"))
     const result = await rows.order("desc").paginate(options)
     const enrich = enrichment(ctx, await readerMarks(ctx, ctx.networkId, reader.personId))
+    // SU01h : une publication déréférencée sur ordre du juge sort de la découverte des médias.
+    const delisted = await judicialDelistReader(ctx)
     const page: FeedItem[] = []
     for (const post of result.page) {
       if (!(post.media ?? []).some(media => args.kind === "media" || media.kind === "video")) continue
+      if (await delisted("post", post._id)) continue
       if (author !== null && (post.pageId !== undefined || post.audience === "group")) continue
       if (query && !foldSearchQuery(post.searchText).includes(query)) continue
       const reason = await liveFeedReason(ctx, reader, post, "recents")

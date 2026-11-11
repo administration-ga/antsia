@@ -54,6 +54,7 @@ import { type IndexRange, paginationOptsValidator } from "convex/server"
 import { type Infer, v } from "convex/values"
 
 import { canReadModeratedContent, moderateContentWrite } from "../moderation/policy"
+import { judicialDelistReader } from "../moderation/judicialHolds"
 import type { Doc, Id } from "../../_generated/dataModel"
 import type { QueryCtx } from "../../_generated/server"
 import { checked, fail, notFound } from "../../lib/errors"
@@ -996,8 +997,11 @@ export const search = networkQuery({
             .withSearchIndex("search_body_v2", (q) => q.search("searchText", query).eq("networkId", ctx.networkId).eq("status", "published"))
             .take(SEARCH_SCAN)
     const visible: Doc<"posts">[] = []
+    // SU01h : une publication déréférencée sur ordre du juge sort de la recherche, sans être supprimée.
+    const delisted = await judicialDelistReader(ctx)
     for (const post of candidates) {
       if (post.audience === "group" && post.authorPersonId !== reader.personId) continue
+      if (await delisted("post", post._id)) continue
       if (await canSeePostDoc(ctx, reader, post)) visible.push(post)
     }
     visible.sort((left, right) => right.publishedAt - left.publishedAt)

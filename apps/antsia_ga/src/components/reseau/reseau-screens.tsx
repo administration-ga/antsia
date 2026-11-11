@@ -3,6 +3,7 @@
 import { AlbumPage } from "@antsia/social-features/albums"
 import { ProfilPersonnePage } from "@antsia/social-features/reseau-personnel"
 
+import { HandleJudicialNotices } from "@/components/judicial/judicial-notices"
 import { MemberPage } from "@/components/member-chrome"
 import { PageWithCommerce } from "@/components/shops/page-commerce"
 
@@ -10,6 +11,8 @@ import { PageWithCommerce } from "@/components/shops/page-commerce"
 export function ProfileScreen({ handle }: { handle: string }) {
   return (
     <MemberPage>
+      {/* SU01h : correctif et étiquette d'origine ordonnés par le juge, au-dessus du profil. */}
+      <HandleJudicialNotices kind="person" handle={handle} />
       <ProfilPersonnePage handle={handle} />
     </MemberPage>
   )
@@ -19,6 +22,7 @@ export function ProfileScreen({ handle }: { handle: string }) {
 export function PageProfileScreen({ handle }: { handle: string }) {
   return (
     <MemberPage>
+      <HandleJudicialNotices kind="page" handle={handle} />
       <PageWithCommerce handle={handle} />
     </MemberPage>
   )
