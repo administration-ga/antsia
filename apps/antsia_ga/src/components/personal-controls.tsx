@@ -12,7 +12,7 @@ import type { FunctionReturnType } from "convex/server"
 import { Download, LogOut, ShieldCheck } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { authorDecisionOutcome, CONTENT_REPORT_REASONS } from "@antsia/social-domain/moderation"
+import { authorDecisionOutcome, isKnownReportReason } from "@antsia/social-domain/moderation"
 import { useEffect, useId, useRef, useState } from "react"
 import { useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
@@ -89,7 +89,7 @@ function Reports() {
       {!loaded ? <p role="status">{t("personal.loading")}</p> : !results.length ? <p className="text-muted-foreground">{t("personal.noReports")}</p> : null}
       <div className="flex flex-col gap-4">{results.map((report) => <article key={report.reportId} className="flex flex-col gap-1 rounded-[var(--ui2-card-radius)] border border-border p-4 text-sm">
         <p className="text-base font-medium">{t(`personal.reportOutcomes.${report.outcome}`)}</p>
-        <p>{t((CONTENT_REPORT_REASONS as readonly string[]).includes(report.reason) ? `reseau:reportContentDialog.reasons.${report.reason}` : "reseau:reportContentDialog.reasons.other")} · {t(`memberNetwork:moderation.surfaces.${report.targetKind}`)}</p>
+        <p>{t(isKnownReportReason(report.reason) ? `reseau:reportContentDialog.reasons.${report.reason}` : "reseau:reportContentDialog.reasons.other")} · {t(`memberNetwork:moderation.surfaces.${report.targetKind}`)}</p>
         <p className="text-muted-foreground">{t("personal.reportedOn", { date: format(report.createdAt) })}</p>
         {report.acknowledgedAt !== null ? <p className="text-muted-foreground">{t("personal.reportAcknowledgedOn", { date: format(report.acknowledgedAt) })}</p> : null}
         {report.legalBasis !== null && report.dueAt !== null ? <p className="text-muted-foreground">{t(`memberNetwork:moderation.deadlines.basis.${report.legalBasis}`)} — {t("personal.reportDueBy", { date: format(report.dueAt) })}</p> : null}
