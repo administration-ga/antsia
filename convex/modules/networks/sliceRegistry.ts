@@ -15,17 +15,16 @@
  *   - les tests du moteur remplacent ce module (`vi.mock`) : aucun gestionnaire de test n'est
  *     jamais enregistré ici.
  *
- * Tranche `diaspora` : en attente de `rederiveMembership` (`convex/modules/diaspora/facts.ts`,
- * PR antsia#119, pas encore sur `main`). Le jour venu, l'entrée devient
- *   `diaspora: (ctx, membership, now) => rederiveMembership(ctx, membership, now),`
- * TOUJOURS par une flèche : la tranche importe `people/`, qui importe ce registre ; l'appel
- * paresseux ne dépend pas de l'ordre d'initialisation de ce cycle d'imports.
+ * Tranche `diaspora` : `rederiveMembership` (`convex/modules/diaspora/facts.ts`), TOUJOURS par une
+ * flèche : la tranche importe `people/`, qui importe ce registre ; l'appel paresseux ne dépend pas
+ * de l'ordre d'initialisation de ce cycle d'imports.
  */
 import type { MembershipStatus } from "@antsia/social-domain/membership"
 import type { NetworkSlice } from "@antsia/social-domain/network"
 
 import type { Doc } from "../../_generated/dataModel"
 import type { MutationCtx } from "../../_generated/server"
+import { rederiveMembership } from "../diaspora/facts"
 
 /**
  * Relecture, par la tranche, d'une adhésion ACTIVE (`en_attente`, `declaree`, `verifiee`) à un réseau
@@ -39,5 +38,5 @@ export type ManagedMembershipRederiver = (ctx: MutationCtx, membership: Doc<"net
 export type ManagedMembershipRegistry = { readonly [S in NetworkSlice]: ManagedMembershipRederiver | null }
 
 export const MANAGED_MEMBERSHIP_REDERIVERS: ManagedMembershipRegistry = {
-  diaspora: null,
+  diaspora: (ctx, membership, now) => rederiveMembership(ctx, membership, now),
 }

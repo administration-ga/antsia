@@ -183,6 +183,23 @@ describe("MD-01 — nommer les responsables du réseau, sans la porte de démons
     // Le nouvel administrateur est désormais le dernier : il ne se retire pas.
     expect(await codeOf(name(f, f.plain, "member", f.plain))).toBe("NETWORK_LAST_ADMIN")
   })
+
+  it("le dernier administrateur actif ne quitte pas DIASPORALE : refus avant toute écriture ; à deux, l'un part", async () => {
+    const f = await fixture()
+    const statusOf = async (who: Member) =>
+      await f.t.run(async (ctx) => (await ctx.db.query("networkMemberships").withIndex("by_network_and_person", (q) => q.eq("networkId", f.network).eq("personId", who.personId)).unique())?.status ?? null)
+    const before = await statusOf(f.admin)
+    expect(await codeOf(f.admin.as.mutation(M.leaveDiasporale, { networkId: f.network }))).toBe("NETWORK_LAST_ADMIN")
+    expect(await statusOf(f.admin)).toBe(before)
+    expect(await roleOf(f.t, f.network, f.admin.personId)).toBe("network_admin")
+
+    expect(await name(f, f.plain, "network_admin")).toEqual({ role: "network_admin", changed: true })
+    expect(await f.admin.as.mutation(M.leaveDiasporale, { networkId: f.network })).toBeNull()
+    expect(await statusOf(f.admin)).toBe("partie")
+    expect(await roleOf(f.t, f.network, f.admin.personId)).toBe("member")
+    // Le remplaçant est désormais le dernier : il ne part pas à son tour.
+    expect(await codeOf(f.plain.as.mutation(M.leaveDiasporale, { networkId: f.network }))).toBe("NETWORK_LAST_ADMIN")
+  })
 })
 
 describe("LX-03 — lecteurs du tableau du pilote et de la file des recours", () => {

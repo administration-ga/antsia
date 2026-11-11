@@ -50,7 +50,7 @@ import { admitToNetwork, setMembershipStatus, writeNetworkFacet } from "../peopl
 import { notifyPerson } from "../notifications/notify"
 import { appendAudit, networkRoleCapacity } from "../platform/audit"
 import { findPublishedPersonByHandle } from "../people/miniProfile"
-import { networkRoleAuditEntry, setMembershipRole } from "../people/networkRoles"
+import { assertLeaveKeepsNetworkAdmin, networkRoleAuditEntry, setMembershipRole } from "../people/networkRoles"
 import { hasStrongIdentityFor, liveIdentityLinks } from "../people/persons"
 import {
   activeFoundingAdmissionOf,
@@ -350,7 +350,8 @@ export const setResponsibleRole = networkMutation({
 /**
  * Quitter DIASPORALE (l'adhésion ANTSIA reste) ; le parrainage reçu et l'admission
  * fondatrice s'éteignent avec le départ (leur journal reste), et le rôle de réseau
- * avec lui (moteur, EX-08).
+ * avec lui (moteur, EX-08). Le dernier administrateur actif ne part pas sans
+ * remplaçant (`NETWORK_LAST_ADMIN`, garde du moteur, avant toute écriture).
  */
 export const leaveDiasporale = networkMutation({
   minStatus: "en_attente",
@@ -358,6 +359,8 @@ export const leaveDiasporale = networkMutation({
   returns: v.null(),
   handler: async (ctx) => {
     assertDiasporaNetwork(ctx.network)
+    // Départ voulu : la garde du moteur passe avant toute écriture (débit compris).
+    await assertLeaveKeepsNetworkAdmin(ctx, ctx.networkId, ctx.person._id)
     await enforceRateLimit(ctx, "network.leave", ctx.person._id)
     const now = Date.now()
     await endSponsorshipOnDeparture(ctx, ctx.networkId, ctx.person._id, now)
