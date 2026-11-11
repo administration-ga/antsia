@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/messagerie/MessagerieConversationView.tsx @ ad2e7fdc2 — adaptations : iDocument retiré (dialogues « Joindre depuis » et « Enregistrer dans », `idocument.importSettings`, coffre `vaultOrgId`, `canSaveToVault`, pièces du coffre) ; espace de poste retiré (`useOptionalOrg`, `scopeCommunication`, fonction au-dessus du titre `postEyebrow`, `poste.positionTitle`, `orgName`, phrase « échanges de poste… », renvoi au secrétariat) ; fonctions du moteur, réseau courant passé à chacune (`useNetwork().networkId`) : 1:1 sur `messaging.{messages,typing,pins,reactions}.*`, groupe sur `groups.{threads,messages,typing}.*`, brouillon sur `messaging.inbox.startThreadWithHandle`, destinataire sur `people.profile.getPublicProfile`, appel 1:1 par la source (`useStartCall` : la personne ET son identifiant public, refus à code normalisé, sans renvoi de secrétariat), appel de groupe sur `calls.groupCalls.startFromThread` (personnes choisies par `personIds`), transfert par les références typées `messaging.forward.*` ; plafond d'appel CONSTANT (`GROUP_CALL_MAX_PARTICIPANTS`, aucun compte exempté : `threadCallCapacity` retirée) ; membres du groupe lus à la demande (`groups.threads.paginateGroupMembers`, la fiche ne les porte plus) ; « écrit… » interrogé avec un instant arrondi rafraîchi par pas (`listTyping`/`listGroupTyping` prennent `now`) ; DTO du moteur (personnes nommées par `counterpartLabel`, pièces retenues par la garde des fichiers, `isMine`) et MON identifiant lu au réseau (`useNetwork().personId`) ; droit d'épingle de groupe par la règle du domaine (`isGroupThreadManager`) ; libellés traduits (espace de noms `messagerie`, clés `messagerieConversationView.*`), refus par code (`messageErreurLisible(err, t)`), dates par la langue courante ; PA6 : écritures 1:1/groupe, dépôts, épingles et transferts délégués à `source.useMessageWrites()` (arguments sans réseau ; la source injecte le réseau courant), appels et lectures conservés ; correctif (16/10, constat de DIASPORALE) : un brouillon vers une personne avec qui un fil existe déjà ouvre CE fil et son historique (`useOpenExistingThreadForDraft`, `messaging.inbox.findThreadWithHandle`) au lieu d'une conversation vide. ; P18b (A04) : arrivées annoncées par une région polie persistante (`conversation-arrivals.ts`, ni ouverture, ni historique, ni mes messages ; texte seulement quand le fil suit le bas, sinon le décompte de la pastille) et fil exposé en région nommée par le titre de la conversation.
+// Dupliqué de socle/packages/agent-features/src/features/messagerie/MessagerieConversationView.tsx @ ad2e7fdc2 — adaptations : iDocument retiré (dialogues « Joindre depuis » et « Enregistrer dans », `idocument.importSettings`, coffre `vaultOrgId`, `canSaveToVault`, pièces du coffre) ; espace de poste retiré (`useOptionalOrg`, `scopeCommunication`, fonction au-dessus du titre `postEyebrow`, `poste.positionTitle`, `orgName`, phrase « échanges de poste… », renvoi au secrétariat) ; fonctions du moteur, réseau courant passé à chacune (`useNetwork().networkId`) : 1:1 sur `messaging.{messages,typing,pins,reactions}.*`, groupe sur `groups.{threads,messages,typing}.*`, brouillon sur `messaging.inbox.startThreadWithHandle`, destinataire sur `people.profile.getPublicProfile`, appel 1:1 par la source (`useStartCall` : la personne ET son identifiant public, refus à code normalisé, sans renvoi de secrétariat), appel de groupe sur `calls.groupCalls.startFromThread` (personnes choisies par `personIds`), transfert par les références typées `messaging.forward.*` ; plafond d'appel CONSTANT (`GROUP_CALL_MAX_PARTICIPANTS`, aucun compte exempté : `threadCallCapacity` retirée) ; membres du groupe lus à la demande (`groups.threads.paginateGroupMembers`, la fiche ne les porte plus) ; « écrit… » interrogé avec un instant arrondi rafraîchi par pas (`listTyping`/`listGroupTyping` prennent `now`) ; DTO du moteur (personnes nommées par `counterpartLabel`, pièces retenues par la garde des fichiers, `isMine`) et MON identifiant lu au réseau (`useNetwork().personId`) ; droit d'épingle de groupe par la règle du domaine (`isGroupThreadManager`) ; libellés traduits (espace de noms `messagerie`, clés `messagerieConversationView.*`), refus par code (`messageErreurLisible(err, t)`), dates par la langue courante ; PA6 : écritures 1:1/groupe, dépôts, épingles et transferts délégués à `source.useMessageWrites()` (arguments sans réseau ; la source injecte le réseau courant), appels et lectures conservés ; correctif (16/10, constat de DIASPORALE) : un brouillon vers une personne avec qui un fil existe déjà ouvre CE fil et son historique (`useOpenExistingThreadForDraft`, `messaging.inbox.findThreadWithHandle`) au lieu d'une conversation vide. ; P18b (A04) : arrivées annoncées par une région polie persistante (`conversation-arrivals.ts`, ni ouverture, ni historique, ni mes messages ; texte seulement quand le fil suit le bas, sinon le décompte de la pastille) et fil exposé en région nommée par le titre de la conversation ; IC-03 : « Signaler ou bloquer » la personne d'un fil à deux, dans l'en-tête (`PersonProtectionMenu` : cible `person` de la brique MC-01, blocage PF-01 confirmé, signaler d'abord ; bloquer referme le fil, la vue revient en arrière).
 "use client"
 
 import { useViewerTimeZone } from "@antsia/api/viewer-preferences"
@@ -113,6 +113,7 @@ import { ligneSystemeDeGroupe, membreDuGroupe, nomAffichable } from "./groupe-ge
 import { GroupCallInviteePicker } from "./GroupCallInviteePicker"
 import { needsInviteeSelection } from "./groupe-appel-selection"
 import { MessagerieGroupeInfos } from "./MessagerieGroupeInfos"
+import { PersonProtectionMenu } from "./PersonProtectionMenu"
 import { MessagerieStyles } from "./messagerie-styles"
 import { shouldPingTyping } from "./messagerie-typing"
 import {
@@ -1374,6 +1375,15 @@ function ConversationContent({
 				: t("messagerieConversationView.conversationFallbackTitle")))
 	const handleAffiche = thread?.counterpart.handle ?? handle ?? null
 	/**
+	 * IC-03 : la personne d'un fil à deux EXISTANT se signale (profil publié
+	 * seulement) et se bloque depuis l'en-tête. Ni un brouillon (rien n'est
+	 * parti), ni un groupe (chaque membre se règle depuis la fiche du groupe).
+	 * Le fil se ferme au blocage : la vue revient en arrière. Aucune condition
+	 * sur l'espace de la source (cliquet de `messagerie-source.test.ts`) : les
+	 * fils de cette vue sont toujours des fils PERSONNELS du moteur.
+	 */
+	const protectionDuFil = !estGroupe && kind === "chat" && thread !== undefined ? thread.counterpart : null
+	/**
 	 * ⚠️ « Pas encore reçu » et « reçu, et vide » ne sont PAS la même chose, et
 	 * les confondre fait AFFIRMER LE FAUX. `isLoading` seul ne suffit pas : une
 	 * requête dont la session n'est pas encore établie rend `data === undefined`
@@ -1628,6 +1638,18 @@ function ConversationContent({
 				callPending={appelDeLaSource.isPending || startCall.isPending}
 				open={open}
 				onToggleOpen={onToggleOpen}
+				protection={
+					open && protectionDuFil !== null ? (
+						<PersonProtectionMenu
+							personId={protectionDuFil.personId}
+							name={protectionDuFil.displayName}
+							canReport={protectionDuFil.source === "published"}
+							triggerName={nom}
+							iconSize={variant === "page" ? 20 : 17}
+							onBlocked={nav.back}
+						/>
+					) : undefined
+				}
 			/>
 
 			{open ? (

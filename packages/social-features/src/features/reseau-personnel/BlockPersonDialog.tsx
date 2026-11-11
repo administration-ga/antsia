@@ -18,6 +18,12 @@
  *  · un refus du moteur se dit par sa règle ou son code, jamais par sa trace ;
  *    la boîte reste ouverte pour réessayer ;
  *  · rien n'est annoncé à la personne bloquée (le moteur n'émet rien).
+ *
+ * IC-03 — SIGNALER D'ABORD : une personne bloquée ne se signale plus (le
+ * moteur refuse un signalement entre bloqués). La surface qui sait AUSSI la
+ * signaler passe `onReportFirst` : la boîte le dit avant le geste et propose
+ * « Signaler d'abord » — la surface ouvre alors le signalement, puis rouvre
+ * cette confirmation. Sans `onReportFirst`, rien de plus n'est dit.
  */
 import { api, type Id } from "@antsia/api/engine"
 import { useNetwork } from "@antsia/api/network"
@@ -40,9 +46,11 @@ export interface BlockPersonDialogProps {
   onClose: () => void
   /** Après le succès (toast déjà émis), avant la fermeture. */
   onDone?: () => void
+  /** IC-03 : la personne est encore signalable ici — la boîte propose de le faire AVANT de bloquer. */
+  onReportFirst?: () => void
 }
 
-export function BlockPersonDialog({ mode, targetPersonId, name, onClose, onDone }: BlockPersonDialogProps) {
+export function BlockPersonDialog({ mode, targetPersonId, name, onClose, onDone, onReportFirst }: BlockPersonDialogProps) {
   const { t } = useTranslation("reseau")
   const { networkId } = useNetwork()
   const block = useMutation(api.modules.graph.connections.blockPerson)
@@ -109,6 +117,24 @@ export function BlockPersonDialog({ mode, targetPersonId, name, onClose, onDone 
       {copy.details.map((line) => (
         <p key={line} style={{ margin: "0 0 8px" }}>{line}</p>
       ))}
+      {mode === "block" && onReportFirst !== undefined ? (
+        <div className="mt-1 grid justify-items-start gap-2">
+          <p className="m-0">{t("personBlock.reportFirstHint")}</p>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            icon="shieldAlert"
+            disabled={busy}
+            aria-haspopup="dialog"
+            onClick={() => {
+              if (!running.current) onReportFirst()
+            }}
+          >
+            {t("personBlock.reportFirst")}
+          </Button>
+        </div>
+      ) : null}
     </EspaceDialog>
   )
 }
