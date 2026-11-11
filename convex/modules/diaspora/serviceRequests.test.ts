@@ -113,6 +113,11 @@ async function rows(t: T) {
   }))
 }
 
+/** Les genres d'avis écrits pour une personne (SV-03). */
+async function noticeKinds(t: T, personId: Id<"persons">): Promise<string[]> {
+  return await t.run(async (ctx) => (await ctx.db.query("notifications").take(200)).filter((row) => row.recipientPersonId === personId).map((row) => row.kind))
+}
+
 async function socialTrace(t: T) {
   return await t.run(async (ctx) => ({
     notifications: (await ctx.db.query("notifications").take(100)).length,
@@ -536,9 +541,27 @@ describe("déplacer un rendez-vous confirmé (SV-03)", () => {
     expect(after?.timeline.map((event) => [event.status, event.version])).toEqual([["sent", null], ["proposed", 1], ["confirmed", null], ["confirmed", 2]])
     expect(JSON.stringify(after)).not.toContain(f.pro.personId)
     expect((await rows(f.t)).bookings).toHaveLength(1)
-    // Le même horaire n'est pas un déplacement ; aucun avis de cloche n'a été écrit (genre manquant au moteur).
+    // Le même horaire n'est pas un déplacement. SV-03 : deux avis, sans horaire ni nom — la proposition au demandeur, l'accord à l'équipe.
     expect(await codeOf(f.requester.as.mutation(SR.proposeServiceReschedule, move(f, { expectedProposalVersion: 2 })))).toBe("reschedule_same_slot")
-    expect(await socialTrace(f.t)).toEqual(before)
+    expect(await socialTrace(f.t)).toEqual({ ...before, notifications: before.notifications + 2 })
+    expect(await noticeKinds(f.t, f.requester.personId)).toContain("service_booking_reschedule_proposed")
+    expect(await noticeKinds(f.t, f.requester.personId)).not.toContain("service_booking_rescheduled")
+    expect(await noticeKinds(f.t, f.pro.personId)).toContain("service_booking_rescheduled")
+    expect(await noticeKinds(f.t, f.pro.personId)).not.toContain("service_booking_reschedule_proposed")
+  })
+
+  it("SV-03 : chaque proposition s'annonce une fois à l'autre partie, jamais au proposant ; l'accord, au seul proposant", async () => {
+    const f = await booked()
+    const count = async (who: Booked["requester"], kind: string) => (await noticeKinds(f.t, who.personId)).filter((row) => row === kind).length
+    await f.requester.as.mutation(SR.proposeServiceReschedule, move(f, { timeZone: "Europe/Paris" }))
+    expect([await count(f.pro, "service_booking_reschedule_proposed"), await count(f.requester, "service_booking_reschedule_proposed")]).toEqual([1, 0])
+    await f.pro.as.mutation(SR.declineServiceReschedule, { networkId: f.networkId, requestId: f.requestId })
+    // Une nouvelle proposition ne change ni l'état ni la version : son instant fait un nouvel avis.
+    vi.setSystemTime(NOW + MINUTE)
+    await f.requester.as.mutation(SR.proposeServiceReschedule, move(f, { timeZone: "Europe/Paris" }))
+    expect(await count(f.pro, "service_booking_reschedule_proposed")).toBe(2)
+    await f.pro.as.mutation(SR.acceptServiceReschedule, { networkId: f.networkId, requestId: f.requestId, expectedProposalVersion: 1, expectedStartAt: NEW_START })
+    expect([await count(f.requester, "service_booking_rescheduled"), await count(f.pro, "service_booking_rescheduled")]).toEqual([1, 0])
   })
 
   it("l'avis du demandeur reste admissible sur le rendez-vous déplacé", async () => {
