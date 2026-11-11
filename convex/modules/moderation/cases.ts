@@ -1,6 +1,6 @@
 /** PA5 : dossiers polymorphes, compétence vivante, décisions et recours sans copie de contenu. */
 import { assertDecisionReason, type AuditCapacity } from "@antsia/social-domain/audit"
-import { reportOutcome } from "@antsia/social-domain/moderation"
+import { authorDecisionOutcome, reportOutcome } from "@antsia/social-domain/moderation"
 import { validSanctionDuration } from "@antsia/social-domain/moderationPolicy"
 import { parseCommercePublicBody } from "@antsia/social-domain/commerce/projection"
 import { paginationOptsValidator } from "convex/server"
@@ -318,8 +318,12 @@ async function applyDecision(ctx: MutationCtx, row: Doc<"reports">, actorPersonI
   const legacy = await ctx.db.query("contentReports").withIndex("by_reportId", (q) => q.eq("reportId", row._id)).unique()
   if (legacy) await ctx.db.patch(legacy._id, { status: decision, decisionReason: reason, reviewedByPersonId: actorPersonId, reviewedAt: now, updatedAt: now })
   await appendAudit(ctx, { action: "moderation.report_decide", capacity, actorPersonId, networkId: row.networkId, subject: { table: "reports", id: row._id }, details: { reason, targetKind: row.targetKind, decision, sanctionCount: sanctions.length } })
-  if (row.ownerPersonId) await notifyPerson(ctx, { networkId: row.networkId, recipientPersonId: row.ownerPersonId, kind: "moderation_decision", subject: { report: row._id } })
-  else await notifyPageCase(ctx, row)
+  // MD-07 (antsia#99) : seule une mesure prise s'annonce à l'auteur, ou aux signataires de la page qui porte
+  // le contenu ; un classement ne lui laisse aucun avis. La porte des avis relit la même règle (`authorSeesCase`).
+  if (decision === "actioned") {
+    if (row.ownerPersonId) await notifyPerson(ctx, { networkId: row.networkId, recipientPersonId: row.ownerPersonId, kind: "moderation_decision", subject: { report: row._id } })
+    else await notifyPageCase(ctx, row)
+  }
   // SU01d (art. 24) : la décision est notifiée au déclarant, dans la même transaction.
   await notifyReporterOfDecision(ctx, row._id)
   return { status: decision }
@@ -409,15 +413,33 @@ export const reviewPlatformAppeal = operatorMutation({
   },
 })
 
-/** @selfScoped Décisions et sanctions de la personne appelante, y compris suspendue. Aucun déclarant ni contenu. */
+/**
+ * @selfScoped Décisions et sanctions de la personne appelante, y compris suspendue. Aucun déclarant ni contenu.
+ *
+ * MD-07 (antsia#99 ; plan 14 de DIASPORALE, décision 6 du propriétaire) : seulement les dossiers tranchés
+ * qui emportent un effet pour elle — une mesure prise, ou cette mesure annulée sur son recours
+ * (`authorDecisionOutcome`) ; jamais un dossier ouvert ou en examen, un classement sans suite ni une
+ * relecture approuvée. La base écarte d'elle-même, avant de remplir la fenêtre, ce que les champs du
+ * dossier suffisent à exclure : dossiers ouverts ou en examen, relectures approuvées (une approbation ne se
+ * conteste pas ; un refus annulé sur recours garde `removedTarget`). Un classement après signalement ne se
+ * distingue d'une mesure annulée que par son recours : il est écarté ensuite, à la lecture des recours
+ * (la fenêtre rend alors une ligne de moins que demandé, jamais une ligne de trop).
+ * Forme du retour inchangée (antsia.ga et DIASPORALE la lisent).
+ */
 export const myDecisions = personQuery({
   args: { paginationOpts: paginationOptsValidator },
   handler: async (ctx, args) => {
-    const result = await ctx.db.query("reports").withIndex("by_owner_createdAt", (q) => q.eq("ownerPersonId", ctx.person._id)).order("desc").paginate(pageOptions(args.paginationOpts))
+    const result = await ctx.db.query("reports").withIndex("by_owner_createdAt", (q) => q.eq("ownerPersonId", ctx.person._id)).order("desc")
+      .filter((q) => q.or(
+        q.eq(q.field("status"), "actioned"),
+        q.and(q.eq(q.field("status"), "dismissed"), q.or(q.neq(q.field("source"), "pre_review"), q.eq(q.field("removedTarget"), true))),
+      ))
+      .paginate(pageOptions(args.paginationOpts))
     const page = []
     for (const row of result.page) {
-      const sanctions = await ctx.db.query("sanctions").withIndex("by_report", (q) => q.eq("reportId", row._id)).take(6)
       const appeals = await ctx.db.query("appeals").withIndex("by_report_level", (q) => q.eq("reportId", row._id)).take(2)
+      if (authorDecisionOutcome(row.status, appeals.map((appeal) => appeal.status)) === null) continue
+      const sanctions = await ctx.db.query("sanctions").withIndex("by_report", (q) => q.eq("reportId", row._id)).take(6)
       page.push({ ...queueDto(row), sanctions: sanctions.map((sanction) => ({ sanctionId: sanction._id, kind: sanction.kind, status: sanction.status, until: sanction.until ?? null, reason: sanction.reason })), appeals: appeals.map((appeal) => ({ appealId: appeal._id, level: appeal.level, status: appeal.status, decisionReason: appeal.decisionReason ?? null })) })
     }
     return { ...result, page }
@@ -548,10 +570,14 @@ export const reviewContent = networkMutation({
     else await removeTarget(ctx, { target: args.target, networkId: ctx.networkId, ownerPersonId: state.ownerPersonId })
     const now = Date.now()
     const reportId = await ctx.db.insert("reports", { networkId: ctx.networkId, target: args.target, targetKind: args.target.kind, targetId: args.target.id, ...(state.ownerPersonId ? { ownerPersonId: state.ownerPersonId } : {}), source: "pre_review", reason: "pre_review", ...(team ? { teamId: team._id } : {}), level: team ? "team" : "network", status: args.approve ? "dismissed" : "actioned", removedTarget: !args.approve, decisionReason: reason, reviewedByPersonId: ctx.person._id, reviewedAt: now, createdAt: now, updatedAt: now })
-    if (state.ownerPersonId) await notifyPerson(ctx, { networkId: ctx.networkId, recipientPersonId: state.ownerPersonId, kind: "moderation_decision", subject: { report: reportId } })
-    else {
-      const created = await ctx.db.get(reportId)
-      if (created) await notifyPageCase(ctx, created)
+    // MD-07 : une relecture approuvée n'est pas une mesure (le contenu paraît, rien ne s'annonce) ; un refus
+    // s'annonce, contestable.
+    if (!args.approve) {
+      if (state.ownerPersonId) await notifyPerson(ctx, { networkId: ctx.networkId, recipientPersonId: state.ownerPersonId, kind: "moderation_decision", subject: { report: reportId } })
+      else {
+        const created = await ctx.db.get(reportId)
+        if (created) await notifyPageCase(ctx, created)
+      }
     }
     await appendAudit(ctx, { action: "moderation.content_review", capacity, actorPersonId: ctx.person._id, networkId: ctx.networkId, subject: { table: "moderationContentStates", id: state._id }, details: { reason, approve: args.approve, surface: args.target.kind } })
     return null
