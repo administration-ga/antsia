@@ -107,6 +107,26 @@ export function reportOutcome(status: ContentReportStatus, removedTarget: boolea
   return removedTarget === true ? "removed" : "actioned"
 }
 
+/** L'état d'un recours (PA5) : déposé, décision confirmée, décision annulée. */
+export type AppealStatus = "open" | "upheld" | "overturned"
+
+/**
+ * MD-07 (plan 14 de DIASPORALE, décision 6 du propriétaire ; antsia#99) — ce que l'AUTEUR d'un
+ * contenu apprend d'un dossier, ou, pour un contenu sans auteur personnel, le signataire de la page
+ * qui le porte : une mesure prise (`actioned` : retrait, avertissement, sourdine, suspension,
+ * exclusion), et cette même mesure une fois annulée sur son recours (le dossier repasse alors à
+ * `dismissed` et garde le recours `overturned`). Jamais un dossier ouvert ou en examen, jamais un
+ * classement sans suite ni une relecture préalable approuvée : dans une conversation à deux ou un
+ * petit groupe, apprendre qu'un dossier s'ouvre ou se classe peut désigner la personne qui a
+ * signalé. `null` : le dossier ne se montre pas à l'auteur et ne lui est pas annoncé.
+ */
+export type AuthorDecisionOutcome = "actioned" | "overturned"
+
+export function authorDecisionOutcome(status: ContentReportStatus, appealStatuses: readonly AppealStatus[]): AuthorDecisionOutcome | null {
+  if (status === "actioned") return "actioned"
+  return status === "dismissed" && appealStatuses.includes("overturned") ? "overturned" : null
+}
+
 /** Les décisions qu'un modérateur peut prendre sur un dossier. */
 export const CONTENT_REPORT_DECISIONS = ["reviewing", "dismissed", "actioned"] as const
 export type ContentReportDecision = (typeof CONTENT_REPORT_DECISIONS)[number]
