@@ -46,6 +46,49 @@ export function otpLocale(acceptLanguage: string | null | undefined, deploymentL
   return localeFromAcceptLanguage(acceptLanguage) ?? (isOtpLocale(fallback) ? fallback : "fr")
 }
 
+/**
+ * EA-08 (issue #151) — la durée de validité d'un code chez un moteur qui ne la publie pas encore
+ * (`platform/authentication.configuration` sans `otpTtlSeconds`) : les cinq minutes que ces moteurs
+ * appliquaient. Un écran ne s'en sert qu'à défaut de la durée publiée ; la durée en vigueur reste
+ * celle du moteur (`OTP_TTL_SECONDS`), jamais recopiée ici.
+ */
+export const UNPUBLISHED_OTP_TTL_SECONDS = 300
+
+/**
+ * La durée de validité d'un code à dire à l'écran, en minutes entières : celle que publie le moteur,
+ * sinon celle des moteurs d'avant sa publication. Arrondie au-dessous — l'écran n'annonce jamais plus
+ * que ce que le moteur accorde —, une minute au moins.
+ */
+export function otpTtlMinutes(otpTtlSeconds: number | undefined): number {
+  const seconds = typeof otpTtlSeconds === "number" && Number.isFinite(otpTtlSeconds) && otpTtlSeconds > 0 ? otpTtlSeconds : UNPUBLISHED_OTP_TTL_SECONDS
+  return Math.max(1, Math.floor(seconds / 60))
+}
+
+/**
+ * EA-08 — le délai restant d'un refus de débit des routes d'authentification : le champ
+ * `retryAfterMs` du corps d'un refus `rateLimited` (le client Better Auth recopie le corps dans
+ * son erreur). `null` pour tout autre refus, ou un délai absent ou illisible.
+ */
+export function authRetryAfterMs(error: unknown): number | null {
+  if (typeof error !== "object" || error === null) return null
+  const data = error as Record<string, unknown>
+  const code = typeof data.code === "string" ? data.code : typeof data.message === "string" ? data.message : null
+  const delay = data.retryAfterMs
+  if (code !== "rateLimited" || typeof delay !== "number" || !Number.isFinite(delay) || delay <= 0) return null
+  return delay
+}
+
+export type AuthRetryDelay = { unit: "seconds" | "minutes"; count: number }
+
+/**
+ * Le délai à dire : en secondes sous la minute, en minutes entières au-delà. Toujours arrondi
+ * au-dessus — l'écran ne fait jamais réessayer avant que le seau l'admette.
+ */
+export function authRetryDelay(retryAfterMs: number): AuthRetryDelay {
+  const seconds = Math.max(1, Math.ceil(retryAfterMs / 1_000))
+  return seconds < 60 ? { unit: "seconds", count: seconds } : { unit: "minutes", count: Math.ceil(seconds / 60) }
+}
+
 /** L'objet et le texte du code, dans la langue et à la marque données : ni lien ni coordonnée. */
 export function otpMessage(locale: OtpLocale, brand: string, code: string) {
   const labels = LABELS[locale]

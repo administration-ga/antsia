@@ -1,6 +1,7 @@
 "use client"
 
 import type { AuthRequestOptions } from "@antsia/api/sign-out-everywhere"
+import { authRetryAfterMs, authRetryDelay, otpTtlMinutes } from "@antsia/social-contracts/authentication"
 import { Button, Card, Field, TextInput } from "@antsia/ui"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { KeyRound, LoaderCircle, Mail, ShieldCheck, Smartphone } from "lucide-react"
@@ -9,7 +10,11 @@ import { useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 import { z } from "zod"
 
-export type IdentityConfiguration = { idn: boolean; emailOtp: boolean; smsOtp: boolean; localCodes: boolean }
+export type IdentityConfiguration = {
+  idn: boolean; emailOtp: boolean; smsOtp: boolean; localCodes: boolean
+  /** EA-08 : la durée de validité d'un code publiée par le moteur, en secondes ; absente chez un moteur plus ancien. */
+  otpTtlSeconds?: number
+}
 export type IdentityAuthClient = {
   signIn: {
     oauth2: (args: { providerId: string; callbackURL: string; errorCallbackURL?: string } & AuthRequestOptions) => Promise<unknown>
@@ -63,6 +68,20 @@ export function identityErrorKey(error: unknown): string {
   return "errors.generic"
 }
 
+export type IdentityErrorMessage = { key: string; count?: number }
+
+/**
+ * Le refus à dire : la clé d'`identityErrorKey` ; pour un refus de débit qui porte son délai
+ * restant (`retryAfterMs`, EA-08), la phrase qui le dit, en secondes ou en minutes.
+ */
+export function identityErrorMessage(error: unknown): IdentityErrorMessage {
+  const key = identityErrorKey(error)
+  const retryAfterMs = key === "errors.rateLimited" ? authRetryAfterMs(error) : null
+  if (retryAfterMs === null) return { key }
+  const delay = authRetryDelay(retryAfterMs)
+  return { key: delay.unit === "seconds" ? "errors.rateLimitedSeconds" : "errors.rateLimitedMinutes", count: delay.count }
+}
+
 async function authRequest(run: (options: AuthRequestOptions) => Promise<unknown>, headers?: Record<string, string>): Promise<unknown> {
   const controller = new AbortController()
   let timer: ReturnType<typeof setTimeout> | undefined
@@ -97,6 +116,10 @@ export function IdentityEntry({ authClient, callbackURL, errorCallbackURL, onAut
   const destinationForm = useForm<{ identifier: string }>({ resolver: zodResolver(z.object({ identifier: identifierSchema })), defaultValues: { identifier: "" } })
   const codeForm = useForm<{ code: string }>({ resolver: zodResolver(z.object({ code: z.string().trim().regex(/^\d{6}$/, t("errors.codeFormat")) })), defaultValues: { code: "" } })
   const remaining = Math.max(0, Math.ceil((cooldownUntil - now) / 1_000))
+  const refusal = (failure: unknown) => {
+    const message = identityErrorMessage(failure)
+    return message.count === undefined ? t(message.key) : t(message.key, { count: message.count })
+  }
 
   useEffect(() => {
     if (cooldownUntil <= Date.now()) return
@@ -110,7 +133,7 @@ export function IdentityEntry({ authClient, callbackURL, errorCallbackURL, onAut
     setPending(kind)
     setError(null)
     setNotice(null)
-    try { await run() } catch (failure) { setError(t(identityErrorKey(failure))) } finally { pendingRef.current = false; setPending(null) }
+    try { await run() } catch (failure) { setError(refusal(failure)) } finally { pendingRef.current = false; setPending(null) }
   }
 
   async function send(target: Destination) {
@@ -120,7 +143,7 @@ export function IdentityEntry({ authClient, callbackURL, errorCallbackURL, onAut
     // La langue affichée accompagne la demande : le moteur compose le code dans cette langue.
     const language = i18n.resolvedLanguage ?? i18n.language
     const result = await authRequest((options) => target.method === "email" ? authClient.emailOtp.sendVerificationOtp({ email: target.identifier, type: "sign-in", ...options }) : authClient.phoneNumber.sendOtp({ phoneNumber: target.identifier, ...options }), language ? { "Accept-Language": language } : undefined)
-    if (responseError(result)) { setError(t(identityErrorKey(responseError(result)))); return false }
+    if (responseError(result)) { setError(refusal(responseError(result))); return false }
     const data = responseData(result)
     const sent = typeof data === "object" && data !== null && (target.method === "email" ? "success" in data && data.success === true : "message" in data && typeof data.message === "string" && data.message.length > 0)
     if (!sent) { setError(t("errors.generic")); return false }
@@ -143,7 +166,7 @@ export function IdentityEntry({ authClient, callbackURL, errorCallbackURL, onAut
     if (!destination) return
     await perform("verify", async () => {
       const result = await authRequest((options) => destination.method === "email" ? authClient.signIn.emailOtp({ email: destination.identifier, otp: code, ...options }) : authClient.phoneNumber.verify({ phoneNumber: destination.identifier, code, disableSession: false, ...options }))
-      if (responseError(result)) { setError(t(identityErrorKey(responseError(result)))); return }
+      if (responseError(result)) { setError(refusal(responseError(result))); return }
       const data = responseData(result)
       if (typeof data !== "object" || data === null || !("token" in data) || typeof data.token !== "string" || data.token.length === 0) { setError(t("errors.generic")); return }
       onAuthenticated()
@@ -175,7 +198,7 @@ export function IdentityEntry({ authClient, callbackURL, errorCallbackURL, onAut
               if (!configuration?.idn) return
               const result = await authRequest((options) => authClient.signIn.oauth2({ providerId: "idn", callbackURL, ...(errorCallbackURL ? { errorCallbackURL } : {}), ...options }))
               const data = responseData(result)
-              if (responseError(result)) setError(t(identityErrorKey(responseError(result))))
+              if (responseError(result)) setError(refusal(responseError(result)))
               else if (typeof data !== "object" || data === null || !("url" in data) || typeof data.url !== "string" || !("redirect" in data) || data.redirect !== true) setError(t("errors.generic"))
             })}>
               {pending === "idn" ? <LoaderCircle aria-hidden="true" className="size-4 shrink-0 animate-spin" /> : <ShieldCheck aria-hidden="true" className="size-4 shrink-0" />}
@@ -188,7 +211,7 @@ export function IdentityEntry({ authClient, callbackURL, errorCallbackURL, onAut
       <Panel>
         {destination ? (
           <form onSubmit={onCode} noValidate className="flex flex-col gap-4">
-            <Field htmlFor={codeId} label={t("codeLabel")} hint={t("codeHint")} error={codeForm.formState.errors.code?.message}>
+            <Field htmlFor={codeId} label={t("codeLabel")} hint={t("codeHint", { count: otpTtlMinutes(configuration?.otpTtlSeconds) })} error={codeForm.formState.errors.code?.message}>
               <TextInput id={codeId} inputMode="numeric" autoComplete="one-time-code" maxLength={6} autoFocus disabled={busy} className="font-mono text-lg tracking-widest" {...codeForm.register("code")} />
             </Field>
             {configuration?.localCodes && renderLocalCode ? renderLocalCode(destination.identifier) : null}

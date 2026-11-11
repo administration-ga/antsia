@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/http.ts (l. 120-180, 235-238, 243-385 et 1274-1444) @ ad2e7fdc2 — adaptations : routes d'authentification et webhook Egress LiveKit seulement (les autres routes du socle sont administratives) ; liste blanche CORS = origines de confiance du moteur ; contournement `mode` partagé avec `betterAuth/auth.ts` ; journalisation d'une erreur 500 sans écriture en base ; webhook Egress (`POST /webhooks/livekit-egress`) : PROPRIÉTÉ LIMITÉE AU DIRECT (`lib/livekitEgressWebhook`, seul propriétaire d'un egress dans le moteur), jeton vérifié par l'action Node du direct (`modules/live/egressActions.verifyEgressWebhook`), état de capture vers `modules/live/replay.markEgressState`, rapatriement planifié vers `modules/live/egressActions.ingestEgressFile` (ni début de capture ni taille : fusion iRéunion exclue), statut lu dans le module pur du domaine, comparaison à temps constant tirée de `lib/livekitEgressWebhook`.
+// Dupliqué de socle/convex/http.ts (l. 120-180, 235-238, 243-385 et 1274-1444) @ ad2e7fdc2 — adaptations : routes d'authentification et webhook Egress LiveKit seulement (les autres routes du socle sont administratives) ; liste blanche CORS = origines de confiance du moteur, en-têtes exposés `Set-Better-Auth-Cookie` et `Retry-After` (EA-08, issue #151) ; contournement `mode` partagé avec `betterAuth/auth.ts` ; journalisation d'une erreur 500 sans écriture en base ; webhook Egress (`POST /webhooks/livekit-egress`) : PROPRIÉTÉ LIMITÉE AU DIRECT (`lib/livekitEgressWebhook`, seul propriétaire d'un egress dans le moteur), jeton vérifié par l'action Node du direct (`modules/live/egressActions.verifyEgressWebhook`), état de capture vers `modules/live/replay.markEgressState`, rapatriement planifié vers `modules/live/egressActions.ingestEgressFile` (ni début de capture ni taille : fusion iRéunion exclue), statut lu dans le module pur du domaine, comparaison à temps constant tirée de `lib/livekitEgressWebhook`.
 /**
  * Routes HTTP du moteur.
  *
@@ -42,9 +42,10 @@ function buildCorsHeaders(requestOrigin: string | null): Record<string, string> 
   return {
     "Access-Control-Allow-Origin": origin,
     "Access-Control-Allow-Credentials": "true",
-    // Le greffon crossDomain transporte la session dans cet en-tête : un client
-    // hors origine ne le lit pas sans cette exposition.
-    "Access-Control-Expose-Headers": "Set-Better-Auth-Cookie",
+    // Le greffon crossDomain transporte la session dans `Set-Better-Auth-Cookie` : un
+    // client hors origine ne le lit pas sans cette exposition. `Retry-After` (EA-08,
+    // issue #151) : le délai restant d'un refus de débit, lisible de même.
+    "Access-Control-Expose-Headers": "Set-Better-Auth-Cookie, Retry-After",
   }
 }
 
