@@ -31,6 +31,9 @@ import { editorialAccessOrNull } from "../editorial/access"
 import { readableEditorialMedia, readableEditorialVersion } from "../editorial/read"
 import { headBelongsToCurrentCatalog, readableCatalogMapping } from "../shops/catalogAccess"
 import { jobHeadBelongsToCurrent, readableJobMapping } from "../shops/jobAccess"
+import { projectCatalogHead } from "../shops/catalogRead"
+import { projectJobHead } from "../shops/jobRead"
+import { readableStorefrontTerms } from "../shops/storefrontTerms"
 import { readableServiceReviewOrNull } from "../diaspora/serviceReviews"
 import { removeDiasporaTarget, resolveDiasporaTarget, restoreDiasporaTarget } from "../diaspora/moderationTargets"
 import { isPublishedPerson } from "../people/miniProfile"
@@ -159,11 +162,18 @@ export async function resolveVisibleTarget(ctx: MutationCtx, network: Doc<"netwo
       // La réponse appartient à la page ; un signataire n'en devient pas propriétaire.
       return base
     }
+    /*
+     * UM-03 : un contenu de boutique (conditions, offre, poste) se signale tel que le lecteur le VOIT — la
+     * projection même de sa fiche (relecture publiée, masque du déclarant, catégorie admise par CM-02, contrat de
+     * l'émetteur) —, et jamais par les siens : tout signataire vivant de la page de la boutique (le gérant comme
+     * un membre de son équipe, dont le mandat exige un rôle de page). Refus indistinct d'une cible inconnue.
+     */
     case "commerceStorefront": {
       const head = await ctx.db.get(target.id)
       if (!head || head.objectKind !== "shop" || head.sequence !== "catalog" || head.state !== "active") return notFound()
       const live = await readableCatalogMapping(ctx, network, head.shopId, personId)
       if (!live || live.parentHead._id !== head._id || !live.parent.storefrontTerms) return notFound()
+      if (!await readableStorefrontTerms(ctx, network, head.shopId, personId) || await liveSignatoryRole(ctx, live.page, personId) !== null) return notFound()
       return { ...base, networkId: head.networkId }
     }
     case "commerceOffer": {
@@ -171,6 +181,7 @@ export async function resolveVisibleTarget(ctx: MutationCtx, network: Doc<"netwo
       if (!head || head.objectKind !== "offer" || head.sequence !== "catalog" || head.state !== "active") return notFound()
       const live = await readableCatalogMapping(ctx, network, head.shopId, personId)
       if (!live || !headBelongsToCurrentCatalog(head, live)) return notFound()
+      if (!await projectCatalogHead(ctx, { root: network, readerPersonId: personId, network }, head) || await liveSignatoryRole(ctx, live.page, personId) !== null) return notFound()
       return { ...base, networkId: head.networkId }
     }
     case "commerceJob": {
@@ -179,6 +190,7 @@ export async function resolveVisibleTarget(ctx: MutationCtx, network: Doc<"netwo
       if (!head || head.state === "withdrawn") return notFound()
       const live = await readableJobMapping(ctx, network, head.shopId, personId)
       if (!live || !jobHeadBelongsToCurrent(head, live)) return notFound()
+      if (!await projectJobHead(ctx, { root: network, readerPersonId: personId }, head, live) || await liveSignatoryRole(ctx, live.page, personId) !== null) return notFound()
       return { ...base, networkId: head.networkId }
     }
     case "thematicGroup": {

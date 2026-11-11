@@ -16,14 +16,19 @@ export const storefrontTermsValidator = v.object({
 })
 export type StorefrontTermsDto = Infer<typeof storefrontTermsValidator>
 export async function readableStorefrontTerms(ctx: Pick<QueryCtx, "db">, root: Doc<"networks">, shopId: Id<"shops">, reader?: Id<"persons">): Promise<StorefrontTermsDto | undefined> {
+  return (await readableStorefrontTermsWithHead(ctx, root, shopId, reader))?.terms
+}
+
+/** UM-03 : les mêmes conditions, avec la tête qui les porte (la cible `commerceStorefront` de leur signalement). */
+export async function readableStorefrontTermsWithHead(ctx: Pick<QueryCtx, "db">, root: Doc<"networks">, shopId: Id<"shops">, reader?: Id<"persons">): Promise<{ terms: StorefrontTermsDto; headId: Id<"commerceCatalogHeads"> } | undefined> {
   const live = await readableCatalogMapping(ctx, root, shopId, reader)
   if (!live || (await contentState(ctx, "commerceStorefront", live.parentHead._id))?.status !== "published" || !await canReadModeratedContent(ctx, "commerceStorefront", live.parentHead._id, reader)) return undefined
   const terms = parseCommerceStorefrontTerms(live.parent.storefrontTerms)
   if (!terms) return undefined
-  return { version: 1, publishedAt: terms.publishedAt,
+  return { headId: live.parentHead._id, terms: { version: 1, publishedAt: terms.publishedAt,
     ...(terms.pickup ? { pickup: { points: terms.pickup.points.map(point => ({ ...point })) } } : {}),
     ...(terms.delivery ? { delivery: { ...terms.delivery, localities: [...terms.delivery.localities], fee: { ...terms.delivery.fee } } } : {}),
     ...(terms.fees ? { fees: terms.fees.map(fee => ({ ...fee, amount: { ...fee.amount } })) } : {}),
     ...(terms.returns ? { returns: { ...terms.returns } } : {}), ...(terms.warranty ? { warranty: { ...terms.warranty } } : {}),
-  }
+  } }
 }

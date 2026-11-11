@@ -138,6 +138,8 @@ export type ShopEditor = Infer<typeof shopEditorValidator>
 /** La VITRINE vue par un membre du réseau : identité de la page, présentation commerciale, blocs non vides. */
 export const storefrontValidator = v.object({
   storefrontTerms: v.optional(storefrontTermsValidator),
+  /** UM-03 : la cible du signalement des conditions, pour un lecteur sans rôle sur la page (facultative). */
+  reportTarget: v.optional(v.object({ kind: v.literal("commerceStorefront"), id: v.id("commerceCatalogHeads") })),
   pageId: v.id("pages"),
   handle: v.string(),
   name: v.string(),

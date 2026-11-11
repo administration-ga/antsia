@@ -15,7 +15,7 @@ import type { QueryCtx } from "../../_generated/server"
 import { fail } from "../../lib/errors"
 import { literals } from "../../lib/validators"
 import { canReadModeratedContent, contentState } from "../moderation/policy"
-import { findPageByHandle } from "../pages/access"
+import { findPageByHandle, liveSignatoryRole } from "../pages/access"
 import { isStorefrontInReadingContext, shopOfPage } from "./access"
 import { jobHeadBelongsToCurrent, jobPolicyOf, liveJobMapping, readableJobMapping, type ReadableJobMapping } from "./jobAccess"
 import { jobContractTypeValidator } from "./jobTables"
@@ -38,6 +38,16 @@ export const jobDtoValidator = v.object({
   actions: v.object({ apply: v.boolean() }),
 })
 export type JobDto = Infer<typeof jobDtoValidator>
+/**
+ * UM-03 : la fiche d'emploi MEMBRE (`shops.jobs.job`) — le DTO commun, plus la cible facultative de son
+ * signalement, présente seulement pour un lecteur sans rôle sur la page de l'employeur. Les listes et le SSR
+ * public gardent `jobDtoValidator` (lecteurs stricts).
+ */
+export const memberJobDtoValidator = v.object({
+  ...jobDtoValidator.fields,
+  reportTarget: v.optional(v.object({ kind: v.literal("commerceJob"), id: v.id("commerceJobHeads") })),
+})
+export type MemberJobDto = Infer<typeof memberJobDtoValidator>
 export const jobListValidator = v.object({ page: v.array(jobDtoValidator), isDone: v.boolean(), continueCursor: v.string(), filteredWindow: v.boolean() })
 export type JobList = Infer<typeof jobListValidator>
 
@@ -88,6 +98,15 @@ export async function jobByHandle(ctx: ReadCtx, context: JobReadContext, handle:
   const page = await findPageByHandle(ctx, handle)
   const shop = page ? await shopOfPage(ctx, page._id) : null
   return shop ? (await resolveShopJob(ctx, context, shop._id, jobRef))?.job ?? null : null
+}
+
+/** UM-03 : la fiche membre ; signalable par qui ne tient aucun rôle sur la page de l'employeur (ni gérant, ni équipe). */
+export async function memberJobByHandle(ctx: ReadCtx, context: JobReadContext & { readerPersonId: Id<"persons"> }, handle: string, jobRef: string): Promise<MemberJobDto | null> {
+  const page = await findPageByHandle(ctx, handle)
+  const shop = page ? await shopOfPage(ctx, page._id) : null
+  const resolved = shop ? await resolveShopJob(ctx, context, shop._id, jobRef) : null
+  if (!resolved) return null
+  return await liveSignatoryRole(ctx, resolved.live.page, context.readerPersonId) === null ? { ...resolved.job, reportTarget: { kind: "commerceJob", id: resolved.head._id } } : resolved.job
 }
 
 function boundedOptions(options: PaginationOptions): PaginationOptions {

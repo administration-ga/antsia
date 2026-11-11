@@ -1,4 +1,4 @@
-import { readableStorefrontTerms } from "./storefrontTerms"
+import { readableStorefrontTermsWithHead } from "./storefrontTerms"
 /**
  * Les BOUTIQUES d'un réseau, côté membre (P07, ADR-0019) — préparer, présenter,
  * demander la publication de la vitrine, la retirer, régler sa diffusion
@@ -186,9 +186,11 @@ async function storefrontOf(ctx: ReadCtx, shop: Doc<"shops">, page: Doc<"pages">
     liveSignatoryRole(ctx, page, readerPersonId),
     publicStorefrontPage(ctx, rootNetwork, shop, readerPersonId),
   ])
-  const storefrontTerms = await readableStorefrontTerms(ctx, rootNetwork, shop._id, readerPersonId)
+  const terms = await readableStorefrontTermsWithHead(ctx, rootNetwork, shop._id, readerPersonId)
   return {
-    ...(storefrontTerms ? { storefrontTerms } : {}),
+    ...(terms ? { storefrontTerms: terms.terms } : {}),
+    // UM-03 : les conditions se signalent par qui ne tient aucun rôle sur la page (ni gérant, ni équipe).
+    ...(terms && role === null ? { reportTarget: { kind: "commerceStorefront" as const, id: terms.headId } } : {}),
     pageId: page._id,
     handle: page.handle,
     name: page.name,

@@ -14,17 +14,20 @@ import { requireFederationAdmin } from "../federation/access"
 import { appendAudit, operatorCapacity } from "../platform/audit"
 import { jobPolicyOf } from "./jobAccess"
 import { commerceActivationReady } from "./commerceActivation"
-import { discoverJobs, jobByHandle, jobDtoValidator, jobListValidator, jobsDiscoverable, listShopJobs } from "./jobRead"
+import { discoverJobs, jobListValidator, jobsDiscoverable, listShopJobs, memberJobByHandle, memberJobDtoValidator } from "./jobRead"
 
 export const listForShop = networkQuery({
   args: { handle: v.string(), paginationOpts: paginationOptsValidator }, returns: jobListValidator,
   handler: async (ctx, args) => await listShopJobs(ctx, { root: ctx.rootNetwork, readerPersonId: ctx.person._id, network: ctx.network }, args.handle, args.paginationOpts),
 })
 
-/** La fiche : une offre close reste lisible avec sa clôture ; retirée ou inconnue, `null` indistinct. */
+/**
+ * La fiche : une offre close reste lisible avec sa clôture ; retirée ou inconnue, `null` indistinct. UM-03 : la
+ * cible facultative du signalement (`reportTarget`), jamais pour l'employeur ni son équipe.
+ */
 export const job = networkQuery({
-  args: { handle: v.string(), jobRef: v.string() }, returns: v.union(jobDtoValidator, v.null()),
-  handler: async (ctx, args) => await jobByHandle(ctx, { root: ctx.rootNetwork, readerPersonId: ctx.person._id, network: ctx.network }, args.handle, args.jobRef),
+  args: { handle: v.string(), jobRef: v.string() }, returns: v.union(memberJobDtoValidator, v.null()),
+  handler: async (ctx, args) => await memberJobByHandle(ctx, { root: ctx.rootNetwork, readerPersonId: ctx.person._id, network: ctx.network }, args.handle, args.jobRef),
 })
 
 export const discover = networkQuery({
