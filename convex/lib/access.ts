@@ -92,7 +92,7 @@ export async function requireMembership(
   const rootNetwork = network.kind === "root" ? network : await getRootNetwork(ctx)
   if (!rootNetwork) return notFound()
   // SU01h (art. 44) : l'accès au réseau, ou à toute la plateforme par la racine, est suspendu sur ordre.
-  if (await isNetworkAccessSuspended(ctx, network._id)) return fail("policyRefused")
+  if (await isNetworkAccessSuspended(ctx, network._id, rootNetwork._id)) return fail("policyRefused")
   const membership = await getMembership(ctx, network._id, person._id)
   const rootMembership = network.kind === "root" ? membership : await getMembership(ctx, rootNetwork._id, person._id)
   const status = effectiveAccessStatus({

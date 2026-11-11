@@ -398,6 +398,13 @@ const JUDICIAL_FEATURE_OF_BUCKET: ReadonlyMap<string, RestrictableFeature> = new
   (Object.entries(JUDICIAL_FEATURE_BUCKETS) as [RestrictableFeature, readonly RateLimitBucket[]][]).flatMap(([feature, buckets]) => buckets.map((bucket) => [bucket, feature] as const)),
 )
 
+/** La racine d'une restriction : celle du contexte s'il la porte, sinon UNE lecture bornée, pour ces seaux seulement. */
+async function judicialRootId(ctx: MutationCtx & NetworkRateContext): Promise<Id<"networks"> | undefined> {
+  if (ctx.rootNetwork) return ctx.rootNetwork._id
+  if (ctx.network?.kind === "root") return ctx.network._id
+  return (await ctx.db.query("networks").withIndex("by_kind_and_status", (q) => q.eq("kind", "root").eq("status", "active")).first())?._id
+}
+
 /** La fonction du registre fermé que ce seau porte, ou `undefined`. */
 export function judicialFeatureOfBucket(bucket: RateLimitBucket): RestrictableFeature | undefined {
   return JUDICIAL_FEATURE_OF_BUCKET.get(bucket)
@@ -405,7 +412,7 @@ export function judicialFeatureOfBucket(bucket: RateLimitBucket): RestrictableFe
 
 export async function enforceRateLimit(ctx: MutationCtx & NetworkRateContext, bucket: RateLimitBucket, key: string): Promise<void> {
   const feature = judicialFeatureOfBucket(bucket)
-  if (feature && await isFeatureRestricted(ctx, feature, ctx.networkId ?? ctx.network?._id)) fail("policyRefused")
+  if (feature && await isFeatureRestricted(ctx, feature, ctx.networkId ?? ctx.network?._id, await judicialRootId(ctx))) fail("policyRefused")
   const reinforced = Object.prototype.hasOwnProperty.call(REINFORCED_BUCKETS, bucket)
     ? REINFORCED_BUCKETS[bucket as keyof typeof REINFORCED_BUCKETS]
     : undefined

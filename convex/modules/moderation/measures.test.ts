@@ -49,12 +49,25 @@ async function fixture() {
   vi.useFakeTimers()
   vi.setSystemTime(START)
   const t = testConvex()
-  const { root } = await t.mutation(internal.seeds.foundations.run, { confirmNonProduction: SEED_CONFIRMATION })
+  const { root, testClosed } = await t.mutation(internal.seeds.foundations.run, { confirmNonProduction: SEED_CONFIRMATION })
   const first = await makeOperator(t, await enter(t, root, "operatrice-une"), "platform_admin")
   const second = await makeOperator(t, await enter(t, root, "operateur-deux"))
   const awa = await enter(t, root, "awa-fictive")
   const reader = await enter(t, root, "lecteur-fictif")
-  return { t, root, first, second, awa, reader }
+  return { t, root, testClosed, first, second, awa, reader }
+}
+
+/** Des mesures de réseau posées directement (hors débit et hors borne d'ouverture), pour éprouver la lecture par cible. */
+async function insertNetworkMeasures(t: T, networkId: Id<"networks">, createdByPersonId: Id<"persons">, count: number, extra: Partial<Doc<"judicialMeasures">>) {
+  await t.run(async (ctx) => {
+    for (let index = 0; index < count; index += 1) {
+      await ctx.db.insert("judicialMeasures", {
+        networkId, kind: "suspend_access", target: { kind: "network", id: networkId }, targetKind: "network", targetId: networkId, orderReference: `RG FICTIF 2026/${1000 + index}`,
+        status: "active", startsAt: START, endsAt: START + 12 * HOUR, executedAt: START, createdByPersonId, effects: { membershipSuspended: false, pageDeactivated: false, contentRemoved: false },
+        createdAt: START, updatedAt: START, ...extra,
+      })
+    }
+  })
 }
 
 async function code(promise: Promise<unknown>): Promise<string | null> {
@@ -154,6 +167,46 @@ describe("SU01h — article 44 : restriction de fonction et suspension d'accès,
     await f.second.as.mutation(MEASURES.liftMeasure, { measureId: opened.measureId, reason: "Mainlevée ordonnée par le juge." })
     expect(await measure(f.t, opened.measureId)).toMatchObject({ status: "lifted", liftCause: "operator", liftedByPersonId: f.second.personId })
     expect(await f.t.query(api.modules.public.projections.getPost, { networkId: f.root, postId: post })).not.toBeNull()
+  })
+})
+
+describe("SU01h — les mesures de réseau se lisent par leur cible, jamais par toute la plage d'un genre", () => {
+  it("beaucoup de suspensions d'accès et de restrictions sur un réseau A ne ferment pas la racine ; une suspension de la racine ferme encore tout", async () => {
+    const f = await fixture()
+    await f.awa.as.mutation(api.modules.people.memberships.joinNetwork, { networkId: f.testClosed, facet: { values: { countryOfResidence: "FR" }, visibilities: {} } })
+    const guard = async (networkId: Id<"networks">) => await f.awa.as.run(async (ctx) => {
+      try { await requireMembership(ctx, networkId, "en_attente"); return null } catch (error) { return engineErrorCode(error) }
+    })
+    expect(await guard(f.testClosed)).toBeNull()
+    // Plus de 200 suspensions d'accès et de 200 restrictions de publication visent le seul réseau A.
+    await insertNetworkMeasures(f.t, f.testClosed, f.first.personId, 201, {})
+    await insertNetworkMeasures(f.t, f.testClosed, f.first.personId, 201, { kind: "restrict_feature", feature: "publish" })
+    expect(await guard(f.testClosed)).toBe("policyRefused")
+    expect(await guard(f.root)).toBeNull()
+    expect(await code(f.awa.as.mutation(api.modules.posts.posts.publish, { networkId: f.root, body: "Publication à la racine" }))).toBeNull()
+    expect(await f.t.query(api.modules.public.projections.snapshot, { networkId: f.root })).toMatchObject({ networks: expect.any(Array) })
+    // Une seule suspension d'accès sur la racine ferme encore tous les réseaux, la lecture sans compte comprise.
+    await f.first.as.mutation(MEASURES.openMeasure, { kind: "suspend_access", target: { kind: "network", id: f.root }, orderReference: ORDER, startsAt: START, endsAt: START + 6 * HOUR, reason: "Troubles graves : accès suspendu partout." })
+    expect(await guard(f.root)).toBe("policyRefused")
+    expect(await guard(f.testClosed)).toBe("policyRefused")
+    expect(await code(f.t.query(api.modules.public.projections.snapshot, { networkId: f.root }))).toBe("notFound")
+  })
+
+  it("le refus de sûreté reste par cible : trop de mesures sur A ferment A, et A seulement", async () => {
+    const f = await fixture()
+    await f.awa.as.mutation(api.modules.people.memberships.joinNetwork, { networkId: f.testClosed, facet: { values: { countryOfResidence: "FR" }, visibilities: {} } })
+    // Cinquante et une restrictions d'une AUTRE fonction : au-delà de la borne, A se ferme par sûreté.
+    await insertNetworkMeasures(f.t, f.testClosed, f.first.personId, 51, { kind: "restrict_feature", feature: "live" })
+    const refused = await f.awa.as.run(async (ctx) => {
+      const codes: (string | null)[] = []
+      for (const networkId of [f.testClosed, f.root]) {
+        try { await requireMembership(ctx, networkId, "en_attente"); codes.push(null) } catch (error) { codes.push(engineErrorCode(error) ?? "inconnu") }
+      }
+      return codes
+    })
+    expect(refused).toEqual(["policyRefused", null])
+    // Une restriction d'une autre fonction sur A ne coupe pas la publication à la racine.
+    expect(await code(f.awa.as.mutation(api.modules.posts.posts.publish, { networkId: f.root, body: "Publication à la racine" }))).toBeNull()
   })
 })
 

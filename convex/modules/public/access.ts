@@ -32,7 +32,7 @@ export async function publicContext(ctx: QueryCtx, networkId: Id<"networks">): P
   const root = await ctx.db.get(networkId)
   if (!root || root.kind !== "root" || root.status !== "active") return notFound()
   // SU01h (art. 44) : un accès suspendu sur ordre du juge ferme aussi les lectures sans compte.
-  if (await isNetworkAccessSuspended(ctx, root._id)) return notFound()
+  if (await isNetworkAccessSuspended(ctx, root._id, root._id)) return notFound()
   const rawIdentity = await ctx.auth.getUserIdentity()
   if (!rawIdentity) return { root, reader: null }
   const access = await requireMembership(ctx, networkId, "en_attente")

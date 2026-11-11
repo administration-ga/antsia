@@ -68,28 +68,33 @@ async function liveOfKind(ctx: ReadCtx, kind: JudicialMeasureKind, now: number):
   return { rows: rows.filter((row) => isJudicialMeasureLive(row, now)), full: rows.length > KIND_SCAN_LIMIT }
 }
 
-/** Une mesure de réseau vise ce réseau, ou la racine (qui vaut partout, comme une suspension racine). */
-async function coversNetwork(ctx: ReadCtx, row: Measure, networkId: Id<"networks"> | undefined): Promise<boolean> {
-  if (row.target.kind !== "network") return false
-  if (networkId !== undefined && row.target.id === networkId) return true
-  const target = await ctx.db.get(row.target.id)
-  return target?.kind === "root"
-}
-
-/** Art. 44 : l'accès à ce réseau (ou à toute la plateforme, par la racine) est suspendu. */
-export async function isNetworkAccessSuspended(ctx: ReadCtx, networkId: Id<"networks">): Promise<boolean> {
-  const { rows, full } = await liveOfKind(ctx, "suspend_access", Date.now())
-  if (full) return true
-  for (const row of rows) if (await coversNetwork(ctx, row, networkId)) return true
+/**
+ * Une mesure de réseau (art. 44) vaut pour SON réseau, ou pour tous par la racine (comme une suspension
+ * racine). Chaque cible se lit par son propre index : ce réseau, puis la racine — jamais toute la plage
+ * d'un genre. Le refus de sûreté reste PAR CIBLE (plus de `JUDICIAL_HOLD_SCAN_LIMIT` mesures actives sur
+ * un même réseau ferment CE réseau) : un excès de mesures sur un réseau ne ferme jamais les autres.
+ */
+async function networkHeld(ctx: ReadCtx, networkIds: readonly (Id<"networks"> | undefined)[], test: (row: Measure) => boolean): Promise<boolean> {
+  const now = Date.now()
+  for (const networkId of new Set(networkIds)) {
+    if (networkId === undefined) continue
+    const { rows, full } = await activeOnTarget(ctx, "network", networkId)
+    if (full || rows.some((row) => test(row) && isJudicialMeasureLive(row, now))) return true
+  }
   return false
 }
 
-/** Art. 44 : une fonction du registre fermé est coupée pour ce réseau (ou pour toute la plateforme). */
-export async function isFeatureRestricted(ctx: ReadCtx, feature: RestrictableFeature, networkId: Id<"networks"> | undefined): Promise<boolean> {
-  const { rows, full } = await liveOfKind(ctx, "restrict_feature", Date.now())
-  if (full) return true
-  for (const row of rows) if (row.feature === feature && await coversNetwork(ctx, row, networkId)) return true
-  return false
+/** Art. 44 : l'accès à ce réseau est suspendu — sur lui, ou sur la racine (`rootId`, connu de l'appelant). */
+export async function isNetworkAccessSuspended(ctx: ReadCtx, networkId: Id<"networks">, rootId: Id<"networks">): Promise<boolean> {
+  return await networkHeld(ctx, [networkId, rootId], (row) => row.kind === "suspend_access")
+}
+
+/**
+ * Art. 44 : une fonction du registre fermé est coupée pour ce réseau ou pour la racine. Sans réseau
+ * (geste d'une personne hors réseau), seule la racine compte.
+ */
+export async function isFeatureRestricted(ctx: ReadCtx, feature: RestrictableFeature, networkId: Id<"networks"> | undefined, rootId: Id<"networks"> | undefined): Promise<boolean> {
+  return await networkHeld(ctx, [networkId, rootId], (row) => row.kind === "restrict_feature" && row.feature === feature)
 }
 
 /**
