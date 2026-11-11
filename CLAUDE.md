@@ -102,7 +102,9 @@ nominale et navigation complète), `rate-limited-writes` (PA5 : admission de dé
 écritures publiques vérifiée par AST), `notification-payload-content` (PA5 : aucune copie
 de contenu social ni contact dans les jobs et transports), `member-screens-full-width` (22/10 :
 aucun écran de membre ne se borne puis se centre ; colonnes responsives de
-`components/shared/screen-layout.ts`, exceptions nommées). La couverture de l'inventaire
+`components/shared/screen-layout.ts`, exceptions nommées), `launch-checklist` (EX-19 : chaque ligne de
+`docs/39` a sa preuve attendue, un état et un responsable fermés, sa référence dès qu'elle avance ; bilan
+recompté, critères du jalon 1 présents). La couverture de l'inventaire
 d'effacement dérivé du schéma est vérifiée par `convex/modules/people/erasure.test.ts`.
 
 ## Pièges déjà payés
