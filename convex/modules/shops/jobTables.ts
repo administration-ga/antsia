@@ -46,7 +46,8 @@ export const jobTables = {
   commerceJobPolicies: defineTable({
     networkId: v.id("networks"), jobsEnabled: v.boolean(), applicationsEnabled: v.boolean(),
     updatedAt: v.number(), updatedByPersonId: v.optional(v.id("persons")),
-  }).index("by_network", ["networkId"]),
+  }).index("by_network", ["networkId"])
+    .index("by_updatedByPersonId", ["updatedByPersonId"]),
 
   /**
    * Tête d'une offre reflétée : dernière révision admise, tombe ou clôture.

@@ -31,7 +31,8 @@ export const platformTables = {
     grantedAt: v.number(),
     grantedByPersonId: v.optional(v.id("persons")),
     revokedAt: v.optional(v.number()),
-  }).index("by_person", ["personId"]),
+  }).index("by_person", ["personId"])
+    .index("by_grantedByPersonId", ["grantedByPersonId"]),
 
   /**
    * Codes à usage unique de DÉVELOPPEMENT : écrits seulement quand les outils
@@ -68,5 +69,6 @@ export const platformTables = {
   })
     .index("by_at", ["at"])
     .index("by_network_at", ["networkId", "at"])
-    .index("by_subject_at", ["subjectTable", "subjectId", "at"]),
+    .index("by_subject_at", ["subjectTable", "subjectId", "at"])
+    .index("by_actorPersonId", ["actorPersonId"]),
 }

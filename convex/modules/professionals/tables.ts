@@ -25,5 +25,7 @@ export const professionalsTables = {
     .index("by_network_from_updatedAt", ["networkId", "fromPersonId", "updatedAt"])
     .index("by_network_to_updatedAt", ["networkId", "toPersonId", "updatedAt"])
     .index("by_from", ["fromPersonId"])
-    .index("by_to", ["toPersonId"]),
+    .index("by_to", ["toPersonId"])
+    .index("by_cancelledByPersonId", ["cancelledByPersonId"])
+    .index("by_personIdHigh", ["personIdHigh"]),
 }

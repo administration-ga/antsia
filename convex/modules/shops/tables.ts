@@ -86,7 +86,9 @@ export const shopsTables = {
     .index("by_storefront_publishedAt", ["storefront", "publishedAt"])
     // La file d'admission : d'un réseau, ou de tous, la plus ancienne d'abord.
     .index("by_network_storefront_requestedAt", ["networkId", "storefront", "requestedAt"])
-    .index("by_storefront_requestedAt", ["storefront", "requestedAt"]),
+    .index("by_storefront_requestedAt", ["storefront", "requestedAt"])
+    .index("by_preparedByPersonId", ["preparedByPersonId"])
+    .index("by_publicConsentByPersonId", ["publicConsentByPersonId"]),
 
   /**
    * La POLITIQUE de publication des vitrines d'un réseau, réglée par un
@@ -98,5 +100,6 @@ export const shopsTables = {
     automaticDecisionVersion: v.optional(v.string()),
     updatedAt: v.number(),
     updatedByPersonId: v.optional(v.id("persons")),
-  }).index("by_network", ["networkId"]),
+  }).index("by_network", ["networkId"])
+    .index("by_updatedByPersonId", ["updatedByPersonId"]),
 }

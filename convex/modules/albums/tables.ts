@@ -72,5 +72,6 @@ export const albumsTables = {
   })
     .index("by_album_position", ["albumId", "position"])
     .index("by_album_idempotencyKey", ["albumId", "idempotencyKey"])
-    .index("by_owner_createdAt", ["ownerPersonId", "createdAt"]),
+    .index("by_owner_createdAt", ["ownerPersonId", "createdAt"])
+    .index("by_addedByPersonId", ["addedByPersonId"]),
 }

@@ -114,5 +114,6 @@ export const thematicGroupsTables = {
     .index("by_group_and_invitee", ["groupId", "inviteePersonId"])
     .index("by_group_and_status", ["groupId", "status"])
     // MES invitations en attente dans un réseau.
-    .index("by_network_invitee_status", ["networkId", "inviteePersonId", "status"]),
+    .index("by_network_invitee_status", ["networkId", "inviteePersonId", "status"])
+    .index("by_invitedByPersonId", ["invitedByPersonId"]),
 }

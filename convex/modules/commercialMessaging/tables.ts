@@ -20,7 +20,8 @@ export const commercialMessagingTables = {
     .index("by_requester_shop_offer", ["networkId", "requesterPersonId", "shopId", "offerRef", "lastMessageAt"])
     .index("by_requester", ["requesterPersonId"])
     .index("by_shop", ["shopId"])
-    .index("by_purgeAt", ["purgeAt"]),
+    .index("by_purgeAt", ["purgeAt"])
+    .index("by_assignedRespondentPersonId", ["assignedRespondentPersonId"]),
   commercialMessages: defineTable({
     networkId: v.id("networks"), threadId: v.id("commercialThreads"), senderPersonId: v.id("persons"),
     senderKind: v.union(v.literal("requester"), v.literal("shop")), content: v.optional(v.string()),
@@ -46,7 +47,8 @@ export const commercialMessagingTables = {
     side: v.union(v.literal("requester"), v.literal("shop")), createdAt: v.number(),
   }).index("by_thread_side", ["threadId", "side"]).index("by_thread", ["threadId"]).index("by_person", ["personId"])
     .index("by_pair", ["networkId", "shopId", "requesterPersonId"])
-    .index("by_pair_side", ["networkId", "shopId", "requesterPersonId", "side"]),
+    .index("by_pair_side", ["networkId", "shopId", "requesterPersonId", "side"])
+    .index("by_requesterPersonId", ["requesterPersonId"]),
   commercialReadStates: defineTable({
     networkId: v.id("networks"), threadId: v.id("commercialThreads"), personId: v.id("persons"),
     readAt: v.optional(v.number()), callsAllowed: v.optional(v.boolean()), callConsentMandateRevision: v.optional(v.number()), updatedAt: v.number(),

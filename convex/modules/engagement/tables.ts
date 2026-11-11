@@ -36,7 +36,8 @@ export const engagementTables = {
     removedAt: v.optional(v.number()),
   })
     // Racines (parent absent) ET réponses d'une racine, vivantes, dans l'ordre : une pagination par racine (D03).
-    .index("by_post_parent_status_createdAt", ["postId", "parentCommentId", "status", "createdAt"]),
+    .index("by_post_parent_status_createdAt", ["postId", "parentCommentId", "status", "createdAt"])
+    .index("by_authorPersonId", ["authorPersonId"]),
 
   /** Fragments du compteur de réactions d'une publication (somme des fragments = total). */
   postReactionShards: defineTable({

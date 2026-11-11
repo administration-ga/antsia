@@ -60,7 +60,8 @@ export const federationTables = {
     networkId: v.id("networks"), emitterId: v.id("federationEmitters"), environment: federationEnvironmentValidator,
     deadLetterId: v.id("federationDeadLetters"), eventId: v.string(), requestedByPersonId: v.id("persons"),
     reason: v.string(), outcome: v.union(v.literal("deduplicated"), v.literal("still_failing"), v.literal("applied"), v.literal("discarded")), requestedAt: v.number(),
-  }).index("by_dead_letter_at", ["deadLetterId", "requestedAt"]).index("by_network_at", ["networkId", "requestedAt"]),
+  }).index("by_dead_letter_at", ["deadLetterId", "requestedAt"]).index("by_network_at", ["networkId", "requestedAt"])
+    .index("by_requestedByPersonId", ["requestedByPersonId"]),
 
   /** Les tombes sans objet local ferment une remise en ligne par révision ancienne. */
   mirrors: defineTable({

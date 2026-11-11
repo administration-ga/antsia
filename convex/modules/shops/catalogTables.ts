@@ -7,12 +7,14 @@ import { literals } from "../../lib/validators"
 import { catalogKindValidator } from "./catalogValidators"
 
 export const catalogTables = {
-  shopCatalogPolicies: defineTable({ networkId: v.id("networks"), enabled: v.boolean(), updatedAt: v.number(), updatedByPersonId: v.optional(v.id("persons")) }).index("by_network", ["networkId"]),
+  shopCatalogPolicies: defineTable({ networkId: v.id("networks"), enabled: v.boolean(), updatedAt: v.number(), updatedByPersonId: v.optional(v.id("persons")) }).index("by_network", ["networkId"])
+    .index("by_updatedByPersonId", ["updatedByPersonId"]),
   commerceCatalogMappings: defineTable({
     networkId: v.id("networks"), shopId: v.id("shops"), emitterId: v.id("federationEmitters"), environment: literals(COMMERCE_ENVIRONMENTS),
     shopRef: v.string(), linkRef: v.string(), enabled: v.boolean(), generation: v.number(),
     createdAt: v.number(), updatedAt: v.number(), updatedByPersonId: v.optional(v.id("persons")),
-  }).index("by_network_shop", ["networkId", "shopId"]).index("by_emitter_shop_ref", ["emitterId", "shopRef"]),
+  }).index("by_network_shop", ["networkId", "shopId"]).index("by_emitter_shop_ref", ["emitterId", "shopRef"])
+    .index("by_updatedByPersonId", ["updatedByPersonId"]),
   commerceCatalogHeads: defineTable({
     networkId: v.id("networks"), shopId: v.id("shops"), mappingId: v.id("commerceCatalogMappings"), mappingGeneration: v.number(),
     emitterId: v.id("federationEmitters"), environment: literals(COMMERCE_ENVIRONMENTS), objectRef: v.string(), shopRef: v.string(),

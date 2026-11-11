@@ -13,7 +13,8 @@ export const checkoutAuthorityFields = {
 export const checkoutTables = {
   /** Barrière anti-rejeu durable : aucune adresse, corps, prix ni consentement. Effacement seul. */
   checkoutClientIntentFences: defineTable({ networkId: v.id("networks"), personId: v.id("persons"), clientRequestId: v.string(), stoppedAt: v.number() }).index("by_client", ["personId", "networkId", "clientRequestId"]),
-  shopCheckoutPolicies: defineTable({ networkId: v.id("networks"), enabled: v.boolean(), updatedAt: v.number(), updatedByPersonId: v.optional(v.id("persons")) }).index("by_network", ["networkId"]),
+  shopCheckoutPolicies: defineTable({ networkId: v.id("networks"), enabled: v.boolean(), updatedAt: v.number(), updatedByPersonId: v.optional(v.id("persons")) }).index("by_network", ["networkId"])
+    .index("by_updatedByPersonId", ["updatedByPersonId"]),
   checkoutAttempts: defineTable({
     ...checkoutAuthorityFields, attemptId: v.string(), clientRequestId: v.string(), intentDigest: v.string(), state: checkoutStateValidator,
     requestId: v.string(), bodySha256: v.string(), rawBody: v.optional(v.string()), issuedAt: v.number(), requestExpiresAt: v.number(), privateUntil: v.number(), privatePurgedAt: v.optional(v.number()),
