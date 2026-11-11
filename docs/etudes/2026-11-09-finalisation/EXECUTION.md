@@ -249,7 +249,7 @@ Plan : [`09_UNIVERS_SERVICES_EMPLOI_RESTAURATION.md`](09_UNIVERS_SERVICES_EMPLOI
 |---|---|---|---|---|---|---|
 | UM-01 | Ouvrir les services après recette croisée P14 | P0 | M | S1 | décision du propriétaire, configuration PRO.GA, durée de conservation, publication. | à faire |
 | UM-02 | Ouvrir les candidatures après recette croisée P15 | P0 | M | S1 | avis du juriste sur la conservation, décision du propriétaire, publication. | à faire |
-| UM-03 | Signaler une offre d'emploi | P0 | S | S1 | aucune. | à faire |
+| UM-03 | Signaler une offre d'emploi | P0 | S | S1 | aucune. | fusionné |
 | UM-04 | Recherche et filtres des offres d'emploi | P1 | M | S1 | aucune. | à faire |
 | SU08 | Emploi et talents réunis | P1 | M | S1 | aucune ; les concours publics restent dans UM-18. | à faire |
 | UM-05 | Offres enregistrées et alertes d'emploi | P1 | M | S1 | décision 4 (fréquence). | à faire |
