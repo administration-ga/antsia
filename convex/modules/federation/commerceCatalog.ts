@@ -1,6 +1,7 @@
 /** P09 : application réelle du contrat PUBLIC, aucune boutique ni page créée depuis PRO.GA. */
 import { isCommercePublicContract, commerceCanonicalJson } from "@antsia/social-domain/commerce/primitives"
-import { commercePublicEffect, decideCommercePublicRevision, parseCommercePublicBody } from "@antsia/social-domain/commerce/projection"
+import { type CommercePublicEnvelope, type CommercePublicEvent, commercePublicEffect, decideCommercePublicRevision, parseCommercePublicBody } from "@antsia/social-domain/commerce/projection"
+import type { CommerceCategoryRuling } from "@antsia/social-domain/commerce-prohibited-categories"
 
 import type { Doc } from "../../_generated/dataModel"
 import type { MutationCtx } from "../../_generated/server"
@@ -10,6 +11,7 @@ import { liveCatalogMapping } from "../shops/catalogAccess"
 import { marketplaceIndexFields } from "../shops/marketplaceIndexFields"
 import { purgeCatalogHeadMedia, queueCatalogMedia, queueShopCatalogMediaWithdrawal } from "./commerceCatalogMedia"
 import { applyCommerceJob } from "./commerceJobs"
+import { catalogOfferCategoryRuling, refuseProhibitedOffer, settleCatalogOfferRuling } from "./commerceCatalogRulings"
 import { commerceJobsFromPublic } from "@antsia/social-domain/commerce-jobs"
 import type { FederationApplyResult } from "./reseauPublic"
 import { federationBodyDigest } from "./signature"
@@ -24,6 +26,17 @@ export async function applyCommerceCatalog(ctx: MutationCtx, emitter: Doc<"feder
     return rawBody === undefined ? { applied: false, reason: "invalid_payload" }
       : await applyCommerceJob(ctx, emitter, { contract: envelope.contract, objectRef: envelope.objectRef, rawBody, event: commerceJobsFromPublic(event) }, now)
   }
+  // CM-02 : une offre de catégorie interdite ne laisse jamais son corps dans une lettre morte, quel que soit le
+  // motif du refus (rattachement absent, conflit…) : tout refus de cette offre devient `prohibited_category`.
+  if (rawBody === undefined) return { applied: false, reason: "invalid_payload" }
+  const ruling = catalogOfferCategoryRuling(event)
+  const result = await applyCatalogEvent(ctx, emitter, envelope, event, rawBody, now, ruling)
+  return ruling?.rule === "prohibited" && !result.applied ? { applied: false, reason: "prohibited_category" } : result
+}
+
+type CatalogEvent = Exclude<CommercePublicEvent, { type: "job.published" | "job.closed" }>
+
+async function applyCatalogEvent(ctx: MutationCtx, emitter: Doc<"federationEmitters">, envelope: CommercePublicEnvelope, event: CatalogEvent, rawBody: string, now: number, ruling: CommerceCategoryRuling | null): Promise<FederationApplyResult> {
   const mapping = await ctx.db.query("commerceCatalogMappings").withIndex("by_emitter_shop_ref", (q) => q.eq("emitterId", emitter._id).eq("shopRef", event.shopRef)).unique()
   if (!mapping || mapping.networkId !== emitter.networkId || mapping.environment !== emitter.environment) return { applied: false, reason: "contract_not_allowed" }
   const live = await liveCatalogMapping(ctx, mapping.networkId, mapping.shopId)
@@ -35,6 +48,13 @@ export async function applyCommerceCatalog(ctx: MutationCtx, emitter: Doc<"feder
   if (previous && (previous.networkId !== mapping.networkId || previous.shopId !== mapping.shopId || previous.mappingId !== mapping._id || previous.shopRef !== event.shopRef || previous.environment !== emitter.environment)) return { applied: false, reason: "source_conflict" }
   const digest = await federationBodyDigest(commerceCanonicalJson(event)!)
   const decision = decideCommercePublicRevision(previous ? { revision: previous.revision, digest: previous.digest, state: previous.state } : null, { revision: effect.revision, digest, effect: effect.effect })
+  // CM-02 : refus motivé, sans contenu, audité ; une tête déjà reflétée sort de l'index et de la vitrine. Seule
+  // écriture qui précède un refus : retirer une offre de la lecture est toujours sûr. Un instantané plus ancien
+  // que la tête reste sans effet (il ne retire pas une révision plus récente).
+  if (ruling?.rule === "prohibited" && decision.action !== "stale") {
+    await refuseProhibitedOffer(ctx, { mapping, emitter, objectRef: envelope.objectRef, revision: effect.revision, ruling, previous, now })
+    return { applied: false, reason: "prohibited_category" }
+  }
   if (decision.action === "conflict") return { applied: false, reason: "source_conflict" }
   if (decision.action === "stale") return { applied: true }
   const parent = live.parentHead
@@ -48,7 +68,7 @@ export async function applyCommerceCatalog(ctx: MutationCtx, emitter: Doc<"feder
     if (!shopEvent && previous?.parentActivationRevision !== parentActivationRevision) return { applied: false, reason: "source_conflict" }
     // Un nouveau snapshot signé confirme les mêmes valeurs ; une simple
     // redélivrance du même eventId est arrêtée par l'inbox avant ce point.
-    if (previous) await ctx.db.patch(previous._id, { receivedAt: now, body: rawBody!, ...marketplaceIndexFields(rawBody!, previous.state, previous.objectKind, previous.sequence, now) })
+    if (previous) await ctx.db.patch(previous._id, { receivedAt: now, body: rawBody, ...marketplaceIndexFields(rawBody, previous.state, previous.objectKind, previous.sequence, now) })
     if (previous?.objectKind === "offer" && previous.state === "active" && previous.sequence === "catalog") await queueCatalogMedia(ctx, previous._id)
     return { applied: true }
   }
@@ -61,13 +81,15 @@ export async function applyCommerceCatalog(ctx: MutationCtx, emitter: Doc<"feder
     networkId: mapping.networkId, shopId: mapping.shopId, mappingId: mapping._id, mappingGeneration: mapping.generation,
     emitterId: emitter._id, environment: emitter.environment, objectRef: envelope.objectRef, shopRef: event.shopRef,
     sequence: effect.sequence, objectKind: shopEvent ? "shop" as const : "offer" as const, kind: offer?.kind,
-    state: decision.state, revision: effect.revision, digest, body: rawBody!, changedAt: event.changedAt, receivedAt: now,
+    state: decision.state, revision: effect.revision, digest, body: rawBody, changedAt: event.changedAt, receivedAt: now,
     activationRevision: shopEvent && decision.state === "active" && (previous?.state !== "active" || previous.mappingGeneration !== mapping.generation || enablesCatalog && !wasCatalogEnabled) ? effect.revision : previous?.activationRevision ?? effect.revision,
     parentActivationRevision, gap: (previous?.gap ?? false) || decision.gap,
-    ...marketplaceIndexFields(rawBody!, decision.state, shopEvent ? "shop" : "offer", effect.sequence, now),
+    ...marketplaceIndexFields(rawBody, decision.state, shopEvent ? "shop" : "offer", effect.sequence, now),
   }
   const headId = previous?._id ?? await ctx.db.insert("commerceCatalogHeads", fields)
   if (previous) await ctx.db.replace(previous._id, fields)
+  // CM-02 : une révision admise de l'offre, ou son retrait, remplace sa ligne courante (réglementée) ou l'efface.
+  if (!shopEvent && effect.sequence === "catalog") await settleCatalogOfferRuling(ctx, { mapping, emitter, objectRef: envelope.objectRef, revision: effect.revision, ruling: decision.state === "active" ? ruling : null, now })
   if (shopEvent && (decision.state !== "active" || !enablesCatalog)) await queueShopCatalogMediaWithdrawal(ctx, mapping.networkId, mapping.shopId, fields.activationRevision)
   if ((event.type === "shop.published" || event.type === "shop.updated") && event.storefrontTerms) {
     const terms = event.storefrontTerms

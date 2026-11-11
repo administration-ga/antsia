@@ -458,7 +458,18 @@
     "seeCollection": "See the collection",
     "sameShop": "From the same shop",
     "choosePhoto": "Choose a photo",
-    "showPhoto": "Show photo {{index}}"
+    "showPhoto": "Show photo {{index}}",
+    "categoryRules": {
+      "title": "Restricted categories on ANTSIA",
+      "regulated": "Your catalog offers the “{{category}}” category, which is regulated on ANTSIA. Your storefront is therefore reviewed by the platform team before it is published: it is never admitted automatically.",
+      "refusedLead": "These offers from your PRO.GA catalog are not shown on ANTSIA: their category is prohibited here. They appear neither in the marketplace nor in your storefront.",
+      "refusedCategory": "Prohibited category: {{category}}",
+      "reference": "PRO.GA reference: {{reference}}",
+      "refusedOn": "Refused on {{date}}",
+      "withdrawnOn": "Removed from your storefront on {{date}}",
+      "truncated": "Only the {{limit}} most recent refusals are shown.",
+      "howToFix": "To show one of these offers, change its category in PRO.GA or withdraw it: the new version is checked when it is received."
+    }
   },
   "link": {
     "title": "My PRO.GA activity",

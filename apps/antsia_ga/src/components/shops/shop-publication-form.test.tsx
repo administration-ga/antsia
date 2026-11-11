@@ -12,6 +12,8 @@ vi.mock("@antsia/api/network", () => ({ useNetwork: () => mocks.network }))
 vi.mock("@antsia/api/sign-out-everywhere", () => ({ isSigningOutEverywhere: () => false }))
 vi.mock("convex/react", () => ({ useConvexAuth: () => ({ isAuthenticated: true }), useMutation: (ref: string) => ref === "audience" ? mocks.audience : mocks.other }))
 vi.mock("@/components/member-chrome", () => ({ MemberPage: ({ children }: { children: ReactNode }) => <main>{children}</main> }))
+// CM-02 : le motif des catégories a son propre test (catalog-category-notice.test.tsx).
+vi.mock("./catalog-category-notice", () => ({ CatalogCategoryNotice: () => null }))
 import { ShopPublicationForm } from "./shop-publication-form"
 import { editorFixture } from "./__tests__/fixtures"
 import type { ShopEditorData } from "./shop-model"

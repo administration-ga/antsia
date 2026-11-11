@@ -10,7 +10,7 @@ import { enforceRateLimit } from "../../lib/rateLimit"
 import { appendAudit, operatorCapacity } from "../platform/audit"
 import { requireFederationAdmin } from "./access"
 import { federationBodyDigest } from "./signature"
-import { applyFederationEnvelope, isPersonalFederationEnvelope } from "./reseauPublic"
+import { applyFederationEnvelope, isContentFreeFederationFailure, isPersonalFederationEnvelope } from "./reseauPublic"
 import { validateCommerceTransportBody } from "./commerceTransport"
 
 export const replay = operatorMutation({
@@ -45,7 +45,11 @@ export const replay = operatorMutation({
     if (transportBody !== "valid") return fail(transportBody === "unauthorized" ? "policyRefused" : "conflict")
     const application = receipt.status === "applied" ? null : await applyFederationEnvelope(ctx, emitter, envelope.envelope, now, row.rawBody)
     const outcome = application === null ? "deduplicated" as const : application.applied ? "applied" as const : "still_failing" as const
-    if (application !== null && !application.applied) {
+    if (application !== null && !application.applied && isContentFreeFederationFailure(application.reason)) {
+      // CM-02 : le rejeu tombe sur une catégorie interdite : le corps est expurgé, la lettre close (décision définitive).
+      await ctx.db.patch(row._id, { status: "resolved", reason: application.reason, rawBody: "", attempts: row.attempts + 1, lastAttemptAt: now, resolvedAt: now })
+      await ctx.db.patch(receipt._id, { status: "dead_letter", updatedAt: now })
+    } else if (application !== null && !application.applied) {
       await ctx.db.patch(row._id, { status: "dead_letter", reason: application.reason, attempts: row.attempts + 1, lastAttemptAt: now, resolvedAt: undefined })
       await ctx.db.patch(receipt._id, { status: "dead_letter", updatedAt: now })
     } else if (application !== null) {

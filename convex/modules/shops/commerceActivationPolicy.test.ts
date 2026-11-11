@@ -4,7 +4,8 @@ import { describe, expect, it } from "vitest"
 import { api, components, internal } from "../../_generated/api"
 import { createTestSession, testConvex } from "../../test.setup"
 import { SEED_CONFIRMATION } from "../../seeds/foundations"
-import { commerceActivationReady } from "./commerceActivation"
+import { COMMERCE_CATEGORY_RULES } from "@antsia/social-domain/commerce-prohibited-categories"
+import { COMMERCE_ACTIVATION_DECISIONS, commerceActivationReady } from "./commerceActivation"
 import { jobPolicyOf } from "./jobAccess"
 import { paymentPolicyOpen } from "./paymentAccess"
 import { servicePolicyOpen } from "./serviceAccess"
@@ -27,6 +28,10 @@ async function fixture() {
 describe("activation commerce effectivement fermée", () => {
   it("le registre réel ferme les quatre capacités sans décision ni recette validée", () => {
     for (const capability of ["payments", "services", "applications", "storefrontAutomatic"] as const) expect(commerceActivationReady(capability)).toBe(false)
+  })
+  it("CM-02 : l'admission d'office reste fermée tant que la liste des catégories n'est pas décidée (DP-05)", () => {
+    expect(COMMERCE_ACTIVATION_DECISIONS.storefrontAutomatic.reference).toContain("DP05")
+    if (COMMERCE_CATEGORY_RULES.decision === null) expect(commerceActivationReady("storefrontAutomatic")).toBe(false)
   })
   it("les anciens flags actifs ne rouvrent pas paiement, service ou candidature ; les emplois restent lisibles", async () => {
     const f = await fixture()

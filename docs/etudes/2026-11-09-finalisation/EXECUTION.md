@@ -221,7 +221,7 @@ Plan : [`08_COMMERCE_MARKETPLACE_BOUTIQUES.md`](08_COMMERCE_MARKETPLACE_BOUTIQUE
 | Lot | Titre | Priorité | Taille | Session | Porte | État |
 |---|---|---|---|---|---|---|
 | CM-01 | Chaîne réelle du catalogue PRO.GA vers ANTSIA | P0 | M | S1 | propriétaire (clés, compte, déploiement PRO.GA, choix de l'environnement : sandbox, démo, production). | à faire |
-| CM-02 | Catégories interdites et réglementées | P0 | M | S1 | propriétaire et conseil (liste). | à faire |
+| CM-02 | Catégories interdites et réglementées | P0 | M | S1 | propriétaire et conseil (liste). | fusionné |
 | CM-03 | Majorité pour acheter | P0 | S | S1 | avis du juriste (arbitrages A1 à A4 de SU01). | à faire |
 | CM-04 | Commande réglée à la remise (D04) | P0 | L | S1 (et PRO.GA) | décision du propriétaire ; publication de PRO.GA ; publication ANTSIA. | à faire |
 | CM-05 | Avis de commerce des produits | P1 | M | S1 | aucune. | à faire |
