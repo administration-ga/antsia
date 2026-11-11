@@ -97,7 +97,8 @@ function PublicPostCard({ post, networkId, webUrl, navigation, activeVideo, onVi
     {post.editedAt ? <Text style={{ color: tokens.mutedForeground, fontSize: 12 }}>{text("mobile.public.post.edited", { date: new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(post.editedAt) })}</Text> : null}
   </View>
 }
-function PublicLegal({ kind, onSignIn }: { kind: NativePublicLegalKind; onSignIn?: () => void }) {
+/** Les textes publics (à propos, mentions légales et contact, confidentialité) ; aussi lus par un membre (MB-04, route `legal`). */
+export function PublicLegal({ kind, onSignIn }: { kind: NativePublicLegalKind; onSignIn?: () => void }) {
   const { t, tokens } = useNativeAppearance(), [linkFailed, setLinkFailed] = useState(false)
   const text = (key: string) => nativeEntryText(t, key, { brand: BRAND_NAME })
   const reference = (url: string) => { void Linking.openURL(url).catch(() => setLinkFailed(true)) }

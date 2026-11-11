@@ -4,7 +4,7 @@ import type { PostMediaDto } from "@antsia/social-contracts/media"
 import { useMutation, usePaginatedQuery, useQuery } from "convex/react"
 import type { FunctionReturnType } from "convex/server"
 import * as Crypto from "expo-crypto"
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useController, useForm } from "react-hook-form"
 import { z } from "zod"
@@ -15,14 +15,35 @@ import { Action, Card, Field, Label, QueryBoundary, RuntimeNotice, Screen, nativ
 import { admittedMessageIntent, beginMessageIntent, uncertainMessageIntent, type MessageIntent, type MessageIntentScope } from "../lib/message-intent"
 import { useNativeRuntime } from "../runtime"
 import { useNativeCalls } from "../calls"
+import { nativeNamedKey } from "../lib/native-safety"
+import { NativeSafetyMenu, NativeUnblockAction, type NativeSafetyPerson } from "./safety-actions"
 
 type Message = FunctionReturnType<typeof api.modules.messaging.messages.paginateMessages>["page"][number]
 const PAGE_SIZE = 20, MAX_PAGES = 10
-function MessageCard({ message, active, onPlay, enabled }: { message: Message; active: boolean; onPlay: () => void; enabled: boolean }) {
+/** MB-04 : Signaler un message reçu (cible `personalMessage`, motif seul) et bloquer son expéditeur ; le signalement part d'abord. */
+function MessageSafetyMenu({ message, onBlocked }: { message: Message; onBlocked: (person: NativeSafetyPerson) => void }) {
+  const guard = useNativeGuard(), { t } = useNativeAppearance()
+  const report = useMutation(api.modules.moderation.cases.report)
+  const menu = nativeNamedKey("mobile.safety.menu.message", message.sender.displayName)
+  return <NativeSafetyMenu label={t(menu.key, menu.values)} person={{ personId: message.senderPersonId, name: message.sender.displayName }} onBlocked={onBlocked}
+    report={{ kind: "personalMessage", actionLabel: t("mobile.safety.report.action.personalMessage"), send: form => report({ networkId: guard.runtime.networkId, target: { kind: "personalMessage", id: message.messageId }, reason: form.reason }) }} />
+}
+
+/** MB-04 : depuis la conversation, Signaler la personne et la Bloquer. */
+function CounterpartSafetyMenu({ person, onBlocked }: { person: NativeSafetyPerson; onBlocked: (person: NativeSafetyPerson) => void }) {
+  const guard = useNativeGuard(), { t } = useNativeAppearance()
+  const report = useMutation(api.modules.moderation.cases.report)
+  const menu = nativeNamedKey("mobile.safety.menu.person", person.name), action = nativeNamedKey("mobile.safety.report.action.person", person.name)
+  return <NativeSafetyMenu label={t(menu.key, menu.values)} person={person} onBlocked={onBlocked}
+    report={{ kind: "person", actionLabel: t(action.key, action.values), send: form => report({ networkId: guard.runtime.networkId, target: { kind: "person", id: person.personId }, reason: form.reason }) }} />
+}
+
+function MessageCard({ message, active, onPlay, enabled, onBlocked }: { message: Message; active: boolean; onPlay: () => void; enabled: boolean; onBlocked: (person: NativeSafetyPerson) => void }) {
   const { t } = useNativeAppearance()
   const media: PostMediaDto[] = message.attachmentFiles.filter(file => file.mimeType.startsWith("image/") || file.mimeType.startsWith("video/")).map(file => ({ kind: file.mimeType.startsWith("image/") ? "image" : "video", url: file.url, withheld: file.withheld, mimeType: file.mimeType, altText: file.filename }))
+  const reportable = !message.isMine && !message.deleted && message.type === "text"
   return <Card>
-    <Label strong>{message.isMine ? t("mobile.messages.me") : message.sender.displayName ?? t("mobile.messages.unknownPerson")}</Label>
+    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}><View style={{ flex: 1, minWidth: 0 }}><Label strong>{message.isMine ? t("mobile.messages.me") : message.sender.displayName ?? t("mobile.messages.unknownPerson")}</Label></View>{reportable ? <MessageSafetyMenu message={message} onBlocked={onBlocked} /> : null}</View>
     {message.deleted ? <Label muted>{t("mobile.messages.deleted")}</Label> : <>
       {message.replyTo ? <Label muted>{message.replyTo.deleted ? t("mobile.messages.quoteDeleted") : message.replyTo.excerpt}</Label> : null}
       {message.type !== "text" ? <Label muted>{t(message.type === "system" ? "mobile.messages.systemEvent" : "mobile.messages.callEvent")}</Label> : null}
@@ -35,7 +56,7 @@ function MessageCard({ message, active, onPlay, enabled }: { message: Message; a
     </>}
   </Card>
 }
-function ConversationBody({ threadId, focused }: { threadId: Id<"personalThreads">; focused: boolean }) {
+function ConversationBody({ threadId, focused, onBlocked }: { threadId: Id<"personalThreads">; focused: boolean; onBlocked: (person: NativeSafetyPerson) => void }) {
   const guard = useNativeGuard(), { t } = useNativeAppearance(), calls = useNativeCalls()
   const thread = useQuery(api.modules.messaging.inbox.getThread, guard.canRead ? { networkId: guard.runtime.networkId, threadId } : "skip")
   const page = usePaginatedQuery(api.modules.messaging.messages.paginateMessages, guard.canRead && thread ? { networkId: guard.runtime.networkId, threadId } : "skip", { initialNumItems: PAGE_SIZE })
@@ -91,7 +112,7 @@ function ConversationBody({ threadId, focused }: { threadId: Id<"personalThreads
   if (thread === undefined) return <Label>{t("mobile.common.loading")}</Label>
   if (thread === null) return <Label>{t("mobile.messages.threadUnavailable")}</Label>
   return <KeyboardAvoidingView style={{ flex: 1, gap: 8 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-    <RuntimeNotice /><Label strong>{thread.counterpart.displayName ?? t("mobile.messages.unknownPerson")}</Label>
+    <RuntimeNotice /><View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}><View style={{ flex: 1, minWidth: 0 }}><Label strong>{thread.counterpart.displayName ?? t("mobile.messages.unknownPerson")}</Label></View><CounterpartSafetyMenu person={{ personId: thread.counterpart.personId, name: thread.counterpart.displayName }} onBlocked={onBlocked} /></View>
     {calls.available ? <View style={{ gap: 8 }}>
       {!calls.systemEnabled ? <Action label={t("mobile.calls.enable")} disabled={!guard.canAct || !guard.runtime.canWrite || calls.busy} onPress={() => { void calls.enableSystemCalls() }} /> : null}
       <View style={{ flexDirection: "row", gap: 8 }}>
@@ -107,7 +128,7 @@ function ConversationBody({ threadId, focused }: { threadId: Id<"personalThreads
     }} /></View> : null}
     <FlatList inverted data={page.results} accessibilityLabel={t("mobile.messages.conversationTitle")} keyboardShouldPersistTaps="handled" keyExtractor={message => String(message.messageId)} scrollEnabled={guard.canAct} initialNumToRender={10} maxToRenderPerBatch={10} windowSize={5}
       onScrollBeginDrag={() => setActiveMedia(null)}
-      renderItem={({ item }) => <MessageCard message={item} active={focused && activeMedia === String(item.messageId)} enabled={guard.canAct && focused} onPlay={() => { if (guard.current() && focused) setActiveMedia(previous => previous === String(item.messageId) ? null : String(item.messageId)) }} />}
+      renderItem={({ item }) => <MessageCard message={item} onBlocked={onBlocked} active={focused && activeMedia === String(item.messageId)} enabled={guard.canAct && focused} onPlay={() => { if (guard.current() && focused) setActiveMedia(previous => previous === String(item.messageId) ? null : String(item.messageId)) }} />}
       ListEmptyComponent={<Label>{t(page.status === "LoadingFirstPage" ? "mobile.common.loading" : "mobile.messages.noMessages")}</Label>}
       ListFooterComponent={<View style={{ gap: 8 }}>
         {page.status === "LoadingMore" ? <Label>{t("mobile.common.loading")}</Label> : null}
@@ -120,8 +141,21 @@ function ConversationBody({ threadId, focused }: { threadId: Id<"personalThreads
     <Action label={t(intent?.state === "uncertain" ? "mobile.messages.retryExact" : "mobile.messages.send")} tone="primary" disabled={!guard.canAct || !guard.runtime.canWrite || !focused || intent?.state === "pending" || intent?.state === "admitted" || intent === null && text.trim().length === 0} pending={intent?.state === "pending"} onPress={() => { void form.handleSubmit(({ message }) => submit(message))() }} />
   </KeyboardAvoidingView>
 }
+/**
+ * Après un blocage depuis la conversation, le fil devient refusé (`getThread`
+ * rend `null`) : l'écran garde, pour cette ouverture seulement, la personne
+ * bloquée, pour dire pourquoi et offrir « Débloquer ». Au retour, le blocage se
+ * lève depuis Réglages › Personnes bloquées.
+ */
+function BlockedConversation({ person, onUnblocked }: { person: NativeSafetyPerson; onUnblocked: () => void }) {
+  const { t } = useNativeAppearance(), { key, values } = nativeNamedKey("mobile.safety.conversation.blocked", person.name)
+  return <Card><Label>{t(key, values)}</Label><NativeUnblockAction person={person} onUnblocked={onUnblocked} /></Card>
+}
+
 export function ConversationScreen({ threadId, focused = true }: { threadId: Id<"personalThreads">; focused?: boolean }) {
   const runtime = useNativeRuntime(), { t } = useNativeAppearance(), [version, setVersion] = useState(0)
-  const key = nativeScope(runtime) + ":" + threadId + ":" + version
-  return <Screen title={t("mobile.messages.conversationTitle")}><QueryBoundary key={key} resetKey={key} fallback={<Card><Label>{t("mobile.common.unavailable")}</Label><Action label={t("mobile.common.refresh")} disabled={!runtime.foreground || !runtime.online} onPress={() => { if (runtime.isCurrent() && runtime.foreground && runtime.online) setVersion(value => value + 1) }} /></Card>}><ConversationBody threadId={threadId} focused={focused} /></QueryBoundary></Screen>
+  const [blocked, setBlocked] = useState<{ owner: string; person: NativeSafetyPerson } | null>(null)
+  const owner = nativeScope(runtime), key = owner + ":" + threadId + ":" + version
+  const onBlocked = useCallback((person: NativeSafetyPerson) => setBlocked({ owner, person }), [owner])
+  return <Screen title={t("mobile.messages.conversationTitle")}>{blocked?.owner === owner ? <BlockedConversation person={blocked.person} onUnblocked={() => { setBlocked(null); setVersion(value => value + 1) }} /> : <QueryBoundary key={key} resetKey={key} fallback={<Card><Label>{t("mobile.common.unavailable")}</Label><Action label={t("mobile.common.refresh")} disabled={!runtime.foreground || !runtime.online} onPress={() => { if (runtime.isCurrent() && runtime.foreground && runtime.online) setVersion(value => value + 1) }} /></Card>}><ConversationBody threadId={threadId} focused={focused} onBlocked={onBlocked} /></QueryBoundary>}</Screen>
 }

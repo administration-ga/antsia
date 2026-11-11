@@ -11,7 +11,10 @@ import { nativeRequest } from "@antsia/social-native/request"
 import { NativeAppearanceProvider, useNativeAppearance } from "./appearance"
 import { NativeTypographyProvider } from "./font-loader"
 import { NativeOnboarding } from "./components/native-onboarding"
-import { PublicEntryScreen } from "./screens/public-entry-screen"
+import { PublicEntryScreen, PublicLegal } from "./screens/public-entry-screen"
+import { AccountDeletionScreen } from "./screens/account-deletion-screen"
+import { BlockedPeopleCard, SafetySettingsCard } from "./screens/safety-actions"
+import { NativeNoticeBanner, NativeNoticeProvider } from "./components/notice"
 import { MediaFeedScreen } from "./screens/media-feed-screen"
 import { ProfileHubScreen, PublicProfileScreen, BookmarksScreen } from "./screens/profile-screens"
 import { NotificationsScreen } from "./screens/notifications-screen"
@@ -78,7 +81,7 @@ function AnonymousTransport({ controller, env, sharedDemo, onContinuePost }: { c
   return <ConvexProvider client={client}>{publicKind ? <PublicEntryScreen kind={publicKind} onClose={() => setPublicKind(null)} onSignIn={postId => { onContinuePost(postId); setPublicKind(null) }} webUrl={env.webUrl} /> : <ScrollView keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>{sharedDemo ? <NativeDemoEntry controller={controller} /> : <NativeEntry controller={controller} webUrl={env.webUrl} scheme={env.scheme} intent={intent} onRegistrationIntent={setIntent} onPublicDiscover={() => setPublicKind("discover")} onLegal={setPublicKind} />}</ScrollView>}</ConvexProvider>
 }
 
-function MemberTransport({ controller, env, onMemberConfirmed, onMemberUnavailable, onDemoOptions, initialRoute }: { controller: NativeSessionController; env: NativeEnvironment; onMemberConfirmed: (member: MemberCallContext) => void; onMemberUnavailable: () => void; onDemoOptions?: () => void; initialRoute?: NativeRoute }) {
+function MemberTransport({ controller, env, onMemberConfirmed, onMemberUnavailable, onDemoOptions, initialRoute, onErasureRequested }: { controller: NativeSessionController; env: NativeEnvironment; onMemberConfirmed: (member: MemberCallContext) => void; onMemberUnavailable: () => void; onDemoOptions?: () => void; initialRoute?: NativeRoute; onErasureRequested: (dueAt: number) => void }) {
   const client = useOwnedConvexClient(env.convexUrl)
   const id = controller.session!.id, generation = controller.vault.generation
   const fetchAccessToken = useCallback(async () => {
@@ -91,10 +94,10 @@ function MemberTransport({ controller, env, onMemberConfirmed, onMemberUnavailab
     } catch { if (controller.sessionIsCurrent(id, generation)) controller.blocked(); return null }
   }, [controller.auth, controller.blocked, controller.sessionIsCurrent, generation, id])
   const useAuth = useCallback(() => ({ isLoading: false, isAuthenticated: true, fetchAccessToken }), [fetchAccessToken])
-  return <ConvexProviderWithAuth client={client} useAuth={useAuth}><MemberGate controller={controller} client={client} env={env} onMemberConfirmed={onMemberConfirmed} onMemberUnavailable={onMemberUnavailable} onDemoOptions={onDemoOptions} initialRoute={initialRoute} /></ConvexProviderWithAuth>
+  return <ConvexProviderWithAuth client={client} useAuth={useAuth}><MemberGate controller={controller} client={client} env={env} onMemberConfirmed={onMemberConfirmed} onMemberUnavailable={onMemberUnavailable} onDemoOptions={onDemoOptions} initialRoute={initialRoute} onErasureRequested={onErasureRequested} /></ConvexProviderWithAuth>
 }
 
-function MemberGate({ controller, client, env, onMemberConfirmed, onMemberUnavailable, onDemoOptions, initialRoute }: { controller: NativeSessionController; client: ConvexReactClient; env: NativeEnvironment; onMemberConfirmed: (member: MemberCallContext) => void; onMemberUnavailable: () => void; onDemoOptions?: () => void; initialRoute?: NativeRoute }) {
+function MemberGate({ controller, client, env, onMemberConfirmed, onMemberUnavailable, onDemoOptions, initialRoute, onErasureRequested }: { controller: NativeSessionController; client: ConvexReactClient; env: NativeEnvironment; onMemberConfirmed: (member: MemberCallContext) => void; onMemberUnavailable: () => void; onDemoOptions?: () => void; initialRoute?: NativeRoute; onErasureRequested: (dueAt: number) => void }) {
   const { isLoading, isAuthenticated } = useConvexAuth(), { t, setTheme, setLocale } = useNativeAppearance()
   const live = useQuery(api.modules.platform.authentication.mySession, !isLoading && isAuthenticated ? {} : "skip")
   const network = useQuery(api.modules.networks.networks.getBySlug, live === true ? { slug: "antsia" } : "skip")
@@ -163,12 +166,13 @@ function MemberGate({ controller, client, env, onMemberConfirmed, onMemberUnavai
   if (live !== true || admission === "loading") return <Status message={t("mobile.session.preparing")} />
   if (admission === "setup" && network) return <NativeOnboarding networkId={network._id} controller={controller} onExit={() => { void controller.exit() }} />
   if (admission !== "member" || !network || !person || !membership) return <View style={{ flex: 1 }}><Status error={admission === "suspended"} message={t(admission === "pending" ? "mobile.session.membershipPending" : admission === "suspended" ? "mobile.session.membershipSuspended" : "mobile.session.membershipSetup")} action={t("mobile.common.retry")} onPress={() => { void controller.resume() }} /><Action label={t(controller.sharedDemo ? "mobile.demo.signOut" : "mobile.session.signOut")} onPress={() => { void controller.exit() }} /></View>
-  return <ReadyMember key={`${person._id}:${controller.session!.id}`} networkId={network._id} personId={person._id} handle={person.published ? person.handle : undefined} displayName={person.displayName ?? person.handle ?? t("mobile.nav.profile")} canWrite={membership.status !== "en_attente"} controller={controller} online={online} connectionReady={connectionReady} env={env} onDemoOptions={onDemoOptions} initialRoute={initialRoute} />
+  return <ReadyMember key={`${person._id}:${controller.session!.id}`} networkId={network._id} personId={person._id} handle={person.published ? person.handle : undefined} displayName={person.displayName ?? person.handle ?? t("mobile.nav.profile")} canWrite={membership.status !== "en_attente"} controller={controller} online={online} connectionReady={connectionReady} env={env} onDemoOptions={onDemoOptions} initialRoute={initialRoute} onErasureRequested={onErasureRequested} />
 }
 
-function ReadyMember({ networkId, personId, handle, displayName, canWrite, controller, online, connectionReady, env, onDemoOptions, initialRoute }: {
+function ReadyMember({ networkId, personId, handle, displayName, canWrite, controller, online, connectionReady, env, onDemoOptions, initialRoute, onErasureRequested }: {
   networkId: Id<"networks">; personId: Id<"persons">; handle?: string; displayName: string; canWrite: boolean
   controller: NativeSessionController; online: boolean; connectionReady: boolean; env: NativeEnvironment; onDemoOptions?: () => void; initialRoute?: NativeRoute
+  onErasureRequested: (dueAt: number) => void
 }) {
   const { t, tokens } = useNativeAppearance()
   const [history, setHistory] = useState<NativeRoute[]>([initialRoute ?? { name: "feed" }])
@@ -223,7 +227,7 @@ function ReadyMember({ networkId, personId, handle, displayName, canWrite, contr
     if (target.name === "feed") setFeedTag(target.tag)
     setHistory(next)
   }
-  return <NativeRuntimeProvider value={runtime}><View style={{ flex: 1, backgroundColor: tokens.background }}>
+  return <NativeRuntimeProvider value={runtime}><NativeNoticeProvider><View style={{ flex: 1, backgroundColor: tokens.background }}>
     <NativeMemberHeader onHome={() => { if (current()) { setFeedTag(undefined); setHistory([{ name: "feed" }]) } }} onCreate={() => navigate({ name: "compose" })} onSearch={route.name === "feed" ? () => navigate({ name: "search" }) : undefined} onNotifications={() => navigate({ name: "notifications" })} unreadCount={unread?.count} unreadCapped={unread?.capped} onBack={history.length > 1 || route.name === "post" || route.name === "conversation" ? back : undefined} />
     <View style={{ flex: 1 }}>
       <View accessibilityElementsHidden={route.name !== "feed"} importantForAccessibility={route.name === "feed" ? "auto" : "no-hide-descendants"} style={{ flex: 1, display: route.name === "feed" ? "flex" : "none" }}><FeedScreen key={feedTag ?? "feed"} tag={feedTag} focused={route.name === "feed"} onOpenProfile={onOpenProfile} onSearchTag={onSearchTag} onCreateStory={() => { if (current()) void Linking.openURL(nativeWebRoutes.storyCreate(env.webUrl, env.webBasePath)).catch(controller.blocked) }} displayName={displayName} onCompose={() => navigate({ name: "compose" })} onOpenPost={onOpenPost} onOpenPage={onOpenPage} onOpenOffer={onOpenOffer} /></View>
@@ -232,7 +236,7 @@ function ReadyMember({ networkId, personId, handle, displayName, canWrite, contr
       {route.name === "post" ? <PostScreen onOpenProfile={onOpenProfile} onSearchTag={onSearchTag} key={route.id} postId={route.id as Id<"posts">} onOpenPage={onOpenPage} onOpenOffer={onOpenOffer} /> : null}
       {route.name === "clips" || route.name === "explore" ? <MediaFeedScreen key={route.name} kind={route.name === "clips" ? "video" : "media"} onOpenExplore={() => navigate({ name: "explore" })} onOpenClips={() => navigate({ name: "clips" })} onOpenBusiness={() => navigate({ name: "business" })} onOpenPost={onOpenPost} onOpenProfile={onOpenProfile} onOpenPage={onOpenPage} onOpenOffer={onOpenOffer} onSearchTag={onSearchTag} focused /> : null}
       {route.name === "notifications" ? <NotificationsScreen onNavigate={navigate} /> : null}
-      {route.name === "me" ? <ProfileHubScreen handle={handle} displayName={displayName} onOpenProfile={onOpenProfile} onBookmarks={() => navigate({ name: "bookmarks" })} onSettings={() => navigate({ name: "settings" })} onActivities={() => { if (current()) void Linking.openURL(nativeWebRoutes.accountSection(env.webUrl, "shop", env.webBasePath)).catch(controller.blocked) }} onWebSection={section => { if (current()) void Linking.openURL(nativeWebRoutes.accountSection(env.webUrl, section, env.webBasePath)).catch(controller.blocked) }} onSignOut={() => { void controller.exit() }} onDemoOptions={onDemoOptions} /> : null}
+      {route.name === "me" ? <ProfileHubScreen handle={handle} displayName={displayName} onOpenProfile={onOpenProfile} onBookmarks={() => navigate({ name: "bookmarks" })} onSettings={() => navigate({ name: "settings" })} onActivities={() => { if (current()) void Linking.openURL(nativeWebRoutes.accountSection(env.webUrl, "shop", env.webBasePath)).catch(controller.blocked) }} onWebSection={section => { if (current()) void Linking.openURL(nativeWebRoutes.accountSection(env.webUrl, section, env.webBasePath)).catch(controller.blocked) }} onSignOut={() => { void controller.exit() }} onDemoOptions={onDemoOptions} onDeleteAccount={() => navigate({ name: "accountDeletion" })} /> : null}
       {route.name === "profile" ? <PublicProfileScreen key={route.handle} handle={route.handle} onOpenPost={onOpenPost} onOpenProfile={onOpenProfile} onOpenPage={onOpenPage} onOpenOffer={onOpenOffer} onSearchTag={onSearchTag} /> : null}
       {route.name === "bookmarks" ? <BookmarksScreen onOpenPost={onOpenPost} /> : null}
       {route.name === "business" ? <ExploreScreen section={exploreSection} onSectionChange={setExploreSection} onOpenShop={onOpenShop} onOpenPage={onOpenPage} /> : null}
@@ -241,14 +245,17 @@ function ReadyMember({ networkId, personId, handle, displayName, canWrite, contr
       {route.name === "page" ? <PageScreen key={route.handle} handle={route.handle} onOpenShop={onOpenShop} onOpenPage={onOpenPage} onOpenPost={onOpenPost} onOpenOffer={onOpenOffer} onManagePage={pageHandle => { if (current()) void Linking.openURL(nativeWebRoutes.page(env.webUrl, pageHandle, env.webBasePath)).catch(controller.blocked) }} /> : null}
       {route.name === "messages" ? <MessagesScreen onOpenThread={(threadId) => navigate({ name: "conversation", id: threadId })} /> : null}
       {route.name === "conversation" ? <ConversationScreen key={route.id} threadId={route.id as Id<"personalThreads">} /> : null}
-      {route.name === "settings" ? <NativeSettings displayName={displayName} handle={handle} controller={controller} webUrl={env.webUrl} webBasePath={env.webBasePath} onOpenProfile={handle ? () => onOpenProfile(handle) : undefined} /> : null}
+      {route.name === "settings" ? <NativeSettings displayName={displayName} handle={handle} controller={controller} webUrl={env.webUrl} webBasePath={env.webBasePath} onOpenProfile={handle ? () => onOpenProfile(handle) : undefined} onOpenLegal={kind => navigate({ name: "legal", kind })} onDeleteAccount={() => navigate({ name: "accountDeletion" })} /> : null}
+      {route.name === "accountDeletion" ? <AccountDeletionScreen sharedDemo={controller.sharedDemo} onErased={onErasureRequested} onOpenRequests={() => { if (current()) void Linking.openURL(nativeWebRoutes.accountSection(env.webUrl, "serviceRequests", env.webBasePath)).catch(controller.blocked) }} /> : null}
+      {route.name === "legal" ? <ScrollView key={route.kind} contentContainerStyle={{ padding: 16, paddingBottom: 32 }}><PublicLegal kind={route.kind} /></ScrollView> : null}
     </View>
     {!online ? <Label muted>{t("mobile.common.offline")}</Label> : null}
+    <NativeNoticeBanner />
     <NativeMemberTabBar activeTab={activeTab} onNavigate={name => { if (current()) { if (name === "feed") setFeedTag(undefined); setHistory([{ name }]) } }} />
-  </View></NativeRuntimeProvider>
+  </View></NativeNoticeProvider></NativeRuntimeProvider>
 }
 
-function NativeSettings({ handle, displayName, controller, webUrl, webBasePath, onOpenProfile }: { handle?: string; displayName: string; controller: NativeSessionController; webUrl: string; webBasePath?: "/demo"; onOpenProfile?: () => void }) {
+function NativeSettings({ handle, displayName, controller, webUrl, webBasePath, onOpenProfile, onOpenLegal, onDeleteAccount }: { handle?: string; displayName: string; controller: NativeSessionController; webUrl: string; webBasePath?: "/demo"; onOpenProfile?: () => void; onOpenLegal: (kind: "about" | "legal" | "privacy") => void; onDeleteAccount: () => void }) {
   const { t, tokens, theme, setTheme, mode, setMode, locale, setLocale } = useNativeAppearance()
   const calls = useNativeCalls()
   return <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }}><Card>
@@ -269,11 +276,22 @@ function NativeSettings({ handle, displayName, controller, webUrl, webBasePath, 
     <Action label={t(calls.systemEnabled ? "mobile.calls.systemEnabled" : "mobile.calls.enableSystem")} disabled={!calls.available || calls.busy || calls.systemEnabled} onPress={() => { void calls.enableSystemCalls() }} />
     <Label muted>{t("mobile.settings.commerceClosed")}</Label>
     <Action label={t(controller.sharedDemo ? "mobile.demo.signOut" : "mobile.session.signOut")} tone="danger" onPress={() => { void controller.exit() }} />
-  </Card></ScrollView>
+  </Card>
+    {/* MB-04 : personnes bloquées, contact de l'éditeur (exigence des boutiques pour les contenus d'utilisateurs), suppression du compte. */}
+    <BlockedPeopleCard />
+    <SafetySettingsCard title={t("mobile.safety.help.title")} lead={t("mobile.safety.help.lead")}>
+      <Action label={t("mobile.safety.help.legal")} onPress={() => onOpenLegal("legal")} />
+      <Action label={t("mobile.safety.help.privacy")} onPress={() => onOpenLegal("privacy")} />
+      <Action label={t("mobile.safety.help.about")} onPress={() => onOpenLegal("about")} />
+    </SafetySettingsCard>
+    <SafetySettingsCard title={t("mobile.safety.account.title")} lead={t("mobile.safety.account.lead")}>
+      <Action label={t("mobile.safety.erasure.entry")} tone="danger" onPress={onDeleteAccount} />
+    </SafetySettingsCard>
+  </ScrollView>
 }
 
 function ConfiguredApp({ env, sharedDemo, onSwitch }: { env: NativeEnvironment; sharedDemo: boolean; onSwitch?: () => void }) {
-  const controller = useNativeSessionController(env.authUrl, sharedDemo), { t, tokens } = useNativeAppearance()
+  const controller = useNativeSessionController(env.authUrl, sharedDemo), { t, tokens, locale } = useNativeAppearance()
   const [switching, setSwitching] = useState(false)
   const [switchFailed, setSwitchFailed] = useState(false)
   const [demoOptions, setDemoOptions] = useState(false)
@@ -300,10 +318,20 @@ function ConfiguredApp({ env, sharedDemo, onSwitch }: { env: NativeEnvironment; 
     auth: controller.auth, isCurrent: () => controller.callSessionIsCurrent(id),
   } : null, [member, id, controller.callSession?.expiresAt, controller.foreground, controller.auth, controller.callSessionIsCurrent])
   const retry = () => { void controller.resume() }
+  // MB-04 : après une demande d'effacement admise, l'écran d'entrée dit la date prévue (rien d'autre n'est gardé).
+  const [erasureNotice, setErasureNotice] = useState<number | null>(null)
+  const exit = controller.exit
+  const onErasureRequested = useCallback((dueAt: number) => {
+    setErasureNotice(dueAt)
+    // La demande est faite : la sortie part par la porte existante (révocation de toutes les sessions, purge du coffre).
+    void exit()
+  }, [exit])
+  useEffect(() => { if (controller.phase === "ready") setErasureNotice(null) }, [controller.phase])
   let content: ReactNode
-  if (controller.phase === "ready" && controller.session) content = <NativeBoundary key={controller.transportKey} onFailure={controller.blocked} fallback={<Status message={t("mobile.session.unavailable")} action={t("mobile.common.retry")} onPress={retry} />}><MemberTransport controller={controller} env={env} onMemberConfirmed={onMemberConfirmed} onMemberUnavailable={onMemberUnavailable} initialRoute={initialRoute} onDemoOptions={onSwitch ? () => { if (sharedDemo) { setDemoDismissed(false); setDemoOptions(true) } else void switchEnvironment() } : undefined} /></NativeBoundary>
+  if (controller.phase === "ready" && controller.session) content = <NativeBoundary key={controller.transportKey} onFailure={controller.blocked} fallback={<Status message={t("mobile.session.unavailable")} action={t("mobile.common.retry")} onPress={retry} />}><MemberTransport controller={controller} env={env} onMemberConfirmed={onMemberConfirmed} onMemberUnavailable={onMemberUnavailable} initialRoute={initialRoute} onErasureRequested={onErasureRequested} onDemoOptions={onSwitch ? () => { if (sharedDemo) { setDemoDismissed(false); setDemoOptions(true) } else void switchEnvironment() } : undefined} /></NativeBoundary>
   else if (controller.phase === "anonymous") content = <NativeBoundary onFailure={controller.blocked} fallback={<Status message={t("mobile.session.unavailable")} action={t("mobile.common.retry")} onPress={retry} />}><View style={{ flex: 1 }}>
     {controller.exitResult && (!controller.exitResult.serverRevoked || !controller.exitResult.localCleared) ? <Label>{t("mobile.session.exitIncomplete")}</Label> : null}
+    {erasureNotice !== null ? <View style={{ margin: 12, padding: 12, gap: 8, borderRadius: tokens.radiusCard, backgroundColor: tokens.card }}><NativeStatusText label={t("mobile.safety.erasure.signedOut", { date: new Intl.DateTimeFormat(locale === "fr" ? "fr-FR" : "en-GB", { dateStyle: "long" }).format(erasureNotice) })} /><Action label={t("mobile.safety.erasure.noticeClose")} onPress={() => setErasureNotice(null)} /></View> : null}
     <AnonymousTransport controller={controller} env={env} sharedDemo={sharedDemo} onContinuePost={postId => setInitialRoute(postId ? { name: "post", id: postId } : undefined)} />
   </View></NativeBoundary>
   else if (controller.phase === "purgeFailed") content = <Status message={t("mobile.session.purgeFailed")} action={t("mobile.session.retryPurge")} onPress={() => { void controller.exit() }} />

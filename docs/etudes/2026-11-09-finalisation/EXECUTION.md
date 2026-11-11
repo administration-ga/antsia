@@ -150,7 +150,7 @@ Plan : [`05_PROFIL_RELATIONS_ALBUMS.md`](05_PROFIL_RELATIONS_ALBUMS.md)
 | PF-01 | Bloquer, débloquer et liste des bloqués | P0 | M | S1 | D1 seulement pour la suppression des abonnements ; le reste n'a aucune porte. | fusionné |
 | PF-02 | Signaler un profil et un album | P0 | S | S1 | aucune. | à faire |
 | PF-03 | Images de profil : recadrage et retrait des métadonnées | P0 | M | S1 | aucune. | fusionné |
-| PF-04 | Mobile : bloquer et signaler | P0 | S | S3 | publication sur TestFlight sur accord écrit du propriétaire. | à faire |
+| PF-04 | Mobile : bloquer et signaler | P0 | S | S3 | publication sur TestFlight sur accord écrit du propriétaire. | fusionné |
 | PF-05 | Rompre une relation | P1 | M | S1 | D4. | à faire |
 | PF-06 | Partager mon profil : lien et code QR | P1 | S | S1 | aucune. | à faire |
 | PF-07 | Mes abonnés, Suivre en retour, compteurs à soi | P1 | M | S1 | D2 et D3 ; fichier partagé `convex/convex.config.ts` (S1). | à faire |
@@ -379,10 +379,10 @@ Plan : [`14_APPLICATION_MOBILE.md`](14_APPLICATION_MOBILE.md)
 
 | Lot | Titre | Priorité | Taille | Session | Porte | État |
 |---|---|---|---|---|---|---|
-| MB-01 | Matrice de parité tenue par le code | P0 | M | S3 | aucune (backend local et variables : accord du propriétaire). | à faire |
+| MB-01 | Matrice de parité tenue par le code | P0 | M | S3 | aucune (backend local et variables : accord du propriétaire). | fusionné |
 | MB-02 | Premier binaire iOS depuis `main` (build 14) | P0 | M | S3 | accord du propriétaire (compilation), second accord (TestFlight) ; disque ≥ 20 Go libres. | à faire |
 | MB-03 | Android depuis `main` : APK puis AAB | P0 | M | S3 | accord du propriétaire ; compte Google Play (propriétaire). | à faire |
-| MB-04 | Exigences des boutiques : bloquer, signaler, supprimer son compte | P0 | M | S3 | aucune. | à faire |
+| MB-04 | Exigences des boutiques : bloquer, signaler, supprimer son compte | P0 | M | S3 | aucune. | fusionné |
 | MB-05 | Dossier des boutiques d'applications | P0 | M | S3 + propriétaire | propriétaire (comptes des boutiques, entité éditrice, assistance) ; juriste pour l'âge (SU01b, SU01c). | à faire |
 | MB-06 | Essais sur appareils physiques | P0 | S | S3 + propriétaire | présence du propriétaire ; disque ≥ 15 Go avant de brancher l'iPhone (piège `iOS DeviceSupport`). | à faire |
 | MB-07 | Retour d'arrière-plan sans perte d'état | P0 | M | S3 | aucune. | à faire |
