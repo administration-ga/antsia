@@ -32,6 +32,8 @@ export const moderationTargetValidator = v.union(
   v.object({ kind: v.literal("page"), id: v.id("pages") }),
   v.object({ kind: v.literal("person"), id: v.id("persons") }),
   v.object({ kind: v.literal("live"), id: v.id("liveSessions") }),
+  // DL-03 (plan 04) : le commentaire d'un direct — signalable, et relu à l'écriture comme un commentaire du fil.
+  v.object({ kind: v.literal("liveComment"), id: v.id("liveComments") }),
   v.object({ kind: v.literal("story"), id: v.id("stories") }),
   v.object({ kind: v.literal("album"), id: v.id("albums") }),
   v.object({ kind: v.literal("serviceReview"), id: v.id("serviceReviews") }),

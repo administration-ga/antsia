@@ -83,8 +83,15 @@ export type DirectStageLayout = (typeof DIRECT_STAGE_LAYOUTS)[number]
 export const DIRECT_SPEAKER_ROLES = ["host", "speaker"] as const
 export type DirectSpeakerRole = (typeof DIRECT_SPEAKER_ROLES)[number]
 
-/** Statut d'un commentaire — retiré, pas supprimé (même règle que le fil). */
-export const DIRECT_COMMENT_STATUSES = ["published", "removed"] as const
+/**
+ * Statut d'un commentaire — retiré, pas supprimé (même règle que le fil).
+ *
+ * DL-03 : `pending_review` = RETENU par la règle de relecture du réseau
+ * (`moderateContentWrite`, surface `liveComment`), comme un commentaire du fil :
+ * visible de son seul auteur, absent des compteurs de la salle, jusqu'à la
+ * décision (admis → `published`, refusé → `removed`).
+ */
+export const DIRECT_COMMENT_STATUSES = ["published", "pending_review", "removed"] as const
 export type DirectCommentStatus = (typeof DIRECT_COMMENT_STATUSES)[number]
 
 /* ═══════════════════════════════════════════════════════════════════════════
