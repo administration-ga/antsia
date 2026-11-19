@@ -13,13 +13,18 @@
  *    lecteurs est FIGÉ (`SIGNATORY_READERS`), pour qu'un nouveau lecteur soit relu — sa polarité
  *    (`=== null` refuse : autorité ; `!== null` refuse : partie liée) dit s'il doit rester fermé
  *    au modérateur ou passer au lecteur d'équipe.
+ *  · `signatoryRowOf` et `signatoryRowsOf` rendent les LIGNES brutes de l'équipe, modérateurs et
+ *    invitations compris : leurs appelants forment un inventaire FIGÉ (`ROW_READERS`), chacun avec
+ *    la raison pour laquelle il est juste pour un modérateur (filtre par un lecteur vivant, par le
+ *    rôle, ou toute ligne qui rend partie liée).
  *  · une lecture DIRECTE de la table `pageSignatories` (`.query("pageSignatories")`) voit toutes
  *    les lignes, modérateurs compris : l'inventaire en est FIGÉ (`DIRECT_TABLE_READERS`) ; une
  *    lecture neuve filtre le rôle ou relit un lecteur vivant.
  *
  * COMMENT IL LIT : par l'arbre syntaxique des fichiers du moteur hors tests — toute référence à
- * l'identifiant (appel, passage en argument, alias), hors de sa déclaration et des imports ; tout
- * appel `….query("pageSignatories")`. Les commentaires ne comptent pas.
+ * l'identifiant (appel, passage en argument, alias, accès par un espace de noms), hors de sa
+ * déclaration et des imports ; un import RENOMMÉ (`{ livePageTeamRole as x }`) compte comme une
+ * lecture ; tout appel `….query("pageSignatories")`. Les commentaires ne comptent pas.
  */
 import ts from "typescript"
 import { describe, expect, it } from "vitest"
@@ -38,6 +43,33 @@ const TEAM_READERS: Record<string, string> = {
   "convex/modules/moderation/cases.ts": "partie liée : ne tranche pas un dossier du contenu de sa page",
   "convex/modules/moderation/moderation.ts": "partie liée : ne tranche pas le dossier d'une publication de sa page",
   "convex/modules/diaspora/moderationDesk.ts": "partie liée : le bureau de modération annonce le conflit (« page »)",
+  // Conflits d'intérêts de la tranche DIASPORALE (relecture d'antsia#183) : toute l'équipe est partie liée.
+  "convex/modules/diaspora/serviceRequests.ts": "partie liée : ne demande pas un service à sa page (`request_own_page`)",
+  "convex/modules/diaspora/serviceReviews.ts": "partie liée : ne donne pas d'avis sur un service de sa page (`isProvider`)",
+  "convex/modules/diaspora/jobs.ts": "partie liée : ne candidate pas à une offre d'emploi de sa page (`job_application_own_page`)",
+}
+
+/**
+ * Les appelants de `signatoryRowOf` / `signatoryRowsOf` (lignes brutes, modérateurs compris), et
+ * pourquoi chacun est juste pour un modérateur — relus le 19/11/2026 (relecture d'antsia#183).
+ */
+const ROW_READERS: Record<string, string> = {
+  "convex/modules/pages/access.ts": "définit les lecteurs vivants à partir de la ligne",
+  "convex/modules/pages/signatories.ts": "liste de l'équipe (trois rôles), plafond, habilitation, retrait, invitations : rôle d'équipe assumé",
+  "convex/modules/pages/admin.ts": "console : promotion en administrateur (transition d'équipe), invitations d'administrateur filtrées par rôle",
+  "convex/modules/pages/claims.ts": "toute ligne rend partie liée à la revendication ; la validation promeut en administrateur (transition d'équipe)",
+  "convex/modules/pages/closedByBlocks.ts": "RP-03 : filtre par `liveSignatoryRole`, un modérateur ne ferme pas la page",
+  "convex/modules/pages/governanceNoticeAccess.ts": "une invitation en attente, quel que soit le rôle, sonne : seule l'invitation sonne chez le modérateur",
+  "convex/modules/diaspora/facts.ts": "RP-03 de la tranche : filtre par `liveSignatoryRole`",
+  "convex/modules/diaspora/moderationDesk.ts": "toute ligne rend partie liée à une revendication de la page (« page »)",
+  "convex/modules/diaspora/serviceNotifications.ts": "avis d'équipe : la porte relit `liveSignatoryRole`, le modérateur n'est pas avisé",
+  "convex/modules/diaspora/communityNotifications.ts": "avis d'équipe : la porte relit `liveSignatoryRole`, le modérateur n'est pas avisé",
+  "convex/modules/moderation/cases.ts": "avis de décision : filtre par `liveSignatoryRole`",
+  "convex/modules/editorial/access.ts": "autorité éditoriale : exige `liveSignatoryRole === \"admin\"`",
+  "convex/modules/contextualMessaging/access.ts": "voix de page : filtre par `liveTeamMember` (`liveSignatoryRole`)",
+  "convex/modules/contextualMessaging/hooks.ts": "avis d'équipe d'un fil : filtre par `liveTeamMember` (`liveSignatoryRole`)",
+  "convex/modules/contextualMessaging/callAccess.ts": "clé d'autorité d'un accord d'appel : ligne, acceptation et révision d'autorité ; la voix de page est déjà filtrée",
+  "convex/modules/commercialMessaging/team.ts": "équipe commerciale : filtre par `liveSignatoryRole`",
 }
 
 /** Inventaire figé des lecteurs de `liveSignatoryRole` au 19/11/2026 (décision AS-10). */
@@ -103,8 +135,9 @@ const DIRECT_TABLE_READERS = [
 ]
 
 const TEAM_READER_NAMES = new Set(["livePageTeamRole", "requirePageTeam"])
+const ROW_READER_NAMES = new Set(["signatoryRowOf", "signatoryRowsOf"])
 
-type Reads = { signatoryReader: boolean; teamReader: boolean; directTableRead: boolean }
+type Reads = { signatoryReader: boolean; teamReader: boolean; rowReader: boolean; directTableRead: boolean }
 
 function isInsideImport(node: ts.Node): boolean {
   for (let current: ts.Node | undefined = node.parent; current; current = current.parent) if (ts.isImportDeclaration(current)) return true
@@ -117,12 +150,16 @@ function isDeclarationName(node: ts.Identifier): boolean {
 
 /** Ce qu'un fichier lit : la référence à l'identifiant (hors déclaration et import), l'appel `query("pageSignatories")`. */
 function readsOf(file: string, text: string): Reads {
-  const reads: Reads = { signatoryReader: false, teamReader: false, directTableRead: false }
+  const reads: Reads = { signatoryReader: false, teamReader: false, rowReader: false, directTableRead: false }
+  const mark = (name: string) => {
+    if (name === "liveSignatoryRole") reads.signatoryReader = true
+    if (TEAM_READER_NAMES.has(name)) reads.teamReader = true
+    if (ROW_READER_NAMES.has(name)) reads.rowReader = true
+  }
   walk(parseSource(file, text), (node) => {
-    if (ts.isIdentifier(node) && !isInsideImport(node) && !isDeclarationName(node)) {
-      if (node.text === "liveSignatoryRole") reads.signatoryReader = true
-      if (TEAM_READER_NAMES.has(node.text)) reads.teamReader = true
-    }
+    if (ts.isIdentifier(node) && !isInsideImport(node) && !isDeclarationName(node)) mark(node.text)
+    // Un import RENOMMÉ (`{ livePageTeamRole as teamOf }`) : ses usages ne portent plus le nom suivi.
+    if (ts.isImportSpecifier(node) && node.propertyName !== undefined) mark(node.propertyName.text)
     if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression) && node.expression.name.text === "query") {
       const [first] = node.arguments
       if (first && ts.isStringLiteralLike(first) && first.text === "pageSignatories") reads.directTableRead = true
@@ -144,13 +181,22 @@ describe("page-authority-readers — le modérateur d'une page n'hérite d'aucun
       `// liveSignatoryRole(ctx, page, personId) dans un commentaire ne compte pas`,
       `export async function liveSignatoryRole() { return null }`,
     ].join("\n")
-    expect(readsOf("convex/modules/x/quiet.ts", fabricated)).toEqual({ signatoryReader: false, teamReader: false, directTableRead: false })
+    expect(readsOf("convex/modules/x/quiet.ts", fabricated)).toEqual({ signatoryReader: false, teamReader: false, rowReader: false, directTableRead: false })
     const reader = [
       `const role = await liveSignatoryRole(ctx, page, personId)`,
       `const reader = requirePageTeam`,
       `const rows = await ctx.db.query("pageSignatories").withIndex("by_page_role", (q) => q.eq("pageId", pageId)).take(10)`,
+      `const team = await signatoryRowsOf(ctx, pageId)`,
     ].join("\n")
-    expect(readsOf("convex/modules/x/reader.ts", reader)).toEqual({ signatoryReader: true, teamReader: true, directTableRead: true })
+    expect(readsOf("convex/modules/x/reader.ts", reader)).toEqual({ signatoryReader: true, teamReader: true, rowReader: true, directTableRead: true })
+    // Renommés à l'import, ou lus par un espace de noms : toujours vus.
+    const renamed = [
+      `import { livePageTeamRole as teamOf, signatoryRowOf as rowOf } from "../pages/access"`,
+      `const role = await teamOf(ctx, page, personId)`,
+      `const row = await rowOf(ctx, pageId, personId)`,
+    ].join("\n")
+    expect(readsOf("convex/modules/x/renamed.ts", renamed)).toMatchObject({ teamReader: true, rowReader: true, signatoryReader: false })
+    expect(readsOf("convex/modules/x/namespace.ts", `import * as access from "../pages/access"\nawait access.livePageTeamRole(ctx, page, personId)`).teamReader).toBe(true)
     expect(readsOf("convex/modules/x/insert.ts", `await ctx.db.insert("pageSignatories", row)`).directTableRead).toBe(false)
   })
 
@@ -159,7 +205,12 @@ describe("page-authority-readers — le modérateur d'une page n'hérite d'aucun
     const outside = readers.filter((file) => file !== DEFINER && !(file in TEAM_READERS))
     expect(outside, `lecteur du rôle d'équipe hors liste blanche : ${outside.join(", ")} — décider le droit de toute l'équipe qu'il ouvre et le déclarer dans TEAM_READERS`).toEqual([])
     expect(Object.keys(TEAM_READERS).filter((file) => !readers.includes(file))).toEqual([])
-    expect(Object.keys(TEAM_READERS)).toHaveLength(7)
+    expect(Object.keys(TEAM_READERS)).toHaveLength(10)
+  })
+
+  it("l'inventaire des appelants de `signatoryRowOf` / `signatoryRowsOf` est figé, chacun relu pour le modérateur", () => {
+    const readers = engineFiles().filter(({ reads }) => reads.rowReader).map(({ file }) => file)
+    expect(readers, "appelant des lignes brutes de l'équipe ajouté ou retiré : un modérateur y figure ; dire pourquoi c'est juste pour lui, puis mettre ROW_READERS à jour").toEqual(Object.keys(ROW_READERS).sort())
   })
 
   it("l'inventaire des lecteurs de `liveSignatoryRole` est figé : un lecteur neuf se relit (polarité) avant d'entrer", () => {
