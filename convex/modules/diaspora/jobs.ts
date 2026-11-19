@@ -737,6 +737,45 @@ export const pageJobOffers = networkQuery({
   },
 })
 
+/**
+ * EM-04 — les offres OUVERTES d'une page, pour la rubrique « Emplois » de sa fiche :
+ * la même projection que la recherche (aucun état de modération) ; une offre échue,
+ * suspendue, en relecture ou retirée n'y paraît pas. Page inconnue, d'un autre réseau,
+ * illisible pour ce lecteur ou de nature non employeuse : le même `null`. Les plus
+ * récemment créées d'abord (l'index de la page, sans index ajouté) ; une fenêtre peut
+ * être courte tout en annonçant sa suite.
+ */
+export const pageOpenJobOffers = networkQuery({
+  args: {
+    pageId: v.string(),
+    paginationOpts: paginationOptsValidator,
+  },
+  returns: v.union(paginationResultValidator(jobOfferCardValidator), v.null()),
+  handler: async (ctx, args): Promise<PaginationResult<JobOfferCard> | null> => {
+    assertDiasporaNetwork(ctx.network)
+    assertCapability(ctx, "read_network")
+    const pageId = ctx.db.normalizeId("pages", args.pageId)
+    if (pageId === null) return null
+    const page = await readableEmployerPage(ctx, ctx.network, pageId, ctx.person._id)
+    if (!page) return null
+    const result = await ctx.db
+      .query("jobOffers")
+      .withIndex("by_network_and_page_and_status", (q) => q.eq("networkId", ctx.networkId).eq("pageId", page._id).eq("status", "open"))
+      .order("desc")
+      .paginate(bounded(args.paginationOpts, JOB_SEARCH_PAGE_MAX))
+    const card = await pageCardOf(ctx, page)
+    const now = Date.now()
+    const rows: JobOfferCard[] = []
+    for (const offer of result.page) {
+      // Défense en profondeur : l'index borne déjà ; chaque ligne est rejugée (échue, page, modération).
+      if (offer.networkId !== ctx.networkId || offer.pageId !== page._id || !isJobOfferOpen(stateOf(offer), now)) continue
+      // G9 : projection publique — une offre en relecture ou retirée n'est servie qu'à la gestion de l'équipe.
+      if (await isServedTo(ctx, "diasporaJobOffer", offer._id, ctx.person._id)) rows.push(toJobOfferCard(offer, card))
+    }
+    return { ...result, page: rows }
+  },
+})
+
 // ═══════════════════════════════════════════════════════════════
 // Gérer une offre (signataires vivants d'une page employeuse)
 // ═══════════════════════════════════════════════════════════════

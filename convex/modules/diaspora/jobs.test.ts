@@ -12,6 +12,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { api, internal } from "../../_generated/api"
 import type { Doc, Id } from "../../_generated/dataModel"
 import { SEED_CONFIRMATION } from "../../seeds/foundations"
+import { isBlockedBetween } from "../graph/graph"
 import { testConvex } from "../../test.setup"
 
 type T = ReturnType<typeof testConvex>
@@ -376,6 +377,88 @@ describe("offres d'emploi — écrire et lire", () => {
     expect(await failure(reader.as.query(J.searchJobOffers, { networkId, contract: "benevolat", paginationOpts: FIRST }))).toEqual({ code: "invalidArgument", appRule: "job_contract_invalid" })
     // Une page plus grande que le plafond est ramenée au plafond.
     expect((await reader.as.query(J.searchJobOffers, { networkId, paginationOpts: { numItems: 0, cursor: null } })).page).toHaveLength(1)
+  })
+})
+
+describe("rubrique « Emplois » d'une page (EM-04) — ses offres ouvertes, rien d'autre", () => {
+  it("une page sans offre ouverte rend une fenêtre vide ; brouillon, suspendue, close et échue n'y paraissent pas", async () => {
+    const { t, networkId, reader, pageId } = await fixture()
+    const read = async () => await reader.as.query(J.pageOpenJobOffers, { networkId, pageId, paginationOpts: FIRST })
+    expect(await read()).toMatchObject({ page: [], isDone: true })
+
+    await insertOffer(t, networkId, pageId, { status: "draft" })
+    await insertOffer(t, networkId, pageId, { status: "suspended" })
+    await insertOffer(t, networkId, pageId, { status: "closed" })
+    await insertOffer(t, networkId, pageId, { closesAt: NOW - 1 })
+    expect((await read())?.page).toEqual([])
+
+    // Deux offres ouvertes : les plus récemment créées d'abord, projection de la recherche, sans état de modération.
+    const first = await insertOffer(t, networkId, pageId, { title: "Commis de cuisine" })
+    const second = await insertOffer(t, networkId, pageId, { title: "Livreur à vélo", closesAt: NOW + DAY_MS })
+    const result = await read()
+    expect(result?.page.map((row) => row.jobId)).toEqual([second, first])
+    expect(result?.page.map((row) => Object.keys(row).sort())).toEqual([CARD_KEYS, CARD_KEYS])
+    expect(result?.page[0]).toMatchObject({ page: { handle: "traiteur-paris-demo", ownerKind: "company", badge: "community" } })
+  })
+
+  it("une offre en relecture ou retirée n'est servie qu'à la gestion de l'équipe, jamais à la fiche", async () => {
+    const { t, networkId, pro, reader, pageId, jobId } = await openOffer()
+    const visible = async () => (await reader.as.query(J.pageOpenJobOffers, { networkId, pageId, paginationOpts: FIRST }))?.page.map((row) => row.jobId)
+    expect(await visible()).toEqual([jobId])
+    const teamView = async () => (await pro.as.query(J.pageOpenJobOffers, { networkId, pageId, paginationOpts: FIRST }))?.page.map((row) => row.jobId)
+    await moderate(t, networkId, "diasporaJobOffer", jobId, "pending_review", { ownerPageId: pageId })
+    expect(await visible()).toEqual([])
+    // La rubrique est la projection publique, pour l'équipe aussi : l'état se lit dans sa gestion, pas sur la fiche.
+    expect(await teamView()).toEqual([])
+    await moderate(t, networkId, "diasporaJobOffer", jobId, "removed", { ownerPageId: pageId })
+    expect(await visible()).toEqual([])
+    expect(await teamView()).toEqual([])
+    // L'équipe la garde dans sa gestion, avec son état.
+    expect((await pro.as.query(J.pageJobOffers, { networkId, pageId, paginationOpts: FIRST })).page.map((row) => [row.jobId, row.moderation])).toEqual([[jobId, "removed"]])
+  })
+
+  it("page inconnue, d'un autre réseau, inactive ou d'une institution : le même null ; la lecture reste bornée au réseau et à la session", async () => {
+    const { t, root, networkId, reader, pageId } = await fixture()
+    await insertOffer(t, networkId, pageId)
+    const read = async (id: string) => await reader.as.query(J.pageOpenJobOffers, { networkId, pageId: id, paginationOpts: FIRST })
+
+    const elsewhere = await page(t, root, "page-racine-demo")
+    await insertOffer(t, root, elsewhere)
+    const inactive = await page(t, networkId, "page-fermee-demo", { status: "inactive" })
+    await insertOffer(t, networkId, inactive)
+    const institution = await page(t, networkId, "poste-emploi-demo", { ownerKind: "institution" })
+    const media = await page(t, networkId, "media-emploi-demo", { ownerKind: "media" })
+    const community = await page(t, networkId, "communaute-emploi-demo", { ownerKind: "community" })
+    const moderated = await page(t, networkId, "page-retiree-demo")
+    await insertOffer(t, networkId, moderated)
+    await t.run(async (ctx) => {
+      await ctx.db.insert("moderationContentStates", { networkId, targetKind: "page", targetId: moderated, status: "removed", createdAt: NOW, updatedAt: NOW })
+    })
+    for (const id of ["pas-un-identifiant", elsewhere, inactive, institution, media, community, moderated]) expect(await read(id), id).toBeNull()
+    // Une association recrute aussi : sa rubrique se lit comme celle d'une entreprise.
+    const association = await page(t, networkId, "collectif-emploi-demo", { ownerKind: "association" })
+    const volunteer = await insertOffer(t, networkId, association, { contract: "internship" })
+    expect((await read(association))?.page.map((row) => row.jobId)).toEqual([volunteer])
+
+    expect(await failure(reader.as.query(J.pageOpenJobOffers, { networkId: root, pageId, paginationOpts: FIRST }))).toMatchObject({ code: "notFound" })
+    expect(await failure(t.query(J.pageOpenJobOffers, { networkId, pageId, paginationOpts: FIRST }))).toMatchObject({ code: "unauthenticated" })
+    // Une personne d'ANTSIA seule, sans adhésion à DIASPORALE, ne lit pas la rubrique.
+    const outsider = t.withIdentity({ subject: "auth-racine-seule" })
+    await outsider.mutation(api.modules.people.persons.ensureMyPerson, {})
+    await outsider.mutation(api.modules.people.consents.recordConsent, { purpose: "social_profile", origin: "onboarding" })
+    await outsider.mutation(api.modules.people.profile.publishMyProfile, { handle: "racine.seule", displayName: "Racine Seule" })
+    expect((await failure(outsider.query(J.pageOpenJobOffers, { networkId, pageId, paginationOpts: FIRST }))).code).not.toBeNull()
+  })
+
+  it("un blocage avec toute l'équipe ne ferme pas la lecture : la rubrique reste lue, comme la recherche (RP-03, docs/40)", async () => {
+    const { t, root, networkId, pro, reader, pageId, jobId } = await openOffer()
+    await t.run(async (ctx) => {
+      await ctx.db.insert("personBlocks", { networkId: root, blockerPersonId: reader.personId, targetPersonId: pro.personId, createdAt: NOW, updatedAt: NOW })
+    })
+    // Le blocage est bien en vigueur dans la paire : seule la lecture de la page reste ouverte.
+    expect(await t.run(async (ctx) => await isBlockedBetween(ctx, reader.personId, pro.personId))).toBe(true)
+    expect((await reader.as.query(J.pageOpenJobOffers, { networkId, pageId, paginationOpts: FIRST }))?.page.map((row) => row.jobId)).toEqual([jobId])
+    expect((await reader.as.query(J.searchJobOffers, { networkId, paginationOpts: FIRST })).page.map((row) => row.jobId)).toEqual([jobId])
   })
 })
 
