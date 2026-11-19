@@ -19,7 +19,7 @@ import { notFound } from "../../lib/errors"
 import { isActiveMember } from "../../lib/access"
 import { isBlockedBetween, isConnectedTo } from "../graph/graph"
 import { isFederatedContentAvailable } from "../federation/mirrorAccess"
-import { liveSignatoryRole } from "../pages/access"
+import { livePageTeamRole } from "../pages/access"
 import { isFollowingPage } from "../pages/follows"
 import { canAccessAssociationGroupPost, isLiveThematicGroupMember } from "../thematicGroups/access"
 import { hasNativePostAuthor } from "./nativeAuthor"
@@ -97,7 +97,9 @@ export async function canSeePostDoc(ctx: ReadCtx, reader: ReaderContext, post: D
  * publications partout, par leur lien comme par le fil — le signataire n'en est
  * pas exempté, ce n'est pas son propos. Personne n'en est « l'auteur » : le
  * signataire historique ne garde aucune exception (une note aux abonnés se
- * referme sur lui s'il n'est plus ni abonné ni signataire vivant). Le blocage
+ * referme sur lui s'il n'est plus ni abonné ni membre vivant de l'équipe). AS-10 :
+ * la note aux abonnés s'ouvre à TOUTE l'équipe vivante, modérateur compris
+ * (`livePageTeamRole`) — il modère les commentaires qu'elle reçoit. Le blocage
  * entre PERSONNES ne s'y applique pas — c'est la page qui parle ; se désabonner
  * ou masquer la publication sont les gestes qui correspondent.
  */
@@ -107,7 +109,7 @@ async function canSeePagePostDoc(ctx: ReadCtx, reader: ReaderContext, post: Doc<
   if (!(await isFederatedContentAvailable(ctx, "pages", page._id))) return false
   const isPageAudience =
     post.audience === "followers"
-      ? (await isFollowingPage(ctx, pageId, reader.personId)) || (await liveSignatoryRole(ctx, page, reader.personId)) !== null
+      ? (await isFollowingPage(ctx, pageId, reader.personId)) || (await livePageTeamRole(ctx, page, reader.personId)) !== null
       : false
   return isVisibleTo({
     audience: post.audience,

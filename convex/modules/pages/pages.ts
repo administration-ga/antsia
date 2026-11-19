@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/modules/reseauPages/pages.ts @ ad2e7fdc2 — adaptations : réécrit (owner map §6.15) — pages GÉNÉRIQUES par réseau, CRÉÉES par un membre vérifié (association, entreprise, média, communauté ; l'institution naît d'une décision tracée, `admin.ts`) au lieu d'être activées pour une organisation ; identité lue sur la page ; lues dans leur réseau, ou depuis la racine si elles y sont ; publier et retirer exigent un SIGNATAIRE VIVANT (au lieu de `communication.publish`) ; audiences `public` (communiqué) et `followers` (note aux abonnés, au lieu de la note de service `organisation`) ; visibilité par la RÈGLE de la page, pays et portée des publications locales tirés de la page (EXF-DG-23) ; abonnés prévenus par la DIFFUSION PAR LOTS, re-gardés au moment de sonner ; abonnés et publications comptés par l'agrégat (D02) ; annuaire par confiance puis récence (au lieu des plus suivies), filtré par pays, cherché sans accents, borné (`discover`) ou paginé (`paginateDiscover`) ; « mes pages suivies » paginées ; mur par fenêtres bornées et curseur composite (le patron du mur d'une personne), chaque ligne re-gardée ; débit sur chaque écriture (D14) ; refus indistinct à code. Désabonnement : coupure des directs réservés aux abonnés de la page (`live.revocation.kickUserFromPageDirects`, lot 16). Publication de page : placement jugé, puis règle de placement de la tranche qui gouverne le réseau, avant toute écriture (HB-03, issue antsia#96) ; état de modération rendu au signataire qui dépose (FD-04, issue antsia#108).
+// Dupliqué de socle/convex/modules/reseauPages/pages.ts @ ad2e7fdc2 — adaptations : réécrit (owner map §6.15) — pages GÉNÉRIQUES par réseau, CRÉÉES par un membre vérifié (association, entreprise, média, communauté ; l'institution naît d'une décision tracée, `admin.ts`) au lieu d'être activées pour une organisation ; identité lue sur la page ; lues dans leur réseau, ou depuis la racine si elles y sont ; publier et retirer exigent un SIGNATAIRE VIVANT (au lieu de `communication.publish`) ; audiences `public` (communiqué) et `followers` (note aux abonnés, au lieu de la note de service `organisation`) ; visibilité par la RÈGLE de la page, pays et portée des publications locales tirés de la page (EXF-DG-23) ; abonnés prévenus par la DIFFUSION PAR LOTS, re-gardés au moment de sonner ; abonnés et publications comptés par l'agrégat (D02) ; annuaire par confiance puis récence (au lieu des plus suivies), filtré par pays, cherché sans accents, borné (`discover`) ou paginé (`paginateDiscover`) ; « mes pages suivies » paginées ; mur par fenêtres bornées et curseur composite (le patron du mur d'une personne), chaque ligne re-gardée ; débit sur chaque écriture (D14) ; refus indistinct à code. Désabonnement : coupure des directs réservés aux abonnés de la page (`live.revocation.kickUserFromPageDirects`, lot 16). Publication de page : placement jugé, puis règle de placement de la tranche qui gouverne le réseau, avant toute écriture (HB-03, issue antsia#96) ; état de modération rendu au signataire qui dépose (FD-04, issue antsia#108). ; AS-10 / PG-08 : `viewer.teamRole` (modérateur compris, `viewer.role` jamais modérateur) et `myTeamPages` (« Mes pages » de l'équipe ; `myPages` inchangé).
 /**
  * Les PAGES d'un réseau — créer, lire, suivre, publier en leur nom, lire leur
  * mur, les découvrir.
@@ -12,7 +12,7 @@
  *  · la confiance (« Officiel », « Vérifié ») ne se déclare pas : une page
  *    créée ici est `community`, et seule une décision tracée la change.
  */
-import { pageTrustRank, assertMemberCreatableOwnerKind, assertPageHandle, assertPageName, normalizePageDescription, normalizePageShortName, PAGE_SIGNATORIES_MAX } from "@antsia/social-domain/pages"
+import { pageTrustRank, assertMemberCreatableOwnerKind, assertPageHandle, assertPageName, isPageSignatoryRole, normalizePageDescription, normalizePageShortName, PAGE_SIGNATORIES_MAX, type PageRole, type PageTeamRole } from "@antsia/social-domain/pages"
 import { normalizePageAssociationType, normalizePageCity, normalizePageSector } from "@antsia/social-domain/pagePresentation"
 import { addedMentionedIds, assertCountryCode, assertPostContent, assertPostMedia, assertPostReach, assertPostVideoDuration, REACH_REQUIRING_COUNTRY } from "@antsia/social-domain/content"
 import { cursorForFeedPost } from "@antsia/social-domain/feedScale"
@@ -62,6 +62,7 @@ import {
 import {
   assertPageHandleFree,
   isPageOnRoot,
+  livePageTeamRole,
   liveSignatoryRole,
   pageCardOf,
   pageSearchText,
@@ -72,7 +73,7 @@ import {
 } from "./access"
 import { followedPageIds, isFollowingPage, pageFollowOf } from "./follows"
 import { pagePresentationFields, pagePresentationOf } from "./presentation"
-import { pageAssociationTypeValidator, pageCardValidator, pagePostAudienceValidator, pageRoleValidator, pageSectorValidator } from "./validators"
+import { pageAssociationTypeValidator, pageCardValidator, pagePostAudienceValidator, pageRoleValidator, pageSectorValidator, pageTeamRoleValidator } from "./validators"
 
 type ReadCtx = Pick<QueryCtx, "db" | "storage">
 
@@ -106,10 +107,17 @@ const pageDtoValidator = v.object({
   createdAt: v.number(),
   viewer: v.object({
     following: v.boolean(),
-    /** MON rôle VIVANT sur la page (le composeur, la gestion) — `null` : simple lecteur. */
+    /** MON rôle VIVANT de signataire (le composeur, la gestion) — `null` : simple lecteur, ou modérateur (AS-10). */
     role: v.union(pageRoleValidator, v.null()),
+    /** AS-10 / PG-08 : MON rôle VIVANT dans l'équipe, modérateur compris — `null` : hors de l'équipe. */
+    teamRole: v.union(pageTeamRoleValidator, v.null()),
   }),
 })
+
+/** Le rôle de signataire qu'un rôle d'équipe donne — `null` pour un modérateur, qui ne parle pas au nom de la page. */
+function signatoryRoleOf(teamRole: PageTeamRole | null): PageRole | null {
+  return teamRole !== null && isPageSignatoryRole(teamRole) ? teamRole : null
+}
 
 /** Une ligne d'ANNUAIRE — la découverte, « mes pages suivies » : une seule projection. */
 const pageSummaryValidator = v.object({
@@ -207,15 +215,17 @@ export const getPage = networkQuery({
   handler: async (ctx, args) => {
     const page = await readablePageByHandle(ctx, ctx.network, args.handle, ctx.person._id)
     if (!page) return null
-    const [card, bannerUrl, followerCount, postCount, following, role] = await Promise.all([
+    const [card, bannerUrl, followerCount, postCount, following, teamRole] = await Promise.all([
       pageCardOf(ctx, page),
       page.bannerStorageId ? servableUrl(ctx, page.bannerStorageId) : Promise.resolve(null),
       countPageFollowers(ctx, page._id),
       countPagePosts(ctx, page._id),
       isFollowingPage(ctx, page._id, ctx.person._id),
-      liveSignatoryRole(ctx, page, ctx.person._id),
+      livePageTeamRole(ctx, page, ctx.person._id),
     ])
-    return { ...card, ...pagePresentationOf(page), description: page.description ?? null, bannerUrl, visibility: page.visibility, followerCount, postCount, createdAt: page.createdAt, viewer: { following, role } }
+    // Un seul rôle lu, deux sens : `role` (parle au nom de la page) n'est jamais un modérateur.
+    const viewer = { following, role: signatoryRoleOf(teamRole), teamRole }
+    return { ...card, ...pagePresentationOf(page), description: page.description ?? null, bannerUrl, visibility: page.visibility, followerCount, postCount, createdAt: page.createdAt, viewer }
   },
 })
 
@@ -296,7 +306,7 @@ export const myPages = networkQuery({
       .query("pageSignatories")
       .withIndex("by_network_person", (q) => q.eq("networkId", ctx.networkId).eq("personId", ctx.person._id))
       .take(PAGE_SIGNATORIES_MAX)
-    const out: (Infer<typeof pageCardValidator> & { role: Doc<"pageSignatories">["role"] })[] = []
+    const out: (Infer<typeof pageCardValidator> & { role: PageRole })[] = []
     for (const row of rows) {
       // Une invitation en attente ne donne aucune page au nom de laquelle parler.
       if (row.acceptedAt === undefined) continue
@@ -304,6 +314,34 @@ export const myPages = networkQuery({
       if (!page || page.networkId !== ctx.networkId) continue
       const role = await liveSignatoryRole(ctx, page, ctx.person._id)
       if (role !== null) out.push({ ...(await pageCardOf(ctx, page)), role })
+    }
+    return out
+  },
+})
+
+/**
+ * AS-10 / PG-08 — les pages dont je suis membre VIVANT de l'équipe dans ce réseau, modérateur
+ * compris (l'écran « Mes pages » et l'accès à l'équipe). Même lecture que `myPages`, qui reste
+ * celle du composeur (« publier en tant que ») et ne rend jamais une page où l'on n'est que
+ * modérateur. `viewer.role` garde son sens (nul pour un modérateur) ; `viewer.teamRole` n'est
+ * jamais nul.
+ */
+export const myTeamPages = networkQuery({
+  args: {},
+  returns: v.array(v.object({ ...pageCardValidator.fields, viewer: v.object({ role: v.union(pageRoleValidator, v.null()), teamRole: pageTeamRoleValidator }) })),
+  handler: async (ctx) => {
+    const rows = await ctx.db
+      .query("pageSignatories")
+      .withIndex("by_network_person", (q) => q.eq("networkId", ctx.networkId).eq("personId", ctx.person._id))
+      .take(PAGE_SIGNATORIES_MAX)
+    const out: (Infer<typeof pageCardValidator> & { viewer: { role: PageRole | null; teamRole: PageTeamRole } })[] = []
+    for (const row of rows) {
+      // Une invitation en attente ne fait entrer personne dans l'équipe.
+      if (row.acceptedAt === undefined) continue
+      const page = await ctx.db.get(row.pageId)
+      if (!page || page.networkId !== ctx.networkId) continue
+      const teamRole = await livePageTeamRole(ctx, page, ctx.person._id)
+      if (teamRole !== null) out.push({ ...(await pageCardOf(ctx, page)), viewer: { role: signatoryRoleOf(teamRole), teamRole } })
     }
     return out
   },

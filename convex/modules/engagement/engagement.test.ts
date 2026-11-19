@@ -220,6 +220,101 @@ describe("commentaires", () => {
   })
 })
 
+describe("AS-10 / PG-08 — l'équipe d'une page retire les commentaires sous ses publications", () => {
+  const E = api.modules.engagement.engagement
+  const SIG = api.modules.pages.signatories
+
+  async function verified(t: T, networkId: Id<"networks">, person: Person): Promise<void> {
+    await t.run(async (ctx) => {
+      const membership = await ctx.db.query("networkMemberships").withIndex("by_network_and_person", (q) => q.eq("networkId", networkId).eq("personId", person.personId)).unique()
+      await ctx.db.patch(membership!._id, { status: "verifiee" })
+    })
+  }
+
+  /** Alice administre une page ; Bob y est modérateur, Dora signataire ; Eve commente, Frank lit. */
+  async function pageCast(t: T) {
+    const { root } = await seed(t)
+    const alice = await enter(t, root, "alice")
+    await verified(t, root, alice)
+    const { pageId } = await alice.as.mutation(api.modules.pages.pages.createPage, { networkId: root, name: "Association des Gabonais", ownerKind: "association" })
+    const team = async (handle: string, role: "signatory" | "moderator") => {
+      const person = await enter(t, root, handle)
+      await alice.as.mutation(SIG.grantPageRole, { networkId: root, pageId, handle, role })
+      await person.as.mutation(SIG.respondToPageInvitation, { networkId: root, pageId, accept: true })
+      return person
+    }
+    const bob = await team("bob", "moderator")
+    const dora = await team("dora", "signatory")
+    const eve = await enter(t, root, "eve")
+    const frank = await enter(t, root, "frank")
+    return { root, pageId, alice, bob, dora, eve, frank }
+  }
+
+  async function postJournal(t: T, postId: Id<"posts">) {
+    return await t.run(async (ctx) => await ctx.db.query("engineAudit").withIndex("by_subject_at", (q) => q.eq("subjectTable", "posts").eq("subjectId", postId)).take(20))
+  }
+
+  it("un modérateur vivant retire le commentaire d'autrui — journalisé, sans avis — et `canRemove` le dit à qui le peut", async () => {
+    const t = testConvex()
+    const { root, pageId, alice, bob, eve, frank } = await pageCast(t)
+    const { postId } = await alice.as.mutation(api.modules.pages.pages.publishAsPage, { networkId: root, pageId, body: "Communiqué de l'association" })
+    const evesComment = await eve.as.mutation(E.comment, { networkId: root, postId, body: "Un avis déplacé" })
+    const frankReply = await frank.as.mutation(E.comment, { networkId: root, postId, body: "Une réponse", parentCommentId: evesComment.commentId })
+    const bobsComment = await bob.as.mutation(E.comment, { networkId: root, postId, body: "Merci de rester courtois" })
+
+    const asFrank = (await comments(frank, root, postId)).page
+    expect(asFrank.find((row) => row.commentId === evesComment.commentId)).not.toHaveProperty("canRemove")
+    expect(asFrank.find((row) => row.commentId === evesComment.commentId)?.replies[0]).toMatchObject({ commentId: frankReply.commentId, canRemove: true })
+    const asBob = (await comments(bob, root, postId)).page
+    expect(asBob.map((row) => row.canRemove)).toEqual([true, true])
+    expect(asBob[0]?.replies.map((row) => row.canRemove)).toEqual([true])
+    const replies = await bob.as.query(E.paginateReplies, { networkId: root, postId, commentId: evesComment.commentId, paginationOpts: { numItems: 10, cursor: null } })
+    expect(replies.page.map((row) => row.canRemove)).toEqual([true])
+
+    await bob.as.mutation(E.removeComment, { networkId: root, commentId: evesComment.commentId })
+    // Rejouer ne journalise rien de plus ; retirer son propre commentaire n'est pas une décision.
+    await bob.as.mutation(E.removeComment, { networkId: root, commentId: evesComment.commentId })
+    await bob.as.mutation(E.removeComment, { networkId: root, commentId: bobsComment.commentId })
+    expect(await postJournal(t, postId)).toMatchObject([
+      { action: "page.comment_remove", capacity: "member", actorPersonId: bob.personId, networkId: root, details: { pageId, role: "moderator", commentId: evesComment.commentId } },
+    ])
+    expect((await comments(frank, root, postId)).page).toEqual([])
+    expect(await bellKinds(eve, root)).not.toContain("moderation_decision")
+
+    // L'administratrice retire au titre de `page_admin`.
+    const another = await frank.as.mutation(E.comment, { networkId: root, postId, body: "Encore un avis" })
+    await alice.as.mutation(E.removeComment, { networkId: root, commentId: another.commentId })
+    expect((await postJournal(t, postId)).at(-1)).toMatchObject({ action: "page.comment_remove", capacity: "page_admin", actorPersonId: alice.personId, details: { role: "admin", commentId: another.commentId } })
+  })
+
+  it("le droit est ACTUEL : l'auteur historique d'une publication de page, retiré de l'équipe, ne retire plus rien", async () => {
+    const t = testConvex()
+    const { root, pageId, alice, bob, dora, eve, frank } = await pageCast(t)
+    const { postId } = await dora.as.mutation(api.modules.pages.pages.publishAsPage, { networkId: root, pageId, body: "Communiqué signé par Dora" })
+    const first = await eve.as.mutation(E.comment, { networkId: root, postId, body: "Premier avis" })
+    expect((await comments(dora, root, postId)).page[0]?.canRemove).toBe(true)
+    await alice.as.mutation(SIG.revokePageRole, { networkId: root, pageId, personId: dora.personId })
+    await alice.as.mutation(SIG.revokePageRole, { networkId: root, pageId, personId: bob.personId })
+    expect((await comments(dora, root, postId)).page[0]).not.toHaveProperty("canRemove")
+    expect(await codeOf(dora.as.mutation(E.removeComment, { networkId: root, commentId: first.commentId }))).toBe("notFound")
+    expect(await codeOf(bob.as.mutation(E.removeComment, { networkId: root, commentId: first.commentId }))).toBe("notFound")
+    expect(await codeOf(frank.as.mutation(E.removeComment, { networkId: root, commentId: first.commentId }))).toBe("notFound")
+    expect(await postJournal(t, postId)).toEqual([])
+  })
+
+  it("sous une publication personnelle, rien ne change : l'auteur retire sans journal, `canRemove` le lui dit", async () => {
+    const t = testConvex()
+    const { root, bob, eve, frank } = await pageCast(t)
+    const { postId } = await eve.as.mutation(api.modules.posts.posts.publish, { networkId: root, body: "Chez Eve" })
+    const { commentId } = await frank.as.mutation(E.comment, { networkId: root, postId, body: "Bonjour" })
+    expect((await comments(eve, root, postId)).page[0]?.canRemove).toBe(true)
+    expect((await comments(bob, root, postId)).page[0]).not.toHaveProperty("canRemove")
+    expect(await codeOf(bob.as.mutation(E.removeComment, { networkId: root, commentId }))).toBe("notFound")
+    await eve.as.mutation(E.removeComment, { networkId: root, commentId })
+    expect(await postJournal(t, postId)).toEqual([])
+  })
+})
+
 describe("cloches des commentaires", () => {
   it("une citation en commentaire prévient ; sous une publication qu'on ne voit pas, elle ne sonne pas", async () => {
     vi.useFakeTimers()

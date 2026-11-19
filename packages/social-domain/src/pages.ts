@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/modules/reseauPages/domain.ts (avec l'extrait de `followedUpdates.ts`, l. 33-47) @ ad2e7fdc2 — adaptations : pages GÉNÉRIQUES du moteur (institution, association, entreprise, média, communauté) à identité PROPRE — nom, sigle et description bornés ici, plus dérivés d'une organisation ; adresse dérivée du NOM (le slug d'une organisation n'existe plus) ; admission au fil sans portée « mon_administration » : la note de service devient l'audience `followers` (abonnés et signataires vivants) ; signataires (rôles `admin`/`signatory`, plafond, dernier administrateur) et revendications (EXF-AN-17 : pièces, note, transitions) neufs ; rang de confiance pour la découverte ; refus à code de règle (`DomainViolation`).
+// Dupliqué de socle/convex/modules/reseauPages/domain.ts (avec l'extrait de `followedUpdates.ts`, l. 33-47) @ ad2e7fdc2 — adaptations : pages GÉNÉRIQUES du moteur (institution, association, entreprise, média, communauté) à identité PROPRE — nom, sigle et description bornés ici, plus dérivés d'une organisation ; adresse dérivée du NOM (le slug d'une organisation n'existe plus) ; admission au fil sans portée « mon_administration » : la note de service devient l'audience `followers` (abonnés et signataires vivants) ; signataires (rôles `admin`/`signatory`, plafond, dernier administrateur) et revendications (EXF-AN-17 : pièces, note, transitions) neufs ; rang de confiance pour la découverte ; refus à code de règle (`DomainViolation`). ; AS-10 / PG-08 : équipe à trois rôles (`PAGE_TEAM_ROLES`, le modérateur ne parle pas au nom de la page).
 /**
  * Domaine PUR des pages — aucune fonction Convex ici, pour qu'un import client
  * atteigne ces règles sans embarquer le backend, et pour qu'elles se vérifient
@@ -138,19 +138,52 @@ export function pageTrustRank(trust: PageTrust): number {
 // ═══════════════════════════════════════════════════════════════
 
 /**
- * `admin` publie ET gère (identité, signataires, revendication) ; `signatory`
+ * `admin` publie ET gère (identité, équipe, revendication) ; `signatory`
  * publie et retire les publications de la page. Le signataire n'est pas le
  * propriétaire du propos : son droit est ACTUEL (relu à chaque acte), jamais
  * acquis par une publication passée.
  */
 export const PAGE_ROLES = ["admin", "signatory"] as const
+/** Les rôles qui PARLENT au nom de la page — jamais un modérateur (AS-10 / PG-08). */
 export type PageRole = (typeof PAGE_ROLES)[number]
 
-/** Signataires d'une page, tous rôles confondus — une page n'est pas un groupe. */
+/**
+ * L'ÉQUIPE d'une page (AS-10 / PG-08) : ses signataires (`admin`, `signatory`,
+ * affiché « Éditeur » dans DIASPORALE) et ses MODÉRATEURS. Le modérateur ne
+ * parle pas au nom de la page : il retire les commentaires laissés sous ses
+ * publications, voit l'équipe, lit les notes aux abonnés et peut se retirer.
+ *
+ * Deux listes, deux noms : `PAGE_ROLES` garde son sens (« parle au nom de la
+ * page ») pour que tout lecteur existant reste fermé au modérateur ; seuls les
+ * lecteurs qui ouvrent un droit à toute l'équipe lisent `PAGE_TEAM_ROLES`.
+ */
+export const PAGE_TEAM_ROLES = ["admin", "signatory", "moderator"] as const
+export type PageTeamRole = (typeof PAGE_TEAM_ROLES)[number]
+
+/** Membres de l'équipe d'une page, tous rôles confondus (modérateurs et invitations compris) — une page n'est pas un groupe. */
 export const PAGE_SIGNATORIES_MAX = 50
+
+/** Ce rôle d'équipe parle-t-il au nom de la page ? Oui pour l'administrateur et le signataire, jamais pour le modérateur. */
+export function isPageSignatoryRole(role: PageTeamRole): role is PageRole {
+  return role === "admin" || role === "signatory"
+}
 
 export function canManagePage(role: PageRole): boolean {
   return role === "admin"
+}
+
+/**
+ * Retirer un commentaire laissé sous une publication de la page : toute
+ * l'équipe VIVANTE le peut (droit relu à chaque geste, jamais acquis par une
+ * publication passée).
+ */
+export function canModeratePageComments(role: PageTeamRole): boolean {
+  switch (role) {
+    case "admin":
+    case "signatory":
+    case "moderator":
+      return true
+  }
 }
 
 export function assertPageHasRoomForSignatory(count: number): void {
@@ -158,10 +191,11 @@ export function assertPageHasRoomForSignatory(count: number): void {
 }
 
 /**
- * Retirer ou rétrograder le DERNIER administrateur laisserait une page que plus
- * personne ne gère : refusé (qu'il se retire lui-même ou qu'on le retire).
+ * Retirer ou rétrograder le DERNIER administrateur (vers signataire ou vers
+ * modérateur) laisserait une page que plus personne ne gère : refusé (qu'il se
+ * retire lui-même ou qu'on le retire).
  */
-export function assertNotLastAdmin(input: { role: PageRole; nextRole: PageRole | null; adminCount: number }): void {
+export function assertNotLastAdmin(input: { role: PageTeamRole; nextRole: PageTeamRole | null; adminCount: number }): void {
   if (input.role === "admin" && input.nextRole !== "admin" && input.adminCount <= 1) throw new DomainViolation("PAGE_LAST_ADMIN")
 }
 

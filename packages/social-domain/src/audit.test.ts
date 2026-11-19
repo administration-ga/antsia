@@ -36,6 +36,12 @@ describe("journal des décisions — détail et motif", () => {
     expect(auditDetailsProblems({ reason: "x".repeat(DECISION_REASON_MAX), cause: "operator" })).toEqual([])
   })
 
+  it("AS-10 : le retrait d'un commentaire par l'équipe d'une page est une action du journal, sur la publication, au détail plat", () => {
+    expect(AUDIT_ACTIONS).toContain("page.comment_remove")
+    expect(AUDIT_SUBJECT_TABLES).toContain("posts")
+    expect(auditDetailsProblems({ pageId: "pages_1", role: "moderator", commentId: "postComments_1" })).toEqual([])
+  })
+
   it("seul le système agit sans acteur", () => {
     expect(isSystemCapacity("system")).toBe(true)
     expect(isSystemCapacity("network_moderator")).toBe(false)

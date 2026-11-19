@@ -15,7 +15,7 @@ import { enforceRateLimit } from "../../lib/rateLimit"
 import { contextualDecisionConflict } from "../contextualMessaging/access"
 import { editorialAccessOrNull } from "../editorial/access"
 import { notifyPerson } from "../notifications/notify"
-import { liveSignatoryRole, signatoryRowsOf } from "../pages/access"
+import { livePageTeamRole, liveSignatoryRole, signatoryRowsOf } from "../pages/access"
 import { appendAudit, networkRoleCapacity, operatorCapacity } from "../platform/audit"
 import { liveThematicGroupMembership } from "../thematicGroups/access"
 import { contentState, owningPageOfReport } from "./policy"
@@ -33,7 +33,10 @@ type NetworkActor = { networkId: Id<"networks">; person: Doc<"persons">; members
 const motiveOf = (reason: string) => checked(() => assertDecisionReason(reason, 3))
 const pageOptions = (opts: { cursor: string | null; numItems: number }) => ({ ...opts, numItems: Math.max(1, Math.min(50, opts.numItems)) })
 
-/** Une signature de page ne permet jamais de modérer son propre contenu collectif. */
+/**
+ * Une place dans l'équipe d'une page ne permet jamais de modérer son propre contenu collectif :
+ * AS-10, le modérateur de la page non plus (`livePageTeamRole`), comme ses signataires.
+ */
 async function assertNoPageDecisionConflict(ctx: ReadCtx, actorPersonId: Id<"persons">, target: Doc<"reports">["target"]): Promise<void> {
   // CC-2b : une partie au fil contextuel, ou un signataire vivant de sa page, ne tranche jamais un dossier de ce fil.
   if (target.kind === "contextualMessage" && (await contextualDecisionConflict(ctx, target.id, actorPersonId))) return notFound()
@@ -64,7 +67,7 @@ async function assertNoPageDecisionConflict(ctx: ReadCtx, actorPersonId: Id<"per
   const state = await contentState(ctx, target.kind, target.id)
   if (!state?.ownerPageId) return
   const page = await ctx.db.get(state.ownerPageId)
-  if (page && await liveSignatoryRole(ctx, page, actorPersonId) !== null) return notFound()
+  if (page && await livePageTeamRole(ctx, page, actorPersonId) !== null) return notFound()
 }
 
 /** Une décision commerciale ou professionnelle porte sur la révision effectivement présentée. */

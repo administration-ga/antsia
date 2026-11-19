@@ -59,6 +59,14 @@ export const AUDIT_ACTIONS = [
   "page.post_pin",
   /** AS-03 (DIASPORALE) : l'administrateur de la page rouvre le groupe de l'association, qu'il avait fermé. */
   "page.group_reopen",
+  /**
+   * AS-10 / PG-08 : un membre VIVANT de l'équipe de la page (administrateur, signataire ou
+   * modérateur) retire le commentaire d'autrui laissé sous une publication de la page. Sujet : la
+   * publication (`posts`). Qualité : `page_admin` pour un administrateur, `member` sinon. Détail :
+   * `pageId`, `role` (le rôle VIVANT au moment du geste) et `commentId`. Retirer son propre
+   * commentaire n'est pas une décision : rien n'est journalisé.
+   */
+  "page.comment_remove",
   // Boutiques (P07, `convex/modules/shops/`) : politique de publication des
   // vitrines d'un réseau, décision sur une demande en file d'admission,
   // suspension et rétablissement d'une vitrine par l'équipe de la plateforme

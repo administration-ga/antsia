@@ -1,5 +1,5 @@
 /**
- * Les SIGNATAIRES d'une page — qui parle en son nom.
+ * Les SIGNATAIRES d'une page — qui parle en son nom — et, depuis AS-10 / PG-08, son ÉQUIPE.
  *
  * Écrit à neuf (owner map §6.15 ; cahier §6.3 : « signataire / administrateur
  * de page : publier au nom de la page, gérer les signataires ») : au socle, le
@@ -15,9 +15,15 @@
  *    se retirer soi-même ou décliner une invitation n'en sont pas ;
  *  · PG-01 : une invitation en attente fait sonner la cloche de la personne
  *    invitée (`page_signatory_invite`, sans acteur ni nom de page) ; la ligne se
- *    RÉSOUT à la réponse (acceptée, déclinée) ou au retrait de l'invitation.
+ *    RÉSOUT à la réponse (acceptée, déclinée) ou au retrait de l'invitation ;
+ *  · AS-10 / PG-08 : l'équipe compte un troisième rôle, `moderator`, qui ne parle
+ *    pas au nom de la page (il retire les commentaires sous ses publications).
+ *    Il voit l'équipe et se retire comme tout membre (`requirePageTeam`) ; seul
+ *    l'administrateur habilite, change un rôle ou retire autrui. Rétrograder un
+ *    signataire en modérateur le sort des directs de la page, comme un retrait ;
+ *    seule l'invitation sonne chez le modérateur.
  */
-import { assertNotLastAdmin, assertPageHasRoomForSignatory } from "@antsia/social-domain/pages"
+import { assertNotLastAdmin, assertPageHasRoomForSignatory, isPageSignatoryRole } from "@antsia/social-domain/pages"
 import { v } from "convex/values"
 
 import { internal } from "../../_generated/api"
@@ -31,26 +37,27 @@ import { findPublishedPersonByHandle, miniProfileCache } from "../people/miniPro
 import { hasStrongIdentityFor } from "../people/persons"
 import { appendAudit } from "../platform/audit"
 import { refreshReaderContexts } from "../posts/feedMaterialization"
-import { countLiveAdmins, pageCardOf, requireManagedPage, signatoryRowOf, signatoryRowsOf } from "./access"
-import { pageCardValidator, pageRoleValidator } from "./validators"
+import { countLiveAdmins, pageCardOf, requireManagedPage, requirePageTeam, signatoryRowOf, signatoryRowsOf } from "./access"
+import { pageCardValidator, pageTeamRoleValidator } from "./validators"
 
 const signatoryDtoValidator = v.object({
   personId: v.id("persons"),
   handle: v.union(v.string(), v.null()),
   displayName: v.union(v.string(), v.null()),
   avatarUrl: v.union(v.string(), v.null()),
-  role: pageRoleValidator,
+  /** AS-10 : rôle d'ÉQUIPE (modérateur compris) ; lignes dans l'ordre administrateurs, signataires, modérateurs. */
+  role: pageTeamRoleValidator,
   /** L'invitation est-elle acceptée ? Une invitation en attente ne donne aucun droit. */
   accepted: v.boolean(),
   since: v.number(),
 })
 
-/** Les signataires d'une page (invitations comprises) — ses signataires vivants seuls les voient. */
+/** L'équipe d'une page (invitations comprises) — ses membres vivants seuls la voient, modérateurs compris (AS-10). */
 export const listPageSignatories = networkQuery({
   args: { pageId: v.id("pages") },
   returns: v.array(signatoryDtoValidator),
   handler: async (ctx, args) => {
-    const { page } = await requireManagedPage(ctx, { networkId: ctx.networkId, personId: ctx.person._id }, args.pageId, "signatory")
+    const { page } = await requirePageTeam(ctx, { networkId: ctx.networkId, personId: ctx.person._id }, args.pageId)
     const rows = await signatoryRowsOf(ctx, page._id)
     const profileOf = miniProfileCache(ctx)
     const out = []
@@ -75,11 +82,17 @@ export const listPageSignatories = networkQuery({
  * Une personne nouvelle est INVITÉE (elle accepte ou décline) ; un signataire
  * existant change de rôle aussitôt. Rejouer le même rôle ne fait rien. On ne
  * change pas son propre rôle ici (se retirer : `revokePageRole`).
+ *
+ * AS-10 : le rôle est un rôle d'ÉQUIPE (`moderator` compris). Un membre ACCEPTÉ qui
+ * cesse de parler au nom de la page (signataire rétrogradé en modérateur) sort de
+ * ses directs comme s'il était retiré ; un modérateur promu signataire voit son fil
+ * recomposé comme à l'acceptation. Le dernier administrateur vivant ne devient pas
+ * modérateur.
  */
 export const grantPageRole = networkMutation({
   minStatus: "declaree",
-  args: { pageId: v.id("pages"), handle: v.string(), role: pageRoleValidator },
-  returns: v.object({ personId: v.id("persons"), role: pageRoleValidator, invited: v.boolean() }),
+  args: { pageId: v.id("pages"), handle: v.string(), role: pageTeamRoleValidator },
+  returns: v.object({ personId: v.id("persons"), role: pageTeamRoleValidator, invited: v.boolean() }),
   handler: async (ctx, args) => {
     await enforceRateLimit(ctx, "page.manage", ctx.person._id)
     const { page } = await requireManagedPage(ctx, { networkId: ctx.networkId, personId: ctx.person._id }, args.pageId, "admin")
@@ -95,6 +108,12 @@ export const grantPageRole = networkMutation({
         checked(() => assertNotLastAdmin({ role: "admin", nextRole: args.role, adminCount }))
       }
       await ctx.db.patch(existing._id, { role: args.role, authorityRevision: (existing.authorityRevision ?? 0) + 1, updatedAt: now })
+      if (existing.acceptedAt !== undefined && isPageSignatoryRole(existing.role) !== isPageSignatoryRole(args.role)) {
+        // Il ne parle plus au nom de la page : sa connexion déjà ouverte à un direct réservé aux
+        // abonnés est coupée, sauf s'il en reste abonné (la décision d'accès juge), comme au retrait.
+        if (isPageSignatoryRole(args.role)) await refreshReaderContexts(ctx, existing.networkId, target._id)
+        else await ctx.scheduler.runAfter(0, internal.modules.live.revocation.kickUserFromPageDirects, { personId: target._id, pageId: page._id, cursor: null })
+      }
     } else {
       const count = (await signatoryRowsOf(ctx, page._id)).length
       checked(() => assertPageHasRoomForSignatory(count))
@@ -118,9 +137,9 @@ export const grantPageRole = networkMutation({
 })
 
 /**
- * Retirer un signataire — un administrateur vivant (décision tracée), ou la
- * personne elle-même (elle se retire, ce n'est pas une décision). Le dernier
- * administrateur vivant ne part pas.
+ * Retirer un membre de l'équipe — un administrateur vivant (décision tracée), ou
+ * la personne elle-même, QUEL QUE SOIT son rôle, modérateur compris (AS-10 : elle
+ * se retire, ce n'est pas une décision). Le dernier administrateur vivant ne part pas.
  */
 export const revokePageRole = networkMutation({
   minStatus: "en_attente",
@@ -129,7 +148,9 @@ export const revokePageRole = networkMutation({
   handler: async (ctx, args) => {
     await enforceRateLimit(ctx, "page.manage", ctx.person._id)
     const self = args.personId === ctx.person._id
-    const { page } = await requireManagedPage(ctx, { networkId: ctx.networkId, personId: ctx.person._id }, args.pageId, self ? "signatory" : "admin")
+    const { page } = self
+      ? await requirePageTeam(ctx, { networkId: ctx.networkId, personId: ctx.person._id }, args.pageId)
+      : await requireManagedPage(ctx, { networkId: ctx.networkId, personId: ctx.person._id }, args.pageId, "admin")
     const row = await signatoryRowOf(ctx, page._id, args.personId)
     if (!row) return { revoked: false }
     if (row.role === "admin" && row.acceptedAt !== undefined) {
@@ -156,10 +177,10 @@ export const revokePageRole = networkMutation({
   },
 })
 
-/** Mes invitations à signer pour une page de ce réseau, en attente. */
+/** Mes invitations à rejoindre l'équipe d'une page de ce réseau, en attente (rôle d'équipe, AS-10). */
 export const myPageInvitations = networkQuery({
   args: {},
-  returns: v.array(v.object({ page: pageCardValidator, role: pageRoleValidator, invitedAt: v.number() })),
+  returns: v.array(v.object({ page: pageCardValidator, role: pageTeamRoleValidator, invitedAt: v.number() })),
   handler: async (ctx) => {
     const rows = await ctx.db
       .query("pageSignatories")
@@ -175,11 +196,14 @@ export const myPageInvitations = networkQuery({
   },
 })
 
-/** Accepter (ou décliner) une invitation à signer — la personne invitée seule. Décliner efface l'invitation. */
+/**
+ * Accepter (ou décliner) une invitation — la personne invitée seule. Décliner efface
+ * l'invitation. AS-10 : rend le rôle d'ÉQUIPE accepté (`moderator` compris), `null` au refus.
+ */
 export const respondToPageInvitation = networkMutation({
   minStatus: "declaree",
   args: { pageId: v.id("pages"), accept: v.boolean() },
-  returns: v.object({ role: v.union(pageRoleValidator, v.null()) }),
+  returns: v.object({ role: v.union(pageTeamRoleValidator, v.null()) }),
   handler: async (ctx, args) => {
     await enforceRateLimit(ctx, "page.manage", ctx.person._id)
     const page = await ctx.db.get(args.pageId)

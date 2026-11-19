@@ -20,7 +20,8 @@
  *   n'est JAMAIS lu.
  * - Les gardes sont celles du moteur, importées et jamais recopiées :
  *   `teamCapacity` et `requireReportCapacity` (`moderation/cases`), `contentState`
- *   (`moderation/policy`), `liveSignatoryRole` (`pages/access`). Hors compétence,
+ *   (`moderation/policy`), `livePageTeamRole` (`pages/access`, AS-10 : l'équipe
+ *   de la page, modérateur compris, est partie liée). Hors compétence,
  *   hors réseau gouverné ou pour une autre personne attendue : le refus
  *   indistinct. Aucun DTO ne porte de déclarant, d'auteur, de corps de contenu,
  *   de pièce privée ni de coordonnée ; l'aperçu reste `moderation/reviewProjection`.
@@ -59,7 +60,7 @@ import { networkQuery } from "../../lib/functions"
 import { requireReportCapacity, teamCapacity } from "../moderation/cases"
 import { contentState } from "../moderation/policy"
 import { moderationSurfaceValidator, moderationTargetValidator, sanctionKindValidator } from "../moderation/tables"
-import { liveSignatoryRole, pageCardOf, signatoryRowOf } from "../pages/access"
+import { livePageTeamRole, pageCardOf, signatoryRowOf } from "../pages/access"
 import { pageClaimReviewCapacity } from "../pages/claims"
 import { pageCardValidator } from "../pages/validators"
 import { findPublishedPersonByHandle, livePersonProfile } from "../people/miniProfile"
@@ -489,13 +490,16 @@ function typedTarget(ctx: ReadCtx, kind: ModerationSurface, id: string): Target 
   }
 }
 
-/** La personne parle-t-elle au nom d'une de ces pages (signature VIVANTE, règle du moteur) ? */
+/**
+ * La personne est-elle dans l'équipe VIVANTE d'une de ces pages (règle du moteur) ? AS-10 : le
+ * modérateur de la page compte (`livePageTeamRole`) — partie liée, il ne tranche pas le dossier.
+ */
 async function signsAnyPage(ctx: ReadCtx, personId: Id<"persons">, pageIds: readonly Id<"pages">[], cache: SignatureCache): Promise<boolean> {
   for (const pageId of pageIds) {
     let signs = cache.get(pageId)
     if (signs === undefined) {
       const page = await ctx.db.get(pageId)
-      signs = page !== null && (await liveSignatoryRole(ctx, page, personId)) !== null
+      signs = page !== null && (await livePageTeamRole(ctx, page, personId)) !== null
       cache.set(pageId, signs)
     }
     if (signs) return true

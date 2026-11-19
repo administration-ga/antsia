@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/modules/reseauPersonnel/engagement.ts @ ad2e7fdc2 — adaptations : réagir et commenter dans un réseau (`networkMutation`, adhésion déclarée) ; LA garde de visibilité du moteur (`assertVisiblePost` : contexte de lecture, blocage, audience) ; réactions par FRAGMENTS et commentaires par l'AGRÉGAT — l'engagement n'écrit plus la publication (D01) ; `listComments` (100 lignes, 10 réponses, sans curseur) remplacée par `paginateComments` (racines paginées, aperçu des réponses et leur nombre) et `paginateReplies` (D03) ; commentaires d'un auteur bloqué écartés ; cloches par la porte unique, dans le réseau d'où le destinataire peut ouvrir la publication ; abonnés de la publication servis par la DIFFUSION PAR LOTS, re-gardés au moment de sonner (D08, au lieu d'une boucle de 100 dans la transaction) ; débit sur chaque geste ; une racine retirée emporte ses réponses et n'en reçoit plus, pas même par l'une d'elles (le socle laissait des réponses comptées que plus rien ne lisait).
+// Dupliqué de socle/convex/modules/reseauPersonnel/engagement.ts @ ad2e7fdc2 — adaptations : réagir et commenter dans un réseau (`networkMutation`, adhésion déclarée) ; LA garde de visibilité du moteur (`assertVisiblePost` : contexte de lecture, blocage, audience) ; réactions par FRAGMENTS et commentaires par l'AGRÉGAT — l'engagement n'écrit plus la publication (D01) ; `listComments` (100 lignes, 10 réponses, sans curseur) remplacée par `paginateComments` (racines paginées, aperçu des réponses et leur nombre) et `paginateReplies` (D03) ; commentaires d'un auteur bloqué écartés ; cloches par la porte unique, dans le réseau d'où le destinataire peut ouvrir la publication ; abonnés de la publication servis par la DIFFUSION PAR LOTS, re-gardés au moment de sonner (D08, au lieu d'une boucle de 100 dans la transaction) ; débit sur chaque geste ; une racine retirée emporte ses réponses et n'en reçoit plus, pas même par l'une d'elles (le socle laissait des réponses comptées que plus rien ne lisait). ; AS-10 / PG-08 : sous une publication de PAGE, l'équipe VIVANTE (modérateur compris) retire un commentaire, droit relu au geste et journalisé (`page.comment_remove`) ; `canRemove` sur chaque commentaire lu (`commentRemovalRight`).
 /**
  * Réagir et commenter.
  *
@@ -8,6 +8,7 @@
  * referme aussitôt le fil de commentaires qu'ils ouvraient.
  */
 import { addedMentionedIds, assertPersonalCommentBody } from "@antsia/social-domain/content"
+import { canModeratePageComments, type PageTeamRole } from "@antsia/social-domain/pages"
 import { paginationOptsValidator, type PaginationResult } from "convex/server"
 import { v } from "convex/values"
 
@@ -20,7 +21,9 @@ import { enforceRateLimit } from "../../lib/rateLimit"
 import { reactionKindValidator } from "../../lib/validators"
 import { blockedCounterpartIds, type BoundedIds, isBlockedBetween } from "../graph/graph"
 import { enqueueFanout } from "../notifications/fanout"
+import { livePageTeamRole } from "../pages/access"
 import { miniProfileCache, type PersonMiniProfile, resolveMentionedPersonIds } from "../people/miniProfile"
+import { appendAudit } from "../platform/audit"
 import { assertPostDiscussionOpen, assertVisiblePost, type ReaderContext } from "../posts/access"
 import { markCommentRemoved } from "../posts/contentRemoval"
 import { applyReactionDelta, countReplies, recordComment } from "../posts/counters"
@@ -31,6 +34,44 @@ import { hasNativePostAuthor } from "../posts/nativeAuthor"
 const REPLIES_PREVIEW = 3
 
 const readerOf = (ctx: { person: Doc<"persons">; network: Doc<"networks"> }): ReaderContext => ({ personId: ctx.person._id, network: ctx.network })
+
+// ═══════════════════════════════════════════════════════════════
+// Le droit de retirer un commentaire
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * À quel titre une personne retire les commentaires d'AUTRUI sous une publication :
+ *  · `postAuthor` — l'auteur d'une publication PERSONNELLE (chez soi, on garde la main) ;
+ *  · `pageTeam` — AS-10 / PG-08, un membre VIVANT de l'équipe de la page qui a publié, modérateur
+ *    compris. Le rôle est RELU à chaque geste : l'auteur historique d'une publication de page
+ *    n'en tire plus aucun droit, un ancien signataire le perd.
+ */
+type PostCommentsRemovalRight = { by: "postAuthor" } | { by: "pageTeam"; page: Doc<"pages">; role: PageTeamRole }
+
+/** Le droit de retirer un commentaire : le sien (`own`), ou celui que donne la publication. */
+export type CommentRemovalRight = { by: "own" } | PostCommentsRemovalRight
+
+type RemovalReadCtx = Pick<QueryCtx, "db">
+
+/** Le droit, sur une publication, de retirer les commentaires d'autrui — lu UNE fois par lecture de commentaires. */
+async function postCommentsRemovalRight(ctx: RemovalReadCtx, post: Doc<"posts">, personId: Id<"persons">): Promise<PostCommentsRemovalRight | null> {
+  if (post.pageId !== undefined) {
+    const page = await ctx.db.get(post.pageId)
+    if (!page || page.networkId !== post.networkId) return null
+    const role = await livePageTeamRole(ctx, page, personId)
+    return role !== null && canModeratePageComments(role) ? { by: "pageTeam", page, role } : null
+  }
+  return hasNativePostAuthor(post) && post.authorPersonId === personId ? { by: "postAuthor" } : null
+}
+
+/**
+ * LE droit de retirer CE commentaire — la mutation et le champ `canRemove` des lectures en
+ * partagent la définition. Son propre commentaire d'abord : le retirer n'est jamais une décision.
+ */
+export function commentRemovalRight(comment: Pick<Doc<"postComments">, "authorPersonId">, personId: Id<"persons">, postRight: PostCommentsRemovalRight | null): CommentRemovalRight | null {
+  if (comment.authorPersonId === personId) return { by: "own" }
+  return postRight
+}
 
 // ═══════════════════════════════════════════════════════════════
 // Réactions
@@ -139,9 +180,13 @@ export const comment = networkMutation({
 })
 
 /**
- * Retirer un commentaire — son AUTEUR, ou l'auteur de la publication (chez soi,
- * on garde la main sur ce qui s'affiche). Retiré, pas supprimé. Idempotent.
- * Une racine retirée emporte ses réponses (`markCommentRemoved`).
+ * Retirer un commentaire — son AUTEUR, l'auteur d'une publication personnelle
+ * (chez soi, on garde la main sur ce qui s'affiche), ou, sous une publication de
+ * PAGE, un membre VIVANT de son équipe (AS-10 : administrateur, signataire ou
+ * modérateur, rôle relu au geste). Retiré, pas supprimé. Idempotent. Une racine
+ * retirée emporte ses réponses (`markCommentRemoved`). Le retrait par l'équipe
+ * d'une page est une DÉCISION : une ligne au journal (`page.comment_remove`),
+ * sans avis à l'auteur ; retirer son propre commentaire n'en écrit aucune.
  */
 export const removeComment = networkMutation({
   minStatus: "en_attente",
@@ -153,8 +198,22 @@ export const removeComment = networkMutation({
     if (!comment) return notFound()
     // La garde de visibilité d'abord : on ne raisonne pas sur un commentaire porté par une publication invisible.
     const post = await assertVisiblePost(ctx, readerOf(ctx), comment.postId)
-    if (comment.authorPersonId !== ctx.person._id && (!hasNativePostAuthor(post) || post.authorPersonId !== ctx.person._id)) return notFound()
-    await markCommentRemoved(ctx, comment, Date.now())
+    const right = commentRemovalRight(comment, ctx.person._id, await postCommentsRemovalRight(ctx, post, ctx.person._id))
+    if (right === null) return notFound()
+    const now = Date.now()
+    const removing = comment.status !== "removed"
+    await markCommentRemoved(ctx, comment, now)
+    if (removing && right.by === "pageTeam") {
+      await appendAudit(ctx, {
+        action: "page.comment_remove",
+        capacity: right.role === "admin" ? "page_admin" : "member",
+        actorPersonId: ctx.person._id,
+        networkId: right.page.networkId,
+        subject: { table: "posts", id: post._id },
+        details: { pageId: right.page._id, role: right.role, commentId: comment._id },
+        at: now,
+      })
+    }
     return { removed: true as const }
   },
 })
@@ -194,6 +253,12 @@ export type ReplyDto = {
   createdAt: number
   editedAt: number | null
   isMine: boolean
+  /**
+   * AS-10 / PG-08 : posé à `true` quand le LECTEUR peut retirer ce commentaire (le sien ;
+   * l'auteur d'une publication personnelle ; un membre vivant de l'équipe pour une publication
+   * de page), OMIS sinon. Les clients lisent `canRemove === true` ; la mutation relit le droit.
+   */
+  canRemove?: boolean
 }
 
 export type CommentDto = ReplyDto & {
@@ -212,7 +277,7 @@ async function blockedFilter(ctx: Pick<QueryCtx, "db">, reader: ReaderContext): 
   }
 }
 
-function toReply(row: Doc<"postComments">, author: PersonMiniProfile, reader: ReaderContext): ReplyDto {
+function toReply(row: Doc<"postComments">, author: PersonMiniProfile, reader: ReaderContext, postRight: PostCommentsRemovalRight | null): ReplyDto {
   return {
     commentId: row._id,
     author: { personId: author.personId, displayName: author.displayName, handle: author.handle, avatarUrl: author.avatarUrl },
@@ -220,6 +285,7 @@ function toReply(row: Doc<"postComments">, author: PersonMiniProfile, reader: Re
     createdAt: row.createdAt,
     editedAt: row.editedAt ?? null,
     isMine: row.authorPersonId === reader.personId,
+    ...(commentRemovalRight(row, reader.personId, postRight) === null ? {} : { canRemove: true }),
   }
 }
 
@@ -232,11 +298,12 @@ export const paginateComments = networkQuery({
   args: { postId: v.id("posts"), paginationOpts: paginationOptsValidator },
   handler: async (ctx, args): Promise<PaginationResult<CommentDto>> => {
     const reader = readerOf(ctx)
-    await assertVisiblePost(ctx, reader, args.postId)
+    const post = await assertVisiblePost(ctx, reader, args.postId)
     const result = await ctx.db
       .query("postComments")
       .withIndex("by_post_parent_status_createdAt", (q) => q.eq("postId", args.postId).eq("parentCommentId", undefined).eq("status", "published"))
       .paginate(args.paginationOpts)
+    const postRight = await postCommentsRemovalRight(ctx, post, reader.personId)
     const isBlocked = await blockedFilter(ctx, reader)
     const profileOf = miniProfileCache(ctx)
     const page: CommentDto[] = []
@@ -249,9 +316,9 @@ export const paginateComments = networkQuery({
       const replies: ReplyDto[] = []
       for (const reply of preview) {
         if (await isBlocked(reply.authorPersonId) || !(await canReadModeratedContent(ctx, "comment", reply._id, reader.personId))) continue
-        replies.push(toReply(reply, await profileOf(reply.authorPersonId), reader))
+        replies.push(toReply(reply, await profileOf(reply.authorPersonId), reader, postRight))
       }
-      page.push({ ...toReply(root, await profileOf(root.authorPersonId), reader), replyCount: await countReplies(ctx, root._id), replies })
+      page.push({ ...toReply(root, await profileOf(root.authorPersonId), reader, postRight), replyCount: await countReplies(ctx, root._id), replies })
     }
     return { ...result, page }
   },
@@ -262,19 +329,20 @@ export const paginateReplies = networkQuery({
   args: { postId: v.id("posts"), commentId: v.id("postComments"), paginationOpts: paginationOptsValidator },
   handler: async (ctx, args): Promise<PaginationResult<ReplyDto>> => {
     const reader = readerOf(ctx)
-    await assertVisiblePost(ctx, reader, args.postId)
+    const post = await assertVisiblePost(ctx, reader, args.postId)
     const root = await ctx.db.get(args.commentId)
     if (!root || root.postId !== args.postId || root.parentCommentId !== undefined || root.status !== "published" || !(await canReadModeratedContent(ctx, "comment", root._id, reader.personId))) return notFound()
     const result = await ctx.db
       .query("postComments")
       .withIndex("by_post_parent_status_createdAt", (q) => q.eq("postId", args.postId).eq("parentCommentId", root._id).eq("status", "published"))
       .paginate(args.paginationOpts)
+    const postRight = await postCommentsRemovalRight(ctx, post, reader.personId)
     const isBlocked = await blockedFilter(ctx, reader)
     const profileOf = miniProfileCache(ctx)
     const page: ReplyDto[] = []
     for (const reply of result.page) {
       if (await isBlocked(reply.authorPersonId) || !(await canReadModeratedContent(ctx, "comment", reply._id, reader.personId))) continue
-      page.push(toReply(reply, await profileOf(reply.authorPersonId), reader))
+      page.push(toReply(reply, await profileOf(reply.authorPersonId), reader, postRight))
     }
     return { ...result, page }
   },

@@ -391,7 +391,7 @@ async function notice(ctx: MutationCtx, input: NoticeInput): Promise<boolean> {
  * porte ; au plus `SERVICE_TEAM_NOTICE_MAX` avisés, jamais l'auteur du geste.
  */
 async function noticeTeam(ctx: MutationCtx, input: Omit<NoticeInput, "recipientPersonId"> & { readonly pageId: Id<"pages"> }): Promise<number> {
-  // Borné : au plus deux fois `PAGE_SIGNATORIES_MAX + 1` lignes (`signatoryRowsOf`).
+  // Borné : au plus trois fois `PAGE_SIGNATORIES_MAX + 1` lignes (`signatoryRowsOf`, un lot par rôle d'équipe ; un modérateur n'est pas avisé, la porte relit le rôle de signataire).
   const rows = await signatoryRowsOf(ctx, input.pageId)
   const seen = new Set<Id<"persons">>()
   let notified = 0
