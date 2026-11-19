@@ -15,6 +15,15 @@ export function nativeRelativeTime(at: number, now: number, locale: string, t: (
   return new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", ...(new Date(at).getFullYear() === new Date(now).getFullYear() ? {} : { year: "numeric" }) }).format(at)
 }
 
+/**
+ * AS-10 / PG-08 : les gestes offerts sur un commentaire. « Retirer » sur le sien, ou quand le moteur
+ * pose `canRemove` (auteur de la publication, équipe vivante de la page) — il relit le droit au geste ;
+ * le commentaire d'autrui reste signalable.
+ */
+export function nativeCommentActions(comment: { isMine: boolean; canRemove?: boolean }): { remove: boolean; report: boolean; removeKey: "mobile.feedUi.commentRemove" | "mobile.feedUi.commentRemoveOther" } {
+  return { remove: comment.isMine || comment.canRemove === true, report: !comment.isMine, removeKey: comment.isMine ? "mobile.feedUi.commentRemove" : "mobile.feedUi.commentRemoveOther" }
+}
+
 /** The selected kind comes from the guarded DTO; a tap removes that same kind. */
 export function nativeReactionPresentation(mine: PersonalReactionKind | null, total: number, t: (key: string) => string) {
   const kind = mine ?? "like", label = nativeFeedText(t, `reaction.${kind}`)

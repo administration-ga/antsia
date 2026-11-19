@@ -66,6 +66,7 @@
   "mobile.feedUi.commentUncertain": "L’envoi n’a pas pu être confirmé. Actualisez les commentaires avant d’envoyer à nouveau.",
   "mobile.feedUi.refreshComments": "Actualiser les commentaires",
   "mobile.feedUi.commentRemove": "Retirer mon commentaire",
+  "mobile.feedUi.commentRemoveOther": "Retirer ce commentaire",
   "mobile.feedUi.commentRemoveConfirm": "Retirer ce commentaire ?",
   "mobile.feedUi.commentRemoved": "Le commentaire a été retiré.",
   "mobile.feedUi.clips": "Clips",

@@ -66,6 +66,7 @@
   "mobile.feedUi.commentUncertain": "The send could not be confirmed. Refresh comments before sending again.",
   "mobile.feedUi.refreshComments": "Refresh comments",
   "mobile.feedUi.commentRemove": "Remove my comment",
+  "mobile.feedUi.commentRemoveOther": "Remove this comment",
   "mobile.feedUi.commentRemoveConfirm": "Remove this comment?",
   "mobile.feedUi.commentRemoved": "The comment has been removed.",
   "mobile.feedUi.clips": "Clips",
