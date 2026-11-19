@@ -49,6 +49,7 @@
   "PAGE_HAS_LIVE_ADMIN": "Cette page a encore un administrateur actif : un administrateur de secours ne se nomme que pour une page sans administrateur.",
   "PAGE_RESCUE_INELIGIBLE": "La personne désignée doit être membre active du réseau de la page, sans demande d'effacement en cours.",
   "PAGE_SLEEP_EXPIRED": "Cette page dort depuis plus de {{days}} jours : elle ne se réactive plus depuis sa gestion.",
+  "PAGE_ASLEEP": "Cette page est en sommeil : son équipe ne change pas tant qu'elle dort. La revendication peut être refusée, ou attendre le réveil de la page.",
   "ALBUM_TITLE_REQUIRED": "Un album porte un titre.",
   "ALBUM_TITLE_TOO_LONG": "Un titre d'album est limité à {{max}} caractères.",
   "ALBUM_DESCRIPTION_TOO_LONG": "Une description d'album est limitée à {{max}} caractères.",

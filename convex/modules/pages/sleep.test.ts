@@ -13,7 +13,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { api, internal } from "../../_generated/api"
 import type { Doc, Id } from "../../_generated/dataModel"
 import { SEED_CONFIRMATION } from "../../seeds/foundations"
-import { createTestOperatorProof, testConvex } from "../../test.setup"
+import { createTestOperatorProof, createTestSession, testConvex } from "../../test.setup"
 
 type T = ReturnType<typeof testConvex>
 type Person = { as: ReturnType<T["withIdentity"]>; personId: Id<"persons">; handle: string }
@@ -40,9 +40,15 @@ afterEach(() => {
   vi.unstubAllEnvs()
 })
 
-/** Un membre de la racine, profil publié. */
+/**
+ * Un membre de la racine, profil publié. Sa session dure deux sommeils (la session de test par
+ * défaut, sept jours, expirerait avant l'échéance) : l'échéance s'éprouve à l'horloge, jamais en
+ * réécrivant la page.
+ */
 async function enter(t: T, rootId: Id<"networks">, handle: string, patch: Partial<Pick<Doc<"networkMemberships">, "role">> = {}): Promise<Person> {
-  const as = t.withIdentity({ subject: `as11a-${handle}` })
+  const subject = `as11a-${handle}`
+  const sessionId = await createTestSession(t, subject, NOW + 2 * PAGE_SLEEP_MS)
+  const as = t.withIdentity({ subject, sessionId })
   const personId = await as.mutation(api.modules.people.persons.ensureMyPerson, {})
   await as.mutation(api.modules.people.consents.recordConsent, { purpose: "social_profile", origin: "onboarding" })
   await as.mutation(api.modules.people.profile.publishMyProfile, { handle, displayName: handle })
@@ -197,16 +203,22 @@ describe("AS-11a — la liste « En sommeil » de l'équipe et la réactivation"
     expect(await refusal(wake(f, f.admin))).toBe("notFound")
   })
 
+  it("réactivable jusqu'à la dernière milliseconde du sommeil, à l'horloge", async () => {
+    const f = await fixture()
+    await sleep(f, f.admin)
+    vi.setSystemTime(NOW + PAGE_SLEEP_MS - 1)
+    expect(await wake(f, f.secondAdmin)).toEqual({ status: "active" })
+    expect(await pageRow(f)).toMatchObject({ status: "active" })
+  })
+
   it("échue à trente jours : la réactivation est refusée et rien n'est effacé", async () => {
     const f = await fixture()
     await sleep(f, f.admin)
-    // Trente jours dépasseraient la session de test : l'échéance est rapprochée à la milliseconde
-    // qui suit, ce qui éprouve la même frontière (`now >= sleepEndsAt`).
-    const ends = NOW + 1
-    await f.t.run(async (ctx) => {
-      await ctx.db.patch(f.pageId, { sleepEndsAt: ends })
-    })
+    const ends = NOW + PAGE_SLEEP_MS
+    // À la dernière milliseconde du sommeil : encore réactivable.
+    vi.setSystemTime(ends - 1)
     expect((await sleeping(f, f.admin))[0]).toMatchObject({ state: "asleep", canWake: true })
+    // À l'échéance même : échue, la réactivation est refusée.
     vi.setSystemTime(ends)
     expect((await sleeping(f, f.admin))[0]).toMatchObject({ state: "expired", canWake: false })
     expect(await refusal(wake(f, f.admin))).toBe("PAGE_SLEEP_EXPIRED")
@@ -291,7 +303,11 @@ describe("AS-11a — l'équipe d'une page en sommeil est figée", () => {
     const { claimId } = await f.outsider.as.mutation(C.requestPageClaim, { networkId: f.root, pageId, note: "Je préside l'association.", evidence: [{ storageId, mimeType: "application/pdf" }] })
     await seat(f.t, f.root, pageId, f.admin, "admin")
     await sleep(f, f.admin, pageId)
-    expect(await refusal(reviewer.as.mutation(C.decidePageClaim, { networkId: f.root, claimId, decision: "approved", reason: "Statuts déposés et conformes." }))).toBe("conflict")
+    // Une règle dite, pas un `conflict` (que le bureau lit « déjà tranchée ») : la demande reste en attente.
+    const refused = await caught(reviewer.as.mutation(C.decidePageClaim, { networkId: f.root, claimId, decision: "approved", reason: "Statuts déposés et conformes." }))
+    expect(engineErrorCode(refused)).toBe("invalidArgument")
+    expect(engineErrorRule(refused)).toEqual({ rule: "PAGE_ASLEEP", params: {} })
+    expect(await f.t.run(async (ctx) => (await ctx.db.get(claimId))?.status)).toBe("pending")
     const team = await f.t.run(async (ctx) => await ctx.db.query("pageSignatories").withIndex("by_page_person", (q) => q.eq("pageId", pageId)).take(10))
     expect(team.map((row) => row.personId)).toEqual([f.admin.personId])
     expect(await reviewer.as.mutation(C.decidePageClaim, { networkId: f.root, claimId, decision: "rejected", reason: "Le mandat présenté est échu." })).toEqual({ status: "rejected" })
