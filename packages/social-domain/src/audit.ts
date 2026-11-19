@@ -67,6 +67,16 @@ export const AUDIT_ACTIONS = [
    * commentaire n'est pas une décision : rien n'est journalisé.
    */
   "page.comment_remove",
+  /**
+   * AS-11a : un administrateur VIVANT met sa page en sommeil (trente jours, réversible). Sujet :
+   * la page (`pages`). Qualité : `page_admin`. Détail : `sleepEndsAt`, l'échéance posée.
+   */
+  "page.sleep",
+  /**
+   * AS-11a : un administrateur de la page la réactive pendant son sommeil. Sujet : la page
+   * (`pages`). Qualité : `page_admin`. Détail : `sleepEndsAt`, l'échéance qui courait.
+   */
+  "page.wake",
   // Boutiques (P07, `convex/modules/shops/`) : politique de publication des
   // vitrines d'un réseau, décision sur une demande en file d'admission,
   // suspension et rétablissement d'une vitrine par l'équipe de la plateforme

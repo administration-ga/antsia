@@ -76,6 +76,10 @@ export const DOMAIN_RULES = [
   // PG-01 : administrateur de secours (console) — jamais sur une page encore tenue, jamais hors du réseau.
   "PAGE_HAS_LIVE_ADMIN",
   "PAGE_RESCUE_INELIGIBLE",
+  // AS-11a : le sommeil posé par un administrateur est échu — la réactivation par l'équipe est refusée.
+  "PAGE_SLEEP_EXPIRED",
+  // AS-11a : la page dort, son équipe est figée — une revendication ne se valide pas (elle se refuse).
+  "PAGE_ASLEEP",
   // Albums
   "ALBUM_TITLE_REQUIRED",
   "ALBUM_TITLE_TOO_LONG",

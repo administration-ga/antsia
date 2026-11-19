@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/modules/reseauPages/domain.ts (avec l'extrait de `followedUpdates.ts`, l. 33-47) @ ad2e7fdc2 — adaptations : pages GÉNÉRIQUES du moteur (institution, association, entreprise, média, communauté) à identité PROPRE — nom, sigle et description bornés ici, plus dérivés d'une organisation ; adresse dérivée du NOM (le slug d'une organisation n'existe plus) ; admission au fil sans portée « mon_administration » : la note de service devient l'audience `followers` (abonnés et signataires vivants) ; signataires (rôles `admin`/`signatory`, plafond, dernier administrateur) et revendications (EXF-AN-17 : pièces, note, transitions) neufs ; rang de confiance pour la découverte ; refus à code de règle (`DomainViolation`). ; AS-10 / PG-08 : équipe à trois rôles (`PAGE_TEAM_ROLES`, le modérateur ne parle pas au nom de la page).
+// Dupliqué de socle/convex/modules/reseauPages/domain.ts (avec l'extrait de `followedUpdates.ts`, l. 33-47) @ ad2e7fdc2 — adaptations : pages GÉNÉRIQUES du moteur (institution, association, entreprise, média, communauté) à identité PROPRE — nom, sigle et description bornés ici, plus dérivés d'une organisation ; adresse dérivée du NOM (le slug d'une organisation n'existe plus) ; admission au fil sans portée « mon_administration » : la note de service devient l'audience `followers` (abonnés et signataires vivants) ; signataires (rôles `admin`/`signatory`, plafond, dernier administrateur) et revendications (EXF-AN-17 : pièces, note, transitions) neufs ; rang de confiance pour la découverte ; refus à code de règle (`DomainViolation`). ; AS-10 / PG-08 : équipe à trois rôles (`PAGE_TEAM_ROLES`, le modérateur ne parle pas au nom de la page). ; AS-11a : sommeil d'une page dérivé sans nouvel état (`PAGE_SLEEP_DAYS`, `pageSleepState`).
 /**
  * Domaine PUR des pages — aucune fonction Convex ici, pour qu'un import client
  * atteigne ces règles sans embarquer le backend, et pour qu'elles se vérifient
@@ -38,6 +38,37 @@ export const PAGE_STATUSES = ["active", "inactive"] as const
  * jamais être supprimées, et une réactivation les rend toutes d'un coup.
  */
 export type PageStatus = (typeof PAGE_STATUSES)[number]
+
+// ═══════════════════════════════════════════════════════════════
+// Sommeil (AS-11a)
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * AS-11a — la durée du SOMMEIL qu'un administrateur pose sur sa page : trente jours, pendant
+ * lesquels tout administrateur de la page peut la réactiver. Au-delà, la réactivation est refusée
+ * (`PAGE_SLEEP_EXPIRED`) et rien n'est effacé : la sortie est une décision humaine (console
+ * aujourd'hui, bureau en AS-11b).
+ */
+export const PAGE_SLEEP_DAYS = 30
+export const PAGE_SLEEP_MS = PAGE_SLEEP_DAYS * 24 * 60 * 60 * 1000
+
+/**
+ * L'état de sommeil d'une page : `none` (active, ou retirée par l'opérateur ou le juge),
+ * `asleep` (mise en sommeil par un administrateur, échéance à venir), `expired` (échéance
+ * passée, constatée à la lecture — aucun passage planifié ne l'écrit).
+ */
+export const PAGE_SLEEP_STATES = ["none", "asleep", "expired"] as const
+export type PageSleepState = (typeof PAGE_SLEEP_STATES)[number]
+
+/**
+ * Le sommeil n'est PAS un troisième état de page : c'est `inactive` plus l'échéance
+ * `sleepEndsAt`, que seul le geste d'un administrateur pose (le début est `deactivatedAt`). Une
+ * page `inactive` sans échéance est un retrait de l'opérateur ou du juge : `none`.
+ */
+export function pageSleepState(page: { status: PageStatus; deactivatedAt?: number; sleepEndsAt?: number }, now: number): PageSleepState {
+  if (page.status !== "inactive" || page.sleepEndsAt === undefined) return "none"
+  return now >= page.sleepEndsAt ? "expired" : "asleep"
+}
 
 /**
  * L'adresse d'une page, dérivée d'un texte libre (le nom, ou l'adresse saisie).

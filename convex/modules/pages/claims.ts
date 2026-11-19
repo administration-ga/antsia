@@ -26,7 +26,7 @@
  */
 import { assertDecisionReason, type AuditCapacity } from "@antsia/social-domain/audit"
 import type { ModerationSurface } from "@antsia/social-domain/moderationPolicy"
-import { pageTrustRank, assertPageClaimable, assertPageClaimEvidenceCount, isPageClaimOpen, normalizePageClaimNote, PAGE_CLAIM_EVIDENCE_RETENTION_MS } from "@antsia/social-domain/pages"
+import { pageTrustRank, assertPageClaimable, assertPageClaimEvidenceCount, isPageClaimOpen, normalizePageClaimNote, PAGE_CLAIM_EVIDENCE_RETENTION_MS, pageSleepState } from "@antsia/social-domain/pages"
 import { makeFunctionReference, paginationOptsValidator, type PaginationResult } from "convex/server"
 import { type Infer, v } from "convex/values"
 
@@ -343,6 +343,9 @@ export const decidePageClaim = networkMutation({
     if (args.decision === "approved") {
       await assertNativePageManagement(ctx, page._id)
       if (page.trust === "official") return failRule("PAGE_NOT_CLAIMABLE")
+      // AS-11a : l'équipe d'une page EN SOMMEIL est figée — aucune revendication ne la change ; le refus reste
+      // possible. Une règle dite (pas `conflict`, que le bureau lit « déjà tranchée ») : la demande reste en attente.
+      if (pageSleepState(page, now) !== "none") return failRule("PAGE_ASLEEP")
       if (!(await isActiveMember(ctx, page.networkId, claim.claimantPersonId))) return fail("conflict")
       const row = await signatoryRowOf(ctx, page._id, claim.claimantPersonId)
       if (row) await ctx.db.patch(row._id, { role: "admin", acceptedAt: row.acceptedAt ?? now,

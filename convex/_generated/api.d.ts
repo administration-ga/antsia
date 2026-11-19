@@ -326,6 +326,7 @@ import type * as modules_pages_pages from "../modules/pages/pages.js";
 import type * as modules_pages_presentation from "../modules/pages/presentation.js";
 import type * as modules_pages_shopPages from "../modules/pages/shopPages.js";
 import type * as modules_pages_signatories from "../modules/pages/signatories.js";
+import type * as modules_pages_sleep from "../modules/pages/sleep.js";
 import type * as modules_pages_tables from "../modules/pages/tables.js";
 import type * as modules_pages_validators from "../modules/pages/validators.js";
 import type * as modules_people_admission from "../modules/people/admission.js";
@@ -824,6 +825,7 @@ declare const fullApi: ApiFromModules<{
   "modules/pages/presentation": typeof modules_pages_presentation;
   "modules/pages/shopPages": typeof modules_pages_shopPages;
   "modules/pages/signatories": typeof modules_pages_signatories;
+  "modules/pages/sleep": typeof modules_pages_sleep;
   "modules/pages/tables": typeof modules_pages_tables;
   "modules/pages/validators": typeof modules_pages_validators;
   "modules/people/admission": typeof modules_people_admission;

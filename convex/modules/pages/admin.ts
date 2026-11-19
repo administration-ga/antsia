@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/modules/reseauPages/admin.ts @ ad2e7fdc2 — adaptations : réécrit (owner map §6.15) — la console du moteur (`operatorMutation`, opérateur de plateforme vivant) au lieu du superadmin ; plus d'ACTIVATION pour une organisation : la console CRÉE une page d'institution « Officiel » (décision tracée, idempotente par référence d'import), pose la confiance (`isTrustAllowedForOwner` : « Officiel » n'appartient qu'à une institution), retire ou rétablit une page, change son adresse (l'ancienne dans l'historique d'identité) et habilite un premier administrateur (invitation à accepter, identité forte exigée pour une page officielle) ; motif de décision borné ; chaque geste qui ÉCRIT laisse sa ligne au journal du moteur (`appendAudit`, au lieu d'`appendContextAudit`), un geste qui ne change rien n'écrit rien ; avertissement « module Actualités » retiré ; fermeture des directs de la page RÉTABLIE avec le module `live` (lot 16 : le retrait planifie `live/revocation.closePageDirects`, comme `deactivate` au socle) ; liste paginée au lieu de 100 lignes.
+// Dupliqué de socle/convex/modules/reseauPages/admin.ts @ ad2e7fdc2 — adaptations : réécrit (owner map §6.15) — la console du moteur (`operatorMutation`, opérateur de plateforme vivant) au lieu du superadmin ; plus d'ACTIVATION pour une organisation : la console CRÉE une page d'institution « Officiel » (décision tracée, idempotente par référence d'import), pose la confiance (`isTrustAllowedForOwner` : « Officiel » n'appartient qu'à une institution), retire ou rétablit une page, change son adresse (l'ancienne dans l'historique d'identité) et habilite un premier administrateur (invitation à accepter, identité forte exigée pour une page officielle) ; motif de décision borné ; chaque geste qui ÉCRIT laisse sa ligne au journal du moteur (`appendAudit`, au lieu d'`appendContextAudit`), un geste qui ne change rien n'écrit rien ; avertissement « module Actualités » retiré ; fermeture des directs de la page RÉTABLIE avec le module `live` (lot 16 : le retrait planifie `live/revocation.closePageDirects`, comme `deactivate` au socle) ; liste paginée au lieu de 100 lignes. ; AS-11a : `applyPageStatus` efface l'échéance du sommeil à chaque transition, `setPageStatus("inactive")` sur une page en sommeil reprend la main (journalisé), la console voit `sleepEndsAt`.
 /**
  * La CONSOLE des pages — les décisions qui ne se prennent pas depuis une page.
  *
@@ -17,6 +17,7 @@ import {
   normalizePageDescription,
   normalizePageShortName,
   PAGE_SIGNATORIES_MAX,
+  pageSleepState,
   pageTrustRank,
 } from "@antsia/social-domain/pages"
 import { paginationOptsValidator, type PaginationResult } from "convex/server"
@@ -55,6 +56,8 @@ function toAdminDto(page: Doc<"pages">) {
     importRef: page.importRef ?? null,
     createdAt: page.createdAt,
     deactivatedAt: page.deactivatedAt ?? null,
+    /** AS-11a : l'échéance du sommeil posé par un administrateur de la page ; `null` hors sommeil (retrait de l'opérateur ou du juge compris). */
+    sleepEndsAt: page.sleepEndsAt ?? null,
   }
 }
 
@@ -164,11 +167,13 @@ export const setPageTrust = operatorMutation({
 })
 
 /**
- * L'effet d'un retrait ou d'un rétablissement de page, partagé par la console (`setPageStatus`) et
- * par les mesures sur ordre du juge (SU01h, `moderation/measures.ts`, qui journalisent leur geste).
+ * L'effet d'un retrait ou d'un rétablissement de page, partagé par la console (`setPageStatus`), par
+ * les mesures sur ordre du juge (SU01h, `moderation/measures.ts`, qui journalisent leur geste) et par
+ * le sommeil (AS-11a, `pages/sleep.ts`, qui pose l'échéance APRÈS cet appel). Toute transition efface
+ * l'échéance du sommeil : un retrait ou un rétablissement décidé ailleurs reprend la main.
  */
 export async function applyPageStatus(ctx: MutationCtx, page: Doc<"pages">, status: Doc<"pages">["status"], now: number): Promise<void> {
-  await ctx.db.patch(page._id, { status, deactivatedAt: status === "inactive" ? now : undefined, updatedAt: now })
+  await ctx.db.patch(page._id, { status, deactivatedAt: status === "inactive" ? now : undefined, sleepEndsAt: undefined, updatedAt: now })
   if (status === "inactive") await ctx.scheduler.runAfter(0, internal.modules.live.revocation.closePageDirects, { pageId: page._id, cursor: null, revokedAt: now })
 }
 
@@ -187,17 +192,22 @@ export const setPageStatus = operatorMutation({
     const motive = checked(() => assertDecisionReason(args.reason, 10))
     const page = await ctx.db.get(args.pageId)
     if (!page) return notFound()
-    if (page.status === args.status) return { changed: false }
-    if (args.status === "active" && await hasJudicialPageHold(ctx, page._id)) return fail("conflict")
     const now = Date.now()
-    await applyPageStatus(ctx, page, args.status, now)
+    // AS-11a : retirer une page EN SOMMEIL (endormie ou échue) n'est pas un geste nul — l'opérateur
+    // reprend la main : l'échéance s'efface, la réactivation par l'équipe se ferme, la page reste
+    // retirée depuis le début de son sommeil (ses directs sont déjà fermés).
+    const takesOverSleep = args.status === "inactive" && pageSleepState(page, now) !== "none"
+    if (page.status === args.status && !takesOverSleep) return { changed: false }
+    if (args.status === "active" && await hasJudicialPageHold(ctx, page._id)) return fail("conflict")
+    if (takesOverSleep) await ctx.db.patch(page._id, { sleepEndsAt: undefined, updatedAt: now })
+    else await applyPageStatus(ctx, page, args.status, now)
     await appendAudit(ctx, {
       action: "page.status_set",
       capacity: operatorCapacity(ctx.operator),
       actorPersonId: ctx.person._id,
       networkId: page.networkId,
       subject: { table: "pages", id: page._id },
-      details: { reason: motive, previousStatus: page.status, status: args.status },
+      details: { reason: motive, previousStatus: page.status, status: args.status, ...(page.sleepEndsAt !== undefined ? { previousSleepEndsAt: page.sleepEndsAt } : {}) },
       at: now,
     })
     return { changed: true }

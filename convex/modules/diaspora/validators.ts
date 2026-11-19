@@ -158,5 +158,9 @@ export const hubPagesViewValidator = v.object({
   more: hubPagesMoreValidator,
 })
 
-/** Ce que la tranche ajoute à la fiche d'une page : sa revendicabilité, pour CE lecteur. */
-export const pageStandingValidator = v.object({ claimable: v.boolean() })
+/**
+ * Ce que la tranche ajoute à la fiche d'une page : sa revendicabilité, pour CE lecteur, et
+ * (AS-11a) si elle est SANS RESPONSABLE — aucun administrateur vivant, page native, hors
+ * institution. Un booléen, jamais l'identité de l'équipe.
+ */
+export const pageStandingValidator = v.object({ claimable: v.boolean(), orphan: v.boolean() })
