@@ -22,13 +22,16 @@
     },
     "role": {
       "admin": "Administrateur",
-      "signatory": "Signataire"
+      "signatory": "Signataire",
+      "moderator": "Modérateur"
     },
     "invitation": {
       "text": "Vous êtes invité à publier au nom de cette page — rôle : {{role}}.",
+      "moderatorText": "Vous êtes invité à modérer les commentaires laissés sous les publications de cette page. Vous ne publierez pas en son nom.",
       "accept": "Accepter",
       "decline": "Décliner",
       "accepted": "Vous publiez désormais au nom de cette page.",
+      "acceptedModerator": "Vous modérez désormais les commentaires de cette page.",
       "declined": "Invitation déclinée."
     },
     "empty": {
@@ -102,7 +105,8 @@
     "posts_other": "{{count, number}} publications",
     "roleNote": {
       "admin": "Vous administrez cette page : vous publiez en son nom et gérez ses signataires.",
-      "signatory": "Vous signez pour cette page : vous publiez en son nom."
+      "signatory": "Vous signez pour cette page : vous publiez en son nom.",
+      "moderator": "Vous modérez cette page : vous retirez les commentaires laissés sous ses publications, sans publier en son nom."
     },
     "wallEmptyCanPublish": "Cette page n'a encore rien publié. Vous pouvez publier en son nom ci-dessus.",
     "wallEmpty": "Cette page n'a encore rien publié.",
@@ -182,7 +186,9 @@
       "removeLabel": "Retirer {{name}} des signataires",
       "removed": "Signataire retiré.",
       "leave": "Ne plus signer pour cette page",
+      "leaveModerator": "Ne plus modérer cette page",
       "left": "Vous ne signez plus pour cette page.",
+      "leftModerator": "Vous ne modérez plus cette page.",
       "roleLabel": "Rôle de {{name}}",
       "roleChanged": "Rôle mis à jour.",
       "invite": {

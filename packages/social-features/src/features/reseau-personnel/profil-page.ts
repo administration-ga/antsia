@@ -22,6 +22,7 @@ import {
   normalizePageShortName,
   type PageClaimStatus,
   type PageRole,
+  type PageTeamRole,
 } from "@antsia/social-domain/pages"
 import { isMimeAllowedForUsage, UPLOAD_USAGES } from "@antsia/social-domain/uploadPolicy"
 import { isDomainViolation, megabytes } from "@antsia/social-domain/violation"
@@ -103,8 +104,11 @@ export function canManagePageAs(role: PageRole | null): boolean {
   return role === "admin"
 }
 
-/** Ce que la fiche dit au lecteur qui a un rôle sur la page — rien à qui n'en a pas. */
-export function pageRoleNote(role: PageRole | null, t: TFunction): string | null {
+/**
+ * Ce que la fiche dit au lecteur qui a un rôle dans l'équipe de la page (`viewer.teamRole`,
+ * modérateur compris — AS-10) — rien à qui n'en a pas.
+ */
+export function pageRoleNote(role: PageTeamRole | null, t: TFunction): string | null {
   if (role === null) return null
   return t(`reseau:profilPage.roleNote.${role}`)
 }

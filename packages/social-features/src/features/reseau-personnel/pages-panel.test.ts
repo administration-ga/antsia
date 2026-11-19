@@ -36,6 +36,7 @@ import {
   pageActionErrorMessage,
   pageBadgeView,
   pageHandlePreview,
+  pageInvitationAcceptedText,
   pageInvitationText,
   pageMetaLine,
   pageRoleLabel,
@@ -342,11 +343,19 @@ describe("badge, nature, rôle — nommés, jamais devinés", () => {
     expect(ownerKindLabel("community", t)).toBe("Collectif")
     expect(pageRoleLabel("admin", t)).toBe("Administrateur")
     expect(pageRoleLabel("signatory", t)).toBe("Signataire")
+    expect(pageRoleLabel("moderator", t)).toBe("Modérateur")
+    expect(pageRoleLabel("moderator", tEn)).toBe("Moderator")
   })
 
   it("dit le rôle qu'une invitation propose", () => {
     expect(pageInvitationText("signatory", t)).toContain("Signataire")
     expect(pageInvitationText("admin", tEn)).toContain("Administrator")
+    // AS-10 : l'invitation d'un modérateur ne lui promet pas de publier au nom de la page.
+    expect(pageInvitationText("moderator", t)).toContain("modérer les commentaires")
+    expect(pageInvitationText("moderator", t)).not.toContain("invité à publier")
+    expect(pageInvitationText("moderator", tEn)).toContain("moderate the comments")
+    expect(pageInvitationAcceptedText("signatory", t)).toBe("Vous publiez désormais au nom de cette page.")
+    expect(pageInvitationAcceptedText("moderator", t)).toBe("Vous modérez désormais les commentaires de cette page.")
   })
 
   it("un membre ne crée qu'une association, une entreprise, un média ou un collectif", () => {

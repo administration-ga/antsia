@@ -29,10 +29,11 @@ import {
   assertPageHandle,
   assertPageName,
   derivePageHandle,
+  isPageSignatoryRole,
   MEMBER_PAGE_OWNER_KINDS,
   normalizePageDescription,
   normalizePageShortName,
-  type PageRole,
+  type PageTeamRole,
 } from "@antsia/social-domain/pages"
 import { isDomainViolation } from "@antsia/social-domain/violation"
 import type { IconName, Tone } from "@antsia/ui"
@@ -248,14 +249,20 @@ export function ownerKindLabel(kind: PageOwnerKind, t: TFunction): string {
   return t(`reseau:pagesPanel.ownerKind.${kind}`)
 }
 
-/** Le rôle d'un signataire : administrateur (publie et gère) ou signataire (publie). */
-export function pageRoleLabel(role: PageRole, t: TFunction): string {
+/** Le rôle d'un membre de l'équipe : administrateur (publie et gère), signataire (publie) ou modérateur (AS-10 : retire les commentaires). */
+export function pageRoleLabel(role: PageTeamRole, t: TFunction): string {
   return t(`reseau:pagesPanel.role.${role}`)
 }
 
-/** Ce qu'une invitation à signer propose — le rôle offert, nommé. */
-export function pageInvitationText(role: PageRole, t: TFunction): string {
+/** Ce qu'une invitation propose — le rôle offert, nommé ; un modérateur ne publiera pas au nom de la page, le texte le dit. */
+export function pageInvitationText(role: PageTeamRole, t: TFunction): string {
+  if (!isPageSignatoryRole(role)) return t("reseau:pagesPanel.invitation.moderatorText")
   return t("reseau:pagesPanel.invitation.text", { role: pageRoleLabel(role, t) })
+}
+
+/** Ce que dit l'acceptation d'une invitation : publier au nom de la page, ou en modérer les commentaires. */
+export function pageInvitationAcceptedText(role: PageTeamRole, t: TFunction): string {
+  return t(isPageSignatoryRole(role) ? "reseau:pagesPanel.invitation.accepted" : "reseau:pagesPanel.invitation.acceptedModerator")
 }
 
 /** Ce qu'un badge de page MONTRE — son libellé (espace `social`), son ton et son pictogramme. */

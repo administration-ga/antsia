@@ -1,4 +1,4 @@
-// Réécrit d'après socle/packages/agent-features/src/features/reseau-personnel/PagesPanel.tsx @ ad2e7fdc2 — ce qui change : pages du moteur à identité propre, dans le réseau courant (`useNetwork`) : pages suivies par la première page de `pages.pages.paginateMyPageFollows` (catalogue chargé une fois, 50 au plus, troncature DITE), découverte PAGINÉE par `paginateDiscover` (recherche serveur ET filtre par pays, codes ISO nommés dans la langue courante) ; badge CALCULÉ par le serveur au lieu d'un « Page officielle » posé sur toute page, nature et pays sur chaque ligne ; kit d'espace lu à son point d'entrée (`@antsia/ui/espace-kit` : `EspaceEmptyState`, `EspacePagination` — phrases traduites par `useEspacePaginationLabels` —, `clampPage`, `pageSlice`, et sa feuille `EspaceKitStyles` montée par le volet lui-même, présent aussi sur téléphone) ; adresses par la table des routes injectée (`pageHref(handle, routes.page)`) ; textes traduits (clés `pagesPanel.…`) ; ajouts sur la vue par défaut : invitations à signer (`pages.signatories.myPageInvitations`, `respondToPageInvitation`), « Mes pages » (`myPages`, avec le rôle), et création d'une page (`createPage`, brouillon jugé par les règles du domaine, puis ouverture de la page créée) ; props inchangés (aucun). ; couleurs par fonction (ADR-0027) : l'acceptation d'une invitation en validation opt-in (relations en repli).
+// Réécrit d'après socle/packages/agent-features/src/features/reseau-personnel/PagesPanel.tsx @ ad2e7fdc2 — ce qui change : pages du moteur à identité propre, dans le réseau courant (`useNetwork`) : pages suivies par la première page de `pages.pages.paginateMyPageFollows` (catalogue chargé une fois, 50 au plus, troncature DITE), découverte PAGINÉE par `paginateDiscover` (recherche serveur ET filtre par pays, codes ISO nommés dans la langue courante) ; badge CALCULÉ par le serveur au lieu d'un « Page officielle » posé sur toute page, nature et pays sur chaque ligne ; kit d'espace lu à son point d'entrée (`@antsia/ui/espace-kit` : `EspaceEmptyState`, `EspacePagination` — phrases traduites par `useEspacePaginationLabels` —, `clampPage`, `pageSlice`, et sa feuille `EspaceKitStyles` montée par le volet lui-même, présent aussi sur téléphone) ; adresses par la table des routes injectée (`pageHref(handle, routes.page)`) ; textes traduits (clés `pagesPanel.…`) ; ajouts sur la vue par défaut : invitations à signer (`pages.signatories.myPageInvitations`, `respondToPageInvitation`), « Mes pages » (`myPages`, avec le rôle), et création d'une page (`createPage`, brouillon jugé par les règles du domaine, puis ouverture de la page créée) ; props inchangés (aucun). ; couleurs par fonction (ADR-0027) : l'acceptation d'une invitation en validation opt-in (relations en repli). ; AS-10 : l'acceptation d'une invitation de modérateur dit ce qu'elle donne (modérer les commentaires, sans publier).
 "use client"
 
 /**
@@ -70,6 +70,7 @@ import {
   pageActionErrorMessage,
   pageBadgeView,
   pageHandlePreview,
+  pageInvitationAcceptedText,
   pageInvitationText,
   pageMetaLine,
   pageRoleLabel,
@@ -447,7 +448,7 @@ function InvitationRow({ invitation }: { invitation: PageInvitation }) {
     setBusy(true)
     try {
       await respond({ networkId, pageId: page.pageId, accept })
-      toast.success(t(accept ? "pagesPanel.invitation.accepted" : "pagesPanel.invitation.declined"))
+      toast.success(accept ? pageInvitationAcceptedText(invitation.role, t) : t("pagesPanel.invitation.declined"))
     } catch (err) {
       toast.error(pageActionErrorMessage(err, t))
     } finally {
