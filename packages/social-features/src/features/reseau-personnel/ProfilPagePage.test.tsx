@@ -128,6 +128,8 @@ import { ProfilPagePage } from "./ProfilPagePage"
 const PAGE_ID = "pages_ambassade"
 
 function pageDto(overrides: Record<string, unknown> = {}, viewer: Record<string, unknown> = {}) {
+  // AS-10 : la place dans l'équipe suit le rôle de signataire, sauf quand le test la pose (modérateur).
+  const role = viewer.role ?? null
   return {
     pageId: PAGE_ID,
     networkId: TEST_NETWORK_ID,
@@ -144,7 +146,7 @@ function pageDto(overrides: Record<string, unknown> = {}, viewer: Record<string,
     followerCount: 0,
     postCount: 0,
     createdAt: 1,
-    viewer: { following: false, role: null, ...viewer },
+    viewer: { following: false, role, teamRole: role, ...viewer },
     ...overrides,
   }
 }
@@ -479,6 +481,59 @@ describe("ProfilPagePage — gérer la page (administrateur vivant)", () => {
     })
     expect(mutation("revokePageRole")).toHaveBeenCalledWith({ networkId: TEST_NETWORK_ID, pageId: PAGE_ID, personId: TEST_PERSON_ID })
     expect(toast.success).toHaveBeenCalledWith("Vous ne signez plus pour cette page.")
+  })
+})
+
+describe("ProfilPagePage — AS-10 : le modérateur de la page", () => {
+  it("voit l'équipe sans la gérer, ne publie pas au nom de la page, et peut se retirer", async () => {
+    mocks.getPage.data = pageDto({}, { role: null, teamRole: "moderator" })
+    mocks.signatories.data = [
+      { personId: "persons_chef", handle: "chef", displayName: "Chef", avatarUrl: null, role: "admin", accepted: true, since: 1 },
+      { personId: TEST_PERSON_ID, handle: "moi", displayName: "Moi", avatarUrl: null, role: "moderator", accepted: true, since: 2 },
+    ]
+    mutation("revokePageRole").mockResolvedValue({ revoked: true })
+    renderWithEngine(<ProfilPagePage handle="ambassade-ga" />)
+
+    expect(screen.queryByRole("button", { name: "Gérer la page" })).toBeNull()
+    expect(screen.queryByTestId("composer")).toBeNull()
+    expect(screen.getByText(/Vous modérez cette page/)).toBeTruthy()
+    const team = screen.getByRole("region", { name: "Signataires" })
+    expect(within(team).getByText("Modérateur")).toBeTruthy()
+    expect(within(team).queryByRole("form", { name: "Inviter un signataire" })).toBeNull()
+    await act(async () => {
+      fireEvent.click(within(team).getByRole("button", { name: "Ne plus modérer cette page" }))
+    })
+    expect(mutation("revokePageRole")).toHaveBeenCalledWith({ networkId: TEST_NETWORK_ID, pageId: PAGE_ID, personId: TEST_PERSON_ID })
+    expect(toast.success).toHaveBeenCalledWith("Vous ne modérez plus cette page.")
+  })
+
+  it("l'administrateur propose les trois rôles à l'invitation, modérateur compris", async () => {
+    mocks.getPage.data = pageDto({}, { role: "admin" })
+    mocks.signatories.data = [{ personId: TEST_PERSON_ID, handle: "moi", displayName: "Moi", avatarUrl: null, role: "admin", accepted: true, since: 1 }]
+    mutation("grantPageRole").mockResolvedValue({ personId: "persons_eli", role: "moderator", invited: true })
+    renderWithEngine(<ProfilPagePage handle="ambassade-ga" />)
+    fireEvent.click(screen.getByRole("button", { name: "Gérer la page" }))
+    const invite = screen.getByRole("form", { name: "Inviter un signataire" })
+    const roleSelect = within(invite).getByLabelText("Rôle proposé")
+    expect(within(roleSelect).getAllByRole("option").map((option) => option.textContent)).toEqual(["Administrateur", "Signataire", "Modérateur"])
+    fireEvent.change(within(invite).getByLabelText("Identifiant de la personne"), { target: { value: "eli.obame" } })
+    fireEvent.change(roleSelect, { target: { value: "moderator" } })
+    await act(async () => {
+      fireEvent.click(within(invite).getByRole("button", { name: "Inviter" }))
+    })
+    expect(mutation("grantPageRole")).toHaveBeenCalledWith({ networkId: TEST_NETWORK_ID, pageId: PAGE_ID, handle: "eli.obame", role: "moderator" })
+  })
+
+  it("l'invitation d'un modérateur dit ce qu'elle donne, et son acceptation aussi", async () => {
+    mocks.getPage.data = pageDto()
+    mocks.invitations.data = [{ page: { pageId: PAGE_ID, handle: "ambassade-ga", name: "Ambassade du Gabon" }, role: "moderator", invitedAt: 1 }]
+    mutation("respondToPageInvitation").mockResolvedValue({ role: "moderator" })
+    renderWithEngine(<ProfilPagePage handle="ambassade-ga" />)
+    expect(screen.getByText(/modérer les commentaires laissés sous les publications de cette page/)).toBeTruthy()
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Accepter" }))
+    })
+    expect(toast.success).toHaveBeenCalledWith("Vous modérez désormais les commentaires de cette page.")
   })
 })
 

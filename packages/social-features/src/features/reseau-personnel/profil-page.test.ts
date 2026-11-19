@@ -145,6 +145,13 @@ describe("le rôle VIVANT du lecteur", () => {
     expect(pageRoleNote(null, t)).toBeNull()
     expect(pageRoleNote("admin", t)).toContain("gérez ses signataires")
     expect(pageRoleNote("signatory", t)).toContain("vous publiez en son nom")
+    // AS-10 : le modérateur apprend ce qu'il fait, et qu'il ne publie pas au nom de la page.
+    expect(pageRoleNote("moderator", t)).toContain("sans publier en son nom")
+  })
+
+  it("AS-10 : publier et gérer restent au rôle de signataire — un modérateur n'en a pas (`viewer.role` nul)", () => {
+    expect(canPublishAsPage(null)).toBe(false)
+    expect(canManagePageAs(null)).toBe(false)
   })
 })
 

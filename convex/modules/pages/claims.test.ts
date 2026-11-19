@@ -197,6 +197,23 @@ describe("trancher une revendication", () => {
     expect(await ruleOf(claim(t, other, root, pageId))).toBe("PAGE_ALREADY_VERIFIED")
   })
 
+  it("AS-10 : le modérateur d'une page sans administrateur qui la revendique devient administrateur, fil recomposé", async () => {
+    const t = testConvex()
+    const { root } = await seed(t)
+    const presidente = await enter(t, root, "presidente")
+    const moderator = await enter(t, root, "moderatrice", "network_moderator")
+    const { pageId, handle } = await unclaimedAssociation(t, root)
+    await t.run(async (ctx) => {
+      await ctx.db.insert("pageSignatories", { networkId: root, pageId, personId: presidente.personId, role: "moderator", authorityRevision: 1, acceptedAt: 1, createdAt: 1, updatedAt: 1 })
+    })
+    const generation = async () => (await t.run(async (ctx) => await ctx.db.query("feedCursors").withIndex("by_reader", (q) => q.eq("networkId", root).eq("personId", presidente.personId).eq("scope", "pour_vous")).unique()))?.generation ?? 0
+    const before = await generation()
+    const { claimId } = await claim(t, presidente, root, pageId)
+    await moderator.as.mutation(C.decidePageClaim, { networkId: root, claimId, decision: "approved", reason: "Statuts et mandat conformes." })
+    expect(await presidente.as.query(P.getPage, { networkId: root, handle })).toMatchObject({ viewer: { role: "admin", teamRole: "admin" } })
+    expect(await generation()).toBe(before + 1)
+  })
+
   it("rejetée : la page reste telle quelle ; la fiche se lit par la modération et le demandeur, personne d'autre", async () => {
     const t = testConvex()
     const { root } = await seed(t)

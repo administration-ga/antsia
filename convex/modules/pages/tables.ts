@@ -14,7 +14,7 @@ import { defineTable } from "convex/server"
 import { v } from "convex/values"
 
 import { contentVisibilityValidator, pageOwnerKindValidator, pageTrustValidator } from "../../lib/validators"
-import { pageAssociationTypeValidator, pageClaimStatusValidator, pageRoleValidator, pageSectorValidator, pageStatusValidator } from "./validators"
+import { pageAssociationTypeValidator, pageClaimStatusValidator, pageSectorValidator, pageStatusValidator, pageTeamRoleValidator } from "./validators"
 
 export const pagesTables = {
   pages: defineTable({
@@ -105,7 +105,12 @@ export const pagesTables = {
     networkId: v.id("networks"),
     pageId: v.id("pages"),
     personId: v.id("persons"),
-    role: pageRoleValidator,
+    /**
+     * AS-10 / PG-08 : `admin`, `signatory` ou `moderator` (aucune migration : les lignes
+     * existantes gardent leur rôle). Le modérateur ne parle jamais au nom de la page :
+     * `liveSignatoryRole` le rend nul, seul `livePageTeamRole` le voit.
+     */
+    role: pageTeamRoleValidator,
     /** Autorité éditoriale : version du rôle/acceptation ; les lignes historiques valent zéro. */
     authorityRevision: v.optional(v.number()),
     /** Qui a habilité ; absent pour le créateur, une revendication validée ou un acte de console. */

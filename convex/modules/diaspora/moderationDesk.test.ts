@@ -287,6 +287,25 @@ describe("queue — la file filtrée par le pays de la cible", () => {
   })
 })
 
+describe("AS-10 / PG-08 — le modérateur d'une page est partie liée", () => {
+  it("le bureau dit le conflit et le moteur refuse la décision ; un modérateur du réseau sans lien tranche", async () => {
+    const f = await fixture()
+    const pageId = await page(f.t, f.network, "FR")
+    const pagePost = await post(f.t, f.network, f.author.personId, { country: "FR", pageId })
+    await f.t.run(async (ctx) => {
+      await ctx.db.insert("pageSignatories", { networkId: f.network, pageId, personId: f.moderator.personId, role: "moderator", acceptedAt: NOW, createdAt: NOW, updatedAt: NOW })
+      await ctx.db.insert("moderationContentStates", { networkId: f.network, targetKind: "post", targetId: pagePost, ownerPageId: pageId, status: "published", createdAt: NOW, updatedAt: NOW })
+    })
+    const reportId = await report(f.t, f.network, { kind: "post", id: pagePost }, { reporterPersonId: f.reader.personId })
+    const items = (await f.moderator.as.query(D.queue, queueArgs(f.network, f.moderator, FR))).items
+    expect(items.find((row) => row.reportId === reportId)?.party).toBe("page")
+    const decide = (who: Member) => who.as.mutation(CASES.decide, { networkId: f.network, reportId, decision: "dismissed", reason: "Publication conforme après examen.", sanctions: [] })
+    expect(await codeOf(decide(f.moderator))).toBe("notFound")
+    await decide(f.admin)
+    expect(await f.t.run(async (ctx) => (await ctx.db.get(reportId))?.status)).toBe("dismissed")
+  })
+})
+
 describe("décision — par la mutation existante du moteur", () => {
   it("un dossier tranché quitte la file et devient l'historique du dossier suivant sur la même cible", async () => {
     const f = await fixture()

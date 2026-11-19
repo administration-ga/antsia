@@ -10,9 +10,12 @@ import {
   assertPageHasRoomForSignatory,
   assertPageName,
   assertTrustAllowedForOwner,
+  canManagePage,
+  canModeratePageComments,
   derivePageHandle,
   followedUpdateExcerpt,
   isPageClaimOpen,
+  isPageSignatoryRole,
   normalizePageClaimNote,
   normalizePageDescription,
   normalizePageShortName,
@@ -21,8 +24,11 @@ import {
   PAGE_DESCRIPTION_MAX_LENGTH,
   PAGE_HANDLE_MAX_LENGTH,
   PAGE_NAME_MAX_LENGTH,
+  PAGE_ROLES,
   PAGE_SHORT_NAME_MAX_LENGTH,
   PAGE_SIGNATORIES_MAX,
+  PAGE_TEAM_ROLES,
+  type PageTeamRole,
   pageFeedAdmissionFor,
   pageTrustRank,
 } from "./pages"
@@ -101,9 +107,38 @@ describe("signataires", () => {
     expect(() => assertNotLastAdmin({ role: "signatory", nextRole: null, adminCount: 1 })).not.toThrow()
   })
 
+  it("AS-10 : le dernier administrateur ne devient pas modérateur ; un modérateur part librement", () => {
+    expect(violationOf(() => assertNotLastAdmin({ role: "admin", nextRole: "moderator", adminCount: 1 }))?.code).toBe("PAGE_LAST_ADMIN")
+    expect(() => assertNotLastAdmin({ role: "admin", nextRole: "moderator", adminCount: 2 })).not.toThrow()
+    expect(() => assertNotLastAdmin({ role: "moderator", nextRole: null, adminCount: 1 })).not.toThrow()
+    expect(() => assertNotLastAdmin({ role: "moderator", nextRole: "admin", adminCount: 0 })).not.toThrow()
+  })
+
   it("une publication de page ne s'épingle sur aucun mur personnel", () => {
     expect(violationOf(() => assertPinnableOnWall({ audience: "public", hasPage: true }))?.code).toBe("POST_PIN_PAGE")
     expect(() => assertPinnableOnWall({ audience: "public", hasPage: false })).not.toThrow()
+  })
+})
+
+describe("AS-10 / PG-08 — l'équipe d'une page : rôle × capacité", () => {
+  // La matrice de la décision du 19/11/2026 : parler au nom de la page, gérer, retirer un commentaire.
+  const MATRIX: Record<PageTeamRole, { speaksForPage: boolean; manages: boolean; removesComments: boolean }> = {
+    admin: { speaksForPage: true, manages: true, removesComments: true },
+    signatory: { speaksForPage: true, manages: false, removesComments: true },
+    moderator: { speaksForPage: false, manages: false, removesComments: true },
+  }
+
+  it("trois rôles d'équipe, dont deux seulement parlent au nom de la page — l'ancienne liste garde son sens", () => {
+    expect(PAGE_TEAM_ROLES).toEqual(["admin", "signatory", "moderator"])
+    expect(PAGE_ROLES).toEqual(["admin", "signatory"])
+    expect(PAGE_TEAM_ROLES.filter(isPageSignatoryRole)).toEqual([...PAGE_ROLES])
+  })
+
+  it.each(PAGE_TEAM_ROLES)("%s : parle au nom de la page, gère, retire les commentaires selon la matrice", (role) => {
+    const expected = MATRIX[role]
+    expect(isPageSignatoryRole(role)).toBe(expected.speaksForPage)
+    expect(isPageSignatoryRole(role) && canManagePage(role)).toBe(expected.manages)
+    expect(canModeratePageComments(role)).toBe(expected.removesComments)
   })
 })
 

@@ -27,7 +27,7 @@ import { networkMutation, networkQuery } from "../../lib/functions"
 import { literals } from "../../lib/validators"
 import { isBlockedBetween } from "../graph/graph"
 import { canReadModeratedContent, contentState, moderateContentWrite, moderatePageContentWrite } from "../moderation/policy"
-import { liveSignatoryRole, readablePageOrNull } from "../pages/access"
+import { livePageTeamRole, liveSignatoryRole, readablePageOrNull } from "../pages/access"
 import { livePersonProfile } from "../people/miniProfile"
 import { assertDiasporaNetwork, isDiasporaNetwork } from "./facts"
 // Avis neutre de la cloche (DG-016) à l'auteur de l'avis, par la porte unique, après l'écriture de la réponse.
@@ -97,8 +97,9 @@ async function sourcesOf(ctx: ReadCtx, network: Doc<"networks">, request: Doc<"s
   return { request, page, offer, booking, proposal }
 }
 
+/** Le professionnel de la demande, ou toute l'équipe VIVANTE de sa page (AS-10 : modérateur compris, partie liée). */
 async function isProvider(ctx: ReadCtx, sources: Sources, personId: Id<"persons">): Promise<boolean> {
-  return sources.proposal?.authorPersonId === personId || (await liveSignatoryRole(ctx, sources.page, personId)) !== null
+  return sources.proposal?.authorPersonId === personId || (await livePageTeamRole(ctx, sources.page, personId)) !== null
 }
 
 async function eligibility(ctx: ReadCtx, sources: Sources, personId: Id<"persons">) {

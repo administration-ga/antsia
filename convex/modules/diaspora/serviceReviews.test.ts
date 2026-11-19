@@ -180,6 +180,15 @@ describe("avis de service DIASPORALE", () => {
     expect(await codeOf(f.pro.as.mutation(RV.createReview, publishArgs(f)))).toBe("review_own_page")
   })
 
+  it("AS-10 : le demandeur devenu modérateur de la page est partie liée — il ne donne pas d'avis tant qu'il en est", async () => {
+    const f = await fixture()
+    await book(f)
+    const moderatorRow = await f.t.run(async (ctx) => await ctx.db.insert("pageSignatories", { networkId: f.networkId, pageId: f.pageId, personId: f.requester.personId, role: "moderator", acceptedAt: NOW, createdAt: NOW, updatedAt: NOW }))
+    expect(await codeOf(f.requester.as.mutation(RV.createReview, publishArgs(f)))).toBe("review_own_page")
+    await f.t.run(async (ctx) => { await ctx.db.delete(moderatorRow) })
+    expect((await f.requester.as.mutation(RV.createReview, publishArgs(f))).created).toBe(true)
+  })
+
   it("unicité transactionnelle, rejeu identique, conflit différent et version concurrente", async () => {
     const f = await fixture()
     await book(f)

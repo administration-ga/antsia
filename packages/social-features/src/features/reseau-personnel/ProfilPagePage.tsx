@@ -1,4 +1,4 @@
-// Réécrit d'après socle/packages/agent-features/src/features/reseau-personnel/ProfilPagePage.tsx @ ad2e7fdc2 — ce qui change : la fiche d'une page à IDENTITÉ PROPRE du moteur (nom, sigle, logo, bannière, description, nature, pays) lue par `pages.pages.getPage` dans le réseau courant, au lieu d'une page d'administration dérivée de son organisation ; badge CALCULÉ par le serveur (Officiel, Vérifié, Communauté) ; suivi par `follow`/`unfollow` du moteur, refus lu dans son CODE ; publier au nom de la page réservé au RÔLE VIVANT du lecteur (`viewer.role`) — le composeur partagé reçoit `asPage` ; mur par `pagePosts` (fenêtres chaînées, curseur composite du moteur, éléments rendus par `PostCard`) ; adresses par la table des routes injectée (retour au volet par `reseauAgentHref("pages", routes.home())`, mots-clés par `reseauAgentTagHref`, mentions vers le PROFIL d'une personne, jamais vers une page) ; panne de la fiche et du mur dite avec Réessayer ; textes traduits (clés `profilPagePage.…`, décisions dans `profil-page.ts`) ; ajouts : invitation à signer (accepter, décliner), revendication ou demande de vérification pièces à l'appui (`pages.claims.*`), gestion pour un administrateur vivant — identité (`pages.identity.updatePageIdentity`), logo et bannière par la garde des fichiers (`generatePageImageUploadUrl`, `setPageImage`), signataires (`pages.signatories.*`) ; props inchangés (`handle`). ; PA6 : dates et jours civils dans le fuseau personnel du lecteur (repli appareil). ; couleurs par fonction (ADR-0027) : « Suivre » et l'acceptation d'une invitation en variante `social`, Suivre neutre une fois la page suivie. ; prop facultative `commerce` (décision du propriétaire du 22/10/2026) : la présentation marchande que l'application pose sur la page qui vend — en-tête de boutique à la place de l'identité, offres en tête, rappels toutes les trois publications —, gestes de la page inchangés. ; PF-03 : logo et bannière préparés avant leur dépôt (`preparePageImage` : ré-encodés, sans métadonnées, échec fermé) — seule l'image préparée est déposée et déclarée.
+// Réécrit d'après socle/packages/agent-features/src/features/reseau-personnel/ProfilPagePage.tsx @ ad2e7fdc2 — ce qui change : la fiche d'une page à IDENTITÉ PROPRE du moteur (nom, sigle, logo, bannière, description, nature, pays) lue par `pages.pages.getPage` dans le réseau courant, au lieu d'une page d'administration dérivée de son organisation ; badge CALCULÉ par le serveur (Officiel, Vérifié, Communauté) ; suivi par `follow`/`unfollow` du moteur, refus lu dans son CODE ; publier au nom de la page réservé au RÔLE VIVANT du lecteur (`viewer.role`) — le composeur partagé reçoit `asPage` ; mur par `pagePosts` (fenêtres chaînées, curseur composite du moteur, éléments rendus par `PostCard`) ; adresses par la table des routes injectée (retour au volet par `reseauAgentHref("pages", routes.home())`, mots-clés par `reseauAgentTagHref`, mentions vers le PROFIL d'une personne, jamais vers une page) ; panne de la fiche et du mur dite avec Réessayer ; textes traduits (clés `profilPagePage.…`, décisions dans `profil-page.ts`) ; ajouts : invitation à signer (accepter, décliner), revendication ou demande de vérification pièces à l'appui (`pages.claims.*`), gestion pour un administrateur vivant — identité (`pages.identity.updatePageIdentity`), logo et bannière par la garde des fichiers (`generatePageImageUploadUrl`, `setPageImage`), signataires (`pages.signatories.*`) ; props inchangés (`handle`). ; PA6 : dates et jours civils dans le fuseau personnel du lecteur (repli appareil). ; couleurs par fonction (ADR-0027) : « Suivre » et l'acceptation d'une invitation en variante `social`, Suivre neutre une fois la page suivie. ; prop facultative `commerce` (décision du propriétaire du 22/10/2026) : la présentation marchande que l'application pose sur la page qui vend — en-tête de boutique à la place de l'identité, offres en tête, rappels toutes les trois publications —, gestes de la page inchangés. ; PF-03 : logo et bannière préparés avant leur dépôt (`preparePageImage` : ré-encodés, sans métadonnées, échec fermé) — seule l'image préparée est déposée et déclarée. ; AS-10 / PG-08 : équipe à trois rôles (`PAGE_TEAM_ROLES`, modérateur proposé à l'invitation et au changement de rôle), place du lecteur lue dans `viewer.teamRole` (le modérateur voit l'équipe et s'en retire ; publier reste à `viewer.role`).
 "use client"
 
 /**
@@ -43,9 +43,9 @@ import {
   PAGE_CLAIM_NOTE_MAX_LENGTH,
   PAGE_DESCRIPTION_MAX_LENGTH,
   PAGE_NAME_MAX_LENGTH,
-  PAGE_ROLES,
   PAGE_SHORT_NAME_MAX_LENGTH,
-  type PageRole,
+  PAGE_TEAM_ROLES,
+  type PageTeamRole,
 } from "@antsia/social-domain/pages"
 import { Alert, Badge, Button, Card, Field, Select, SkeletonCard, TextArea, TextInput } from "@antsia/ui"
 import { useMutation } from "convex/react"
@@ -59,7 +59,7 @@ import { reseauAgentHref, reseauAgentTagHref } from "../../shell/reseau-agent-na
 import { ReseauQueryError } from "../../shell/ReseauQueryError"
 import { personHref } from "./author-link"
 import { Avatar } from "./Avatar"
-import { countryName, countryOptions, followActionErrorMessage, ownerKindLabel, pageActionErrorMessage, pageBadgeView, pageInvitationText, pageRoleLabel } from "./pages-panel"
+import { countryName, countryOptions, followActionErrorMessage, ownerKindLabel, pageActionErrorMessage, pageBadgeView, pageInvitationAcceptedText, pageInvitationText, pageRoleLabel } from "./pages-panel"
 import { PostCard } from "./PostCard"
 import { PostComposer } from "./PostComposer"
 import { CreateDirectDialog } from "../direct/CreateDirectDialog"
@@ -220,13 +220,15 @@ function PageProfile({ page, commerce }: { page: PageDto; commerce?: PageCommerc
   const claimId = useId()
 
   const role = page.viewer.role
+  // AS-10 : la place du lecteur dans l'ÉQUIPE (modérateur compris) ; `role` ne dit que qui parle au nom de la page.
+  const teamRole = page.viewer.teamRole
   const following = page.viewer.following
   const canPublish = canPublishAsPage(role)
   const canManage = canManagePageAs(role)
   const claimAction = pageClaimAction(page.badge, role)
   // MC-01 : qui ne tient AUCUN rôle vivant sur la page peut la signaler ; ses signataires parlent pour elle.
   const canReport = role === null
-  const roleNote = pageRoleNote(role, t)
+  const roleNote = pageRoleNote(teamRole, t)
   const badge = pageBadgeView(page.badge)
   const meta = [ownerKindLabel(page.ownerKind, t), ...(page.country === null ? [] : [countryName(page.country, i18n.language)])].join(" · ")
 
@@ -344,8 +346,8 @@ function PageProfile({ page, commerce }: { page: PageDto; commerce?: PageCommerc
       </section>
       )}
 
-      {/* Une invitation à signer ne concerne que qui n'a pas encore de rôle vivant ici. */}
-      {role === null ? <PageInvitationBanner pageId={page.pageId} /> : null}
+      {/* Une invitation ne concerne que qui n'a pas encore de place vivante dans l'équipe. */}
+      {teamRole === null ? <PageInvitationBanner pageId={page.pageId} /> : null}
 
       {claiming && claimAction === "claim" ? <PageClaimSection id={claimId} page={page} action="claim" onClose={() => setClaiming(false)} /> : null}
 
@@ -353,8 +355,8 @@ function PageProfile({ page, commerce }: { page: PageDto; commerce?: PageCommerc
         <PageManagement id={manageId} page={page} verify={claimAction === "verify"} />
       ) : null}
 
-      {/* Un simple signataire voit qui signe avec lui, et peut se retirer. */}
-      {role === "signatory" ? (
+      {/* Un simple signataire, ou un modérateur (AS-10), voit l'équipe sans la gérer, et peut se retirer. */}
+      {teamRole === "signatory" || teamRole === "moderator" ? (
         <Card style={RESEAU_CARD_STYLE}>
           <PageSignatories page={page} canManage={false} />
         </Card>
@@ -602,7 +604,7 @@ function PageInvitationBanner({ pageId }: { pageId: Id<"pages"> }) {
     setBusy(true)
     try {
       await respond({ networkId, pageId, accept })
-      toast.success(t(accept ? "pagesPanel.invitation.accepted" : "pagesPanel.invitation.declined"))
+      toast.success(accept ? pageInvitationAcceptedText(invitation.role, t) : t("pagesPanel.invitation.declined"))
     } catch (err) {
       toast.error(pageActionErrorMessage(err, t))
     } finally {
@@ -1023,7 +1025,7 @@ function PageSignatories({ page, canManage }: { page: PageDto; canManage: boolea
   const revoke = useMutation(api.modules.pages.signatories.revokePageRole)
   const [busy, setBusy] = useState(false)
   const [inviteHandle, setInviteHandle] = useState("")
-  const [inviteRole, setInviteRole] = useState<PageRole>("signatory")
+  const [inviteRole, setInviteRole] = useState<PageTeamRole>("signatory")
   const [inviteError, setInviteError] = useState<string | null>(null)
   const titleId = useId()
   const rows = signatories.data ?? []
@@ -1039,7 +1041,7 @@ function PageSignatories({ page, canManage }: { page: PageDto; canManage: boolea
     }
   }
 
-  const changeRole = (row: Signatory, role: PageRole) => {
+  const changeRole = (row: Signatory, role: PageTeamRole) => {
     if (row.handle === null || role === row.role) return
     const handle = row.handle
     void run(async () => {
@@ -1052,7 +1054,7 @@ function PageSignatories({ page, canManage }: { page: PageDto; canManage: boolea
     const isMe = row.personId === personId
     void run(async () => {
       await revoke({ networkId, pageId: page.pageId, personId: row.personId })
-      toast.success(t(isMe ? "profilPagePage.signatories.left" : "profilPagePage.signatories.removed"))
+      toast.success(t(isMe ? (row.role === "moderator" ? "profilPagePage.signatories.leftModerator" : "profilPagePage.signatories.left") : "profilPagePage.signatories.removed"))
     })
   }
 
@@ -1107,11 +1109,11 @@ function PageSignatories({ page, canManage }: { page: PageDto; canManage: boolea
                       value={row.role}
                       disabled={busy}
                       onChange={(event) => {
-                        const next = PAGE_ROLES.find((candidate) => candidate === event.target.value)
+                        const next = PAGE_TEAM_ROLES.find((candidate) => candidate === event.target.value)
                         if (next !== undefined) changeRole(row, next)
                       }}
                     >
-                      {PAGE_ROLES.map((candidate) => (
+                      {PAGE_TEAM_ROLES.map((candidate) => (
                         <option key={candidate} value={candidate}>
                           {pageRoleLabel(candidate, t)}
                         </option>
@@ -1130,7 +1132,7 @@ function PageSignatories({ page, canManage }: { page: PageDto; canManage: boolea
                 )}
                 {isMe ? (
                   <Button size="sm" variant="secondary" icon="logOut" disabled={busy} onClick={() => removeRow(row)}>
-                    {t("profilPagePage.signatories.leave")}
+                    {t(row.role === "moderator" ? "profilPagePage.signatories.leaveModerator" : "profilPagePage.signatories.leave")}
                   </Button>
                 ) : canManage ? (
                   <Button
@@ -1168,11 +1170,11 @@ function PageSignatories({ page, canManage }: { page: PageDto; canManage: boolea
                 <Select
                   value={inviteRole}
                   onChange={(event) => {
-                    const next = PAGE_ROLES.find((candidate) => candidate === event.target.value)
+                    const next = PAGE_TEAM_ROLES.find((candidate) => candidate === event.target.value)
                     if (next !== undefined) setInviteRole(next)
                   }}
                 >
-                  {PAGE_ROLES.map((candidate) => (
+                  {PAGE_TEAM_ROLES.map((candidate) => (
                     <option key={candidate} value={candidate}>
                       {pageRoleLabel(candidate, t)}
                     </option>

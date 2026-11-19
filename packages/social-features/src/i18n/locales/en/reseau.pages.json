@@ -22,13 +22,16 @@
     },
     "role": {
       "admin": "Administrator",
-      "signatory": "Signatory"
+      "signatory": "Signatory",
+      "moderator": "Moderator"
     },
     "invitation": {
       "text": "You are invited to post on behalf of this page — role: {{role}}.",
+      "moderatorText": "You are invited to moderate the comments left under this page's posts. You will not post on its behalf.",
       "accept": "Accept",
       "decline": "Decline",
       "accepted": "You now post on behalf of this page.",
+      "acceptedModerator": "You now moderate this page's comments.",
       "declined": "Invitation declined."
     },
     "empty": {
@@ -102,7 +105,8 @@
     "posts_other": "{{count, number}} posts",
     "roleNote": {
       "admin": "You administer this page: you post on its behalf and manage its signatories.",
-      "signatory": "You sign for this page: you post on its behalf."
+      "signatory": "You sign for this page: you post on its behalf.",
+      "moderator": "You moderate this page: you remove the comments left under its posts, without posting on its behalf."
     },
     "wallEmptyCanPublish": "This page hasn't posted anything yet. You can post on its behalf above.",
     "wallEmpty": "This page hasn't posted anything yet.",
@@ -182,7 +186,9 @@
       "removeLabel": "Remove {{name}} from the signatories",
       "removed": "Signatory removed.",
       "leave": "Stop signing for this page",
+      "leaveModerator": "Stop moderating this page",
       "left": "You no longer sign for this page.",
+      "leftModerator": "You no longer moderate this page.",
       "roleLabel": "Role of {{name}}",
       "roleChanged": "Role updated.",
       "invite": {

@@ -288,12 +288,14 @@ export function contextualCallAllowed(input: { viewState: ContextualViewState; c
 }
 
 /**
- * La clé d'autorité d'un accord d'appel (§5.8) : côté page, la ligne de signataire ET sa date
- * d'acceptation ; côté personne, la qualité de partie de l'objet. Une autorité perdue puis
- * retrouvée produit une autre clé : l'ancien accord ne revit pas.
+ * La clé d'autorité d'un accord d'appel (§5.8) : côté page, la ligne de signataire, sa date
+ * d'acceptation ET sa révision d'autorité ; côté personne, la qualité de partie de l'objet. Une
+ * autorité perdue puis retrouvée produit une autre clé : l'ancien accord ne revit pas. AS-10 :
+ * un signataire rétrogradé en modérateur garde sa ligne et son acceptation ; seule la révision
+ * (incrémentée à chaque changement de rôle) dit que l'autorité a été perdue entre-temps.
  */
-export function contextualCallAuthorityKey(input: { kind: "page"; signatoryRowId: string; acceptedAt: number } | { kind: "person"; contextKey: string; side: ContextualSide }): string {
-  return input.kind === "page" ? `page:${input.signatoryRowId}:${input.acceptedAt}` : `person:${input.contextKey}:${input.side}`
+export function contextualCallAuthorityKey(input: { kind: "page"; signatoryRowId: string; acceptedAt: number; authorityRevision: number } | { kind: "person"; contextKey: string; side: ContextualSide }): string {
+  return input.kind === "page" ? `page:${input.signatoryRowId}:${input.acceptedAt}:${input.authorityRevision}` : `person:${input.contextKey}:${input.side}`
 }
 
 // ═══════════════════════════════════════════════════════════════

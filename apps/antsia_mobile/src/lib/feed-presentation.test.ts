@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { nativeCanonicalPostUrl, nativeMediaCanAdvance, nativePostMetadata, nativePostTextParts, nativeQuoteIntent, nativeReactionPresentation, nativeRelativeTime } from "./feed-presentation"
+import { nativeCanonicalPostUrl, nativeCommentActions, nativeMediaCanAdvance, nativePostMetadata, nativePostTextParts, nativeQuoteIntent, nativeReactionPresentation, nativeRelativeTime } from "./feed-presentation"
 import fr from "../i18n/feed.fr.json"
 import en from "../i18n/feed.en.json"
 
@@ -110,4 +110,17 @@ describe("explicit quote retry ownership", () => {
 
 it("keeps the native feed dictionaries complete in both supported languages", () => {
   expect(Object.keys(fr).sort()).toEqual(Object.keys(en).sort())
+})
+
+describe("AS-10 / PG-08 — les gestes sur un commentaire", () => {
+  it("retire le sien ; retire celui d'autrui seulement quand le moteur pose `canRemove`, qui reste signalable", () => {
+    expect(nativeCommentActions({ isMine: true })).toMatchObject({ remove: true, report: false })
+    expect(nativeCommentActions({ isMine: false })).toMatchObject({ remove: false, report: true })
+    expect(nativeCommentActions({ isMine: false, canRemove: true })).toMatchObject({ remove: true, report: true })
+    expect(nativeCommentActions({ isMine: false, canRemove: false })).toMatchObject({ remove: false, report: true })
+    // Le libellé ne dit « mon commentaire » que du sien, dans les deux langues.
+    expect(t(nativeCommentActions({ isMine: true }).removeKey)).toBe("Retirer mon commentaire")
+    expect(t(nativeCommentActions({ isMine: false, canRemove: true }).removeKey)).toBe("Retirer ce commentaire")
+    expect((en as Record<string, string>)[nativeCommentActions({ isMine: false, canRemove: true }).removeKey]).toBe("Remove this comment")
+  })
 })

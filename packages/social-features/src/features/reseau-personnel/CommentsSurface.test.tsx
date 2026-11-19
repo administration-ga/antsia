@@ -317,6 +317,20 @@ describe("CommentsSurface", () => {
     await waitFor(() => expect(mocks.remove).toHaveBeenCalledWith({ networkId: TEST_NETWORK_ID, commentId: COMMENT_ID }))
   })
 
+  it("AS-10 : retire le commentaire d'AUTRUI quand le moteur le permet (`canRemove`), et seulement alors", async () => {
+    mocks.comments.results = [
+      rootComment({ canRemove: true, replyCount: 1, replies: [reply({ commentId: "postComments_reply", body: "Réponse d'un tiers" })] }),
+    ]
+    renderSurface()
+    await screen.findByText("Une réponse utile")
+    // Le commentaire d'autrui reste signalable ; la réponse, sans droit posé, n'offre pas « Retirer ».
+    expect(screen.getAllByRole("button", { name: "Retirer" })).toHaveLength(1)
+    expect(screen.getAllByRole("button", { name: "Signaler" })).toHaveLength(2)
+    expect(screen.queryByRole("button", { name: "Modifier" })).toBeNull()
+    fireEvent.click(screen.getByRole("button", { name: "Retirer" }))
+    await waitFor(() => expect(mocks.remove).toHaveBeenCalledWith({ networkId: TEST_NETWORK_ID, commentId: COMMENT_ID }))
+  })
+
   it("garde les commentaires lisibles et retirables lorsque la rédaction ferme les ajouts", async () => {
     mocks.comments.results = [rootComment({ isMine: true })]
     renderSurface({ readOnly: true })

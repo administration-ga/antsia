@@ -94,7 +94,7 @@ import { enforceRateLimit } from "../../lib/rateLimit"
 import { literals } from "../../lib/validators"
 import { openContextualConversation, syncContextualConversation } from "../contextualMessaging/hooks"
 import { isBlockedBetween } from "../graph/graph"
-import { liveSignatoryRole, pageCardOf, readablePageOrNull } from "../pages/access"
+import { livePageTeamRole, liveSignatoryRole, pageCardOf, readablePageOrNull } from "../pages/access"
 import { type PageCard, pageCardValidator } from "../pages/validators"
 import { isDiscoverablePerson, livePersonProfile } from "../people/miniProfile"
 import { noticeJobApplicationDecided, noticeJobApplicationReceived } from "./communityNotifications"
@@ -983,7 +983,8 @@ export const applyToJobOffer = networkMutation({
     // G9 : on ne candidate qu'à une offre que la modération sert à ce lecteur.
     if (!(await isServedTo(ctx, "diasporaJobOffer", offer._id, ctx.person._id))) return notFound()
     if (offer.version !== args.offerVersion) return refuseRule("job_offer_changed")
-    if ((await liveSignatoryRole(ctx, page, ctx.person._id)) !== null) return refuseRule("job_application_own_page")
+    // AS-10 : toute l'équipe vivante est partie liée, modérateur compris — on ne candidate pas chez sa page.
+    if ((await livePageTeamRole(ctx, page, ctx.person._id)) !== null) return refuseRule("job_application_own_page")
     if ((await myApplicationOf(ctx, offer._id)) !== null) return refuseRule("job_application_already_exists")
     if (draft.shareTalentProfile) {
       const profile = await talentRowOf(ctx, ctx.networkId, ctx.person._id)

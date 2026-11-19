@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/CommentsSurface.tsx @ ad2e7fdc2 — adaptations : commentaires du moteur avec le réseau courant (`useNetwork().networkId`) — `engagement.engagement.paginateComments` (racines PAGINÉES, « Voir plus de commentaires », aperçu des réponses et leur nombre) au lieu de `listComments` (100 racines, 10 réponses, sans curseur), la suite des réponses par `paginateReplies`, `comment`, `removeComment`, et `editComment` (« Modifier » sur ses propres commentaires) ; une requête paginée LÈVE ses erreurs : l'état d'échec (« Réessayer ») est rendu par une frontière d'erreur dans le cadre du dialogue ; le nombre de conversations ne s'affiche qu'une fois la liste complète (jamais un plancher présenté comme un total) ; nom neutre traduit pour un profil non publié ; identifiants `Id<"posts">` et `Id<"postComments">` ; portail porté par la charte du réseau (`useNetwork().charte`) ; libellés et toasts par l'i18n (clés `reseau:commentsSurface.*`, accords au nombre) ; refus du moteur dit par son code (`postEngineErrorText`) ; voile et ombres par les jetons (`--ui2-scrim`, `--shadow-xl`) au lieu de couleurs littérales ; feuille de style sortie du JSX dans une constante de module (`COMMENTS_SURFACE_CSS`) — un littéral enfant de `<style>` passerait pour une chaîne d'interface — règles inchangées. ; PA6 : dates et jours civils dans le fuseau personnel du lecteur (repli appareil). ; P18b (A06, A07) : la liste n'est plus une région vivante ; seuls l'ajout (« Commentaire publié. ») et l'échec s'annoncent, par deux régions persistantes hors de la vue, l'échec étant redit hors du toast.
+// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/CommentsSurface.tsx @ ad2e7fdc2 — adaptations : commentaires du moteur avec le réseau courant (`useNetwork().networkId`) — `engagement.engagement.paginateComments` (racines PAGINÉES, « Voir plus de commentaires », aperçu des réponses et leur nombre) au lieu de `listComments` (100 racines, 10 réponses, sans curseur), la suite des réponses par `paginateReplies`, `comment`, `removeComment`, et `editComment` (« Modifier » sur ses propres commentaires) ; une requête paginée LÈVE ses erreurs : l'état d'échec (« Réessayer ») est rendu par une frontière d'erreur dans le cadre du dialogue ; le nombre de conversations ne s'affiche qu'une fois la liste complète (jamais un plancher présenté comme un total) ; nom neutre traduit pour un profil non publié ; identifiants `Id<"posts">` et `Id<"postComments">` ; portail porté par la charte du réseau (`useNetwork().charte`) ; libellés et toasts par l'i18n (clés `reseau:commentsSurface.*`, accords au nombre) ; refus du moteur dit par son code (`postEngineErrorText`) ; voile et ombres par les jetons (`--ui2-scrim`, `--shadow-xl`) au lieu de couleurs littérales ; feuille de style sortie du JSX dans une constante de module (`COMMENTS_SURFACE_CSS`) — un littéral enfant de `<style>` passerait pour une chaîne d'interface — règles inchangées. ; PA6 : dates et jours civils dans le fuseau personnel du lecteur (repli appareil). ; P18b (A06, A07) : la liste n'est plus une région vivante ; seuls l'ajout (« Commentaire publié. ») et l'échec s'annoncent, par deux régions persistantes hors de la vue, l'échec étant redit hors du toast. ; AS-10 / PG-08 : « Retirer » offert aussi quand le moteur pose `canRemove` (auteur de la publication, équipe de la page), le moteur relisant le droit au geste.
 "use client"
 
 import { themedActionStyle } from "../themed-action-style"
@@ -63,6 +63,8 @@ interface CommentRow {
   createdAt: number
   editedAt: number | null
   isMine: boolean
+  /** AS-10 / PG-08 : posé par le moteur quand le lecteur peut retirer ce commentaire (le sien, sa publication, l'équipe de la page). */
+  canRemove?: boolean
 }
 
 /**
@@ -806,7 +808,7 @@ function CommentLine({
                 {t("commentsSurface.edit")}
               </CommentAction>
             ) : null}
-            {row.isMine ? (
+            {row.isMine || row.canRemove === true ? (
               <CommentAction onClick={() => actions.onRemove(row.commentId)}>{t("commentsSurface.remove")}</CommentAction>
             ) : null}
             {!row.isMine ? (

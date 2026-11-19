@@ -179,6 +179,121 @@ describe("habiliter un signataire", () => {
   })
 })
 
+/** Les tâches planifiées d'un nom (lecture bornée des fonctions planifiées du test). */
+async function jobsNamed(t: T, name: string): Promise<unknown[]> {
+  const jobs = await t.run(async (ctx) => await ctx.db.system.query("_scheduled_functions").take(200))
+  return jobs.filter((job) => job.name === name).map((job) => job.args[0])
+}
+
+/** Une personne invitée par l'administratrice, qui accepte aussitôt. */
+async function joinTeam(t: T, root: Id<"networks">, admin: Person, pageId: Id<"pages">, handle: string, role: "admin" | "signatory" | "moderator"): Promise<Person> {
+  const person = await enter(t, root, handle)
+  await admin.as.mutation(SIG.grantPageRole, { networkId: root, pageId, handle, role })
+  await person.as.mutation(SIG.respondToPageInvitation, { networkId: root, pageId, accept: true })
+  return person
+}
+
+describe("AS-10 / PG-08 — le modérateur de page", () => {
+  it("invité puis accepté, il voit l'équipe dans l'ordre admin, signataire, modérateur ; il n'est jamais un signataire", async () => {
+    const t = testConvex()
+    const { root, alice, pageId, handle } = await alicePage(t)
+    const bob = await joinTeam(t, root, alice, pageId, "bob", "signatory")
+    const carol = await enter(t, root, "carol")
+    expect(await alice.as.mutation(SIG.grantPageRole, { networkId: root, pageId, handle: "carol", role: "moderator" })).toEqual({ personId: carol.personId, role: "moderator", invited: true })
+    expect(await carol.as.query(SIG.myPageInvitations, { networkId: root })).toMatchObject([{ page: { pageId }, role: "moderator" }])
+    // L'invitation sonne chez le modérateur, comme chez tout invité.
+    const bell = await carol.as.query(api.modules.notifications.bell.paginateNotifications, { networkId: root, paginationOpts: { numItems: 10, cursor: null } })
+    expect(bell.page.map((row) => row.kind)).toEqual(["page_signatory_invite"])
+    expect(await codeOf(carol.as.query(SIG.listPageSignatories, { networkId: root, pageId }))).toBe("pageRoleRequired")
+    expect(await carol.as.mutation(SIG.respondToPageInvitation, { networkId: root, pageId, accept: true })).toEqual({ role: "moderator" })
+
+    expect((await carol.as.query(SIG.listPageSignatories, { networkId: root, pageId })).map((row) => ({ handle: row.handle, role: row.role }))).toEqual([
+      { handle: "alice", role: "admin" },
+      { handle: "bob", role: "signatory" },
+      { handle: "carol", role: "moderator" },
+    ])
+    // `viewer.role` parle au nom de la page : jamais un modérateur ; `viewer.teamRole` le dit.
+    expect((await carol.as.query(P.getPage, { networkId: root, handle }))?.viewer).toEqual({ following: false, role: null, teamRole: "moderator" })
+    expect((await bob.as.query(P.getPage, { networkId: root, handle }))?.viewer).toEqual({ following: false, role: "signatory", teamRole: "signatory" })
+    expect(await carol.as.query(P.myPages, { networkId: root })).toEqual([])
+    expect((await carol.as.query(P.myTeamPages, { networkId: root })).map((row) => ({ pageId: row.pageId, viewer: row.viewer }))).toEqual([{ pageId, viewer: { role: null, teamRole: "moderator" } }])
+    expect((await alice.as.query(P.myTeamPages, { networkId: root })).map((row) => row.viewer)).toEqual([{ role: "admin", teamRole: "admin" }])
+    expect(await codeOf(carol.as.mutation(P.publishAsPage, { networkId: root, pageId, body: "Au nom de la page ?" }))).toBe("pageRoleRequired")
+  })
+
+  it("il se retire lui-même, sans ligne de journal ; il n'habilite ni ne retire personne", async () => {
+    const t = testConvex()
+    const { root, alice, pageId } = await alicePage(t)
+    const bob = await joinTeam(t, root, alice, pageId, "bob", "signatory")
+    const carol = await joinTeam(t, root, alice, pageId, "carol", "moderator")
+    await enter(t, root, "dora")
+    expect(await codeOf(carol.as.mutation(SIG.grantPageRole, { networkId: root, pageId, handle: "dora", role: "moderator" }))).toBe("pageRoleRequired")
+    expect(await codeOf(carol.as.mutation(SIG.revokePageRole, { networkId: root, pageId, personId: bob.personId }))).toBe("pageRoleRequired")
+    // Un éditeur (signataire) ne gère pas l'équipe non plus.
+    expect(await codeOf(bob.as.mutation(SIG.grantPageRole, { networkId: root, pageId, handle: "dora", role: "moderator" }))).toBe("pageRoleRequired")
+    expect(await carol.as.mutation(SIG.revokePageRole, { networkId: root, pageId, personId: carol.personId })).toEqual({ revoked: true })
+    expect(await codeOf(carol.as.query(SIG.listPageSignatories, { networkId: root, pageId }))).toBe("pageRoleRequired")
+    expect((await journal(t, "pages", pageId)).map((row) => row.action)).toEqual(["page.signatory_grant", "page.signatory_grant"])
+  })
+
+  it("le plafond de l'équipe compte les modérateurs, invitations comprises", async () => {
+    const t = testConvex()
+    const { root, alice, pageId } = await alicePage(t)
+    await enter(t, root, "derniere")
+    await t.run(async (ctx) => {
+      for (let index = 1; index < PAGE_SIGNATORIES_MAX; index += 1) {
+        const personId = await ctx.db.insert("persons", { authUserId: `auth-moderateur-${index}`, createdAt: 1, updatedAt: 1 })
+        await ctx.db.insert("pageSignatories", { networkId: root, pageId, personId, role: "moderator", createdAt: 1, updatedAt: 1 })
+      }
+    })
+    expect(await ruleOf(alice.as.mutation(SIG.grantPageRole, { networkId: root, pageId, handle: "derniere", role: "signatory" }))).toBe("PAGE_SIGNATORIES_FULL")
+    expect(await alice.as.query(SIG.listPageSignatories, { networkId: root, pageId })).toHaveLength(PAGE_SIGNATORIES_MAX)
+  })
+
+  it("rétrograder un éditeur (signataire) accepté en modérateur le sort des directs de la page ; promu à nouveau, il publie sans nouvelle coupure", async () => {
+    const t = testConvex()
+    const { root, alice, pageId } = await alicePage(t)
+    const bob = await joinTeam(t, root, alice, pageId, "bob", "signatory")
+    expect(await alice.as.mutation(SIG.grantPageRole, { networkId: root, pageId, handle: "bob", role: "moderator" })).toEqual({ personId: bob.personId, role: "moderator", invited: false })
+    expect(await jobsNamed(t, "modules/live/revocation:kickUserFromPageDirects")).toEqual([{ personId: bob.personId, pageId, cursor: null }])
+    expect((await journal(t, "pages", pageId)).at(-1)).toMatchObject({ action: "page.signatory_grant", details: { role: "moderator", previousRole: "signatory", invited: false } })
+    expect(await codeOf(bob.as.mutation(P.publishAsPage, { networkId: root, pageId, body: "Encore au nom de la page ?" }))).toBe("pageRoleRequired")
+    await alice.as.mutation(SIG.grantPageRole, { networkId: root, pageId, handle: "bob", role: "signatory" })
+    expect(await jobsNamed(t, "modules/live/revocation:kickUserFromPageDirects")).toHaveLength(1)
+    expect((await bob.as.mutation(P.publishAsPage, { networkId: root, pageId, body: "De nouveau éditeur" })).created).toBe(true)
+  })
+
+  it("un second administrateur rétrogradé en modérateur sort aussi des directs et ne gère plus ; la dernière administratrice ne part pas", async () => {
+    const t = testConvex()
+    const { root, alice, pageId } = await alicePage(t)
+    const carol = await joinTeam(t, root, alice, pageId, "carol", "admin")
+    await alice.as.mutation(SIG.grantPageRole, { networkId: root, pageId, handle: "carol", role: "moderator" })
+    expect(await jobsNamed(t, "modules/live/revocation:kickUserFromPageDirects")).toEqual([{ personId: carol.personId, pageId, cursor: null }])
+    expect(await codeOf(carol.as.mutation(SIG.grantPageRole, { networkId: root, pageId, handle: "alice", role: "moderator" }))).toBe("pageRoleRequired")
+    expect(await ruleOf(alice.as.mutation(SIG.revokePageRole, { networkId: root, pageId, personId: alice.personId }))).toBe("PAGE_LAST_ADMIN")
+  })
+})
+
+/** La génération du fil matérialisé d'une personne dans un réseau (0 : jamais composé). */
+async function feedGeneration(t: T, networkId: Id<"networks">, personId: Id<"persons">): Promise<number> {
+  const cursor = await t.run(async (ctx) => await ctx.db.query("feedCursors").withIndex("by_reader", (q) => q.eq("networkId", networkId).eq("personId", personId).eq("scope", "pour_vous")).unique())
+  return cursor?.generation ?? 0
+}
+
+describe("AS-10 — un modérateur promu par la console parle au nom de la page, fil recomposé", () => {
+  it("l'opérateur fait d'un modérateur accepté un administrateur : il publie, et son fil est recomposé comme à une acceptation", async () => {
+    const t = testConvex()
+    const { root, alice, pageId } = await alicePage(t)
+    const bob = await joinTeam(t, root, alice, pageId, "bob", "moderator")
+    const operator = await enter(t, root, "operatrice")
+    await makeOperator(t, operator)
+    const before = await feedGeneration(t, root, bob.personId)
+    expect(await operator.as.mutation(ADMIN.grantPageAdmin, { pageId, personId: bob.personId, reason: "Reprise de l'administration par le modérateur." })).toEqual({ invited: false })
+    expect(await feedGeneration(t, root, bob.personId)).toBe(before + 1)
+    expect((await bob.as.mutation(P.publishAsPage, { networkId: root, pageId, body: "Administrateur désormais" })).created).toBe(true)
+  })
+})
+
 describe("la console des pages", () => {
   it("pose la confiance — « Officiel » à une institution seulement — et ne trace que ce qui change", async () => {
     const t = testConvex()

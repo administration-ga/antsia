@@ -20,7 +20,7 @@ import { enforceRateLimit } from "../../lib/rateLimit"
 import { literals } from "../../lib/validators"
 import { appendAudit, type AuditEntry, networkRoleCapacity, operatorCapacity } from "../platform/audit"
 import { notifyPerson } from "../notifications/notify"
-import { liveSignatoryRole } from "../pages/access"
+import { livePageTeamRole } from "../pages/access"
 import { assertVisiblePost, type ReaderContext } from "../posts/access"
 import { markCommentRemoved, markPostRemoved } from "../posts/contentRemoval"
 import { requireReportCapacity } from "./cases"
@@ -174,7 +174,8 @@ export const paginateQueue = networkQuery({
 /**
  * La règle de conflit d'intérêts de `cases.ts` (`applyDecision`), pour un dossier de
  * publication ou de commentaire : l'auteur du contenu ne tranche jamais son dossier, un
- * signataire vivant de la page qui porte le contenu non plus. Refus indistinct.
+ * membre vivant de l'équipe de la page qui porte le contenu non plus — modérateur de la page
+ * compris (AS-10, `livePageTeamRole`). Refus indistinct.
  */
 async function assertNoDecisionConflict(ctx: MutationCtx, report: Doc<"contentReports">, actorPersonId: Id<"persons">): Promise<void> {
   const linked = report.reportId ? await ctx.db.get(report.reportId) : null
@@ -187,7 +188,7 @@ async function assertNoDecisionConflict(ctx: MutationCtx, report: Doc<"contentRe
   const pageIds = [state?.ownerPageId, report.targetKind === "post" ? post?.pageId : undefined].filter((pageId): pageId is Id<"pages"> => pageId !== undefined)
   for (const pageId of new Set(pageIds)) {
     const page = await ctx.db.get(pageId)
-    if (page && (await liveSignatoryRole(ctx, page, actorPersonId)) !== null) return notFound()
+    if (page && (await livePageTeamRole(ctx, page, actorPersonId)) !== null) return notFound()
   }
 }
 

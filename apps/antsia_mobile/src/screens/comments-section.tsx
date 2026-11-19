@@ -10,7 +10,7 @@ import { api, type Id } from "@antsia/api/engine"
 import { PERSONAL_COMMENT_MAX_LENGTH } from "@antsia/social-domain/content"
 import { useNativeAppearance } from "../appearance"
 import { Action, Field, Label, QueryBoundary, Status, useNativeGuard } from "../components/ui"
-import { nativeFeedText, nativeMediaCanAdvance, nativeRelativeTime } from "../lib/feed-presentation"
+import { nativeCommentActions, nativeFeedText, nativeMediaCanAdvance, nativeRelativeTime } from "../lib/feed-presentation"
 import { mergeNativePages, nativeCursorKey } from "../lib/native-pagination"
 import { nativeNamedKey, nativeReportNote } from "../lib/native-safety"
 import { NativeSafetyMenu } from "./safety-actions"
@@ -64,8 +64,10 @@ function CommentLine({ comment, onReply, onOpenProfile }: { comment: Reply; onRe
   const lock = useRef(false), mounted = useRef(true), remove = useMutation(api.modules.engagement.engagement.removeComment)
   useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
   const name = comment.author.displayName ?? t("mobile.post.unknownAuthor"), handle = comment.author.handle
-  const removeOwn = async () => {
-    if (lock.current || !comment.isMine || !guard.current() || !guard.runtime.canWrite) return
+  // AS-10 : retirer le sien, ou celui d'autrui quand le moteur le permet (`canRemove`).
+  const gestures = nativeCommentActions(comment)
+  const removeLine = async () => {
+    if (lock.current || !gestures.remove || !guard.current() || !guard.runtime.canWrite) return
     lock.current = true; setPending(true); setError(false)
     const current = guard.capture()
     try { await remove({ networkId: guard.runtime.networkId, commentId: comment.commentId }) }
@@ -78,7 +80,8 @@ function CommentLine({ comment, onReply, onOpenProfile }: { comment: Reply; onRe
     <Text style={{ color: tokens.mutedForeground, fontSize: 12 }}>{nativeRelativeTime(comment.createdAt, Date.now(), locale, t)}</Text>
     <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
       {onReply ? <Action label={t("mobile.feedUi.reply")} disabled={!guard.canAct || !guard.runtime.canWrite} onPress={() => { if (guard.current()) onReply() }} /> : null}
-      {comment.isMine ? <Action label={t("mobile.feedUi.commentRemove")} pending={pending} disabled={!guard.canAct || !guard.runtime.canWrite} onPress={() => Alert.alert(t("mobile.feedUi.commentRemoveConfirm"), undefined, [{ text: t("mobile.feedUi.cancel"), style: "cancel" }, { text: t("mobile.feedUi.commentRemove"), style: "destructive", onPress: () => { void removeOwn() } }])} /> : <CommentSafetyMenu comment={comment} />}
+      {gestures.remove ? <Action label={t(gestures.removeKey)} pending={pending} disabled={!guard.canAct || !guard.runtime.canWrite} onPress={() => Alert.alert(t("mobile.feedUi.commentRemoveConfirm"), undefined, [{ text: t("mobile.feedUi.cancel"), style: "cancel" }, { text: t(gestures.removeKey), style: "destructive", onPress: () => { void removeLine() } }])} /> : null}
+      {gestures.report ? <CommentSafetyMenu comment={comment} /> : null}
     </View>
     <Status error label={error ? t("mobile.common.unavailable") : ""} />
   </View>

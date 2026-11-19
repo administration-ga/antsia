@@ -385,6 +385,24 @@ describe("CC-4 — accord lié à l'autorité (N29)", () => {
     expect((await f.requester.as.query(getThread, scope))?.callTargets.map((target) => target.personId)).toEqual([f.teammate.personId])
     expect(await place(f.requester, scope)).toMatchObject({ admitted: true, calleePersonId: f.teammate.personId })
   })
+
+  it("AS-10 : un éditeur rétrogradé en modérateur puis promu à nouveau (même ligne) ne retrouve pas son ancien accord", async () => {
+    const f = await fixture()
+    const scope = await opened(f, service(f))
+    await consent(f.requester, scope)
+    await consent(f.teammate, scope)
+    expect((await f.requester.as.query(getThread, scope))?.callTargets.map((target) => target.personId)).toEqual([f.teammate.personId])
+    const grant = (role: "signatory" | "moderator") => f.admin.as.mutation(api.modules.pages.signatories.grantPageRole, { networkId: f.root, pageId: f.pageId, handle: f.teammate.handle, role })
+    await grant("moderator")
+    expect(await f.requester.as.query(getThread, scope)).toMatchObject({ callTargets: [] })
+    tick()
+    await grant("signatory")
+    // La ligne et son acceptation n'ont pas changé ; la révision d'autorité, si : l'accord ne revit pas.
+    expect(await f.teammate.as.query(getThread, scope)).toMatchObject({ callConsent: false, capabilities: { canSetCallConsent: true, canCall: false } })
+    expect(await f.requester.as.query(getThread, scope)).toMatchObject({ callTargets: [], capabilities: { canCall: false } })
+    await consent(f.teammate, scope)
+    expect((await f.requester.as.query(getThread, scope))?.callTargets.map((target) => target.personId)).toEqual([f.teammate.personId])
+  })
 })
 
 // ═══════════════════════════════════════════════════════════════
