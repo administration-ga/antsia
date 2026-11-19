@@ -102,10 +102,10 @@ describe("groupes privés d'association DIASPORALE", () => {
     const { groupId } = await create(f)
     const memberships = await f.t.run(async (ctx) => ctx.db.query("thematicGroupMembers").withIndex("by_group_leftAt_joinedAt", (q) => q.eq("groupId", groupId).eq("leftAt", undefined)).take(10))
     expect(memberships).toMatchObject([{ personId: f.admin.personId, role: "member" }])
-    expect(await group(f, f.admin)).toEqual({ groupId, pageId: f.pageId, name: "Collectif des Gabonais de Lyon", state: "active", role: "owner", isMember: true, canJoin: false, canManage: true, canPublish: true })
+    expect(await group(f, f.admin)).toEqual({ groupId, pageId: f.pageId, name: "Collectif des Gabonais de Lyon", state: "active", closedAt: null, role: "owner", isMember: true, canJoin: false, canManage: true, canPublish: true })
     expect(await group(f, f.reader)).toMatchObject({ role: null, isMember: false, canJoin: true, canManage: false, canPublish: false })
     const outsider = await group(f, f.outsider)
-    expect(outsider).toEqual({ groupId, pageId: f.pageId, name: "Collectif des Gabonais de Lyon", state: "active", role: null, isMember: false, canJoin: false, canManage: false, canPublish: false })
+    expect(outsider).toEqual({ groupId, pageId: f.pageId, name: "Collectif des Gabonais de Lyon", state: "active", closedAt: null, role: null, isMember: false, canJoin: false, canManage: false, canPublish: false })
     expect(JSON.stringify(outsider)).not.toContain(f.admin.personId)
     expect(await codeOf(wall(f, f.reader, groupId))).toBe("notFound")
     expect(await codeOf(publish(f, f.reader, groupId))).toBe("notFound")
@@ -244,7 +244,7 @@ describe("groupes privés d'association DIASPORALE", () => {
     }
   })
 
-  it("fermeture terminale : aucun mur, aucune racine et aucune recréation via l'API générique", async () => {
+  it("fermé : aucun mur, aucune racine et aucune recréation via l'API générique", async () => {
     const f = await fixture()
     const { groupId } = await create(f)
     const { postId } = await publish(f, f.admin, groupId)
@@ -284,6 +284,59 @@ describe("groupes privés d'association DIASPORALE", () => {
     await f.reader.as.mutation(POSTS.remove, { networkId: f.networkId, postId: pending.postId })
     expect((await privatePosts(f, f.reader, groupId)).items.map((post) => post.postId)).toEqual([published.postId])
     expect(JSON.stringify(await privatePosts(f, f.reader, groupId))).not.toContain(pending.postId)
+  })
+
+  it("AS-03 : l'administrateur rouvre le groupe qu'il a fermé, en citant la fermeture lue ; le mur et les droits reviennent", async () => {
+    const f = await fixture()
+    const { groupId } = await create(f)
+    await accept(f, f.reader)
+    await join(f, f.reader, groupId)
+    const { postId } = await publish(f, f.admin, groupId)
+    await f.admin.as.mutation(THEMATIC.closeGroup, { networkId: f.networkId, groupId })
+    const closed = await group(f, f.admin)
+    expect(closed).toMatchObject({ state: "closed", closedAt: NOW, canManage: true, canPublish: false })
+    const reopen = (member: Person, expectedClosedAt: number) => member.as.mutation(GROUPS.reopenGroupForPage, { networkId: f.networkId, groupId, expectedClosedAt })
+    // Une autre fermeture que celle lue : conflit, rien ne bouge.
+    expect(await codeOf(reopen(f.admin, NOW - 1))).toBe("conflict")
+    // Ni un signataire, ni un adhérent, ni un tiers ne rouvrent : le même refus qu'un groupe inconnu.
+    for (const member of [f.signatory, f.reader, f.outsider]) expect(await codeOf(reopen(member, NOW)), member.handle).toBe("notFound")
+    expect(await group(f, f.admin)).toMatchObject({ state: "closed" })
+    expect(await reopen(f.admin, NOW)).toEqual({ state: "active" })
+    expect(await group(f, f.admin)).toMatchObject({ state: "active", closedAt: null, canPublish: true })
+    expect(await group(f, f.reader)).toMatchObject({ isMember: true, canPublish: true })
+    expect((await wall(f, f.reader, groupId)).items.map((post) => post._id)).toEqual([postId])
+    // Rejouée (double clic), la réouverture rend le même état.
+    expect(await reopen(f.admin, NOW)).toEqual({ state: "active" })
+  })
+
+  it("AS-03 : un adhérent exclu pendant la fermeture reste dehors après la réouverture", async () => {
+    const f = await fixture()
+    const { groupId } = await create(f)
+    const membership = await accept(f, f.reader)
+    await join(f, f.reader, groupId)
+    await f.admin.as.mutation(THEMATIC.closeGroup, { networkId: f.networkId, groupId })
+    await f.admin.as.mutation(ASSOCIATIONS.removeAssociationMember, { networkId: f.networkId, membershipId: membership.membershipId, expectedVersion: membership.version, reason: "Exclusion décidée par le bureau pour la recette." })
+    expect(await f.admin.as.mutation(GROUPS.reopenGroupForPage, { networkId: f.networkId, groupId, expectedClosedAt: NOW })).toEqual({ state: "active" })
+    expect(await group(f, f.reader)).toMatchObject({ isMember: false, canJoin: false, canPublish: false })
+    expect(await codeOf(wall(f, f.reader, groupId))).toBe("notFound")
+    expect(await codeOf(publish(f, f.reader, groupId, "apres-exclusion"))).toBe("notFound")
+  })
+
+  it("AS-03 : un groupe archivé ou retiré par la modération ne se rouvre pas", async () => {
+    const f = await fixture()
+    const { groupId } = await create(f)
+    await f.admin.as.mutation(THEMATIC.closeGroup, { networkId: f.networkId, groupId })
+    await f.t.run(async (ctx) => {
+      await ctx.db.insert("moderationContentStates", { networkId: f.networkId, targetKind: "thematicGroup", targetId: groupId, status: "removed", createdAt: NOW, updatedAt: NOW })
+    })
+    expect(await codeOf(f.admin.as.mutation(GROUPS.reopenGroupForPage, { networkId: f.networkId, groupId, expectedClosedAt: NOW }))).toBe("notFound")
+    await f.t.run(async (ctx) => {
+      const state = await ctx.db.query("moderationContentStates").withIndex("by_target", (q) => q.eq("targetKind", "thematicGroup").eq("targetId", groupId)).unique()
+      if (state) await ctx.db.delete(state._id)
+    })
+    await f.otherAdmin.as.mutation(THEMATIC.archiveGroup, { networkId: f.networkId, groupId })
+    expect(await codeOf(f.otherAdmin.as.mutation(GROUPS.reopenGroupForPage, { networkId: f.networkId, groupId, expectedClosedAt: NOW }))).toBe("notFound")
+    expect(await f.t.run(async (ctx) => (await ctx.db.get(groupId))?.closedAt)).toBe(NOW)
   })
 
   it("l'absence de rôle et l'anonymat de session demeurent des refus indistincts", async () => {

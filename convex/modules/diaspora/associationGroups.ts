@@ -3,6 +3,9 @@
  * La création et l'adhésion sont volontaires : aucun adhérent n'est importé.
  * L'index existant est lu avant insertion, indépendamment de l'auteur ou de
  * sa clé, pour que deux administrateurs concurrents créent le même groupe.
+ *
+ * AS-03 : la fermeture se rattrape. L'administrateur vivant de la page rouvre le
+ * groupe qu'il a fermé, en citant la fermeture qu'il a lue (`closedAt`).
  */
 import { assertThematicGroupName, THEMATIC_GROUP_NAME_MAX_LENGTH, THEMATIC_GROUP_NAME_MIN_LENGTH } from "@antsia/social-domain/thematicGroups"
 import { buildSearchableText } from "@antsia/social-domain/searchText"
@@ -20,7 +23,7 @@ import { livePersonProfile } from "../people/miniProfile"
 import { canSeePostDoc } from "../posts/access"
 import { recordGroupMember } from "../posts/counters"
 import { hasNativePostAuthor } from "../posts/nativeAuthor"
-import { associationGroupPageOrNull, associationGroupRoleOrNull, isActiveThematicGroup, liveThematicGroupMembership, requireLiveThematicGroupMembership } from "../thematicGroups/access"
+import { associationGroupPageOrNull, associationGroupRoleOrNull, isActiveThematicGroup, isThematicGroupRemovedByModeration, liveThematicGroupMembership, requireLiveThematicGroupMembership } from "../thematicGroups/access"
 import { assertDiasporaNetwork } from "./facts"
 
 const associationGroupValidator = v.object({
@@ -28,6 +31,8 @@ const associationGroupValidator = v.object({
   pageId: v.id("pages"),
   name: v.string(),
   state: v.union(v.literal("active"), v.literal("closed")),
+  /** AS-03 : la date de la fermeture en vigueur, que cite une réouverture ; `null` pour un groupe actif. */
+  closedAt: v.union(v.number(), v.null()),
   role: v.union(v.literal("owner"), v.literal("moderator"), v.literal("member"), v.null()),
   isMember: v.boolean(),
   canJoin: v.boolean(),
@@ -99,6 +104,7 @@ export const groupForPage = networkQuery({
     const active = isActiveThematicGroup(group)
     return {
       groupId: group._id, pageId: page._id, name: group.name, state: active ? "active" as const : "closed" as const,
+      closedAt: active ? null : (group.closedAt ?? null),
       role: membership?.role ?? null, isMember: membership !== null,
       canJoin: active && canWrite && eligibleRole !== null && membership === null,
       canManage: eligibleRole === "owner",
@@ -114,6 +120,33 @@ export const createGroupForPage = networkMutation({
   handler: async (ctx, { pageId, idempotencyKey }) => {
     assertDiasporaNetwork(ctx.network)
     return await createAssociationGroupForPage(ctx, pageId, idempotencyKey)
+  },
+})
+
+/**
+ * AS-03 — rouvrir le groupe d'une association. Réservé à l'administrateur vivant de la page
+ * (le même qui le crée et le ferme) ; un groupe archivé, en cours de suppression ou retiré
+ * par la modération ne se rouvre pas (refus indistinct). Versionné : la réouverture cite la
+ * fermeture lue (`expectedClosedAt`) ; une autre fermeture entre-temps est un conflit.
+ * Idempotent : un groupe déjà actif se rend tel quel. Rien d'autre ne bouge : les membres,
+ * les publications et l'épingle restent ; les droits se relisent vivants (un adhérent
+ * exclu entre-temps reste dehors).
+ */
+export const reopenGroupForPage = networkMutation({
+  minStatus: "declaree", writeBucket: "group.manage",
+  args: { groupId: v.id("thematicGroups"), expectedClosedAt: v.number() },
+  returns: v.object({ state: v.literal("active") }),
+  handler: async (ctx, { groupId, expectedClosedAt }) => {
+    assertDiasporaNetwork(ctx.network)
+    const group = await ctx.db.get(groupId)
+    if (!group || group.networkId !== ctx.networkId || group.associationPageId === undefined) return notFound()
+    if (group.archivedAt !== undefined || group.deletingAt !== undefined || (await isThematicGroupRemovedByModeration(ctx, group._id))) return notFound()
+    const page = await associationGroupPageOrNull(ctx, ctx.networkId, group.associationPageId, ctx.person._id)
+    if (!page || (await liveSignatoryRole(ctx, page, ctx.person._id)) !== "admin") return notFound()
+    if (group.closedAt === undefined) return { state: "active" as const }
+    if (group.closedAt !== expectedClosedAt) return fail("conflict")
+    await ctx.db.patch(group._id, { closedAt: undefined, updatedAt: Date.now() })
+    return { state: "active" as const }
   },
 })
 
