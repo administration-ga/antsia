@@ -379,6 +379,60 @@ describe("offres d'emploi — écrire et lire", () => {
   })
 })
 
+describe("rubrique « Emplois » d'une page (EM-04) — ses offres ouvertes, rien d'autre", () => {
+  it("une page sans offre ouverte rend une fenêtre vide ; brouillon, suspendue, close et échue n'y paraissent pas", async () => {
+    const { t, networkId, reader, pageId } = await fixture()
+    const read = async () => await reader.as.query(J.pageOpenJobOffers, { networkId, pageId, paginationOpts: FIRST })
+    expect(await read()).toMatchObject({ page: [], isDone: true })
+
+    await insertOffer(t, networkId, pageId, { status: "draft" })
+    await insertOffer(t, networkId, pageId, { status: "suspended" })
+    await insertOffer(t, networkId, pageId, { status: "closed" })
+    await insertOffer(t, networkId, pageId, { closesAt: NOW - 1 })
+    expect((await read())?.page).toEqual([])
+
+    // Deux offres ouvertes : les plus récemment créées d'abord, projection de la recherche, sans état de modération.
+    const first = await insertOffer(t, networkId, pageId, { title: "Commis de cuisine" })
+    const second = await insertOffer(t, networkId, pageId, { title: "Livreur à vélo", closesAt: NOW + DAY_MS })
+    const result = await read()
+    expect(result?.page.map((row) => row.jobId)).toEqual([second, first])
+    expect(result?.page.map((row) => Object.keys(row).sort())).toEqual([CARD_KEYS, CARD_KEYS])
+    expect(result?.page[0]).toMatchObject({ page: { handle: "traiteur-paris-demo", ownerKind: "company", badge: "community" } })
+  })
+
+  it("une offre en relecture ou retirée n'est servie qu'à la gestion de l'équipe, jamais à la fiche", async () => {
+    const { t, networkId, pro, reader, pageId, jobId } = await openOffer()
+    const visible = async () => (await reader.as.query(J.pageOpenJobOffers, { networkId, pageId, paginationOpts: FIRST }))?.page.map((row) => row.jobId)
+    expect(await visible()).toEqual([jobId])
+    await moderate(t, networkId, "diasporaJobOffer", jobId, "pending_review", { ownerPageId: pageId })
+    expect(await visible()).toEqual([])
+    await moderate(t, networkId, "diasporaJobOffer", jobId, "removed", { ownerPageId: pageId })
+    expect(await visible()).toEqual([])
+    // L'équipe la garde dans sa gestion, avec son état.
+    expect((await pro.as.query(J.pageJobOffers, { networkId, pageId, paginationOpts: FIRST })).page.map((row) => [row.jobId, row.moderation])).toEqual([[jobId, "removed"]])
+  })
+
+  it("page inconnue, d'un autre réseau, inactive ou d'une institution : le même null ; la lecture reste bornée au réseau et à la session", async () => {
+    const { t, root, networkId, reader, pageId } = await fixture()
+    await insertOffer(t, networkId, pageId)
+    const read = async (id: string) => await reader.as.query(J.pageOpenJobOffers, { networkId, pageId: id, paginationOpts: FIRST })
+
+    const elsewhere = await page(t, root, "page-racine-demo")
+    await insertOffer(t, root, elsewhere)
+    const inactive = await page(t, networkId, "page-fermee-demo", { status: "inactive" })
+    await insertOffer(t, networkId, inactive)
+    const institution = await page(t, networkId, "poste-emploi-demo", { ownerKind: "institution" })
+    for (const id of ["pas-un-identifiant", elsewhere, inactive, institution]) expect(await read(id), id).toBeNull()
+    // Une association recrute aussi : sa rubrique se lit comme celle d'une entreprise.
+    const association = await page(t, networkId, "collectif-emploi-demo", { ownerKind: "association" })
+    const volunteer = await insertOffer(t, networkId, association, { contract: "internship" })
+    expect((await read(association))?.page.map((row) => row.jobId)).toEqual([volunteer])
+
+    expect(await failure(reader.as.query(J.pageOpenJobOffers, { networkId: root, pageId, paginationOpts: FIRST }))).toMatchObject({ code: "notFound" })
+    expect(await failure(t.query(J.pageOpenJobOffers, { networkId, pageId, paginationOpts: FIRST }))).toMatchObject({ code: "unauthenticated" })
+  })
+})
+
 describe("candidatures — privées et bornées", () => {
   it("exige le consentement ; même clé et même corps rejouent, autre corps : conflit ; une seule par offre", async () => {
     const { t, networkId, candidate, reader, jobId } = await openOffer()
