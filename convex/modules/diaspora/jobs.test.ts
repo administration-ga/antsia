@@ -12,6 +12,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { api, internal } from "../../_generated/api"
 import type { Doc, Id } from "../../_generated/dataModel"
 import { SEED_CONFIRMATION } from "../../seeds/foundations"
+import { isBlockedBetween } from "../graph/graph"
 import { testConvex } from "../../test.setup"
 
 type T = ReturnType<typeof testConvex>
@@ -404,10 +405,14 @@ describe("rubrique « Emplois » d'une page (EM-04) — ses offres ouvertes, rie
     const { t, networkId, pro, reader, pageId, jobId } = await openOffer()
     const visible = async () => (await reader.as.query(J.pageOpenJobOffers, { networkId, pageId, paginationOpts: FIRST }))?.page.map((row) => row.jobId)
     expect(await visible()).toEqual([jobId])
+    const teamView = async () => (await pro.as.query(J.pageOpenJobOffers, { networkId, pageId, paginationOpts: FIRST }))?.page.map((row) => row.jobId)
     await moderate(t, networkId, "diasporaJobOffer", jobId, "pending_review", { ownerPageId: pageId })
     expect(await visible()).toEqual([])
+    // La rubrique est la projection publique, pour l'équipe aussi : l'état se lit dans sa gestion, pas sur la fiche.
+    expect(await teamView()).toEqual([])
     await moderate(t, networkId, "diasporaJobOffer", jobId, "removed", { ownerPageId: pageId })
     expect(await visible()).toEqual([])
+    expect(await teamView()).toEqual([])
     // L'équipe la garde dans sa gestion, avec son état.
     expect((await pro.as.query(J.pageJobOffers, { networkId, pageId, paginationOpts: FIRST })).page.map((row) => [row.jobId, row.moderation])).toEqual([[jobId, "removed"]])
   })
@@ -422,7 +427,14 @@ describe("rubrique « Emplois » d'une page (EM-04) — ses offres ouvertes, rie
     const inactive = await page(t, networkId, "page-fermee-demo", { status: "inactive" })
     await insertOffer(t, networkId, inactive)
     const institution = await page(t, networkId, "poste-emploi-demo", { ownerKind: "institution" })
-    for (const id of ["pas-un-identifiant", elsewhere, inactive, institution]) expect(await read(id), id).toBeNull()
+    const media = await page(t, networkId, "media-emploi-demo", { ownerKind: "media" })
+    const community = await page(t, networkId, "communaute-emploi-demo", { ownerKind: "community" })
+    const moderated = await page(t, networkId, "page-retiree-demo")
+    await insertOffer(t, networkId, moderated)
+    await t.run(async (ctx) => {
+      await ctx.db.insert("moderationContentStates", { networkId, targetKind: "page", targetId: moderated, status: "removed", createdAt: NOW, updatedAt: NOW })
+    })
+    for (const id of ["pas-un-identifiant", elsewhere, inactive, institution, media, community, moderated]) expect(await read(id), id).toBeNull()
     // Une association recrute aussi : sa rubrique se lit comme celle d'une entreprise.
     const association = await page(t, networkId, "collectif-emploi-demo", { ownerKind: "association" })
     const volunteer = await insertOffer(t, networkId, association, { contract: "internship" })
@@ -430,6 +442,23 @@ describe("rubrique « Emplois » d'une page (EM-04) — ses offres ouvertes, rie
 
     expect(await failure(reader.as.query(J.pageOpenJobOffers, { networkId: root, pageId, paginationOpts: FIRST }))).toMatchObject({ code: "notFound" })
     expect(await failure(t.query(J.pageOpenJobOffers, { networkId, pageId, paginationOpts: FIRST }))).toMatchObject({ code: "unauthenticated" })
+    // Une personne d'ANTSIA seule, sans adhésion à DIASPORALE, ne lit pas la rubrique.
+    const outsider = t.withIdentity({ subject: "auth-racine-seule" })
+    await outsider.mutation(api.modules.people.persons.ensureMyPerson, {})
+    await outsider.mutation(api.modules.people.consents.recordConsent, { purpose: "social_profile", origin: "onboarding" })
+    await outsider.mutation(api.modules.people.profile.publishMyProfile, { handle: "racine.seule", displayName: "Racine Seule" })
+    expect((await failure(outsider.query(J.pageOpenJobOffers, { networkId, pageId, paginationOpts: FIRST }))).code).not.toBeNull()
+  })
+
+  it("un blocage avec toute l'équipe ne ferme pas la lecture : la rubrique reste lue, comme la recherche (RP-03, docs/40)", async () => {
+    const { t, root, networkId, pro, reader, pageId, jobId } = await openOffer()
+    await t.run(async (ctx) => {
+      await ctx.db.insert("personBlocks", { networkId: root, blockerPersonId: reader.personId, targetPersonId: pro.personId, createdAt: NOW, updatedAt: NOW })
+    })
+    // Le blocage est bien en vigueur dans la paire : seule la lecture de la page reste ouverte.
+    expect(await t.run(async (ctx) => await isBlockedBetween(ctx, reader.personId, pro.personId))).toBe(true)
+    expect((await reader.as.query(J.pageOpenJobOffers, { networkId, pageId, paginationOpts: FIRST }))?.page.map((row) => row.jobId)).toEqual([jobId])
+    expect((await reader.as.query(J.searchJobOffers, { networkId, paginationOpts: FIRST })).page.map((row) => row.jobId)).toEqual([jobId])
   })
 })
 
