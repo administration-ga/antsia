@@ -10,7 +10,8 @@
  *   passage nocturne (`hubs.ts`).
  * - `pageStanding` : la revendicabilité d'une page pour CE lecteur, jugée par la
  *   règle du moteur (`assertPageClaimable`) et par celle de DIASPORALE (une
- *   institution ne se revendique jamais).
+ *   institution ne se revendique jamais) ; et (AS-11a) si la page est SANS
+ *   RESPONSABLE (`orphan`), pour le bandeau de la fiche.
  *
  * Les gardes sont IMPORTÉES du module des pages, jamais réécrites : une seule
  * définition de « cette page se lit d'ici » et de « cette personne parle en son nom ».
@@ -61,6 +62,17 @@ export async function isPageClaimableBy(ctx: Pick<QueryCtx, "db">, page: Doc<"pa
   if (await isFederatedPage(ctx, page._id)) return false
   if ((await countLiveAdmins(ctx, page)) === 0) return true
   return (await liveSignatoryRole(ctx, page, readerPersonId)) === "admin"
+}
+
+/**
+ * AS-11a — une page SANS RESPONSABLE : aucun administrateur vivant (`countLiveAdmins`), page
+ * native (un reflet reste sous l'autorité de sa source), hors institution (reprise par la
+ * console). Un booléen seulement : ni nombre ni identité de l'équipe ne sortent d'ici.
+ */
+export async function isPageOrphan(ctx: Pick<QueryCtx, "db">, page: Doc<"pages">): Promise<boolean> {
+  if (page.ownerKind === "institution") return false
+  if (await isFederatedPage(ctx, page._id)) return false
+  return (await countLiveAdmins(ctx, page)) === 0
 }
 
 /** La projection d'une page du hub : carte allowlistée, description, abonnés de l'agrégat, revendicabilité. */
@@ -114,7 +126,10 @@ export const listCountryPages = networkQuery({
   },
 })
 
-/** Ce que DIASPORALE ajoute à la fiche d'une page lisible d'ici ; inconnue, retirée ou d'ailleurs : le même `null`. */
+/**
+ * Ce que DIASPORALE ajoute à la fiche d'une page lisible d'ici ; inconnue, retirée, en sommeil ou
+ * d'ailleurs : le même `null`. `orphan` (AS-11a) se montre à tout lecteur.
+ */
 export const pageStanding = networkQuery({
   args: { handle: v.string() },
   returns: v.union(pageStandingValidator, v.null()),
@@ -122,6 +137,7 @@ export const pageStanding = networkQuery({
     assertDiasporaNetwork(ctx.network)
     const page = await readablePageByHandle(ctx, ctx.network, handle, ctx.person._id)
     if (!page) return null
-    return { claimable: await isPageClaimableBy(ctx, page, ctx.person._id) }
+    const [claimable, orphan] = await Promise.all([isPageClaimableBy(ctx, page, ctx.person._id), isPageOrphan(ctx, page)])
+    return { claimable, orphan }
   },
 })

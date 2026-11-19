@@ -42,6 +42,12 @@ describe("journal des décisions — détail et motif", () => {
     expect(auditDetailsProblems({ pageId: "pages_1", role: "moderator", commentId: "postComments_1" })).toEqual([])
   })
 
+  it("AS-11a : la mise en sommeil et la réactivation d'une page sont des actions du journal, au détail plat", () => {
+    expect(AUDIT_ACTIONS).toEqual(expect.arrayContaining(["page.sleep", "page.wake"]))
+    expect(AUDIT_SUBJECT_TABLES).toContain("pages")
+    expect(auditDetailsProblems({ sleepEndsAt: Date.UTC(2026, 11, 19, 10) })).toEqual([])
+  })
+
   it("seul le système agit sans acteur", () => {
     expect(isSystemCapacity("system")).toBe(true)
     expect(isSystemCapacity("network_moderator")).toBe(false)

@@ -27,9 +27,13 @@ import {
   PAGE_ROLES,
   PAGE_SHORT_NAME_MAX_LENGTH,
   PAGE_SIGNATORIES_MAX,
+  PAGE_SLEEP_DAYS,
+  PAGE_SLEEP_MS,
+  PAGE_SLEEP_STATES,
   PAGE_TEAM_ROLES,
   type PageTeamRole,
   pageFeedAdmissionFor,
+  pageSleepState,
   pageTrustRank,
 } from "./pages"
 import { DomainViolation } from "./violation"
@@ -182,6 +186,32 @@ describe("revendications", () => {
     expect(violationOf(() => normalizePageClaimNote("x".repeat(PAGE_CLAIM_NOTE_MAX_LENGTH + 1)))?.code).toBe("PAGE_CLAIM_NOTE_TOO_LONG")
     expect(isPageClaimOpen("pending")).toBe(true)
     for (const status of ["approved", "rejected", "withdrawn"] as const) expect(isPageClaimOpen(status)).toBe(false)
+  })
+})
+
+describe("AS-11a — le sommeil d'une page, dérivé sans nouvel état", () => {
+  const START = Date.UTC(2026, 10, 19, 10)
+  const ENDS = START + PAGE_SLEEP_MS
+
+  it("dure trente jours, comptés en millisecondes", () => {
+    expect(PAGE_SLEEP_DAYS).toBe(30)
+    expect(PAGE_SLEEP_MS).toBe(30 * 24 * 60 * 60 * 1000)
+    expect(PAGE_SLEEP_STATES).toEqual(["none", "asleep", "expired"])
+  })
+
+  it("une page active, ou retirée sans échéance (opérateur, juge), n'est pas en sommeil", () => {
+    expect(pageSleepState({ status: "active" }, START)).toBe("none")
+    // Une échéance oubliée sur une page active ne la rend pas endormie.
+    expect(pageSleepState({ status: "active", sleepEndsAt: ENDS }, START)).toBe("none")
+    expect(pageSleepState({ status: "inactive", deactivatedAt: START }, START)).toBe("none")
+  })
+
+  it("endormie jusqu'à l'échéance, échue à l'instant même de l'échéance", () => {
+    const sleeping = { status: "inactive" as const, deactivatedAt: START, sleepEndsAt: ENDS }
+    expect(pageSleepState(sleeping, START)).toBe("asleep")
+    expect(pageSleepState(sleeping, ENDS - 1)).toBe("asleep")
+    expect(pageSleepState(sleeping, ENDS)).toBe("expired")
+    expect(pageSleepState(sleeping, ENDS + PAGE_SLEEP_MS)).toBe("expired")
   })
 })
 

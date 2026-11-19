@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/modules/reseauPages/access.ts @ ad2e7fdc2 — adaptations : réécrit (owner map §6.15) — identité lue sur la PAGE au lieu d'être dérivée d'une organisation, images servies par la garde des fichiers (`servableUrl`, D05 : plus de `getUrl` brut, aucun identifiant de stockage hors d'ici) ; page lisible DEPUIS son réseau, ou depuis la racine si elle y est (`onRoot`) ; autorité = SIGNATAIRE VIVANT (habilitation acceptée, page active, adhésion active au réseau de la page, identité forte pour une page officielle) relue à chaque acte, au lieu de `communication.publish` sur une organisation ; badge CALCULÉ de la confiance ; refus indistinct à code (`notFound`), rôle manquant `pageRoleRequired` ; adresse prise refusée par `handleUnavailable` ; `pageForOrg` retiré (plus d'organisation). ; AS-10 / PG-08 : ÉQUIPE à trois rôles — `livePageTeamRole` et `requirePageTeam` voient le modérateur, `liveSignatoryRole` et `requireManagedPage` jamais ; `signatoryRowsOf` lit les trois rôles.
+// Dupliqué de socle/convex/modules/reseauPages/access.ts @ ad2e7fdc2 — adaptations : réécrit (owner map §6.15) — identité lue sur la PAGE au lieu d'être dérivée d'une organisation, images servies par la garde des fichiers (`servableUrl`, D05 : plus de `getUrl` brut, aucun identifiant de stockage hors d'ici) ; page lisible DEPUIS son réseau, ou depuis la racine si elle y est (`onRoot`) ; autorité = SIGNATAIRE VIVANT (habilitation acceptée, page active, adhésion active au réseau de la page, identité forte pour une page officielle) relue à chaque acte, au lieu de `communication.publish` sur une organisation ; badge CALCULÉ de la confiance ; refus indistinct à code (`notFound`), rôle manquant `pageRoleRequired` ; adresse prise refusée par `handleUnavailable` ; `pageForOrg` retiré (plus d'organisation). ; AS-10 / PG-08 : ÉQUIPE à trois rôles — `livePageTeamRole` et `requirePageTeam` voient le modérateur, `liveSignatoryRole` et `requireManagedPage` jamais ; `signatoryRowsOf` lit les trois rôles. ; AS-11a : `sleepingPageTeamRole`, le rôle d'équipe d'une page EN SOMMEIL (état de la page ignoré), réservé à `pages/sleep.ts`.
 /**
  * Les gardes des pages — le point de passage unique.
  *
@@ -8,7 +8,7 @@
  * différence que reposerait une fuite depuis une page retirée.
  */
 import { computePageBadge } from "@antsia/social-domain/badges"
-import { derivePageHandle, isPageSignatoryRole, PAGE_SIGNATORIES_MAX, PAGE_TEAM_ROLES, type PageRole, type PageTeamRole } from "@antsia/social-domain/pages"
+import { derivePageHandle, isPageSignatoryRole, PAGE_SIGNATORIES_MAX, PAGE_TEAM_ROLES, type PageRole, pageSleepState, type PageTeamRole } from "@antsia/social-domain/pages"
 import { buildSearchableText } from "@antsia/social-domain/searchText"
 
 import { canReadModeratedContent } from "../moderation/policy"
@@ -120,12 +120,36 @@ export async function signatoryRowOf(ctx: ReadCtx, pageId: Id<"pages">, personId
  */
 export async function livePageTeamRole(ctx: ReadCtx, page: Doc<"pages">, personId: Id<"persons">): Promise<PageTeamRole | null> {
   if (page.status !== "active") return null
+  return await teamRoleRegardlessOfStatus(ctx, page, personId)
+}
+
+/**
+ * Le cœur de `livePageTeamRole`, HORS l'état de la page : page native, ligne acceptée, adhésion
+ * active au réseau de la page, identité forte pour une page officielle. Non exporté : ses deux
+ * lecteurs (`livePageTeamRole`, `sleepingPageTeamRole`) disent chacun quel état de page ils admettent.
+ */
+async function teamRoleRegardlessOfStatus(ctx: ReadCtx, page: Doc<"pages">, personId: Id<"persons">): Promise<PageTeamRole | null> {
   if (await isFederatedPage(ctx, page._id)) return null
   const row = await signatoryRowOf(ctx, page._id, personId)
   if (!row || row.acceptedAt === undefined) return null
   if (!(await isActiveMember(ctx, page.networkId, personId))) return null
   if (page.trust === "official" && !(await hasStrongIdentityFor(ctx, personId))) return null
   return row.role
+}
+
+/**
+ * AS-11a — le rôle d'une personne dans l'équipe d'une page EN SOMMEIL (endormie ou échue,
+ * `pageSleepState(page, now) !== "none"`), ou `null` : les conditions de `livePageTeamRole`, sauf
+ * l'état de la page. Une page active, ou retirée par l'opérateur ou le juge, rend toujours `null`.
+ *
+ * ⚠️ Ce lecteur rend un MODÉRATEUR et ignore l'état de la page : il n'ouvre que la RÉACTIVATION
+ * (administrateur seulement, vérifié par l'appelant) et la liste « En sommeil » de l'équipe. Son
+ * seul appelant est `pages/sleep.ts`, gardé par le cliquet `tests/ratchets/page-authority-readers.test.ts`
+ * (`SLEEP_READERS`) : l'équipe d'une page en sommeil reste FIGÉE, aucun autre geste ne passe par ici.
+ */
+export async function sleepingPageTeamRole(ctx: ReadCtx, page: Doc<"pages">, personId: Id<"persons">, now: number): Promise<PageTeamRole | null> {
+  if (pageSleepState(page, now) === "none") return null
+  return await teamRoleRegardlessOfStatus(ctx, page, personId)
 }
 
 /**

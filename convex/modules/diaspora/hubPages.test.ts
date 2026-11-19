@@ -12,7 +12,7 @@ import { api, internal } from "../../_generated/api"
 import type { Doc, Id } from "../../_generated/dataModel"
 import { SEED_CONFIRMATION } from "../../seeds/foundations"
 import { testConvex } from "../../test.setup"
-import { HUB_PAGES_PER_KIND, HUB_PAGES_SCAN } from "./hubPages"
+import { HUB_PAGES_PER_KIND, HUB_PAGES_SCAN, isPageOrphan } from "./hubPages"
 
 type T = ReturnType<typeof testConvex>
 type PageFields = { ownerKind: Doc<"pages">["ownerKind"]; trust?: Doc<"pages">["trust"]; status?: Doc<"pages">["status"]; country?: string | null; handle?: string; createdAt?: number }
@@ -197,17 +197,59 @@ describe("pageStanding — la revendicabilité, pour CE lecteur", () => {
     await page(t, network, { ownerKind: "association", handle: "association-inactive", status: "inactive" })
 
     const standing = (handle: string, as = reader.as) => as.query(HP.pageStanding, { networkId: network, handle })
-    expect(await standing("association-libre")).toEqual({ claimable: true })
+    expect(await standing("association-libre")).toEqual({ claimable: true, orphan: true })
     // Une invitation non acceptée ne tient pas la page.
-    expect(await standing("association-invitee")).toEqual({ claimable: true })
+    expect(await standing("association-invitee")).toEqual({ claimable: true, orphan: true })
     // Tenue par un administrateur vivant : les autres ne la revendiquent pas ; lui en demande la vérification.
-    expect(await standing("association-tenue")).toEqual({ claimable: false })
-    expect(await standing("association-tenue", owner.as)).toEqual({ claimable: true })
-    expect(await standing("entreprise-verifiee")).toEqual({ claimable: false })
-    expect(await standing("institution-communaute")).toEqual({ claimable: false })
+    expect(await standing("association-tenue")).toEqual({ claimable: false, orphan: false })
+    expect(await standing("association-tenue", owner.as)).toEqual({ claimable: true, orphan: false })
+    // Vérifiée sans administrateur : sans responsable, mais pas revendicable (le bandeau mène au contact).
+    expect(await standing("entreprise-verifiee")).toEqual({ claimable: false, orphan: true })
+    // Une institution n'est jamais « sans responsable » : sa reprise passe par la console.
+    expect(await standing("institution-communaute")).toEqual({ claimable: false, orphan: false })
     // Inconnue ou retirée : le même `null` que la fiche.
     expect(await standing("association-inactive")).toBeNull()
     expect(await standing("page-inconnue")).toBeNull()
+  })
+})
+
+describe("AS-11a — pageStanding.orphan : la page sans responsable", () => {
+  it("aucun administrateur VIVANT, page native, hors institution — un booléen, jamais l'équipe", async () => {
+    const { t, network, reader } = await fixture()
+    const owner = await member(t, network, "responsable-orphelin")
+    const editor = await member(t, network, "editeur-orphelin")
+    const standing = (handle: string) => reader.as.query(HP.pageStanding, { networkId: network, handle })
+
+    // Un éditeur et une modératrice ne tiennent pas la page : seule l'administration compte.
+    const edited = await page(t, network, { ownerKind: "association", handle: "association-editee" })
+    await t.run(async (ctx) => {
+      await ctx.db.insert("pageSignatories", { networkId: network, pageId: edited, personId: editor.personId, role: "signatory", acceptedAt: NOW, createdAt: NOW, updatedAt: NOW })
+      await ctx.db.insert("pageSignatories", { networkId: network, pageId: edited, personId: reader.personId, role: "moderator", acceptedAt: NOW, createdAt: NOW, updatedAt: NOW })
+    })
+    expect(await standing("association-editee")).toEqual({ claimable: true, orphan: true })
+
+    // Un administrateur parti du réseau ne la tient plus.
+    const left = await page(t, network, { ownerKind: "company", handle: "entreprise-quittee" })
+    await admin(t, network, left, owner.personId)
+    expect((await standing("entreprise-quittee"))?.orphan).toBe(false)
+    await t.run(async (ctx) => {
+      const membership = await ctx.db.query("networkMemberships").withIndex("by_network_and_person", (q) => q.eq("networkId", network).eq("personId", owner.personId)).unique()
+      if (membership) await ctx.db.patch(membership._id, { status: "suspendue" })
+    })
+    expect((await standing("entreprise-quittee"))?.orphan).toBe(true)
+
+    // Un reflet reste sous l'autorité de sa source : jamais « sans responsable » ici.
+    const mirrored = await page(t, network, { ownerKind: "association", handle: "association-refletee" })
+    await t.run(async (ctx) => {
+      const emitterId = await ctx.db.insert("federationEmitters", { networkId: network, slug: "source-orphelin", environment: "sandbox", enabled: true, keyEnvName: "TEST_ONLY_KEY", allowedContracts: [], revision: 1, createdAt: 1, updatedAt: 1 })
+      await ctx.db.insert("mirrors", { networkId: network, emitterId, environment: "sandbox", contract: "test-only", objectRef: "test/page-orphelin", localTable: "pages", localId: mirrored, updatedAt: 1 })
+    })
+    // Ce reflet d'essai n'est pas servi (contrat inconnu) : la fiche le tait ; la règle, lue seule, l'écarte.
+    expect(await standing("association-refletee")).toBeNull()
+    expect(await t.run(async (ctx) => { const row = await ctx.db.get(mirrored); return row ? await isPageOrphan(ctx, row) : null })).toBe(false)
+
+    // La réponse ne porte que deux booléens : ni nombre, ni identité de l'équipe.
+    expect(Object.keys((await standing("association-editee")) ?? {}).sort()).toEqual(["claimable", "orphan"])
   })
 })
 

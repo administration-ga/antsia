@@ -20,6 +20,10 @@
  *  · une lecture DIRECTE de la table `pageSignatories` (`.query("pageSignatories")`) voit toutes
  *    les lignes, modérateurs compris : l'inventaire en est FIGÉ (`DIRECT_TABLE_READERS`) ; une
  *    lecture neuve filtre le rôle ou relit un lecteur vivant.
+ *  · AS-11a : `sleepingPageTeamRole` lit l'équipe d'une page EN SOMMEIL, en ignorant l'état de la
+ *    page (modérateur compris) : il n'ouvre que la réactivation et la liste « En sommeil ». Son
+ *    inventaire est réduit à `convex/modules/pages/sleep.ts` (`SLEEP_READERS`) : l'équipe d'une page
+ *    en sommeil reste figée, aucun autre geste ne doit passer par lui.
  *
  * COMMENT IL LIT : par l'arbre syntaxique des fichiers du moteur hors tests — toute référence à
  * l'identifiant (appel, passage en argument, alias, accès par un espace de noms), hors de sa
@@ -116,7 +120,13 @@ const SIGNATORY_READERS = [
   "convex/modules/thematicGroups/access.ts",
 ]
 
-/** Inventaire figé des lectures directes de la table `pageSignatories` au 19/11/2026. */
+/**
+ * AS-11a — les lecteurs de `sleepingPageTeamRole` (équipe d'une page en sommeil, état de la page
+ * ignoré) : la réactivation par un administrateur et la liste « En sommeil », rien d'autre.
+ */
+const SLEEP_READERS = ["convex/modules/pages/sleep.ts"]
+
+/** Inventaire figé des lectures directes de la table `pageSignatories` au 19/11/2026 (AS-11a : `pages/sleep.ts`, la liste « En sommeil », filtrée par `sleepingPageTeamRole`). */
 const DIRECT_TABLE_READERS = [
   "convex/modules/diaspora/arrivalKit.ts",
   "convex/modules/diaspora/demoAccounts.ts",
@@ -127,6 +137,7 @@ const DIRECT_TABLE_READERS = [
   "convex/modules/pages/admin.ts",
   "convex/modules/pages/pages.ts",
   "convex/modules/pages/signatories.ts",
+  "convex/modules/pages/sleep.ts",
   "convex/modules/platform/demoAccounts.ts",
   "convex/modules/posts/feedMaterialization.ts",
   "convex/modules/professionals/read.ts",
@@ -136,8 +147,9 @@ const DIRECT_TABLE_READERS = [
 
 const TEAM_READER_NAMES = new Set(["livePageTeamRole", "requirePageTeam"])
 const ROW_READER_NAMES = new Set(["signatoryRowOf", "signatoryRowsOf"])
+const SLEEP_READER_NAMES = new Set(["sleepingPageTeamRole"])
 
-type Reads = { signatoryReader: boolean; teamReader: boolean; rowReader: boolean; directTableRead: boolean }
+type Reads = { signatoryReader: boolean; teamReader: boolean; rowReader: boolean; sleepReader: boolean; directTableRead: boolean }
 
 function isInsideImport(node: ts.Node): boolean {
   for (let current: ts.Node | undefined = node.parent; current; current = current.parent) if (ts.isImportDeclaration(current)) return true
@@ -150,11 +162,12 @@ function isDeclarationName(node: ts.Identifier): boolean {
 
 /** Ce qu'un fichier lit : la référence à l'identifiant (hors déclaration et import), l'appel `query("pageSignatories")`. */
 function readsOf(file: string, text: string): Reads {
-  const reads: Reads = { signatoryReader: false, teamReader: false, rowReader: false, directTableRead: false }
+  const reads: Reads = { signatoryReader: false, teamReader: false, rowReader: false, sleepReader: false, directTableRead: false }
   const mark = (name: string) => {
     if (name === "liveSignatoryRole") reads.signatoryReader = true
     if (TEAM_READER_NAMES.has(name)) reads.teamReader = true
     if (ROW_READER_NAMES.has(name)) reads.rowReader = true
+    if (SLEEP_READER_NAMES.has(name)) reads.sleepReader = true
   }
   walk(parseSource(file, text), (node) => {
     if (ts.isIdentifier(node) && !isInsideImport(node) && !isDeclarationName(node)) mark(node.text)
@@ -181,14 +194,15 @@ describe("page-authority-readers — le modérateur d'une page n'hérite d'aucun
       `// liveSignatoryRole(ctx, page, personId) dans un commentaire ne compte pas`,
       `export async function liveSignatoryRole() { return null }`,
     ].join("\n")
-    expect(readsOf("convex/modules/x/quiet.ts", fabricated)).toEqual({ signatoryReader: false, teamReader: false, rowReader: false, directTableRead: false })
+    expect(readsOf("convex/modules/x/quiet.ts", fabricated)).toEqual({ signatoryReader: false, teamReader: false, rowReader: false, sleepReader: false, directTableRead: false })
     const reader = [
       `const role = await liveSignatoryRole(ctx, page, personId)`,
       `const reader = requirePageTeam`,
       `const rows = await ctx.db.query("pageSignatories").withIndex("by_page_role", (q) => q.eq("pageId", pageId)).take(10)`,
       `const team = await signatoryRowsOf(ctx, pageId)`,
+      `const sleeping = await sleepingPageTeamRole(ctx, page, personId, now)`,
     ].join("\n")
-    expect(readsOf("convex/modules/x/reader.ts", reader)).toEqual({ signatoryReader: true, teamReader: true, rowReader: true, directTableRead: true })
+    expect(readsOf("convex/modules/x/reader.ts", reader)).toEqual({ signatoryReader: true, teamReader: true, rowReader: true, sleepReader: true, directTableRead: true })
     // Renommés à l'import, ou lus par un espace de noms : toujours vus.
     const renamed = [
       `import { livePageTeamRole as teamOf, signatoryRowOf as rowOf } from "../pages/access"`,
@@ -206,6 +220,11 @@ describe("page-authority-readers — le modérateur d'une page n'hérite d'aucun
     expect(outside, `lecteur du rôle d'équipe hors liste blanche : ${outside.join(", ")} — décider le droit de toute l'équipe qu'il ouvre et le déclarer dans TEAM_READERS`).toEqual([])
     expect(Object.keys(TEAM_READERS).filter((file) => !readers.includes(file))).toEqual([])
     expect(Object.keys(TEAM_READERS)).toHaveLength(10)
+  })
+
+  it("AS-11a : le lecteur de l'équipe d'une page EN SOMMEIL n'a qu'un appelant, le module du sommeil", () => {
+    const readers = engineFiles().filter(({ file, reads }) => reads.sleepReader && file !== DEFINER).map(({ file }) => file)
+    expect(readers, "lecteur de `sleepingPageTeamRole` ajouté : l'équipe d'une page en sommeil est figée, seul `pages/sleep.ts` la lit (réactivation, liste « En sommeil »)").toEqual(SLEEP_READERS)
   })
 
   it("l'inventaire des appelants de `signatoryRowOf` / `signatoryRowsOf` est figé, chacun relu pour le modérateur", () => {

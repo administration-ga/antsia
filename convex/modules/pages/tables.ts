@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/modules/reseauPages/tables.ts @ ad2e7fdc2 — adaptations : pages GÉNÉRIQUES par réseau (`networkId`) à identité PROPRE (nom, sigle, description, logo et bannière sous la garde des fichiers) au lieu d'une identité dérivée d'`orgs` (`orgId` retiré) ; nature (`ownerKind`) et confiance (`trust`, posée par décision tracée, rang dénormalisé pour la découverte) ; pays et règle de visibilité de la page (`visibility`, `onRoot` dénormalisé) ; référence d'import contractuel ; créateur en personne ; AUCUN compteur sur la page (abonnés et publications dans l'agrégat `engineCounters`, D02) — d'où la découverte par confiance puis récence au lieu des plus suivies ; abonnements en personnes, portant le réseau de la page ; tables neuves des signataires (`pageSignatories`), des revendications (`pageClaims`, EXF-AN-17) et de l'historique d'identité (`pageIdentityHistory`) ; activation par superadmin (`activatedByUserId`…) retirée : une page naît d'un membre vérifié, d'un opérateur, d'un import ou de la fédération.
+// Dupliqué de socle/convex/modules/reseauPages/tables.ts @ ad2e7fdc2 — adaptations : pages GÉNÉRIQUES par réseau (`networkId`) à identité PROPRE (nom, sigle, description, logo et bannière sous la garde des fichiers) au lieu d'une identité dérivée d'`orgs` (`orgId` retiré) ; nature (`ownerKind`) et confiance (`trust`, posée par décision tracée, rang dénormalisé pour la découverte) ; pays et règle de visibilité de la page (`visibility`, `onRoot` dénormalisé) ; référence d'import contractuel ; créateur en personne ; AUCUN compteur sur la page (abonnés et publications dans l'agrégat `engineCounters`, D02) — d'où la découverte par confiance puis récence au lieu des plus suivies ; abonnements en personnes, portant le réseau de la page ; tables neuves des signataires (`pageSignatories`), des revendications (`pageClaims`, EXF-AN-17) et de l'historique d'identité (`pageIdentityHistory`) ; activation par superadmin (`activatedByUserId`…) retirée : une page naît d'un membre vérifié, d'un opérateur, d'un import ou de la fédération. ; AS-11a : `sleepEndsAt`, l'échéance du sommeil posé par un administrateur.
 /**
  * Tables des PAGES — la présence d'une organisation dans un réseau.
  *
@@ -60,6 +60,14 @@ export const pagesTables = {
     createdAt: v.number(),
     updatedAt: v.number(),
     deactivatedAt: v.optional(v.number()),
+    /**
+     * AS-11a — l'échéance du SOMMEIL posé par un administrateur de la page (`putPageToSleep`) :
+     * présente seulement sur une page `inactive` mise en sommeil, son début est `deactivatedAt`.
+     * Absente sur une page `inactive`, c'est un retrait de l'opérateur ou du juge. Effacée à
+     * chaque transition d'état (`applyPageStatus`). Aucune personne n'est stockée ici : le journal
+     * (`page.sleep`, `page.wake`) dit qui. Aucun index : l'échéance se constate à la lecture.
+     */
+    sleepEndsAt: v.optional(v.number()),
   })
     .index("by_handle", ["handle"])
     .index("by_network_importRef", ["networkId", "importRef"])
