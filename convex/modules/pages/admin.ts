@@ -37,6 +37,7 @@ import { hasJudicialPageHold } from "../moderation/judicialHolds"
 import { hasStrongIdentityFor } from "../people/persons"
 import { appendAudit, operatorCapacity } from "../platform/audit"
 import { assertPageHandleFree, isPageOnRoot, liveSignatoryRole, pageSearchText, signatoryRowOf, signatoryRowsOf } from "./access"
+import { applyTeamRoleTransition } from "./signatories"
 import { pageStatusValidator } from "./validators"
 
 /** Ce que la console doit voir — l'état RÉEL, sans caviardage (ni identifiant de stockage). */
@@ -260,8 +261,12 @@ export const grantPageAdmin = operatorMutation({
     const existing = await signatoryRowOf(ctx, page._id, person._id)
     if (existing?.role === "admin") return { invited: existing.acceptedAt === undefined }
     const now = Date.now()
-    if (existing) await ctx.db.patch(existing._id, { role: "admin", authorityRevision: (existing.authorityRevision ?? 0) + 1, updatedAt: now })
-    else await ctx.db.insert("pageSignatories", { networkId: page.networkId, pageId: page._id, personId: person._id, role: "admin", authorityRevision: 0, createdAt: now, updatedAt: now })
+    if (existing) {
+      await ctx.db.patch(existing._id, { role: "admin", authorityRevision: (existing.authorityRevision ?? 0) + 1, updatedAt: now })
+      // AS-10 : un modérateur accepté promu administrateur parle désormais au nom de la page.
+      const accepted = existing.acceptedAt !== undefined
+      await applyTeamRoleTransition(ctx, { networkId: page.networkId, pageId: page._id, personId: person._id, before: { role: existing.role, accepted }, after: { role: "admin", accepted } })
+    } else await ctx.db.insert("pageSignatories", { networkId: page.networkId, pageId: page._id, personId: person._id, role: "admin", authorityRevision: 0, createdAt: now, updatedAt: now })
     await appendAudit(ctx, {
       action: "page.signatory_grant",
       capacity: operatorCapacity(ctx.operator),
@@ -337,8 +342,12 @@ export const grantRescuePageAdmin = operatorMutation({
     // Rejouée : l'invitation de secours attend déjà sa réponse — rien de neuf, ni trace ni cloche.
     if (existing?.role === "admin" && existing.acceptedAt === undefined) return { invited: true }
     const now = Date.now()
-    if (existing) await ctx.db.patch(existing._id, { role: "admin", authorityRevision: (existing.authorityRevision ?? 0) + 1, updatedAt: now })
-    else {
+    if (existing) {
+      await ctx.db.patch(existing._id, { role: "admin", authorityRevision: (existing.authorityRevision ?? 0) + 1, updatedAt: now })
+      // AS-10 : un modérateur accepté promu administrateur de secours parle désormais au nom de la page.
+      const accepted = existing.acceptedAt !== undefined
+      await applyTeamRoleTransition(ctx, { networkId: page.networkId, pageId: page._id, personId: person._id, before: { role: existing.role, accepted }, after: { role: "admin", accepted } })
+    } else {
       const count = (await signatoryRowsOf(ctx, page._id)).length
       checked(() => assertPageHasRoomForSignatory(count))
       await ctx.db.insert("pageSignatories", { networkId: page.networkId, pageId: page._id, personId: person._id, role: "admin", authorityRevision: 0, createdAt: now, updatedAt: now })

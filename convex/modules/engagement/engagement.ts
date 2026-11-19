@@ -43,8 +43,9 @@ const readerOf = (ctx: { person: Doc<"persons">; network: Doc<"networks"> }): Re
  * À quel titre une personne retire les commentaires d'AUTRUI sous une publication :
  *  · `postAuthor` — l'auteur d'une publication PERSONNELLE (chez soi, on garde la main) ;
  *  · `pageTeam` — AS-10 / PG-08, un membre VIVANT de l'équipe de la page qui a publié, modérateur
- *    compris. Le rôle est RELU à chaque geste : l'auteur historique d'une publication de page
- *    n'en tire plus aucun droit, un ancien signataire le perd.
+ *    compris, qui lit DEPUIS le réseau de la page (une page d'un réseau fermé lue à la racine ne
+ *    s'y modère pas). Le rôle est RELU à chaque geste : l'auteur historique d'une publication de
+ *    page n'en tire plus aucun droit, un ancien signataire le perd.
  */
 type PostCommentsRemovalRight = { by: "postAuthor" } | { by: "pageTeam"; page: Doc<"pages">; role: PageTeamRole }
 
@@ -54,14 +55,14 @@ export type CommentRemovalRight = { by: "own" } | PostCommentsRemovalRight
 type RemovalReadCtx = Pick<QueryCtx, "db">
 
 /** Le droit, sur une publication, de retirer les commentaires d'autrui — lu UNE fois par lecture de commentaires. */
-async function postCommentsRemovalRight(ctx: RemovalReadCtx, post: Doc<"posts">, personId: Id<"persons">): Promise<PostCommentsRemovalRight | null> {
+async function postCommentsRemovalRight(ctx: RemovalReadCtx, post: Doc<"posts">, reader: ReaderContext): Promise<PostCommentsRemovalRight | null> {
   if (post.pageId !== undefined) {
     const page = await ctx.db.get(post.pageId)
-    if (!page || page.networkId !== post.networkId) return null
-    const role = await livePageTeamRole(ctx, page, personId)
+    if (!page || page.networkId !== post.networkId || page.networkId !== reader.network._id) return null
+    const role = await livePageTeamRole(ctx, page, reader.personId)
     return role !== null && canModeratePageComments(role) ? { by: "pageTeam", page, role } : null
   }
-  return hasNativePostAuthor(post) && post.authorPersonId === personId ? { by: "postAuthor" } : null
+  return hasNativePostAuthor(post) && post.authorPersonId === reader.personId ? { by: "postAuthor" } : null
 }
 
 /**
@@ -198,7 +199,7 @@ export const removeComment = networkMutation({
     if (!comment) return notFound()
     // La garde de visibilité d'abord : on ne raisonne pas sur un commentaire porté par une publication invisible.
     const post = await assertVisiblePost(ctx, readerOf(ctx), comment.postId)
-    const right = commentRemovalRight(comment, ctx.person._id, await postCommentsRemovalRight(ctx, post, ctx.person._id))
+    const right = commentRemovalRight(comment, ctx.person._id, await postCommentsRemovalRight(ctx, post, readerOf(ctx)))
     if (right === null) return notFound()
     const now = Date.now()
     const removing = comment.status !== "removed"
@@ -303,7 +304,7 @@ export const paginateComments = networkQuery({
       .query("postComments")
       .withIndex("by_post_parent_status_createdAt", (q) => q.eq("postId", args.postId).eq("parentCommentId", undefined).eq("status", "published"))
       .paginate(args.paginationOpts)
-    const postRight = await postCommentsRemovalRight(ctx, post, reader.personId)
+    const postRight = await postCommentsRemovalRight(ctx, post, reader)
     const isBlocked = await blockedFilter(ctx, reader)
     const profileOf = miniProfileCache(ctx)
     const page: CommentDto[] = []
@@ -336,7 +337,7 @@ export const paginateReplies = networkQuery({
       .query("postComments")
       .withIndex("by_post_parent_status_createdAt", (q) => q.eq("postId", args.postId).eq("parentCommentId", root._id).eq("status", "published"))
       .paginate(args.paginationOpts)
-    const postRight = await postCommentsRemovalRight(ctx, post, reader.personId)
+    const postRight = await postCommentsRemovalRight(ctx, post, reader)
     const isBlocked = await blockedFilter(ctx, reader)
     const profileOf = miniProfileCache(ctx)
     const page: ReplyDto[] = []

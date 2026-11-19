@@ -250,20 +250,47 @@ describe("AS-10 / PG-08 — le modérateur de page", () => {
     expect(await alice.as.query(SIG.listPageSignatories, { networkId: root, pageId })).toHaveLength(PAGE_SIGNATORIES_MAX)
   })
 
-  it("rétrograder un signataire accepté en modérateur le sort des directs de la page ; le dernier administrateur reste protégé", async () => {
+  it("rétrograder un éditeur (signataire) accepté en modérateur le sort des directs de la page ; promu à nouveau, il publie sans nouvelle coupure", async () => {
     const t = testConvex()
     const { root, alice, pageId } = await alicePage(t)
-    const bob = await joinTeam(t, root, alice, pageId, "bob", "admin")
+    const bob = await joinTeam(t, root, alice, pageId, "bob", "signatory")
     expect(await alice.as.mutation(SIG.grantPageRole, { networkId: root, pageId, handle: "bob", role: "moderator" })).toEqual({ personId: bob.personId, role: "moderator", invited: false })
     expect(await jobsNamed(t, "modules/live/revocation:kickUserFromPageDirects")).toEqual([{ personId: bob.personId, pageId, cursor: null }])
-    expect((await journal(t, "pages", pageId)).at(-1)).toMatchObject({ action: "page.signatory_grant", details: { role: "moderator", previousRole: "admin", invited: false } })
-    // Rétrogradé, il ne gère plus rien ; la dernière administratrice ne part pas.
-    expect(await codeOf(bob.as.mutation(SIG.grantPageRole, { networkId: root, pageId, handle: "alice", role: "moderator" }))).toBe("pageRoleRequired")
-    expect(await ruleOf(alice.as.mutation(SIG.revokePageRole, { networkId: root, pageId, personId: alice.personId }))).toBe("PAGE_LAST_ADMIN")
-    // Promu à nouveau, il parle au nom de la page sans nouvelle coupure.
+    expect((await journal(t, "pages", pageId)).at(-1)).toMatchObject({ action: "page.signatory_grant", details: { role: "moderator", previousRole: "signatory", invited: false } })
+    expect(await codeOf(bob.as.mutation(P.publishAsPage, { networkId: root, pageId, body: "Encore au nom de la page ?" }))).toBe("pageRoleRequired")
     await alice.as.mutation(SIG.grantPageRole, { networkId: root, pageId, handle: "bob", role: "signatory" })
     expect(await jobsNamed(t, "modules/live/revocation:kickUserFromPageDirects")).toHaveLength(1)
     expect((await bob.as.mutation(P.publishAsPage, { networkId: root, pageId, body: "De nouveau éditeur" })).created).toBe(true)
+  })
+
+  it("un second administrateur rétrogradé en modérateur sort aussi des directs et ne gère plus ; la dernière administratrice ne part pas", async () => {
+    const t = testConvex()
+    const { root, alice, pageId } = await alicePage(t)
+    const carol = await joinTeam(t, root, alice, pageId, "carol", "admin")
+    await alice.as.mutation(SIG.grantPageRole, { networkId: root, pageId, handle: "carol", role: "moderator" })
+    expect(await jobsNamed(t, "modules/live/revocation:kickUserFromPageDirects")).toEqual([{ personId: carol.personId, pageId, cursor: null }])
+    expect(await codeOf(carol.as.mutation(SIG.grantPageRole, { networkId: root, pageId, handle: "alice", role: "moderator" }))).toBe("pageRoleRequired")
+    expect(await ruleOf(alice.as.mutation(SIG.revokePageRole, { networkId: root, pageId, personId: alice.personId }))).toBe("PAGE_LAST_ADMIN")
+  })
+})
+
+/** La génération du fil matérialisé d'une personne dans un réseau (0 : jamais composé). */
+async function feedGeneration(t: T, networkId: Id<"networks">, personId: Id<"persons">): Promise<number> {
+  const cursor = await t.run(async (ctx) => await ctx.db.query("feedCursors").withIndex("by_reader", (q) => q.eq("networkId", networkId).eq("personId", personId).eq("scope", "pour_vous")).unique())
+  return cursor?.generation ?? 0
+}
+
+describe("AS-10 — un modérateur promu par la console parle au nom de la page, fil recomposé", () => {
+  it("l'opérateur fait d'un modérateur accepté un administrateur : il publie, et son fil est recomposé comme à une acceptation", async () => {
+    const t = testConvex()
+    const { root, alice, pageId } = await alicePage(t)
+    const bob = await joinTeam(t, root, alice, pageId, "bob", "moderator")
+    const operator = await enter(t, root, "operatrice")
+    await makeOperator(t, operator)
+    const before = await feedGeneration(t, root, bob.personId)
+    expect(await operator.as.mutation(ADMIN.grantPageAdmin, { pageId, personId: bob.personId, reason: "Reprise de l'administration par le modérateur." })).toEqual({ invited: false })
+    expect(await feedGeneration(t, root, bob.personId)).toBe(before + 1)
+    expect((await bob.as.mutation(P.publishAsPage, { networkId: root, pageId, body: "Administrateur désormais" })).created).toBe(true)
   })
 })
 

@@ -181,6 +181,23 @@ describe("AS-10 / PG-08 — les droits de toute l'équipe restent ouverts au mod
     expect(await refusal(f.outsider.as.query(api.modules.posts.posts.getPost, { networkId: f.networkId, postId }))).toBe("notFound")
   })
 
+  it("partie liée comme toute l'équipe : il ne demande pas un service de sa page et ne candidate pas à ses offres d'emploi", async () => {
+    const f = await fixture()
+    const { offerId } = await f.editor.as.mutation(api.modules.diaspora.services.createOffer, { networkId: f.networkId, pageId: f.pageId, ...SERVICE, publish: true })
+    const request = (who: Member, key: string) => who.as.mutation(api.modules.diaspora.serviceRequests.createServiceRequest, {
+      networkId: f.networkId, offerId, offerVersion: 1, need: "Constituer un dossier de titre de séjour.", windows: [{ startAt: NOW + DAY, endAt: NOW + DAY + 4 * HOUR }],
+      timeZone: "Europe/Paris", shareIdentityWithPage: true, idempotencyKey: key,
+    })
+    expect(await refusal(request(f.moderator, "6f1c5c2e-2c8e-4a77-9d0e-6a1b2c3d4e01"))).toBe("request_own_page")
+    expect(await refusal(request(f.outsider, "6f1c5c2e-2c8e-4a77-9d0e-6a1b2c3d4e02"))).toBeNull()
+    const { jobId } = await f.editor.as.mutation(api.modules.diaspora.jobs.createJobOffer, { networkId: f.networkId, pageId: f.pageId, ...JOB, publish: true })
+    const apply = (who: Member, key: string) => who.as.mutation(api.modules.diaspora.jobs.applyToJobOffer, {
+      networkId: f.networkId, jobId, offerVersion: 1, message: "Bonjour, cinq ans d'animation d'ateliers et l'envie de rejoindre l'association.", shareName: true, shareTalentProfile: false, idempotencyKey: key,
+    })
+    expect(await refusal(apply(f.moderator, "candidature-equipe-0001"))).toBe("job_application_own_page")
+    expect(await refusal(apply(f.outsider, "candidature-equipe-0002"))).toBeNull()
+  })
+
   it("il voit l'équipe et s'en retire ; la page le dit dans `teamRole`, jamais dans `role`", async () => {
     const f = await fixture()
     expect((await f.moderator.as.query(api.modules.pages.signatories.listPageSignatories, { networkId: f.networkId, pageId: f.pageId })).map((row) => row.role)).toEqual(["admin", "signatory", "moderator"])

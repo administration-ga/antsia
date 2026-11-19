@@ -6,8 +6,9 @@
  *   1. la conversation est OUVERTE pour les deux personnes et la phase de l'objet est « engagée »
  *      pour les appels (`callsEngaged`, fourni par la tranche) ;
  *   2. chacune a donné, DANS CE FIL, un accord explicite, jamais prérempli, révocable à tout moment,
- *      lié à l'autorité qui l'a permis (`callAuthorityKey`) : côté page, sa ligne de signataire ET sa
- *      date d'acceptation ; côté personne, sa qualité de partie de l'objet. Une autorité perdue puis
+ *      lié à l'autorité qui l'a permis (`callAuthorityKey`) : côté page, sa ligne de signataire, sa
+ *      date d'acceptation ET sa révision d'autorité (AS-10) ; côté personne, sa qualité de partie de
+ *      l'objet. Une autorité perdue puis
  *      retrouvée produit une autre clé : l'ancien accord ne revit pas (N29) ;
  *   3. en voix de page, le signataire qui consent accepte d'être NOMMÉ dans l'appel ; le demandeur ne
  *      cible qu'un signataire consentant (un autre est indistinct d'un inconnu, D3) ; un signataire
@@ -60,9 +61,10 @@ function memoOf(ctx: ContextualReadCtx): ContextualReadCtx {
 // ═══════════════════════════════════════════════════════════════
 
 /**
- * La clé d'autorité ACTUELLE d'une partie (§5.8) : côté page, sa ligne de signataire et sa date
- * d'acceptation ; côté personne, sa qualité de partie de l'objet (fil et côté). `null` : plus
- * d'autorité, aucun accord ne vaut.
+ * La clé d'autorité ACTUELLE d'une partie (§5.8) : côté page, sa ligne de signataire, sa date
+ * d'acceptation et sa révision d'autorité (AS-10 : une rétrogradation en modérateur puis une
+ * nouvelle promotion gardent la ligne, pas la révision) ; côté personne, sa qualité de partie de
+ * l'objet (fil et côté). `null` : plus d'autorité, aucun accord ne vaut.
  */
 export async function currentCallAuthorityKey(ctx: Pick<QueryCtx, "db">, access: ContextualAccess, personId: Id<"persons">): Promise<string | null> {
   if (access.voice === "page") {
@@ -70,7 +72,7 @@ export async function currentCallAuthorityKey(ctx: Pick<QueryCtx, "db">, access:
     if (page === null) return null
     const row = await signatoryRowOf(ctx, page._id, personId)
     if (row === null || row.acceptedAt === undefined) return null
-    return contextualCallAuthorityKey({ kind: "page", signatoryRowId: row._id, acceptedAt: row.acceptedAt })
+    return contextualCallAuthorityKey({ kind: "page", signatoryRowId: row._id, acceptedAt: row.acceptedAt, authorityRevision: row.authorityRevision ?? 0 })
   }
   return contextualCallAuthorityKey({ kind: "person", contextKey: access.thread.contextKey, side: access.side })
 }

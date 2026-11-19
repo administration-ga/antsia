@@ -46,6 +46,7 @@ import { notifyPerson } from "../notifications/notify"
 import { miniProfileCache } from "../people/miniProfile"
 import { appendAudit, networkRoleCapacity } from "../platform/audit"
 import { countLiveAdmins, liveSignatoryRole, pageCardOf, signatoryRowOf } from "./access"
+import { applyTeamRoleTransition } from "./signatories"
 import { pageCardValidator, pageClaimDecisionValidator, pageClaimStatusValidator } from "./validators"
 
 type ReadCtx = Pick<QueryCtx, "db" | "storage">
@@ -347,6 +348,11 @@ export const decidePageClaim = networkMutation({
       if (row) await ctx.db.patch(row._id, { role: "admin", acceptedAt: row.acceptedAt ?? now,
         ...(row.role !== "admin" || row.acceptedAt === undefined ? { authorityRevision: (row.authorityRevision ?? 0) + 1 } : {}), updatedAt: now })
       else await ctx.db.insert("pageSignatories", { networkId: page.networkId, pageId: page._id, personId: claim.claimantPersonId, role: "admin", authorityRevision: 0, acceptedAt: now, createdAt: now, updatedAt: now })
+      // AS-10 : qui ne parlait pas au nom de la page (modérateur, invitation en attente, personne sans ligne) y parle désormais.
+      await applyTeamRoleTransition(ctx, {
+        networkId: page.networkId, pageId: page._id, personId: claim.claimantPersonId,
+        before: row ? { role: row.role, accepted: row.acceptedAt !== undefined } : null, after: { role: "admin", accepted: true },
+      })
       if (page.trust === "community") {
         trust = "verified"
         await ctx.db.patch(page._id, { trust, trustRank: pageTrustRank(trust), updatedAt: now })

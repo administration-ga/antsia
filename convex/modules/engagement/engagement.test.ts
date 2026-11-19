@@ -302,6 +302,33 @@ describe("AS-10 / PG-08 — l'équipe d'une page retire les commentaires sous se
     expect(await postJournal(t, postId)).toEqual([])
   })
 
+  it("le droit de l'équipe ne vaut que dans le réseau de la page : lu depuis la racine, il ne s'offre ni ne s'exerce", async () => {
+    const t = testConvex()
+    const { root, testClosed } = await seed(t)
+    const alice = await enter(t, root, "alice")
+    const bob = await enter(t, root, "bob")
+    const eve = await enter(t, root, "eve")
+    // Une page d'un réseau fermé dont les communiqués se lisent aussi depuis la racine (règle `root`).
+    const pageId = await t.run(async (ctx) => {
+      for (const person of [alice, bob]) await ctx.db.insert("networkMemberships", { networkId: testClosed, personId: person.personId, status: "declaree", role: "member", joinedAt: 1, statusChangedAt: 1 })
+      const id = await ctx.db.insert("pages", { networkId: testClosed, handle: "page-fermee-racine", name: "Page fermée lue à la racine", ownerKind: "association", trust: "community", trustRank: 0, visibility: "root", onRoot: true, status: "active", searchText: "page fermee", createdAt: 1, updatedAt: 1 })
+      await ctx.db.insert("pageSignatories", { networkId: testClosed, pageId: id, personId: alice.personId, role: "admin", acceptedAt: 1, createdAt: 1, updatedAt: 1 })
+      await ctx.db.insert("pageSignatories", { networkId: testClosed, pageId: id, personId: bob.personId, role: "moderator", acceptedAt: 1, createdAt: 1, updatedAt: 1 })
+      return id
+    })
+    const { postId } = await alice.as.mutation(api.modules.pages.pages.publishAsPage, { networkId: testClosed, pageId, body: "Communiqué lu partout" })
+    const { commentId } = await eve.as.mutation(E.comment, { networkId: root, postId, body: "Un avis depuis la racine" })
+
+    expect((await comments(bob, root, postId)).page[0]).not.toHaveProperty("canRemove")
+    expect(await codeOf(bob.as.mutation(E.removeComment, { networkId: root, commentId }))).toBe("notFound")
+    expect(await postJournal(t, postId)).toEqual([])
+    // Dans le réseau de la page, le même modérateur le peut ; l'autrice retire toujours le sien d'où elle lit.
+    expect((await comments(bob, testClosed, postId)).page[0]?.canRemove).toBe(true)
+    expect((await comments(eve, root, postId)).page[0]?.canRemove).toBe(true)
+    await bob.as.mutation(E.removeComment, { networkId: testClosed, commentId })
+    expect(await postJournal(t, postId)).toMatchObject([{ action: "page.comment_remove", networkId: testClosed, details: { role: "moderator" } }])
+  })
+
   it("sous une publication personnelle, rien ne change : l'auteur retire sans journal, `canRemove` le lui dit", async () => {
     const t = testConvex()
     const { root, bob, eve, frank } = await pageCast(t)

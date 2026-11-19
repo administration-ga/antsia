@@ -195,9 +195,11 @@ describe("CC-1 — capacités par phase (§6.2)", () => {
   })
 
   it("une autorité perdue puis retrouvée ne fait pas revivre un ancien accord (N29)", () => {
-    const before = contextualCallAuthorityKey({ kind: "page", signatoryRowId: "row1", acceptedAt: 10 })
-    const after = contextualCallAuthorityKey({ kind: "page", signatoryRowId: "row1", acceptedAt: 20 })
+    const before = contextualCallAuthorityKey({ kind: "page", signatoryRowId: "row1", acceptedAt: 10, authorityRevision: 1 })
+    const after = contextualCallAuthorityKey({ kind: "page", signatoryRowId: "row1", acceptedAt: 20, authorityRevision: 1 })
     expect(before).not.toBe(after)
+    // AS-10 : même ligne, même acceptation, rôle perdu puis rendu (révision incrémentée) : autre clé.
+    expect(contextualCallAuthorityKey({ kind: "page", signatoryRowId: "row1", acceptedAt: 10, authorityRevision: 3 })).not.toBe(before)
     expect(contextualCallAuthorityKey({ kind: "person", contextKey: "diasporaMentoring:m1", side: "responder" })).toBe("person:diasporaMentoring:m1:responder")
   })
 })

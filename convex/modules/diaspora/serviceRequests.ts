@@ -65,7 +65,7 @@ import { networkMutation, networkQuery } from "../../lib/functions"
 import { enforceRateLimit } from "../../lib/rateLimit"
 import { literals } from "../../lib/validators"
 import { openContextualConversation, syncContextualConversation } from "../contextualMessaging/hooks"
-import { liveSignatoryRole, pageCardOf, readablePageOrNull } from "../pages/access"
+import { livePageTeamRole, liveSignatoryRole, pageCardOf, readablePageOrNull } from "../pages/access"
 import { livePersonProfile } from "../people/miniProfile"
 import { assertDiasporaNetwork, assertPageOpenTo } from "./facts"
 // Avis neutres de la cloche (DG-015), par la porte unique, juste après chaque écriture réussie.
@@ -590,7 +590,8 @@ export const createServiceRequest = networkMutation({
     // RP-03 : tous les signataires vivants en blocage avec la personne, la page se tait comme retirée.
     await assertPageOpenTo(ctx, page, ctx.person._id)
     if (offer.version !== args.offerVersion) return refuseRule("request_offer_changed")
-    if ((await liveSignatoryRole(ctx, page, ctx.person._id)) !== null) return refuseRule("request_own_page")
+    // AS-10 : toute l'équipe vivante est partie liée, modérateur compris — on ne demande pas un service à sa page.
+    if ((await livePageTeamRole(ctx, page, ctx.person._id)) !== null) return refuseRule("request_own_page")
     const now = Date.now()
     for (const status of SERVICE_REQUEST_OPEN_STATUSES) {
       // Une nouvelle demande n'est admise que si les précédentes sont échues : la plus récente suffit.

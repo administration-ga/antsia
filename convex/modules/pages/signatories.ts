@@ -23,11 +23,12 @@
  *    signataire en modérateur le sort des directs de la page, comme un retrait ;
  *    seule l'invitation sonne chez le modérateur.
  */
-import { assertNotLastAdmin, assertPageHasRoomForSignatory, isPageSignatoryRole } from "@antsia/social-domain/pages"
+import { assertNotLastAdmin, assertPageHasRoomForSignatory, isPageSignatoryRole, type PageTeamRole } from "@antsia/social-domain/pages"
 import { v } from "convex/values"
 
 import { internal } from "../../_generated/api"
-import type { Doc } from "../../_generated/dataModel"
+import type { Doc, Id } from "../../_generated/dataModel"
+import type { MutationCtx } from "../../_generated/server"
 import { checked, fail, failRule, notFound } from "../../lib/errors"
 import { networkMutation, networkQuery } from "../../lib/functions"
 import { enforceRateLimit } from "../../lib/rateLimit"
@@ -39,6 +40,32 @@ import { appendAudit } from "../platform/audit"
 import { refreshReaderContexts } from "../posts/feedMaterialization"
 import { countLiveAdmins, pageCardOf, requireManagedPage, requirePageTeam, signatoryRowOf, signatoryRowsOf } from "./access"
 import { pageCardValidator, pageTeamRoleValidator } from "./validators"
+
+/** L'état d'une ligne d'équipe pour une transition : son rôle, et si l'invitation est acceptée. */
+type TeamStanding = { role: PageTeamRole; accepted: boolean }
+
+/**
+ * AS-10 / PG-08 — ce qu'entraîne un changement de rôle d'équipe, par quelque porte qu'il passe
+ * (habilitation par l'administrateur, console, revendication validée). Ne compte que la parole au
+ * nom de la page, sur une ligne ACCEPTÉE :
+ *  · la personne se met à parler au nom de la page (modérateur promu, ligne neuve acceptée) : son
+ *    fil se recompose, comme à l'acceptation d'une invitation ;
+ *  · elle cesse d'y parler en restant dans l'équipe (signataire rétrogradé en modérateur) : sa
+ *    connexion déjà ouverte à un direct réservé aux abonnés est coupée, sauf s'il en reste abonné
+ *    (la décision d'accès juge), comme au retrait.
+ * Un retrait de ligne garde sa propre coupure (`revokePageRole`).
+ */
+export async function applyTeamRoleTransition(
+  ctx: MutationCtx,
+  input: { networkId: Id<"networks">; pageId: Id<"pages">; personId: Id<"persons">; before: TeamStanding | null; after: TeamStanding },
+): Promise<void> {
+  const spokeBefore = input.before !== null && input.before.accepted && isPageSignatoryRole(input.before.role)
+  const speaksAfter = input.after.accepted && isPageSignatoryRole(input.after.role)
+  if (speaksAfter && !spokeBefore) await refreshReaderContexts(ctx, input.networkId, input.personId)
+  else if (spokeBefore && !speaksAfter && input.after.accepted) {
+    await ctx.scheduler.runAfter(0, internal.modules.live.revocation.kickUserFromPageDirects, { personId: input.personId, pageId: input.pageId, cursor: null })
+  }
+}
 
 const signatoryDtoValidator = v.object({
   personId: v.id("persons"),
@@ -108,12 +135,8 @@ export const grantPageRole = networkMutation({
         checked(() => assertNotLastAdmin({ role: "admin", nextRole: args.role, adminCount }))
       }
       await ctx.db.patch(existing._id, { role: args.role, authorityRevision: (existing.authorityRevision ?? 0) + 1, updatedAt: now })
-      if (existing.acceptedAt !== undefined && isPageSignatoryRole(existing.role) !== isPageSignatoryRole(args.role)) {
-        // Il ne parle plus au nom de la page : sa connexion déjà ouverte à un direct réservé aux
-        // abonnés est coupée, sauf s'il en reste abonné (la décision d'accès juge), comme au retrait.
-        if (isPageSignatoryRole(args.role)) await refreshReaderContexts(ctx, existing.networkId, target._id)
-        else await ctx.scheduler.runAfter(0, internal.modules.live.revocation.kickUserFromPageDirects, { personId: target._id, pageId: page._id, cursor: null })
-      }
+      const accepted = existing.acceptedAt !== undefined
+      await applyTeamRoleTransition(ctx, { networkId: page.networkId, pageId: page._id, personId: target._id, before: { role: existing.role, accepted }, after: { role: args.role, accepted } })
     } else {
       const count = (await signatoryRowsOf(ctx, page._id)).length
       checked(() => assertPageHasRoomForSignatory(count))
