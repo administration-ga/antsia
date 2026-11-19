@@ -57,6 +57,8 @@ export const AUDIT_ACTIONS = [
   "page.claim_decide",
   "page.post_edit",
   "page.post_pin",
+  /** AS-03 (DIASPORALE) : l'administrateur de la page rouvre le groupe de l'association, qu'il avait fermé. */
+  "page.group_reopen",
   // Boutiques (P07, `convex/modules/shops/`) : politique de publication des
   // vitrines d'un réseau, décision sur une demande en file d'admission,
   // suspension et rétablissement d'une vitrine par l'équipe de la plateforme

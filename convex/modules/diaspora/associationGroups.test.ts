@@ -102,10 +102,10 @@ describe("groupes privés d'association DIASPORALE", () => {
     const { groupId } = await create(f)
     const memberships = await f.t.run(async (ctx) => ctx.db.query("thematicGroupMembers").withIndex("by_group_leftAt_joinedAt", (q) => q.eq("groupId", groupId).eq("leftAt", undefined)).take(10))
     expect(memberships).toMatchObject([{ personId: f.admin.personId, role: "member" }])
-    expect(await group(f, f.admin)).toEqual({ groupId, pageId: f.pageId, name: "Collectif des Gabonais de Lyon", state: "active", closedAt: null, role: "owner", isMember: true, canJoin: false, canManage: true, canPublish: true })
+    expect(await group(f, f.admin)).toEqual({ groupId, pageId: f.pageId, name: "Collectif des Gabonais de Lyon", state: "active", closedAt: null, canReopen: false, role: "owner", isMember: true, canJoin: false, canManage: true, canPublish: true })
     expect(await group(f, f.reader)).toMatchObject({ role: null, isMember: false, canJoin: true, canManage: false, canPublish: false })
     const outsider = await group(f, f.outsider)
-    expect(outsider).toEqual({ groupId, pageId: f.pageId, name: "Collectif des Gabonais de Lyon", state: "active", closedAt: null, role: null, isMember: false, canJoin: false, canManage: false, canPublish: false })
+    expect(outsider).toEqual({ groupId, pageId: f.pageId, name: "Collectif des Gabonais de Lyon", state: "active", closedAt: null, canReopen: false, role: null, isMember: false, canJoin: false, canManage: false, canPublish: false })
     expect(JSON.stringify(outsider)).not.toContain(f.admin.personId)
     expect(await codeOf(wall(f, f.reader, groupId))).toBe("notFound")
     expect(await codeOf(publish(f, f.reader, groupId))).toBe("notFound")
@@ -294,19 +294,38 @@ describe("groupes privés d'association DIASPORALE", () => {
     const { postId } = await publish(f, f.admin, groupId)
     await f.admin.as.mutation(THEMATIC.closeGroup, { networkId: f.networkId, groupId })
     const closed = await group(f, f.admin)
-    expect(closed).toMatchObject({ state: "closed", closedAt: NOW, canManage: true, canPublish: false })
+    expect(closed).toMatchObject({ state: "closed", closedAt: NOW, canReopen: true, canManage: true, canPublish: false })
+    // La fermeture citée n'est servie qu'au responsable qui peut rouvrir.
+    expect(await group(f, f.reader)).toMatchObject({ state: "closed", closedAt: null, canReopen: false })
+    const audits = async () => await f.t.run(async (ctx) => (await ctx.db.query("engineAudit").take(200)).filter((row) => row.action === "page.group_reopen"))
     const reopen = (member: Person, expectedClosedAt: number) => member.as.mutation(GROUPS.reopenGroupForPage, { networkId: f.networkId, groupId, expectedClosedAt })
     // Une autre fermeture que celle lue : conflit, rien ne bouge.
     expect(await codeOf(reopen(f.admin, NOW - 1))).toBe("conflict")
     // Ni un signataire, ni un adhérent, ni un tiers ne rouvrent : le même refus qu'un groupe inconnu.
     for (const member of [f.signatory, f.reader, f.outsider]) expect(await codeOf(reopen(member, NOW)), member.handle).toBe("notFound")
     expect(await group(f, f.admin)).toMatchObject({ state: "closed" })
+    expect(await audits()).toEqual([])
     expect(await reopen(f.admin, NOW)).toEqual({ state: "active" })
-    expect(await group(f, f.admin)).toMatchObject({ state: "active", closedAt: null, canPublish: true })
+    expect(await group(f, f.admin)).toMatchObject({ state: "active", closedAt: null, canReopen: false, canPublish: true })
+    // Le geste s'inscrit au journal du moteur, sur la page, avec la fermeture citée.
+    expect(await audits()).toEqual([expect.objectContaining({ actorPersonId: f.admin.personId, capacity: "page_admin", networkId: f.networkId, subjectTable: "pages", subjectId: f.pageId, details: { groupId, closedAt: NOW } })])
     expect(await group(f, f.reader)).toMatchObject({ isMember: true, canPublish: true })
     expect((await wall(f, f.reader, groupId)).items.map((post) => post._id)).toEqual([postId])
-    // Rejouée (double clic), la réouverture rend le même état.
+    // Rejouée (double clic), la réouverture rend le même état, sans seconde ligne au journal.
     expect(await reopen(f.admin, NOW)).toEqual({ state: "active" })
+    expect(await audits()).toHaveLength(1)
+  })
+
+  it("AS-03 : un administrateur dont la ligne d'adhésion n'est pas acceptée ne rouvre pas, comme il ne ferme pas", async () => {
+    const f = await fixture()
+    const { groupId } = await create(f)
+    const membership = await accept(f, f.admin)
+    await f.otherAdmin.as.mutation(THEMATIC.closeGroup, { networkId: f.networkId, groupId })
+    await f.t.run(async (ctx) => { await ctx.db.patch(membership.membershipId, { status: "removed" }) })
+    expect(await group(f, f.admin)).toMatchObject({ state: "closed", closedAt: null, canReopen: false })
+    expect(await codeOf(f.admin.as.mutation(GROUPS.reopenGroupForPage, { networkId: f.networkId, groupId, expectedClosedAt: NOW }))).toBe("notFound")
+    expect(await group(f, f.otherAdmin)).toMatchObject({ canReopen: true, closedAt: NOW })
+    expect(await f.otherAdmin.as.mutation(GROUPS.reopenGroupForPage, { networkId: f.networkId, groupId, expectedClosedAt: NOW })).toEqual({ state: "active" })
   })
 
   it("AS-03 : un adhérent exclu pendant la fermeture reste dehors après la réouverture", async () => {
@@ -322,7 +341,7 @@ describe("groupes privés d'association DIASPORALE", () => {
     expect(await codeOf(publish(f, f.reader, groupId, "apres-exclusion"))).toBe("notFound")
   })
 
-  it("AS-03 : un groupe archivé ou retiré par la modération ne se rouvre pas", async () => {
+  it("AS-03 : un groupe archivé, en suppression ou retiré par la modération ne se rouvre pas", async () => {
     const f = await fixture()
     const { groupId } = await create(f)
     await f.admin.as.mutation(THEMATIC.closeGroup, { networkId: f.networkId, groupId })
@@ -335,8 +354,12 @@ describe("groupes privés d'association DIASPORALE", () => {
       if (state) await ctx.db.delete(state._id)
     })
     await f.otherAdmin.as.mutation(THEMATIC.archiveGroup, { networkId: f.networkId, groupId })
+    expect(await group(f, f.otherAdmin)).toMatchObject({ state: "closed", closedAt: null, canReopen: false })
     expect(await codeOf(f.otherAdmin.as.mutation(GROUPS.reopenGroupForPage, { networkId: f.networkId, groupId, expectedClosedAt: NOW }))).toBe("notFound")
     expect(await f.t.run(async (ctx) => (await ctx.db.get(groupId))?.closedAt)).toBe(NOW)
+    // En cours de suppression : la même réponse, sans archivage.
+    await f.t.run(async (ctx) => { await ctx.db.patch(groupId, { archivedAt: undefined, deletingAt: NOW }) })
+    expect(await codeOf(f.otherAdmin.as.mutation(GROUPS.reopenGroupForPage, { networkId: f.networkId, groupId, expectedClosedAt: NOW }))).toBe("notFound")
   })
 
   it("l'absence de rôle et l'anonymat de session demeurent des refus indistincts", async () => {

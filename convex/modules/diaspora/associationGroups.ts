@@ -4,8 +4,9 @@
  * L'index existant est lu avant insertion, indépendamment de l'auteur ou de
  * sa clé, pour que deux administrateurs concurrents créent le même groupe.
  *
- * AS-03 : la fermeture se rattrape. L'administrateur vivant de la page rouvre le
- * groupe qu'il a fermé, en citant la fermeture qu'il a lue (`closedAt`).
+ * AS-03 : la fermeture se rattrape. Le responsable du groupe (administrateur vivant
+ * de la page, adhésion acceptée s'il en a une) le rouvre en citant la fermeture qu'il
+ * a lue (`closedAt`) ; le geste s'inscrit au journal du moteur.
  */
 import { assertThematicGroupName, THEMATIC_GROUP_NAME_MAX_LENGTH, THEMATIC_GROUP_NAME_MIN_LENGTH } from "@antsia/social-domain/thematicGroups"
 import { buildSearchableText } from "@antsia/social-domain/searchText"
@@ -18,6 +19,7 @@ import { effectiveMembershipStatus } from "../../lib/access"
 import { checked, fail, failAppRule, notFound } from "../../lib/errors"
 import { networkMutation, networkQuery } from "../../lib/functions"
 import { liveSignatoryRole } from "../pages/access"
+import { appendAudit } from "../platform/audit"
 import { contentState } from "../moderation/policy"
 import { livePersonProfile } from "../people/miniProfile"
 import { canSeePostDoc } from "../posts/access"
@@ -31,8 +33,13 @@ const associationGroupValidator = v.object({
   pageId: v.id("pages"),
   name: v.string(),
   state: v.union(v.literal("active"), v.literal("closed")),
-  /** AS-03 : la date de la fermeture en vigueur, que cite une réouverture ; `null` pour un groupe actif. */
+  /**
+   * AS-03 : la fermeture en vigueur, que cite la réouverture — servie au seul responsable qui
+   * peut rouvrir (`canReopen`) ; `null` pour tout autre lecteur et pour un groupe actif.
+   */
   closedAt: v.union(v.number(), v.null()),
+  /** AS-03 : la réouverture serait admise pour ce lecteur (mêmes gardes que la mutation). */
+  canReopen: v.boolean(),
   role: v.union(v.literal("owner"), v.literal("moderator"), v.literal("member"), v.null()),
   isMember: v.boolean(),
   canJoin: v.boolean(),
@@ -102,9 +109,11 @@ export const groupForPage = networkQuery({
     const status = effectiveMembershipStatus(ctx.membership)
     const canWrite = status === "declaree" || status === "verifiee"
     const active = isActiveThematicGroup(group)
+    const canReopen = !active && canWrite && eligibleRole === "owner" && (await isReopenable(ctx, group))
     return {
       groupId: group._id, pageId: page._id, name: group.name, state: active ? "active" as const : "closed" as const,
-      closedAt: active ? null : (group.closedAt ?? null),
+      closedAt: canReopen ? (group.closedAt ?? null) : null,
+      canReopen,
       role: membership?.role ?? null, isMember: membership !== null,
       canJoin: active && canWrite && eligibleRole !== null && membership === null,
       canManage: eligibleRole === "owner",
@@ -123,10 +132,16 @@ export const createGroupForPage = networkMutation({
   },
 })
 
+/** Fermé seulement : ni archivé, ni en suppression, ni retiré par la modération. */
+async function isReopenable(ctx: Pick<QueryCtx, "db">, group: Doc<"thematicGroups">): Promise<boolean> {
+  return group.closedAt !== undefined && group.archivedAt === undefined && group.deletingAt === undefined && !(await isThematicGroupRemovedByModeration(ctx, group._id))
+}
+
 /**
- * AS-03 — rouvrir le groupe d'une association. Réservé à l'administrateur vivant de la page
- * (le même qui le crée et le ferme) ; un groupe archivé, en cours de suppression ou retiré
- * par la modération ne se rouvre pas (refus indistinct). Versionné : la réouverture cite la
+ * AS-03 — rouvrir le groupe d'une association. Réservé au responsable du groupe, la même
+ * garde que la création et la fermeture : administrateur vivant de la page, dont la ligne
+ * d'adhésion à l'association, s'il en a une, est acceptée. Un groupe archivé, en cours de
+ * suppression ou retiré par la modération ne se rouvre pas (refus indistinct). Versionné : la réouverture cite la
  * fermeture lue (`expectedClosedAt`) ; une autre fermeture entre-temps est un conflit.
  * Idempotent : un groupe déjà actif se rend tel quel. Rien d'autre ne bouge : les membres,
  * les publications et l'épingle restent ; les droits se relisent vivants (un adhérent
@@ -141,11 +156,21 @@ export const reopenGroupForPage = networkMutation({
     const group = await ctx.db.get(groupId)
     if (!group || group.networkId !== ctx.networkId || group.associationPageId === undefined) return notFound()
     if (group.archivedAt !== undefined || group.deletingAt !== undefined || (await isThematicGroupRemovedByModeration(ctx, group._id))) return notFound()
-    const page = await associationGroupPageOrNull(ctx, ctx.networkId, group.associationPageId, ctx.person._id)
-    if (!page || (await liveSignatoryRole(ctx, page, ctx.person._id)) !== "admin") return notFound()
+    // La garde de `requireOwner` (fermeture) : réseau vivant, page d'association lisible, administrateur, adhésion acceptée.
+    if ((await associationGroupRoleOrNull(ctx, group, ctx.person._id)) !== "owner") return notFound()
     if (group.closedAt === undefined) return { state: "active" as const }
     if (group.closedAt !== expectedClosedAt) return fail("conflict")
-    await ctx.db.patch(group._id, { closedAt: undefined, updatedAt: Date.now() })
+    const now = Date.now()
+    await ctx.db.patch(group._id, { closedAt: undefined, updatedAt: now })
+    await appendAudit(ctx, {
+      action: "page.group_reopen",
+      capacity: "page_admin",
+      actorPersonId: ctx.person._id,
+      networkId: ctx.networkId,
+      subject: { table: "pages", id: group.associationPageId },
+      details: { groupId: group._id, closedAt: expectedClosedAt },
+      at: now,
+    })
     return { state: "active" as const }
   },
 })
