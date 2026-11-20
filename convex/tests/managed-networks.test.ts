@@ -1,7 +1,7 @@
 // @vitest-environment edge-runtime
 /**
  * Réseaux GOUVERNÉS par une tranche (`networks.managedBy`) : leurs règles
- * d'admission sont propres à l'application (DIASPORALE : nationalité,
+ * d'admission sont propres à l'application (DIASPORA.GA : nationalité,
  * parrainage, attestation consulaire). Les chemins génériques refusent d'y
  * entrer et d'y régler une facette ; la tranche admet par les aides partagées
  * (`modules/people/admission`), qui tiennent les invariants ; quitter reste

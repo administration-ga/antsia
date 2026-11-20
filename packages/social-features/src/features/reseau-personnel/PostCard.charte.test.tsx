@@ -209,7 +209,7 @@ describe("PostCard — présentation « charte » (ADR-0028)", () => {
     await waitFor(() => expect(mocks.calls).toContainEqual({ ref: "toggleReaction", args: { networkId: TEST_NETWORK_ID, postId: "posts_1", kind: "like" } }))
   })
 
-  it("sans déclaration, la carte reste l'historique (DIASPORALE inchangée)", () => {
+  it("sans déclaration, la carte reste l'historique (DIASPORA.GA inchangée)", () => {
     const view = render(
       <EngineTestWrapper>
         <PostCard post={base} now={NOW} />

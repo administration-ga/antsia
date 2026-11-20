@@ -33,7 +33,7 @@ export function readEnvFile(file) {
 
 /**
  * Configuration Next.js commune aux applications du moteur (antsia_ga,
- * admin_antsia_ga, et les applications externes comme diasporale_com).
+ * admin_antsia_ga, et les applications externes comme diaspora_ga).
  *
  * - Racine de résolution et de traçage = ECOSYSTEMES : toutes les applications
  *   se construisent dans ce contexte (Dockerfile en contexte ECOSYSTEMES).

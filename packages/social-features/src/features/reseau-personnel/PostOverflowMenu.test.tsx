@@ -75,7 +75,7 @@ function rect(top: number): DOMRect {
 
 /**
  * L'enveloppe du moteur, avec la présentation des publications choisie :
- * « media » (ANTSIA) par défaut, « classic » (DIASPORALE, rien de déclaré).
+ * « media » (ANTSIA) par défaut, « classic » (DIASPORA.GA, rien de déclaré).
  */
 function renderWithEngine(ui: ReactElement, presentation: EnginePostPresentation = "media") {
   const i18n = createAppI18n({ locale: "fr", appResources: { fr: {}, en: {} }, defaultNS: "social" })

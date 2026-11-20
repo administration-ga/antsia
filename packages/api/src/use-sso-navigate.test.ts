@@ -16,8 +16,8 @@ import { signOutEverywhere } from "./sign-out-everywhere"
 
 import { prepareSsoNavigation, useSsoNavigate, validateSsoTarget, type OttCapableClient, type SsoNavigationOptions } from "./use-sso-navigate"
 
-const target = "https://diasporale.example/fil?scope=local#post"
-const allowedOrigins = ["https://diasporale.example", "https://antsia.example"]
+const target = "https://diaspora-ga.example/fil?scope=local#post"
+const allowedOrigins = ["https://diaspora-ga.example", "https://antsia.example"]
 const authenticated = { isAuthenticated: true, allowedOrigins }
 
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); lifecycle.effects = []; lifecycle.updates = [] })
@@ -43,13 +43,13 @@ describe("SSO — destination fermée avant génération", () => {
     expect(validateSsoTarget(target, allowedOrigins)).toEqual({ kind: "allowed", href: target })
   })
 
-  it.each(["javascript:alert(1)", "data:text/html,hello", "ftp://diasporale.example/fil", "//diasporale.example/fil", "/fil", "invalid", "https://user:password@diasporale.example/fil"])("refuse la forme dangereuse %s avant tout jeton", async (href) => {
+  it.each(["javascript:alert(1)", "data:text/html,hello", "ftp://diaspora-ga.example/fil", "//diaspora-ga.example/fil", "/fil", "invalid", "https://user:password@diaspora-ga.example/fil"])("refuse la forme dangereuse %s avant tout jeton", async (href) => {
     const generate = vi.fn(async () => ({ data: { token: "private" } }))
     expect(await prepareSsoNavigation({ oneTimeToken: { generate } }, href, authenticated)).toEqual({ kind: "refused", reason: "invalidUrl" })
     expect(generate).not.toHaveBeenCalled()
   })
 
-  it.each(["https://diasporale.example.evil/fil", "https://evil.example/fil", "https://diasporale.example:444/fil", "http://diasporale.example/fil"])("refuse l'origine étrangère %s avant tout jeton", async (href) => {
+  it.each(["https://diaspora-ga.example.evil/fil", "https://evil.example/fil", "https://diaspora-ga.example:444/fil", "http://diaspora-ga.example/fil"])("refuse l'origine étrangère %s avant tout jeton", async (href) => {
     const generate = vi.fn(async () => ({ data: { token: "private" } }))
     expect(await prepareSsoNavigation({ oneTimeToken: { generate } }, href, authenticated)).toEqual({ kind: "refused", reason: "untrustedOrigin" })
     expect(generate).not.toHaveBeenCalled()
@@ -60,7 +60,7 @@ describe("SSO — destination fermée avant génération", () => {
   })
 
   it("ne transforme pas une URL avec chemin/identifiants en origine autorisée", () => {
-    expect(validateSsoTarget(target, ["https://diasporale.example/path", "https://user@diasporale.example", "https://diasporale.example?redirect=1", "invalid"])).toEqual({ kind: "refused", reason: "untrustedOrigin" })
+    expect(validateSsoTarget(target, ["https://diaspora-ga.example/path", "https://user@diaspora-ga.example", "https://diaspora-ga.example?redirect=1", "invalid"])).toEqual({ kind: "refused", reason: "untrustedOrigin" })
   })
 
   it("accepte une origine locale seulement quand son port est explicitement autorisé", () => {
@@ -72,8 +72,8 @@ describe("SSO — destination fermée avant génération", () => {
 describe("SSO — la session embarquée doit être prouvée", () => {
   it("sans session, part seulement vers une destination autorisée et sans ancien ott", async () => {
     const generate = vi.fn(async () => ({ data: { token: "unused" } }))
-    const result = await prepareSsoNavigation({ oneTimeToken: { generate } }, "https://diasporale.example/fil?ott=old&scope=local", { isAuthenticated: false, allowedOrigins })
-    expect(result).toEqual({ kind: "ready", href: "https://diasporale.example/fil?scope=local", session: "absent" })
+    const result = await prepareSsoNavigation({ oneTimeToken: { generate } }, "https://diaspora-ga.example/fil?ott=old&scope=local", { isAuthenticated: false, allowedOrigins })
+    expect(result).toEqual({ kind: "ready", href: "https://diaspora-ga.example/fil?scope=local", session: "absent" })
     expect(generate).not.toHaveBeenCalled()
   })
 
@@ -84,7 +84,7 @@ describe("SSO — la session embarquée doit être prouvée", () => {
     if (result.kind !== "ready") throw new Error("ready expected")
     const url = new URL(result.href)
     expect(result.session).toBe("transported")
-    expect(url.origin).toBe("https://diasporale.example")
+    expect(url.origin).toBe("https://diaspora-ga.example")
     expect(url.pathname).toBe("/fil")
     expect(url.searchParams.get("scope")).toBe("local")
     expect(url.searchParams.get("ott")).toBe("opaque+token")
@@ -94,7 +94,7 @@ describe("SSO — la session embarquée doit être prouvée", () => {
   })
 
   it("remplace tous les ott fournis par la seule session générée", async () => {
-    const result = await prepareSsoNavigation({ oneTimeToken: { generate: async () => ({ data: { token: "new" } }) } }, "https://diasporale.example/fil?ott=old&ott=other", authenticated)
+    const result = await prepareSsoNavigation({ oneTimeToken: { generate: async () => ({ data: { token: "new" } }) } }, "https://diaspora-ga.example/fil?ott=old&ott=other", authenticated)
     expect(result.kind).toBe("ready")
     if (result.kind === "ready") expect(new URL(result.href).searchParams.getAll("ott")).toEqual(["new"])
   })

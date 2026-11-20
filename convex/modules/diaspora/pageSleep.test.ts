@@ -1,6 +1,6 @@
 // @vitest-environment edge-runtime
 /**
- * AS-11a — garde de non-régression de la tranche DIASPORALE : une page EN SOMMEIL est absente
+ * AS-11a — garde de non-régression de la tranche DIASPORA.GA : une page EN SOMMEIL est absente
  * partout comme une page retirée, et son réveil rend TOUT, sans qu'aucun objet de la page ait été
  * écrit (décision du 19/11/2026 : la garde de page masque, le réveil rend).
  *
@@ -103,7 +103,7 @@ afterEach(() => {
   vi.unstubAllEnvs()
 })
 
-/** Un membre DÉCLARÉ de DIASPORALE (IDN de garantie 1), profil publié ; `verified` : attesté par un poste (relecture du kit). */
+/** Un membre DÉCLARÉ de DIASPORA.GA (IDN de garantie 1), profil publié ; `verified` : attesté par un poste (relecture du kit). */
 async function member(t: T, networkId: Id<"networks">, handle: string, options: { verified?: boolean } = {}): Promise<Member> {
   const as = t.withIdentity({ subject: `page-sleep-${handle}` })
   const personId = await as.mutation(api.modules.people.persons.ensureMyPerson, {})
@@ -115,7 +115,7 @@ async function member(t: T, networkId: Id<"networks">, handle: string, options: 
       await ctx.db.insert("identityLinks", { personId, provider: "consular_attestation", subject: `page-sleep-attestation-${personId}`, country: "FR", postSlug: "consulat-general-paris", linkedAt: NOW })
     }
   })
-  await as.mutation(api.modules.diaspora.membership.joinDiasporale, { networkId, facet: { countryOfResidence: "FR", city: "Lyon" } })
+  await as.mutation(api.modules.diaspora.membership.joinDiasporaGa, { networkId, facet: { countryOfResidence: "FR", city: "Lyon" } })
   return { as, personId, handle }
 }
 

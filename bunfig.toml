@@ -7,6 +7,6 @@
 # alors de lire son package.json. Ici, il garantit aussi qu'un paquet ne voit que
 # ce qu'il déclare — d'où le catalogue de versions du package.json racine, seul
 # moyen d'avoir UNE instance de React et de Convex pour tous les espaces de travail
-# (y compris les applications externes de DIASPORALE).
+# (y compris les applications externes de DIASPORA.GA).
 [install]
 linker = "isolated"

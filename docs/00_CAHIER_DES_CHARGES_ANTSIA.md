@@ -9,7 +9,7 @@ maitre_d_ouvrage: "NTSAGUI Digital (propriété intellectuelle) ; données au Ga
 dependances:
   - "Documentation/RESEAUX_SOCIAUX/00_PLAN_RESEAUX_DANS_LE_RESEAU_DIASPORALE_ANTSIA_2026-10-14.md (plan de pilotage)"
   - "ECOSYSTEMES/ANTSIA/docs/01_PLAN_IMPLEMENTATION_PROMPTS_ANTSIA.md (prompts d'exécution)"
-  - "ECOSYSTEMES/DIASPORALE/docs/00_CAHIER_DES_CHARGES_DIASPORALE.md (premier réseau servi par le moteur)"
+  - "ECOSYSTEMES/DIASPORA_GA/docs/00_CAHIER_DES_CHARGES_DIASPORA_GA.md (premier réseau servi par le moteur)"
   - "Documentation/RESEAUX_SOCIAUX/annexes/{A,B,D}_*.md (audits du 14/10/2026)"
 ---
 
@@ -28,17 +28,17 @@ dependances:
 > historique. Dans le code, le nom est un jeton de marque unique.
 
 > **Deux objets dans un dépôt.** Ce cahier décrit (A) **le moteur social national** — le
-> backend et les paquets qui servent tous les réseaux : ANTSIA, DIASPORALE, et demain d'autres
+> backend et les paquets qui servent tous les réseaux : ANTSIA, DIASPORA.GA, et demain d'autres
 > — et (B) **le réseau public ANTSIA**, racine de tous les réseaux, avec son application
 > `antsia.ga`. Les deux vivent dans `ECOSYSTEMES/ANTSIA/`, parce qu'ANTSIA est le réseau racine et
-> que le moteur porte son identité. DIASPORALE (`ECOSYSTEMES/DIASPORALE/`) est une application de
+> que le moteur porte son identité. DIASPORA.GA (`ECOSYSTEMES/DIASPORA_GA/`) est une application de
 > ce moteur ; son cahier dit ce qu'il y ajoute.
 
 ## 0. Décision de conception
 
 ANTSIA est **le réseau social public gabonais** : ouvert à toute personne, structuré par la
 confiance (quatre badges calculés côté serveur), et **global** — il contient les réseaux fermés
-de l'écosystème. Un membre de DIASPORALE est membre d'ANTSIA ; une administration vérifiée de
+de l'écosystème. Un membre de DIASPORA.GA est membre d'ANTSIA ; une administration vérifiée de
 l'espace agent y a sa page « Officiel » ; un agent qui le souhaite y existe. Mais chaque réseau
 fermé garde son contexte : ce qui s'y publie n'entre dans ANTSIA que par un geste explicite.
 
@@ -72,8 +72,8 @@ jamais ; la monétisation, si elle vient, est B2B, étiquetée et décidée par 
   Il est couplé à l'administration en quelques points d'accroche (délai de rattachement,
   catégorie agent/citoyen, collègues et administrations, pages = organisations, appels soumis à
   l'affiliation) et il lui manque les abstractions d'un réseau multi-tenant.
-- consulat.ga détient les comptes de la diaspora et un Espace Communauté ; DIASPORALE veut
-  en faire un réseau fermé (cahier DIASPORALE).
+- consulat.ga détient les comptes de la diaspora et un Espace Communauté ; DIASPORA.GA veut
+  en faire un réseau fermé (cahier DIASPORA.GA).
 - identite.ga est le fournisseur d'identité unique déclaré à l'APDPVP (OIDC complet, `loa`,
   portail développeur, SDK Better Auth).
 - La doctrine d'interopérabilité du programme : plateformes étanches, contrats HTTP signés,
@@ -111,7 +111,7 @@ jamais ; la monétisation, si elle vient, est B2B, étiquetée et décidée par 
 | Domaine | Indicateur | Cible an 1 |
 |---|---|---|
 | Moteur | temps de rendu du fil (p95) ; coût Convex par membre actif | < 1,5 s sur 3G ; dans le budget du propriétaire |
-| Réseaux | nombre de réseaux servis ; aucun contenu `network` lu hors de son réseau | ≥ 3 (antsia, diasporale, administration) ; 0 fuite |
+| Réseaux | nombre de réseaux servis ; aucun contenu `network` lu hors de son réseau | ≥ 3 (antsia, diaspora-ga, administration) ; 0 fuite |
 | Identité | part des membres avec une identité IDN ; part des Vérifiés | > 40 % ; > 30 % |
 | Confiance | pages Officiel fédérées ; signalements traités < 48 h | toutes les administrations vérifiées ; > 95 % |
 | Usage | WAU/MAU ; part des contenus natifs vs reflétés | > 30 % ; > 50 % natifs à six mois |
@@ -146,7 +146,7 @@ Référence pour les points d'accroche.
 
 ### 3.3 Les dix règles de duplication
 
-Celles de PRO.GA (`PRO_GA/docs/11` §2), reprises mot pour mot dans le cahier DIASPORALE §3.4 et
+Celles de PRO.GA (`PRO_GA/docs/11` §2), reprises mot pour mot dans le cahier DIASPORA.GA §3.4 et
 dans le préambule des prompts ANTSIA. Deux précisions pour le moteur : (a) la duplication se
 fait **après** la pose des fondations multi-réseaux (PA2), pour que chaque module arrive avec
 `networkId` ; (b) les modules purs serveur que le front importe (`domain`, `media`,
@@ -158,15 +158,15 @@ plutôt qu'importés depuis `convex/` (abstraction manquante n° 5 de l'annexe B
 | Terme | Définition |
 |---|---|
 | **Moteur** | backend Convex `antsia` + paquets `social-domain`, `social-contracts`, `social-features`, `ui`, `api` |
-| **Réseau** (`network`) | espace social : `root` (ANTSIA) ou `closed` (DIASPORALE, administration) ; `parentId` vers la racine |
+| **Réseau** (`network`) | espace social : `root` (ANTSIA) ou `closed` (DIASPORA.GA, administration) ; `parentId` vers la racine |
 | **Personne** (`person`) | identité sociale unique : handle, nom affiché, avatar, couverture, mode privé |
-| **Lien d'identité** (`identityLink`) | preuve externe rattachée à la personne : `idn`, `local` (e-mail ou téléphone vérifié), `administration` (reflet du socle), `consular_attestation` (DIASPORALE) |
+| **Lien d'identité** (`identityLink`) | preuve externe rattachée à la personne : `idn`, `local` (e-mail ou téléphone vérifié), `administration` (reflet du socle), `consular_attestation` (DIASPORA.GA) |
 | **Adhésion** (`networkMembership`) | personne × réseau : statut, rôle, origine (`derivedFrom`), vérification |
 | **Facette** (`personFacet`) | attributs d'une personne propres à un réseau |
 | **Visibilité** | `network` (reste dans son réseau) ou `root` (aussi dans ANTSIA) ; distincte de l'**audience** héritée (`public`, `connections`, `group`, `page`) |
 | **Reflet** | copie en lecture seule, dans ANTSIA, d'un objet publié par un réseau fédéré (page, publication, carte de personne) |
 | **Badge** | Officiel · Vérifié · Agent public · Communauté |
-| **Application** | un front qui parle au moteur avec un réseau courant (`NetworkProvider`) : `antsia_ga`, `diasporale_com`, `admin_antsia_ga` |
+| **Application** | un front qui parle au moteur avec un réseau courant (`NetworkProvider`) : `antsia_ga`, `diaspora_ga`, `admin_antsia_ga` |
 
 ## 5. Invariants
 
@@ -204,7 +204,7 @@ plutôt qu'importés depuis `convex/` (abstraction manquante n° 5 de l'annexe B
 | **IDN** (identite.ga), affichée en premier dans toute application | identité civile, `loa`, `nationality`, `profile_type` | `declaree` ; `verifiee` si `loa ≥ 2` | **Vérifié** si `loa ≥ 2` |
 | **Compte léger** (code à usage unique e-mail ou SMS) | contrôle d'une adresse ou d'un numéro | `declaree` (ANTSIA est ouvert) | **Communauté** |
 | **Lien administration** (depuis l'espace agent, par IDN, opt-in) | rattachement validé reflété par le socle (`person.optin`) | `antsia` + `administration` (miroir) | **Agent public** |
-| **Attestation consulaire** (depuis DIASPORALE) | voir cahier DIASPORALE | `diasporale` vérifiée, `antsia` dérivée | **Vérifié** |
+| **Attestation consulaire** (depuis DIASPORA.GA) | voir cahier DIASPORA.GA | `diaspora-ga` vérifiée, `antsia` dérivée | **Vérifié** |
 
 Ouverture d'ANTSIA : **toute personne** (recommandation ; arbitrage A7 du plan — l'alternative
 « réservé aux identités IDN » reste possible par la politique du réseau racine, sans changer
@@ -215,7 +215,7 @@ le code).
 `en_attente` (admission conditionnelle, lecture seule des contenus publics du réseau) →
 `declaree` → `verifiee` ; `suspendue` (sanction) ; `partie`. Les politiques par réseau
 (`membershipPolicy`) décident du statut d'entrée : `open` (ANTSIA : `declaree` d'emblée),
-`declared_or_verified` (DIASPORALE), `mirror` (administration : par reflet seulement).
+`declared_or_verified` (DIASPORA.GA), `mirror` (administration : par reflet seulement).
 
 ### 6.3 Rôles
 
@@ -242,7 +242,7 @@ le code).
 | Réseau | `kind` | `parentId` | `membershipPolicy` | `defaultVisibility` | Modération | Application |
 |---|---|---|---|---|---|---|
 | `antsia` | `root` | — | `open` | `public` | équipe nationale + thématiques | `antsia_ga` |
-| `diasporale` | `closed` | `antsia` | `declared_or_verified` | `network` | par pays | `diasporale_com` (dépôt DIASPORALE) |
+| `diaspora-ga` | `closed` | `antsia` | `declared_or_verified` | `network` | par pays | `diaspora_ga` (dépôt DIASPORA.GA) |
 | `administration` | `closed`, `mirror` | `antsia` | `mirror` | reflets `root` seulement | aucune dans ANTSIA (reste au socle) | aucune application propre ; visible dans `antsia_ga` |
 
 Créer un réseau = une ligne `networks` (console), une politique, une équipe de modération, un
@@ -408,8 +408,8 @@ Identifiants `EXF-AN-NN` (fonctionnel) et `EXT-AN-NN` (technique). **Partie A** 
   marquée « publier aussi sur ANTSIA ») → reflet en lecture seule ; `person.optin` /
   `person.optout` → lien `administration` + adhésions `administration` et `antsia`. Aucun flux
   retour en V1.
-- **EXF-AN-38** Contrats DIASPORALE (`DIASPORA-ATTESTATION-V1` sortant, `DIASPORA-COMMUNAUTE-V1`
-  entrant) : portés par la tranche `diaspora` (cahier DIASPORALE), sur la même passerelle.
+- **EXF-AN-38** Contrats DIASPORA.GA (`DIASPORA-ATTESTATION-V1` sortant, `DIASPORA-COMMUNAUTE-V1`
+  entrant) : portés par la tranche `diaspora` (cahier DIASPORA.GA), sur la même passerelle.
 
 #### M-A14 — Console du moteur (`admin_antsia_ga`)
 
@@ -452,15 +452,15 @@ Identifiants `EXF-AN-NN` (fonctionnel) et `EXT-AN-NN` (technique). **Partie A** 
   profils publics en projection réduite et les contenus `root` d'audience publique sont
   lisibles sans compte (référencement, partage) ; tout le reste exige une adhésion ;
   arbitrage A4 (§20).
-- **EXF-AN-50** « Publier aussi sur ANTSIA » depuis DIASPORALE (et, par fédération, depuis le
+- **EXF-AN-50** « Publier aussi sur ANTSIA » depuis DIASPORA.GA (et, par fédération, depuis le
   socle) ; l'auteur voit où sa publication est lue ; la retirer la retire partout.
 - **EXF-AN-51** Modération nationale : équipe `antsia`, équipes thématiques, files, sanctions,
   recours ; transparence (rapport public périodique, agrégé).
 - **EXF-AN-52** Monétisation (lot A6, décisions) : pages d'entreprises premium, contenus
   sponsorisés **étiquetés**, jamais dans la messagerie, densité plafonnée ; le citoyen ne
   paie jamais ; Gabaos (unité de crédit du programme) si le propriétaire le retient.
-- **EXF-AN-53** Application mobile ANTSIA (lot ultérieur, après DIASPORALE mobile) : même
-  socle Expo que DIASPORALE, thème ANTSIA.
+- **EXF-AN-53** Application mobile ANTSIA (lot ultérieur, après DIASPORA.GA mobile) : même
+  socle Expo que DIASPORA.GA, thème ANTSIA.
 
 ### Hors périmètre initial
 
@@ -475,11 +475,11 @@ paiements (hors A6) ; API publique pour des tiers (une décision ultérieure, su
   `verifiee` dans `antsia`, badge Vérifié, fil racine affiché.
 - **R2 — Compte léger.** Étant donné un numéro gabonais ; quand la personne entre par SMS ;
   alors elle est `declaree` (ANTSIA est ouvert), badge Communauté, bannière d'élévation IDN.
-- **R3 — Inclusion.** Étant donné un membre de DIASPORALE ; alors il est membre d'`antsia`
-  (`derivedFrom: diasporale`) sans aucun geste ; son handle et son profil sont les mêmes.
-- **R4 — Contexte séparé.** Étant donné une publication `network` dans DIASPORALE ; alors
+- **R3 — Inclusion.** Étant donné un membre de DIASPORA.GA ; alors il est membre d'`antsia`
+  (`derivedFrom: diaspora-ga`) sans aucun geste ; son handle et son profil sont les mêmes.
+- **R4 — Contexte séparé.** Étant donné une publication `network` dans DIASPORA.GA ; alors
   aucune query d'`antsia_ga` ne la rend ; quand l'auteur la marque `root` ; alors elle apparaît
-  dans le fil racine avec la pastille Diaspora et reste dans DIASPORALE ; quand il la retire ;
+  dans le fil racine avec la pastille Diaspora et reste dans DIASPORA.GA ; quand il la retire ;
   alors elle disparaît des deux.
 - **R5 — Reflet d'une administration.** Étant donné une administration vérifiée du socle dont
   la page est active ; quand le socle émet `page.upserted` ; alors ANTSIA a une page Officiel,
@@ -550,7 +550,7 @@ Le cycle `espace-personnel ↔ reseau-personnel` du socle est cassé.
 | Modération | `reports`, `moderationTeams`, `moderationTeamMembers`, `sanctions`, `appeals`, `blockedTerms`, `moderationAudit` | polymorphes, périmètre |
 | Fichiers | `fileScans`, `uploadTickets`, `fileRetention` | admission, verdict, rétention |
 | Fédération | `federationEmitters`, `federationInboxReceipts`, `federationDeadLetters`, `federationReplayAudit`, `mirrors` (objet reflété → objet local) | clé, version, idempotence |
-| Diaspora (tranche DIASPORALE) | `countryHubs`, `sponsorships`, `consularAttestations`, `communityImports`, V2 : `jobPostings`, `jobApplications`, `jobAlerts`, `classifieds`, `mentorships` | voir cahier DIASPORALE |
+| Diaspora (tranche DIASPORA.GA) | `countryHubs`, `sponsorships`, `consularAttestations`, `communityImports`, V2 : `jobPostings`, `jobApplications`, `jobAlerts`, `classifieds`, `mentorships` | voir cahier DIASPORA.GA |
 | Plateforme | `operators`, `operatorAudit`, `networkSettingsHistory` | IDN `loa ≥ 2` |
 
 Règles : `schemaValidation: true` (le socle l'a désactivée) ; validateurs précis ; index
@@ -577,9 +577,9 @@ par `@convex-dev/migrations` avec répétition sur instantané.
 
 | Contrat | Sens | Mécanique |
 |---|---|---|
-| **IDN OIDC** | identite.ga → moteur | clients `antsia` et `diasporale` au portail développeur (sandbox puis production) ; callback par application ; SDK `@idn-ga/better-auth` ; scopes `openid profile email` (+ `idn:civil_status` si retenu) ; consentement sur identite.ga |
+| **IDN OIDC** | identite.ga → moteur | clients `antsia` et `diaspora-ga` au portail développeur (sandbox puis production) ; callback par application ; SDK `@idn-ga/better-auth` ; scopes `openid profile email` (+ `idn:civil_status` si retenu) ; consentement sur identite.ga |
 | **`RESEAU-PUBLIC-V1`** | socle → moteur | outbox signée côté socle (déclarée dans `config/v4.4/flows.json`, package de contrat, ADR socle), inbox du moteur, idempotence, lettres mortes, rejeu ; objets : `page.upserted`, `post.published`, `post.removed`, `person.optin`, `person.optout` ; références métier publiques, jamais d'identifiant interne |
-| **`DIASPORA-ATTESTATION-V1`**, **`DIASPORA-COMMUNAUTE-V1`** | moteur ↔ consulat.ga | voir cahier DIASPORALE §13 ; même passerelle |
+| **`DIASPORA-ATTESTATION-V1`**, **`DIASPORA-COMMUNAUTE-V1`** | moteur ↔ consulat.ga | voir cahier DIASPORA.GA §13 ; même passerelle |
 | Webhooks IDN | identite.ga → moteur | révocation, changement d'adresse, suppression d'identité (V2) |
 | Projections publiques | moteur → tiers | V3 : API de lecture de projections allowlistées (pages Officiel, agrégats), décision ultérieure |
 
@@ -621,7 +621,7 @@ externe.
 - **Squelette hérité** : grille du fil et rails, onglets chemise, composeur en feuille,
   coquille mobile, cartes flottantes, format téléphone, dock iCom — dupliqués avec le code
   dans `social-features`.
-- **Jetons par application** (`data-charte`) : `antsia`, `diasporale`, `admin-antsia` ; aucune
+- **Jetons par application** (`data-charte`) : `antsia`, `diaspora-ga`, `admin-antsia` ; aucune
   couleur littérale ; cliquet de charte. Les jetons d'ui-v2 arrivent **élagués** des jetons de
   l'administration (`--status-*`, `--paper-*`, `--flag-*`, `--public-*`) et des pièces de
   marque (RepublicBar, Logo « .ga », AppHeader, `Poste*`).
@@ -631,7 +631,7 @@ externe.
   déclinaison propre ; les couleurs du drapeau restent décoratives ; `tricolore` montre
   comment une charte porte plusieurs marques par `[data-theme]`. Arbitrage A8.
 - **Console** : charte `papier-encre` ou `marianne` (back-offices du programme).
-- **Un seul format téléphone** (A6 du cahier DIASPORALE) pour toutes les applications.
+- **Un seul format téléphone** (A6 du cahier DIASPORA.GA) pour toutes les applications.
 
 ## 16. Lots
 
@@ -663,7 +663,7 @@ de débit ; modération à l'échelle ; effacement RGPD ; push social ; passerel
 jetons). **Sortie :** R1, R2, R7, R9, R10 joués ; cliquets verts ; la console crée un réseau
 sans déploiement.
 
-> DIASPORALE D1 s'exécute **ici** (après A2, avant A3) : c'est le premier réseau réel du moteur.
+> DIASPORA.GA D1 s'exécute **ici** (après A2, avant A3) : c'est le premier réseau réel du moteur.
 
 ### Lot A3 — ANTSIA public V1 (Partie B, M-A12)
 
@@ -717,7 +717,7 @@ téléphone.
 | Verrous « agent » du socle oubliés dans les appels, la présence, les groupes | liste explicite dans l'owner map (PA1) ; tests « un membre appelle un membre » |
 | Dette héritée (compteurs chauds, fil à la lecture, garde contournée, plafond à 200, `listComments` sans pagination, `schemaValidation` off) | corrigée dans le moteur dès A1–A2 ; signalée au socle |
 | Fuite de contexte | `networkId` + cliquet + refus indistinct |
-| Réseau public vide | DIASPORALE d'abord (membres dérivés), reflets des administrations, pages Officiel, lancement avec contenus réels |
+| Réseau public vide | DIASPORA.GA d'abord (membres dérivés), reflets des administrations, pages Officiel, lancement avec contenus réels |
 | Modération d'un réseau national | équipes avant ouverture, relecture configurable, limitation de débit, détection de spam, rapport de transparence |
 | Coût Convex | un projet pour toutes les applications ; fil matérialisé pour éviter les lectures répétées ; budget et coupure du propriétaire |
 | Nom et domaine | jeton unique ; vérification du domaine avant communication |
@@ -728,7 +728,7 @@ téléphone.
 | # | Question | Recommandation | Appliqué par défaut à l'exécution (14/10/2026, en attente de décision) |
 |---|---|---|---|
 | A1 | Nom et domaine | ANTSIA, `antsia.ga` | **ANTSIA confirmé par le propriétaire le 16/10/2026** (jeton unique `BRAND_NAME`) ; `antsia.ga` cible, attribution et configuration par le propriétaire |
-| A2 | Le moteur vit dans le dépôt ANTSIA ; DIASPORALE en est une application | oui | oui (ADR-0001 proposé) |
+| A2 | Le moteur vit dans le dépôt ANTSIA ; DIASPORA.GA en est une application | oui | oui (ADR-0001 proposé) |
 | A3 | Ouverture d'ANTSIA | toute personne, badges visibles ; politique modifiable sans code | politique `open` du réseau racine |
 | A4 | Lecture anonyme | pages Officiel, leurs publications `root`, profils publics réduits, contenus `root` publics ; tout le reste exige une adhésion | la recommandation (PA8) |
 | A5 | Équipe Convex, hébergement, budget | à décider par le propriétaire (équipe Convex du programme ; Cloud Run ou Vercel) | **non tranché** : développement sur déploiement Convex local anonyme ; aucune publication |
@@ -741,7 +741,7 @@ téléphone.
 ## 21. Références
 
 - Plan de pilotage et annexes : `Documentation/RESEAUX_SOCIAUX/`.
-- Cahier DIASPORALE : `ECOSYSTEMES/DIASPORALE/docs/00_CAHIER_DES_CHARGES_DIASPORALE.md`.
+- Cahier DIASPORA.GA : `ECOSYSTEMES/DIASPORA_GA/docs/00_CAHIER_DES_CHARGES_DIASPORA_GA.md`.
 - Socle : `ADMINISTRATION_GA/socle/convex/modules/{reseauPersonnel,reseau,reseauPages,reseauAlbums,icom,direct,iappel,messagerieScope,fileGuard}`,
   `functions/{chats,meetings}.ts`, `lib/{notify,livekit*,uploadPolicy}.ts`, `actions/{push,livekit*}.ts` ;
   `socle/packages/agent-features/src/features/{reseau-personnel,reseau-albums,messagerie,iappel,direct,stories,notifications}`,

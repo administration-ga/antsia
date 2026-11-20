@@ -95,7 +95,7 @@ describe("AppearanceProvider", () => {
 
   it("retrouve le choix enregistré au remontage sans toucher celui d'un autre réseau", () => {
     systemAppearance(false)
-    const foreignKey = "antsia:diasporale:appearance"
+    const foreignKey = "antsia:diaspora-ga:appearance"
     window.localStorage.setItem(foreignKey, "light")
     const view = render(<AppearanceProvider storagePrefix={PREFIX}><Probe /></AppearanceProvider>)
     fireEvent.click(screen.getByRole("button", { name: "Sombre" }))

@@ -1,6 +1,6 @@
 /**
- * Catalogue des services DIASPORALE (DG-011/012) — tranche `diaspora`, écrite par
- * la session DIASPORALE (chantier « catalogue des services »).
+ * Catalogue des services DIASPORA.GA (DG-011/012) — tranche `diaspora`, écrite par
+ * la session DIASPORA.GA (chantier « catalogue des services »).
  *
  * Une offre appartient à une PAGE professionnelle (entreprise ou association) ;
  * ses SIGNATAIRES VIVANTS la gèrent (relus à chaque acte, `liveSignatoryRole`).
@@ -8,10 +8,10 @@
  * commandé ici ; le contact passe par la demande structurée (tranche des
  * demandes), jamais par une coordonnée.
  *
- * Gardes, dans cet ordre, pour chaque écriture : adhésion au réseau DIASPORALE
+ * Gardes, dans cet ordre, pour chaque écriture : adhésion au réseau DIASPORA.GA
  * (constructeur) → éligibilité (capacité `publish` du domaine) → débit
  * (`diaspora.service.offer`) → droit (page active du réseau, signataire vivant,
- * nature admise) → règles du domaine (`@diasporale/domain`, codes fermés).
+ * nature admise) → règles du domaine (`@diaspora-ga/domain`, codes fermés).
  *
  * Lectures : SEULES les offres `active` de pages actives, lisibles et admises
  * sortent du catalogue ; une offre en pause, en brouillon ou retirée n'est lue
@@ -45,7 +45,7 @@ import {
   type ServiceOfferDraft,
   type ServiceProviderSettings,
   type ServiceSearchFilters,
-} from "@diasporale/domain"
+} from "@diaspora-ga/domain"
 import { type PaginationOptions, paginationOptsValidator, paginationResultValidator, type PaginationResult } from "convex/server"
 import { type Infer, v } from "convex/values"
 

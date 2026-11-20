@@ -36,10 +36,10 @@ describe("langue du code de connexion", () => {
 })
 
 describe("texte du code de connexion", () => {
-  it("en anglais à la marque DIASPORALE, en français à la marque ANTSIA", () => {
-    expect(otpMessage("en", "DIASPORALE", "123456")).toEqual({
-      subject: "Your DIASPORALE sign-in code",
-      text: "Your DIASPORALE code: 123456. It expires in five minutes.",
+  it("en anglais à la marque DIASPORA.GA, en français à la marque ANTSIA", () => {
+    expect(otpMessage("en", "DIASPORA.GA", "123456")).toEqual({
+      subject: "Your DIASPORA.GA sign-in code",
+      text: "Your DIASPORA.GA code: 123456. It expires in five minutes.",
     })
     expect(otpMessage("fr", "ANTSIA", "654321")).toEqual({
       subject: "Votre code de connexion ANTSIA",
@@ -49,7 +49,7 @@ describe("texte du code de connexion", () => {
 
   it("ni lien ni coordonnée : la marque, le code et sa durée seulement", () => {
     for (const locale of ["fr", "en"] as const) {
-      const { subject, text } = otpMessage(locale, "DIASPORALE", "123456")
+      const { subject, text } = otpMessage(locale, "DIASPORA.GA", "123456")
       expect(`${subject} ${text}`).not.toMatch(/https?:|www\.|@|\+\d/)
       expect(text.replace("123456", "").match(/\d/g)).toBeNull()
     }

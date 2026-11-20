@@ -73,7 +73,7 @@ export interface ContextualPageCardView {
 
 /**
  * L'objet ouvrant du contrat V1 : sa nature parmi les trois natures V1 et son identifiant, rien
- * de son contenu. Type stable des tranches historiques (DIASPORALE), qui rouvrent ces trois natures.
+ * de son contenu. Type stable des tranches historiques (DIASPORA.GA), qui rouvrent ces trois natures.
  */
 export interface ContextualObjectRefView {
   kind: ContextualLegacyV1Kind

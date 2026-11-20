@@ -1,6 +1,6 @@
 // @vitest-environment edge-runtime
 /**
- * Évènements d'un hub pays (DIASPORALE HB-02) : les prochains évènements OUVERTS
+ * Évènements d'un hub pays (DIASPORA.GA HB-02) : les prochains évènements OUVERTS
  * AU RÉSEAU des associations du pays, publiés et non annulés, lus par fenêtres
  * bornées sous la garde des évènements de page ; refus indistinct hors du réseau
  * gouverné ; compteur matérialisé par le passage nocturne, jamais à la lecture.
@@ -36,7 +36,7 @@ afterEach(() => {
   vi.unstubAllEnvs()
 })
 
-/** Un membre DÉCLARÉ de DIASPORALE (IDN de garantie 1, nationalité gabonaise), résident en France. */
+/** Un membre DÉCLARÉ de DIASPORA.GA (IDN de garantie 1, nationalité gabonaise), résident en France. */
 async function member(t: T, networkId: Id<"networks">, handle: string) {
   const as = t.withIdentity({ subject: `hub-events-${handle}` })
   const personId = await as.mutation(api.modules.people.persons.ensureMyPerson, {})
@@ -45,7 +45,7 @@ async function member(t: T, networkId: Id<"networks">, handle: string) {
   await t.run(async (ctx) => {
     await ctx.db.insert("identityLinks", { personId, provider: "idn", subject: `hub-events-idn-${personId}`, loa: 1, nationality: "GA", linkedAt: NOW })
   })
-  await as.mutation(api.modules.diaspora.membership.joinDiasporale, { networkId, facet: { countryOfResidence: "FR" } })
+  await as.mutation(api.modules.diaspora.membership.joinDiasporaGa, { networkId, facet: { countryOfResidence: "FR" } })
   return { as, personId }
 }
 

@@ -21,7 +21,7 @@ export const snapshot = query({
   handler: async (ctx, args): Promise<PublicNetworkSnapshot> => {
     const { root } = await publicContext(ctx, args.networkId)
     const networks = [originDto(root)]
-    for (const slug of ["diasporale", "administration"] as const) {
+    for (const slug of ["diaspora-ga", "administration"] as const) {
       const network = await ctx.db.query("networks").withIndex("by_slug", (q) => q.eq("slug", slug)).unique()
       if (network?.status === "active" && network.kind === "closed" && network.parentId === root._id) networks.push(originDto(network))
     }

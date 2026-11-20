@@ -62,12 +62,12 @@ afterEach(() => {
 
 describe("AppearanceProvider — thème au choix du membre", () => {
   it("sans thèmes proposés : aucun choix et la charte de la page n'est pas touchée", () => {
-    document.documentElement.dataset.charte = "diasporale"
+    document.documentElement.dataset.charte = "diaspora-ga"
     render(<AppearanceProvider storagePrefix={PREFIX}><Probe /></AppearanceProvider>)
     expect(screen.getByTestId("theme")).toHaveTextContent("aucun")
     expect(screen.getByTestId("count")).toHaveTextContent("0")
     fireEvent.click(screen.getByRole("button", { name: "Forêt" }))
-    expect(document.documentElement.dataset.charte).toBe("diasporale")
+    expect(document.documentElement.dataset.charte).toBe("diaspora-ga")
     expect(window.localStorage.getItem(THEME_KEY)).toBeNull()
   })
 

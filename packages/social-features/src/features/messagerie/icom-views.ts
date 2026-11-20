@@ -6,7 +6,7 @@
  * est UNE destination et se lit en trois vues : Conversations · Appels ·
  * Contacts (spécification 05 §1). Les statuts n'y entrent pas : ils restent
  * atteignables depuis le fil, pour ne pas ouvrir deux navigations concurrentes.
- * Sans cette capacité (DIASPORALE), la messagerie garde ses briques d'origine
+ * Sans cette capacité (DIASPORA.GA), la messagerie garde ses briques d'origine
  * (`icom-mobile-tabs.ts`, `icom-dock.ts`) — rien ici n'est lu.
  *
  * ⚠️ Les vues s'adressent par le MÊME paramètre que les briques (`?brique=`) :

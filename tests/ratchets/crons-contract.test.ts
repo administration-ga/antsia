@@ -110,7 +110,7 @@ describe("crons-contract — dix jobs PA3 internes, exacts et branchés", () => 
     }
   })
 
-  it("laisse ajouter les jobs DIASPORALE et PA5 sans imposer leur cadence ni leurs arguments", () => {
-    expect(messages(`${fixture}\ncrons.daily("compteurs des hubs DIASPORALE", { hourUTC: 2, minuteUTC: 30 }, internal.modules.diaspora.hubs.refreshHubCounters, {})\ncrons.interval("future-retention", { hours: 6 }, internal.modules.notifications.retention.run, { dryRun: false })`)).toEqual([])
+  it("laisse ajouter les jobs DIASPORA.GA et PA5 sans imposer leur cadence ni leurs arguments", () => {
+    expect(messages(`${fixture}\ncrons.daily("compteurs des hubs DIASPORA.GA", { hourUTC: 2, minuteUTC: 30 }, internal.modules.diaspora.hubs.refreshHubCounters, {})\ncrons.interval("future-retention", { hours: 6 }, internal.modules.notifications.retention.run, { dryRun: false })`)).toEqual([])
   })
 })

@@ -2,7 +2,7 @@
  * Réseaux du moteur — règles PURES (cahier §5, §7, ADR-0001).
  *
  * Un réseau est une ligne de `networks` : la racine (`antsia`, publique) ou un
- * réseau fermé, enfant de la racine (`diasporale`, `administration` en miroir).
+ * réseau fermé, enfant de la racine (`diaspora-ga`, `administration` en miroir).
  * Créer un réseau ne déploie aucun backend : une ligne, une politique, une
  * équipe de modération, un thème.
  */
@@ -12,7 +12,7 @@ export type NetworkKind = (typeof NETWORK_KINDS)[number]
 
 /**
  * Politique d'adhésion : `open` (ANTSIA : `declaree` d'emblée),
- * `declared_or_verified` (DIASPORALE : déclaration, vérification ou
+ * `declared_or_verified` (DIASPORA.GA : déclaration, vérification ou
  * parrainage), `mirror` (administration : par reflet signé seulement, jamais
  * par une adhésion directe).
  */
@@ -33,7 +33,7 @@ export type NetworkStatus = (typeof NETWORK_STATUSES)[number]
 /**
  * Tranches du moteur qui GOUVERNENT l'entrée et les facettes d'un réseau
  * (`networks.managedBy`). Une application dont l'admission a ses propres règles
- * (DIASPORALE : nationalité, parrainage, attestation consulaire) les applique
+ * (DIASPORA.GA : nationalité, parrainage, attestation consulaire) les applique
  * dans SA tranche `convex/modules/<tranche>` ; les chemins génériques (entrer,
  * régler sa facette) refusent alors ce réseau. Quitter reste toujours possible.
  */

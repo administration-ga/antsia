@@ -19,7 +19,7 @@ import { ANTSIA_THEME_IDS, antsiaCharteFor } from "./antsia-themes"
 /**
  * Les sept thèmes qu'un membre d'antsia.ga choisit dans ses réglages (ADR-0027) :
  * Gaboma, la charte du réseau (`antsia.css`), puis Soleil, Forêt, Corail, Lagon,
- * Électrique et Sable, la charte de DIASPORALE (`antsia-<thème>.css`). Chaque thème est une charte complète,
+ * Électrique et Sable, la charte de DIASPORA.GA (`antsia-<thème>.css`). Chaque thème est une charte complète,
  * rejouée ici comme antsia.ga la sert : theme.css, charte.css, communication.css
  * puis le fichier du thème, sur <html> et sur un portail qui redéclare la charte.
  *
@@ -52,7 +52,7 @@ const EXPECTED: Record<string, { encre: [string, string]; aplat: [string, string
   corail: { encre: ["#ba3354", "#f58da0"], aplat: ["#e25f78", "#f07a90"], nuancier: ["#e25f78", "#e69545", "#aa84d4"] },
   lagon: { encre: ["#0d6f6a", "#6fe0d8"], aplat: ["#4ecdc4", "#4ecdc4"], nuancier: ["#4ecdc4", "#ff6b6b", "#ffe66d"] },
   electrique: { encre: ["#0033ff", "#93a8ff"], aplat: ["#0033ff", "#4060ff"], nuancier: ["#0033ff", "#f43f5e", "#84cc16"] },
-  // Sable, la charte de DIASPORALE (19/10/2026) : mêmes trois couleurs que le thème Sable de diasporale.com.
+  // Sable, la charte de DIASPORA.GA (19/10/2026) : mêmes trois couleurs que le thème Sable de diaspora.ga.
   sable: { encre: ["#01609c", "#7ec2ff"], aplat: ["#0167a8", "#5ba5e5"], nuancier: ["#238090", "#d7ad63", "#0167a8"] },
 }
 
@@ -183,7 +183,7 @@ describe("les sept thèmes d'antsia.ga (ADR-0027)", () => {
     // La base pose `--esp-surface-border: initial` : chaque site retombe sur SON filet historique.
     const base = new TokenCascade(BASE_SHEETS)
     for (const dark of [false, true]) {
-      const node: ChartedNode = { charte: "diasporale", dark, nested: false }
+      const node: ChartedNode = { charte: "diaspora-ga", dark, nested: false }
       expect(base.resolve(node, "--esp-surface-border")).toBeUndefined()
       expect(base.resolveValue(node, "var(--esp-surface-border, var(--border))")).toBe(base.resolve(node, "--border"))
       expect(base.resolveValue(node, "var(--esp-surface-border, var(--ink-200))")).toBe(base.resolve(node, "--ink-200"))
@@ -287,7 +287,7 @@ describe("les sept thèmes d'antsia.ga (ADR-0027)", () => {
 
     const sheet = (charte: string) => [...BASE_SHEETS, { name: `${charte}.css`, css: read(`./${charte}.css`) }]
     const antsia = ANTSIA_THEME_IDS.map(antsiaCharteFor)
-    for (const charte of ["diasporale", "diasporale-gaboma", "admin-antsia", ...antsia]) {
+    for (const charte of ["diaspora-ga", "diaspora-ga-gaboma", "admin-antsia", ...antsia]) {
       const cascade = new TokenCascade(sheet(charte))
       for (const dark of [false, true]) {
         for (const nested of [false, true]) {
@@ -301,7 +301,7 @@ describe("les sept thèmes d'antsia.ga (ADR-0027)", () => {
           }
           const card = paint("var(--card)")
           const messageFill = cascade.resolve(node, "--role-message-fill")
-          // DIASPORALE définit désormais aussi ses rôles ; seule la console reste au repli.
+          // DIASPORA.GA définit désormais aussi ses rôles ; seule la console reste au repli.
           // Une définition ne dispense jamais des contrôles de contraste ci-dessous.
           expect(messageFill === undefined, label).toBe(charte === "admin-antsia")
           if (messageFill !== undefined) expect(cascade.resolveValue(node, declaration(MESSAGE, "background")), label).toBe(messageFill)
@@ -445,7 +445,7 @@ describe("les sept thèmes d'antsia.ga (ADR-0027)", () => {
     expect(offenders).toEqual([])
   })
 
-  it("le contrat de la base laisse DIASPORALE intact : chaque jeton du système épuré est à `initial`", () => {
+  it("le contrat de la base laisse DIASPORA.GA intact : chaque jeton du système épuré est à `initial`", () => {
     const base = new TokenCascade(BASE_SHEETS)
     const tokens = [...Object.keys(ANGLES).filter((token) => token !== "--rp-surface-radius"), "--primary-fill-on", "--esp-theme-swatch-1",
       "--ui2-button-outline-bg", "--ui2-button-outline-border", "--ui2-button-secondary-bg", "--ui2-button-secondary-border", "--ui2-button-secondary-fg",
@@ -455,7 +455,7 @@ describe("les sept thèmes d'antsia.ga (ADR-0027)", () => {
       "--esp-identity-fill", "--esp-identity-fill-hover",
       "--role-message-soft", "--role-react-soft", "--role-react-label"]
     for (const dark of [false, true]) {
-      for (const token of tokens) expect(base.resolve({ charte: "diasporale", dark, nested: false }, token), token).toBeUndefined()
+      for (const token of tokens) expect(base.resolve({ charte: "diaspora-ga", dark, nested: false }, token), token).toBeUndefined()
     }
   })
 

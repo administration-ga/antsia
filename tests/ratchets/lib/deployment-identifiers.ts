@@ -54,7 +54,7 @@ const END = String.raw`(?![\p{L}\p{N}_-]|\.[\p{L}\p{N}])`
 /** Empreinte de l'hébergeur qui mêle chiffres et lettres : un chiffre suivi plus loin d'une lettre. */
 const MIXED_HASH = String.raw`(?=[a-z]*\d[a-z0-9]*[a-z])`
 /** Projets des sites des produits chez l'hébergeur (noms de produits, publics ; jamais l'équipe). */
-const PRODUCT_PROJECTS = String.raw`(?:antsia|diasporale)(?:-(?:demo|admin))?`
+const PRODUCT_PROJECTS = String.raw`(?:antsia|diaspora-ga)(?:-(?:demo|admin))?`
 /** Vrais mots de neuf lettres qui suivent un nom de produit dans le code (`antsia-aggregate`) : pas une empreinte. */
 export const HOSTING_SUFFIX_WORDS = ["aggregate"] as const
 
@@ -95,7 +95,7 @@ export const DEPLOYMENT_IDENTIFIER_PATTERNS: readonly IdentifierPattern[] = [
   },
   {
     kind: "hosting-deployment-short",
-    // Pour les projets des produits (`antsia`, `antsia-demo`, `antsia-admin`, `diasporale`, `diasporale-demo`),
+    // Pour les projets des produits (`antsia`, `antsia-demo`, `antsia-admin`, `diaspora-ga`, `diaspora-ga-demo`),
     // toute empreinte compte, y compris tout en lettres (environ une sur dix, constaté dans les registres) ;
     // seuls les vrais mots du code qui suivent ce préfixe sont écartés (`HOSTING_SUFFIX_WORDS`).
     pattern: new RegExp(
@@ -117,7 +117,7 @@ export const DEPLOYMENT_IDENTIFIER_PATTERNS: readonly IdentifierPattern[] = [
 export const FICTIVE_MARKERS: readonly { kinds: readonly IdentifierKind[]; words: readonly string[]; reason: string }[] = [
   {
     kinds: ["convex-deployment", "convex-deployment-target", "convex-host"],
-    words: ["exemple", "example", "fictif", "fictive", "test", "antsia", "diasporale"],
+    words: ["exemple", "example", "fictif", "fictive", "test", "antsia", "diaspora"],
     reason: "Convex tire ses noms de listes de mots anglais (adjectif, animal) : un nom qui porte « exemple », « test » ou le nom d'un produit n'a pas été généré par lui (valeurs des tests du moteur, des applications et des scripts).",
   },
   {

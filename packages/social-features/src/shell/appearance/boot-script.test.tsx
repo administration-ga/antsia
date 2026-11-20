@@ -110,10 +110,10 @@ describe("amorçage de l'apparence — parité avec le fournisseur", () => {
   })
 
   it("sans thèmes proposés, la charte posée par la page reste intacte ; le mode sombre s'applique", () => {
-    serverHtml("diasporale")
+    serverHtml("diaspora-ga")
     prepare({ theme: "foret", appearance: "dark", storage: "ok", system: "clair" })
     runBoot([])
-    expect(htmlState()).toEqual({ charte: "diasporale", dark: true, scheme: "dark" })
+    expect(htmlState()).toEqual({ charte: "diaspora-ga", dark: true, scheme: "dark" })
   })
 
   it("lit les clés du préfixe du réseau, jamais celles d'un autre réseau", () => {

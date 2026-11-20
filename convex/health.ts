@@ -31,7 +31,7 @@ export function declaredEngineVersion(raw: string | undefined): string | null {
  * trois appels sur quatre secondes, une seule date). Avec un argument nouveau, la
  * fonction s'exécute vraiment à chaque sonde.
  * L'argument reste FACULTATIF : une application qui appelle encore `ping({})`
- * (la route de diasporale.com, écrite avant EX-03) garde une réponse valide ;
+ * (la route de diaspora.ga, écrite avant EX-03) garde une réponse valide ;
  * elle prouve que le moteur répond, mais sa date peut venir du cache.
  * Hors des modules sociaux : ni réseau ni adhésion (cliquet
  * `network-scoped-functions`).

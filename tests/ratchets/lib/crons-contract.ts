@@ -62,7 +62,7 @@ function scheduleMatches(expression: ts.Expression | undefined, expected: CronCo
 /**
  * Registre statique : un `cronJobs()` importé de Convex, exporté par défaut,
  * avec des inscriptions directes au niveau du module. Les dix jobs PA3 doivent
- * garder méthode, cadence, cible et arguments {}. Les extensions DIASPORALE ou
+ * garder méthode, cadence, cible et arguments {}. Les extensions DIASPORA.GA ou
  * PA5 restent libres de leur cadence et de leurs arguments ; seuls identifiant
  * ASCII unique et cible interne sont communs. Ce cliquet ne remplace ni les
  * tests des handlers (bornes, chaînes, idempotence), ni le typage Convex.

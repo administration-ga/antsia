@@ -20,7 +20,7 @@ const FORBIDDEN_SPECIFIERS: { pattern: RegExp; reason: string }[] = [
     pattern: /(ADMINISTRATION_GA|GABON_DIPLOMATIE|gabon-diplomatie|PRO_GA|SANTE_GA|identite\.ga\/packages)/,
     reason: "chemin vers un autre dépôt du programme",
   },
-  { pattern: /(^|\/)DIASPORALE\//, reason: "chemin vers le dépôt DIASPORALE (passer par son paquet, depuis sa seule tranche)" },
+  { pattern: /(^|\/)DIASPORA_GA\//, reason: "chemin vers le dépôt DIASPORA.GA (passer par son paquet, depuis sa seule tranche)" },
 ]
 
 /**
@@ -29,7 +29,7 @@ const FORBIDDEN_SPECIFIERS: { pattern: RegExp; reason: string }[] = [
  * son domaine pur (TS sans dépendance) — jamais ses écrans ni ses données.
  */
 const APPLICATION_PACKAGES: { prefix: string; slice: string; allowed: RegExp }[] = [
-  { prefix: "@diasporale/", slice: "convex/modules/diaspora/", allowed: /^@diasporale\/domain(\/|$)/ },
+  { prefix: "@diaspora-ga/", slice: "convex/modules/diaspora/", allowed: /^@diaspora-ga\/domain(\/|$)/ },
 ]
 
 const OWN_GENERATED = join(REPO_ROOT, "convex", "_generated")

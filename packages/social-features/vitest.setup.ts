@@ -8,8 +8,8 @@ import { afterEach } from "vitest"
  * Node 25 expose un `localStorage` expérimental sans méthodes, qui masque celui de jsdom :
  * on pose alors un stockage en mémoire conforme (rien ne change sous Node 22).
  *
- * Bloc repris tel quel de `../DIASPORALE/packages/diasporale-features/vitest.setup.ts` (même
- * bloc dans `../DIASPORALE/apps/diasporale_com/vitest.setup.ts` ; arbre de travail DIASPORALE du
+ * Bloc repris tel quel de `../DIASPORA_GA/packages/diaspora-ga-features/vitest.setup.ts` (même
+ * bloc dans `../DIASPORA_GA/apps/diaspora_ga/vitest.setup.ts` ; arbre de travail DIASPORA.GA du
  * 19/10/2026, non commité) : les deux produits gardent le même comportement de test. Cause :
  * l'environnement jsdom de Vitest ne recopie sur le global que les clés de fenêtre qu'il n'a
  * pas déjà (hors une liste fixe sans `localStorage`) ; sans `--localstorage-file`, l'accesseur

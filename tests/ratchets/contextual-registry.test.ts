@@ -50,7 +50,7 @@ export function contextValidatorKinds(file: string, text: string): { kind: strin
 export function detectSliceImports(file: string, text: string): Finding[] {
   const source = parseSource(file, text)
   return moduleSpecifiers(source).flatMap(({ specifier, line }) => {
-    const slice = /(^|\/)(diaspora|professionals)(\/|$)/u.test(specifier) || specifier.startsWith("@diasporale/")
+    const slice = /(^|\/)(diaspora|professionals)(\/|$)/u.test(specifier) || specifier.startsWith("@diaspora-ga/")
     if (!slice) return []
     if (file === REGISTRY && SLICE_RESOLVERS.has(specifier)) return []
     return [{ file, line, message: `import de tranche « ${specifier} » hors de registry.ts (ou autre que les résolveurs)` }]
@@ -173,7 +173,7 @@ describe("contextual-registry — natures fermées, registre unique, contrat san
 
   it("test du test : import de tranche hors registre, contrat porteur de valeur", () => {
     expect(detectSliceImports(`${MODULE}/threads.ts`, 'import { x } from "../diaspora/serviceRequests"')).toHaveLength(1)
-    expect(detectSliceImports(`${MODULE}/threads.ts`, 'import { y } from "@diasporale/domain"')).toHaveLength(1)
+    expect(detectSliceImports(`${MODULE}/threads.ts`, 'import { y } from "@diaspora-ga/domain"')).toHaveLength(1)
     for (const specifier of SLICE_RESOLVERS) expect(detectSliceImports(REGISTRY, `import { CONTEXTS } from "${specifier}"`)).toEqual([])
     expect(detectSliceImports(`${MODULE}/threads.ts`, 'import { x } from "../professionals/read"')).toHaveLength(1)
     expect(detectSliceImports(REGISTRY, 'import { x } from "../professionals/read"')).toHaveLength(1)

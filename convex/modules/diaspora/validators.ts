@@ -1,6 +1,6 @@
 /**
  * Validateurs PRÉCIS des arguments et des projections de la tranche `diaspora`,
- * dérivés des constantes de `@diasporale/domain` (jamais le validateur permissif).
+ * dérivés des constantes de `@diaspora-ga/domain` (jamais le validateur permissif).
  * Les projections sont ALLOWLISTÉES : ce qui n'y figure pas ne sort pas.
  */
 import {
@@ -10,7 +10,7 @@ import {
   SPONSORSHIP_REFUSALS,
   TRUST_BADGES,
   WRITE_RATE_TIERS,
-} from "@diasporale/domain"
+} from "@diaspora-ga/domain"
 import { v } from "convex/values"
 
 import { literals } from "../../lib/validators"
@@ -53,7 +53,7 @@ export const ownFacetValidator = v.object({
   visibility: facetLevelsValidator,
 })
 
-/** Les finalités de consentement que DIASPORALE demande (sous-ensemble de celles du moteur). */
+/** Les finalités de consentement que DIASPORA.GA demande (sous-ensemble de celles du moteur). */
 export const consentPurposeValidator = literals(CONSENT_PURPOSES)
 export const trustBadgeValidator = literals(TRUST_BADGES)
 export const memberCapabilityValidator = literals(MEMBER_CAPABILITIES)

@@ -1,11 +1,11 @@
 /**
- * Le profil d'un membre vu par DIASPORALE (EXF-DG-07, EXF-DG-08) : la facette
+ * Le profil d'un membre vu par DIASPORA.GA (EXF-DG-07, EXF-DG-08) : la facette
  * diaspora telle que le LECTEUR a le droit de la voir, champ par champ, selon
  * son niveau fin (moi seul, mes relations, les membres de mon pays, tout le
  * réseau) — règle `projectFacet` du domaine. Le reste du profil (nom,
  * identifiant, badges, images) vient du moteur (`getPublicProfile`).
  */
-import { projectFacet, type FacetProjection } from "@diasporale/domain"
+import { projectFacet, type FacetProjection } from "@diaspora-ga/domain"
 import { v } from "convex/values"
 
 import { networkQuery } from "../../lib/functions"

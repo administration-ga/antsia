@@ -11,7 +11,7 @@ import { routes } from "@/lib/routes"
 import { PUBLIC_INLINE_LINK_CLASS, PublicPostCard } from "./public-post-card"
 import { PublicFeed } from "./public-feed"
 
-const post: PublicPost = { id: "visible", body: "<script>forbidden()</script> #gabon @alice", publishedAt: 1_700_000_000_000, editedAt: null, tags: ["gabon"], province: null, author: { kind: "person", handle: null, displayName: null, badges: [], avatarUrl: null }, origin: { slug: "diasporale", name: "DIASPORALE" }, media: [{ kind: "image", mimeType: "image/png", url: "https://media.example/withheld", withheld: "fileQuarantined" }], shared: { available: false } }
+const post: PublicPost = { id: "visible", body: "<script>forbidden()</script> #gabon @alice", publishedAt: 1_700_000_000_000, editedAt: null, tags: ["gabon"], province: null, author: { kind: "person", handle: null, displayName: null, badges: [], avatarUrl: null }, origin: { slug: "diaspora-ga", name: "DIASPORA.GA" }, media: [{ kind: "image", mimeType: "image/png", url: "https://media.example/withheld", withheld: "fileQuarantined" }], shared: { available: false } }
 
 /** Le fournisseur public réel, sans session, réseau ni client Convex. */
 function renderPublic(children: ReactNode, locale: Locale = "fr") {
@@ -42,7 +42,7 @@ describe("carte publique serveur", () => {
     expect(html).toContain("&lt;script&gt;")
     expect(html).not.toContain("<script>")
     expect(html).toContain("Profil non publié")
-    expect(html).toContain("Origine : DIASPORALE")
+    expect(html).toContain("Origine : DIASPORA.GA")
     expect(html).toContain('href="/tags/gabon"')
     expect(html).not.toContain("media.example/withheld")
     expect(html).toContain("originale n’est plus disponible")
@@ -61,7 +61,7 @@ describe("carte publique serveur", () => {
     const value: PublicPost = { ...post, author: { ...post.author, displayName: "Atelier partagé", handle: "atelier" }, body: "Une légende lisible", media: [image], shared: null }
     const { article } = renderCard(value)
     const identity = article.querySelector(`a[href="${routes.publicProfile("atelier")}"]`)
-    const origin = Array.from(article.querySelectorAll("p")).find((node) => node.textContent === "Origine : DIASPORALE") ?? null
+    const origin = Array.from(article.querySelectorAll("p")).find((node) => node.textContent === "Origine : DIASPORA.GA") ?? null
     const media = article.querySelector("img")
     const actions = article.querySelector('[role="group"][aria-label="Actions de la publication publique"]')
     const caption = Array.from(article.querySelectorAll("p")).find((node) => node.textContent === value.body) ?? null

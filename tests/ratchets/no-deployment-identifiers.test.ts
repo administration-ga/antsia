@@ -157,7 +157,7 @@ describe("no-deployment-identifiers — aucun identifiant interne d'hébergement
       'Promu : antsia-k9x2m4p7q ; retour arrière vers antsia-demo-a1b2c3d4e.',
       'CONVEX_DEPLOYMENT=prod:calm-heron-390',
       'https://calm-heron-834.convex.site/api',
-      'Retour arrière : antsia-qzxwvkpmt (principal) et diasporale-demo-bvlqhrnys (enfant).',
+      'Retour arrière : antsia-qzxwvkpmt (principal) et diaspora-ga-demo-bvlqhrnys (enfant).',
       'ancienne adresse calm-heron.vercel.app404 et absente',
     ].join("\n")
     const findings = detectDeploymentIdentifiers("docs/fabrique.md", source)

@@ -96,7 +96,7 @@ node scripts/release.mjs <étape> <sha> --execute --confirmer <étape>@<sha12>
 
 | N° | Étape | Cible | Ce qu'elle fait | Exige |
 | --- | --- | --- | --- | --- |
-| 1 | `export` | locale | vérifie le commit, relit `main` (le commit est-il dans `main` ?), DIASPORALE à son `origin/main` (jamais `HEAD`) ; archive les fichiers suivis des deux dépôts **sans aucun `.env*`** ; refuse l'export si un `.env*` s'y trouve ; écrit la liste d'exclusion de l'hébergeur ; empreinte des sources ; `bun install --frozen-lockfile` | dossier de publication neuf, 3 Gio libres |
+| 1 | `export` | locale | vérifie le commit, relit `main` (le commit est-il dans `main` ?), DIASPORA.GA à son `origin/main` (jamais `HEAD`) ; archive les fichiers suivis des deux dépôts **sans aucun `.env*`** ; refuse l'export si un `.env*` s'y trouve ; écrit la liste d'exclusion de l'hébergeur ; empreinte des sources ; `bun install --frozen-lockfile` | dossier de publication neuf, 3 Gio libres |
 | 2 | `moteur-demo-essai` | moteur de démonstration | relève l'API en ligne, la compare au candidat (refus d'un retrait), puis `deploy --dry-run` (refus d'une suppression d'index) | export, relevé du candidat |
 | 3 | `moteur-demo` | moteur de démonstration | relit l'API en ligne (inchangée depuis l'essai), consigne le commit précédent, envoie | essai réussi |
 | 4 | `controle-moteur-demo` | moteur de démonstration | API servie = candidat ; le site de démonstration **déjà en ligne** joint ce moteur (c'est l'épreuve des projections publiques) | envoi |
@@ -126,7 +126,7 @@ Pour un commit fictif et les valeurs du § 3, l'étape 9 s'affiche ainsi (chemin
 9. site-principal — Déploiement du site principal, sans bascule de domaine [envoi]
      VERCEL_ORG_ID=exemple-equipe VERCEL_PROJECT_ID=exemple-projet-principal vercel inspect site.exemple.test --scope exemple-equipe --format=json
      (interne) origine technique de l'enfant (<URL_DEPLOIEMENT_ENFANT>) contrôlée comme le relais du principal l'exige
-     VERCEL_ORG_ID=exemple-equipe VERCEL_PROJECT_ID=exemple-projet-principal vercel deploy …/export/ECOSYSTEMES --prod --skip-domain --archive=tgz --yes --scope exemple-equipe --build-env NEXT_PUBLIC_BUILD_SHA=main-0123456789ab-production --env NEXT_PUBLIC_BUILD_SHA=main-0123456789ab-production --build-env ANTSIA_DEMO_RUNTIME_ORIGIN=<ORIGINE_ENFANT> --env ANTSIA_DEMO_RUNTIME_ORIGIN=<ORIGINE_ENFANT> --meta antsiaReleaseCommit=0123456789abcdef0123456789abcdef01234567 --meta diasporaleReleaseCommit=<COMMIT_DIASPORALE> --meta sourceFingerprint=<EMPREINTE_SOURCES>
+     VERCEL_ORG_ID=exemple-equipe VERCEL_PROJECT_ID=exemple-projet-principal vercel deploy …/export/ECOSYSTEMES --prod --skip-domain --archive=tgz --yes --scope exemple-equipe --build-env NEXT_PUBLIC_BUILD_SHA=main-0123456789ab-production --env NEXT_PUBLIC_BUILD_SHA=main-0123456789ab-production --build-env ANTSIA_DEMO_RUNTIME_ORIGIN=<ORIGINE_ENFANT> --env ANTSIA_DEMO_RUNTIME_ORIGIN=<ORIGINE_ENFANT> --meta antsiaReleaseCommit=0123456789abcdef0123456789abcdef01234567 --meta diasporaGaReleaseCommit=<COMMIT_DIASPORA_GA> --meta sourceFingerprint=<EMPREINTE_SOURCES>
      VERCEL_ORG_ID=exemple-equipe VERCEL_PROJECT_ID=exemple-projet-principal vercel inspect <URL_DEPLOIEMENT> --scope exemple-equipe --format=json
 ```
 
@@ -163,7 +163,7 @@ Un dossier par publication, hors des dépôts : `<ANTSIA_RELEASE_HOME>/<sha12>/`
 dans un dépôt est refusé.
 
 - `manifeste.json` : pour chaque étape, son état (`fait`, `echec`, `refusee`), ses dates, ses commandes et leurs codes, et
-  ce qu'elle a relevé — commit de DIASPORALE, empreinte des sources, API en ligne avant l'envoi, commit précédent du moteur,
+  ce qu'elle a relevé — commit de DIASPORA.GA, empreinte des sources, API en ligne avant l'envoi, commit précédent du moteur,
   déploiement de chaque site avant l'envoi et avant la promotion, version servie avant la bascule ;
 - `api-candidat.json`, `api-<moteur>-avant.json`, `api-<moteur>-apres.json` : les relevés d'API ;
 - `journal/<étape>.log` : chaque commande et ses sorties complètes ;
@@ -218,7 +218,7 @@ fonction que le moteur vient de retirer.
 
 ## 9. Hors de ces outils
 
-- **DIASPORALE** (site de démonstration) : sa publication reste à sa session ; elle doit être republiée quand la
+- **DIASPORA.GA** (site de démonstration) : sa publication reste à sa session ; elle doit être republiée quand la
   démonstration reçoit un moteur qui change ce qu'elle lit.
 - **Mobile** (iOS, Android) : hors de ces outils.
 - **Variables de déploiement** (`ANTSIA_ENGINE_VERSION`, origines, clés) : posées par le propriétaire, jamais par les scripts.

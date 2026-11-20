@@ -1,12 +1,12 @@
 /**
- * Adhésion à DIASPORALE — entrer, parrainer, retirer un parrainage, quitter
- * (DIASPORALE PD1, cahier DIASPORALE §6.2, EXF-DG-04, arbitrage A3) ; nommer les
+ * Adhésion à DIASPORA.GA — entrer, parrainer, retirer un parrainage, quitter
+ * (DIASPORA.GA PD1, cahier DIASPORA.GA §6.2, EXF-DG-04, arbitrage A3) ; nommer les
  * responsables du réseau (MD-01, LX-03 : le rôle vit sur l'adhésion).
  *
  * Le réseau est GOUVERNÉ par cette tranche (`managedBy = "diaspora"`) : les
  * chemins génériques du moteur le refusent, car ils ignorent la nationalité
  * IDN, le parrainage et l'attestation consulaire. Ici, le statut se DÉRIVE des
- * faits par la règle du domaine (`@diasporale/domain`), dans l'ordre du moteur :
+ * faits par la règle du domaine (`@diaspora-ga/domain`), dans l'ordre du moteur :
  * adhésion → éligibilité → limitation de débit → droit. L'adhésion ANTSIA dérivée
  * naît avec l'entrée (invariant 3) ; aucune adhésion n'est créée sans geste.
  */
@@ -16,7 +16,7 @@ import { isActiveStatus } from "@antsia/social-domain/membership"
 import {
   capabilitiesOf,
   checkSponsorship,
-  CONSENT_PURPOSES as DIASPORALE_CONSENT_PURPOSES,
+  CONSENT_PURPOSES as DIASPORA_GA_CONSENT_PURPOSES,
   checkSponsorshipRevocation,
   DEFAULT_DIRECTORY_VISIBILITY,
   deriveMembershipStatus,
@@ -35,7 +35,7 @@ import {
   sponsorStanding,
   toEngineFacet,
   writeRateTier,
-} from "@diasporale/domain"
+} from "@diaspora-ga/domain"
 import { v } from "convex/values"
 
 import type { Doc, Id } from "../../_generated/dataModel"
@@ -99,12 +99,12 @@ function labelOf(person: Doc<"persons"> | null): { handle: string; displayName: 
 }
 
 /**
- * @selfScoped La personne de la session entre dans DIASPORALE par la tranche qui
+ * @selfScoped La personne de la session entre dans DIASPORA.GA par la tranche qui
  * le gouverne : son statut se dérive de SES faits (IDN et sa garantie, parrainage,
  * attestation consulaire) ; sa facette suit les règles du domaine (pays hors
  * Gabon, ville, année d'arrivée) et le poste consulaire n'est jamais saisi.
  */
-export const joinDiasporale = personMutation({
+export const joinDiasporaGa = personMutation({
   args: {
     networkId: v.id("networks"),
     facet: facetInputValidator,
@@ -208,7 +208,7 @@ function sponsorRefusalParams(code: SponsorshipRefusal, facts: SponsorFacts): Re
 }
 
 /**
- * Un membre parraine un compte de DIASPORALE, désigné par son identifiant public.
+ * Un membre parraine un compte de DIASPORA.GA, désigné par son identifiant public.
  * Le parrain d'abord (vérifié depuis plus de 30 jours, dix par fenêtre glissante
  * de 30 jours), la cible ensuite, en un refus INDISTINCT (`target_not_eligible`) :
  * parrainer n'apprend rien du statut d'autrui, ni de son existence, ni d'un blocage.
@@ -348,12 +348,12 @@ export const setResponsibleRole = networkMutation({
 })
 
 /**
- * Quitter DIASPORALE (l'adhésion ANTSIA reste) ; le parrainage reçu et l'admission
+ * Quitter DIASPORA.GA (l'adhésion ANTSIA reste) ; le parrainage reçu et l'admission
  * fondatrice s'éteignent avec le départ (leur journal reste), et le rôle de réseau
  * avec lui (moteur, EX-08). Le dernier administrateur actif ne part pas sans
  * remplaçant (`NETWORK_LAST_ADMIN`, garde du moteur, avant toute écriture).
  */
-export const leaveDiasporale = networkMutation({
+export const leaveDiasporaGa = networkMutation({
   minStatus: "en_attente",
   args: {},
   returns: v.null(),
@@ -396,7 +396,7 @@ export const refreshMyMembership = personMutation({
 })
 
 /**
- * @selfScoped La personne de la session lit SON adhésion à DIASPORALE : statut
+ * @selfScoped La personne de la session lit SON adhésion à DIASPORA.GA : statut
  * effectif (une suspension ANTSIA vaut ici), facette complète avec ses niveaux,
  * badges calculés, parrain en vigueur, dernière demande d'attestation (sans la
  * raison consulaire), capacités, et si son statut enregistré n'est plus celui
@@ -527,7 +527,7 @@ export const sponsorDashboard = networkQuery({
 
 /**
  * @selfScoped La personne de la session lit l'état de SES consentements pour
- * DIASPORALE (les finalités du réseau) : en vigueur ou non, date du dernier geste,
+ * DIASPORA.GA (les finalités du réseau) : en vigueur ou non, date du dernier geste,
  * version du texte. Rien n'est présumé : sans geste, une finalité n'est pas accordée.
  * Chaque finalité se lit à SA portée (NP-01, `consentCountsForNetwork`) : le réseau exact
  * pour l'annuaire, les notifications, l'attestation et les talents — ce que le moteur relit
@@ -554,7 +554,7 @@ export const myConsents = query({
       .withIndex("by_person_and_purpose", (q) => q.eq("personId", person._id))
       .take(100)
     const scoped = rows.filter((row) => consentCountsForNetwork(row, network._id))
-    return DIASPORALE_CONSENT_PURPOSES.map((purpose) => {
+    return DIASPORA_GA_CONSENT_PURPOSES.map((purpose) => {
       const mine = scoped.filter((row) => row.purpose === purpose)
       const moment = (row: Doc<"consents">) => row.revokedAt ?? row.grantedAt
       const latest = mine.reduce<Doc<"consents"> | null>((best, row) => (best === null || moment(row) > moment(best) ? row : best), null)
@@ -569,7 +569,7 @@ export const myConsents = query({
 })
 
 /**
- * @selfScoped La personne de la session lit ce que DIASPORALE sait de SES liens
+ * @selfScoped La personne de la session lit ce que DIASPORA.GA sait de SES liens
  * d'identité : un lien IDN et son niveau de garantie, une attestation consulaire
  * vivante — ni sujet, ni nationalité, ni aucune donnée consulaire. `null` sans personne.
  */

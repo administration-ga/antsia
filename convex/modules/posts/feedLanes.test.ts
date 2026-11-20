@@ -1,7 +1,7 @@
 // @vitest-environment edge-runtime
 /**
  * Le fil par VOIES (portée, pays facultatif) — le hub d'un pays et « toute la
- * diaspora » que DIASPORALE compose selon sa règle (`isShownInHub`) — et la
+ * diaspora » que DIASPORA.GA compose selon sa règle (`isShownInHub`) — et la
  * fusion sous FRONTIÈRE des fenêtres bornées, qui ferme aussi un trou latent de
  * « Pour vous » (une fenêtre d'auteur pleine laissait filer ses lignes plus
  * anciennes quand le filtre écartait toute la fenêtre).

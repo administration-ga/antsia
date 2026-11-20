@@ -3,7 +3,7 @@
  *
  * Un espace de noms par paquet : `social` (ces surfaces), `errors` (codes
  * renvoyés par le serveur, `@antsia/social-contracts`), et ceux des
- * applications (`antsia`, `admin`, et `diasporale` chez DIASPORALE). Aucune
+ * applications (`antsia`, `admin`, et `diaspora-ga` chez DIASPORA.GA). Aucune
  * chaîne d'interface hors des fichiers de locale (cliquet
  * `no-hardcoded-strings`) ; les deux langues portent les mêmes clés (cliquet
  * `i18n-locales`).

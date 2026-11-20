@@ -202,7 +202,7 @@ describe("AZ-F1 — une seule porte de décision, sans conflit d'intérêts", ()
     const postTwin = await twinOf(onPost.reportId)
     const commentTwin = await twinOf(onComment.reportId)
 
-    // 1. La file du réseau (celle des écrans de modération et du guichet de DIASPORALE) lit la ligne jumelle.
+    // 1. La file du réseau (celle des écrans de modération et du guichet de DIASPORA.GA) lit la ligne jumelle.
     const queue = await moderator.as.query(CASES.paginateQueue, { networkId: root, paginationOpts: PAGE })
     expect(queue.page.map((row) => row.reportId).sort()).toEqual([postTwin, commentTwin].sort())
     expect(queue.page.find((row) => row.reportId === postTwin)).toMatchObject({ target: { kind: "post", id: postId }, status: "open" })

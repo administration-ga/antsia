@@ -44,7 +44,7 @@ Les résultats ci-dessous décrivent la validation locale qui a précédé cette
 
 Corrections appliquées dans les sources réelles et vérifiées localement le 20 octobre 2026.
 Aucune publication ni aucun commit applicatif effectués. La branche partagée et les changements
-authentification/DIASPORALE présents au démarrage ont été conservés.
+authentification/DIASPORA_GA présents au démarrage ont été conservés.
 
 ### Pourquoi les chartes n'étaient pas appliquées partout
 
@@ -66,7 +66,7 @@ l'absence de préférence, et les pages publiques conservaient seulement le cach
 | Surfaces métier | Profil/albums, groupes/pages/évènements, messagerie, conférences, commerce, emploi/services, données et modération raccordés aux jetons ; validation verte, danger rouge et annulation grise. |
 | Préférence du compte | Les six identifiants historiques donnent Gaboma ; absence/inconnu restent distincts ; dernier choix concurrent conservé, refus signalé, réponse périmée fermée après sortie ou démontage. |
 | Pages publiques | Îlot privé de lecture du thème, sans données privées dans le rendu serveur ; requête sans cache, annulable et bornée ; aucune création de compte ni de session par cet îlot. |
-| Autres réseaux | Nouveaux raccords opt-in avec replis historiques. Les tests d'isolation et les 42 jetons opt-in distinguent explicitement ANTSIA de DIASPORALE ; aucune charte DIASPORALE modifiée par ce travail. |
+| Autres réseaux | Nouveaux raccords opt-in avec replis historiques. Les tests d'isolation et les 42 jetons opt-in distinguent explicitement ANTSIA de DIASPORA.GA ; aucune charte DIASPORA.GA modifiée par ce travail. |
 
 Les corrections de contraste AA déjà arbitrées et documentées dans `docs/22` restent en vigueur.
 
@@ -110,7 +110,7 @@ Les étapes de `verify` ont toutes été exécutées. Après les 2 631 tests mot
 les 33 tests des scripts, le typage a repéré l'appel d'une méthode Convex interne : il a été remplacé
 par l'option publique `fetch` du constructeur, puis tous les contrôles d'espaces ont repris.
 L'inventaire prouve que seuls les quatre nouveaux fichiers frontend concernés avaient changé.
-Le contrôle de parité DIASPORALE a ensuite été adapté au contrat opt-in, en conservant ses contrôles
+Le contrôle de parité DIASPORA.GA a ensuite été adapté au contrat opt-in, en conservant ses contrôles
 de palette et de contraste ; sa suite complète passe avec 962 tests.
 
 **2 012 fichiers ANTSIA inchangés** pendant les contrôles d'espaces, puis identiques après les
@@ -126,7 +126,7 @@ de production, transaction, délivrance média ni communication à un fournisseu
 
 ### Serveurs et passation
 
-DIASPORALE a été mis en pause avec l'accord du propriétaire, puis **relancé sur 3031** : HTTP 200.
+DIASPORA.GA a été mis en pause avec l'accord du propriétaire, puis **relancé sur 3031** : HTTP 200.
 Le serveur ANTSIA 3030 est arrêté. Le moteur Convex anonyme local reste disponible sur 3210/3211 ;
 aucune commande Convex de production, aucune modification de `.env*`, aucun push ni déploiement.
 Les captures de cette recette montrent le code local ; la passation de la PR 17 ne constitue pas

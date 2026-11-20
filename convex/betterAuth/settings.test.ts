@@ -122,7 +122,7 @@ describe("application du catalogue servie à une origine", () => {
     }
   })
 
-  it.each([null, undefined, "", "null", "not-a-url", "https://foreign.example.test", "https://user:pass@diasporale.com"])("aucune application pour l'origine %s", (origin) => {
+  it.each([null, undefined, "", "null", "not-a-url", "https://foreign.example.test", "https://user:pass@diaspora.ga"])("aucune application pour l'origine %s", (origin) => {
     expect(applicationOfOrigin(origin, local)).toBeNull()
   })
 })

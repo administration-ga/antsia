@@ -343,7 +343,7 @@ function siteSteps(host, siteKey) {
             NEXT_PUBLIC_BUILD_SHA: buildLabel(state.sha, site.buildSuffix, { inMain: state.inMain }),
             ...(siteKey === "principal" ? { ANTSIA_DEMO_RUNTIME_ORIGIN: state.childOrigin } : {}),
           },
-          meta: { antsiaReleaseCommit: state.sha, diasporaleReleaseCommit: state.diasporaleCommit, sourceFingerprint: state.sourceFingerprint },
+          meta: { antsiaReleaseCommit: state.sha, diasporaGaReleaseCommit: state.diasporaGaCommit, sourceFingerprint: state.sourceFingerprint },
         }),
         retry: (result) => host.retryableUpload(outputOf(result)),
         after: (result, state) => {
@@ -480,11 +480,11 @@ function siteCheckStep(host, { id, siteKey, mode, prerequisite, deploymentStep }
   }
 }
 
-/** L'export propre : SHA d'ANTSIA, DIASPORALE à origin/main, aucun `.env*`, installation figée. */
+/** L'export propre : SHA d'ANTSIA, DIASPORA_GA à origin/main, aucun `.env*`, installation figée. */
 function exportStep(host) {
   return {
     id: "export",
-    title: "Export propre depuis le commit (aucun .env*), DIASPORALE à origin/main, installation figée",
+    title: "Export propre depuis le commit (aucun .env*), DIASPORA_GA à origin/main, installation figée",
     kind: "local",
     variables: () => [],
     requires: ({ manifest, dir }) => {
@@ -514,29 +514,29 @@ function exportStep(host) {
           state.record.inMain = state.inMain
         },
       },
-      { kind: "command", build: (state) => command("git", ["-C", state.repos.diasporale, "fetch", "origin", "main"], { label: "DIASPORALE relue" }) },
+      { kind: "command", build: (state) => command("git", ["-C", state.repos.diasporaGa, "fetch", "origin", "main"], { label: "DIASPORA_GA relue" }) },
       {
         kind: "command",
-        build: (state) => command("git", ["-C", state.repos.diasporale, "rev-parse", "origin/main"], { label: "commit de DIASPORALE (origin/main, jamais HEAD)" }),
+        build: (state) => command("git", ["-C", state.repos.diasporaGa, "rev-parse", "origin/main"], { label: "commit de DIASPORA_GA (origin/main, jamais HEAD)" }),
         after: (result, state) => {
           const commit = result.stdout.trim()
-          if (!/^[0-9a-f]{40}$/.test(commit)) throw new StepFailure("commit de DIASPORALE illisible")
-          state.diasporaleCommit = commit
-          state.record.diasporaleCommit = commit
+          if (!/^[0-9a-f]{40}$/.test(commit)) throw new StepFailure("commit de DIASPORA_GA illisible")
+          state.diasporaGaCommit = commit
+          state.record.diasporaGaCommit = commit
         },
       },
       {
         kind: "action",
-        text: (state) => `créer ${state.exportAntsia} et ${state.exportDiasporale}`,
+        text: (state) => `créer ${state.exportAntsia} et ${state.exportDiasporaGa}`,
         run: (state) => {
           mkdirSync(state.exportAntsia, { recursive: true })
-          mkdirSync(state.exportDiasporale, { recursive: true })
+          mkdirSync(state.exportDiasporaGa, { recursive: true })
         },
       },
       { kind: "command", build: (state) => command("git", ["-C", state.repos.antsia, "archive", "--format=tar", `--output=${join(state.exportRoot, "antsia.tar")}`, state.sha, "--", ".", ":(exclude,glob)**/.env*"], { label: "archive d'ANTSIA (fichiers suivis, sans .env*)" }) },
       { kind: "command", build: (state) => command("tar", ["-xf", join(state.exportRoot, "antsia.tar"), "-C", state.exportAntsia]) },
-      { kind: "command", build: (state) => command("git", ["-C", state.repos.diasporale, "archive", "--format=tar", `--output=${join(state.exportRoot, "diasporale.tar")}`, state.diasporaleCommit, "--", ".", ":(exclude,glob)**/.env*"], { label: "archive de DIASPORALE (sans .env*)" }) },
-      { kind: "command", build: (state) => command("tar", ["-xf", join(state.exportRoot, "diasporale.tar"), "-C", state.exportDiasporale]) },
+      { kind: "command", build: (state) => command("git", ["-C", state.repos.diasporaGa, "archive", "--format=tar", `--output=${join(state.exportRoot, "diaspora-ga.tar")}`, state.diasporaGaCommit, "--", ".", ":(exclude,glob)**/.env*"], { label: "archive de DIASPORA_GA (sans .env*)" }) },
+      { kind: "command", build: (state) => command("tar", ["-xf", join(state.exportRoot, "diaspora-ga.tar"), "-C", state.exportDiasporaGa]) },
       {
         kind: "action",
         text: (state) => `aucun fichier .env* dans l'export ; liste d'exclusion de l'hébergeur écrite (${join(state.ecosystems, host.ignoreFile.name)}) ; empreinte des sources`,
@@ -605,9 +605,9 @@ export function initialState({ sha, home, publication, repos, values, manifest, 
     exportRoot,
     ecosystems,
     exportAntsia: join(ecosystems, "ANTSIA"),
-    exportDiasporale: join(ecosystems, "DIASPORALE"),
+    exportDiasporaGa: join(ecosystems, "DIASPORA_GA"),
     inMain: steps.export?.inMain ?? true,
-    diasporaleCommit: steps.export?.diasporaleCommit ?? "<COMMIT_DIASPORALE>",
+    diasporaGaCommit: steps.export?.diasporaGaCommit ?? "<COMMIT_DIASPORA_GA>",
     sourceFingerprint: steps.export?.sourceFingerprint ?? "<EMPREINTE_SOURCES>",
     childDeploymentUrl: steps["site-demo"]?.deployment?.url ?? "<URL_DEPLOIEMENT_ENFANT>",
     childOrigin: "<ORIGINE_ENFANT>",

@@ -16,12 +16,12 @@
 import {
   countsAsHubMember,
   DEFAULT_DIRECTORY_VISIBILITY,
-  DIASPORALE_NETWORK_SLUG,
+  DIASPORA_GA_NETWORK_SLUG,
   type HubCounters,
   isResidenceCountry,
   parseResidenceCountry,
   presentHubCounters,
-} from "@diasporale/domain"
+} from "@diaspora-ga/domain"
 import { v } from "convex/values"
 
 import { internal } from "../../_generated/api"
@@ -170,7 +170,7 @@ export const refreshHubCounters = internalMutation({
   handler: async (ctx, { pageSize }): Promise<null> => {
     const network = await ctx.db
       .query("networks")
-      .withIndex("by_slug", (q) => q.eq("slug", DIASPORALE_NETWORK_SLUG))
+      .withIndex("by_slug", (q) => q.eq("slug", DIASPORA_GA_NETWORK_SLUG))
       .unique()
     if (!isDiasporaNetwork(network)) return null
     await ctx.scheduler.runAfter(0, internal.modules.diaspora.hubs.refreshHubCountersPage, {

@@ -3,7 +3,7 @@
 /**
  * Un BROUILLON vers une personne avec qui un fil EXISTE déjà : ouvrir ce fil — son
  * historique — au lieu d'une « Nouvelle conversation » vide. Le premier envoi aurait
- * continué le fil côté serveur sans montrer ce qui précède (constat de DIASPORALE,
+ * continué le fil côté serveur sans montrer ce qui précède (constat de DIASPORA.GA,
  * 16/10/2026 : « Écrire » depuis une fiche, un volet ou une liste ouvre toujours un
  * brouillon par identifiant).
  *

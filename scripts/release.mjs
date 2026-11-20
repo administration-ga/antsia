@@ -35,7 +35,7 @@ import { ALTERNATIVE_STEPS, RELEASE_ORDER, ROLLBACK_STEPS, createSteps, initialS
 import { OPTIONAL_VARIABLES, RELEASE_VARIABLES, ReleaseRefusal, assertSha, readVariables, shortSha } from "./release/targets.mjs"
 
 export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..")
-export const DEFAULT_REPOS = Object.freeze({ antsia: ROOT, diasporale: resolve(ROOT, "..", "DIASPORALE") })
+export const DEFAULT_REPOS = Object.freeze({ antsia: ROOT, diasporaGa: resolve(ROOT, "..", "DIASPORA_GA") })
 /** L'hébergeur des sites d'aujourd'hui (décision 1 du plan 13 non prise : un autre serait un autre module). */
 export const HOST = vercelHost
 const NAME = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/
@@ -152,7 +152,7 @@ export async function main(argv, deps = {}) {
   let sha, home
   try {
     sha = assertSha(shaArg)
-    home = assertOutsideRepos(releaseHome(env, deps.homedir ?? homedir()), [repos.antsia, repos.diasporale])
+    home = assertOutsideRepos(releaseHome(env, deps.homedir ?? homedir()), [repos.antsia, repos.diasporaGa])
   } catch (refusal) {
     error(`✗ ${refusal.message}`)
     return 2

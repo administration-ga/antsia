@@ -11,11 +11,11 @@
  *  - `personalDecisions` : ses décisions et recours personnels ;
  *  - `personalReports` (SU01d) : ses signalements, leur échéance et leur issue (accusé de
  *    réception, décision) ;
- *  - `diasporaServiceNotice` : un avis de mise en relation DIASPORALE, sujet GÉNÉRIQUE (nature +
- *    référence opaque) que l'application DIASPORALE route elle-même ;
- *  - `diasporaCommunityNotice` (19/10/2026) : un avis de la vie communautaire DIASPORALE (entraide,
+ *  - `diasporaServiceNotice` : un avis de mise en relation DIASPORA.GA, sujet GÉNÉRIQUE (nature +
+ *    référence opaque) que l'application DIASPORA.GA route elle-même ;
+ *  - `diasporaCommunityNotice` (19/10/2026) : un avis de la vie communautaire DIASPORA.GA (entraide,
  *    mentorat, emploi, kit d'arrivée) — public, objet ouvert et référence opaque, routés par
- *    l'application DIASPORALE ;
+ *    l'application DIASPORA.GA ;
  *  - `contextualThread` (CC-2b, ADR-0025) : une conversation contextuelle relue pour CE lecteur
  *    (partie actuelle) — sujet GÉNÉRIQUE (fil, nature, objet, côté, page) que l'application de la
  *    nature route elle-même ; aucune route ANTSIA en V1.
@@ -43,19 +43,19 @@ export const NOTIFICATION_OPEN_TARGET_KINDS = [
 ] as const
 export type NotificationOpenTargetKind = (typeof NOTIFICATION_OPEN_TARGET_KINDS)[number]
 
-/** Publics d'un avis de mise en relation DIASPORALE (`SERVICE_NOTICE_AUDIENCES` de la tranche, recopiés à l'identique). */
+/** Publics d'un avis de mise en relation DIASPORA.GA (`SERVICE_NOTICE_AUDIENCES` de la tranche, recopiés à l'identique). */
 export const DIASPORA_NOTICE_AUDIENCES = ["requester", "provider", "responsible", "member"] as const
 export type DiasporaNoticeAudience = (typeof DIASPORA_NOTICE_AUDIENCES)[number]
 
-/** Natures de sujet d'un avis de mise en relation DIASPORALE (colonnes `subject…Id` de la cloche). */
+/** Natures de sujet d'un avis de mise en relation DIASPORA.GA (colonnes `subject…Id` de la cloche). */
 export const DIASPORA_NOTICE_SUBJECT_KINDS = ["serviceRequest", "associationMembership", "serviceReview"] as const
 export type DiasporaNoticeSubjectKind = (typeof DIASPORA_NOTICE_SUBJECT_KINDS)[number]
 
-/** Publics d'un avis communautaire DIASPORALE (`COMMUNITY_NOTICE_AUDIENCES` de la tranche, recopiés à l'identique). */
+/** Publics d'un avis communautaire DIASPORA.GA (`COMMUNITY_NOTICE_AUDIENCES` de la tranche, recopiés à l'identique). */
 export const DIASPORA_COMMUNITY_NOTICE_AUDIENCES = ["author", "team", "mentor", "mentee", "candidate", "volunteer"] as const
 export type DiasporaCommunityNoticeAudience = (typeof DIASPORA_COMMUNITY_NOTICE_AUDIENCES)[number]
 
-/** Ce qu'ouvre un avis communautaire DIASPORALE (`COMMUNITY_NOTICE_OPENS` de la tranche, recopiés à l'identique). */
+/** Ce qu'ouvre un avis communautaire DIASPORA.GA (`COMMUNITY_NOTICE_OPENS` de la tranche, recopiés à l'identique). */
 export const DIASPORA_COMMUNITY_NOTICE_OPENS = ["aidQuestion", "aidMission", "mentoringRequest", "jobApplication", "kitResource"] as const
 export type DiasporaCommunityNoticeOpens = (typeof DIASPORA_COMMUNITY_NOTICE_OPENS)[number]
 

@@ -1,6 +1,6 @@
 // @vitest-environment edge-runtime
 /**
- * FD-04 (issue antsia#108, demande de la session DIASPORALE) : l'état de modération d'une publication
+ * FD-04 (issue antsia#108, demande de la session DIASPORA.GA) : l'état de modération d'une publication
  * est rendu à son AUTEUR seul — au retour de `posts.publish` (rejeu compris) et de
  * `pages.publishAsPage`, et sur la carte (`moderation`) servie par `getPost`, `personPosts` et
  * `myFeed`. Tout autre lecteur — membre, modérateur, co-signataire d'une page, lecteur public — ne

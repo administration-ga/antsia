@@ -11,7 +11,7 @@
  * (`NetworkProvider navigation="destinations"`, avec `routes.discover` et
  * `routes.me`). Sans déclaration, la barre « Menu » du téléphone et le rail
  * des volets du bureau restent EXACTEMENT ceux d'avant : une application qui
- * ne déclare rien (DIASPORALE) ne voit aucun changement.
+ * ne déclare rien (DIASPORA.GA) ne voit aucun changement.
  *
  * ═══════════════════════════════════════════════════════════════════════════
  * CINQ DESTINATIONS, TOUJOURS LES MÊMES, DANS LE MÊME ORDRE

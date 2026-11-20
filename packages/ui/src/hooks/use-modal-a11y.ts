@@ -107,7 +107,7 @@ export function useModalA11y({
         if (child.hasAttribute("inert")) continue
         // Ignorer les portails techniques de Next.js (script, noscript, etc.)
         if (child.tagName === "SCRIPT" || child.tagName === "NOSCRIPT") continue
-        // Région des toasts marquée par l'application (ANTSIA et DIASPORALE,
+        // Région des toasts marquée par l'application (ANTSIA et DIASPORA.GA,
         // `data-toast-region`) : une erreur annoncée pendant la modale doit
         // rester lue par les technologies d'assistance (audit P18a, A07).
         if (child.hasAttribute("data-toast-region")) continue

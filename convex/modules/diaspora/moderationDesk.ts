@@ -1,8 +1,8 @@
 /**
- * Guichet de modération par pays de DIASPORALE (PD6 · G9) — LECTURES seules.
+ * Guichet de modération par pays de DIASPORA.GA (PD6 · G9) — LECTURES seules.
  *
  * - Le moteur ne range pas ses dossiers par pays : cette tranche relit la file
- *   du réseau `diasporale` par fenêtres bornées (index du moteur, curseur opaque
+ *   du réseau `diaspora-ga` par fenêtres bornées (index du moteur, curseur opaque
  *   rendu tel quel, une fenêtre filtrée peut être vide et annoncer sa suite) et
  *   ne garde que les dossiers dont la CIBLE porte le pays demandé : publication
  *   (son pays, sinon celui de sa page), commentaire (celui de sa publication),
@@ -48,7 +48,7 @@
  *   toute personne qui a une ligne de signataire sur la page, même invitée.
  */
 import type { ModerationSurface } from "@antsia/social-domain/moderationPolicy"
-import { isCountryCode, normalizeCountryCode } from "@diasporale/domain"
+import { isCountryCode, normalizeCountryCode } from "@diaspora-ga/domain"
 import { paginationOptsValidator, type PaginationOptions } from "convex/server"
 import { v } from "convex/values"
 
@@ -587,7 +587,7 @@ function guardDesk(ctx: DeskCtx, expectedPersonId: Id<"persons">): void {
 // ── Fonctions ──────────────────────────────────────────────────────────────
 
 /**
- * Ma capacité de modération dans DIASPORALE : rôle réseau, équipes vivantes
+ * Ma capacité de modération dans DIASPORA.GA : rôle réseau, équipes vivantes
  * (toutes pour l'administration du réseau, les siennes sinon). `null` pour un
  * membre sans compétence : rien n'est dit des équipes ni de leurs membres.
  * Les réglages (MD-04) se lisent et se posent par les fonctions du moteur

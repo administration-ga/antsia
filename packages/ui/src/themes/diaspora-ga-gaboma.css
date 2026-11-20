@@ -1,107 +1,102 @@
 /*
- * Thème « Sable » de DIASPORALE (`data-charte="diasporale"`) — la charte de DIASPORALE et
- * son thème par défaut. Fichier écrit par la session DIASPORALE. Référence :
- * DIASPORALE/docs/03_CHARTE_DIASPORALE.md.
+ * Thème « Gaboma » de DIASPORA.GA (`data-charte="diaspora-ga-gaboma"`) — le second thème que le
+ * membre choisit dans diaspora.ga (Réglages > Langue et apparence), à côté de « Sable », la
+ * charte de DIASPORA.GA et le thème par défaut (`diaspora-ga.css`). Fichier écrit par la session
+ * DIASPORA.GA.
  *
- * Version 4 (20/10/2026, demande du propriétaire) : la maquette « ANTSIA — sept thèmes, toutes
- * les pages » (19/10/2026, thème n° 7) devient la charte de DIASPORALE. Bleu Gabon #0167A8
- * pour publier et écrire, sarcelle #238090 pour suivre, sable doré #D7AD63 pour réagir,
- * participer et acheter ; valider en vert, supprimer en rouge, annuler en gris. Fond papier et
- * sable en clair, nuit brune en sombre. Système épuré, commun aux sept thèmes : un angle par
- * élément (pilule, badge 6, puce 10, page 12, champ 14, média 16, Créer 18, carte 24, barre
- * d'onglets 28), un contour seulement à couleur égale, seul ce qui flotte porte une ombre ;
- * titres en Familjen Grotesk, texte en Inter (chargées par `@antsia/ui/styles.css`).
+ * Version 2 (20/10/2026, demande du propriétaire) : la maquette « ANTSIA — sept thèmes, toutes
+ * les pages » (19/10/2026, thème n° 1, le thème du réseau). Les trois couleurs du drapeau, dans
+ * leur ordre : le vert #007E4D pour suivre, le safran #F4BB44 pour réagir, participer et
+ * acheter, le bleu #2F67B5 pour publier et écrire ; valider en vert, supprimer en rouge,
+ * annuler en gris. Fond « Onyx » : blanc franc en clair, noir absolu en sombre. Même système
+ * épuré et mêmes polices que Sable.
  *
- * Construction : les trois blocs d'`antsia-sable.css` (la même maquette, générée et contrôlée
- * par le moteur, ADR-0027), recopiés valeur pour valeur sur le nœud de DIASPORALE, puis ses
- * jetons propres (étiquette pays, tons de statut, avatars, bannière) dans les blocs clair et
- * sombre. Les versions 1 à 3.3 (IBM Plex, rayons de 6 et 8 px, une seule couleur d'action) sont
- * remplacées ; leur palette Sable (papier #fdfdfb, sable #f1efeb, encre #25211e, nuit #151311)
- * reste celle de la maquette.
+ * Construction : les trois blocs d'`antsia.css` (la charte du réseau, générée et contrôlée par
+ * le moteur, ADR-0027), recopiés valeur pour valeur sur le nœud de DIASPORA.GA, puis les jetons
+ * propres à DIASPORA.GA, réaccordés à Gaboma (bleu, neutres, nuit, tons) — avatars inchangés :
+ * une personne garde sa couleur d'un thème à l'autre. Même structure que Sable, jeton pour
+ * jeton : seules les couleurs changent (cliquet `engine-theme-contrast.test.ts` de DIASPORA.GA,
+ * qui vérifie aussi la parité avec `antsia.css` et rejoue les contrastes dans les deux modes).
  *
  * Règles (cliquet `theme-contract` du moteur) : uniquement des jetons du contrat de la charte de
- * base, uniquement sous [data-charte="diasporale"]. Le troisième bloc, commun aux deux modes
- * (spécificité 0,2,0 en sombre), passe après le bloc sombre de la base : rien du bleu du moteur
- * ne reparaît. Les contrastes (texte ≥ 4,5:1, contours et focus ≥ 3:1, texte sur chaque aplat)
- * sont recalculés à travers la cascade complète par `engine-theme-contrast.test.ts` de
- * DIASPORALE, qui vérifie aussi que Gaboma (`diasporale-gaboma.css`) garde cette structure.
+ * base, uniquement sous [data-charte="diaspora-ga-gaboma"].
  */
 
-[data-charte="diasporale"] {
+[data-charte="diaspora-ga-gaboma"] {
   color-scheme: light;
 
   /* ── 1. Primitives du contrat, réaccordées au thème ── */
-  --esp-neutral-900: #25211e; /* texte principal clair */
-  --esp-neutral-600: #595550; /* texte secondaire clair */
-  --esp-neutral-rule: #dddad4; /* séparateur décoratif */
-  --esp-neutral-field: #84817b; /* contour de contrôle clair, ≥ 3:1 sur la carte et le creux */
-  --esp-night-bg: #151311;
-  --esp-night-card: #24221f;
-  --esp-night-chip: #302e2a;
-  --esp-night-border: #3c3935;
-  --esp-night-input: #7c7872;
-  --esp-night-soft: #b8b4ac;
+  --esp-neutral-900: #0a0a0a; /* texte principal clair */
+  --esp-neutral-600: #616161; /* texte secondaire clair */
+  --esp-neutral-rule: #e6e6e6; /* séparateur décoratif */
+  --esp-neutral-field: #878787; /* contour de contrôle clair, ≥ 3:1 sur la carte et le creux */
+  --esp-night-bg: #000000;
+  --esp-night-card: #141414;
+  --esp-night-chip: #1e1e1e;
+  --esp-night-border: #262626;
+  --esp-night-input: #707070;
+  --esp-night-soft: #a1a1a1;
 
   /* ── 2. Identité (encre), succès, danger — thème clair ── */
-  --primary-50: #d4dee2;
-  --primary-100: #c1d2db;
-  --primary-200: #a4c1d2;
-  --primary-300: #3983b2;
-  --primary-400: #1a70a6;
-  --primary-500: #01609c;
-  --primary-600: #015489;
-  --primary-700: #014977;
-  --primary-800: #013c61;
-  --success-50: #dbe3da;
-  --success-100: #c5d8c8;
-  --success-500: #14743a;
-  --success-600: #0f5f2f;
-  --danger-50: #ebdbd7;
-  --danger-100: #e5c7c2;
-  --danger-500: #b3261e;
-  --danger-600: #b3261e;
-  --danger-700: #8f1e18;
+  --primary-50: #dee5ee;
+  --primary-100: #ced9e7;
+  --primary-200: #b5c6de;
+  --primary-300: #5982bb;
+  --primary-400: #3f6fb1;
+  --primary-500: #2a5fa8;
+  --primary-600: #255494;
+  --primary-700: #204880;
+  --primary-800: #1a3b68;
+  --success-50: #deebe6;
+  --success-100: #c6dfd5;
+  --success-500: #00804e;
+  --success-600: #006b42;
+  --danger-50: #f2e0e3;
+  --danger-100: #eec9cf;
+  --danger-500: #c8102e;
+  --danger-600: #b50e29;
+  --danger-700: #910b21;
 
   /* ── 3. Rôles du thème clair ── */
-  --background: #fdfdfb;
+  --background: #ffffff;
   --foreground: var(--esp-neutral-900);
-  --card: #f1efeb;
+  --card: #f7f7f7;
   --popover: #ffffff;
-  --muted: #e7e4de; /* creux : bouton neutre, puce, champ, survol */
+  --muted: #eeeeee; /* creux : bouton neutre, puce, champ, survol */
   --muted-foreground: var(--esp-neutral-600);
   --border: var(--esp-neutral-rule);
   --input: var(--esp-neutral-field);
   --on-fill: #ffffff; /* texte blanc sur l'accent, le succès et le danger */
-  --role-social-fill: #238090;
+  --role-social-fill: #007e4d;
   --role-social-on: #ffffff;
-  --role-social-ink: #1b6874;
-  --role-message-fill: #0167a8;
+  --role-social-ink: #006b42;
+  --role-message-fill: #2f67b5;
   --role-message-on: #ffffff;
-  --role-message-ink: #01619e;
-  --role-react-fill: #d7ad63;
-  --role-react-on: #25211e;
-  --role-react-ink: #a1782d;
-  --role-commerce-fill: #d7ad63;
-  --role-commerce-on: #25211e;
-  --role-commerce-ink: #7a5a22;
+  --role-message-ink: #2a5fa8;
+  --role-react-fill: #f4bb44;
+  --role-react-on: #1f1400;
+  --role-react-ink: #af7f00;
+  --role-commerce-fill: #f4bb44;
+  --role-commerce-on: #1f1400;
+  --role-commerce-ink: #8a6400;
   /* Valider et Supprimer, chacun ses trois couleurs comme dans les chartes : aplat, texte sur l'aplat, encre en texte. */
-  --role-success-fill: #14743a;
+  --role-success-fill: #00804e;
   --role-success-on: #ffffff;
-  --role-success-ink: #0f5f2f;
-  --role-danger-fill: #b3261e;
+  --role-success-ink: #006b42;
+  --role-danger-fill: #c8102e;
   --role-danger-on: #ffffff;
-  --role-danger-ink: #b3261e;
-  --role-message-soft: #cddbe1; /* fond tonal du bouton Écrire */
+  --role-danger-ink: #b50e29;
+  --role-message-soft: #d9e1ed; /* fond tonal du bouton Écrire */
   --role-react-soft: color-mix(in srgb, var(--role-react-fill) 18%, var(--card)); /* fond de l'action réagie */
-  --primary-fill: #0167a8; /* aplat d'identité : bouton Publier, Créer, interrupteur */
-  --primary-fill-hover: #015d97;
+  --primary-fill: #2f67b5; /* aplat d'identité : bouton Publier, Créer, interrupteur */
+  --primary-fill-hover: #2a5da3;
   --primary-fill-on: #ffffff; /* texte posé sur l'aplat d'identité */
-  --ui2-button-secondary-bg: #cddbe1; /* bouton secondaire tonal, sans filet */
-  --ui2-button-secondary-fg: #01609c;
-  --esp-mobilebar-bg: rgb(241 239 235 / 0.88); /* barre flottante, translucide au-dessus du fil */
+  --ui2-button-secondary-bg: #d9e1ed; /* bouton secondaire tonal, sans filet */
+  --ui2-button-secondary-fg: #2a5fa8;
+  --esp-mobilebar-bg: rgb(247 247 247 / 0.88); /* barre flottante, translucide au-dessus du fil */
   --esp-fab-shadow: 0 10px 20px -8px color-mix(in srgb, var(--primary-fill) 75%, transparent);
-  --esp-tab-active-bg: #cbd9e0; /* onglet actif : pastille tonale */
-  --esp-tab-active-fg: #01609c;
+  --esp-tab-active-bg: #d7e0ec; /* onglet actif : pastille tonale */
+  --esp-tab-active-fg: #2a5fa8;
 
   /* Géométrie et typographie, valables dans les deux thèmes. */
   --radius-xl: 12px;
@@ -113,12 +108,12 @@
   --font-display: var(--font-familjen-grotesk, "Familjen Grotesk Variable"), "Inter", system-ui, sans-serif;
 
   /* Ombres teintées de l'encre du thème. */
-  --shadow-xs: 0 1px 2px rgb(37 33 30 / 0.05);
-  --shadow-sm: 0 1px 3px rgb(37 33 30 / 0.08), 0 1px 2px rgb(37 33 30 / 0.04);
-  --shadow-md: 0 4px 12px rgb(37 33 30 / 0.08), 0 2px 4px rgb(37 33 30 / 0.04);
-  --shadow-lg: 0 12px 32px rgb(37 33 30 / 0.12), 0 4px 12px rgb(37 33 30 / 0.06);
-  --shadow-xl: 0 20px 40px rgb(37 33 30 / 0.16), 0 8px 16px rgb(37 33 30 / 0.08);
-  --icom-float-drag-shadow: 0 18px 54px rgb(37 33 30 / 0.3);
+  --shadow-xs: 0 1px 2px rgb(10 10 10 / 0.05);
+  --shadow-sm: 0 1px 3px rgb(10 10 10 / 0.08), 0 1px 2px rgb(10 10 10 / 0.04);
+  --shadow-md: 0 4px 12px rgb(10 10 10 / 0.08), 0 2px 4px rgb(10 10 10 / 0.04);
+  --shadow-lg: 0 12px 32px rgb(10 10 10 / 0.12), 0 4px 12px rgb(10 10 10 / 0.06);
+  --shadow-xl: 0 20px 40px rgb(10 10 10 / 0.16), 0 8px 16px rgb(10 10 10 / 0.08);
+  --icom-float-drag-shadow: 0 18px 54px rgb(10 10 10 / 0.3);
 
   /* Profondeur (maquette) : la carte n'a pas d'ombre ; seuls la barre d'onglets, le bouton Créer et
      les cartes flottantes en portent une. */
@@ -127,56 +122,56 @@
   --esp-shadow-float: 0 14px 30px -12px rgb(0 0 0 / 0.25), 0 2px 6px rgb(0 0 0 / 0.06);
   --esp-mobilebar-shadow: 0 14px 30px -12px rgb(0 0 0 / 0.25), 0 2px 6px rgb(0 0 0 / 0.06);
 
-  /* ── 4. Jetons propres à DIASPORALE : bleu, neutres et nuit de sa palette, tons de statut, avatars
+  /* ── 4. Jetons propres à DIASPORA.GA : bleu, neutres et nuit de sa palette, tons de statut, avatars
      (une personne garde sa couleur d'un thème à l'autre), segments, bannière, alerte. ── */
-  --esp-blue-50: #eef7ff;
-  --esp-blue-100: #d7ecff;
-  --esp-blue-200: #b4dbff;
-  --esp-blue-300: #7ec2ff;
-  --esp-blue-400: #5ba5e5;
-  --esp-blue-500: #0167a8;
-  --esp-blue-600: #005791;
-  --esp-blue-700: #004c7d;
-  --esp-blue-800: #003458;
-  --esp-blue-900: #17293f;
-  --esp-blue-950: #001d35;
-  --esp-on-blue: #151311;
-  --esp-neutral-0: #fdfdfb;
-  --esp-neutral-50: #f9f8f5;
-  --esp-neutral-100: #f1efeb;
-  --esp-neutral-150: #eceae5;
-  --esp-neutral-200: #e7e4de;
-  --esp-neutral-300: #cdcac4;
-  --esp-neutral-400: #8b8882;
-  --esp-neutral-500: #6b6761;
-  --esp-neutral-700: #3f3b37;
-  --esp-neutral-800: #312d29;
-  --esp-neutral-mute: #6b6761;
-  --esp-neutral-faint: #8b8882;
-  --esp-night-sidebar: #151311;
-  --esp-night-section: #2b2926;
-  --esp-night-hover: #3b3834;
-  --esp-night-faint: #9c9790;
-  --esp-night-accent-soft: #243849;
-  --esp-night-accent-deep: #b4dbff;
-  --esp-blue: #004c7d;
-  --esp-blue-bg: #e1f4ff;
-  --esp-blue-dark: #7ec2ff;
-  --esp-blue-bg-dark: #182f42;
-  --esp-amber: #8a5e00;
-  --esp-amber-bg: #fbf0db;
-  --esp-amber-border: #f3dfa6;
-  --esp-amber-point: #a16e00;
-  --esp-amber-dark: #d7ad63;
-  --esp-amber-bg-dark: #382a10;
-  --esp-rose: #b3261e;
-  --esp-rose-bg: #ffeae7;
-  --esp-rose-dark: #e18c85;
-  --esp-rose-bg-dark: #402321;
-  --esp-green: #0f5f2f;
-  --esp-green-bg: #e3f7e7;
-  --esp-green-dark: #6ebe85;
-  --esp-green-bg-dark: #1a3321;
+  --esp-blue-50: #dee5ee;
+  --esp-blue-100: #ced9e7;
+  --esp-blue-200: #b5c6de;
+  --esp-blue-300: #9cc0f6;
+  --esp-blue-400: #86b2f4;
+  --esp-blue-500: #2a5fa8;
+  --esp-blue-600: #255494;
+  --esp-blue-700: #204880;
+  --esp-blue-800: #1a3b68;
+  --esp-blue-900: #1c2636;
+  --esp-blue-950: #101a2c;
+  --esp-on-blue: #06142e;
+  --esp-neutral-0: #ffffff;
+  --esp-neutral-50: #fafafa;
+  --esp-neutral-100: #f7f7f7;
+  --esp-neutral-150: #eeeeee;
+  --esp-neutral-200: #e8e8e8;
+  --esp-neutral-300: #cccccc;
+  --esp-neutral-400: #878787;
+  --esp-neutral-500: #696969;
+  --esp-neutral-700: #404040;
+  --esp-neutral-800: #2b2b2b;
+  --esp-neutral-mute: #696969;
+  --esp-neutral-faint: #878787;
+  --esp-night-sidebar: #000000;
+  --esp-night-section: #1a1a1a;
+  --esp-night-hover: #2a2a2a;
+  --esp-night-faint: #8c8c8c;
+  --esp-night-accent-soft: #2d3745;
+  --esp-night-accent-deep: #afccf8;
+  --esp-blue: #204880;
+  --esp-blue-bg: #e3eaf4;
+  --esp-blue-dark: #9cc0f6;
+  --esp-blue-bg-dark: #1e2a3c;
+  --esp-amber: #8a6400;
+  --esp-amber-bg: #fbf1d9;
+  --esp-amber-border: #f6df9e;
+  --esp-amber-point: #ad7e00;
+  --esp-amber-dark: #f4bb44;
+  --esp-amber-bg-dark: #33280f;
+  --esp-rose: #c8102e;
+  --esp-rose-bg: #fbe5e8;
+  --esp-rose-dark: #ff6b7a;
+  --esp-rose-bg-dark: #3d2226;
+  --esp-green: #006b42;
+  --esp-green-bg: #e1f0e8;
+  --esp-green-dark: #2fcb86;
+  --esp-green-bg-dark: #16352a;
   --esp-on-avatar: #ffffff;
   --esp-ava-1: #2971d5;
   --esp-ava-2: #01793d;
@@ -184,11 +179,11 @@
   --esp-ava-4: #804dae;
   --esp-ava-5: #c94050;
   --esp-ava-6: #238090;
-  --esp-seg-on: #25211e;
-  --esp-seg-on-fg: #f9f8f5;
-  --esp-night-seg-on: #e9e7e1;
-  --esp-night-seg-on-fg: #151311;
-  --esp-shadow: 0 1px 2px rgb(20 19 15 / 0.05);
+  --esp-seg-on: #0a0a0a;
+  --esp-seg-on-fg: #fafafa;
+  --esp-night-seg-on: #f5f5f5;
+  --esp-night-seg-on-fg: #000000;
+  --esp-shadow: 0 1px 2px rgb(10 10 10 / 0.05);
   --esp-night-shadow: 0 1px 1px rgb(0 0 0 / 0.25);
   --accent-orange: var(--esp-amber);
   --accent-blue: var(--esp-blue-500);
@@ -221,77 +216,77 @@
   --esp-on-banner-muted: var(--esp-blue-100);
 }
 
-.dark[data-charte="diasporale"],
-.dark [data-charte="diasporale"] {
+.dark[data-charte="diaspora-ga-gaboma"],
+.dark [data-charte="diaspora-ga-gaboma"] {
   color-scheme: dark;
 
   /* ── Identité (encre), succès, danger — thème sombre ── */
-  --primary-50: #384550;
-  --primary-100: #3f5262;
-  --primary-200: #486279;
-  --primary-300: #6a9fce;
-  --primary-400: #75b2e9;
-  --primary-500: #7ec2ff;
-  --primary-600: #95cdff;
-  --primary-700: #aad7ff;
-  --primary-800: #bfe1ff;
-  --success-50: #334133;
-  --success-100: #394e3c;
-  --success-500: #6ebe85;
-  --success-600: #6ebe85;
-  --danger-50: #4a3733;
-  --danger-100: #59403c;
-  --danger-500: #e18c85;
-  --danger-600: #f39d95; /* badge de danger : l'encre des chartes (#e18c85) n'y tient que 4,4:1 sur --danger-50 */
-  --danger-700: #f7bab5;
+  --primary-50: #2d3745;
+  --primary-100: #364357;
+  --primary-200: #42536e;
+  --primary-300: #6d8fc3;
+  --primary-400: #7ba2de;
+  --primary-500: #86b2f4;
+  --primary-600: #9cc0f6;
+  --primary-700: #afccf8;
+  --primary-800: #c3d9fa;
+  --success-50: #19392b;
+  --success-100: #1c4734;
+  --success-500: #2fcb86;
+  --success-600: #4ad898;
+  --danger-50: #432528;
+  --danger-100: #562c31;
+  --danger-500: #ff6b7a;
+  --danger-600: #ff8592;
+  --danger-700: #ffaab3;
 
   /* ── Rôles du thème sombre ── */
   --background: var(--esp-night-bg);
-  --foreground: #e7e4de;
+  --foreground: #f5f5f5;
   --card: var(--esp-night-card);
   --popover: var(--esp-night-chip);
   --muted: var(--esp-night-chip); /* se lève au-dessus de la carte */
   --muted-foreground: var(--esp-night-soft);
   --border: var(--esp-night-border);
   --input: var(--esp-night-input);
-  --on-fill: #151311; /* encre sombre sur les aplats éclaircis */
-  --role-social-fill: #4fb3c2;
-  --role-social-on: #151311;
-  --role-social-ink: #6cc6d3;
-  --role-message-fill: #5ba5e5;
-  --role-message-on: #151311;
-  --role-message-ink: #7ec2ff;
-  --role-react-fill: #d7ad63;
-  --role-react-on: #151311;
-  --role-react-ink: #d7ad63;
-  --role-commerce-fill: #d7ad63;
-  --role-commerce-on: #151311;
-  --role-commerce-ink: #d7ad63;
+  --on-fill: #03210f; /* encre sombre sur les aplats éclaircis */
+  --role-social-fill: #2fcb86;
+  --role-social-on: #03210f;
+  --role-social-ink: #4ad898;
+  --role-message-fill: #6fa2f0;
+  --role-message-on: #06142e;
+  --role-message-ink: #9dc0f6;
+  --role-react-fill: #f4bb44;
+  --role-react-on: #1f1400;
+  --role-react-ink: #f4bb44;
+  --role-commerce-fill: #f4bb44;
+  --role-commerce-on: #1f1400;
+  --role-commerce-ink: #f4bb44;
   /* Valider et Supprimer, chacun ses trois couleurs comme dans les chartes : aplat, texte sur l'aplat, encre en texte. */
-  --role-success-fill: #6ebe85;
-  --role-success-on: #151311;
-  --role-success-ink: #6ebe85;
-  --role-danger-fill: #e18c85;
-  --role-danger-on: #151311;
-  --role-danger-ink: #e18c85;
-  --role-message-soft: #2c363d; /* fond tonal du bouton Écrire */
+  --role-success-fill: #2fcb86;
+  --role-success-on: #03210f;
+  --role-success-ink: #4ad898;
+  --role-danger-fill: #ff6b7a;
+  --role-danger-on: #2a0509;
+  --role-danger-ink: #ff8592;
+  --role-message-soft: #222935; /* fond tonal du bouton Écrire */
   --role-react-soft: color-mix(in srgb, var(--role-react-fill) 18%, var(--card)); /* fond de l'action réagie */
-  --primary-fill: #5ba5e5; /* aplat d'identité : bouton Publier, Créer, interrupteur */
-  --primary-fill-hover: #6fb0e8;
-  --primary-fill-on: #151311; /* texte posé sur l'aplat d'identité */
-  --ui2-button-secondary-bg: #2c363d; /* bouton secondaire tonal, sans filet */
-  --ui2-button-secondary-fg: #7ec2ff;
-  --esp-mobilebar-bg: rgb(36 34 31 / 0.88); /* barre flottante, translucide au-dessus du fil */
+  --primary-fill: #6fa2f0; /* aplat d'identité : bouton Publier, Créer, interrupteur */
+  --primary-fill-hover: #80adf2;
+  --primary-fill-on: #06142e; /* texte posé sur l'aplat d'identité */
+  --ui2-button-secondary-bg: #222935; /* bouton secondaire tonal, sans filet */
+  --ui2-button-secondary-fg: #86b2f4;
+  --esp-mobilebar-bg: rgb(20 20 20 / 0.88); /* barre flottante, translucide au-dessus du fil */
   --esp-fab-shadow: 0 10px 20px -8px color-mix(in srgb, var(--primary-fill) 75%, transparent);
-  --esp-tab-active-bg: #2d373f; /* onglet actif : pastille tonale */
-  --esp-tab-active-fg: #7ec2ff;
+  --esp-tab-active-bg: #232b37; /* onglet actif : pastille tonale */
+  --esp-tab-active-fg: #86b2f4;
 
   --esp-shadow-card: 0 0 0 0 transparent;
   --esp-shadow-card-hover: 0 0 0 0 transparent;
   --esp-shadow-float: 0 14px 30px -10px rgb(0 0 0 / 0.8), 0 2px 6px rgb(0 0 0 / 0.45);
   --esp-mobilebar-shadow: 0 14px 30px -10px rgb(0 0 0 / 0.8), 0 2px 6px rgb(0 0 0 / 0.45);
 
-  /* ── Jetons propres à DIASPORALE — thème sombre ── */
+  /* ── Jetons propres à DIASPORA.GA — thème sombre ── */
   --accent-orange: var(--esp-amber-dark);
   --accent-blue: var(--esp-blue-400);
   --accent-yellow: var(--esp-amber-dark);
@@ -303,7 +298,7 @@
   --chart-4: var(--esp-rose-dark);
   --chart-5: var(--esp-night-faint);
   --warning-50: var(--esp-amber-bg-dark);
-  --warning-100: #4a3b21;
+  --warning-100: #4a3b1c;
   --warning-500: var(--esp-amber-dark);
   --warning-600: var(--esp-amber-dark);
   --status-destruct: var(--esp-amber-dark);
@@ -323,9 +318,9 @@
   --esp-on-banner-muted: var(--esp-blue-200);
 }
 
-[data-charte="diasporale"],
-.dark[data-charte="diasporale"],
-.dark [data-charte="diasporale"] {
+[data-charte="diaspora-ga-gaboma"],
+.dark[data-charte="diaspora-ga-gaboma"],
+.dark [data-charte="diaspora-ga-gaboma"] {
   /* ── Surfaces : la même paire fond/carte partout ── */
   --background-dashboard: var(--background);
   --card-foreground: var(--foreground);
@@ -343,7 +338,7 @@
   --sidebar-foreground: var(--foreground);
   --sidebar-border: var(--border);
   --sidebar-muted: var(--muted-foreground);
-  --ui2-scrim: rgb(37 33 30 / 0.55);
+  --ui2-scrim: rgb(10 10 10 / 0.55);
 
   /* ── Identité : encre en texte, aplat dans les blocs clair et sombre ── */
   --primary: var(--primary-500);
@@ -423,7 +418,7 @@
   --esp-header-icon-bg: var(--muted); /* icônes de l'en-tête dans des ronds gris */
   --esp-header-icon-radius: 999px;
   --role-react-label: var(--foreground); /* libellé de l'action réagie : encre de texte */
-  --esp-theme-swatch-1: #238090; /* Sarcelle */
-  --esp-theme-swatch-2: #d7ad63; /* Sable */
-  --esp-theme-swatch-3: #0167a8; /* Bleu Gabon */
+  --esp-theme-swatch-1: #007e4d; /* Vert */
+  --esp-theme-swatch-2: #f4bb44; /* Safran */
+  --esp-theme-swatch-3: #2f67b5; /* Bleu */
 }

@@ -1,6 +1,6 @@
 /**
- * Tables de la tranche `diaspora` — ce que DIASPORALE ajoute au moteur, et que
- * le moteur générique ne porte pas (DIASPORALE PD1, cahier DIASPORALE §7, §11) :
+ * Tables de la tranche `diaspora` — ce que DIASPORA.GA ajoute au moteur, et que
+ * le moteur générique ne porte pas (DIASPORA.GA PD1, cahier DIASPORA.GA §7, §11) :
  *
  * - `countryHubs` : un hub par pays et ses compteurs MATÉRIALISÉS par le passage
  *   nocturne (jamais calculés à la lecture). L'ouverture d'un pays ne se recopie
@@ -18,9 +18,9 @@
  *
  * Toutes portent `networkId` : la tranche ne sert que le réseau qu'elle
  * gouverne (`networks.managedBy = "diaspora"`), dans un moteur multi-réseaux.
- * Fichier écrit par la session DIASPORALE ; agrégé par `convex/schema.ts`.
+ * Fichier écrit par la session DIASPORA.GA ; agrégé par `convex/schema.ts`.
  */
-import { ATTESTATION_SUBJECT_KINDS, DIRECTORY_VISIBILITY_LEVELS, FIELD_VISIBILITY_LEVELS, FOUNDING_WITHDRAWAL_CAUSES } from "@diasporale/domain"
+import { ATTESTATION_SUBJECT_KINDS, DIRECTORY_VISIBILITY_LEVELS, FIELD_VISIBILITY_LEVELS, FOUNDING_WITHDRAWAL_CAUSES } from "@diaspora-ga/domain"
 import { defineTable } from "convex/server"
 import { v } from "convex/values"
 
@@ -163,7 +163,7 @@ export const diasporaTables = {
     .index("by_admittedByPersonId", ["admittedByPersonId"])
     .index("by_withdrawnByPersonId", ["withdrawnByPersonId"]),
 
-  // Plan global (docs/14 de DIASPORALE) : chaque chantier tient ses tables dans son fichier.
+  // Plan global (docs/14 de DIASPORA.GA) : chaque chantier tient ses tables dans son fichier.
   ...servicesTables,
   ...serviceRequestsTables,
   ...associationsTables,

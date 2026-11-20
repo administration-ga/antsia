@@ -2,12 +2,12 @@
 title: "ANTSIA — Plan d'implémentation en prompts : le moteur social national, puis le réseau public"
 version: "1.0"
 date: "2026-10-14"
-statut: "Plan d'exécution — prompts Claude Code (Opus) ; PA0 → PA7 sont le préalable de DIASPORALE"
+statut: "Plan d'exécution — prompts Claude Code (Opus) ; PA0 → PA7 sont le préalable de DIASPORA.GA"
 projet: "ANTSIA"
 reference: "NTSAGUI/ANTSIA/PI/2026/001"
 dependances:
   - "ECOSYSTEMES/ANTSIA/docs/00_CAHIER_DES_CHARGES_ANTSIA.md (exigences EXF-AN / EXT-AN)"
-  - "ECOSYSTEMES/DIASPORALE/docs/01_PLAN_IMPLEMENTATION_PROMPTS_DIASPORALE.md (s'exécute entre PA7 et PA8)"
+  - "ECOSYSTEMES/DIASPORA_GA/docs/01_PLAN_IMPLEMENTATION_PROMPTS_DIASPORA_GA.md (s'exécute entre PA7 et PA8)"
   - "Documentation/RESEAUX_SOCIAUX/00_PLAN_RESEAUX_DANS_LE_RESEAU_DIASPORALE_ANTSIA_2026-10-14.md"
   - "PRO_GA/docs/11_PLAN_IMPLEMENTATION_PROMPTS_PRO_GA.md (le protocole de duplication, éprouvé)"
 ---
@@ -27,31 +27,31 @@ dependances:
 > | PA1 — owner map | 2026-10-14 | `9a8fbb3` |
 > | PA2 — fondations multi-réseaux | 2026-10-14 | `f1851fd` |
 > | ↳ tranche verticale testable (priorité du propriétaire : entrer, identifiant, publier, fil, réagir) | 2026-10-15 | `5021401` |
-> | ↳ câblage de DIASPORALE (sa demande PD0 : espaces de travail, catalogue, port 3031) | 2026-10-15 | `5535a63` |
+> | ↳ câblage de DIASPORA.GA (sa demande PD0 : espaces de travail, catalogue, port 3031) | 2026-10-15 | `5535a63` |
 > | PA3 — duplication du backend | 2026-10-16 : lots 2 → 17 achevés ; noyau social, appels et direct, crons bornés et chaînés, cliquets du §8 renforcés ; parité et preuves dans `docs/03` ; `verify` complet vert (1 124 backend, 102 cliquets) | commits des lots dans `docs/03` ; lot 17 `feat(maintenance)` |
-> | PA4 — identité | 2026-10-16 : portes IDN/e-mail/SMS, preuves serveur, liens, préférences, passage et déconnexion partout implémentés ; recette et vérification dans `docs/05`. Critère IDN sandbox **ouvert** : clients non créés/configurés (confirmation du propriétaire). | noyau `8589702`, raccord DIASPORALE `91029ac`, surfaces `feat(identity)` sur `codex/pa4-identite-session` |
+> | PA4 — identité | 2026-10-16 : portes IDN/e-mail/SMS, preuves serveur, liens, préférences, passage et déconnexion partout implémentés ; recette et vérification dans `docs/05`. Critère IDN sandbox **ouvert** : clients non créés/configurés (confirmation du propriétaire). | noyau `8589702`, raccord DIASPORA.GA `91029ac`, surfaces `feat(identity)` sur `codex/pa4-identite-session` |
 > | PA5 — modération, débit, données, notifications, fédération | 2026-10-16 : implémentation locale achevée ; R7/R9/R10 et verify code 0 (6 223 tests), droits/recours hors coque membre, transports et inbox fermés sans configuration ; preuves et limites dans `docs/07`, ADR-0009. Recettes fournisseurs/appareils et navigateur restent ouvertes. | `639d987` sur `codex/pa4-identite-session` (commit local) |
 > | PA6 — frontend `social-features` | sept tranches montées et consolidation locale vérifiée : préférences langue/fuseau/apparence, cache Convex/TanStack cohérent, écritures de messagerie par source, états honnêtes du fil et mesure facultative consentie ; verify code0,6 506 tests ; entrée/réglages/fil HEAD200 après nettoyage Bun autorisé et reprise3030/3210 sous Node22, puis nouvel ENOSPC et services de cette session suspendus ; disponibilité durable bloquée par le disque ; recette Chrome320/375/1280, sombre/AA et médias LiveKit/Egress réels restent ouverts ; preuves dans `docs/04` | F1/F2/F3a/F3b/F3c, `263d7df`, `aebd48b` |
-> | PA7 — console | neuf surfaces raccordées ; IDN forte et rôle vivant, journal préalable, archivage à deux personnes, équipes/recours/fédération/Officiel/incidents/santé/export ; verify code0,6 786 tests,10 espaces typés/9 lint0erreur ; console78tests/lint0warning ; trois routes3032 HEAD200, backend3210 prêt ; recette IDN réelle et Chrome/AA ouvertes, clients sandbox non configurés ; rapport `docs/11`, ADR-0011 ; correctif civil DIASPORALE coordonné inclus dans la preuve de l’arbre partagé | `e47df16` |
+> | PA7 — console | neuf surfaces raccordées ; IDN forte et rôle vivant, journal préalable, archivage à deux personnes, équipes/recours/fédération/Officiel/incidents/santé/export ; verify code0,6 786 tests,10 espaces typés/9 lint0erreur ; console78tests/lint0warning ; trois routes3032 HEAD200, backend3210 prêt ; recette IDN réelle et Chrome/AA ouvertes, clients sandbox non configurés ; rapport `docs/11`, ADR-0011 ; correctif civil DIASPORA.GA coordonné inclus dans la preuve de l’arbre partagé | `e47df16` |
 > | PA8 — antsia.ga public | 2026-10-17 : réseau public SSR, projections fermées, geste/retrait publics volontaires, National/province/tag, modération/recours réseau et transparence ; verify code0,7018tests,10typages/9lints0erreur ; recette API/HTML3030 confirme natif/DIASnetwork fermés, rootavecorigine et retrait404/noindex, session/OTT failclosed ; reprise après ENOSPC avec seuls caches déjà autorisés ; IDN réel/Chrome/AA/juriste/A5 ouverts ; rapport docs/13, ADR-0012, aucun push ni publication | commit local PA8 sur codex/pa4-identite-session |
 > | PA9 — fédération de l'administration | 2026-10-18 : PA9A/PA9B/PA9C/PA9D implémentés dans les sources — pages et publications sans personne technique, révisions/retraits, médias sous garde, agents sous accord local versionné et nonce renouvelable, rattachement IDN existant, retrait, export/effacement et carte Mes données. Scénarios écrits sans exécution à la demande du propriétaire. PA9D ajoute le producteur/outbox du socle, les gestes publics, le transfert privé de consentement et les retraits. PA9 reste ouvert : configuration, PR du socle et recette croisée ; rapports `docs/15` à `docs/18`, contrat `RESEAU-PUBLIC-V1`. | non commis ; vérifications différées |
 > | PA10 — échelle et lancement | 2026-10-18 : sources du fil matérialisé, distribution/rattrapage/retraits, seuil et fenêtre30j, purge orphelins24h, droits de données indexés, santé technique et mesure consentie UE complétées. Outils inertes d'exploitation des preuves et assertion de restauration locale ; rapport `docs/06`, procédures `docs/20`, ADR-0020 proposé. Charge R8, restauration, audits, codegen/tests/typages/lint/build et recettes **non exécutés** à la demande du propriétaire ; critères de lancement ouverts. | non commis ; aucune publication |
 >
-> **Demandes de DIASPORALE reçues pour PA4** (15/10) : remonter une vérification arrivée APRÈS l'entrée
+> **Demandes de DIASPORA.GA reçues pour PA4** (15/10) : remonter une vérification arrivée APRÈS l'entrée
 > (attestation) jusqu'à l'adhésion racine dérivée, qui reste « déclarée » ; une aide serveur qui rende
 > l'empreinte SHA-256 de l'adresse VÉRIFIÉE d'une personne (normalisée : espaces retirés, minuscules), jamais
 > l'adresse elle-même (attestation d'un compte léger, sujet `emailHash`).
 >
 > **Préalables externes manquants au 14/10/2026** (aucun ne bloque le code, tous bloquent une
 > mise en ligne) : projet Convex `antsia` (le développement tourne sur un déploiement Convex
-> **local anonyme**, sans compte ni nuage) ; clients OIDC IDN `antsia` et `diasporale` en sandbox ;
+> **local anonyme**, sans compte ni nuage) ; clients OIDC IDN `antsia` et `diaspora-ga` en sandbox ;
 > hébergement (A5) ; clés Resend, SMS, LiveKit, VAPID ; dossier APDPVP et analyse d'impact ;
 > décisions A1–A10 (les recommandations du cahier sont appliquées **par défaut**, cahier §20).
 >
 > **Écarts au plan assumés à l'exécution de PA0** :
 > - turbo est remplacé par le lanceur `scripts/workspace-run.mjs` dupliqué du socle (ADR-0165 du
 >   socle) : turbo refuse tout le graphe dès qu'un espace de travail sort de la racine, ce que
->   seront les applications de DIASPORALE ; `turbo.json` n'est donc pas posé ;
+>   seront les applications de DIASPORA.GA ; `turbo.json` n'est donc pas posé ;
 > - `convex/auth.config.ts` déclare Better Auth comme émetteur UNIQUE ; IDN y entre par Better
 >   Auth (PA4), configuré par variables — un second émetteur donnerait deux identités pour une
 >   même personne (ADR-0002) ;
@@ -92,7 +92,7 @@ Ce plan construit **le moteur social national** (PA0 → PA7), puis **le réseau
 colle **tel quel, un à la fois**, dans Claude Code ouvert à la racine
 `Digital GABON/DIGITAL_GOUV/`, précédé du **préambule commun** (§2). Chaque prompt se termine
 par un état **vert** (typecheck, tests, lint du périmètre), un commit et un rapport de fin.
-L'ordre est obligatoire ; **DIASPORALE PD0 → PD6 s'exécute après PA7 et avant PA8** (le
+L'ordre est obligatoire ; **DIASPORA.GA PD0 → PD6 s'exécute après PA7 et avant PA8** (le
 premier réseau réel du moteur est la diaspora).
 
 Règles d'exécution héritées du programme :
@@ -119,7 +119,7 @@ Règles d'exécution héritées du programme :
       initialisé dessus.
 - [ ] Projet Convex `antsia` créé par le propriétaire (déploiement dev ; prod plus tard) ;
       équipe et budget décidés ; variables d'environnement posées par lui.
-- [ ] Clients OIDC `antsia` (et `diasporale`) créés au portail développeur d'identite.ga en
+- [ ] Clients OIDC `antsia` (et `diaspora-ga`) créés au portail développeur d'identite.ga en
       sandbox.
 - [ ] Dossier APDPVP et analyse d'impact lancés.
 - [ ] LiveKit du programme accessible en dev (clés posées par le propriétaire) ; Resend et
@@ -132,7 +132,7 @@ Règles d'exécution héritées du programme :
 Tu travailles dans « Digital GABON/DIGITAL_GOUV/ ». Lis d'abord ECOSYSTEMES/ANTSIA/docs/00_CAHIER_DES_CHARGES_ANTSIA.md,
 ECOSYSTEMES/ANTSIA/CLAUDE.md et, pour la duplication, Documentation/RESEAUX_SOCIAUX/annexes/A_*.md et B_*.md.
 Le moteur social national vit dans ECOSYSTEMES/ANTSIA : backend Convex `antsia`, paquets social-domain,
-social-contracts, social-features, ui, api ; applications antsia_ga et admin_antsia_ga ; DIASPORALE en est
+social-contracts, social-features, ui, api ; applications antsia_ga et admin_antsia_ga ; DIASPORA.GA en est
 une application (espace de travail externe). Règles non négociables :
 - dix règles de duplication (copier d'abord depuis le socle sur origin/main, en-tête de provenance
   « // Dupliqué de <chemin> @ <commit> — adaptations : … », périmètre d'adaptation fermé, aucun import
@@ -172,7 +172,7 @@ une application (espace de travail externe). Règles non négociables :
 | `socle/packages/agent-features/src/features/{reseau-personnel,reseau-albums,stories,notifications,messagerie,iappel,direct}` | `packages/social-features/src/features/*` | 49 % tel quel, 42 % à adapter, 9 % retiré | PA6 |
 | `socle/packages/{ui-v2 (tokens, fonts, charpente élagués), ui (bloc espace-personnel, mobile.css), api (hooks), routing, livekit, chat}` | `packages/{ui,api}` | à élaguer, consommés par copie versionnée | PA6 |
 | `AF/components/{espace-kit,floating-surface,EspaceFloatingCard,ImmersiveOverlay}`, `shell/global-call-surface-host`, `direct-session-host`, providers de l'app espace | coque légère `packages/social-features/src/shell` | reprenables ; AppShell réécrit | PA6 |
-| Spécifications : annexes A et B, cahier ANTSIA, cahier DIASPORALE | — | — | tous |
+| Spécifications : annexes A et B, cahier ANTSIA, cahier DIASPORA.GA | — | — | tous |
 
 ## 4. Les prompts
 
@@ -192,8 +192,8 @@ mapping).
 > Vérifie les préalables du §1 ; si l'un manque, arrête-toi et liste.
 > 1. Dans `ECOSYSTEMES/ANTSIA/` (déjà ouvert : README, CLAUDE.md, docs/) : `package.json`
 >    racine `antsia-platform` (bun, workspaces `apps/*`, `packages/*`, et déjà
->    `../DIASPORALE/apps/*`, `../DIASPORALE/packages/*` en commentaire documenté, activés par
->    DIASPORALE PD0), `turbo.json`, `convex/` (`schema.ts` vide avec `schemaValidation: true`,
+>    `../DIASPORA_GA/apps/*`, `../DIASPORA_GA/packages/*` en commentaire documenté, activés par
+>    DIASPORA.GA PD0), `turbo.json`, `convex/` (`schema.ts` vide avec `schemaValidation: true`,
 >    `convex.config.ts` avec better-auth, rate-limiter, migrations, aggregate, resend ;
 >    `auth.config.ts` IDN par variables), `apps/antsia_ga` (Next 16, port 3030, `/` et
 >    `/sante-fonctionnelle`), `apps/admin_antsia_ga` (port 3032), `packages/{social-domain,
@@ -366,7 +366,7 @@ l'identité IDN prime sur l'e-mail ; ne jamais créer de profil d'office.
 >    (révocation serveur puis purge locale) ; cliquet « aucune déconnexion partielle ».
 > 3. `packages/api` : client Convex + TanStack, `useAuthenticatedQuery`, `usePaginated`,
 >    `NetworkProvider` / `useNetwork`, `useSsoNavigate` (jeton à usage unique entre
->    `antsia.ga`, `diasporale.com`, console), `signOutEverywhere`.
+>    `antsia.ga`, `diaspora.ga`, console), `signOutEverywhere`.
 > 4. Onboarding dans `social-features` : portes (IDN en premier), handle (suggestions,
 >    aucun présélectionné), nom affiché, consentements non précochés, préférences ; bannière
 >    d'élévation IDN.
@@ -411,7 +411,7 @@ rejeu, `crons/notificationsRetention.ts`, `dataSubjectErasure.ts`.
 >    réseau (cron), aucun contenu dans la notification (cliquet).
 > 5. `convex/modules/federation` : `federationEmitters` (clé par émetteur et environnement),
 >    inbox HTTP signée (`httpAction`), reçus idempotents, lettres mortes, rejeu audité,
->    `mirrors` (objet distant → objet local) ; aucun contrat branché encore (PA9, DIASPORALE
+>    `mirrors` (objet distant → objet local) ; aucun contrat branché encore (PA9, DIASPORA.GA
 >    PD3/PD5).
 > 6. Tests : chaque sanction ; recours ; relecture ; limitation (refus au-delà du seuil) ;
 >    effacement complet ; rétention ; signature invalide refusée ; idempotence de l'inbox.
@@ -456,7 +456,7 @@ provisoires ; deux formats téléphone ; cycle `espace-personnel ↔ reseau-pers
 >    des pièces de marque ; bloc `[data-charte]` générique dérivé de la charte Personnel
 >    (surfaces, rayons, états, sombre) ; `mobile.css` ; espace-kit ; `EspaceFloatingCard`,
 >    `ImmersiveOverlay`, `floating-surface` ; aucune couleur littérale hors des fichiers de
->    jetons (cliquet) ; thèmes `antsia`, `diasporale`, `admin` comme fichiers de jetons vides à
+>    jetons (cliquet) ; thèmes `antsia`, `diaspora-ga`, `admin` comme fichiers de jetons vides à
 >    remplir par les passes `frontend-design`.
 > 5. Une application de démonstration interne (`apps/antsia_ga` en mode `test-closed`) monte
 >    le fil, un profil, les relations, un groupe, la messagerie et un appel, pour la recette.
@@ -492,14 +492,14 @@ IDN `loa ≥ 2` ; double validation des actes irréversibles ; patrons de la con
 > 3. Tests : un opérateur sans `loa 2` est refusé ; archiver un réseau exige une double
 >    validation ; créer un réseau le rend joignable par une application sans déploiement
 >    (test d'intégration avec `antsia_ga` en mode test).
-> Critère de sortie : la console crée `diasporale` en recette sans aucune ligne de code ;
+> Critère de sortie : la console crée `diaspora-ga` en recette sans aucune ligne de code ;
 > `verify` vert.
 
 **Critères de done.** Console opérationnelle.
 **Vérification.** Création d'un réseau de bout en bout ; tests.
 **Couvre.** EXF-AN-39, 40 ; EXT-AN-10.
 
-> **Ici s'exécute DIASPORALE PD0 → PD6** (premier réseau réel). PA8 reprend ensuite.
+> **Ici s'exécute DIASPORA.GA PD0 → PD6** (premier réseau réel). PA8 reprend ensuite.
 
 ---
 
@@ -509,7 +509,7 @@ IDN `loa ≥ 2` ; double validation des actes irréversibles ; patrons de la con
 modération nationale, textes légaux ; lecture anonyme des projections décidées.
 
 **Contexte.** Décisions A3 (ouverture), A4 (lecture anonyme), A8 (direction artistique).
-`social-features` et la coque légère (PA6) ; DIASPORALE fournit déjà des membres dérivés et
+`social-features` et la coque légère (PA6) ; DIASPORA.GA fournit déjà des membres dérivés et
 des contenus `root`.
 
 > 0. Passe `frontend-design` : `ANTSIA/docs/05_CHARTE_ANTSIA.md` et `packages/ui/src/themes/antsia.css`
@@ -522,7 +522,7 @@ des contenus `root`.
 >    leurs publications `root`, les profils publics réduits et les contenus `root` publics ;
 >    rendu serveur, métadonnées de partage ; tout le reste exige une adhésion ; test « un
 >    anonyme ne lit jamais un contenu `network` ni un profil privé ».
-> 3. « Publier aussi sur ANTSIA » : lecture des contenus `root` venus de DIASPORALE ; retrait
+> 3. « Publier aussi sur ANTSIA » : lecture des contenus `root` venus de DIASPORA.GA ; retrait
 >    propagé ; l'auteur voit « lu dans ANTSIA » depuis son réseau.
 > 4. Modération nationale : équipe `antsia`, équipes thématiques, `/moderation`, rapport de
 >    transparence agrégé `/transparence`.
@@ -533,7 +533,7 @@ des contenus `root`.
 > 7. Mise en ligne seulement si A5 et les textes légaux sont validés : backend puis front ;
 >    preuve par révision servie et parcours réel ; sinon recette seule, et le dire.
 > Critère de sortie : antsia.ga servi (recette ou production), fil racine qui montre un
-> contenu DIASPORALE marqué `root` et jamais un contenu `network`.
+> contenu DIASPORA.GA marqué `root` et jamais un contenu `network`.
 
 **Critères de done.** Application publique livrée ; lecture anonyme bornée ; modération.
 **Vérification.** Recette ; tests d'anonymat ; révision servie.
@@ -623,7 +623,7 @@ propriétaire (backend avant fronts, copie propre).
 | EXF-AN-10, 11 | PA3 | EXF-AN-32 à 34 | PA5 |
 | EXF-AN-12, 13 | PA3, PA8, PA10 | EXF-AN-35 | PA8 |
 | EXF-AN-14, 15 | PA3 | EXF-AN-36, 37 | PA5, PA9 |
-| EXF-AN-16 à 18 | PA3 | EXF-AN-38 | DIASPORALE PD3, PD5 |
+| EXF-AN-16 à 18 | PA3 | EXF-AN-38 | DIASPORA.GA PD3, PD5 |
 | EXF-AN-19 à 21 | PA3 | EXF-AN-39, 40 | PA7 |
 | EXF-AN-22 à 25 | PA3, PA6 | EXF-AN-41 à 43 | PA0, PA6 |
 | EXF-AN-26, 27 | PA5 | EXF-AN-44 à 51 | PA8 |
@@ -640,8 +640,8 @@ propriétaire (backend avant fronts, copie propre).
       active.
 - [ ] Les verrous « agent » du socle (appels, présence, groupes ad hoc) sont levés et testés
       dans le moteur.
-- [ ] DIASPORALE D1 a tourné sur le moteur avant PA8 ; ANTSIA public lit un contenu `root` de
-      DIASPORALE et jamais un contenu `network`.
+- [ ] DIASPORA.GA D1 a tourné sur le moteur avant PA8 ; ANTSIA public lit un contenu `root` de
+      DIASPORA.GA et jamais un contenu `network`.
 - [ ] La fédération du socle n'a transporté ni note de service, ni e-mail, ni identifiant
       interne ; la publication du socle en production a été décidée par le propriétaire.
 - [ ] Textes légaux validés ; dossier APDPVP déposé ; aucun chiffre public non mesuré.

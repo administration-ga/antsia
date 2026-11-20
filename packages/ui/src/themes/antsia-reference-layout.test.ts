@@ -35,9 +35,9 @@ describe("géométrie du fil sans cadre (ADR-0037), appliquée aux sept thèmes"
     }
   })
 
-  it("ces nouvelles mesures restent opt-in pour la console et DIASPORALE", () => {
+  it("ces nouvelles mesures restent opt-in pour la console et DIASPORA.GA", () => {
     const cascade = new TokenCascade(base)
-    for (const charte of ["admin-antsia", "diasporale"]) for (const dark of [false, true]) {
+    for (const charte of ["admin-antsia", "diaspora-ga"]) for (const dark of [false, true]) {
       const node: ChartedNode = { charte, dark, nested: false }
       for (const token of ["--esp-social-action-radius", "--esp-content-font-size", "--esp-field-radius"]) expect(cascade.resolve(node, token), token).toBeUndefined()
       for (const token of unconfigured) expect(cascade.resolve(node, token), token).toBeUndefined()

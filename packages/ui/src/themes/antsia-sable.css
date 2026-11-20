@@ -1,8 +1,8 @@
 /*
- * Thème « Sable » du réseau ANTSIA (`data-charte="antsia-sable"`) : bleu Gabon, sarcelle et sable doré, fond papier et sable, encre brune ; la charte de DIASPORALE.
+ * Thème « Sable » du réseau ANTSIA (`data-charte="antsia-sable"`) : bleu Gabon, sarcelle et sable doré, fond papier et sable, encre brune ; la charte de DIASPORA.GA.
  * Un des sept thèmes que le membre choisit dans Préférences > Thème (ADR-0027, 19/10/2026).
  *
- * Le bleu Gabon publie et écrit, la sarcelle suit et valide, le sable doré réagit et fait participer. Mêmes couleurs que le thème Sable de diasporale.com ; géométrie et polices du réseau, comme les six autres.
+ * Le bleu Gabon publie et écrit, la sarcelle suit et valide, le sable doré réagit et fait participer. Mêmes couleurs que le thème Sable de diaspora.ga ; géométrie et polices du réseau, comme les six autres.
  *
  * Trois couleurs par thème, chacune avec ses fonctions (jetons `--role-*`), plus le succès et le
  * danger, retours visuels communs. `--primary` reste une ENCRE lisible en texte ; l'aplat du bouton

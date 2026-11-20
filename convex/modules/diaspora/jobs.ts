@@ -1,6 +1,6 @@
 /**
- * Talents et emploi DIASPORALE (DG-025, plan global §G8 point 4) — tranche
- * `diaspora`, écrite par la session DIASPORALE (chantier « talents et emploi »).
+ * Talents et emploi DIASPORA.GA (DG-025, plan global §G8 point 4) — tranche
+ * `diaspora`, écrite par la session DIASPORA.GA (chantier « talents et emploi »).
  *
  * Trois objets, trois frontières :
  *   · l'OFFRE appartient à une PAGE (entreprise ou association) ; ses
@@ -15,11 +15,11 @@
  *     sous un plafond strict — aucune liste exportable, aucun tri par donnée
  *     sensible, aucune coordonnée : le contact passera par la messagerie.
  *
- * Gardes, dans cet ordre, pour chaque écriture : adhésion au réseau DIASPORALE
+ * Gardes, dans cet ordre, pour chaque écriture : adhésion au réseau DIASPORA.GA
  * (constructeur) → éligibilité (capacité du domaine) → débit (seaux
  * `diaspora.job.*`, `diaspora.talent.profile`) → droit (page active du réseau,
  * signataire vivant, nature admise ; ou personne qui candidate) → règles du
- * domaine (`@diasporale/domain`, codes fermés). Un objet d'autrui, d'un autre
+ * domaine (`@diaspora-ga/domain`, codes fermés). Un objet d'autrui, d'un autre
  * réseau ou illisible rend le refus indistinct (`notFound`).
  *
  * Aucune écriture dans `notifications` (rédacteur unique du moteur) ; aucune
@@ -81,7 +81,7 @@ import {
   type MemberCapability,
   type MoneyRefusal,
   type Result,
-} from "@diasporale/domain"
+} from "@diaspora-ga/domain"
 import { type PaginationOptions, paginationOptsValidator, paginationResultValidator, type PaginationResult } from "convex/server"
 import { type Infer, v } from "convex/values"
 
@@ -305,7 +305,7 @@ const POLICY_REFUSALS: ReadonlySet<string> = new Set<JobRefusal>([
   "job_talent_profile_unavailable",
 ])
 
-/** Un refus de la tranche, traduit par DIASPORALE (`errors.<code>`) ; une saisie invalide est `invalidArgument`. */
+/** Un refus de la tranche, traduit par DIASPORA.GA (`errors.<code>`) ; une saisie invalide est `invalidArgument`. */
 function refuseRule(code: JobRefusal | MoneyRefusal): never {
   return failAppRule(code, {}, CONFLICT_REFUSALS.has(code) ? "conflict" : POLICY_REFUSALS.has(code) ? "policyRefused" : "invalidArgument")
 }

@@ -9,7 +9,7 @@ export type UsageFunnelStep = (typeof USAGE_FUNNEL_STEPS)[number]
 
 // Une forme de slug seule accepterait aussi certains identifiants internes.
 // Chaque nouveau réseau mesurable nécessite une admission explicite ici.
-export const PUBLIC_USAGE_NETWORKS = ["antsia", "diasporale", "administration"] as const
+export const PUBLIC_USAGE_NETWORKS = ["antsia", "diaspora-ga", "administration"] as const
 
 export interface PostHogConfiguration {
   /** Adresse complète de capture, injectée par l'application. */

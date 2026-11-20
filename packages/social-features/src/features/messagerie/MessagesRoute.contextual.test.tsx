@@ -10,7 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 const state = vi.hoisted(() => ({
   mobile: false as boolean | null,
   navigation: "destinations",
-  networkId: "diasporale",
+  networkId: "diaspora-ga",
   personId: "person-a",
   pageProps: null as { conversationKey: string | null; contextual?: unknown } | null,
   listProps: null as { contextual?: unknown } | null,

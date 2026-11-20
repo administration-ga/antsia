@@ -299,10 +299,10 @@ describe("déploiement de démonstration déclaré : les comptes réservés seul
     expect(record(record(result.data).user).email).toBe(DEMO_EMAIL)
   })
 
-  it("le code d'un compte de démonstration DIASPORALE se relit de même (ADR-0038)", async () => {
+  it("le code d'un compte de démonstration DIASPORA.GA se relit de même (ADR-0038)", async () => {
     declareDemo()
     const t = testConvex({ automaticSessions: false })
-    const email = "moderateur@demo.diasporale.test"
+    const email = "moderateur@demo.diaspora-ga.test"
     const code = await issueCode(t, "email", email)
     const result = await signIn(t, "email", code.code, email)
     expect(result.status).toBe(200)
@@ -350,10 +350,10 @@ describe("déploiement de démonstration déclaré : les comptes réservés seul
 })
 
 describe("langue de la personne et marque du réseau dans le code de connexion", () => {
-  const DIASPORALE_ORIGIN = new URL(catalog.applications.diasporale_com.site_url).origin
+  const DIASPORA_GA_ORIGIN = new URL(catalog.applications.diaspora_ga.site_url).origin
   const ANTSIA_ORIGIN = new URL(catalog.applications.antsia_ga.site_url).origin
-  const LOCAL_DIASPORALE_ORIGIN = `http://localhost:${catalog.applications.diasporale_com.dev_port}`
-  const ENGLISH_DIASPORALE = /^Your DIASPORALE code: \d{6}\. It expires in five minutes\.$/
+  const LOCAL_DIASPORA_GA_ORIGIN = `http://localhost:${catalog.applications.diaspora_ga.dev_port}`
+  const ENGLISH_DIASPORA_GA = /^Your DIASPORA.GA code: \d{6}\. It expires in five minutes\.$/
 
   /** Un backend en nuage avec un transport configuré : le message est réellement composé, son envoi est simulé. */
   function emailTransport() {
@@ -373,23 +373,23 @@ describe("langue de la personne et marque du réseau dans le code de connexion",
     return { from: email.from, to: email.to, subject: email.subject, text: textField(email, "text") }
   }
 
-  it("un code demandé en anglais sur diasporale.com part en anglais, à la marque DIASPORALE", async () => {
+  it("un code demandé en anglais sur diaspora.ga part en anglais, à la marque DIASPORA.GA", async () => {
     const send = emailTransport()
     const t = testConvex({ automaticSessions: false })
-    await sendEmailCode(t, { origin: DIASPORALE_ORIGIN, acceptLanguage: "en" })
+    await sendEmailCode(t, { origin: DIASPORA_GA_ORIGIN, acceptLanguage: "en" })
     expect(send).toHaveBeenCalledOnce()
     const email = lastEmail(send)
-    expect(email).toMatchObject({ from: "ANTSIA <no-reply@example.test>", to: EMAIL, subject: "Your DIASPORALE sign-in code" })
-    expect(email.text).toMatch(ENGLISH_DIASPORALE)
+    expect(email).toMatchObject({ from: "ANTSIA <no-reply@example.test>", to: EMAIL, subject: "Your DIASPORA.GA sign-in code" })
+    expect(email.text).toMatch(ENGLISH_DIASPORA_GA)
   })
 
-  it("en français sur diasporale.com, préférences régionales comprises", async () => {
+  it("en français sur diaspora.ga, préférences régionales comprises", async () => {
     const send = emailTransport()
     const t = testConvex({ automaticSessions: false })
-    await sendEmailCode(t, { origin: DIASPORALE_ORIGIN, acceptLanguage: "fr-FR,fr;q=0.9,en;q=0.8" })
+    await sendEmailCode(t, { origin: DIASPORA_GA_ORIGIN, acceptLanguage: "fr-FR,fr;q=0.9,en;q=0.8" })
     const email = lastEmail(send)
-    expect(email.subject).toBe("Votre code de connexion DIASPORALE")
-    expect(email.text).toMatch(/^Votre code DIASPORALE : \d{6}\. Il expire dans cinq minutes\.$/)
+    expect(email.subject).toBe("Votre code de connexion DIASPORA.GA")
+    expect(email.text).toMatch(/^Votre code DIASPORA.GA : \d{6}\. Il expire dans cinq minutes\.$/)
   })
 
   it("sans langue donnée : celle du déploiement, sinon le français ; antsia.ga garde la marque ANTSIA", async () => {
@@ -399,8 +399,8 @@ describe("langue de la personne et marque du réseau dans le code de connexion",
     expect(lastEmail(send).subject).toBe("Votre code de connexion ANTSIA")
     expect(lastEmail(send).text).toMatch(/^Votre code ANTSIA : \d{6}\. Il expire dans cinq minutes\.$/)
     vi.stubEnv("AUTH_DEFAULT_LOCALE", "en")
-    await sendEmailCode(t, { origin: DIASPORALE_ORIGIN, email: "bob.auth@example.test" })
-    expect(lastEmail(send)).toMatchObject({ to: "bob.auth@example.test", subject: "Your DIASPORALE sign-in code" })
+    await sendEmailCode(t, { origin: DIASPORA_GA_ORIGIN, email: "bob.auth@example.test" })
+    expect(lastEmail(send)).toMatchObject({ to: "bob.auth@example.test", subject: "Your DIASPORA.GA sign-in code" })
     // La langue demandée passe devant celle du déploiement.
     await sendEmailCode(t, { origin: ANTSIA_ORIGIN, acceptLanguage: "fr", email: "carla.auth@example.test" })
     expect(lastEmail(send)).toMatchObject({ to: "carla.auth@example.test", subject: "Votre code de connexion ANTSIA" })
@@ -414,7 +414,7 @@ describe("langue de la personne et marque du réseau dans le code de connexion",
     expect(lastEmail(send).subject).toBe("Votre code de connexion ANTSIA")
   })
 
-  it("le SMS demandé en anglais sur diasporale.com part en anglais, à la marque DIASPORALE", async () => {
+  it("le SMS demandé en anglais sur diaspora.ga part en anglais, à la marque DIASPORA.GA", async () => {
     vi.stubEnv("CONVEX_CLOUD_URL", "https://backend.example.test")
     vi.stubEnv("SMS_PROVIDER", "webhook")
     vi.stubEnv("SMS_ENDPOINT", "https://sms.example.test/send")
@@ -422,22 +422,22 @@ describe("langue de la personne et marque du réseau dans le code de connexion",
     const relay = vi.fn(async (_url: string | URL | Request, _init?: RequestInit) => new Response(null, { status: 202 }))
     vi.stubGlobal("fetch", relay)
     const t = testConvex({ automaticSessions: false })
-    const response = await request(t, "/phone-number/send-otp", { origin: DIASPORALE_ORIGIN, acceptLanguage: "en-GB,en;q=0.9", body: { phoneNumber: PHONE } })
+    const response = await request(t, "/phone-number/send-otp", { origin: DIASPORA_GA_ORIGIN, acceptLanguage: "en-GB,en;q=0.9", body: { phoneNumber: PHONE } })
     expect(response.status).toBe(200)
     expect(relay).toHaveBeenCalledOnce()
     const [url, init] = relay.mock.calls[0] ?? []
     expect(url).toBe("https://sms.example.test/send")
     const body = record(JSON.parse(String(init?.body)))
     expect(body).toMatchObject({ to: PHONE, type: "otp", ttlSeconds: 300 })
-    expect(textField(body, "text")).toMatch(ENGLISH_DIASPORALE)
+    expect(textField(body, "text")).toMatch(ENGLISH_DIASPORA_GA)
   })
 
   it("la marque vient de l'origine vérifiée, en production comme en local ; la langue, de la requête puis du déploiement", () => {
     const local = { ANTSIA_DEV_TOOLS: "true", CONVEX_CLOUD_URL: "http://127.0.0.1:3210" }
-    expect(otpPresentation({ origin: DIASPORALE_ORIGIN, acceptLanguage: "en" }, {})).toEqual({ locale: "en", brand: "DIASPORALE" })
-    expect(otpPresentation({ origin: LOCAL_DIASPORALE_ORIGIN, acceptLanguage: "en" }, local)).toEqual({ locale: "en", brand: "DIASPORALE" })
+    expect(otpPresentation({ origin: DIASPORA_GA_ORIGIN, acceptLanguage: "en" }, {})).toEqual({ locale: "en", brand: "DIASPORA.GA" })
+    expect(otpPresentation({ origin: LOCAL_DIASPORA_GA_ORIGIN, acceptLanguage: "en" }, local)).toEqual({ locale: "en", brand: "DIASPORA.GA" })
     // Un port local sans les outils de développement d'un backend local ne désigne aucune application.
-    expect(otpPresentation({ origin: LOCAL_DIASPORALE_ORIGIN, acceptLanguage: "en" }, {})).toEqual({ locale: "en", brand: "ANTSIA" })
+    expect(otpPresentation({ origin: LOCAL_DIASPORA_GA_ORIGIN, acceptLanguage: "en" }, {})).toEqual({ locale: "en", brand: "ANTSIA" })
     for (const app of ["antsia_ga", "admin_antsia_ga"] as const) {
       expect(otpPresentation({ origin: new URL(catalog.applications[app].site_url).origin, acceptLanguage: null }, {}).brand).toBe("ANTSIA")
     }

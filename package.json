@@ -8,13 +8,13 @@
   "engines": {
     "node": ">=20"
   },
-  "//workspaces-note": "Espaces de travail du moteur. Les applications EXTERNES de DIASPORALE (../DIASPORALE/apps/*, ../DIASPORALE/packages/*) ajoutées le 15/10/2026 à la demande du prompt DIASPORALE PD0 — une seule installation, dans ANTSIA. Les tâches transverses passent par scripts/workspace-run.mjs (dupliqué du socle, ADR-0165) et non par turbo : turbo 2.x refuse tout le graphe dès qu'un espace de travail sort de la racine du dépôt. Les versions vivent UNE fois dans le catalogue ci-dessous ; un paquet les référence par \"catalog:\" (une seule instance de React et de Convex dans le magasin isolé). La racine dépend de @diasporale/domain (règles métier de DIASPORALE, TS pur) pour la SEULE tranche convex/modules/diaspora : aucun autre code du moteur n'importe un paquet d'application (cliquet no-cross-product-imports).",
+  "//workspaces-note": "Espaces de travail du moteur. Les applications EXTERNES de DIASPORA.GA (../DIASPORA_GA/apps/*, ../DIASPORA_GA/packages/*) ajoutées le 15/10/2026 à la demande du prompt DIASPORA.GA PD0 — une seule installation, dans ANTSIA. Les tâches transverses passent par scripts/workspace-run.mjs (dupliqué du socle, ADR-0165) et non par turbo : turbo 2.x refuse tout le graphe dès qu'un espace de travail sort de la racine du dépôt. Les versions vivent UNE fois dans le catalogue ci-dessous ; un paquet les référence par \"catalog:\" (une seule instance de React et de Convex dans le magasin isolé). La racine dépend de @diaspora-ga/domain (règles métier de DIASPORA.GA, TS pur) pour la SEULE tranche convex/modules/diaspora : aucun autre code du moteur n'importe un paquet d'application (cliquet no-cross-product-imports).",
   "workspaces": {
     "packages": [
       "apps/*",
       "packages/*",
-      "../DIASPORALE/apps/*",
-      "../DIASPORALE/packages/*"
+      "../DIASPORA_GA/apps/*",
+      "../DIASPORA_GA/packages/*"
     ],
     "catalog": {
       "@convex-dev/aggregate": "0.2.1",
@@ -109,14 +109,14 @@
     "dev:convex": "node scripts/convex-dev.mjs",
     "dev:antsia": "node scripts/workspace-run.mjs dev --filter=antsia-ga",
     "dev:admin": "node scripts/workspace-run.mjs dev --filter=admin-antsia-ga",
-    "dev:diasporale": "node scripts/workspace-run.mjs dev --filter=diasporale-com",
+    "dev:diaspora-ga": "node scripts/workspace-run.mjs dev --filter=diaspora-ga",
     "build:antsia": "node scripts/workspace-run.mjs build --filter=antsia-ga",
     "build:admin": "node scripts/workspace-run.mjs build --filter=admin-antsia-ga",
-    "build:diasporale": "node scripts/workspace-run.mjs build --filter=diasporale-com",
+    "build:diaspora-ga": "node scripts/workspace-run.mjs build --filter=diaspora-ga",
     "deploy:check": "node scripts/deploy-app.mjs --check",
     "deploy:antsia": "node scripts/deploy-app.mjs antsia_ga",
     "deploy:admin": "node scripts/deploy-app.mjs admin_antsia_ga",
-    "deploy:diasporale": "node scripts/deploy-app.mjs diasporale_com"
+    "deploy:diaspora-ga": "node scripts/deploy-app.mjs diaspora_ga"
   },
   "dependencies": {
     "@antsia/social-contracts": "workspace:*",
@@ -126,7 +126,7 @@
     "@convex-dev/migrations": "catalog:",
     "@convex-dev/rate-limiter": "catalog:",
     "@convex-dev/resend": "catalog:",
-    "@diasporale/domain": "workspace:*",
+    "@diaspora-ga/domain": "workspace:*",
     "@idn-ga/better-auth": "catalog:",
     "better-auth": "catalog:",
     "convex": "catalog:",

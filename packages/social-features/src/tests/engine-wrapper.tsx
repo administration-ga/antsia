@@ -56,7 +56,7 @@ export function EngineTestWrapper(props: {
   router?: RouterImplementation
   routes?: EngineRoutes
   personId?: Id<"persons">
-  /** La présentation déclarée par l'application (`classic` sans valeur, comme DIASPORALE). */
+  /** La présentation déclarée par l'application (`classic` sans valeur, comme DIASPORA.GA). */
   postPresentation?: EnginePostPresentation
   navigation?: EngineNavigation
   navigationLayout?: EngineNavigationLayout

@@ -11,11 +11,11 @@ import {
 } from "./moderation"
 
 const JOB_REASONS = ["job_fee_requested", "job_impersonation"]
-// Les natures qui reçoivent les motifs d'emploi : le poste d'une boutique et l'offre d'emploi de DIASPORALE.
+// Les natures qui reçoivent les motifs d'emploi : le poste d'une boutique et l'offre d'emploi de DIASPORA.GA.
 const JOB_KINDS = ["commerceJob", "diasporaJobOffer"] as const
 
 describe("UM-03 — motifs propres à une nature d'objet", () => {
-  it("le poste et l'offre d'emploi de DIASPORALE reçoivent les deux motifs en tête, puis ceux de tout objet, « autre » en dernier", () => {
+  it("le poste et l'offre d'emploi de DIASPORA.GA reçoivent les deux motifs en tête, puis ceux de tout objet, « autre » en dernier", () => {
     for (const kind of JOB_KINDS) {
       const reasons = reportReasonsFor(kind)
       expect(reasons.slice(0, 2)).toEqual(JOB_REASONS)

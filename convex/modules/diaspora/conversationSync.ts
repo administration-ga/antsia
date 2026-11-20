@@ -15,7 +15,7 @@
  * Au-delà, l'accès reste juste, car le moteur relit l'objet à chaque requête ; seul le cache
  * attend le crochet suivant. Le passage n'écrit ni avis ni appel et n'échoue sur aucun refus.
  */
-import { MENTOR_CAPACITY_MAX } from "@diasporale/domain"
+import { MENTOR_CAPACITY_MAX } from "@diaspora-ga/domain"
 import { v } from "convex/values"
 
 import { internalMutation } from "../../_generated/server"

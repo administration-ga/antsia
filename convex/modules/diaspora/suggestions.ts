@@ -1,5 +1,5 @@
 /**
- * Suggestions de relations de DIASPORALE (EXF-DG-18).
+ * Suggestions de relations de DIASPORA.GA (EXF-DG-18).
  *
  * Le chemin générique du moteur (`follows.suggestions`) refuse ce réseau : il
  * ignore l'annuaire opt-in. Ici, le vivier est l'annuaire (`peopleDirectory`,
@@ -11,7 +11,7 @@
  * me proposer » — le masquage GÉNÉRIQUE du moteur (`suggestions.dismiss`,
  * `restore`, par réseau), un choix privé que l'autre n'apprend pas.
  */
-import { hasCapability, rankSuggestions, type SuggestionReasons, suggestionReasons, SUGGESTIONS_MAX, suggestionScore } from "@diasporale/domain"
+import { hasCapability, rankSuggestions, type SuggestionReasons, suggestionReasons, SUGGESTIONS_MAX, suggestionScore } from "@diaspora-ga/domain"
 import { paginationOptsValidator, type PaginationResult } from "convex/server"
 import { v } from "convex/values"
 

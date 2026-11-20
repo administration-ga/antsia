@@ -6,12 +6,12 @@ import { anonymizeReferences, directlyOwned, exportableRecord, shapeFor } from "
 import { DATA_TABLE_POLICIES } from "./dataPolicies"
 
 const review = {
-  _id: "review", _creationTime: 1, networkId: "diasporale", requestId: "request", bookingId: "booking",
+  _id: "review", _creationTime: 1, networkId: "diaspora-ga", requestId: "request", bookingId: "booking",
   offerId: "offer", pageId: "page", authorPersonId: "requester", rating: 4, body: "Prestation conforme.",
   proof: "booking_confirmed", consentToPublishAt: 1, version: 1, status: "active", createdAt: 1, updatedAt: 1,
 }
 const reply = {
-  _id: "reply", _creationTime: 1, networkId: "diasporale", reviewId: "review", pageId: "page",
+  _id: "reply", _creationTime: 1, networkId: "diaspora-ga", reviewId: "review", pageId: "page",
   authorPersonId: "signatory", body: "Merci pour votre retour.", version: 1, status: "active", createdAt: 1, updatedAt: 1,
 }
 

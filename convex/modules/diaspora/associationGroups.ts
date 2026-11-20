@@ -62,7 +62,7 @@ async function groupOfPage(ctx: Pick<QueryCtx, "db">, networkId: Id<"networks">,
 
 type CreateScope = MutationCtx & { networkId: Id<"networks">; person: Doc<"persons"> }
 
-/** Porte commune à l'API DIASPORALE et au create générique ; le constructeur a déjà admis le débit. */
+/** Porte commune à l'API DIASPORA.GA et au create générique ; le constructeur a déjà admis le débit. */
 export async function createAssociationGroupForPage(ctx: CreateScope, pageId: Id<"pages">, idempotencyKey: string): Promise<{ groupId: Id<"thematicGroups">; created: boolean }> {
   const page = await associationGroupPageOrNull(ctx, ctx.networkId, pageId, ctx.person._id)
   if (!page || (await liveSignatoryRole(ctx, page, ctx.person._id)) !== "admin") return notFound()

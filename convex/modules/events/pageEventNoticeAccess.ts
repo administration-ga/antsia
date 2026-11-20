@@ -6,7 +6,7 @@
  * Réutilisée à l'écriture (porte unique), à la lecture de la cloche et avant tout transport :
  * une personne qui a perdu l'accès à l'événement ou au réseau n'est pas prévenue, et un avis
  * déjà écrit ne se présente plus. Mêmes conditions que le rappel (page native d'association
- * lisible dans son réseau DIASPORALE, personne présente, événement publié pour elle), sans la
+ * lisible dans son réseau DIASPORA.GA, personne présente, événement publié pour elle), sans la
  * fenêtre de temps du rappel ; chaque genre lit en plus l'état qu'il annonce.
  */
 import type { Doc, Id } from "../../_generated/dataModel"

@@ -9,7 +9,7 @@
  * consentement `directory` en vigueur, et le pré-filtre de l'annuaire du moteur
  * suit le choix (`syncDirectoryListing`).
  */
-import { parseFacetInput, toEngineFacet } from "@diasporale/domain"
+import { parseFacetInput, toEngineFacet } from "@diaspora-ga/domain"
 import { v } from "convex/values"
 
 import { failAppRule } from "../../lib/errors"

@@ -1,5 +1,5 @@
 /**
- * Attestation consulaire `DIASPORA-ATTESTATION-V1` — côté CONSOMMATEUR (DIASPORALE PD3).
+ * Attestation consulaire `DIASPORA-ATTESTATION-V1` — côté CONSOMMATEUR (DIASPORA.GA PD3).
  *
  * consulat.ga ATTESTE, avec le consentement de la personne, qu'une inscription
  * consulaire active existe ; il ne fédère aucune identité (IDN reste l'IdP unique).
@@ -33,7 +33,7 @@ import {
   parseAttestationResponse,
   REGISTRATION_STATUSES,
   toEngineFacet,
-} from "@diasporale/domain"
+} from "@diaspora-ga/domain"
 import { v } from "convex/values"
 
 import { internal } from "../../_generated/api"

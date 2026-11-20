@@ -54,7 +54,7 @@ export async function contentState(ctx: ReadCtx, kind: ModerationSurface, id: st
 
 /**
  * P16 : la PAGE qui porte le contenu d'un dossier SANS propriétaire personnel (offre et poste
- * reflétés, réponse d'avis, évènement de page, contenus de page DIASPORALE, page sans
+ * reflétés, réponse d'avis, évènement de page, contenus de page DIASPORA.GA, page sans
  * créateur), sinon `null`. Un dossier qui a un propriétaire personnel reste le sien seul.
  */
 export async function owningPageOfReport(ctx: ReadCtx, report: Pick<Doc<"reports">, "ownerPersonId" | "target">): Promise<Doc<"pages"> | null> {

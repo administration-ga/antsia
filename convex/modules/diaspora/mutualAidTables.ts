@@ -1,5 +1,5 @@
 /**
- * Tables du chantier « entraide » (DG-024 a) de la session DIASPORALE —
+ * Tables du chantier « entraide » (DG-024 a) de la session DIASPORA.GA —
  * PROPRIÉTAIRE : ce chantier ; agrégées par `tables.ts`, donc par `convex/schema.ts`.
  * Noms imposés par le coordinateur (globaux au schéma) : `aidQuestions`,
  * `aidAnswers`, `aidMissions`, `aidMissionSignups`.
@@ -33,7 +33,7 @@ import {
   AID_QUESTION_STATUSES,
   AID_SIGNUP_STATUSES,
   AID_THEMES,
-} from "@diasporale/domain"
+} from "@diaspora-ga/domain"
 import { defineTable } from "convex/server"
 import { v } from "convex/values"
 

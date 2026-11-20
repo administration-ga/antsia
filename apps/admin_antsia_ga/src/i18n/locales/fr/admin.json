@@ -105,7 +105,7 @@
     "lead": "Les réseaux et leurs politiques sont pilotés ici. Les données sont conservées lors d’un archivage.",
     "create": "Créer un réseau",
     "createTitle": "Nouveau réseau",
-    "createHint": "Un réseau enfant de la racine devient disponible sans déploiement. Choisissez une admission générique, sauf si la tranche DIASPORALE est nécessaire.",
+    "createHint": "Un réseau enfant de la racine devient disponible sans déploiement. Choisissez une admission générique, sauf si la tranche DIASPORA.GA est nécessaire.",
     "settings": "Réglages du réseau",
     "settingsHint": "L’identifiant et le type d’admission sont fixés à la création. Tout changement de réglage est motivé et tracé.",
     "readOnly": "Les réglages sont consultables. Leur modification est réservée aux administrateurs sur les réseaux actifs.",
@@ -130,7 +130,7 @@
     "valuesHint": "Valeurs distinctes séparées par des virgules ; 50 valeurs maximum, 80 caractères chacune.",
     "countryHint": "Codes ISO alpha-2 (GA, FR…) séparés par des virgules. Vide : aucun pays déclaré. La tranche d’admission détermine leur effet.",
     "themeHint": "Identifiant d’un thème déjà installé : {{themes}}. Un identifiant seul n’installe pas de thème.",
-    "managedHint": "La tranche DIASPORALE impose sa propre admission. Ce choix est fixé à la création et ne recrée pas un réseau DIASPORALE existant.",
+    "managedHint": "La tranche DIASPORA.GA impose sa propre admission. Ce choix est fixé à la création et ne recrée pas un réseau DIASPORA.GA existant.",
     "facetHint": "Vide : aucune facette. JSON fermé { fields: […] } : key, kind, required et defaultVisibility. Aucune valeur libre ne sera transmise.",
     "reasonHint": "10 à 500 caractères. Le motif est enregistré dans le journal des décisions.",
     "fields": {
@@ -161,7 +161,7 @@
     },
     "admission": {
       "generic": "Admission générique du moteur",
-      "diaspora": "Tranche d’admission DIASPORALE"
+      "diaspora": "Tranche d’admission DIASPORA.GA"
     }
   },
   "archive": {

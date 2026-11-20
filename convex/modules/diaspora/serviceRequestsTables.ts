@@ -1,7 +1,7 @@
 /**
- * Tables des demandes de service, propositions et rendez-vous DIASPORALE
+ * Tables des demandes de service, propositions et rendez-vous DIASPORA.GA
  * (DG-014/015) — PROPRIÉTAIRE : chantier « demandes et rendez-vous » de la
- * session DIASPORALE ; agrégées par `tables.ts`, donc par `convex/schema.ts`.
+ * session DIASPORA.GA ; agrégées par `tables.ts`, donc par `convex/schema.ts`.
  *
  * Mise en relation SEULEMENT : un montant proposé n'est ni encaissé ni facturé
  * par la plateforme. Aucune coordonnée, aucune adresse exacte : le lieu est
@@ -20,7 +20,7 @@ import {
   SERVICE_REQUEST_ACTORS,
   SERVICE_REQUEST_CLOSERS,
   SERVICE_REQUEST_STATUSES,
-} from "@diasporale/domain"
+} from "@diaspora-ga/domain"
 import { defineTable } from "convex/server"
 import { v } from "convex/values"
 

@@ -231,7 +231,7 @@ export const blockPerson = networkMutation({
  * était ouverte — sa fermeture (fils, pastilles, conversations de groupe,
  * directs). Rejoué sur une paire déjà bloquée par son auteur et sans abonnement
  * restant, il n'écrit rien. Partagé par `blockPerson` et par les comptes de
- * démonstration de DIASPORALE (`diaspora/demoAccounts`, développement local),
+ * démonstration de DIASPORA.GA (`diaspora/demoAccounts`, développement local),
  * qui posent le blocage d'un acteur par un autre.
  *
  * Toutes les lectures bornées sont faites AVANT la première écriture : une paire

@@ -35,7 +35,7 @@ async function person(t: T, networkId: Id<"networks">, handle: string, displayNa
   await as.mutation(api.modules.people.consents.recordConsent, { purpose: "social_profile", origin: "onboarding" })
   await as.mutation(api.modules.people.profile.publishMyProfile, { handle, displayName })
   await t.run(async (ctx) => { await ctx.db.insert("identityLinks", { personId, provider: "idn", subject: `group-idn-${personId}`, loa: 2, nationality: "GA", linkedAt: NOW }) })
-  await as.mutation(api.modules.diaspora.membership.joinDiasporale, { networkId, facet: { countryOfResidence: "FR", city: "Lyon" } })
+  await as.mutation(api.modules.diaspora.membership.joinDiasporaGa, { networkId, facet: { countryOfResidence: "FR", city: "Lyon" } })
   return { as, personId, handle }
 }
 
@@ -95,7 +95,7 @@ async function connect(f: Fixture, from: Person, to: Person) {
   await to.as.mutation(CONNECTIONS.respondToConnection, { networkId: f.networkId, connectionId: incoming.connectionId, accept: true })
 }
 
-describe("groupes privés d'association DIASPORALE", () => {
+describe("groupes privés d'association DIASPORA.GA", () => {
   it("la création explicite inscrit le créateur seul, les métadonnées ne donnent aucun accès au tiers", async () => {
     const f = await fixture()
     await accept(f, f.reader)

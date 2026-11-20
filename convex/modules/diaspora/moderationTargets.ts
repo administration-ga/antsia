@@ -1,6 +1,6 @@
 /**
- * Cibles de modération de la vague H DIASPORALE (lot G9) — tranche `diaspora`,
- * écrite par la session DIASPORALE (ajouts délégués par la session ANTSIA).
+ * Cibles de modération de la vague H DIASPORA.GA (lot G9) — tranche `diaspora`,
+ * écrite par la session DIASPORA.GA (ajouts délégués par la session ANTSIA).
  * Aucune fonction Convex ici.
  *
  * Appelée par le moteur — `moderation/targets` (résolution de l'audience,
@@ -18,7 +18,7 @@
  * signataire vivant ne signale pas le contenu de sa page (refus indistinct ; le
  * moteur lui refuse aussi de le trancher, par l'état de modération de la page).
  */
-import { effectiveMentoringStatus } from "@diasporale/domain"
+import { effectiveMentoringStatus } from "@diaspora-ga/domain"
 import type { Infer } from "convex/values"
 
 import { internal } from "../../_generated/api"

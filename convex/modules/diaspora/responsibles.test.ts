@@ -1,6 +1,6 @@
 // @vitest-environment edge-runtime
 /**
- * MD-01 et LX-03 — les responsables de DIASPORALE, SANS la porte de démonstration : la
+ * MD-01 et LX-03 — les responsables de DIASPORA.GA, SANS la porte de démonstration : la
  * console du moteur nomme le premier administrateur (`platform/networkRoles`) ; celui-ci
  * nomme, change et retire les responsables dans la tranche (`membership.setResponsibleRole`),
  * motif à l'appui, par l'aide du moteur ; le rôle ouvre ou ferme la file, les recours et
@@ -47,7 +47,7 @@ async function codeOf(promise: Promise<unknown>): Promise<string | null> {
   }
 }
 
-/** Une personne au profil publié ; membre de DIASPORALE par le vrai chemin d'entrée, DÉCLARÉE si elle a une IDN. */
+/** Une personne au profil publié ; membre de DIASPORA.GA par le vrai chemin d'entrée, DÉCLARÉE si elle a une IDN. */
 async function member(t: T, networkId: Id<"networks">, handle: string, displayName: string, options: { idn?: boolean } = {}): Promise<Member> {
   const as = t.withIdentity({ subject: `responsables-${handle}` })
   const personId = await as.mutation(api.modules.people.persons.ensureMyPerson, {})
@@ -58,7 +58,7 @@ async function member(t: T, networkId: Id<"networks">, handle: string, displayNa
       await ctx.db.insert("identityLinks", { personId, provider: "idn", subject: `idn-${personId}`, loa: 1, nationality: "GA", linkedAt: NOW })
     })
   }
-  await as.mutation(M.joinDiasporale, { networkId, facet: { countryOfResidence: "FR" } })
+  await as.mutation(M.joinDiasporaGa, { networkId, facet: { countryOfResidence: "FR" } })
   return { as, personId }
 }
 
@@ -75,7 +75,7 @@ async function platformAdmin(t: T, root: Id<"networks">): Promise<Member> {
   return { as, personId }
 }
 
-/** DIASPORALE réelle (graine du réseau), un opérateur, et le premier administrateur nommé PAR LA CONSOLE. */
+/** DIASPORA.GA réelle (graine du réseau), un opérateur, et le premier administrateur nommé PAR LA CONSOLE. */
 async function fixture() {
   const t = testConvex()
   const { root } = await t.mutation(internal.seeds.foundations.run, { confirmNonProduction: SEED_CONFIRMATION })
@@ -145,7 +145,7 @@ describe("MD-01 — nommer les responsables du réseau, sans la porte de démons
     expect(await codeOf(name(f, f.plain, "network_moderator", f.plain, "court"))).toBe("notFound")
     expect(await codeOf(name(f, f.plain, "network_moderator", f.moderator))).toBe("notFound")
     expect(await codeOf(name(f, f.moderator, "member", f.moderator))).toBe("notFound")
-    // Un autre réseau que DIASPORALE : la tranche ne gouverne que le sien.
+    // Un autre réseau que DIASPORA.GA : la tranche ne gouverne que le sien.
     expect(await codeOf(f.admin.as.mutation(M.setResponsibleRole, { networkId: f.root, personId: f.plain.personId, role: "network_moderator", reason: REASON }))).toBe("notFound")
     expect(await roleOf(f.t, f.network, f.plain.personId)).toBe("member")
     expect(await roleOf(f.t, f.network, f.moderator.personId)).toBe("network_moderator")
@@ -155,7 +155,7 @@ describe("MD-01 — nommer les responsables du réseau, sans la porte de démons
   it("motif exigé ; ni adhésion créée ni rôle confié hors d'une adhésion active « déclarée » au moins ; un rôle déjà posé n'écrit rien", async () => {
     const f = await fixture()
     expect(await codeOf(name(f, f.moderator, "network_moderator", f.admin, "  court  "))).toBe("DECISION_REASON_LENGTH")
-    // Une personne sans adhésion à DIASPORALE : aucune adhésion n'est créée.
+    // Une personne sans adhésion à DIASPORA.GA : aucune adhésion n'est créée.
     const outsiderId = await f.t.withIdentity({ subject: "responsables-hors-reseau" }).mutation(api.modules.people.persons.ensureMyPerson, {})
     expect(await codeOf(f.admin.as.mutation(M.setResponsibleRole, { networkId: f.network, personId: outsiderId, role: "network_moderator", reason: REASON }))).toBe("notFound")
     expect(await roleOf(f.t, f.network, outsiderId)).toBeNull()
@@ -184,21 +184,21 @@ describe("MD-01 — nommer les responsables du réseau, sans la porte de démons
     expect(await codeOf(name(f, f.plain, "member", f.plain))).toBe("NETWORK_LAST_ADMIN")
   })
 
-  it("le dernier administrateur actif ne quitte pas DIASPORALE : refus avant toute écriture ; à deux, l'un part", async () => {
+  it("le dernier administrateur actif ne quitte pas DIASPORA.GA : refus avant toute écriture ; à deux, l'un part", async () => {
     const f = await fixture()
     const statusOf = async (who: Member) =>
       await f.t.run(async (ctx) => (await ctx.db.query("networkMemberships").withIndex("by_network_and_person", (q) => q.eq("networkId", f.network).eq("personId", who.personId)).unique())?.status ?? null)
     const before = await statusOf(f.admin)
-    expect(await codeOf(f.admin.as.mutation(M.leaveDiasporale, { networkId: f.network }))).toBe("NETWORK_LAST_ADMIN")
+    expect(await codeOf(f.admin.as.mutation(M.leaveDiasporaGa, { networkId: f.network }))).toBe("NETWORK_LAST_ADMIN")
     expect(await statusOf(f.admin)).toBe(before)
     expect(await roleOf(f.t, f.network, f.admin.personId)).toBe("network_admin")
 
     expect(await name(f, f.plain, "network_admin")).toEqual({ role: "network_admin", changed: true })
-    expect(await f.admin.as.mutation(M.leaveDiasporale, { networkId: f.network })).toBeNull()
+    expect(await f.admin.as.mutation(M.leaveDiasporaGa, { networkId: f.network })).toBeNull()
     expect(await statusOf(f.admin)).toBe("partie")
     expect(await roleOf(f.t, f.network, f.admin.personId)).toBe("member")
     // Le remplaçant est désormais le dernier : il ne part pas à son tour.
-    expect(await codeOf(f.plain.as.mutation(M.leaveDiasporale, { networkId: f.network }))).toBe("NETWORK_LAST_ADMIN")
+    expect(await codeOf(f.plain.as.mutation(M.leaveDiasporaGa, { networkId: f.network }))).toBe("NETWORK_LAST_ADMIN")
   })
 })
 
@@ -244,7 +244,7 @@ describe("MD-01 — la liste des responsables", () => {
       const row = await ctx.db.query("networkMemberships").withIndex("by_network_and_person", (q) => q.eq("networkId", f.network).eq("personId", f.moderator.personId)).unique()
       if (row) await ctx.db.patch(row._id, { status: "suspendue" })
     })
-    await f.plain.as.mutation(M.leaveDiasporale, { networkId: f.network })
+    await f.plain.as.mutation(M.leaveDiasporaGa, { networkId: f.network })
     const list = await responsiblesOf(f, f.admin)
     expect(list.members.map((row) => [row.personId, row.role, row.active])).toEqual([
       [f.admin.personId, "network_admin", true],

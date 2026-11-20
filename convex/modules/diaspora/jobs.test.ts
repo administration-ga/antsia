@@ -1,12 +1,12 @@
 // @vitest-environment edge-runtime
 /**
- * Talents et emploi DIASPORALE (DG-025) : offres des pages, candidatures PRIVÉES,
+ * Talents et emploi DIASPORA.GA (DG-025) : offres des pages, candidatures PRIVÉES,
  * profils de talent opt-in — gardes, versions, états, recherche bornée,
  * projections allowlistées, état de modération des seules vues de gestion (G9)
  * et refus indistincts.
  */
 import { engineErrorAppRule, engineErrorCode } from "@antsia/social-contracts/errors"
-import { cityKeyOf, DAY_MS, JOB_OFFERS_PER_PAGE_MAX, jobSearchTextOf, TALENT_SEARCH_PAGE_MAX, talentSearchTextOf } from "@diasporale/domain"
+import { cityKeyOf, DAY_MS, JOB_OFFERS_PER_PAGE_MAX, jobSearchTextOf, TALENT_SEARCH_PAGE_MAX, talentSearchTextOf } from "@diaspora-ga/domain"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { api, internal } from "../../_generated/api"
@@ -74,7 +74,7 @@ async function member(t: T, networkId: Id<"networks">, handle: string, displayNa
   await t.run(async (ctx) => {
     await ctx.db.insert("identityLinks", { personId, provider: "idn", subject: `idn-${personId}`, loa: 2, nationality: "GA", linkedAt: NOW })
   })
-  await as.mutation(api.modules.diaspora.membership.joinDiasporale, { networkId, facet: { countryOfResidence: "FR", city: "Paris" } })
+  await as.mutation(api.modules.diaspora.membership.joinDiasporaGa, { networkId, facet: { countryOfResidence: "FR", city: "Paris" } })
   return { as, personId }
 }
 
@@ -442,7 +442,7 @@ describe("rubrique « Emplois » d'une page (EM-04) — ses offres ouvertes, rie
 
     expect(await failure(reader.as.query(J.pageOpenJobOffers, { networkId: root, pageId, paginationOpts: FIRST }))).toMatchObject({ code: "notFound" })
     expect(await failure(t.query(J.pageOpenJobOffers, { networkId, pageId, paginationOpts: FIRST }))).toMatchObject({ code: "unauthenticated" })
-    // Une personne d'ANTSIA seule, sans adhésion à DIASPORALE, ne lit pas la rubrique.
+    // Une personne d'ANTSIA seule, sans adhésion à DIASPORA.GA, ne lit pas la rubrique.
     const outsider = t.withIdentity({ subject: "auth-racine-seule" })
     await outsider.mutation(api.modules.people.persons.ensureMyPerson, {})
     await outsider.mutation(api.modules.people.consents.recordConsent, { purpose: "social_profile", origin: "onboarding" })

@@ -47,7 +47,7 @@ const TEAM_READERS: Record<string, string> = {
   "convex/modules/moderation/cases.ts": "partie liée : ne tranche pas un dossier du contenu de sa page",
   "convex/modules/moderation/moderation.ts": "partie liée : ne tranche pas le dossier d'une publication de sa page",
   "convex/modules/diaspora/moderationDesk.ts": "partie liée : le bureau de modération annonce le conflit (« page »)",
-  // Conflits d'intérêts de la tranche DIASPORALE (relecture d'antsia#183) : toute l'équipe est partie liée.
+  // Conflits d'intérêts de la tranche DIASPORA.GA (relecture d'antsia#183) : toute l'équipe est partie liée.
   "convex/modules/diaspora/serviceRequests.ts": "partie liée : ne demande pas un service à sa page (`request_own_page`)",
   "convex/modules/diaspora/serviceReviews.ts": "partie liée : ne donne pas d'avis sur un service de sa page (`isProvider`)",
   "convex/modules/diaspora/jobs.ts": "partie liée : ne candidate pas à une offre d'emploi de sa page (`job_application_own_page`)",

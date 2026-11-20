@@ -3,7 +3,7 @@
  * famille : `errors` (codes d'erreur du moteur), `rules` (règles du domaine
  * enfreintes, avec leurs bornes en paramètres d'interpolation) ; `diaspora` est
  * réservé à la tranche `convex/modules/diaspora` (propriété de la session
- * DIASPORALE). Les applications chargent ces ressources dans leur instance
+ * DIASPORA.GA). Les applications chargent ces ressources dans leur instance
  * i18next, à côté de leurs propres espaces de noms.
  */
 import enErrors from "./locales/en/errors.json"

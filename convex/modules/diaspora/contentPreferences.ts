@@ -1,12 +1,12 @@
 /**
- * Choix privés du fil DIASPORALE (DG-003).
+ * Choix privés du fil DIASPORA.GA (DG-003).
  *
  * Chaque ligne appartient au lecteur et reste restaurable quand sa cible ne
  * peut plus être montrée. Une marque n'accorde aucun droit de lecture ; une
  * sourdine n'accorde aucun droit d'annuaire. La version du choix est son
  * identifiant : un ancien geste ne retire jamais un choix créé depuis.
  */
-import { hasCapability } from "@diasporale/domain"
+import { hasCapability } from "@diaspora-ga/domain"
 import { paginationOptsValidator, paginationResultValidator, type PaginationResult } from "convex/server"
 import { v } from "convex/values"
 

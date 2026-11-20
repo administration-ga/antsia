@@ -4,7 +4,7 @@
  * par la garde des fichiers et candidatures privées (octets signés transitoires).
  *
  * Préfixes réservés `commerceJob*` / `commerceApplication*` : aucun nom commun
- * avec l'emploi propre de la tranche DIASPORALE.
+ * avec l'emploi propre de la tranche DIASPORA.GA.
  */
 import { COMMERCE_JOBS_ATTACHMENT_KINDS, COMMERCE_JOBS_CONTRACT } from "@antsia/social-domain/commerce-jobs"
 import { COMMERCE_APPLICATION_STATES } from "@antsia/social-domain/commerce/lifecycle"

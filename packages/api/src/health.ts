@@ -54,7 +54,7 @@ export type EngineHealth = {
 /**
  * Rapport de CONFIGURATION, sans appel au moteur : la forme d'avant EX-03.
  * Conservé, avec `computeHealth`, pour les applications qui composent leur
- * propre sonde par-dessus (diasporale.com y ajoute sa source de données et son
+ * propre sonde par-dessus (diaspora.ga y ajoute sa source de données et son
  * propre état du moteur).
  */
 export type HealthReport = {

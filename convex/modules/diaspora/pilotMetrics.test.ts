@@ -8,7 +8,7 @@
  * production.
  */
 import { engineErrorAppRule, engineErrorCode } from "@antsia/social-contracts/errors"
-import { DAY_MS, HOUR_MS, PILOT_DISPLAY_THRESHOLD, PILOT_METRIC_IDS } from "@diasporale/domain"
+import { DAY_MS, HOUR_MS, PILOT_DISPLAY_THRESHOLD, PILOT_METRIC_IDS } from "@diaspora-ga/domain"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { api, internal } from "../../_generated/api"
@@ -53,7 +53,7 @@ async function code(promise: Promise<unknown>) {
   return null
 }
 
-/** Une personne aux sessions explicites (vivantes jusqu'après le passage), membre de DIASPORALE. */
+/** Une personne aux sessions explicites (vivantes jusqu'après le passage), membre de DIASPORA.GA. */
 async function member(t: T, networkId: Id<"networks">, handle: string, displayName: string): Promise<Member> {
   const subject = `pilote-${handle}`
   const sessionId = await createTestSession(t, subject, SESSION_END)
@@ -62,7 +62,7 @@ async function member(t: T, networkId: Id<"networks">, handle: string, displayNa
   await as.mutation(api.modules.people.consents.recordConsent, { purpose: "social_profile", origin: "onboarding" })
   await as.mutation(api.modules.people.profile.publishMyProfile, { handle, displayName })
   await t.run(async (ctx) => { await ctx.db.insert("identityLinks", { personId, provider: "idn", subject: `pilote-idn-${personId}`, loa: 2, nationality: "GA", linkedAt: Date.now() }) })
-  await as.mutation(api.modules.diaspora.membership.joinDiasporale, { networkId, facet: { countryOfResidence: "FR", city: "Paris" } })
+  await as.mutation(api.modules.diaspora.membership.joinDiasporaGa, { networkId, facet: { countryOfResidence: "FR", city: "Paris" } })
   return { as, personId }
 }
 
@@ -318,7 +318,7 @@ describe("mesure du pilote — accès réservé aux responsables du réseau", ()
     expect(await f.moderator.as.query(PILOT.pilotMetricsAccess, { networkId: f.networkId })).toEqual({ allowed: true })
   })
 
-  it("une personne hors de DIASPORALE ne lit rien, même par la racine", async () => {
+  it("une personne hors de DIASPORA.GA ne lit rien, même par la racine", async () => {
     const f = await fixture()
     vi.setSystemTime(NOW)
     const subject = "pilote-exterieur"

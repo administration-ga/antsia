@@ -1,7 +1,7 @@
 /**
- * Mesure du pilote DIASPORALE (G11 · DG-027 du plan global) — agrégats
+ * Mesure du pilote DIASPORA.GA (G11 · DG-027 du plan global) — agrégats
  * MATÉRIALISÉS par un passage nocturne, jamais calculés à la lecture.
- * PROPRIÉTAIRE : chantier « mesure du pilote » de la session DIASPORALE.
+ * PROPRIÉTAIRE : chantier « mesure du pilote » de la session DIASPORA.GA.
  *
  * Le passage (`refreshPilotMetrics`, cron quotidien inscrit par ANTSIA) recompte
  * les COHORTES des 90 jours UTC complets qui précèdent son jour, par blocs de
@@ -28,7 +28,7 @@
  * des références : aucun texte libre (besoin, détails, motif, avis, message)
  * n'est recopié ni agrégé, aucun identifiant de personne n'entre dans une ligne.
  *
- * Les lectures rendent des PRÉSENTATIONS (`@diasporale/domain`, pilot-metrics) :
+ * Les lectures rendent des PRÉSENTATIONS (`@diaspora-ga/domain`, pilot-metrics) :
  * un compte sous le seuil s'y dit « moins de 5 », un taux garde sa base, une
  * part trop proche de sa base est masquée. `pilotMetrics` est réservée aux
  * responsables du réseau (administrateurs, modérateurs) — refus indistinct
@@ -37,7 +37,7 @@
 import {
   canReadPilotMetrics,
   DAY_MS,
-  DIASPORALE_NETWORK_SLUG,
+  DIASPORA_GA_NETWORK_SLUG,
   emptyPilotCounts,
   emptyPilotDay,
   isResidenceCountry,
@@ -62,7 +62,7 @@ import {
   pilotWindow,
   presentPilotIndicators,
   tallyPilotDay,
-} from "@diasporale/domain"
+} from "@diaspora-ga/domain"
 import { type Infer, type ObjectType, v } from "convex/values"
 
 import { internal } from "../../_generated/api"
@@ -571,7 +571,7 @@ export const refreshPilotMetrics = internalMutation({
   handler: async (ctx, { pageSize }): Promise<null> => {
     const network = await ctx.db
       .query("networks")
-      .withIndex("by_slug", (q) => q.eq("slug", DIASPORALE_NETWORK_SLUG))
+      .withIndex("by_slug", (q) => q.eq("slug", DIASPORA_GA_NETWORK_SLUG))
       .unique()
     if (!isDiasporaNetwork(network)) return null
     const startedAt = Date.now()

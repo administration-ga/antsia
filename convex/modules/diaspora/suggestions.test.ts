@@ -1,5 +1,5 @@
 // @vitest-environment edge-runtime
-/** Masquages DIASPORALE : lookup exact dans le vivier borné, sans plafond global ni choix d'autrui. */
+/** Masquages DIASPORA.GA : lookup exact dans le vivier borné, sans plafond global ni choix d'autrui. */
 import { engineErrorCode } from "@antsia/social-contracts/errors"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
@@ -42,7 +42,7 @@ async function member(t: T, networkId: Id<"networks">, handle: string, options: 
     await ctx.db.insert("identityLinks", { personId, provider: "idn", subject: `idn-${personId}`, loa: 1, nationality: "GA", linkedAt: NOW })
   })
   if (options.listed) await as.mutation(api.modules.people.consents.recordConsent, { purpose: "directory", origin: "onboarding", networkId })
-  await as.mutation(api.modules.diaspora.membership.joinDiasporale, {
+  await as.mutation(api.modules.diaspora.membership.joinDiasporaGa, {
     networkId,
     facet: { countryOfResidence: "FR", city: "Lyon" },
     ...(options.listed ? { directoryVisibility: "network" as const } : {}),
@@ -97,7 +97,7 @@ async function graphSnapshot(t: T) {
   }))
 }
 
-describe("suggestions DIASPORALE — masquages exacts", () => {
+describe("suggestions DIASPORA.GA — masquages exacts", () => {
   it("écarte un candidat masqué après les 500 premières lignes, puis le réévalue après restauration", async () => {
     const t = testConvex()
     const { networkId } = await seed(t)
@@ -154,7 +154,7 @@ describe("suggestions DIASPORALE — masquages exacts", () => {
   })
 })
 
-describe("suggestions DIASPORALE — mes choix paginés et restaurables", () => {
+describe("suggestions DIASPORA.GA — mes choix paginés et restaurables", () => {
   it("parcourt toutes les lignes propres, borne la page à 50 et conserve exactement les métadonnées natives", async () => {
     const t = testConvex()
     const { root, networkId } = await seed(t)
@@ -221,7 +221,7 @@ describe("suggestions DIASPORALE — mes choix paginés et restaurables", () => 
         await target.as.mutation(api.modules.people.consents.revokeConsent, { purpose: "directory", networkId })
         break
       case "departed":
-        await target.as.mutation(api.modules.diaspora.membership.leaveDiasporale, { networkId })
+        await target.as.mutation(api.modules.diaspora.membership.leaveDiasporaGa, { networkId })
         break
       case "incoming-block":
         await target.as.mutation(api.modules.graph.connections.blockPerson, { networkId, targetPersonId: reader.personId })

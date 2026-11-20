@@ -187,7 +187,7 @@ async function targetPreview(ctx: QueryCtx, networkId: Id<"networks">, target: M
       if (!row || row.networkId !== networkId || row.deletedAt !== undefined || (row.type !== undefined && row.type !== "text")) return empty
       return { ...empty, available: true, body: excerpt(row.content, 2000) }
     }
-    // Vague H DIASPORALE (G9, délégué) : l'extrait borné de la tranche — ni auteur, candidat, coordonnée, créneau ni profil joint.
+    // Vague H DIASPORA.GA (G9, délégué) : l'extrait borné de la tranche — ni auteur, candidat, coordonnée, créneau ni profil joint.
     case "diasporaAidQuestion":
     case "diasporaAidAnswer":
     case "diasporaAidMission":

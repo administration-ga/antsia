@@ -33,7 +33,7 @@ const policyValuesValidator = v.object({ preReview: v.boolean(), maxLinks: v.num
 /**
  * Ce que fait le moteur pour une surface SANS réglage explicite : `defaults` (règle commune, défauts
  * prudents), `held` (tout contenu attend une relecture : DG-016 et avis de prestation), `unchecked`
- * (contenus de la vague H de DIASPORALE, publiés sans règle, G9). Dit à l'écran, jamais deviné.
+ * (contenus de la vague H de DIASPORA.GA, publiés sans règle, G9). Dit à l'écran, jamais deviné.
  */
 const WITHOUT_POLICY = ["defaults", "held", "unchecked"] as const
 export type ModerationWithoutPolicy = (typeof WITHOUT_POLICY)[number]

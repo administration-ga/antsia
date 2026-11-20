@@ -30,10 +30,10 @@ steps:
       - NEXT_PUBLIC_DEMO_ENTRY_ENABLED=${_NEXT_PUBLIC_DEMO_ENTRY_ENABLED}
       - --build-arg
       - NEXT_PUBLIC_APP_BASE_PATH=${_NEXT_PUBLIC_APP_BASE_PATH}
-      # Variables propres à diasporale_com : vides pour les autres applications
+      # Variables propres à diaspora_ga : vides pour les autres applications
       # (le plan les passe toutes ; un ARG absent du Dockerfile est ignoré).
       - --build-arg
-      - NEXT_PUBLIC_DIASPORALE_DATA_SOURCE=${_NEXT_PUBLIC_DIASPORALE_DATA_SOURCE}
+      - NEXT_PUBLIC_DIASPORA_GA_DATA_SOURCE=${_NEXT_PUBLIC_DIASPORA_GA_DATA_SOURCE}
       - --build-arg
       - NEXT_PUBLIC_IDN_PORTAL_URL=${_NEXT_PUBLIC_IDN_PORTAL_URL}
       - --build-arg

@@ -195,7 +195,7 @@
     "applications": "Autres espaces",
     "handoffFailed": "Le passage n’a pas abouti. Réessayez.",
     "antsia_ga": "ANTSIA",
-    "diasporale_com": "DIASPORALE",
+    "diaspora_ga": "DIASPORA.GA",
     "admin_antsia_ga": "Console ANTSIA"
   },
   "personal": {
@@ -371,7 +371,7 @@
         },
         "sable": {
           "name": "Sable",
-          "description": "Bleu Gabon, sarcelle et sable doré. Le thème de DIASPORALE."
+          "description": "Bleu Gabon, sarcelle et sable doré. Le thème de DIASPORA.GA."
         }
       }
     },

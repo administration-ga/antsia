@@ -18,7 +18,7 @@ const TARGETS = Object.freeze({
   ANTSIA_RELEASE_VERCEL_PROJECT_MAIN: "exemple-projet-principal",
   ANTSIA_RELEASE_VERCEL_PROJECT_CONSOLE: "exemple-projet-console",
 })
-const REPOS = Object.freeze({ antsia: "/depot-fictif/ECOSYSTEMES/ANTSIA", diasporale: "/depot-fictif/ECOSYSTEMES/DIASPORALE" })
+const REPOS = Object.freeze({ antsia: "/depot-fictif/ECOSYSTEMES/ANTSIA", diasporaGa: "/depot-fictif/ECOSYSTEMES/DIASPORA_GA" })
 const originalFetch = globalThis.fetch
 let env
 

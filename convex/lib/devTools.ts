@@ -8,7 +8,7 @@
  *
  * Seule exception, plus étroite : le DÉPLOIEMENT DE DÉMONSTRATION déclaré
  * (`demoDeploymentDeclared`) ouvre les comptes de démonstration d'ANTSIA et de
- * DIASPORALE (ADR-0029, ADR-0038) et la lecture de LEURS codes, rien d'autre (ni
+ * DIASPORA.GA (ADR-0029, ADR-0038) et la lecture de LEURS codes, rien d'autre (ni
  * origines locales, ni codes des autres adresses, ni cookies non sécurisés).
  */
 type Env = Record<string, string | undefined>
@@ -16,12 +16,12 @@ type Env = Record<string, string | undefined>
 /** Le domaine réservé des comptes de démonstration d'ANTSIA (RFC 2606 : jamais routable). */
 export const DEMO_EMAIL_DOMAIN = "demo.antsia.test"
 /**
- * Le domaine réservé des comptes de démonstration de DIASPORALE (ADR-0038), celui
- * de `diasporaleDemoEmailOf` : le test de la tranche `diaspora` vérifie qu'ils restent égaux.
+ * Le domaine réservé des comptes de démonstration de DIASPORA.GA (ADR-0038), celui
+ * de `diasporaGaDemoEmailOf` : le test de la tranche `diaspora` vérifie qu'ils restent égaux.
  */
-export const DIASPORALE_DEMO_EMAIL_DOMAIN = "demo.diasporale.test"
+export const DIASPORA_GA_DEMO_EMAIL_DOMAIN = "demo.diaspora-ga.test"
 /** Les domaines réservés dont le code peut s'afficher sur la démonstration déclarée. */
-export const DEMO_EMAIL_DOMAINS = [DEMO_EMAIL_DOMAIN, DIASPORALE_DEMO_EMAIL_DOMAIN] as const
+export const DEMO_EMAIL_DOMAINS = [DEMO_EMAIL_DOMAIN, DIASPORA_GA_DEMO_EMAIL_DOMAIN] as const
 
 /** Le déploiement courant tourne-t-il sur la machine (backend local) ? */
 export function isLocalDeployment(env: Env = process.env): boolean {
@@ -58,7 +58,7 @@ export function demoDeploymentDeclared(env: Env = process.env): boolean {
   return Boolean(declared) && name !== null && declared === name
 }
 
-/** Les comptes de démonstration (ANTSIA et DIASPORALE) sont-ils ouverts ici ? (développement local ou démonstration déclarée) */
+/** Les comptes de démonstration (ANTSIA et DIASPORA.GA) sont-ils ouverts ici ? (développement local ou démonstration déclarée) */
 export function demoAccountsAllowed(env: Env = process.env): boolean {
   return devToolsAllowed(env) || demoDeploymentDeclared(env)
 }

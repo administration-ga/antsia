@@ -105,7 +105,7 @@
     "lead": "Manage networks and their policies here. Archiving retains the data.",
     "create": "Create a network",
     "createTitle": "New network",
-    "createHint": "A child network becomes available without deployment. Choose generic admission unless the DIASPORALE slice is required.",
+    "createHint": "A child network becomes available without deployment. Choose generic admission unless the DIASPORA.GA slice is required.",
     "settings": "Network settings",
     "settingsHint": "The identifier and admission type are fixed at creation. Every change to settings has a reason and is recorded.",
     "readOnly": "Settings are available for review. Only administrators may edit active networks.",
@@ -130,7 +130,7 @@
     "valuesHint": "Distinct comma-separated values; up to 50 values of 80 characters each.",
     "countryHint": "ISO alpha-2 codes (GA, FR…) separated by commas. Empty: no declared countries. The admission slice determines their effect.",
     "themeHint": "Identifier of an installed theme: {{themes}}. An identifier alone does not install a theme.",
-    "managedHint": "The DIASPORALE slice applies its own admission rules. This choice is fixed at creation and does not recreate an existing DIASPORALE network.",
+    "managedHint": "The DIASPORA.GA slice applies its own admission rules. This choice is fixed at creation and does not recreate an existing DIASPORA.GA network.",
     "facetHint": "Empty: no facet. Closed JSON { fields: […] }: key, kind, required and defaultVisibility. Arbitrary values will not be submitted.",
     "reasonHint": "10 to 500 characters. The reason is recorded in the decision log.",
     "fields": {
@@ -161,7 +161,7 @@
     },
     "admission": {
       "generic": "Generic engine admission",
-      "diaspora": "DIASPORALE admission slice"
+      "diaspora": "DIASPORA.GA admission slice"
     }
   },
   "archive": {

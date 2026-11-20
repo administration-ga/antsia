@@ -41,7 +41,7 @@ superpose uniquement les fichiers mobiles/contrats IDN explicitement nommés de 
 
 ```sh
 ANTSIA_BUILD_REF=1193b087fe4206da81dcdb7d6ff0aca8214f25ee \
-DIASPORALE_BUILD_REF=367c2bd3ca9dfb59baaae0d32bce44dafc911d36 \
+DIASPORA_GA_BUILD_REF=367c2bd3ca9dfb59baaae0d32bce44dafc911d36 \
 node apps/antsia_mobile/scripts/prepare-build.mjs
 ```
 

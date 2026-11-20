@@ -1,6 +1,6 @@
 /**
  * L'état de modération d'une publication, rendu à son AUTEUR seul (FD-04, issue antsia#108, demande
- * de la session DIASPORALE) : « publiée » ou « en relecture ». Aucune fonction Convex ici.
+ * de la session DIASPORA.GA) : « publiée » ou « en relecture ». Aucune fonction Convex ici.
  *
  * L'auteur est celui de la règle « c'est ma publication » du moteur (`myPostFrom` : le droit de la
  * retirer, de l'éditer, de l'épingler) : la personne qui l'a écrite, et, pour une publication de

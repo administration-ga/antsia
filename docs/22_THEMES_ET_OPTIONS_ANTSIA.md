@@ -146,7 +146,7 @@ bouton « + » de la barre. Retour arrière : `postPresentation="media"` dans `n
 ## Le bureau au même système (ADR-0030)
 
 Depuis le 20/10/2026, le chrome du bureau d'antsia.ga reprend le système des chartes, par les
-jetons de l'ADR-0027 et leurs replis d'origine (DIASPORALE et la console inchangées) :
+jetons de l'ADR-0027 et leurs replis d'origine (DIASPORA.GA et la console inchangées) :
 
 | Élément du bureau | Rendu | Jetons |
 |---|---|---|
@@ -443,9 +443,9 @@ Le bleu de 21st.dev, le rose et le citron vert, presque à égale distance sur l
 
 ### 7. Sable
 
-**La charte de DIASPORALE**, portée dans le réseau le 19/10/2026 avec les couleurs du thème Sable de diasporale.com (géométrie et polices du réseau). Fond papier presque blanc, cartes couleur sable, encre brune ; nuit brune en sombre.
+**La charte de DIASPORA.GA**, portée dans le réseau le 19/10/2026 avec les couleurs du thème Sable de diaspora.ga (géométrie et polices du réseau). Fond papier presque blanc, cartes couleur sable, encre brune ; nuit brune en sombre.
 
-- Nom affiché : **Sable** (anglais : Sand) — « Bleu Gabon, sarcelle et sable doré. Le thème de DIASPORALE. »
+- Nom affiché : **Sable** (anglais : Sand) — « Bleu Gabon, sarcelle et sable doré. Le thème de DIASPORA.GA. »
 - Identifiant enregistré : `sable` · charte : `data-charte="antsia-sable"` · fichier : `packages/ui/src/themes/antsia-sable.css`
 - Fond : **Sable** (papier et sable · nuit brune)
 
@@ -496,5 +496,5 @@ Un thème touche sept endroits ; les tests en vérifient la cohérence.
    et `apps/antsia_ga/src/components/theme-picker.test.tsx` (ordre et noms affichés).
 7. Ce document et l'artifact des maquettes.
 
-Ne pas confondre avec les chartes de DIASPORALE (`diasporale.css`, `diasporale-gaboma.css`) :
-elles habillent diasporale.com et ne font pas partie de ce sélecteur.
+Ne pas confondre avec les chartes de DIASPORA.GA (`diaspora-ga.css`, `diaspora-ga-gaboma.css`) :
+elles habillent diaspora.ga et ne font pas partie de ce sélecteur.

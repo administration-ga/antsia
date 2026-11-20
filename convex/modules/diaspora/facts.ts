@@ -16,7 +16,7 @@ import {
   DEFAULT_DIRECTORY_VISIBILITY,
   DEFAULT_FACET_VISIBILITY,
   deriveMembershipStatus,
-  DIASPORALE_SLICE,
+  DIASPORA_GA_SLICE,
   type DiasporaFacet,
   type DirectoryVisibility,
   engineVerificationSource,
@@ -24,7 +24,7 @@ import {
   facetFromEngine,
   idnGroundFromLink,
   type MembershipGrounds,
-} from "@diasporale/domain"
+} from "@diaspora-ga/domain"
 
 import type { Doc, Id } from "../../_generated/dataModel"
 import type { MutationCtx, QueryCtx } from "../../_generated/server"
@@ -37,7 +37,7 @@ import { liveIdentityLinks } from "../people/persons"
 
 /** Le réseau est-il celui que la tranche gouverne, et actif ? */
 export function isDiasporaNetwork(network: Doc<"networks"> | null): network is Doc<"networks"> {
-  return network !== null && network.status === "active" && network.managedBy === DIASPORALE_SLICE
+  return network !== null && network.status === "active" && network.managedBy === DIASPORA_GA_SLICE
 }
 
 /** Garde des fonctions bornées par le réseau : tout autre réseau reçoit le refus indistinct. */
@@ -46,7 +46,7 @@ export function assertDiasporaNetwork(network: Doc<"networks">): void {
 }
 
 /**
- * RP-03 (décision 5 du plan 05 de DIASPORALE) : la page est-elle FERMÉE à cette
+ * RP-03 (décision 5 du plan 05 de DIASPORA.GA) : la page est-elle FERMÉE à cette
  * personne par les blocages ? Oui quand elle a au moins un signataire VIVANT et
  * que TOUS ses signataires vivants sont en blocage avec la personne — dans un
  * sens ou dans l'autre, dans quelque réseau que ce soit (`isBlockedBetween`).
@@ -55,7 +55,7 @@ export function assertDiasporaNetwork(network: Doc<"networks">): void {
  * attente ou un signataire parti ne comptent pas (`liveSignatoryRole`) ; une
  * page sans signataire vivant n'est pas fermée par ce fait ; la personne
  * elle-même signataire vivante n'est jamais fermée. Matrice et tests :
- * docs/40 de DIASPORALE, `pageBlocks.test.ts`.
+ * docs/40 de DIASPORA.GA, `pageBlocks.test.ts`.
  *
  * Bornée : les lignes de signataires sont plafonnées (`signatoryRowsOf`) et la
  * lecture s'arrête au premier signataire vivant hors blocage.

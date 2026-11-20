@@ -14,7 +14,7 @@ import { type Finding, formatFindings, isTestFile, listFiles, readRepoFile } fro
  * (PA3 : tous les modules dupliqués). Un module absent des deux listes est
  * lui-même un défaut (test ci-dessous). Les TRANCHES d'application
  * (`NETWORK_SLICES` : `convex/modules/diaspora`, écrite par la session
- * DIASPORALE) sont sociales, classées avant même d'exister.
+ * DIASPORA.GA) sont sociales, classées avant même d'exister.
  */
 export const SOCIAL_MODULE_DIRECTORIES: readonly string[] = [
   "convex/modules/networks",

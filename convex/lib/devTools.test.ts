@@ -47,32 +47,32 @@ describe("demoCodeReadable — quels codes s'affichent à l'écran", () => {
     expect(demoCodeReadable("+24107890123", LOCAL)).toBe(true)
   })
 
-  it("sur la démonstration déclarée : ceux des adresses réservées seulement, ANTSIA et DIASPORALE (ADR-0038)", () => {
+  it("sur la démonstration déclarée : ceux des adresses réservées seulement, ANTSIA et DIASPORA.GA (ADR-0038)", () => {
     expect(demoCodeReadable("membre@demo.antsia.test", DEMO)).toBe(true)
     expect(demoCodeReadable(" Membre@DEMO.antsia.test ", DEMO)).toBe(true)
-    expect(demoCodeReadable("moderateur@demo.diasporale.test", DEMO)).toBe(true)
-    expect(demoCodeReadable(" Verifie@DEMO.diasporale.test ", DEMO)).toBe(true)
+    expect(demoCodeReadable("moderateur@demo.diaspora-ga.test", DEMO)).toBe(true)
+    expect(demoCodeReadable(" Verifie@DEMO.diaspora-ga.test ", DEMO)).toBe(true)
     expect(demoCodeReadable("alice@example.test", DEMO)).toBe(false)
     expect(demoCodeReadable("membre@demo.antsia.test.example.test", DEMO)).toBe(false)
-    expect(demoCodeReadable("membre@demo.diasporale.test.example.test", DEMO)).toBe(false)
-    expect(demoCodeReadable("membre@diasporale.test", DEMO)).toBe(false)
+    expect(demoCodeReadable("membre@demo.diaspora-ga.test.example.test", DEMO)).toBe(false)
+    expect(demoCodeReadable("membre@diaspora-ga.test", DEMO)).toBe(false)
     expect(demoCodeReadable("+24107890123", DEMO)).toBe(false)
   })
 
   it("ailleurs : aucun", () => {
     expect(demoCodeReadable("membre@demo.antsia.test", {})).toBe(false)
     expect(demoCodeReadable("membre@demo.antsia.test", { ...DEMO, CONVEX_CLOUD_URL: "https://production-antsia-456.convex.cloud" })).toBe(false)
-    expect(demoCodeReadable("moderateur@demo.diasporale.test", {})).toBe(false)
-    expect(demoCodeReadable("moderateur@demo.diasporale.test", { ...DEMO, CONVEX_CLOUD_URL: "https://production-antsia-456.convex.cloud" })).toBe(false)
+    expect(demoCodeReadable("moderateur@demo.diaspora-ga.test", {})).toBe(false)
+    expect(demoCodeReadable("moderateur@demo.diaspora-ga.test", { ...DEMO, CONVEX_CLOUD_URL: "https://production-antsia-456.convex.cloud" })).toBe(false)
   })
 
   it("les domaines réservés se lisent sans casse ni espaces, jamais en sous-chaîne", () => {
-    expect(DEMO_EMAIL_DOMAINS).toEqual(["demo.antsia.test", "demo.diasporale.test"])
+    expect(DEMO_EMAIL_DOMAINS).toEqual(["demo.antsia.test", "demo.diaspora-ga.test"])
     expect(isDemoEmail("presse@demo.antsia.test")).toBe(true)
     expect(isDemoEmail("presse@xdemo.antsia.test")).toBe(false)
     expect(isDemoEmail("demo.antsia.test@example.test")).toBe(false)
-    expect(isDemoEmail("institution@demo.diasporale.test")).toBe(true)
-    expect(isDemoEmail("institution@xdemo.diasporale.test")).toBe(false)
-    expect(isDemoEmail("demo.diasporale.test@example.test")).toBe(false)
+    expect(isDemoEmail("institution@demo.diaspora-ga.test")).toBe(true)
+    expect(isDemoEmail("institution@xdemo.diaspora-ga.test")).toBe(false)
+    expect(isDemoEmail("demo.diaspora-ga.test@example.test")).toBe(false)
   })
 })

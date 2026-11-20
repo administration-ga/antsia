@@ -1,6 +1,6 @@
 // @vitest-environment edge-runtime
 /**
- * Crochets d'effacement de la vague H DIASPORALE (G9) — `removeDiasporaCounters`,
+ * Crochets d'effacement de la vague H DIASPORA.GA (G9) — `removeDiasporaCounters`,
  * appelé par `removeCounters` de `people/erasure` AVANT la suppression de chaque
  * ligne : réponse d'entraide (compte et réponse retenue), inscription bénévole
  * (compte et mission complète), signalement « périmée » du kit (version courante

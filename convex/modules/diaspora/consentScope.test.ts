@@ -1,11 +1,11 @@
 // @vitest-environment edge-runtime
 /**
- * NP-01 (plan 13 de DIASPORALE) — la portée des consentements de DIASPORALE.
+ * NP-01 (plan 13 de DIASPORA.GA) — la portée des consentements de DIASPORA.GA.
  *
  * Le moteur n'ouvre un envoi que pour un accord au RÉSEAU EXACT (`notificationConsent`), et la
  * suite d'une attestation ne vaut que pour le consentement de la demande, posé pour le réseau.
  * `myConsents` (le registre affiché) et la lecture de l'annuaire (`consentInForce`) doivent dire
- * la même chose : un accord posé sans réseau — celui que l'accueil de DIASPORALE posait avant
+ * la même chose : un accord posé sans réseau — celui que l'accueil de DIASPORA.GA posait avant
  * NP-01 pour les notifications — ne compte plus pour une finalité de réseau, et il n'est jamais
  * réécrit en accord du réseau (aucune migration silencieuse). Seul le profil social vaut pour la
  * personne entière.
@@ -32,11 +32,11 @@ afterEach(() => {
 async function seedAll(t: T) {
   const foundations = await t.mutation(internal.seeds.foundations.run, { confirmNonProduction: SEED_CONFIRMATION })
   const diaspora = await t.mutation(internal.modules.diaspora.seed.run, { confirmNonProduction: SEED_CONFIRMATION })
-  return { root: foundations.root, diasporale: diaspora.network }
+  return { root: foundations.root, diasporaGa: diaspora.network }
 }
 
-/** Un membre « déclaré » de DIASPORALE : profil publié, identité IDN gabonaise de niveau 1, entrée réelle. */
-async function member(t: T, diasporale: Id<"networks">, handle = "ada") {
+/** Un membre « déclaré » de DIASPORA.GA : profil publié, identité IDN gabonaise de niveau 1, entrée réelle. */
+async function member(t: T, diasporaGa: Id<"networks">, handle = "ada") {
   const as = t.withIdentity({ subject: `auth-${handle}` })
   const personId = await as.mutation(api.modules.people.persons.ensureMyPerson, {})
   await as.mutation(api.modules.people.consents.recordConsent, { purpose: "social_profile", origin: "onboarding" })
@@ -44,21 +44,21 @@ async function member(t: T, diasporale: Id<"networks">, handle = "ada") {
   await t.run(async (ctx) => {
     await ctx.db.insert("identityLinks", { personId, provider: "idn", subject: `idn-${personId}`, loa: 1, nationality: "GA", linkedAt: Date.now() })
   })
-  expect(await as.mutation(api.modules.diaspora.membership.joinDiasporale, { networkId: diasporale, facet: { countryOfResidence: "FR", city: "Lyon" } })).toMatchObject({ status: "declaree" })
+  expect(await as.mutation(api.modules.diaspora.membership.joinDiasporaGa, { networkId: diasporaGa, facet: { countryOfResidence: "FR", city: "Lyon" } })).toMatchObject({ status: "declaree" })
   return { as, personId }
 }
 
 /** Le registre affiché : finalité → accordée ou non. */
-async function registry(as: As, diasporale: Id<"networks">): Promise<Record<string, boolean>> {
-  const rows = await as.query(api.modules.diaspora.membership.myConsents, { networkId: diasporale })
+async function registry(as: As, diasporaGa: Id<"networks">): Promise<Record<string, boolean>> {
+  const rows = await as.query(api.modules.diaspora.membership.myConsents, { networkId: diasporaGa })
   return Object.fromEntries(rows.map((row) => [row.purpose, row.granted]))
 }
 
 /** Ce que le moteur relit avant d'agir : l'accord aux notifications avant tout envoi, l'annuaire avant toute inscription. */
-async function engineReads(t: T, diasporale: Id<"networks">, personId: Id<"persons">) {
+async function engineReads(t: T, diasporaGa: Id<"networks">, personId: Id<"persons">) {
   return await t.run(async (ctx) => ({
-    notifications: await notificationConsent(ctx, diasporale, personId, "notifications"),
-    directory: await consentInForce(ctx, diasporale, personId, "directory"),
+    notifications: await notificationConsent(ctx, diasporaGa, personId, "notifications"),
+    directory: await consentInForce(ctx, diasporaGa, personId, "directory"),
   }))
 }
 
@@ -66,38 +66,38 @@ async function consentRows(t: T, personId: Id<"persons">, purpose: NetworkPurpos
   return await t.run(async (ctx) => await ctx.db.query("consents").withIndex("by_person_and_purpose", (q) => q.eq("personId", personId).eq("purpose", purpose)).take(10))
 }
 
-describe("myConsents — portée exacte des finalités de DIASPORALE (NP-01)", () => {
+describe("myConsents — portée exacte des finalités de DIASPORA.GA (NP-01)", () => {
   it("un accord au réseau, puis son retrait : le registre et le moteur disent la même chose", async () => {
     const t = testConvex()
-    const { diasporale } = await seedAll(t)
-    const ada = await member(t, diasporale)
-    expect(await registry(ada.as, diasporale)).toEqual({ social_profile: true, directory: false, notifications: false, consular_attestation: false, talents: false })
-    expect(await engineReads(t, diasporale, ada.personId)).toEqual({ notifications: false, directory: false })
+    const { diasporaGa } = await seedAll(t)
+    const ada = await member(t, diasporaGa)
+    expect(await registry(ada.as, diasporaGa)).toEqual({ social_profile: true, directory: false, notifications: false, consular_attestation: false, talents: false })
+    expect(await engineReads(t, diasporaGa, ada.personId)).toEqual({ notifications: false, directory: false })
 
     for (const purpose of NETWORK_PURPOSES) {
-      await ada.as.mutation(api.modules.people.consents.recordConsent, { purpose, origin: "settings", networkId: diasporale })
+      await ada.as.mutation(api.modules.people.consents.recordConsent, { purpose, origin: "settings", networkId: diasporaGa })
     }
-    expect(await registry(ada.as, diasporale)).toEqual({ social_profile: true, directory: true, notifications: true, consular_attestation: true, talents: true })
-    expect(await engineReads(t, diasporale, ada.personId)).toEqual({ notifications: true, directory: true })
+    expect(await registry(ada.as, diasporaGa)).toEqual({ social_profile: true, directory: true, notifications: true, consular_attestation: true, talents: true })
+    expect(await engineReads(t, diasporaGa, ada.personId)).toEqual({ notifications: true, directory: true })
 
     for (const purpose of NETWORK_PURPOSES) {
-      await ada.as.mutation(api.modules.people.consents.revokeConsent, { purpose, networkId: diasporale })
+      await ada.as.mutation(api.modules.people.consents.revokeConsent, { purpose, networkId: diasporaGa })
     }
-    expect(await registry(ada.as, diasporale)).toEqual({ social_profile: true, directory: false, notifications: false, consular_attestation: false, talents: false })
-    expect(await engineReads(t, diasporale, ada.personId)).toEqual({ notifications: false, directory: false })
+    expect(await registry(ada.as, diasporaGa)).toEqual({ social_profile: true, directory: false, notifications: false, consular_attestation: false, talents: false })
+    expect(await engineReads(t, diasporaGa, ada.personId)).toEqual({ notifications: false, directory: false })
   })
 
   it("une ancienne ligne sans réseau ne compte plus pour une finalité de réseau, et n'est jamais réécrite", async () => {
     const t = testConvex()
-    const { diasporale } = await seedAll(t)
-    const ada = await member(t, diasporale)
+    const { diasporaGa } = await seedAll(t)
+    const ada = await member(t, diasporaGa)
     // Ce que l'accueil et les réglages posaient avant NP-01 : des accords sans réseau.
     for (const purpose of NETWORK_PURPOSES) {
       await ada.as.mutation(api.modules.people.consents.recordConsent, { purpose, origin: "onboarding" })
     }
     const legacy = await Promise.all(NETWORK_PURPOSES.map((purpose) => consentRows(t, ada.personId, purpose)))
 
-    const consents = await ada.as.query(api.modules.diaspora.membership.myConsents, { networkId: diasporale })
+    const consents = await ada.as.query(api.modules.diaspora.membership.myConsents, { networkId: diasporaGa })
     expect(Object.fromEntries(consents.map((row) => [row.purpose, row.granted]))).toEqual({
       social_profile: true,
       directory: false,
@@ -107,7 +107,7 @@ describe("myConsents — portée exacte des finalités de DIASPORALE (NP-01)", (
     })
     // Le registre ne date pas un geste qu'il ne compte pas : rien à la portée du réseau.
     for (const purpose of NETWORK_PURPOSES) expect(consents.find((row) => row.purpose === purpose)?.recordedAt, purpose).toBeNull()
-    expect(await engineReads(t, diasporale, ada.personId)).toEqual({ notifications: false, directory: false })
+    expect(await engineReads(t, diasporaGa, ada.personId)).toEqual({ notifications: false, directory: false })
 
     // Aucune migration : les lignes anciennes restent telles quelles, sans réseau et sans retrait.
     expect(await Promise.all(NETWORK_PURPOSES.map((purpose) => consentRows(t, ada.personId, purpose)))).toEqual(legacy)
@@ -118,45 +118,45 @@ describe("myConsents — portée exacte des finalités de DIASPORALE (NP-01)", (
     }
 
     // Le geste à la bonne portée ouvre enfin l'envoi ; le registre le dit en même temps.
-    await ada.as.mutation(api.modules.people.consents.recordConsent, { purpose: "notifications", origin: "settings", networkId: diasporale })
-    expect((await registry(ada.as, diasporale)).notifications).toBe(true)
-    expect((await engineReads(t, diasporale, ada.personId)).notifications).toBe(true)
+    await ada.as.mutation(api.modules.people.consents.recordConsent, { purpose: "notifications", origin: "settings", networkId: diasporaGa })
+    expect((await registry(ada.as, diasporaGa)).notifications).toBe(true)
+    expect((await engineReads(t, diasporaGa, ada.personId)).notifications).toBe(true)
   })
 
-  it("un accord donné pour un autre réseau ne compte pas dans DIASPORALE ; le profil social vaut pour la personne", async () => {
+  it("un accord donné pour un autre réseau ne compte pas dans DIASPORA.GA ; le profil social vaut pour la personne", async () => {
     const t = testConvex()
-    const { root, diasporale } = await seedAll(t)
-    const ada = await member(t, diasporale)
+    const { root, diasporaGa } = await seedAll(t)
+    const ada = await member(t, diasporaGa)
     await ada.as.mutation(api.modules.people.consents.recordConsent, { purpose: "notifications", origin: "settings", networkId: root })
     await ada.as.mutation(api.modules.people.consents.recordConsent, { purpose: "directory", origin: "settings", networkId: root })
-    expect(await registry(ada.as, diasporale)).toMatchObject({ social_profile: true, directory: false, notifications: false })
-    expect(await engineReads(t, diasporale, ada.personId)).toEqual({ notifications: false, directory: false })
+    expect(await registry(ada.as, diasporaGa)).toMatchObject({ social_profile: true, directory: false, notifications: false })
+    expect(await engineReads(t, diasporaGa, ada.personId)).toEqual({ notifications: false, directory: false })
   })
 
   it("l'annuaire suit la même portée : un niveau visible exige l'accord du réseau, pas une ancienne ligne sans réseau", async () => {
     const t = testConvex()
-    const { diasporale } = await seedAll(t)
-    const ada = await member(t, diasporale)
+    const { diasporaGa } = await seedAll(t)
+    const ada = await member(t, diasporaGa)
     await ada.as.mutation(api.modules.people.consents.recordConsent, { purpose: "directory", origin: "settings" })
-    await expect(ada.as.mutation(api.modules.diaspora.facet.setDirectoryVisibility, { networkId: diasporale, level: "network" })).rejects.toThrow()
-    await ada.as.mutation(api.modules.people.consents.recordConsent, { purpose: "directory", origin: "settings", networkId: diasporale })
-    await ada.as.mutation(api.modules.diaspora.facet.setDirectoryVisibility, { networkId: diasporale, level: "network" })
-    expect((await ada.as.query(api.modules.diaspora.membership.myMembership, { networkId: diasporale }))?.directoryVisibility).toBe("network")
-    expect((await registry(ada.as, diasporale)).directory).toBe(true)
+    await expect(ada.as.mutation(api.modules.diaspora.facet.setDirectoryVisibility, { networkId: diasporaGa, level: "network" })).rejects.toThrow()
+    await ada.as.mutation(api.modules.people.consents.recordConsent, { purpose: "directory", origin: "settings", networkId: diasporaGa })
+    await ada.as.mutation(api.modules.diaspora.facet.setDirectoryVisibility, { networkId: diasporaGa, level: "network" })
+    expect((await ada.as.query(api.modules.diaspora.membership.myMembership, { networkId: diasporaGa }))?.directoryVisibility).toBe("network")
+    expect((await registry(ada.as, diasporaGa)).directory).toBe(true)
   })
 
   it("une demande d'attestation en cours s'arrête au retrait : le registre le dit, la réponse n'est plus reçue", async () => {
     // Horloge figée : l'appel programmé vers consulat.ga ne part pas pendant le test.
     vi.useFakeTimers()
     const t = testConvex()
-    const { diasporale } = await seedAll(t)
-    const ada = await member(t, diasporale)
-    const { attestationId } = await ada.as.mutation(api.modules.diaspora.attestation.requestConsularAttestation, { networkId: diasporale, consent: true })
-    expect((await registry(ada.as, diasporale)).consular_attestation).toBe(true)
+    const { diasporaGa } = await seedAll(t)
+    const ada = await member(t, diasporaGa)
+    const { attestationId } = await ada.as.mutation(api.modules.diaspora.attestation.requestConsularAttestation, { networkId: diasporaGa, consent: true })
+    expect((await registry(ada.as, diasporaGa)).consular_attestation).toBe(true)
     expect(await t.query(internal.modules.diaspora.attestation.attestationRequest, { attestationId })).not.toBeNull()
 
-    await ada.as.mutation(api.modules.people.consents.revokeConsent, { purpose: "consular_attestation", networkId: diasporale })
-    expect((await registry(ada.as, diasporale)).consular_attestation).toBe(false)
+    await ada.as.mutation(api.modules.people.consents.revokeConsent, { purpose: "consular_attestation", networkId: diasporaGa })
+    expect((await registry(ada.as, diasporaGa)).consular_attestation).toBe(false)
     expect(await t.query(internal.modules.diaspora.attestation.attestationRequest, { attestationId })).toBeNull()
 
     await t.mutation(internal.modules.diaspora.attestation.recordAttestation, {
@@ -166,6 +166,6 @@ describe("myConsents — portée exacte des finalités de DIASPORALE (NP-01)", (
     expect(await t.run(async (ctx) => await ctx.db.get(attestationId))).toMatchObject({ result: "failed" })
     const links = await t.run(async (ctx) => await ctx.db.query("identityLinks").withIndex("by_person_and_provider", (q) => q.eq("personId", ada.personId).eq("provider", "consular_attestation")).take(5))
     expect(links).toEqual([])
-    expect(await ada.as.query(api.modules.diaspora.membership.myMembership, { networkId: diasporale })).toMatchObject({ status: "declaree" })
+    expect(await ada.as.query(api.modules.diaspora.membership.myMembership, { networkId: diasporaGa })).toMatchObject({ status: "declaree" })
   })
 })
