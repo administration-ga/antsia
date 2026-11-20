@@ -590,3 +590,12 @@ export const myIdentity = query({
     }
   },
 })
+
+/**
+ * Anciens noms de l'adhésion et du départ, d'avant le renommage en DIASPORA.GA (20/11/2026,
+ * ADR-0040) : le site de démonstration déjà en ligne les appelle encore, et la publication refuse
+ * tout envoi qui retirerait une fonction servie. Ils renvoient vers les mêmes fonctions, le temps
+ * d'une publication ; à retirer une fois le site renommé seul en ligne (commit dédié).
+ */
+export const joinDiasporale = joinDiasporaGa // renommage:conserver — alias de transition, à retirer
+export const leaveDiasporale = leaveDiasporaGa // renommage:conserver — alias de transition, à retirer
