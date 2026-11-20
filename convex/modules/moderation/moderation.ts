@@ -258,6 +258,20 @@ const decisionArgs = { reportId: v.id("contentReports"), status: literals(CONTEN
 // (`cases.decide`) : ses règles (compétence, conflit d'intérêts, sanctions) ne se contournent
 // par aucune autre. Ce module ne garde que la décision d'opérateur, en dernier ressort.
 
+/**
+ * Porte CONDAMNÉE (AZ-F1, 11/11/2026) : l'ancienne décision de réseau de ce module, servie par des
+ * backends publiés avant le correctif. Elle garde sa signature pour que la publication n'ait pas à
+ * « retirer une fonction servie » (garde de `scripts/release`), mais ne tranche plus rien : tout
+ * appel reçoit le refus indistinct, sans lecture du dossier, sans écriture ni journal. À retirer
+ * quand l'outil de publication admettra un retrait déclaré.
+ */
+export const decide = networkMutation({
+  minStatus: "declaree",
+  args: decisionArgs,
+  returns: v.object({ status: literals(CONTENT_REPORT_DECISIONS) }),
+  handler: async () => notFound(),
+})
+
 /** L'opérateur de plateforme, en DERNIER RESSORT, sur un dossier de n'importe quel réseau — tracé comme tel. */
 export const decideAsOperator = operatorMutation({
   args: decisionArgs,

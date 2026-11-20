@@ -176,7 +176,9 @@ describe("AZ-F1 — une seule porte de décision, sans conflit d'intérêts", ()
     const { postId } = await alice.as.mutation(api.modules.posts.posts.publish, { networkId: root, body: "Signalée" })
     const { reportId } = await bob.as.mutation(api.modules.moderation.moderation.reportPost, { networkId: root, postId, reason: "harassment" })
     const legacyDecide = makeFunctionReference<"mutation">("modules/moderation/moderation:decide")
-    await expect(admin.as.mutation(legacyDecide, { networkId: root, reportId, status: "dismissed", decisionReason: "Rien à redire." })).rejects.toThrow(/no such export/)
+    // Porte condamnée (même signature, refus seul) : la publication ne retire aucune fonction servie,
+    // et l'ancienne décision de réseau ne tranche plus rien.
+    expect(await codeOf(admin.as.mutation(legacyDecide, { networkId: root, reportId, status: "dismissed", decisionReason: "Rien à redire." }))).toBe("notFound")
     const row = await t.run(async (ctx) => ctx.db.get(reportId))
     expect(row).toMatchObject({ status: "open" })
   })
