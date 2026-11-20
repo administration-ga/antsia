@@ -54,9 +54,9 @@ const END = String.raw`(?![\p{L}\p{N}_-]|\.[\p{L}\p{N}])`
 /** Empreinte de l'hébergeur qui mêle chiffres et lettres : un chiffre suivi plus loin d'une lettre. */
 const MIXED_HASH = String.raw`(?=[a-z]*\d[a-z0-9]*[a-z])`
 /** Projets des sites des produits chez l'hébergeur (noms de produits, publics ; jamais l'équipe). */
-const PRODUCT_PROJECTS = String.raw`(?:antsia|diaspora-ga)(?:-(?:demo|admin))?`
-/** Vrais mots de neuf lettres qui suivent un nom de produit dans le code (`antsia-aggregate`) : pas une empreinte. */
-export const HOSTING_SUFFIX_WORDS = ["aggregate"] as const
+const PRODUCT_PROJECTS = String.raw`(?:antsia|diaspora-ga|diasporale)(?:-(?:demo|admin))?` // renommage:conserver — les projets de l'hébergeur portent encore l'ancien nom, et les registres datés le citent : le cliquet surveille les deux
+/** Vrais mots de neuf lettres qui suivent un nom de produit dans le code (`antsia-aggregate`, `diaspora-ga-workspace`) : pas une empreinte. */
+export const HOSTING_SUFFIX_WORDS = ["aggregate", "workspace"] as const
 
 export const DEPLOYMENT_IDENTIFIER_PATTERNS: readonly IdentifierPattern[] = [
   {
