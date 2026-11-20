@@ -14,7 +14,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { api, internal } from "../../_generated/api"
 import type { Doc, Id } from "../../_generated/dataModel"
 import { SEED_CONFIRMATION } from "../../seeds/foundations"
-import { createTestOperatorProof, createTestSession, testConvex } from "../../test.setup"
+import { createTestOperatorProof, createTestSession, openNetworkFeatures, testConvex } from "../../test.setup"
 
 type T = ReturnType<typeof testConvex>
 type Member = { readonly as: ReturnType<T["withIdentity"]>; readonly personId: Id<"persons"> }
@@ -93,6 +93,7 @@ async function fixture() {
   const t = testConvex({ automaticSessions: false })
   const { root } = await t.mutation(internal.seeds.foundations.run, { confirmNonProduction: SEED_CONFIRMATION })
   const { network: networkId } = await t.mutation(internal.modules.diaspora.seed.run, { confirmNonProduction: SEED_CONFIRMATION })
+  await openNetworkFeatures(t, networkId)
   const admin = await member(t, networkId, "pilote-admin", "Awa OGOOUÉ")
   const moderator = await member(t, networkId, "pilote-moderation", "Nadia NDONG")
   const plain = await member(t, networkId, "pilote-membre", "Jean MBA")

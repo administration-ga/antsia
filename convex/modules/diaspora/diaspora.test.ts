@@ -14,7 +14,7 @@ import { api, components, internal } from "../../_generated/api"
 import type { Id } from "../../_generated/dataModel"
 import schema from "../../schema"
 import { SEED_CONFIRMATION } from "../../seeds/foundations"
-import { createTestSession, testConvex } from "../../test.setup"
+import { createTestSession, openNetworkFeatures, testConvex } from "../../test.setup"
 import { sha256Hex, signAttestation } from "./attestation"
 import { applyDerivedStatus, membershipGrounds } from "./facts"
 import { DIASPORA_SLICE_MANIFEST } from "./manifest"
@@ -28,6 +28,7 @@ const FRANCE = { countryOfResidence: "FR", city: "Lyon" }
 async function seedAll(t: T) {
   const foundations = await t.mutation(internal.seeds.foundations.run, { confirmNonProduction: SEED_CONFIRMATION })
   const diaspora = await t.mutation(internal.modules.diaspora.seed.run, { confirmNonProduction: SEED_CONFIRMATION })
+  await openNetworkFeatures(t, diaspora.network)
   return { root: foundations.root, testClosed: foundations.testClosed, diasporaGa: diaspora.network }
 }
 

@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { api, components, internal } from "../../_generated/api"
 import { SEED_CONFIRMATION } from "../../seeds/foundations"
-import { testConvex } from "../../test.setup"
+import { openNetworkFeatures, testConvex } from "../../test.setup"
 import { followerCounts } from "../graph/follows"
 
 type T = ReturnType<typeof testConvex>
@@ -30,6 +30,7 @@ afterEach(() => {
 async function seedNetworks(t: T) {
   const foundations = await t.mutation(internal.seeds.foundations.run, ARGS)
   const diaspora = await t.mutation(internal.modules.diaspora.seed.run, ARGS)
+  await openNetworkFeatures(t, diaspora.network)
   return { root: foundations.root, network: diaspora.network }
 }
 

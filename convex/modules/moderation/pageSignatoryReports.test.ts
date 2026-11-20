@@ -13,7 +13,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { api, internal } from "../../_generated/api"
 import type { Id } from "../../_generated/dataModel"
 import { SEED_CONFIRMATION } from "../../seeds/foundations"
-import { testConvex } from "../../test.setup"
+import { openNetworkFeatures, testConvex } from "../../test.setup"
 
 type T = ReturnType<typeof testConvex>
 type Person = { as: ReturnType<T["withIdentity"]>; personId: Id<"persons"> }
@@ -146,6 +146,7 @@ describe("#114, point 2 — un signataire ne signale pas un évènement de sa pa
     const t = testConvex()
     await t.mutation(internal.seeds.foundations.run, { confirmNonProduction: SEED_CONFIRMATION })
     const { network: networkId } = await t.mutation(internal.modules.diaspora.seed.run, { confirmNonProduction: SEED_CONFIRMATION })
+    await openNetworkFeatures(t, networkId)
     const join = async (as: Person["as"], personId: Id<"persons">) => {
       await t.run((ctx) => ctx.db.insert("identityLinks", { personId, provider: "idn", subject: `md02-idn-${personId}`, loa: 2, nationality: "GA", linkedAt: NOW }))
       await as.mutation(api.modules.diaspora.membership.joinDiasporaGa, { networkId, facet: { countryOfResidence: "FR", city: "Lyon" } })

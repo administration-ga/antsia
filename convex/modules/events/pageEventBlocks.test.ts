@@ -13,7 +13,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { api, internal } from "../../_generated/api"
 import type { Doc, Id } from "../../_generated/dataModel"
 import { SEED_CONFIRMATION } from "../../seeds/foundations"
-import { testConvex } from "../../test.setup"
+import { openNetworkFeatures, testConvex } from "../../test.setup"
 import { isClosedByBlocksAmong, isPageClosedByBlocks, livePageSignatoryIds } from "../pages/closedByBlocks"
 import { participationOf } from "./events"
 
@@ -49,6 +49,7 @@ async function fixture() {
   const t = testConvex()
   await t.mutation(internal.seeds.foundations.run, { confirmNonProduction: SEED_CONFIRMATION })
   const { network: networkId } = await t.mutation(internal.modules.diaspora.seed.run, { confirmNonProduction: SEED_CONFIRMATION })
+  await openNetworkFeatures(t, networkId)
   const manager = await member(t, networkId, "blocks-awa", "Awa OGOOUÉ")
   const dora = await member(t, networkId, "blocks-dora", "Dora NZÉ")
   const ines = await member(t, networkId, "blocks-ines", "Inès BOUSSOUGOU")

@@ -55,6 +55,7 @@ function isMemberCreatable(kind: PageOwnerKind): boolean {
  * (directs fermés compris), puis l'échéance se pose à trente jours.
  */
 export const putPageToSleep = networkMutation({
+  feature: "pages",
   minStatus: "declaree",
   args: { pageId: v.id("pages") },
   returns: v.object({ sleepEndsAt: v.number() }),
@@ -88,6 +89,7 @@ export const putPageToSleep = networkMutation({
  * `conflict`. Tout revient d'un coup : publications, offres, emplois, évènements, groupe.
  */
 export const wakePage = networkMutation({
+  feature: "pages",
   minStatus: "declaree",
   args: { pageId: v.id("pages") },
   returns: v.object({ status: v.literal("active") }),
@@ -124,6 +126,7 @@ export const wakePage = networkMutation({
  * `canWake` : je suis administrateur, l'échéance n'est pas passée et aucune mesure du juge ne la tient.
  */
 export const mySleepingPages = networkQuery({
+  feature: "pages",
   args: {},
   returns: v.array(sleepingPageValidator),
   handler: async (ctx) => {

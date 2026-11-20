@@ -11,7 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { api, internal } from "../../_generated/api"
 import type { Doc, Id } from "../../_generated/dataModel"
 import { SEED_CONFIRMATION } from "../../seeds/foundations"
-import { testConvex } from "../../test.setup"
+import { openNetworkFeatures, testConvex } from "../../test.setup"
 import { HUB_EVENTS_COUNT_PER_PAGE, HUB_EVENTS_PAGE_MAX } from "./hubEvents"
 import { HUB_PAGES_SCAN } from "./hubPages"
 
@@ -53,6 +53,7 @@ async function fixture() {
   const t = testConvex()
   const { root } = await t.mutation(internal.seeds.foundations.run, { confirmNonProduction: SEED_CONFIRMATION })
   const { network } = await t.mutation(internal.modules.diaspora.seed.run, { confirmNonProduction: SEED_CONFIRMATION })
+  await openNetworkFeatures(t, network)
   // Modération a posteriori des évènements : publiés dès leur création, sauf ce que le test retient.
   await t.run(async (ctx) => {
     await ctx.db.insert("moderationPolicies", { networkId: network, surface: "event", preReview: false, maxLinks: 2, maxWrites: 100, windowMs: 60_000, updatedAt: NOW })

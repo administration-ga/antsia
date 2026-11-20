@@ -84,6 +84,7 @@ const signatoryDtoValidator = v.object({
 
 /** L'équipe d'une page (invitations comprises) — ses membres vivants seuls la voient, modérateurs compris (AS-10). */
 export const listPageSignatories = networkQuery({
+  feature: "pages",
   args: { pageId: v.id("pages") },
   returns: v.array(signatoryDtoValidator),
   handler: async (ctx, args) => {
@@ -120,6 +121,7 @@ export const listPageSignatories = networkQuery({
  * modérateur.
  */
 export const grantPageRole = networkMutation({
+  feature: "pages",
   minStatus: "declaree",
   args: { pageId: v.id("pages"), handle: v.string(), role: pageTeamRoleValidator },
   returns: v.object({ personId: v.id("persons"), role: pageTeamRoleValidator, invited: v.boolean() }),
@@ -172,6 +174,7 @@ export const grantPageRole = networkMutation({
  * Le dernier administrateur vivant ne part pas.
  */
 export const revokePageRole = networkMutation({
+  feature: "pages",
   minStatus: "en_attente",
   args: { pageId: v.id("pages"), personId: v.id("persons") },
   returns: v.object({ revoked: v.boolean() }),
@@ -219,6 +222,7 @@ export const revokePageRole = networkMutation({
 
 /** Mes invitations à rejoindre l'équipe d'une page de ce réseau, en attente (rôle d'équipe, AS-10). */
 export const myPageInvitations = networkQuery({
+  feature: "pages",
   args: {},
   returns: v.array(v.object({ page: pageCardValidator, role: pageTeamRoleValidator, invitedAt: v.number() })),
   handler: async (ctx) => {
@@ -241,6 +245,7 @@ export const myPageInvitations = networkQuery({
  * l'invitation. AS-10 : rend le rôle d'ÉQUIPE accepté (`moderator` compris), `null` au refus.
  */
 export const respondToPageInvitation = networkMutation({
+  feature: "pages",
   minStatus: "declaree",
   args: { pageId: v.id("pages"), accept: v.boolean() },
   returns: v.object({ role: v.union(pageTeamRoleValidator, v.null()) }),

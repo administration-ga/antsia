@@ -42,6 +42,7 @@ function compareCandidates(a: Candidate, b: Candidate): number {
 }
 
 export const list = networkQuery({
+  feature: "pages",
   args: {},
   returns: v.array(followedUpdateValidator),
   handler: async (ctx): Promise<FollowedUpdate[]> => {

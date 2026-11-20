@@ -151,6 +151,7 @@ async function viewOf(ctx: Pick<QueryCtx, "db" | "runQuery">, event: Doc<"events
 }
 
 export const listForPage = networkQuery({
+  feature: "groupsAndEvents",
   args: { pageId: v.id("pages"), paginationOpts: paginationOptsValidator },
   returns: v.object({ items: v.array(viewValidator), continueCursor: v.union(v.string(), v.null()), isDone: v.boolean() }),
   handler: async (ctx, args) => {
@@ -173,6 +174,7 @@ export const listForPage = networkQuery({
 })
 
 export const get = networkQuery({
+  feature: "groupsAndEvents",
   args: { eventId: v.id("events") }, returns: v.union(v.null(), viewValidator),
   handler: async (ctx, args) => {
     assertDiasporaNetwork(ctx.network)
@@ -184,6 +186,7 @@ export const get = networkQuery({
 })
 
 export const create = networkMutation({
+  feature: "groupsAndEvents",
   args: { ...inputValidators, idempotencyKey: v.string() },
   returns: v.object({ eventId: v.id("events"), created: v.boolean() }),
   handler: async (ctx, args) => {
@@ -215,6 +218,7 @@ export const create = networkMutation({
 })
 
 export const update = networkMutation({
+  feature: "groupsAndEvents",
   args: { ...inputValidators, eventId: v.id("events"), expectedVersion: v.number() }, returns: v.null(),
   handler: async (ctx, args) => {
     assertDiasporaNetwork(ctx.network)
@@ -254,6 +258,7 @@ export const update = networkMutation({
  * Rejouée sur un événement déjà annulé : rien ne change (ni motif, ni avis).
  */
 export const cancel = networkMutation({
+  feature: "groupsAndEvents",
   args: { eventId: v.id("events"), expectedVersion: v.number(), reason: v.optional(pageEventCancellationReasonValidator) }, returns: v.null(),
   handler: async (ctx, args) => {
     assertDiasporaNetwork(ctx.network)
@@ -275,6 +280,7 @@ export const cancel = networkMutation({
  * `null` : événement illisible pour ce lecteur, ou non annulé ; `reason: null` : annulé sans motif.
  */
 export const cancellationReason = networkQuery({
+  feature: "groupsAndEvents",
   args: { eventId: v.id("events") },
   returns: v.union(v.null(), v.object({ reason: v.union(pageEventCancellationReasonValidator, v.null()) })),
   handler: async (ctx, args) => {
@@ -287,6 +293,7 @@ export const cancellationReason = networkQuery({
 })
 
 export const register = networkMutation({
+  feature: "groupsAndEvents",
   args: { eventId: v.id("events") }, returns: v.null(),
   handler: async (ctx, args) => {
     assertDiasporaNetwork(ctx.network)
@@ -312,6 +319,7 @@ export const register = networkMutation({
 
 /** Retirer sa présence ne demande aucun nouvel accès au contenu privé quitté. */
 export const unregister = networkMutation({
+  feature: "groupsAndEvents",
   minStatus: "en_attente", args: { eventId: v.id("events") }, returns: v.null(),
   handler: async (ctx, args) => {
     assertDiasporaNetwork(ctx.network)

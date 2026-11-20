@@ -2,6 +2,8 @@
 export const DATA_TABLE_POLICIES: Record<string, { shared?: boolean; owners?: readonly string[]; parents?: readonly string[] }> = {
   networks: {shared: true},
   networkSettingsHistory: {shared: true},
+  // ADR-0041 : réglage du réseau (une ligne par fonctionnalité), qui l'a posé n'en fait pas une donnée personnelle.
+  networkFeatures: {shared: true},
   persons: {},
   identityLinks: {},
   idnProofs: {},

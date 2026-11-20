@@ -144,6 +144,7 @@ async function purgeClaimEvidence(ctx: MutationCtx, claim: Doc<"pageClaims">): P
 
 /** URL de dépôt d'une pièce de revendication (temps 1 de la politique ; le temps 2 est à la demande). */
 export const generateClaimEvidenceUploadUrl = networkMutation({
+  feature: "pages",
   minStatus: "declaree",
   args: {},
   returns: v.string(),
@@ -159,6 +160,7 @@ export const generateClaimEvidenceUploadUrl = networkMutation({
  * seule demande en attente par (page, demandeur).
  */
 export const requestPageClaim = networkMutation({
+  feature: "pages",
   minStatus: "declaree",
   args: {
     pageId: v.id("pages"),
@@ -208,6 +210,7 @@ export const requestPageClaim = networkMutation({
 
 /** Retirer MA demande en attente — ses pièces sont purgées aussitôt. Ce qui n'est plus en attente rend `false`. */
 export const withdrawPageClaim = networkMutation({
+  feature: "pages",
   minStatus: "en_attente",
   args: { claimId: v.id("pageClaims") },
   returns: v.object({ withdrawn: v.boolean() }),
@@ -225,6 +228,7 @@ export const withdrawPageClaim = networkMutation({
 
 /** MES revendications dans ce réseau, les plus récentes d'abord. */
 export const paginateMyPageClaims = networkQuery({
+  feature: "pages",
   args: { paginationOpts: paginationOptsValidator },
   handler: async (ctx, args): Promise<PaginationResult<ClaimDto>> => {
     const result = await ctx.db
@@ -249,6 +253,7 @@ export const paginateMyPageClaims = networkQuery({
  * minimal que `cases.myCapacity`, que cet écran lit à côté.
  */
 export const myPageClaimReview = networkQuery({
+  feature: "pages",
   minStatus: "declaree",
   args: {},
   returns: v.object({ canReview: v.boolean() }),
@@ -262,6 +267,7 @@ export const myPageClaimReview = networkQuery({
  * file se vide par le bas.
  */
 export const paginatePageClaims = networkQuery({
+  feature: "pages",
   args: { status: v.optional(pageClaimStatusValidator), paginationOpts: paginationOptsValidator },
   handler: async (ctx, args): Promise<PaginationResult<ClaimDto>> => {
     if ((await pageClaimReviewCapacity(ctx, ctx)) === null) return notFound()
@@ -288,6 +294,7 @@ export const paginatePageClaims = networkQuery({
  * si elle a bloqué) ; l'échéance de leur suppression est `evidencePurgeAt`.
  */
 export const getPageClaim = networkQuery({
+  feature: "pages",
   args: { claimId: v.id("pageClaims") },
   returns: v.object({
     ...claimDtoValidator.fields,
@@ -324,6 +331,7 @@ export const getPageClaim = networkQuery({
  * est averti par une cloche sans contenu.
  */
 export const decidePageClaim = networkMutation({
+  feature: "pages",
   minStatus: "declaree",
   args: { claimId: v.id("pageClaims"), decision: pageClaimDecisionValidator, reason: v.string() },
   returns: v.object({ status: pageClaimStatusValidator }),

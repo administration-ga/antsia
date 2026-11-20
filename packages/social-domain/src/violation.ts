@@ -123,6 +123,9 @@ export const DOMAIN_RULES = [
   "DECISION_REASON_LENGTH",
   // Rôles d'un réseau (EX-08) : un réseau qui a un administrateur vivant en garde toujours un
   "NETWORK_LAST_ADMIN",
+  // Fonctionnalités d'un réseau gouverné (ADR-0041) : ouvrir exige le parent ouvert, fermer les enfants fermés
+  "NETWORK_FEATURE_REQUIRES_PARENT",
+  "NETWORK_FEATURE_HAS_OPEN_CHILDREN",
   // Messagerie : pièces jointes
   "ATTACHMENTS_TOO_MANY",
   "ATTACHMENT_TYPE_NOT_ALLOWED",

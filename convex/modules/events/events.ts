@@ -135,6 +135,7 @@ async function requireOrganizedEvent(ctx: MutationCtx & { networkId: Id<"network
  * pour toutes — celui de la personne, jamais un fuseau imposé.
  */
 export const create = networkMutation({
+  feature: "groupsAndEvents",
   minStatus: "declaree",
   args: {
     title: v.string(),
@@ -189,6 +190,7 @@ export const create = networkMutation({
  * `accepted` ou `maybe` est acquise — rien à réinviter.
  */
 export const invite = networkMutation({
+  feature: "groupsAndEvents",
   minStatus: "declaree",
   args: { eventId: v.id("events"), handle: v.string() },
   returns: v.object({ invited: v.boolean() }),
@@ -230,6 +232,7 @@ export const invite = networkMutation({
  * une ligne restée ouverte).
  */
 export const respond = networkMutation({
+  feature: "groupsAndEvents",
   minStatus: "declaree",
   args: { participationId: v.id("eventParticipants"), response: literals(["accepted", "declined", "maybe"] as const) },
   returns: v.object({ status: literals(["accepted", "declined", "maybe"] as const) }),
@@ -257,6 +260,7 @@ export const respond = networkMutation({
  * `cancelled` par un job chaîné (la liste des invités n'est pas bornée ici).
  */
 export const cancel = networkMutation({
+  feature: "groupsAndEvents",
   minStatus: "en_attente",
   args: { eventId: v.id("events") },
   returns: v.object({ cancelled: v.literal(true) }),
@@ -305,6 +309,7 @@ export const resolveInvitationsOnCancel = internalMutation({
  * réseau gouverné, le placement passe la règle de sa tranche (HB-03).
  */
 export const announce = networkMutation({
+  feature: "groupsAndEvents",
   minStatus: "declaree",
   args: {
     eventId: v.id("events"),
@@ -422,6 +427,7 @@ async function toEventDto(
  * la fenêtre ; les droits des événements associatifs sont relus à l'acte.
  */
 export const myAgenda = networkQuery({
+  feature: "groupsAndEvents",
   args: { now: v.number(), from: v.optional(v.number()), to: v.optional(v.number()), expectedReaderPersonId: v.optional(v.id("persons")) },
   handler: async (ctx, args): Promise<{ items: EventDto[]; associationItems: AssociationAgendaDto[]; truncated: boolean }> => {
     const me = ctx.person._id
@@ -506,6 +512,7 @@ export const myAgenda = networkQuery({
  * les indications de découpage de Convex : jamais de rattrapage dans cet appel.
  */
 export const paginateMyAgenda = networkQuery({
+  feature: "groupsAndEvents",
   args: {
     source: literals(["organized", "participations"] as const),
     period: literals(["upcoming", "history"] as const),
@@ -585,6 +592,7 @@ export const paginateMyAgenda = networkQuery({
 
 /** La fiche d'un évènement — pour qui EN EST (refus indistinct sinon). */
 export const getEvent = networkQuery({
+  feature: "groupsAndEvents",
   args: { eventId: v.id("events") },
   handler: async (ctx, args): Promise<EventDto> => {
     const { event, participation, isOrganizer } = await requireEventAccess(ctx, ctx.networkId, args.eventId, ctx.person._id)
@@ -601,6 +609,7 @@ export type EventParticipantDto = {
 
 /** Les invités d'un évènement, exhaustifs et paginés : à un évènement, les invités se voient. */
 export const paginateEventParticipants = networkQuery({
+  feature: "groupsAndEvents",
   args: { eventId: v.id("events"), paginationOpts: paginationOptsValidator },
   handler: async (ctx, args): Promise<PaginationResult<EventParticipantDto>> => {
     const { event } = await requireEventAccess(ctx, ctx.networkId, args.eventId, ctx.person._id)

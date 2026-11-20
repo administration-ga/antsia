@@ -11,7 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { api, internal } from "../../_generated/api"
 import type { Doc, Id } from "../../_generated/dataModel"
 import { SEED_CONFIRMATION } from "../../seeds/foundations"
-import { testConvex } from "../../test.setup"
+import { openNetworkFeatures, testConvex } from "../../test.setup"
 import { HUB_PAGES_PER_KIND, HUB_PAGES_SCAN, isPageOrphan } from "./hubPages"
 
 type T = ReturnType<typeof testConvex>
@@ -35,6 +35,7 @@ async function fixture() {
   const t = testConvex()
   const { root } = await t.mutation(internal.seeds.foundations.run, { confirmNonProduction: SEED_CONFIRMATION })
   const { network } = await t.mutation(internal.modules.diaspora.seed.run, { confirmNonProduction: SEED_CONFIRMATION })
+  await openNetworkFeatures(t, network)
   const reader = await member(t, network, "lecteur")
   return { t, root, network, reader }
 }

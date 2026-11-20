@@ -7,7 +7,7 @@ import { api, internal } from "../../_generated/api"
 import type { Id } from "../../_generated/dataModel"
 import type { MutationCtx } from "../../_generated/server"
 import { SEED_CONFIRMATION } from "../../seeds/foundations"
-import { testConvex } from "../../test.setup"
+import { openNetworkFeatures, testConvex } from "../../test.setup"
 import { admitStoredUpload } from "../files/admission"
 import { exportableRecord, type DataRecord } from "../people/dataInventory"
 
@@ -699,6 +699,7 @@ async function associationGroupFixture(t: T) {
   vi.setSystemTime(ASSOCIATION_NOW)
   await seed(t)
   const { network: networkId } = await t.mutation(internal.modules.diaspora.seed.run, { confirmNonProduction: SEED_CONFIRMATION })
+  await openNetworkFeatures(t, networkId)
   const member = async (handle: string): Promise<Person> => {
     const as = t.withIdentity({ subject: `auth-${handle}` })
     const personId = await as.mutation(api.modules.people.persons.ensureMyPerson, {})

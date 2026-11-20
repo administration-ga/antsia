@@ -243,6 +243,7 @@ function judge(gesture: AssociationManagementGesture, context: { row: Membership
  * illisible, d'ailleurs ou qui n'est pas une association : refus indistinct.
  */
 export const myAssociationMembership = networkQuery({
+  feature: "pages",
   minStatus: "en_attente",
   args: { pageId: v.id("pages") },
   returns: myMembershipValidator,
@@ -279,6 +280,7 @@ export const myAssociationMembership = networkQuery({
 
 /** Mes adhésions et demandes, les plus récemment changées d'abord ; une association devenue illisible n'y paraît plus. */
 export const myAssociations = networkQuery({
+  feature: "pages",
   minStatus: "en_attente",
   args: { paginationOpts: paginationOptsValidator },
   returns: paginationResultValidator(myAssociationItemValidator),
@@ -308,6 +310,7 @@ export const myAssociations = networkQuery({
 
 /** L'association que je gère, désignée par son adresse : responsable vivant seulement, sinon refus indistinct. */
 export const managedAssociation = networkQuery({
+  feature: "pages",
   minStatus: "en_attente",
   args: { handle: v.string() },
   returns: managedAssociationValidator,
@@ -327,6 +330,7 @@ export const managedAssociation = networkQuery({
  * réseau ou suspendue n'y paraît pas tant qu'elle n'y est pas revenue.
  */
 export const associationMembers = networkQuery({
+  feature: "pages",
   minStatus: "en_attente",
   args: { pageId: v.id("pages"), status: associationListStatusValidator, paginationOpts: paginationOptsValidator },
   returns: paginationResultValidator(memberItemValidator),
@@ -373,6 +377,7 @@ export const associationMembers = networkQuery({
  * des responsables après une exclusion). Aucun accès anticipé à quoi que ce soit.
  */
 export const requestAssociationMembership = networkMutation({
+  feature: "pages",
   minStatus: "declaree",
   args: { pageId: v.id("pages"), message: v.optional(v.string()) },
   returns: v.object({ membershipId: v.id("associationMemberships"), version: v.number() }),
@@ -429,6 +434,7 @@ export const requestAssociationMembership = networkMutation({
 
 /** Annuler ma demande en cours. Toujours possible, même devenu « en attente » dans le réseau. */
 export const cancelAssociationMembershipRequest = networkMutation({
+  feature: "pages",
   minStatus: "en_attente",
   args: { pageId: v.id("pages") },
   returns: v.object({ version: v.number() }),
@@ -449,6 +455,7 @@ export const cancelAssociationMembershipRequest = networkMutation({
 
 /** Quitter une association dont je suis adhérent : mon geste, jamais une décision des responsables. */
 export const leaveAssociation = networkMutation({
+  feature: "pages",
   minStatus: "en_attente",
   args: { pageId: v.id("pages") },
   returns: v.object({ version: v.number() }),
@@ -473,6 +480,7 @@ export const leaveAssociation = networkMutation({
 
 /** Accepter ou refuser une demande (tout responsable vivant), à la version lue ; un refus peut être motivé. */
 export const decideAssociationMembership = networkMutation({
+  feature: "pages",
   minStatus: "declaree",
   args: {
     membershipId: v.id("associationMemberships"),
@@ -511,6 +519,7 @@ export const decideAssociationMembership = networkMutation({
 
 /** Exclure un adhérent : un administrateur de la page, motif obligatoire ; on ne s'exclut pas soi-même (on quitte). */
 export const removeAssociationMember = networkMutation({
+  feature: "pages",
   minStatus: "declaree",
   args: { membershipId: v.id("associationMemberships"), expectedVersion: v.number(), reason: v.string() },
   returns: v.object({ status: associationMembershipStatusValidator, version: v.number() }),
@@ -541,6 +550,7 @@ export const removeAssociationMember = networkMutation({
 
 /** Nommer un adhérent animateur, ou le repasser membre : un administrateur de la page ; rejouer le même rôle ne fait rien. */
 export const setAssociationMemberRole = networkMutation({
+  feature: "pages",
   minStatus: "declaree",
   args: { membershipId: v.id("associationMemberships"), expectedVersion: v.number(), role: associationMemberRoleValidator },
   returns: v.object({ role: associationMemberRoleValidator, version: v.number() }),
@@ -562,6 +572,7 @@ export const setAssociationMemberRole = networkMutation({
  * geste de redemander. Rejouer l'autorisation ne fait rien.
  */
 export const allowAssociationReadmission = networkMutation({
+  feature: "pages",
   minStatus: "declaree",
   args: { membershipId: v.id("associationMemberships"), expectedVersion: v.number() },
   returns: v.object({ version: v.number() }),

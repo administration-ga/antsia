@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { api, components, internal } from "../../_generated/api"
 import { SEED_CONFIRMATION } from "../../seeds/foundations"
-import { testConvex } from "../../test.setup"
+import { openNetworkFeatures, testConvex } from "../../test.setup"
 
 afterEach(() => vi.unstubAllEnvs())
 
@@ -12,6 +12,7 @@ async function fixture(email = "relations.recette@exemple.test", verified = true
   const t = testConvex()
   const { root } = await t.mutation(internal.seeds.foundations.run, { confirmNonProduction: SEED_CONFIRMATION })
   const { network: child } = await t.mutation(internal.modules.diaspora.seed.run, { confirmNonProduction: SEED_CONFIRMATION })
+  await openNetworkFeatures(t, child)
   const now = Date.now()
   const user: unknown = await t.mutation(components.betterAuth.adapter.create, { input: { model: "user", data: { name: "Personne de recette", email, emailVerified: verified, createdAt: now, updatedAt: now } } })
   if (!user || typeof user !== "object" || !("_id" in user) || typeof user._id !== "string") throw new Error("Compte de fixture absent")

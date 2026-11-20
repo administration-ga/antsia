@@ -80,6 +80,8 @@
   "UPLOAD_MISMATCH": "Le fichier reçu ne correspond pas à celui annoncé. Réessayez le dépôt.",
   "DECISION_REASON_LENGTH": "Le motif doit compter entre {{min}} et {{max}} caractères.",
   "NETWORK_LAST_ADMIN": "Un réseau garde toujours au moins un administrateur actif : nommez d'abord un autre administrateur, puis retirez ce rôle ou quittez le réseau.",
+  "NETWORK_FEATURE_REQUIRES_PARENT": "Une fonctionnalité qui vit sur les pages ne s'ouvre qu'une fois les pages ouvertes : ouvrez d'abord les pages.",
+  "NETWORK_FEATURE_HAS_OPEN_CHILDREN": "Les pages portent encore une fonctionnalité ouverte (groupes et évènements, services ou emploi) : fermez-la d'abord, puis fermez les pages.",
   "POST_SHARE_IN_GROUP": "Un partage ne se publie pas dans un groupe.",
   "POST_PIN_GROUP": "Une publication de groupe s'épingle dans son groupe.",
   "POST_REACH_INVALID": "Cette portée n'existe pas dans ce réseau.",

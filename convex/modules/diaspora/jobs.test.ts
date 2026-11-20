@@ -13,7 +13,7 @@ import { api, internal } from "../../_generated/api"
 import type { Doc, Id } from "../../_generated/dataModel"
 import { SEED_CONFIRMATION } from "../../seeds/foundations"
 import { isBlockedBetween } from "../graph/graph"
-import { testConvex } from "../../test.setup"
+import { openNetworkFeatures, testConvex } from "../../test.setup"
 
 type T = ReturnType<typeof testConvex>
 type Member = { as: ReturnType<T["withIdentity"]>; personId: Id<"persons"> }
@@ -200,6 +200,7 @@ async function fixture() {
   const t = testConvex()
   const { root } = await t.mutation(internal.seeds.foundations.run, { confirmNonProduction: SEED_CONFIRMATION })
   const { network: networkId } = await t.mutation(internal.modules.diaspora.seed.run, { confirmNonProduction: SEED_CONFIRMATION })
+  await openNetworkFeatures(t, networkId)
   const pro = await member(t, networkId, "pro.recrute", "Nadia Mpassa")
   const candidate = await member(t, networkId, "candidate.demo", "Mireille Ivindo")
   const reader = await member(t, networkId, "lecteur.demo", "Steeve Ngounie")

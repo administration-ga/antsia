@@ -2,10 +2,13 @@
  * Manifeste de la tranche `diaspora` — ce qu'elle apporte au moteur, en un lieu :
  * le réseau qu'elle gouverne, l'application qui le sert et sa marque, ses tables,
  * les seaux de débit qu'elle consomme, les finalités de consentement qu'elle lit,
- * les contrats qu'elle consomme, et son passage planifié. Aucune fonction ici ; le
- * test de la tranche vérifie que ce manifeste dit vrai (tables du schéma, seaux du
- * moteur, application du catalogue).
+ * les contrats qu'elle consomme, son passage planifié, et la fonctionnalité que
+ * chacun de ses fichiers sert (ADR-0041). Aucune fonction ici ; le test de la
+ * tranche vérifie que ce manifeste dit vrai (tables du schéma, seaux du moteur,
+ * application du catalogue), le cliquet `network-feature-gates` que chaque fichier
+ * y est classé et que chaque fonction d'un fichier classé porte sa clé.
  */
+import type { NetworkFeature } from "@antsia/social-domain/networkFeatures"
 import { ATTESTATION_CONTRACT, DIASPORA_GA_NETWORK_SEED, DIASPORA_GA_NETWORK_SLUG, DIASPORA_GA_SLICE } from "@diaspora-ga/domain"
 
 import type { RateLimitBucket } from "../../lib/rateLimit"
@@ -98,4 +101,57 @@ export const DIASPORA_SLICE_MANIFEST = {
     "modules/diaspora/pilotMetrics:refreshPilotMetrics",
     "modules/diaspora/jobs:closeExpiredJobOffers",
   ],
+  /**
+   * ADR-0041 — la fonctionnalité que sert chaque fichier de la tranche, ou `core` (le socle,
+   * toujours servi). Toute fonction de réseau (`networkQuery`, `networkMutation`,
+   * `networkAction`) d'un fichier classé porte l'option `feature` de sa clé ; un fichier
+   * nouveau s'y classe avant d'exister (cliquet `network-feature-gates`).
+   */
+  featureFiles: {
+    "arrivalKit.ts": "arrivalKit",
+    "arrivalKitTables.ts": "arrivalKit",
+    "associationEventRules.ts": "groupsAndEvents",
+    "associationGroups.ts": "groupsAndEvents",
+    "associations.ts": "pages",
+    "associationsTables.ts": "pages",
+    "attestation.ts": "core",
+    "communityNotifications.ts": "core",
+    "contentCounters.ts": "core",
+    "contentPreferences.ts": "core",
+    "conversationContexts.ts": "core",
+    "conversationSync.ts": "core",
+    "demoAccounts.ts": "core",
+    "directory.ts": "core",
+    "facet.ts": "core",
+    "facts.ts": "core",
+    "founders.ts": "core",
+    "hubEvents.ts": "groupsAndEvents",
+    "hubPages.ts": "pages",
+    "hubs.ts": "core",
+    "jobs.ts": "jobs",
+    "jobsTables.ts": "jobs",
+    "manifest.ts": "core",
+    "membership.ts": "core",
+    "mentoring.ts": "mentoring",
+    "mentoringTables.ts": "mentoring",
+    "moderationContent.ts": "core",
+    "moderationDesk.ts": "core",
+    "moderationTargets.ts": "core",
+    "mutualAid.ts": "mutualAid",
+    "mutualAidTables.ts": "mutualAid",
+    "pilotMetrics.ts": "pilotMetrics",
+    "pilotMetricsTables.ts": "pilotMetrics",
+    "profile.ts": "core",
+    "seed.ts": "core",
+    "serviceNotifications.ts": "services",
+    "serviceRequests.ts": "services",
+    "serviceRequestsTables.ts": "services",
+    "serviceReviews.ts": "services",
+    "serviceReviewsTables.ts": "services",
+    "services.ts": "services",
+    "servicesTables.ts": "services",
+    "suggestions.ts": "core",
+    "tables.ts": "core",
+    "validators.ts": "core",
+  } satisfies Readonly<Record<string, NetworkFeature | "core">>,
 } as const

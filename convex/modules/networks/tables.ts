@@ -10,6 +10,7 @@ import {
   contentVisibilityValidator,
   facetSchemaValidator,
   membershipPolicyValidator,
+  networkFeatureValidator,
   networkKindValidator,
   networkSliceValidator,
   networkStatusValidator,
@@ -58,6 +59,21 @@ export const networksTables = {
     .index("by_slug", ["slug"])
     .index("by_kind_and_status", ["kind", "status"])
     .index("by_parent_and_status", ["parentId", "status"]),
+
+  /**
+   * ADR-0041 — une ligne par couple (réseau, fonctionnalité) d'un réseau GOUVERNÉ par une tranche.
+   * L'ABSENCE de ligne vaut « fermé ». Écrite par l'administrateur du réseau (bureau) ou par un
+   * administrateur de la plateforme (console), motif au journal `network.feature_set` ; jamais
+   * par une graine. Fermer ne supprime aucune donnée de la fonctionnalité.
+   */
+  networkFeatures: defineTable({
+    networkId: v.id("networks"),
+    feature: networkFeatureValidator,
+    enabled: v.boolean(),
+    updatedAt: v.number(),
+    updatedByPersonId: v.optional(v.id("persons")),
+  }).index("by_network_feature", ["networkId", "feature"])
+    .index("by_updatedByPersonId", ["updatedByPersonId"]),
 
   networkSettingsHistory: defineTable({
     networkId: v.id("networks"),

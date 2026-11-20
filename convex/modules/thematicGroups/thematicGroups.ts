@@ -147,6 +147,7 @@ async function closeMembership(ctx: MutationCtx, group: Doc<"thematicGroups">, m
  * dans le réseau de la page.
  */
 export const create = networkMutation({
+  feature: "groupsAndEvents",
   minStatus: "declaree",
   args: {
     name: v.string(),
@@ -208,6 +209,7 @@ function rulesAcceptedOnEntry(group: Doc<"thematicGroups">, acceptedRulesVersion
  * attente : la cloche ne propose plus d'y répondre.
  */
 export const join = networkMutation({
+  feature: "groupsAndEvents",
   minStatus: "declaree",
   args: { groupId: v.id("thematicGroups"), acceptedRulesVersion: v.optional(v.number()) },
   returns: v.object({ joined: v.literal(true) }),
@@ -233,6 +235,7 @@ export const join = networkMutation({
 
 /** Quitter. Idempotent. L'`owner` ne part pas (il transmet son rôle, ferme, archive ou supprime). */
 export const leave = networkMutation({
+  feature: "groupsAndEvents",
   writeBucket: "group.leave",
   minStatus: "en_attente",
   args: { groupId: v.id("thematicGroups") },
@@ -274,6 +277,7 @@ async function requireOwner(ctx: ReadCtx, networkId: Id<"networks">, groupId: Id
  * un groupe ordinaire n'a pas d'action au journal.
  */
 export const closeGroup = networkMutation({
+  feature: "groupsAndEvents",
   minStatus: "declaree",
   args: { groupId: v.id("thematicGroups") },
   returns: v.object({ closed: v.literal(true) }),
@@ -302,6 +306,7 @@ export const closeGroup = networkMutation({
 
 /** Archiver retire aussi le groupe de la découverte, sans supprimer la ligne. */
 export const archiveGroup = networkMutation({
+  feature: "groupsAndEvents",
   minStatus: "declaree",
   args: { groupId: v.id("thematicGroups") },
   returns: v.object({ archived: v.literal(true) }),
@@ -426,6 +431,7 @@ export const continueDeleteGroup = internalMutation({
 
 /** Suppression définitive — owner seul, fermée sur-le-champ puis purgée par lots. */
 export const deleteGroup = networkMutation({
+  feature: "groupsAndEvents",
   minStatus: "declaree",
   args: { groupId: v.id("thematicGroups") },
   returns: v.object({ deleted: v.literal(true), pending: v.boolean() }),
@@ -492,6 +498,7 @@ async function canBecomeGroupOwner(ctx: ReadCtx, networkId: Id<"networks">, owne
  * version nouvelle jusqu'à ce qu'ils l'acceptent (`acceptGroupRules`).
  */
 export const setGroupRules = networkMutation({
+  feature: "groupsAndEvents",
   minStatus: "declaree",
   args: { groupId: v.id("thematicGroups"), rules: v.optional(v.string()) },
   returns: v.object({ rulesVersion: v.union(v.number(), v.null()), changed: v.boolean() }),
@@ -514,6 +521,7 @@ export const setGroupRules = networkMutation({
  * règles en vigueur, rien à accepter.
  */
 export const acceptGroupRules = networkMutation({
+  feature: "groupsAndEvents",
   minStatus: "declaree",
   args: { groupId: v.id("thematicGroups"), rulesVersion: v.number() },
   returns: v.object({ accepted: v.boolean() }),
@@ -537,6 +545,7 @@ export const acceptGroupRules = networkMutation({
  * aucune cloche n'est émise ici.
  */
 export const transferGroupOwnership = networkMutation({
+  feature: "groupsAndEvents",
   minStatus: "declaree",
   args: { groupId: v.id("thematicGroups"), newOwnerPersonId: v.id("persons") },
   returns: v.object({ transferred: v.literal(true) }),
@@ -572,6 +581,7 @@ const transferCandidateValidator = v.object({
  * ligne lue ici n'est PAS une autorisation : le transfert re-juge tout.
  */
 export const listTransferCandidates = networkQuery({
+  feature: "groupsAndEvents",
   args: { groupId: v.id("thematicGroups") },
   returns: v.object({ items: v.array(transferCandidateValidator), truncated: v.boolean() }),
   handler: async (ctx, args) => {
@@ -603,6 +613,7 @@ export const listTransferCandidates = networkQuery({
  * rouvre une ligne déclinée ; un membre vivant n'est jamais invité.
  */
 export const invite = networkMutation({
+  feature: "groupsAndEvents",
   minStatus: "declaree",
   args: { groupId: v.id("thematicGroups"), handle: v.string() },
   returns: v.object({ invited: v.boolean(), alreadyInvited: v.boolean() }),
@@ -649,6 +660,7 @@ const inviteCandidateValidator = v.object({
  * lu ici n'est PAS une autorisation : `invite` re-juge tout.
  */
 export const listInviteCandidates = networkQuery({
+  feature: "groupsAndEvents",
   args: { groupId: v.id("thematicGroups") },
   returns: v.object({ items: v.array(inviteCandidateValidator), truncated: v.boolean() }),
   handler: async (ctx, args) => {
@@ -697,6 +709,7 @@ export const listInviteCandidates = networkQuery({
  * l'invitant).
  */
 export const respondInvite = networkMutation({
+  feature: "groupsAndEvents",
   minStatus: "declaree",
   args: { inviteId: v.id("thematicGroupInvites"), accept: v.boolean(), acceptedRulesVersion: v.optional(v.number()) },
   returns: v.object({ joined: v.boolean() }),
@@ -736,6 +749,7 @@ export type MyInviteDto = {
 
 /** MES invitations en attente dans le réseau — le groupe et qui m'invite, rien d'autre. Paginées. */
 export const paginateMyInvites = networkQuery({
+  feature: "groupsAndEvents",
   args: { paginationOpts: paginationOptsValidator },
   handler: async (ctx, args): Promise<PaginationResult<MyInviteDto>> => {
     const result = await ctx.db
@@ -769,6 +783,7 @@ export const paginateMyInvites = networkQuery({
 
 /** Promouvoir ou rétrograder (`moderator` ↔ `member`) — le seul `owner`, jamais sur un `owner`. */
 export const setMemberRole = networkMutation({
+  feature: "groupsAndEvents",
   minStatus: "declaree",
   args: { groupId: v.id("thematicGroups"), memberPersonId: v.id("persons"), role: v.union(v.literal("moderator"), v.literal("member")) },
   returns: v.object({ role: v.union(v.literal("moderator"), v.literal("member")) }),
@@ -787,6 +802,7 @@ export const setMemberRole = networkMutation({
 
 /** Retirer un membre — la matrice du domaine : l'owner retire n'importe qui d'autre, un modérateur les simples membres. */
 export const removeMember = networkMutation({
+  feature: "groupsAndEvents",
   minStatus: "declaree",
   args: { groupId: v.id("thematicGroups"), memberPersonId: v.id("persons") },
   returns: v.object({ removed: v.literal(true) }),
@@ -816,6 +832,7 @@ export type GroupMemberDto = {
  * public (un chiffre), la LISTE nominative ne l'est pas. Paginée (D19).
  */
 export const paginateMembers = networkQuery({
+  feature: "groupsAndEvents",
   args: { groupId: v.id("thematicGroups"), paginationOpts: paginationOptsValidator },
   handler: async (ctx, args): Promise<PaginationResult<GroupMemberDto>> => {
     await requireLiveThematicGroupMembership(ctx, ctx.networkId, args.groupId, ctx.person._id)
@@ -916,6 +933,7 @@ async function toCard(ctx: QueryCtx, group: Doc<"thematicGroups">, states: Await
  * d'adhérents, les plus récents.
  */
 export const discover = networkQuery({
+  feature: "groupsAndEvents",
   args: { query: v.optional(v.string()), country: v.optional(v.string()), associationPageId: v.optional(v.id("pages")) },
   returns: v.array(groupCardValidator),
   handler: async (ctx, args) => {
@@ -965,6 +983,7 @@ export const discover = networkQuery({
 
 /** MES groupes du réseau, par activité récente ; bornés, avec la lacune (`truncated`). */
 export const myGroups = networkQuery({
+  feature: "groupsAndEvents",
   args: {},
   returns: v.object({ items: v.array(groupCardValidator), truncated: v.boolean() }),
   handler: async (ctx) => {
@@ -986,6 +1005,7 @@ export const myGroups = networkQuery({
  * transite que re-gardée : elle disparaît d'elle-même pour un non-membre.
  */
 export const getGroup = networkQuery({
+  feature: "groupsAndEvents",
   args: { groupId: v.id("thematicGroups") },
   returns: v.object({
     ...groupCardValidator.fields,
@@ -1056,6 +1076,7 @@ export const getGroup = networkQuery({
  * qu'au fil.
  */
 export const groupWall = networkQuery({
+  feature: "groupsAndEvents",
   args: { groupId: v.id("thematicGroups"), cursor: v.optional(cursorValidator), limit: v.optional(v.number()) },
   returns: v.object({ items: v.array(feedItemValidator), nextCursor: v.union(cursorValidator, v.null()) }),
   handler: async (ctx, args) => {
@@ -1122,6 +1143,7 @@ async function requireGroupModerator(ctx: ReadCtx, networkId: Id<"networks">, gr
 
 /** Épingler une publication VIVANTE de CE groupe en tête du mur — autorité de modération. */
 export const pinGroupPost = networkMutation({
+  feature: "groupsAndEvents",
   minStatus: "declaree",
   args: { groupId: v.id("thematicGroups"), postId: v.id("posts") },
   returns: v.object({ pinned: v.literal(true) }),
@@ -1137,6 +1159,7 @@ export const pinGroupPost = networkMutation({
 
 /** Dés-épingler — idempotent. */
 export const unpinGroupPost = networkMutation({
+  feature: "groupsAndEvents",
   minStatus: "declaree",
   args: { groupId: v.id("thematicGroups") },
   returns: v.object({ pinned: v.literal(false) }),
@@ -1162,6 +1185,7 @@ export const unpinGroupPost = networkMutation({
  * `page.comment_remove`. Une publication déjà retirée, ou retirée par son auteur, n'écrit rien.
  */
 export const removeGroupPost = networkMutation({
+  feature: "groupsAndEvents",
   minStatus: "declaree",
   args: { postId: v.id("posts") },
   returns: v.object({ removed: v.literal(true) }),

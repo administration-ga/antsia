@@ -15,7 +15,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { api, internal } from "../../_generated/api"
 import type { Id } from "../../_generated/dataModel"
 import { SEED_CONFIRMATION } from "../../seeds/foundations"
-import { testConvex } from "../../test.setup"
+import { openNetworkFeatures, testConvex } from "../../test.setup"
 import { notificationConsent } from "../notifications/consent"
 import { consentInForce } from "./facts"
 
@@ -32,6 +32,7 @@ afterEach(() => {
 async function seedAll(t: T) {
   const foundations = await t.mutation(internal.seeds.foundations.run, { confirmNonProduction: SEED_CONFIRMATION })
   const diaspora = await t.mutation(internal.modules.diaspora.seed.run, { confirmNonProduction: SEED_CONFIRMATION })
+  await openNetworkFeatures(t, diaspora.network)
   return { root: foundations.root, diasporaGa: diaspora.network }
 }
 

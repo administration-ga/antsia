@@ -20,6 +20,12 @@ export const AUDIT_ACTIONS = [
   "network.update",
   "network.archive",
   "network.archive_request", "network.archive_cancel",
+  /**
+   * Une fonctionnalité d'un réseau gouverné ouverte ou fermée (ADR-0041) : par l'administrateur
+   * du réseau (bureau) ou par un administrateur de la plateforme (console). Sujet : le réseau
+   * (`networks`). Détail : `reason`, le motif nettoyé, `feature`, la clé, `enabled`, l'état posé.
+   */
+  "network.feature_set",
   "console.access", "console.incident_open", "console.incident_resolve", "console.metrics_refresh",
   // Console : adhésions (suspension à la racine, qui vaut partout)
   "membership.suspend_everywhere",

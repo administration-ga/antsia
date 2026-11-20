@@ -95,6 +95,7 @@ export async function createAssociationGroupForPage(ctx: CreateScope, pageId: Id
 }
 
 export const groupForPage = networkQuery({
+  feature: "groupsAndEvents",
   minStatus: "en_attente",
   args: { pageId: v.id("pages") },
   returns: v.union(associationGroupValidator, v.null()),
@@ -123,6 +124,7 @@ export const groupForPage = networkQuery({
 })
 
 export const createGroupForPage = networkMutation({
+  feature: "groupsAndEvents",
   minStatus: "declaree", writeBucket: "group.create",
   args: { pageId: v.id("pages"), idempotencyKey: v.string() },
   returns: v.object({ groupId: v.id("thematicGroups"), created: v.boolean() }),
@@ -148,6 +150,7 @@ async function isReopenable(ctx: Pick<QueryCtx, "db">, group: Doc<"thematicGroup
  * exclu entre-temps reste dehors).
  */
 export const reopenGroupForPage = networkMutation({
+  feature: "groupsAndEvents",
   minStatus: "declaree", writeBucket: "group.manage",
   args: { groupId: v.id("thematicGroups"), expectedClosedAt: v.number() },
   returns: v.object({ state: v.literal("active") }),
@@ -177,6 +180,7 @@ export const reopenGroupForPage = networkMutation({
 
 /** Projection privée du port : aucune identité technique, aucun média ni lien vers un profil. */
 export const posts = networkQuery({
+  feature: "groupsAndEvents",
   minStatus: "en_attente",
   args: { groupId: v.id("thematicGroups"), paginationOpts: paginationOptsValidator },
   returns: v.object({ items: v.array(associationGroupPostValidator), continueCursor: v.union(v.string(), v.null()), isDone: v.boolean() }),

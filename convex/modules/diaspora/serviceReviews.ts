@@ -209,6 +209,7 @@ async function project(ctx: ReadScope, review: Doc<"serviceReviews">, page: Doc<
 
 /** Le demandeur seulement : ni un autre participant ni la page ne sonde sa preuve privée. */
 export const myReviewForRequest = networkQuery({
+  feature: "services",
   minStatus: "en_attente",
   args: { requestId: v.id("serviceRequests") },
   returns: v.union(v.object({ canCreate: v.boolean(), refusal: v.union(literals(SERVICE_REVIEW_REFUSALS), v.null()), proof: v.union(serviceReviewProofValidator, v.null()), review: v.union(reviewValidator, v.null()) }), v.null()),
@@ -234,6 +235,7 @@ export const myReviewForRequest = networkQuery({
 })
 
 export const offerReviews = networkQuery({
+  feature: "services",
   minStatus: "en_attente",
   args: { offerId: v.id("serviceOffers"), paginationOpts: paginationOptsValidator },
   returns: v.object({ items: v.array(reviewValidator), continueCursor: v.union(v.string(), v.null()), isDone: v.boolean() }),
@@ -259,6 +261,7 @@ export const offerReviews = networkQuery({
 
 /** Avis publiés d'une page, dans l'ordre chronologique ; aucune dérogation de gestion. */
 export const pageReviews = networkQuery({
+  feature: "services",
   minStatus: "en_attente",
   args: { pageId: v.id("pages"), expectedPersonId: v.id("persons"), paginationOpts: paginationOptsValidator },
   returns: v.object({ items: v.array(pageReviewValidator), continueCursor: v.union(v.string(), v.null()), isDone: v.boolean() }),
@@ -305,6 +308,7 @@ async function requireReviewSources(ctx: ReadScope, review: Doc<"serviceReviews"
 }
 
 export const createReview = networkMutation({
+  feature: "services",
   minStatus: "declaree", writeBucket: "diaspora.service.review",
   args: { requestId: v.id("serviceRequests"), rating: v.number(), body: v.string(), consentToPublish: v.boolean() },
   returns: v.object({ reviewId: v.id("serviceReviews"), created: v.boolean() }),
@@ -339,6 +343,7 @@ export const createReview = networkMutation({
 })
 
 export const updateReview = networkMutation({
+  feature: "services",
   minStatus: "declaree", writeBucket: "diaspora.service.review",
   args: { reviewId: v.id("serviceReviews"), expectedVersion: v.number(), rating: v.number(), body: v.string() }, returns: v.null(),
   handler: async (ctx, args) => {
@@ -359,6 +364,7 @@ export const updateReview = networkMutation({
 
 /** Révoquer reste possible en attente et après désactivation de la page. */
 export const withdrawReview = networkMutation({
+  feature: "services",
   minStatus: "en_attente", writeBucket: "diaspora.service.review",
   args: { reviewId: v.id("serviceReviews"), expectedVersion: v.number() }, returns: v.null(),
   handler: async (ctx, args) => {
@@ -383,6 +389,7 @@ async function requireReplyRight(ctx: ReadScope, reviewId: Id<"serviceReviews">)
 }
 
 export const replyToReview = networkMutation({
+  feature: "services",
   minStatus: "declaree", writeBucket: "diaspora.service.review",
   args: { reviewId: v.id("serviceReviews"), expectedVersion: v.union(v.number(), v.null()), body: v.string() }, returns: v.null(),
   handler: async (ctx, args) => {
@@ -413,6 +420,7 @@ export const replyToReview = networkMutation({
 })
 
 export const withdrawReviewReply = networkMutation({
+  feature: "services",
   minStatus: "en_attente", writeBucket: "diaspora.service.review",
   args: { reviewId: v.id("serviceReviews"), expectedVersion: v.number() }, returns: v.null(),
   handler: async (ctx, args) => {

@@ -13,7 +13,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { api, internal } from "../../_generated/api"
 import type { Doc, Id } from "../../_generated/dataModel"
 import { SEED_CONFIRMATION } from "../../seeds/foundations"
-import { createTestOperatorProof, testConvex } from "../../test.setup"
+import { createTestOperatorProof, openNetworkFeatures, testConvex } from "../../test.setup"
 
 type T = ReturnType<typeof testConvex>
 type Member = { as: ReturnType<T["withIdentity"]>; personId: Id<"persons"> }
@@ -80,6 +80,7 @@ async function fixture() {
   const t = testConvex()
   const { root } = await t.mutation(internal.seeds.foundations.run, { confirmNonProduction: SEED_CONFIRMATION })
   const { network } = await t.mutation(internal.modules.diaspora.seed.run, { confirmNonProduction: SEED_CONFIRMATION })
+  await openNetworkFeatures(t, network)
   const operator = await platformAdmin(t, root)
   const admin = await member(t, network, "awa.fixture", "Awa OGOOUÉ")
   const moderator = await member(t, network, "ruth.fixture", "Ruth NZÉ")

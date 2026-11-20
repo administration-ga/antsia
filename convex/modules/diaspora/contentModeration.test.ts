@@ -21,7 +21,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { api, internal } from "../../_generated/api"
 import type { Doc, Id } from "../../_generated/dataModel"
 import { SEED_CONFIRMATION } from "../../seeds/foundations"
-import { testConvex } from "../../test.setup"
+import { openNetworkFeatures, testConvex } from "../../test.setup"
 import { removeTarget, restoreTarget } from "../moderation/targets"
 import { APPLICATION_MESSAGE_EXCERPT, MENTORING_GOAL_EXCERPT } from "./moderationTargets"
 
@@ -139,6 +139,7 @@ async function fixture() {
   const t = testConvex()
   const { root } = await t.mutation(internal.seeds.foundations.run, { confirmNonProduction: SEED_CONFIRMATION })
   const { network: networkId } = await t.mutation(internal.modules.diaspora.seed.run, { confirmNonProduction: SEED_CONFIRMATION })
+  await openNetworkFeatures(t, networkId)
   const author = await member(t, networkId, "autrice.g9")
   const reader = await member(t, networkId, "lectrice.g9")
   const stranger = await member(t, networkId, "tiers.g9")
