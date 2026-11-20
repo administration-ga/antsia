@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { api, internal } from "../../_generated/api"
 import type { Id } from "../../_generated/dataModel"
 import { SEED_CONFIRMATION } from "../../seeds/foundations"
-import { testConvex } from "../../test.setup"
+import { openNetworkFeatures, testConvex } from "../../test.setup"
 import { eventCardOf } from "./card"
 import { requireEventAccess } from "./events"
 
@@ -39,6 +39,7 @@ async function fixture(withPolicy = true) {
   const t = testConvex()
   const { root } = await t.mutation(internal.seeds.foundations.run, { confirmNonProduction: SEED_CONFIRMATION })
   const { network: networkId } = await t.mutation(internal.modules.diaspora.seed.run, { confirmNonProduction: SEED_CONFIRMATION })
+  await openNetworkFeatures(t, networkId)
   const manager = await member(t, networkId, "asso-manager", "Awa OGOOUÉ")
   const successor = await member(t, networkId, "asso-equipe", "Éloïse NDONG MBA")
   const participant = await member(t, networkId, "asso-participante", "Nadia NDONG")

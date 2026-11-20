@@ -648,6 +648,7 @@ async function closeEverythingOnRetire(ctx: MutationCtx, profile: Doc<"mentorPro
 
 /** Mon profil de mentor (tout état), avec mes mentorés actifs, mes demandes en attente et son état de modération ; `null` sans profil. */
 export const myMentorProfile = networkQuery({
+  feature: "mentoring",
   args: {},
   returns: v.union(myMentorProfileValidator, v.null()),
   handler: async (ctx): Promise<MyMentorProfileDto | null> => {
@@ -689,6 +690,7 @@ export const myMentorProfile = networkQuery({
  * est rejugé pour ce lecteur. Aucun historique de recherche n'est gardé.
  */
 export const searchMentors = networkQuery({
+  feature: "mentoring",
   args: {
     country: v.string(),
     domain: v.optional(v.string()),
@@ -760,6 +762,7 @@ export const searchMentors = networkQuery({
  * pause, retiré ou bloqué ne se distinguent pas.
  */
 export const getMentorProfile = networkQuery({
+  feature: "mentoring",
   args: { mentorId: v.string() },
   returns: v.union(mentorDetailValidator, v.null()),
   handler: async (ctx, args): Promise<MentorDetailDto | null> => {
@@ -788,6 +791,7 @@ export const getMentorProfile = networkQuery({
 
 /** Mes demandes de mentorat (comme mentoré), des plus récemment mises à jour : les miennes seulement, avec leur état de modération. */
 export const menteeMentoringRequests = networkQuery({
+  feature: "mentoring",
   args: { paginationOpts: paginationOptsValidator },
   returns: paginationResultValidator(requestSummaryValidator),
   handler: async (ctx, { paginationOpts }): Promise<PaginationResult<MentoringRequestSummaryDto>> => {
@@ -810,6 +814,7 @@ export const menteeMentoringRequests = networkQuery({
  * même que le passage d'expiration l'écrive.
  */
 export const mentorMentoringRequests = networkQuery({
+  feature: "mentoring",
   args: { status: v.optional(mentoringRequestStatusValidator), paginationOpts: paginationOptsValidator },
   returns: paginationResultValidator(requestSummaryValidator),
   handler: async (ctx, args): Promise<PaginationResult<MentoringRequestSummaryDto>> => {
@@ -842,6 +847,7 @@ export const mentorMentoringRequests = networkQuery({
 
 /** Une demande, pour ses deux parties seulement ; `null` pour tout autre. Son état de modération va au seul mentoré. */
 export const getMentoringRequest = networkQuery({
+  feature: "mentoring",
   args: { requestId: v.id("mentoringRequests") },
   returns: v.union(requestDetailValidator, v.null()),
   handler: async (ctx, { requestId }): Promise<MentoringRequestDetailDto | null> => {
@@ -864,6 +870,7 @@ export const getMentoringRequest = networkQuery({
  * suivante) ; jamais par-dessus un profil actif ou en pause.
  */
 export const becomeMentor = networkMutation({
+  feature: "mentoring",
   minStatus: "declaree",
   args: { ...profileInputFields, consent: v.boolean() },
   returns: v.object({ mentorId: v.id("mentorProfiles"), version: v.number() }),
@@ -916,6 +923,7 @@ export const becomeMentor = networkMutation({
  * jamais sous mes mentorés actifs. Toute modification incrémente la version.
  */
 export const updateMentorProfile = networkMutation({
+  feature: "mentoring",
   minStatus: "declaree",
   args: { expectedVersion: v.number(), ...profileInputFields },
   returns: v.object({ version: v.number() }),
@@ -944,6 +952,7 @@ export const updateMentorProfile = networkMutation({
  * attente et clôt les mentorats en cours.
  */
 export const setMentorState = networkMutation({
+  feature: "mentoring",
   minStatus: "en_attente",
   args: { expectedVersion: v.number(), state: mentorProfileStateValidator },
   returns: v.object({ state: mentorProfileStateValidator, version: v.number() }),
@@ -980,6 +989,7 @@ export const setMentorState = networkMutation({
  * même corps rendent la demande déjà créée.
  */
 export const requestMentoring = networkMutation({
+  feature: "mentoring",
   minStatus: "declaree",
   args: {
     mentorId: v.id("mentorProfiles"),
@@ -1059,6 +1069,7 @@ export const requestMentoring = networkMutation({
 
 /** Le mentoré RETIRE sa demande tant qu'elle attend une réponse (motif facultatif). */
 export const cancelMentoringRequest = networkMutation({
+  feature: "mentoring",
   minStatus: "en_attente",
   args: { requestId: v.id("mentoringRequests"), reason: v.optional(v.string()) },
   returns: v.null(),
@@ -1081,6 +1092,7 @@ export const cancelMentoringRequest = networkMutation({
  * dépassent jamais). Un créneau peut être proposé dans le même geste.
  */
 export const acceptMentoringRequest = networkMutation({
+  feature: "mentoring",
   minStatus: "declaree",
   args: {
     requestId: v.id("mentoringRequests"),
@@ -1120,6 +1132,7 @@ export const acceptMentoringRequest = networkMutation({
 
 /** Le mentor DÉCLINE une demande en attente (motif facultatif) : rien n'a été convenu. */
 export const declineMentoringRequest = networkMutation({
+  feature: "mentoring",
   minStatus: "en_attente",
   args: { requestId: v.id("mentoringRequests"), reason: v.optional(v.string()) },
   returns: v.null(),
@@ -1143,6 +1156,7 @@ export const declineMentoringRequest = networkMutation({
  * passe par la messagerie.
  */
 export const proposeMentoringSlot = networkMutation({
+  feature: "mentoring",
   minStatus: "declaree",
   args: {
     requestId: v.id("mentoringRequests"),
@@ -1173,6 +1187,7 @@ export const proposeMentoringSlot = networkMutation({
 
 /** Clore un mentorat en cours : l'un ou l'autre, motif facultatif ; la place du mentor se libère. */
 export const closeMentorship = networkMutation({
+  feature: "mentoring",
   minStatus: "en_attente",
   args: { requestId: v.id("mentoringRequests"), reason: v.optional(v.string()) },
   returns: v.null(),

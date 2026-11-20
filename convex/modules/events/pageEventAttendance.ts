@@ -87,6 +87,7 @@ async function ticketRow(ctx: ReadCtx, event: Doc<"events">, raw: string): Promi
 }
 
 export const get = networkQuery({
+  feature: "groupsAndEvents",
   args: { eventId: v.id("events"), expectedReaderPersonId: v.id("persons") }, returns: v.union(v.null(), viewValidator),
   handler: async (ctx, args) => {
     assertDiasporaNetwork(ctx.network)
@@ -106,6 +107,7 @@ export const get = networkQuery({
 })
 
 export const listPresent = networkQuery({
+  feature: "groupsAndEvents",
   args: { eventId: v.id("events"), paginationOpts: paginationOptsValidator, expectedReaderPersonId: v.id("persons") },
   returns: v.object({ items: v.array(rowValidator), continueCursor: v.union(v.string(), v.null()), isDone: v.boolean() }),
   handler: async (ctx, args) => {
@@ -131,6 +133,7 @@ export const listPresent = networkQuery({
 })
 
 export const issueTicket = networkMutation({
+  feature: "groupsAndEvents",
   minStatus: "en_attente", args: { eventId: v.id("events") }, returns: v.object({ code: v.string(), expiresAt: v.number() }),
   handler: async (ctx, args) => {
     assertDiasporaNetwork(ctx.network)
@@ -150,6 +153,7 @@ export const issueTicket = networkMutation({
 })
 
 export const previewTicket = networkMutation({
+  feature: "groupsAndEvents",
   args: { eventId: v.id("events"), code: v.string() }, returns: previewValidator,
   handler: async (ctx, args) => {
     assertDiasporaNetwork(ctx.network)
@@ -162,6 +166,7 @@ export const previewTicket = networkMutation({
 })
 
 export const checkIn = networkMutation({
+  feature: "groupsAndEvents",
   args: { eventId: v.id("events"), code: v.string(), expectedVersion: v.number() }, returns: v.object({ alreadyRecorded: v.boolean() }),
   handler: async (ctx, args) => {
     assertDiasporaNetwork(ctx.network)
@@ -178,6 +183,7 @@ export const checkIn = networkMutation({
 })
 
 export const clear = networkMutation({
+  feature: "groupsAndEvents",
   args: { eventId: v.id("events"), registrationId: v.id("eventParticipants"), expectedVersion: v.number() }, returns: v.null(),
   handler: async (ctx, args) => {
     assertDiasporaNetwork(ctx.network)

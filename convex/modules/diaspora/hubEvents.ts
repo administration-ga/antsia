@@ -142,6 +142,7 @@ function hubEventOf(event: Doc<"events">, page: Doc<"pages">): HubEvent {
  * l'autre, sans doublon ni trou. Une fenêtre peut être vide et annoncer sa suite.
  */
 export const listCountryEvents = networkQuery({
+  feature: "groupsAndEvents",
   args: {
     country: v.string(),
     anchor: v.number(),

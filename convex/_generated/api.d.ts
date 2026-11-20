@@ -28,6 +28,7 @@ import type * as lib_livekitEgressUploads from "../lib/livekitEgressUploads.js";
 import type * as lib_livekitEgressWebhook from "../lib/livekitEgressWebhook.js";
 import type * as lib_livekitIdentity from "../lib/livekitIdentity.js";
 import type * as lib_livekitWake from "../lib/livekitWake.js";
+import type * as lib_networkFeatures from "../lib/networkFeatures.js";
 import type * as lib_networkSlug from "../lib/networkSlug.js";
 import type * as lib_operatorIdentity from "../lib/operatorIdentity.js";
 import type * as lib_rateLimit from "../lib/rateLimit.js";
@@ -290,6 +291,7 @@ import type * as modules_moderation_sanctions from "../modules/moderation/sancti
 import type * as modules_moderation_settings from "../modules/moderation/settings.js";
 import type * as modules_moderation_tables from "../modules/moderation/tables.js";
 import type * as modules_moderation_targets from "../modules/moderation/targets.js";
+import type * as modules_networks_features from "../modules/networks/features.js";
 import type * as modules_networks_networks from "../modules/networks/networks.js";
 import type * as modules_networks_postPlacementRegistry from "../modules/networks/postPlacementRegistry.js";
 import type * as modules_networks_sliceRegistry from "../modules/networks/sliceRegistry.js";
@@ -527,6 +529,7 @@ declare const fullApi: ApiFromModules<{
   "lib/livekitEgressWebhook": typeof lib_livekitEgressWebhook;
   "lib/livekitIdentity": typeof lib_livekitIdentity;
   "lib/livekitWake": typeof lib_livekitWake;
+  "lib/networkFeatures": typeof lib_networkFeatures;
   "lib/networkSlug": typeof lib_networkSlug;
   "lib/operatorIdentity": typeof lib_operatorIdentity;
   "lib/rateLimit": typeof lib_rateLimit;
@@ -789,6 +792,7 @@ declare const fullApi: ApiFromModules<{
   "modules/moderation/settings": typeof modules_moderation_settings;
   "modules/moderation/tables": typeof modules_moderation_tables;
   "modules/moderation/targets": typeof modules_moderation_targets;
+  "modules/networks/features": typeof modules_networks_features;
   "modules/networks/networks": typeof modules_networks_networks;
   "modules/networks/postPlacementRegistry": typeof modules_networks_postPlacementRegistry;
   "modules/networks/sliceRegistry": typeof modules_networks_sliceRegistry;

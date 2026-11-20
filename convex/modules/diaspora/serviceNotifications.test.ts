@@ -11,7 +11,7 @@ import { api, internal } from "../../_generated/api"
 import type { Doc, Id } from "../../_generated/dataModel"
 import type { MutationCtx } from "../../_generated/server"
 import { SEED_CONFIRMATION } from "../../seeds/foundations"
-import { testConvex } from "../../test.setup"
+import { openNetworkFeatures, testConvex } from "../../test.setup"
 import { notifyPerson } from "../notifications/notify"
 import { notificationStillVisible, pushAllowed } from "../notifications/policy"
 import { noticeServicePageGesture, SERVICE_TEAM_NOTICE_MAX } from "./serviceNotifications"
@@ -65,6 +65,7 @@ async function fixture() {
   const t = testConvex()
   await t.mutation(internal.seeds.foundations.run, { confirmNonProduction: SEED_CONFIRMATION })
   const { network: networkId } = await t.mutation(internal.modules.diaspora.seed.run, { confirmNonProduction: SEED_CONFIRMATION })
+  await openNetworkFeatures(t, networkId)
   const requester = await member(t, networkId, "awa", "Awa OGOOUÉ")
   const pro = await member(t, networkId, "nadia", "Nadia NDONG")
   const colleague = await member(t, networkId, "yao", "Yao MBA")

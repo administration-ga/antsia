@@ -27,6 +27,12 @@ describe("journal des décisions — détail et motif", () => {
     }
   })
 
+  it("ADR-0041 : la bascule d'une fonctionnalité d'un réseau gouverné est une action du journal, sur le réseau", () => {
+    expect(AUDIT_ACTIONS).toContain("network.feature_set")
+    expect(AUDIT_SUBJECT_TABLES).toContain("networks")
+    expect(auditDetailsProblems({ reason: assertDecisionReason("Ouverture des pages pour le pilote.", 10), feature: "pages", enabled: true })).toEqual([])
+  })
+
   it("tranche diaspora : l'admission fondatrice et son retrait sont des actions du journal, sur la personne, au détail plat", () => {
     expect(AUDIT_ACTIONS).toEqual(expect.arrayContaining(["diaspora.founder_admit", "diaspora.founder_withdraw"]))
     expect(AUDIT_SUBJECT_TABLES).toContain("persons")

@@ -14,6 +14,7 @@ async function calendarUid(networkId: string, eventId: string): Promise<string> 
 
 /** Aucun abonnement, URL publique ou effet d'inscription ; les octets sont une copie privée. */
 export const exportIcal = networkQuery({
+  feature: "groupsAndEvents",
   args: { eventId: v.id("events"), expectedReaderPersonId: v.id("persons") },
   returns: v.object({ filename: v.literal("diaspora-ga-event.ics"), content: v.string(), mediaType: v.literal("text/calendar;charset=utf-8") }),
   handler: async (ctx, args) => {

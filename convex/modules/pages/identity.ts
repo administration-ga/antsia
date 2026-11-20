@@ -45,6 +45,7 @@ type IdentityPrevious = Doc<"pageIdentityHistory">["previous"]
  * racine (tout y est lu de la racine).
  */
 export const updatePageIdentity = networkMutation({
+  feature: "pages",
   minStatus: "declaree",
   args: {
     pageId: v.id("pages"),
@@ -134,6 +135,7 @@ export const updatePageIdentity = networkMutation({
 
 /** URL de dépôt d'une image de page (temps 1 de la politique ; le temps 2 est à la pose). */
 export const generatePageImageUploadUrl = networkMutation({
+  feature: "pages",
   minStatus: "declaree",
   args: { slot: imageSlotValidator },
   returns: v.string(),
@@ -155,6 +157,7 @@ export async function purgePageImage(ctx: MutationCtx, storageId: Id<"_storage">
  * est celle de la garde : `null` avec la retenue tant que l'analyse n'a pas parlé.
  */
 export const setPageImage = networkMutation({
+  feature: "pages",
   minStatus: "declaree",
   args: { pageId: v.id("pages"), slot: imageSlotValidator, storageId: v.union(v.id("_storage"), v.null()), mimeType: v.optional(v.string()) },
   returns: v.object({ url: v.union(v.string(), v.null()), withheld: v.union(withheldCodeValidator, v.null()) }),

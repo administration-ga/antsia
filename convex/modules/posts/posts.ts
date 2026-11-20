@@ -60,6 +60,7 @@ import type { QueryCtx } from "../../_generated/server"
 import { checked, fail, notFound } from "../../lib/errors"
 import { isActiveMember } from "../../lib/access"
 import { networkMutation, networkQuery } from "../../lib/functions"
+import { requireNetworkFeature } from "../../lib/networkFeatures"
 import { enforceRateLimit } from "../../lib/rateLimit"
 import {
   badgeValidator,
@@ -602,6 +603,8 @@ export const publish = networkMutation({
     checked(() => assertGroupAudienceShape({ audience, hasGroup: args.groupId !== undefined }))
     let associationGroup = false
     if (args.groupId !== undefined) {
+      // ADR-0041 : publier dans un groupe relève des groupes et évènements d'un réseau gouverné ; fermés, refus indistinct.
+      await requireNetworkFeature(ctx, ctx.network, "groupsAndEvents")
       checked(() => assertShareOutsideGroup({ hasGroup: true, hasShare: args.sharedPostId !== undefined }))
       const { group } = await requireLiveThematicGroupMembership(ctx, ctx.networkId, args.groupId, ctx.person._id)
       associationGroup = group.associationPageId !== undefined

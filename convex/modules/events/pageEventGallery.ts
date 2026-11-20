@@ -35,6 +35,7 @@ function sameMedia(post: Doc<"posts">, declared: readonly DeclaredMedia[]): bool
 }
 
 export const get = networkQuery({
+  feature: "groupsAndEvents",
   // refreshKey ne porte aucune autorité temporelle : seul Date.now serveur tranche.
   args: { eventId: v.id("events"), expectedReaderPersonId: v.id("persons"), refreshKey: v.optional(v.number()) },
   returns: v.union(v.null(), v.object({ eventId: v.id("events"), available: v.boolean(), canPublish: v.boolean(), audience: v.union(v.literal("network"), v.literal("association")) })),
@@ -49,6 +50,7 @@ export const get = networkQuery({
 })
 
 export const list = networkQuery({
+  feature: "groupsAndEvents",
   args: { eventId: v.id("events"), paginationOpts: paginationOptsValidator, expectedReaderPersonId: v.id("persons") },
   returns: v.object({ items: v.array(v.object({ post: feedItemValidator, canRemove: v.boolean() })), continueCursor: v.union(v.string(), v.null()), isDone: v.boolean() }),
   handler: async (ctx, args) => {
@@ -78,6 +80,7 @@ export const list = networkQuery({
 })
 
 export const publish = networkMutation({
+  feature: "groupsAndEvents",
   args: { eventId: v.id("events"), body: v.string(), media: v.array(declaredMediaValidator), idempotencyKey: v.string() },
   returns: v.object({ postId: v.id("posts"), created: v.boolean() }),
   handler: async (ctx, args) => {
@@ -112,6 +115,7 @@ export const publish = networkMutation({
 })
 
 export const remove = networkMutation({
+  feature: "groupsAndEvents",
   args: { eventId: v.id("events"), postId: v.id("posts") }, returns: v.null(),
   handler: async (ctx, args) => {
     assertDiasporaNetwork(ctx.network)

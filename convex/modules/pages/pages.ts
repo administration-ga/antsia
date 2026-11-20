@@ -149,6 +149,7 @@ const readerOf = (ctx: { person: Doc<"persons">; network: Doc<"networks"> }): Re
  * depuis la racine) est un geste explicite, sans objet dans la racine.
  */
 export const createPage = networkMutation({
+  feature: "pages",
   minStatus: "verifiee",
   args: {
     name: v.string(),
@@ -210,6 +211,7 @@ export const createPage = networkMutation({
 
 /** La fiche d'une page lisible d'ici ; inconnue, retirée ou d'ailleurs : le même `null`. */
 export const getPage = networkQuery({
+  feature: "pages",
   args: { handle: v.string() },
   returns: v.union(pageDtoValidator, v.null()),
   handler: async (ctx, args) => {
@@ -235,6 +237,7 @@ export const getPage = networkQuery({
  * rien demandé d'autre que ses publications.
  */
 export const follow = networkMutation({
+  feature: "pages",
   args: { handle: v.string() },
   returns: v.object({ pageId: v.id("pages"), following: v.literal(true) }),
   handler: async (ctx, args) => {
@@ -252,6 +255,7 @@ export const follow = networkMutation({
 
 /** Ne plus suivre — idempotent ; possible même d'une page retirée depuis (son compte resterait faux sinon). */
 export const unfollow = networkMutation({
+  feature: "pages",
   minStatus: "en_attente",
   args: { pageId: v.id("pages") },
   returns: v.object({ following: v.literal(false) }),
@@ -273,6 +277,7 @@ export const unfollow = networkMutation({
 
 /** Les pages que je suis, lisibles d'ici, les plus récemment suivies d'abord — paginées. */
 export const paginateMyPageFollows = networkQuery({
+  feature: "pages",
   args: { paginationOpts: paginationOptsValidator },
   handler: async (ctx, args): Promise<PaginationResult<PageSummary>> => {
     const result =
@@ -299,6 +304,7 @@ export const paginateMyPageFollows = networkQuery({
 
 /** Les pages au nom desquelles JE parle dans ce réseau (le composeur « publier en tant que »). */
 export const myPages = networkQuery({
+  feature: "pages",
   args: {},
   returns: v.array(v.object({ ...pageCardValidator.fields, role: pageRoleValidator })),
   handler: async (ctx) => {
@@ -327,6 +333,7 @@ export const myPages = networkQuery({
  * jamais nul.
  */
 export const myTeamPages = networkQuery({
+  feature: "pages",
   args: {},
   returns: v.array(v.object({ ...pageCardValidator.fields, viewer: v.object({ role: v.union(pageRoleValidator, v.null()), teamRole: pageTeamRoleValidator }) })),
   handler: async (ctx) => {
@@ -450,6 +457,7 @@ async function followingFlags(ctx: Pick<QueryCtx, "db">, reader: ReaderContext) 
 
 /** L'annuaire BORNÉ (le rail « Pages à suivre ») : au plus 25, sans curseur ; une catégorie peut donner un rail partiel. */
 export const discover = networkQuery({
+  feature: "pages",
   args: { query: v.optional(v.string()), country: v.optional(v.string()), ownerKind: v.optional(pageOwnerKindValidator), associationType: v.optional(pageAssociationTypeValidator), sector: v.optional(pageSectorValidator), limit: v.optional(v.number()) },
   returns: v.array(pageSummaryValidator),
   handler: async (ctx, args) => {
@@ -474,6 +482,7 @@ export const discover = networkQuery({
  * native ; `isDone` dit la fin, pas une page vide.
  */
 export const paginateDiscover = networkQuery({
+  feature: "pages",
   args: { query: v.optional(v.string()), country: v.optional(v.string()), ownerKind: v.optional(pageOwnerKindValidator), associationType: v.optional(pageAssociationTypeValidator), sector: v.optional(pageSectorValidator), paginationOpts: paginationOptsValidator },
   handler: async (ctx, args): Promise<PaginationResult<PageSummary>> => {
     const filter = discoveryFilterOf(args)
@@ -516,6 +525,7 @@ function placePagePost(page: Doc<"pages">, reach: string | undefined, reachValue
  * l'état de modération de la publication (FD-04), l'état COURANT au rejeu.
  */
 export const publishAsPage = networkMutation({
+  feature: "pages",
   minStatus: "declaree",
   args: {
     pageId: v.id("pages"),
@@ -579,6 +589,7 @@ export const publishAsPage = networkMutation({
  * Audience, médias, portée et identité de la page restent ceux de l'origine.
  */
 export const editPagePost = networkMutation({
+  feature: "pages",
   minStatus: "declaree",
   args: {
     pageId: v.id("pages"),
@@ -632,6 +643,7 @@ export const editPagePost = networkMutation({
  * autorité encore légitime seulement : le rejeu n'est pas un droit acquis.
  */
 export const removePagePost = networkMutation({
+  feature: "pages",
   minStatus: "en_attente",
   args: { postId: v.id("posts") },
   returns: v.object({ removed: v.literal(true) }),
@@ -660,6 +672,7 @@ async function readablePagePin(ctx: Pick<QueryCtx, "db">, reader: ReaderContext,
 
 /** L'annonce épinglée, soumise aux mêmes gardes et à la même projection que le mur. */
 export const pagePinnedPost = networkQuery({
+  feature: "pages",
   args: { handle: v.string(), expectedPersonId: v.id("persons") },
   returns: v.union(feedItemValidator, v.null()),
   handler: async (ctx, args) => {
@@ -680,6 +693,7 @@ export const pagePinnedPost = networkQuery({
  * pour la comparaison ; le mandat et la cible sont relus même au rejeu.
  */
 export const setPagePinnedPost = networkMutation({
+  feature: "pages",
   minStatus: "declaree",
   args: {
     pageId: v.id("pages"),
@@ -779,6 +793,7 @@ async function readPagePosts(
  * inconnue, retirée ou d'ailleurs : le même mur vide, sans curseur.
  */
 export const pagePosts = networkQuery({
+  feature: "pages",
   args: { handle: v.string(), cursor: v.optional(cursorValidator), limit: v.optional(v.number()) },
   returns: v.object({ items: v.array(feedItemValidator), nextCursor: v.union(cursorValidator, v.null()) }),
   handler: async (ctx, args) => {
@@ -791,6 +806,7 @@ export const pagePosts = networkQuery({
 
 /** Les photos et vidéos propres à une page, filtrées avant pagination et re-gardées à chaque lecture. */
 export const pageMediaPosts = networkQuery({
+  feature: "pages",
   args: {
     handle: v.string(),
     expectedPersonId: v.id("persons"),

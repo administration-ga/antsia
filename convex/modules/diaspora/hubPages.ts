@@ -93,6 +93,7 @@ async function hubPageOf(ctx: QueryCtx, page: Doc<"pages">, readerPersonId: Id<"
  * inconnu (ou le Gabon) reçoit le refus indistinct, comme le hub.
  */
 export const listCountryPages = networkQuery({
+  feature: "pages",
   args: { country: v.string() },
   returns: hubPagesViewValidator,
   handler: async (ctx, { country }) => {
@@ -131,6 +132,7 @@ export const listCountryPages = networkQuery({
  * d'ailleurs : le même `null`. `orphan` (AS-11a) se montre à tout lecteur.
  */
 export const pageStanding = networkQuery({
+  feature: "pages",
   args: { handle: v.string() },
   returns: v.union(pageStandingValidator, v.null()),
   handler: async (ctx, { handle }) => {

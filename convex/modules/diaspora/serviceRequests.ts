@@ -481,6 +481,7 @@ function noShowContestInput(request: Doc<"serviceRequests">, status: ServiceRequ
 
 /** Mes demandes, des plus récemment mises à jour : les miennes seulement, dans ce réseau. */
 export const myServiceRequests = networkQuery({
+  feature: "services",
   minStatus: "en_attente",
   args: { paginationOpts: paginationOptsValidator },
   returns: paginationResultValidator(summaryValidator),
@@ -505,6 +506,7 @@ export const myServiceRequests = networkQuery({
  * passage d'expiration l'écrive.
  */
 export const pageServiceRequests = networkQuery({
+  feature: "services",
   minStatus: "en_attente",
   args: { pageId: v.id("pages"), status: v.optional(serviceRequestStatusValidator), paginationOpts: paginationOptsValidator },
   returns: paginationResultValidator(summaryValidator),
@@ -537,6 +539,7 @@ export const pageServiceRequests = networkQuery({
 
 /** Une demande, pour ses participants seulement (demandeur, signataire vivant) ; `null` pour tout autre. */
 export const getServiceRequest = networkQuery({
+  feature: "services",
   minStatus: "en_attente",
   args: { requestId: v.id("serviceRequests") },
   returns: v.union(detailValidator, v.null()),
@@ -557,6 +560,7 @@ export const getServiceRequest = networkQuery({
  * aucune relation sociale créée ; une seule demande ouverte par offre.
  */
 export const createServiceRequest = networkMutation({
+  feature: "services",
   minStatus: "declaree",
   args: {
     offerId: v.id("serviceOffers"),
@@ -638,6 +642,7 @@ export const createServiceRequest = networkMutation({
  * signataire ; un créneau déjà réservé par la page est refusé d'emblée.
  */
 export const proposeService = networkMutation({
+  feature: "services",
   args: {
     requestId: v.id("serviceRequests"),
     expectedVersion: v.number(),
@@ -693,6 +698,7 @@ export const proposeService = networkMutation({
 
 /** La page DÉCLINE une demande ouverte (motif facultatif) : rien n'a été convenu. */
 export const refuseServiceRequest = networkMutation({
+  feature: "services",
   args: { requestId: v.id("serviceRequests"), reason: v.optional(v.string()) },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -724,6 +730,7 @@ export const refuseServiceRequest = networkMutation({
  * lisibles des deux parties.
  */
 export const cancelServiceRequest = networkMutation({
+  feature: "services",
   args: { requestId: v.id("serviceRequests"), reason: v.optional(v.string()) },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -759,6 +766,7 @@ export const cancelServiceRequest = networkMutation({
  * transactionnel). Deux acceptations sur le même créneau : une seule réussit.
  */
 export const acceptServiceProposal = networkMutation({
+  feature: "services",
   args: { requestId: v.id("serviceRequests"), expectedProposalVersion: v.number() },
   returns: v.object({ bookingId: v.id("serviceBookings") }),
   handler: async (ctx, args) => {
@@ -845,6 +853,7 @@ async function rescheduleScope(ctx: WriteScope, requestId: Id<"serviceRequests">
  * demande remonte aussi en tête des listes des deux parties.
  */
 export const proposeServiceReschedule = networkMutation({
+  feature: "services",
   args: { requestId: v.id("serviceRequests"), expectedProposalVersion: v.number(), startAt: v.number(), timeZone: v.string(), expiresAt: v.number() },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -874,6 +883,7 @@ export const proposeServiceReschedule = networkMutation({
  * (SV-03, `service_booking_rescheduled`).
  */
 export const acceptServiceReschedule = networkMutation({
+  feature: "services",
   args: { requestId: v.id("serviceRequests"), expectedProposalVersion: v.number(), expectedStartAt: v.number() },
   returns: v.object({ version: v.number() }),
   handler: async (ctx, args) => {
@@ -922,6 +932,7 @@ export const acceptServiceReschedule = networkMutation({
 
 /** Décliner le nouvel horaire (l'autre partie) ou retirer le sien (le proposant) : le rendez-vous reste tel quel. */
 export const declineServiceReschedule = networkMutation({
+  feature: "services",
   args: { requestId: v.id("serviceRequests") },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -955,6 +966,7 @@ async function closeBooking(ctx: WriteScope, requestId: Id<"serviceRequests">, a
 
 /** La page constate la prestation RÉALISÉE, après le début du rendez-vous. */
 export const completeServiceBooking = networkMutation({
+  feature: "services",
   args: { requestId: v.id("serviceRequests") },
   returns: v.null(),
   handler: async (ctx, { requestId }) => await closeBooking(ctx, requestId, "complete"),
@@ -962,6 +974,7 @@ export const completeServiceBooking = networkMutation({
 
 /** La page constate l'ABSENCE, après le début du rendez-vous (constat contestable). */
 export const markServiceNoShow = networkMutation({
+  feature: "services",
   args: { requestId: v.id("serviceRequests") },
   returns: v.null(),
   handler: async (ctx, { requestId }) => await closeBooking(ctx, requestId, "no_show"),
@@ -975,6 +988,7 @@ export const markServiceNoShow = networkMutation({
  * Aucun statut n'est écrit : la conversation contextuelle reste fermée, comme l'objet.
  */
 export const contestServiceNoShow = networkMutation({
+  feature: "services",
   args: { requestId: v.id("serviceRequests"), reason: v.string() },
   returns: v.object({ contestedAt: v.number(), created: v.boolean() }),
   handler: async (ctx, args) => {

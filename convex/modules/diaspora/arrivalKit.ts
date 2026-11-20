@@ -476,6 +476,7 @@ function listingQuery(ctx: Pick<QueryCtx, "db">, networkId: Id<"networks">, list
  * paginées et bornées ; une page filtrée peut être courte tout en annonçant sa suite.
  */
 export const listResources = networkQuery({
+  feature: "arrivalKit",
   args: {
     country: v.string(),
     city: v.optional(v.string()),
@@ -516,6 +517,7 @@ export const listResources = networkQuery({
  * `null` : inconnue, d'ailleurs, brouillon d'autrui ou retirée ne se distinguent pas.
  */
 export const getResource = networkQuery({
+  feature: "arrivalKit",
   args: { resourceId: v.string() },
   returns: v.union(resourceDetailValidator, v.null()),
   handler: async (ctx, args): Promise<ResourceDetail | null> => {
@@ -562,6 +564,7 @@ export const getResource = networkQuery({
  * page) ; ce qu'elle a écrit, ou ce que porte une page qu'elle signe, n'y paraît pas.
  */
 export const reviewQueue = networkQuery({
+  feature: "arrivalKit",
   args: { country: v.string(), paginationOpts: paginationOptsValidator },
   returns: paginationResultValidator(queueItemValidator),
   handler: async (ctx, args): Promise<PaginationResult<QueueItem>> => {
@@ -599,6 +602,7 @@ export const reviewQueue = networkQuery({
  * ne se dit que sur celles que je gère.
  */
 export const myResources = networkQuery({
+  feature: "arrivalKit",
   args: { paginationOpts: paginationOptsValidator },
   returns: paginationResultValidator(ownItemValidator),
   handler: async (ctx, args): Promise<PaginationResult<OwnItem>> => {
@@ -632,6 +636,7 @@ export const myResources = networkQuery({
 
 /** Ce que je peux faire dans le kit : proposer, relire, et au nom de quelles pages (signataire vivant). */
 export const myKitStanding = networkQuery({
+  feature: "arrivalKit",
   args: {},
   returns: kitStandingValidator,
   handler: async (ctx): Promise<KitStanding> => {
@@ -737,6 +742,7 @@ async function managedResource(ctx: NetworkCtx, resourceId: Id<"kitResources">):
  * sans la relecture d'une autre personne.
  */
 export const proposeResource = networkMutation({
+  feature: "arrivalKit",
   args: { ...resourceInputFields, pageId: v.optional(v.id("pages")), submit: v.boolean() },
   returns: v.object({ resourceId: v.id("kitResources"), version: v.number(), revision: v.number(), status: arrivalKitStatusValidator }),
   handler: async (ctx, args) => {
@@ -783,6 +789,7 @@ export const proposeResource = networkMutation({
  * repasse par la relecture (soumise) — ou reste un brouillon.
  */
 export const updateResource = networkMutation({
+  feature: "arrivalKit",
   args: { resourceId: v.id("kitResources"), expectedVersion: v.number(), ...resourceInputFields, submit: v.boolean() },
   returns: v.object({ version: v.number(), revision: v.number(), status: arrivalKitStatusValidator }),
   handler: async (ctx, args) => {
@@ -819,6 +826,7 @@ export const updateResource = networkMutation({
 
 /** Soumettre un brouillon tel quel à la relecture, à la version lue ; une vérification trop ancienne doit d'abord être refaite. */
 export const submitResource = networkMutation({
+  feature: "arrivalKit",
   args: { resourceId: v.id("kitResources"), expectedVersion: v.number() },
   returns: v.object({ version: v.number(), status: arrivalKitStatusValidator }),
   handler: async (ctx, args) => {
@@ -839,6 +847,7 @@ export const submitResource = networkMutation({
 
 /** Retirer sa ressource : archivée, terminale ; elle quitte le kit public et ne se republie pas. */
 export const withdrawResource = networkMutation({
+  feature: "arrivalKit",
   args: { resourceId: v.id("kitResources"), expectedVersion: v.number() },
   returns: v.object({ version: v.number(), status: arrivalKitStatusValidator }),
   handler: async (ctx, args) => {
@@ -886,6 +895,7 @@ function reasonOf(raw: string | undefined): string {
  * redevient un brouillon). Toujours une personne habilitée et étrangère à la ressource.
  */
 export const reviewResource = networkMutation({
+  feature: "arrivalKit",
   args: {
     resourceId: v.id("kitResources"),
     expectedVersion: v.number(),
@@ -931,6 +941,7 @@ export const reviewResource = networkMutation({
 
 /** Marquer « à revoir » une ressource publiée, motif obligatoire : elle reste lue, avec son avertissement. */
 export const markResourceForReview = networkMutation({
+  feature: "arrivalKit",
   args: { resourceId: v.id("kitResources"), expectedVersion: v.number(), reason: v.string() },
   returns: v.object({ version: v.number(), status: arrivalKitStatusValidator }),
   handler: async (ctx, args) => {
@@ -957,6 +968,7 @@ export const markResourceForReview = networkMutation({
  * bouge pas (aucun geste de qui la gère n'est rendu périmé par un signalement).
  */
 export const flagResourceOutdated = networkMutation({
+  feature: "arrivalKit",
   args: { resourceId: v.id("kitResources"), revision: v.number(), reason: v.string() },
   returns: v.object({ outdatedFlags: v.number(), status: arrivalKitStatusValidator }),
   handler: async (ctx, args) => {

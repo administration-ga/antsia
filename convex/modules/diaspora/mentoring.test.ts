@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { api, internal } from "../../_generated/api"
 import type { Id } from "../../_generated/dataModel"
 import { SEED_CONFIRMATION } from "../../seeds/foundations"
-import { createTestSession, testConvex } from "../../test.setup"
+import { createTestSession, openNetworkFeatures, testConvex } from "../../test.setup"
 
 type T = ReturnType<typeof testConvex>
 const MINUTE = 60_000
@@ -86,6 +86,7 @@ async function fixture(options: { maxActiveMentees?: number } = {}) {
   const t = testConvex()
   const { root } = await t.mutation(internal.seeds.foundations.run, { confirmNonProduction: SEED_CONFIRMATION })
   const { network: networkId } = await t.mutation(internal.modules.diaspora.seed.run, { confirmNonProduction: SEED_CONFIRMATION })
+  await openNetworkFeatures(t, networkId)
   const mentor = await member(t, networkId, "awa", "Awa OGOOUÉ")
   const mentee = await member(t, networkId, "yannick", "Yannick NYANGA")
   const other = await member(t, networkId, "tiers", "Tiers MBA")

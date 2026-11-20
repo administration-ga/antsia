@@ -11,7 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { internal } from "../../_generated/api"
 import type { Id } from "../../_generated/dataModel"
 import { SEED_CONFIRMATION } from "../../seeds/foundations"
-import { testConvex } from "../../test.setup"
+import { openNetworkFeatures, testConvex } from "../../test.setup"
 import { removeDiasporaCounters } from "./contentCounters"
 
 const NOW = Date.UTC(2026, 9, 19, 10)
@@ -33,6 +33,7 @@ async function fixture() {
   const t = testConvex()
   await t.mutation(internal.seeds.foundations.run, { confirmNonProduction: SEED_CONFIRMATION })
   const { network: networkId } = await t.mutation(internal.modules.diaspora.seed.run, { confirmNonProduction: SEED_CONFIRMATION })
+  await openNetworkFeatures(t, networkId)
   const ids = await t.run(async (ctx) => {
     const person = async (handle: string) => await ctx.db.insert("persons", { authUserId: `auth-${handle}`, handle, displayName: handle, createdAt: NOW, updatedAt: NOW, publishedAt: NOW })
     const asker = await person("demandeuse.effacement")

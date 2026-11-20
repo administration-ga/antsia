@@ -20,7 +20,7 @@ import { api, internal } from "../_generated/api"
 import type { Id } from "../_generated/dataModel"
 import type { PostPlacementRegistry, PostPlacementRule } from "../modules/networks/postPlacementRegistry"
 import { SEED_CONFIRMATION } from "../seeds/foundations"
-import { testConvex } from "../test.setup"
+import { openNetworkFeatures, testConvex } from "../test.setup"
 
 type Seen = { posts: number; states: number; scans: number }
 type Call = { networkId: string; authorPersonId: string; pageId: string | null; reach: string | null; country: string | null; seen: Seen }
@@ -113,7 +113,11 @@ async function enter(t: T, root: Id<"networks">, closed: Id<"networks">, handle:
 async function world(t: T, options: { governed: boolean }) {
   const { root, testClosed } = await t.mutation(internal.seeds.foundations.run, { confirmNonProduction: SEED_CONFIRMATION })
   const alice = await enter(t, root, testClosed, "alice")
-  if (options.governed) await t.run(async (ctx) => await ctx.db.patch(testClosed, { managedBy: "diaspora" }))
+  if (options.governed) {
+    await t.run(async (ctx) => await ctx.db.patch(testClosed, { managedBy: "diaspora" }))
+    // ADR-0041 : les pages et les évènements d'un réseau gouverné s'exercent ouverts.
+    await openNetworkFeatures(t, testClosed)
+  }
   return { root, closed: testClosed, alice }
 }
 
@@ -213,6 +217,7 @@ describe("règle de placement : les autres écrivains qui choisissent un placeme
     const lyon = await alice.as.mutation(api.modules.pages.pages.createPage, { networkId: closed, name: "Association de Lyon", ownerKind: "association", country: "FR" })
     const montreal = await alice.as.mutation(api.modules.pages.pages.createPage, { networkId: closed, name: "Association de Montréal", ownerKind: "association", country: "CA" })
     await t.run(async (ctx) => await ctx.db.patch(closed, { managedBy: "diaspora" }))
+    await openNetworkFeatures(t, closed)
     const before = await written(t, closed, alice)
     expect(await ruleOf(alice.as.mutation(api.modules.pages.pages.publishAsPage, { networkId: closed, pageId: montreal.pageId, body: "Soirée à Montréal", reach: "local" }))).toBe("POST_PLACEMENT_COUNTRY_NOT_OPEN")
     expect(await written(t, closed, alice)).toEqual(before)

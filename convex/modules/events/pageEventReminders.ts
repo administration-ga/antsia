@@ -73,6 +73,7 @@ export async function schedulePageEventReminder(ctx: MutationCtx, event: Doc<"ev
 }
 
 export const setReminder = networkMutation({
+  feature: "groupsAndEvents",
   minStatus: "en_attente", args: { eventId: v.id("events"), enabled: v.boolean() }, returns: v.null(),
   handler: async (ctx, args) => {
     assertDiasporaNetwork(ctx.network)

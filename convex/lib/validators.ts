@@ -9,6 +9,7 @@ import { PERSONAL_POST_AUDIENCES, PERSONAL_POST_STATUSES, PERSONAL_REACH_AUDIENC
 import { FACET_FIELD_KINDS, FACET_VISIBILITIES } from "@antsia/social-domain/facets"
 import { ACTIVE_MEMBERSHIP_STATUSES, MEMBERSHIP_ROLES, MEMBERSHIP_STATUSES, VERIFICATION_SOURCES } from "@antsia/social-domain/membership"
 import { CONTENT_VISIBILITIES, MEMBERSHIP_POLICIES, NETWORK_KINDS, NETWORK_SLICES, NETWORK_STATUSES } from "@antsia/social-domain/network"
+import { NETWORK_FEATURES } from "@antsia/social-domain/networkFeatures"
 import { MEMBER_THEME_IDS, STORED_MEMBER_THEME_IDS } from "@antsia/social-contracts/appearance"
 import { type Validator, v, type VLiteral, type VUnion } from "convex/values"
 
@@ -26,6 +27,8 @@ export const contentVisibilityValidator = literals(CONTENT_VISIBILITIES)
 export const networkStatusValidator = literals(NETWORK_STATUSES)
 /** La tranche qui gouverne l'entrée et les facettes d'un réseau (`networks.managedBy`). */
 export const networkSliceValidator = literals(NETWORK_SLICES)
+/** Une fonctionnalité activable d'un réseau gouverné (ADR-0041, clés gelées). */
+export const networkFeatureValidator = literals(NETWORK_FEATURES)
 
 export const membershipStatusValidator = literals(MEMBERSHIP_STATUSES)
 export const activeMembershipStatusValidator = literals(ACTIVE_MEMBERSHIP_STATUSES)

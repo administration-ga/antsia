@@ -13,6 +13,8 @@ import betterAuthTest from "@convex-dev/better-auth/test"
 import rateLimiterTest from "@convex-dev/rate-limiter/test"
 import { convexTest, type TestConvex } from "convex-test"
 
+import { NETWORK_FEATURES, type NetworkFeature } from "@antsia/social-domain/networkFeatures"
+
 import { api, components, internal } from "./_generated/api"
 import type { Id } from "./_generated/dataModel"
 import schema from "./schema"
@@ -79,6 +81,22 @@ export async function createTestOperatorProof(t: BackendTest, as: ReturnType<Bac
   })
   await t.mutation(internal.modules.platform.operatorAccess.recordIdnSession, { sessionId: identity.sessionId, authUserId: identity.subject, idnSubject: subject, loa })
   if (loa >= 2) await as.mutation(api.modules.platform.operatorAccess.recordAccess, {})
+}
+
+/**
+ * ADR-0041 — ouvre les fonctionnalités d'un réseau gouverné (toutes par défaut), comme si son
+ * administrateur l'avait décidé : les tests d'une fonctionnalité de la tranche l'exercent ouverte.
+ * La graine, elle, n'ouvre rien ; la fermeture se prouve dans `modules/networks/features.test.ts`.
+ */
+export async function openNetworkFeatures(t: BackendTest, networkId: Id<"networks">, features: readonly NetworkFeature[] = NETWORK_FEATURES): Promise<void> {
+  await t.run(async (ctx) => {
+    const now = Date.now()
+    for (const feature of features) {
+      const row = await ctx.db.query("networkFeatures").withIndex("by_network_feature", (q) => q.eq("networkId", networkId).eq("feature", feature)).first()
+      if (row) await ctx.db.patch(row._id, { enabled: true, updatedAt: now })
+      else await ctx.db.insert("networkFeatures", { networkId, feature, enabled: true, updatedAt: now })
+    }
+  })
 }
 
 /**

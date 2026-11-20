@@ -713,6 +713,7 @@ async function readPilotMetrics(ctx: QueryCtx, network: Doc<"networks">, args: {
  * jugement de ses arguments. `country` absent ou `null` : tout le réseau.
  */
 export const pilotMetrics = networkQuery({
+  feature: "pilotMetrics",
   args: readArgs,
   returns: pilotMetricsViewValidator,
   handler: async (ctx, args): Promise<PilotMetricsView> => {
@@ -724,6 +725,7 @@ export const pilotMetrics = networkQuery({
 
 /** Le lecteur peut-il ouvrir la mesure ? Il ne lit que son propre rôle (entrée du menu, écran). */
 export const pilotMetricsAccess = networkQuery({
+  feature: "pilotMetrics",
   args: {},
   returns: v.object({ allowed: v.boolean() }),
   handler: async (ctx): Promise<{ allowed: boolean }> => {

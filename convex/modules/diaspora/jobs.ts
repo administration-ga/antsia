@@ -640,6 +640,7 @@ function openOffersQuery(ctx: Pick<QueryCtx, "db">, networkId: Id<"networks">, f
  * voire vide, tout en annonçant sa suite (`isDone`). Aucun historique gardé.
  */
 export const searchJobOffers = networkQuery({
+  feature: "jobs",
   args: {
     query: v.optional(v.string()),
     country: v.optional(v.string()),
@@ -676,6 +677,7 @@ export const searchJobOffers = networkQuery({
  * distinguent pas. Ma candidature à l'offre, si j'en ai une, l'accompagne.
  */
 export const getJobOffer = networkQuery({
+  feature: "jobs",
   args: { jobId: v.string() },
   returns: v.union(jobOfferDetailValidator, v.null()),
   handler: async (ctx, args): Promise<JobOfferDetail | null> => {
@@ -705,6 +707,7 @@ export const getJobOffer = networkQuery({
  * l'écrive (elle rejoint les closes une fois écrite).
  */
 export const pageJobOffers = networkQuery({
+  feature: "jobs",
   args: {
     pageId: v.id("pages"),
     status: v.optional(jobOfferStatusValidator),
@@ -746,6 +749,7 @@ export const pageJobOffers = networkQuery({
  * être courte tout en annonçant sa suite.
  */
 export const pageOpenJobOffers = networkQuery({
+  feature: "jobs",
   args: {
     pageId: v.string(),
     paginationOpts: paginationOptsValidator,
@@ -843,6 +847,7 @@ async function assertJobOfferQuota(ctx: Pick<QueryCtx, "db">, networkId: Id<"net
 
 /** Créer une offre au nom d'une page que je gère : brouillon, ou ouverte si je la publie aussitôt. */
 export const createJobOffer = networkMutation({
+  feature: "jobs",
   args: { pageId: v.id("pages"), ...jobOfferInputFields, publish: v.boolean() },
   returns: v.object({ jobId: v.id("jobOffers"), version: v.number(), status: jobOfferStatusValidator }),
   handler: async (ctx, args) => {
@@ -880,6 +885,7 @@ export const createJobOffer = networkMutation({
  * écrit. Toute modification incrémente la version.
  */
 export const updateJobOffer = networkMutation({
+  feature: "jobs",
   args: { jobId: v.id("jobOffers"), expectedVersion: v.number(), ...jobOfferInputFields },
   returns: v.object({ version: v.number() }),
   handler: async (ctx, args) => {
@@ -913,6 +919,7 @@ export const updateJobOffer = networkMutation({
  * encore à venir.
  */
 export const setJobOfferStatus = networkMutation({
+  feature: "jobs",
   args: { jobId: v.id("jobOffers"), expectedVersion: v.number(), status: literals(JOB_OFFER_STATUS_TARGETS) },
   returns: v.object({ status: jobOfferStatusValidator, version: v.number() }),
   handler: async (ctx, args) => {
@@ -949,6 +956,7 @@ export const setJobOfferStatus = networkMutation({
  * et par offre ; même clé et même corps rendent la candidature déjà créée.
  */
 export const applyToJobOffer = networkMutation({
+  feature: "jobs",
   args: {
     jobId: v.id("jobOffers"),
     offerVersion: v.number(),
@@ -1023,6 +1031,7 @@ export const applyToJobOffer = networkMutation({
  * publier. Retirer deux fois ne change rien.
  */
 export const withdrawJobApplication = networkMutation({
+  feature: "jobs",
   minStatus: "en_attente",
   args: { applicationId: v.id("jobApplications") },
   returns: v.object({ status: jobApplicationStatusValidator }),
@@ -1041,6 +1050,7 @@ export const withdrawJobApplication = networkMutation({
 
 /** Mes candidatures, des plus récemment mises à jour : les miennes seulement, dans ce réseau. */
 export const myJobApplications = networkQuery({
+  feature: "jobs",
   args: { paginationOpts: paginationOptsValidator },
   returns: paginationResultValidator(myApplicationValidator),
   handler: async (ctx, args): Promise<PaginationResult<MyApplication>> => {
@@ -1092,6 +1102,7 @@ export const myJobApplications = networkQuery({
  * pour les signataires VIVANTS de sa page seulement (refus indistinct sinon).
  */
 export const jobOfferApplications = networkQuery({
+  feature: "jobs",
   args: {
     jobId: v.id("jobOffers"),
     status: v.optional(jobApplicationStatusValidator),
@@ -1161,6 +1172,7 @@ async function decide(
 
 /** L'équipe a lu la candidature. */
 export const markJobApplicationSeen = networkMutation({
+  feature: "jobs",
   args: { applicationId: v.id("jobApplications") },
   returns: v.object({ status: jobApplicationStatusValidator }),
   handler: async (ctx, args) => await decide(ctx, args.applicationId, "mark_seen", undefined),
@@ -1168,6 +1180,7 @@ export const markJobApplicationSeen = networkMutation({
 
 /** L'équipe présélectionne la candidature. */
 export const shortlistJobApplication = networkMutation({
+  feature: "jobs",
   args: { applicationId: v.id("jobApplications") },
   returns: v.object({ status: jobApplicationStatusValidator }),
   handler: async (ctx, args) => await decide(ctx, args.applicationId, "shortlist", undefined),
@@ -1178,6 +1191,7 @@ export const shortlistJobApplication = networkMutation({
  * l'équipe, jamais montrée à la personne qui candidate sans relecture.
  */
 export const markJobApplicationNotSelected = networkMutation({
+  feature: "jobs",
   args: { applicationId: v.id("jobApplications"), reason: v.optional(v.string()) },
   returns: v.object({ status: jobApplicationStatusValidator }),
   handler: async (ctx, args) => await decide(ctx, args.applicationId, "not_select", args.reason),
@@ -1189,6 +1203,7 @@ export const markJobApplicationNotSelected = networkMutation({
 
 /** Mon profil de talent dans ce réseau, ou `null` : je n'en ai pas créé (ou je l'ai supprimé). */
 export const myTalentProfile = networkQuery({
+  feature: "jobs",
   args: {},
   returns: v.union(ownTalentValidator, v.null()),
   handler: async (ctx): Promise<OwnTalent | null> => {
@@ -1205,6 +1220,7 @@ export const myTalentProfile = networkQuery({
  * `expectedVersion: null`, une modification la version lue ; sinon conflit.
  */
 export const saveMyTalentProfile = networkMutation({
+  feature: "jobs",
   args: {
     expectedVersion: v.union(v.number(), v.null()),
     title: v.string(),
@@ -1261,6 +1277,7 @@ export const saveMyTalentProfile = networkMutation({
  * L'état déjà courant ne change rien.
  */
 export const setMyTalentProfileStatus = networkMutation({
+  feature: "jobs",
   minStatus: "en_attente",
   args: { status: talentProfileStatusValidator, expectedVersion: v.number() },
   returns: v.object({ status: talentProfileStatusValidator, version: v.number() }),
@@ -1284,6 +1301,7 @@ export const setMyTalentProfileStatus = networkMutation({
  * Supprimer un profil absent ne change rien.
  */
 export const removeMyTalentProfile = networkMutation({
+  feature: "jobs",
   minStatus: "en_attente",
   args: {},
   returns: v.null(),
@@ -1304,6 +1322,7 @@ export const removeMyTalentProfile = networkMutation({
  * n'apparaît pas. Aucune coordonnée, aucun identifiant de personne.
  */
 export const searchTalents = networkQuery({
+  feature: "jobs",
   args: { country: v.string(), skill: v.optional(v.string()), paginationOpts: paginationOptsValidator },
   returns: paginationResultValidator(talentHitValidator),
   handler: async (ctx, args): Promise<PaginationResult<TalentHit>> => {

@@ -8,6 +8,11 @@
  *                                    (défaut : `en_attente` en lecture,
  *                                    `declaree` en écriture) ; le handler lit
  *                                    `ctx.network`, `ctx.membership`, `ctx.person`.
+ *   option `feature` (ADR-0041)      fonctionnalité d'un réseau gouverné par une
+ *                                    tranche : fermée, refus indistinct (`notFound`)
+ *                                    juste après l'adhésion, avant tout budget ;
+ *                                    sans effet pour la racine et tout réseau
+ *                                    sans tranche (`lib/networkFeatures.ts`).
  *   networkAction                    admission par mutation interne AVANT tout
  *                                    effet : adhésion, éligibilité, quotas ;
  *                                    exception nominative `readOnly` contrôlée
@@ -24,6 +29,7 @@
  * porte pas sa justification.
  */
 import type { ActiveMembershipStatus } from "@antsia/social-domain/membership"
+import type { NetworkFeature } from "@antsia/social-domain/networkFeatures"
 import { customAction, customMutation, customQuery } from "convex-helpers/server/customFunctions"
 import { makeFunctionReference } from "convex/server"
 import { v } from "convex/values"
@@ -33,10 +39,11 @@ import { action, mutation, query, type QueryCtx } from "../_generated/server"
 import { assertSocialWriteAllowed } from "../modules/moderation/policy"
 import { requireMembership, requirePerson } from "./access"
 import { fail } from "./errors"
+import { requireNetworkFeature } from "./networkFeatures"
 import { liveOperatorSessionOrNull, requireOperatorSession } from "./operatorIdentity"
 import { type ActionWriteBucket, enforceRateLimit, type RateLimitBucket } from "./rateLimit"
 
-type NetworkExtra = { minStatus?: ActiveMembershipStatus }
+type NetworkExtra = { minStatus?: ActiveMembershipStatus; feature?: NetworkFeature }
 type NetworkMutationExtra = NetworkExtra & { writeBucket?: RateLimitBucket }
 type NetworkActionExtra = NetworkExtra & { readOnly?: true; writeBucket?: ActionWriteBucket }
 type OperatorExtra = { allowUnloggedAccess?: true }
@@ -48,13 +55,13 @@ type OperatorExtra = { allowUnloggedAccess?: true }
  */
 const membershipForAction = makeFunctionReference<
   "query",
-  { networkId: Id<"networks">; minStatus: ActiveMembershipStatus },
+  { networkId: Id<"networks">; minStatus: ActiveMembershipStatus; feature?: NetworkFeature },
   { personId: Id<"persons">; networkId: Id<"networks"> }
 >("lib/actionAccess:membershipForAction")
 
 const admitActionWrite = makeFunctionReference<
   "mutation",
-  { networkId: Id<"networks">; minStatus: ActiveMembershipStatus; bucket?: ActionWriteBucket },
+  { networkId: Id<"networks">; minStatus: ActiveMembershipStatus; feature?: NetworkFeature; bucket?: ActionWriteBucket },
   { personId: Id<"persons">; networkId: Id<"networks"> }
 >("lib/actionAccess:admitActionWrite")
 
@@ -62,6 +69,7 @@ export const networkQuery = customQuery(query, {
   args: { networkId: v.id("networks") },
   input: async (ctx, { networkId }, extra: NetworkExtra) => {
     const access = await requireMembership(ctx, networkId, extra.minStatus ?? "en_attente")
+    if (extra.feature) await requireNetworkFeature(ctx, access.network, extra.feature)
     return { ctx: { ...access, networkId: access.network._id }, args: {} }
   },
 })
@@ -70,6 +78,8 @@ export const networkMutation = customMutation(mutation, {
   args: { networkId: v.id("networks") },
   input: async (ctx, { networkId }, extra: NetworkMutationExtra) => {
     const access = await requireMembership(ctx, networkId, extra.minStatus ?? "declaree")
+    // Fonctionnalité fermée : refus indistinct AVANT la garde d'écriture et tout budget de débit.
+    if (extra.feature) await requireNetworkFeature(ctx, access.network, extra.feature)
     await assertSocialWriteAllowed(ctx, networkId, access.person._id)
     await enforceRateLimit({ ...ctx, ...access, networkId }, "social.write", access.person._id)
     if (extra.writeBucket) await enforceRateLimit({ ...ctx, ...access, networkId }, extra.writeBucket, access.person._id)
@@ -80,9 +90,10 @@ export const networkMutation = customMutation(mutation, {
 export const networkAction = customAction(action, {
   args: { networkId: v.id("networks") },
   input: async (ctx, { networkId }, extra: NetworkActionExtra) => {
+    const feature = extra.feature ? { feature: extra.feature } : {}
     const access = extra.readOnly
-      ? await ctx.runQuery(membershipForAction, { networkId, minStatus: extra.minStatus ?? "declaree" })
-      : await ctx.runMutation(admitActionWrite, { networkId, minStatus: extra.minStatus ?? "declaree", ...(extra.writeBucket ? { bucket: extra.writeBucket } : {}) })
+      ? await ctx.runQuery(membershipForAction, { networkId, minStatus: extra.minStatus ?? "declaree", ...feature })
+      : await ctx.runMutation(admitActionWrite, { networkId, minStatus: extra.minStatus ?? "declaree", ...feature, ...(extra.writeBucket ? { bucket: extra.writeBucket } : {}) })
     return { ctx: access, args: {} }
   },
 })

@@ -17,7 +17,7 @@ import { api, components, internal } from "../../_generated/api"
 import type { Id } from "../../_generated/dataModel"
 import { DIASPORA_GA_DEMO_EMAIL_DOMAIN } from "../../lib/devTools"
 import { SEED_CONFIRMATION } from "../../seeds/foundations"
-import { createTestSession, testConvex } from "../../test.setup"
+import { createTestSession, openNetworkFeatures, testConvex } from "../../test.setup"
 import { liveSignatoryRole } from "../pages/access"
 
 type T = ReturnType<typeof testConvex>
@@ -75,6 +75,7 @@ async function fixture() {
   const t = testConvex({ automaticSessions: false })
   const foundations = await t.mutation(internal.seeds.foundations.run, { confirmNonProduction: SEED_CONFIRMATION })
   const seeded = await t.mutation(internal.modules.diaspora.seed.run, { confirmNonProduction: SEED_CONFIRMATION })
+  await openNetworkFeatures(t, seeded.network)
   return { t, diasporaGa: seeded.network, root: foundations.root }
 }
 

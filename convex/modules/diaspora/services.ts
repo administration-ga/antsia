@@ -268,6 +268,7 @@ function catalogQuery(ctx: Pick<QueryCtx, "db">, networkId: Id<"networks">, filt
  * historique de recherche n'est gardé.
  */
 export const searchOffers = networkQuery({
+  feature: "services",
   args: {
     query: v.optional(v.string()),
     country: v.optional(v.string()),
@@ -324,6 +325,7 @@ export const searchOffers = networkQuery({
  * le même `null` : inconnue, d'ailleurs, en pause ou retirée ne se distinguent pas.
  */
 export const getOffer = networkQuery({
+  feature: "services",
   args: { offerId: v.string() },
   returns: v.union(offerDetailValidator, v.null()),
   handler: async (ctx, args): Promise<OfferDetail | null> => {
@@ -344,6 +346,7 @@ export const getOffer = networkQuery({
 
 /** Les offres ACTIVES d'une page, sur sa fiche, les plus récentes d'abord ; page illisible : `null`. */
 export const pageOffers = networkQuery({
+  feature: "services",
   args: {
     handle: v.string(),
     category: v.optional(v.string()),
@@ -394,6 +397,7 @@ export const pageOffers = networkQuery({
  * vivant seulement ; sinon le refus indistinct.
  */
 export const myPageOffers = networkQuery({
+  feature: "services",
   args: {
     pageId: v.id("pages"),
     status: v.optional(serviceOfferStatusValidator),
@@ -513,6 +517,7 @@ async function assertOfferQuota(ctx: Pick<QueryCtx, "db">, networkId: Id<"networ
 
 /** Créer une offre au nom d'une page que je gère : brouillon, ou active si je la publie aussitôt. */
 export const createOffer = networkMutation({
+  feature: "services",
   args: { pageId: v.id("pages"), ...offerInputFields, publish: v.boolean() },
   returns: v.object({ offerId: v.id("serviceOffers"), version: v.number(), status: serviceOfferStatusValidator }),
   handler: async (ctx, args) => {
@@ -546,6 +551,7 @@ export const createOffer = networkMutation({
  * écrit. Toute modification incrémente la version.
  */
 export const updateOffer = networkMutation({
+  feature: "services",
   args: { offerId: v.id("serviceOffers"), expectedVersion: v.number(), ...offerInputFields },
   returns: v.object({ version: v.number() }),
   handler: async (ctx, args) => {
@@ -576,6 +582,7 @@ export const updateOffer = networkMutation({
  * version lue est exigée et incrémentée. Retirée est terminale.
  */
 export const setOfferStatus = networkMutation({
+  feature: "services",
   args: { offerId: v.id("serviceOffers"), expectedVersion: v.number(), status: literals(SERVICE_OFFER_STATUS_TARGETS) },
   returns: v.object({ status: serviceOfferStatusValidator, version: v.number() }),
   handler: async (ctx, args) => {

@@ -669,6 +669,7 @@ function questionListQuery(ctx: Pick<QueryCtx, "db">, networkId: Id<"networks">,
  * recherche n'est gardée.
  */
 export const listQuestions = networkQuery({
+  feature: "mutualAid",
   args: {
     country: v.string(),
     city: v.optional(v.string()),
@@ -707,6 +708,7 @@ export const listQuestions = networkQuery({
  * paraît plus. Vue de gestion : chacune dit son état de modération (G9).
  */
 export const myQuestions = networkQuery({
+  feature: "mutualAid",
   args: { paginationOpts: paginationOptsValidator },
   returns: paginationResultValidator(questionCardValidator),
   handler: async (ctx, { paginationOpts }): Promise<PaginationResult<QuestionCard>> => {
@@ -733,6 +735,7 @@ export const myQuestions = networkQuery({
  * auteur écarté ou d'une page devenue illisible : le même `null`.
  */
 export const aidItem = networkQuery({
+  feature: "mutualAid",
   args: { itemId: v.string() },
   returns: aidItemValidator,
   handler: async (ctx, { itemId }): Promise<AidItem> => {
@@ -767,6 +770,7 @@ export const aidItem = networkQuery({
  * modération de la sienne (G9), personne d'autre.
  */
 export const listAnswers = networkQuery({
+  feature: "mutualAid",
   args: { questionId: v.id("aidQuestions"), paginationOpts: paginationOptsValidator },
   returns: paginationResultValidator(answerValidator),
   handler: async (ctx, args): Promise<PaginationResult<AnswerView>> => {
@@ -800,6 +804,7 @@ export const listAnswers = networkQuery({
 
 /** Poser une question d'entraide : le droit de publier, puis la règle du domaine (aucune coordonnée). */
 export const askQuestion = networkMutation({
+  feature: "mutualAid",
   args: { title: v.string(), detail: v.string(), theme: aidThemeValidator, country: v.string(), city: v.optional(v.string()) },
   returns: v.object({ questionId: v.id("aidQuestions"), version: v.number() }),
   handler: async (ctx, args) => {
@@ -830,6 +835,7 @@ export const askQuestion = networkMutation({
 
 /** Modifier ma question (ouverte ou résolue), à la version lue ; son pays ne change pas. */
 export const updateQuestion = networkMutation({
+  feature: "mutualAid",
   args: {
     questionId: v.id("aidQuestions"),
     expectedVersion: v.number(),
@@ -866,6 +872,7 @@ export const updateQuestion = networkMutation({
 
 /** Clore ma question : plus aucune réponse ; la réponse retenue, s'il y en a une, reste montrée. */
 export const closeQuestion = networkMutation({
+  feature: "mutualAid",
   args: { questionId: v.id("aidQuestions"), expectedVersion: v.number() },
   returns: v.object({ version: v.number() }),
   handler: async (ctx, args) => {
@@ -882,6 +889,7 @@ export const closeQuestion = networkMutation({
 
 /** Retirer ma question : terminal, elle n'est plus servie à personne. Possible même devenu « en attente » dans le réseau. */
 export const withdrawQuestion = networkMutation({
+  feature: "mutualAid",
   minStatus: "en_attente",
   args: { questionId: v.id("aidQuestions"), expectedVersion: v.number() },
   returns: v.object({ version: v.number() }),
@@ -899,6 +907,7 @@ export const withdrawQuestion = networkMutation({
 
 /** Répondre à une question ouverte ou résolue : le droit de publier, puis la règle du domaine (aucune coordonnée). */
 export const answerQuestion = networkMutation({
+  feature: "mutualAid",
   args: { questionId: v.id("aidQuestions"), body: v.string() },
   returns: v.object({ answerId: v.id("aidAnswers"), version: v.number() }),
   handler: async (ctx, args) => {
@@ -932,6 +941,7 @@ export const answerQuestion = networkMutation({
 
 /** Modifier ma réponse publiée (pas la réponse retenue), à la version lue. */
 export const updateAnswer = networkMutation({
+  feature: "mutualAid",
   args: { answerId: v.id("aidAnswers"), expectedVersion: v.number(), body: v.string() },
   returns: v.object({ version: v.number() }),
   handler: async (ctx, args) => {
@@ -964,6 +974,7 @@ export const updateAnswer = networkMutation({
  * possible sur une question close, même devenu « en attente » dans le réseau.
  */
 export const withdrawAnswer = networkMutation({
+  feature: "mutualAid",
   minStatus: "en_attente",
   args: { answerId: v.id("aidAnswers"), expectedVersion: v.number() },
   returns: v.object({ version: v.number() }),
@@ -1004,6 +1015,7 @@ export const withdrawAnswer = networkMutation({
  * rejouer la même ne change rien.
  */
 export const acceptAnswer = networkMutation({
+  feature: "mutualAid",
   args: { questionId: v.id("aidQuestions"), answerId: v.id("aidAnswers"), expectedVersion: v.number() },
   returns: v.object({ version: v.number() }),
   handler: async (ctx, args) => {
@@ -1027,6 +1039,7 @@ export const acceptAnswer = networkMutation({
 
 /** Ne plus retenir de réponse : la question redevient ouverte. */
 export const unacceptAnswer = networkMutation({
+  feature: "mutualAid",
   args: { questionId: v.id("aidQuestions"), expectedVersion: v.number() },
   returns: v.object({ version: v.number() }),
   handler: async (ctx, args) => {
@@ -1052,6 +1065,7 @@ export const unacceptAnswer = networkMutation({
  * commencée n'y paraît plus.
  */
 export const listMissions = networkQuery({
+  feature: "mutualAid",
   args: { country: v.string(), city: v.optional(v.string()), from: v.number(), paginationOpts: paginationOptsValidator },
   returns: paginationResultValidator(missionCardValidator),
   handler: async (ctx, args): Promise<PaginationResult<MissionCard>> => {
@@ -1086,6 +1100,7 @@ export const listMissions = networkQuery({
 
 /** Mes inscriptions confirmées, les plus récentes d'abord ; une mission devenue illisible n'y paraît plus. */
 export const mySignups = networkQuery({
+  feature: "mutualAid",
   args: { paginationOpts: paginationOptsValidator },
   returns: paginationResultValidator(missionCardValidator),
   handler: async (ctx, { paginationOpts }): Promise<PaginationResult<MissionCard>> => {
@@ -1113,6 +1128,7 @@ export const mySignups = networkQuery({
 
 /** Les pages d'association dont je suis signataire VIVANT : celles au nom desquelles je peux proposer une mission. */
 export const missionPages = networkQuery({
+  feature: "mutualAid",
   args: {},
   returns: v.array(missionPageValidator),
   handler: async (ctx): Promise<MissionPage[]> => {
@@ -1141,6 +1157,7 @@ export const missionPages = networkQuery({
  * son état de modération (G9), en relecture ou retirée comprise.
  */
 export const pageMissions = networkQuery({
+  feature: "mutualAid",
   args: { pageId: v.id("pages"), paginationOpts: paginationOptsValidator },
   returns: paginationResultValidator(missionCardValidator),
   handler: async (ctx, args): Promise<PaginationResult<MissionCard>> => {
@@ -1179,6 +1196,7 @@ const UPCOMING_PAGE_MISSIONS_SCAN = 25
  * d'ailleurs ou d'une autre nature : refus indistinct.
  */
 export const upcomingPageMissions = networkQuery({
+  feature: "mutualAid",
   args: { pageId: v.id("pages"), limit: v.optional(v.number()) },
   returns: v.array(missionCardValidator),
   handler: async (ctx, args): Promise<MissionCard[]> => {
@@ -1215,6 +1233,7 @@ export const upcomingPageMissions = networkQuery({
  * montrer son nom publié ; aucune coordonnée : on écrit par la messagerie.
  */
 export const missionVolunteers = networkQuery({
+  feature: "mutualAid",
   args: { missionId: v.id("aidMissions"), paginationOpts: paginationOptsValidator },
   returns: paginationResultValidator(volunteerValidator),
   handler: async (ctx, args): Promise<PaginationResult<Volunteer>> => {
@@ -1257,6 +1276,7 @@ const missionInputFields = {
 
 /** Proposer une mission au nom d'une page d'association que je gère : elle naît ouverte, sans inscrit. */
 export const createMission = networkMutation({
+  feature: "mutualAid",
   args: { pageId: v.id("pages"), ...missionInputFields },
   returns: v.object({ missionId: v.id("aidMissions"), version: v.number() }),
   handler: async (ctx, args) => {
@@ -1298,6 +1318,7 @@ export const createMission = networkMutation({
  * inscrits, et son état les suit (complète ⇄ ouverte).
  */
 export const updateMission = networkMutation({
+  feature: "mutualAid",
   args: { missionId: v.id("aidMissions"), expectedVersion: v.number(), ...missionInputFields },
   returns: v.object({ version: v.number(), status: aidMissionStatusValidator }),
   handler: async (ctx, args) => {
@@ -1323,6 +1344,7 @@ export const updateMission = networkMutation({
 
 /** Clore les inscriptions d'une mission : les inscrits restent inscrits, plus personne ne s'ajoute. */
 export const closeMission = networkMutation({
+  feature: "mutualAid",
   args: { missionId: v.id("aidMissions"), expectedVersion: v.number() },
   returns: v.object({ version: v.number() }),
   handler: async (ctx, args) => {
@@ -1340,6 +1362,7 @@ export const closeMission = networkMutation({
 
 /** Annuler une mission (terminal), avec un motif facultatif lu par les inscrits sur la fiche ; chaque inscrit en est avisé (ET-01). */
 export const cancelMission = networkMutation({
+  feature: "mutualAid",
   args: { missionId: v.id("aidMissions"), expectedVersion: v.number(), reason: v.optional(v.string()) },
   returns: v.object({ version: v.number() }),
   handler: async (ctx, args) => {
@@ -1369,6 +1392,7 @@ export const cancelMission = networkMutation({
  * simultanées sur la dernière place : l'une est rejouée et refusée).
  */
 export const signUpForMission = networkMutation({
+  feature: "mutualAid",
   args: { missionId: v.id("aidMissions"), shareNameWithTeam: v.boolean() },
   returns: v.object({ status: aidMissionStatusValidator, signupCount: v.number() }),
   handler: async (ctx, args) => {
@@ -1410,6 +1434,7 @@ export const signUpForMission = networkMutation({
  * même si la page n'est plus lisible.
  */
 export const withdrawFromMission = networkMutation({
+  feature: "mutualAid",
   minStatus: "en_attente",
   args: { missionId: v.id("aidMissions") },
   returns: v.object({ status: aidMissionStatusValidator, signupCount: v.number() }),

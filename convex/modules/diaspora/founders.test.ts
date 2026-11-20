@@ -14,7 +14,7 @@ import { describe, expect, it } from "vitest"
 import { api, internal } from "../../_generated/api"
 import type { Doc, Id } from "../../_generated/dataModel"
 import { SEED_CONFIRMATION } from "../../seeds/foundations"
-import { createTestOperatorProof, createTestSession, testConvex } from "../../test.setup"
+import { createTestOperatorProof, createTestSession, openNetworkFeatures, testConvex } from "../../test.setup"
 
 type T = ReturnType<typeof testConvex>
 type Person = { readonly as: ReturnType<T["withIdentity"]>; readonly personId: Id<"persons"> }
@@ -25,6 +25,7 @@ const REASON = "Présidente d'une association relais du pilote France."
 async function seedAll(t: T) {
   const foundations = await t.mutation(internal.seeds.foundations.run, { confirmNonProduction: SEED_CONFIRMATION })
   const diaspora = await t.mutation(internal.modules.diaspora.seed.run, { confirmNonProduction: SEED_CONFIRMATION })
+  await openNetworkFeatures(t, diaspora.network)
   return { root: foundations.root, diasporaGa: diaspora.network }
 }
 
