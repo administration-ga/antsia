@@ -8,7 +8,7 @@ vi.mock("./server-session", () => ({ getServerViewer: mocks.viewer, getPublicLoc
 import { loadPublicPost, loadPublicProfile, publicErrorStatus, publicMetadata, publicPostSchema, publicSearch, publicTransparencyDeadlinesSchema } from "./public-data"
 
 beforeEach(() => { mocks.query.mockReset(); mocks.viewer.mockReset(); mocks.viewer.mockResolvedValue({ status: "anonymous" }); vi.stubEnv("NEXT_PUBLIC_CONVEX_URL", "http://localhost:3210") })
-const post = { id: "publication", body: "Bonjour #gabon", publishedAt: 1_700_000_000_000, editedAt: null, tags: ["gabon"], province: null, author: { kind: "person", handle: null, displayName: null, badges: [], avatarUrl: null }, origin: { slug: "diasporale", name: "DIASPORALE" }, media: [], shared: { available: false } }
+const post = { id: "publication", body: "Bonjour #gabon", publishedAt: 1_700_000_000_000, editedAt: null, tags: ["gabon"], province: null, author: { kind: "person", handle: null, displayName: null, badges: [], avatarUrl: null }, origin: { slug: "diaspora-ga", name: "DIASPORA.GA" }, media: [], shared: { available: false } }
 
 describe("projections publiques : aucun fallback de session", () => {
   it("ne requête rien quand un OTT attend adoption ou un reçu est refusé", async () => {

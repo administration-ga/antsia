@@ -15,7 +15,7 @@ import { productionCsp } from "./release/fixtures.mjs"
 
 const SHA = "0123456789abcdef0123456789abcdef01234567"
 const SHA12 = SHA.slice(0, 12)
-const DIASPORALE_COMMIT = "d".repeat(40)
+const DIASPORA_GA_COMMIT = "d".repeat(40)
 /** Valeurs manifestement fictives : aucun identifiant réel dans le dépôt (cliquet no-deployment-identifiers). */
 const TARGETS = Object.freeze({
   ANTSIA_RELEASE_CONVEX_DEMO: "exemple-demo",
@@ -28,7 +28,7 @@ const TARGETS = Object.freeze({
   ANTSIA_RELEASE_VERCEL_PROJECT_MAIN: "exemple-projet-principal",
   ANTSIA_RELEASE_VERCEL_PROJECT_CONSOLE: "exemple-projet-console",
 })
-const REPOS = Object.freeze({ antsia: "/depot-fictif/ECOSYSTEMES/ANTSIA", diasporale: "/depot-fictif/ECOSYSTEMES/DIASPORALE" })
+const REPOS = Object.freeze({ antsia: "/depot-fictif/ECOSYSTEMES/ANTSIA", diasporaGa: "/depot-fictif/ECOSYSTEMES/DIASPORA_GA" })
 const originalFetch = globalThis.fetch
 
 let home
@@ -79,7 +79,7 @@ async function cli(args, { run = fakeRunner().run, fetch = fakeFetch(() => null)
 }
 
 const done = (extra = {}) => ({ status: "fait", finishedAt: "2026-11-10T09:00:00.000Z", ...extra })
-const EXPORT_DONE = done({ inMain: true, diasporaleCommit: DIASPORALE_COMMIT, sourceFingerprint: "e".repeat(64), sourceFiles: 3 })
+const EXPORT_DONE = done({ inMain: true, diasporaGaCommit: DIASPORA_GA_COMMIT, sourceFingerprint: "e".repeat(64), sourceFiles: 3 })
 
 function seedManifest(steps, { candidate = CANDIDATE, publication = SHA12 } = {}) {
   const dir = join(home, publication)
@@ -118,7 +118,7 @@ describe("plan d'un commit : la méthode pas à pas, rien ne part", () => {
     const { out } = await cli(["plan", SHA])
     const order = [
       `git -C ${REPOS.antsia} fetch origin main`,
-      `git -C ${REPOS.diasporale} rev-parse origin/main`,
+      `git -C ${REPOS.diasporaGa} rev-parse origin/main`,
       `--output=${join(home, SHA12, "export", "antsia.tar")} ${SHA} -- . ':(exclude,glob)**/.env*'`,
       "bun install --frozen-lockfile",
       "CONVEX_DEPLOYMENT=prod:exemple-demo node scripts/convex-dev.mjs deploy --typecheck disable --dry-run",
@@ -223,7 +223,7 @@ describe("aucune commande ne part sans --execute ET la confirmation exacte", () 
 
 describe("export propre", () => {
   const exportHandler = ({ plant = [] } = {}) => (spec) => {
-    if (spec.program === "git" && spec.args.includes("rev-parse")) return { stdout: `${DIASPORALE_COMMIT}\n` }
+    if (spec.program === "git" && spec.args.includes("rev-parse")) return { stdout: `${DIASPORA_GA_COMMIT}\n` }
     if (spec.program === "tar") {
       const target = spec.args[spec.args.indexOf("-C") + 1]
       mkdirSync(join(target, "convex"), { recursive: true })
@@ -234,18 +234,18 @@ describe("export propre", () => {
     return {}
   }
 
-  test("archive du SHA sans .env*, DIASPORALE à origin/main, liste d'exclusion, installation figée, manifeste", async () => {
+  test("archive du SHA sans .env*, DIASPORA_GA à origin/main, liste d'exclusion, installation figée, manifeste", async () => {
     const { run, calls } = fakeRunner(exportHandler())
     const { code, out } = await cli(["export", SHA, ...confirm("export")], { run })
     expect(code).toBe(0)
     expect(out).toContain("✓ export : fait")
     const lines = calls.map(line)
     expect(lines[0]).toBe(`git -C ${REPOS.antsia} cat-file -e '${SHA}^{commit}'`)
-    expect(lines).toContain(`git -C ${REPOS.diasporale} rev-parse origin/main`)
-    expect(lines.some((text) => text.includes(`archive --format=tar --output=${join(home, SHA12, "export", "diasporale.tar")} ${DIASPORALE_COMMIT} -- . ':(exclude,glob)**/.env*'`))).toBe(true)
+    expect(lines).toContain(`git -C ${REPOS.diasporaGa} rev-parse origin/main`)
+    expect(lines.some((text) => text.includes(`archive --format=tar --output=${join(home, SHA12, "export", "diaspora-ga.tar")} ${DIASPORA_GA_COMMIT} -- . ':(exclude,glob)**/.env*'`))).toBe(true)
     expect(lines.at(-1)).toBe(`(cd ${join(home, SHA12, "export", "ECOSYSTEMES", "ANTSIA")} && bun install --frozen-lockfile)`)
     const manifest = manifestNow()
-    expect(manifest.steps.export).toMatchObject({ status: "fait", inMain: true, diasporaleCommit: DIASPORALE_COMMIT, sourceFiles: 5 })
+    expect(manifest.steps.export).toMatchObject({ status: "fait", inMain: true, diasporaGaCommit: DIASPORA_GA_COMMIT, sourceFiles: 5 })
     expect(manifest.steps.export.sourceFingerprint).toMatch(/^[0-9a-f]{64}$/)
     expect(readFileSync(join(home, SHA12, "export", "ECOSYSTEMES", ".vercelignore"), "utf8")).toContain("**/.env*")
     expect(readFileSync(join(home, SHA12, "journal", "export.log"), "utf8")).toContain("bun install --frozen-lockfile")

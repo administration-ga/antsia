@@ -124,7 +124,7 @@ export async function main(argv, deps = {}) {
   try {
     ;({ sha, options } = parseCheckArgs(argv))
     sha = assertSha(sha)
-    home = assertOutsideRepos(releaseHome(env, deps.homedir ?? homedir()), [repos.antsia, repos.diasporale])
+    home = assertOutsideRepos(releaseHome(env, deps.homedir ?? homedir()), [repos.antsia, repos.diasporaGa])
     manifest = readManifest(join(home, options.publication ?? shortSha(sha), MANIFEST_FILE))
     if (manifest && manifest.sha !== sha) throw new ReleaseRefusal(`la publication ${options.publication ?? shortSha(sha)} est celle du commit ${manifest.sha}`)
   } catch (refusal) {

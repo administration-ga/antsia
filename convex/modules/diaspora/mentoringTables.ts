@@ -1,6 +1,6 @@
 /**
- * Tables du mentorat bénévole DIASPORALE (DG-024, troisième tranche, lot G8
- * point 2) — PROPRIÉTAIRE : chantier « mentorat » de la session DIASPORALE ;
+ * Tables du mentorat bénévole DIASPORA.GA (DG-024, troisième tranche, lot G8
+ * point 2) — PROPRIÉTAIRE : chantier « mentorat » de la session DIASPORA.GA ;
  * agrégées par `tables.ts`, donc par `convex/schema.ts`.
  *
  * - `mentorProfiles` : l'OPT-IN explicite d'un membre, un profil par personne et
@@ -32,7 +32,7 @@ import {
   MENTORING_CLOSERS,
   MENTORING_DOMAINS,
   MENTORING_REQUEST_STATUSES,
-} from "@diasporale/domain"
+} from "@diaspora-ga/domain"
 import { defineTable } from "convex/server"
 import { v } from "convex/values"
 

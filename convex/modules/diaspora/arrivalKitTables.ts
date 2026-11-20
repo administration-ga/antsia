@@ -1,7 +1,7 @@
 /**
- * Tables du chantier « kit d'arrivée » (DG-024 b) de la session DIASPORALE —
+ * Tables du chantier « kit d'arrivée » (DG-024 b) de la session DIASPORA.GA —
  * PROPRIÉTAIRE : ce chantier ; agrégées par `tables.ts`, donc par `convex/schema.ts`.
- * Règles pures dans `@diasporale/domain` (arrival-kit), fonctions dans `arrivalKit.ts`.
+ * Règles pures dans `@diaspora-ga/domain` (arrival-kit), fonctions dans `arrivalKit.ts`.
  *
  * - `kitResources` : une ressource pratique DATÉE d'un pays (et d'une ville
  *   facultative), avec sa source citée et sa date de dernière vérification. Elle
@@ -19,7 +19,7 @@
  *
  * Toutes portent `networkId` : la tranche ne sert que le réseau qu'elle gouverne.
  */
-import { ARRIVAL_KIT_CATEGORIES, ARRIVAL_KIT_OUTDATED_REASONS, ARRIVAL_KIT_REVIEW_OUTCOMES, ARRIVAL_KIT_STATUSES } from "@diasporale/domain"
+import { ARRIVAL_KIT_CATEGORIES, ARRIVAL_KIT_OUTDATED_REASONS, ARRIVAL_KIT_REVIEW_OUTCOMES, ARRIVAL_KIT_STATUSES } from "@diaspora-ga/domain"
 import { defineTable } from "convex/server"
 import { v } from "convex/values"
 

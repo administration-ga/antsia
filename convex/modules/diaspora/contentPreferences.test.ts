@@ -1,5 +1,5 @@
 // @vitest-environment edge-runtime
-/** Choix privés du fil : propriété, versions et projections DIASPORALE. */
+/** Choix privés du fil : propriété, versions et projections DIASPORA.GA. */
 import { engineErrorCode } from "@antsia/social-contracts/errors"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
@@ -33,7 +33,7 @@ async function member(t: T, networkId: Id<"networks">, handle: string, listed = 
     await ctx.db.insert("identityLinks", { personId, provider: "idn", subject: `idn-${personId}`, loa: 1, nationality: "GA", linkedAt: NOW })
   })
   if (listed) await as.mutation(api.modules.people.consents.recordConsent, { purpose: "directory", origin: "onboarding", networkId })
-  await as.mutation(api.modules.diaspora.membership.joinDiasporale, {
+  await as.mutation(api.modules.diaspora.membership.joinDiasporaGa, {
     networkId,
     facet: { countryOfResidence: "FR", city: "Lyon" },
     ...(listed ? { directoryVisibility: "network" as const } : {}),
@@ -80,7 +80,7 @@ async function codeOf(promise: Promise<unknown>) {
   return null
 }
 
-describe("choix privés du fil DIASPORALE", () => {
+describe("choix privés du fil DIASPORA.GA", () => {
   it("pagine toutes les lignes propres, plafonne à 50 et garde les choix devenus illisibles", async () => {
     const { t, root, networkId, reader, author, args } = await fixture()
     const postId = await post(t, networkId, author.personId, { status: "removed" })
@@ -158,7 +158,7 @@ describe("choix privés du fil DIASPORALE", () => {
         await author.as.mutation(api.modules.people.consents.revokeConsent, { purpose: "directory", networkId })
         break
       case "departed":
-        await author.as.mutation(api.modules.diaspora.membership.leaveDiasporale, { networkId })
+        await author.as.mutation(api.modules.diaspora.membership.leaveDiasporaGa, { networkId })
         break
       case "block":
         await author.as.mutation(api.modules.graph.connections.blockPerson, { networkId, targetPersonId: reader.personId })
@@ -208,7 +208,7 @@ describe("choix privés du fil DIASPORALE", () => {
     expect(await social()).toEqual(before)
   })
 
-  it("refuse une personne attendue différente et les appels hors DIASPORALE ; l'attente garde ses gestes privés", async () => {
+  it("refuse une personne attendue différente et les appels hors DIASPORA.GA ; l'attente garde ses gestes privés", async () => {
     const { t, root, networkId, reader, author, args } = await fixture()
     const postId = await post(t, networkId, author.personId)
     const choiceId = await hidden(t, networkId, reader.personId, postId)

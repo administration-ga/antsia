@@ -18,7 +18,7 @@ const SDK_EXIT_METHODS = new Set(["signOut", "revokeSessions"])
 const CONSUMERS = [
   "apps/antsia_ga/src/lib/sign-out.ts",
   "apps/admin_antsia_ga/src/lib/sign-out.ts",
-  "../DIASPORALE/apps/diasporale_com/src/data/engine-source.ts",
+  "../DIASPORA_GA/apps/diaspora_ga/src/data/engine-source.ts",
 ]
 
 function unwrap(expression: ts.Expression): ts.Expression {
@@ -124,9 +124,9 @@ function sharedExitCalled(source: ts.SourceFile): boolean {
 }
 
 describe("sign-out-everywhere — révocation et sortie complètes par une seule porte", () => {
-  it("aucune application ni aucun paquet ne prend directement les méthodes SDK, y compris DIASPORALE", () => {
+  it("aucune application ni aucun paquet ne prend directement les méthodes SDK, y compris DIASPORA.GA", () => {
     const findings: Finding[] = []
-    const files = listFiles(["apps", "packages", "../DIASPORALE/apps", "../DIASPORALE/packages"], [".ts", ".tsx", ".js", ".jsx", ".mjs"])
+    const files = listFiles(["apps", "packages", "../DIASPORA_GA/apps", "../DIASPORA_GA/packages"], [".ts", ".tsx", ".js", ".jsx", ".mjs"])
     for (const file of files) {
       if (isTestFile(file) || file.endsWith(".d.ts")) continue
       findings.push(...detectRawSessionExit(file, readRepoFile(file)))

@@ -5,7 +5,7 @@
  * ses données (≈ une par table, plus une par tranche de 100 lignes), plus celles de la base.
  * Deux gardes arrêtent un parcours défaillant :
  *   · la PROGRESSION : chaque page passe à la table suivante sans curseur, ou reste sur la même
- *     table avec un curseur neuf (même contrat que DIASPORALE) — un curseur figé s'arrête aussitôt ;
+ *     table avec un curseur neuf (même contrat que DIASPORA.GA) — un curseur figé s'arrête aussitôt ;
  *   · une borne de SÛRETÉ de pages : à 100 lignes par page et 80 octets au moins par ligne, la borne
  *     de 64 Mio du navigateur s'atteint avant 8 400 pages pleines ; 20 000 pages laissent la place
  *     d'une page par table et par chemin d'index sans jamais limiter un export réel.

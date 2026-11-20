@@ -99,7 +99,7 @@ describe("console PA7 — brouillons et confirmations backend", () => {
     expect(mocks.create).not.toHaveBeenCalled()
     expect(screen.getByLabelText(/^Identifiant public/).getAttribute("aria-invalid")).toBe("true")
   })
-  it("le réseau générique est soumis comme enfant sans tranche DIASPORALE et avec motif", async () => {
+  it("le réseau générique est soumis comme enfant sans tranche DIASPORA.GA et avec motif", async () => {
     mount()
     await fillNew()
     await userEvent.click(screen.getByRole("button", { name: "Créer un réseau" }))
@@ -110,7 +110,7 @@ describe("console PA7 — brouillons et confirmations backend", () => {
     })
     expect(mocks.create.mock.calls[0]?.[0]).not.toHaveProperty("managedBy")
   })
-  it("la tranche DIASPORALE n'est posée qu'après un choix explicite", async () => {
+  it("la tranche DIASPORA.GA n'est posée qu'après un choix explicite", async () => {
     mount()
     await fillNew()
     await userEvent.selectOptions(screen.getByLabelText("Admission du réseau"), "diaspora")

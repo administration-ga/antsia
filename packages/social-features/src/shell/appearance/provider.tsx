@@ -168,7 +168,7 @@ export function AppearanceProvider({ storagePrefix, themes = NO_THEMES, motifs =
   }, [ready, charte])
 
   useEffect(() => {
-    // Sans motifs proposés, `data-motif` n'est jamais touché (DIASPORALE, console).
+    // Sans motifs proposés, `data-motif` n'est jamais touché (DIASPORA.GA, console).
     if (!ready || motifs.length === 0) return
     if (motif !== null) document.documentElement.dataset.motif = motif
     else delete document.documentElement.dataset.motif

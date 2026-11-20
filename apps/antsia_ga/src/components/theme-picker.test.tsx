@@ -115,7 +115,7 @@ describe("ThemePicker", () => {
     await mount("en")
     expect(container.querySelector("legend")?.textContent).toBe("Theme")
     expect(container.textContent).toContain("Green, yellow and blue of the flag. The network’s theme.")
-    expect(container.textContent).toContain("Gabon blue, teal and golden sand. DIASPORALE’s theme.")
+    expect(container.textContent).toContain("Gabon blue, teal and golden sand. DIASPORA.GA’s theme.")
   })
 
   it("ne s'affiche pas quand l'application ne propose aucun thème", async () => {

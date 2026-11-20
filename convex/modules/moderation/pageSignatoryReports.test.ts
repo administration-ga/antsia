@@ -1,6 +1,6 @@
 // @vitest-environment edge-runtime
 /**
- * antsia#114, point 2 (MD-02 de DIASPORALE) — un signataire VIVANT d'une page, quel que soit son rôle
+ * antsia#114, point 2 (MD-02 de DIASPORA.GA) — un signataire VIVANT d'une page, quel que soit son rôle
  * (administrateur ou signataire), n'ouvre aucun dossier sur ce qui parle au nom de SA page, même par un appel
  * direct à `moderation.cases.report` : la page elle-même, un évènement qu'elle organise, une publication en sa
  * voix. Le refus est indistinct (`notFound`, comme une cible inconnue). Un membre sans rôle signale ; une
@@ -42,7 +42,7 @@ async function errorCode(promise: Promise<unknown>): Promise<string | null> {
   }
 }
 
-/** Une personne publiée ; `join` la fait entrer dans le réseau visé (la racine, ou DIASPORALE). */
+/** Une personne publiée ; `join` la fait entrer dans le réseau visé (la racine, ou DIASPORA.GA). */
 async function person(t: T, handle: string, join: (as: Person["as"], personId: Id<"persons">) => Promise<unknown>): Promise<Person> {
   const as = t.withIdentity({ subject: `md02-${handle}` })
   const personId = await as.mutation(api.modules.people.persons.ensureMyPerson, {})
@@ -142,13 +142,13 @@ describe("#114, point 2 — un signataire ne signale ni sa page ni ses publicati
 })
 
 describe("#114, point 2 — un signataire ne signale pas un évènement de sa page", () => {
-  it("évènement de page de DIASPORALE : administratrice et signataire refusés, membre, retiré et invitée admis", async () => {
+  it("évènement de page de DIASPORA.GA : administratrice et signataire refusés, membre, retiré et invitée admis", async () => {
     const t = testConvex()
     await t.mutation(internal.seeds.foundations.run, { confirmNonProduction: SEED_CONFIRMATION })
     const { network: networkId } = await t.mutation(internal.modules.diaspora.seed.run, { confirmNonProduction: SEED_CONFIRMATION })
     const join = async (as: Person["as"], personId: Id<"persons">) => {
       await t.run((ctx) => ctx.db.insert("identityLinks", { personId, provider: "idn", subject: `md02-idn-${personId}`, loa: 2, nationality: "GA", linkedAt: NOW }))
-      await as.mutation(api.modules.diaspora.membership.joinDiasporale, { networkId, facet: { countryOfResidence: "FR", city: "Lyon" } })
+      await as.mutation(api.modules.diaspora.membership.joinDiasporaGa, { networkId, facet: { countryOfResidence: "FR", city: "Lyon" } })
     }
     const f = await team(t, networkId, join, "diaspora", "association")
     const start = NOW + 2 * HOUR

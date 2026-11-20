@@ -83,7 +83,7 @@ afterEach(() => {
   vi.unstubAllEnvs()
 })
 
-/** Un membre DÉCLARÉ de DIASPORALE (IDN de garantie 1), profil publié. */
+/** Un membre DÉCLARÉ de DIASPORA.GA (IDN de garantie 1), profil publié. */
 async function member(t: T, networkId: Id<"networks">, handle: string): Promise<Member> {
   const as = t.withIdentity({ subject: `team-roles-${handle}` })
   const personId = await as.mutation(api.modules.people.persons.ensureMyPerson, {})
@@ -92,7 +92,7 @@ async function member(t: T, networkId: Id<"networks">, handle: string): Promise<
   await t.run(async (ctx) => {
     await ctx.db.insert("identityLinks", { personId, provider: "idn", subject: `team-roles-idn-${personId}`, loa: 1, nationality: "GA", linkedAt: NOW })
   })
-  await as.mutation(api.modules.diaspora.membership.joinDiasporale, { networkId, facet: { countryOfResidence: "FR", city: "Lyon" } })
+  await as.mutation(api.modules.diaspora.membership.joinDiasporaGa, { networkId, facet: { countryOfResidence: "FR", city: "Lyon" } })
   return { as, personId, handle }
 }
 
@@ -106,7 +106,7 @@ async function refusal(promise: Promise<unknown>): Promise<string | null> {
   return null
 }
 
-/** Une association de DIASPORALE et son équipe ACCEPTÉE : une administratrice, un éditeur, une modératrice. */
+/** Une association de DIASPORA.GA et son équipe ACCEPTÉE : une administratrice, un éditeur, une modératrice. */
 async function fixture() {
   const t = testConvex()
   await t.mutation(internal.seeds.foundations.run, { confirmNonProduction: SEED_CONFIRMATION })

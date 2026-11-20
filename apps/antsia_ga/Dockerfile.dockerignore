@@ -1,11 +1,11 @@
 # Contexte = ECOSYSTEMES : LISTE BLANCHE. Les écosystèmes voisins (PRO_GA,
 # SANTE_GA, GABON_DIPLOMATIE…) et leurs node_modules ne doivent jamais partir
-# dans le contexte de construction. De DIASPORALE, seul le domaine pur part
+# dans le contexte de construction. De DIASPORA_GA, seul le domaine pur part
 # (dépendance de la racine d'ANTSIA, voir le Dockerfile).
 *
 !ANTSIA
-!DIASPORALE/packages/diasporale-domain
-DIASPORALE/**/node_modules
+!DIASPORA_GA/packages/diaspora-ga-domain
+DIASPORA_GA/**/node_modules
 ANTSIA/.git
 ANTSIA/.convex
 ANTSIA/**/node_modules

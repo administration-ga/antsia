@@ -43,7 +43,7 @@ export const ENGINE_ERROR_CODES = [
 export type EngineErrorCode = (typeof ENGINE_ERROR_CODES)[number]
 
 /**
- * Refus MÉTIER d'une application servie par le moteur (DIASPORALE…), levé par
+ * Refus MÉTIER d'une application servie par le moteur (DIASPORA.GA…), levé par
  * sa tranche `convex/modules/<tranche>` : un code de l'ensemble FERMÉ de
  * l'application (`sponsor_too_recent`), traduit par elle dans son propre espace
  * de noms — jamais une phrase, jamais une valeur saisie. `rule` reste réservé

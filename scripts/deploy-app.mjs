@@ -42,7 +42,7 @@ export function readCatalog(root = ROOT) {
 }
 
 /**
- * Espaces de travail EXTERNES (hors d'ANTSIA : `../DIASPORALE/…`) dont dépend la
+ * Espaces de travail EXTERNES (hors d'ANTSIA : `../DIASPORA_GA/…`) dont dépend la
  * racine d'ANTSIA, en chemins relatifs à ECOSYSTEMES. `bun install
  * --frozen-lockfile` les exige même dans une installation élaguée : toute image
  * construite avec l'installation d'ANTSIA doit les copier.

@@ -42,7 +42,7 @@ describe("no-cross-product-imports — étanchéité du moteur (règle 4 de dupl
       for (const section of ["dependencies", "devDependencies", "peerDependencies", "optionalDependencies"]) {
         for (const [name, version] of Object.entries(pkg[section] ?? {})) {
           if (name.startsWith("@workspace/")) findings.push(`${manifest} : ${section}.${name}`)
-          if (/^(file|link|portal):/.test(version) && !version.includes("../DIASPORALE/")) findings.push(`${manifest} : ${section}.${name} = ${version}`)
+          if (/^(file|link|portal):/.test(version) && !version.includes("../DIASPORA_GA/")) findings.push(`${manifest} : ${section}.${name} = ${version}`)
         }
       }
     }
@@ -77,11 +77,11 @@ describe("no-cross-product-imports — étanchéité du moteur (règle 4 de dupl
   })
 
   it("test du test : un paquet d'application n'entre que dans sa tranche, et seulement par son domaine pur", () => {
-    const domain = 'import { canSponsor } from "@diasporale/domain"'
+    const domain = 'import { canSponsor } from "@diaspora-ga/domain"'
     expect(detectCrossProductImports("convex/modules/diaspora/sponsorships.ts", domain)).toEqual([])
     expect(detectCrossProductImports("convex/modules/posts/posts.ts", domain)).toHaveLength(1)
     expect(detectCrossProductImports("packages/social-features/src/x.ts", domain)).toHaveLength(1)
-    expect(detectCrossProductImports("convex/modules/diaspora/x.ts", 'import { Hub } from "@diasporale/features"')).toHaveLength(1)
-    expect(detectCrossProductImports("convex/modules/diaspora/x.ts", 'import { x } from "../../../../DIASPORALE/packages/diasporale-domain/src"')).toHaveLength(1)
+    expect(detectCrossProductImports("convex/modules/diaspora/x.ts", 'import { Hub } from "@diaspora-ga/features"')).toHaveLength(1)
+    expect(detectCrossProductImports("convex/modules/diaspora/x.ts", 'import { x } from "../../../../DIASPORA_GA/packages/diaspora-ga-domain/src"')).toHaveLength(1)
   })
 })

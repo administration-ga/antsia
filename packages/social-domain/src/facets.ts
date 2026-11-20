@@ -4,7 +4,7 @@
  * valeurs d'une personne s'y valident ici, côté serveur comme à l'écran. Chaque
  * champ porte sa visibilité ; les projections ne servent que ce qu'elle permet.
  *
- * Exemple (DIASPORALE) : `countryOfResidence` (pays ISO ≠ GA, obligatoire),
+ * Exemple (DIASPORA.GA) : `countryOfResidence` (pays ISO ≠ GA, obligatoire),
  * `city`, `postSlug`, `arrivedAt` (année), `helpAvailable` (booléen).
  */
 

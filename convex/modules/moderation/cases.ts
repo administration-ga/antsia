@@ -107,7 +107,7 @@ async function assertCatalogReviewSource(ctx: ReadCtx, networkId: Id<"networks">
 
 /**
  * P16 : un dossier SANS propriétaire personnel (contenu porté par une page : offre ou poste
- * reflétés, réponse d'avis, évènement de page, contenus de page DIASPORALE) s'annonce par un
+ * reflétés, réponse d'avis, évènement de page, contenus de page DIASPORA.GA) s'annonce par un
  * avis NEUTRE — ni acteur, ni contenu, ni motif dans la cloche — à chaque signataire VIVANT de
  * cette page (borné par le plafond des signataires). La porte des avis relit ce droit.
  */
@@ -359,7 +359,7 @@ export const decide = networkMutation({
 async function ownsCase(ctx: ReadCtx, row: Doc<"reports">, personId: Id<"persons">): Promise<boolean> {
   if (row.ownerPersonId === personId) return true
   // P16 : sans propriétaire personnel, la page porteuse (la page elle-même, ou le contenu qu'elle
-  // porte : offre, poste, réponse d'avis, évènement, contenus de page DIASPORALE) se défend par
+  // porte : offre, poste, réponse d'avis, évènement, contenus de page DIASPORA.GA) se défend par
   // un signataire VIVANT, comme la page déjà ; un suspendu ne parle pour aucune page.
   const page = await owningPageOfReport(ctx, row)
   return page !== null && (await liveSignatoryRole(ctx, page, personId)) !== null
@@ -430,7 +430,7 @@ export const reviewPlatformAppeal = operatorMutation({
 /**
  * @selfScoped Décisions et sanctions de la personne appelante, y compris suspendue. Aucun déclarant ni contenu.
  *
- * MD-07 (antsia#99 ; plan 14 de DIASPORALE, décision 6 du propriétaire) : seulement les dossiers tranchés
+ * MD-07 (antsia#99 ; plan 14 de DIASPORA.GA, décision 6 du propriétaire) : seulement les dossiers tranchés
  * qui emportent un effet pour elle — une mesure prise, ou cette mesure annulée sur son recours
  * (`authorDecisionOutcome`) ; jamais un dossier ouvert ou en examen, un classement sans suite ni une
  * relecture approuvée. La base écarte d'elle-même, avant de remplir la fenêtre, ce que les champs du
@@ -438,7 +438,7 @@ export const reviewPlatformAppeal = operatorMutation({
  * conteste pas ; un refus annulé sur recours garde `removedTarget`). Un classement après signalement ne se
  * distingue d'une mesure annulée que par son recours : il est écarté ensuite, à la lecture des recours
  * (la fenêtre rend alors une ligne de moins que demandé, jamais une ligne de trop).
- * Forme du retour inchangée (antsia.ga et DIASPORALE la lisent).
+ * Forme du retour inchangée (antsia.ga et DIASPORA.GA la lisent).
  */
 export const myDecisions = personQuery({
   args: { paginationOpts: paginationOptsValidator },
@@ -488,7 +488,7 @@ export const myReports = personQuery({
 
 /**
  * P16 : les décisions qui ont RETIRÉ un contenu porté par une page (offre, poste, réponse d'avis,
- * évènement, contenus de page DIASPORALE), lues par un signataire VIVANT de cette page dans son
+ * évènement, contenus de page DIASPORA.GA), lues par un signataire VIVANT de cette page dans son
  * réseau, avec l'état des recours. Ni déclarant, ni contenu, ni identité du modérateur ; une
  * fenêtre dont les contenus sont tous publiés reste vide et garde sa continuation. Le recours
  * passe par `fileAppeal` (signature inchangée), ouvert au signataire vivant de la page porteuse.

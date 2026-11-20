@@ -1,5 +1,5 @@
 /**
- * Demandes de service, propositions et rendez-vous DIASPORALE (DG-014/015).
+ * Demandes de service, propositions et rendez-vous DIASPORA.GA (DG-014/015).
  *
  * Mise en relation SEULEMENT : aucun paiement, aucune facturation, aucune
  * conversation libre (elle attend le canal générique du moteur). L'échange est
@@ -11,7 +11,7 @@
  * limitation de débit (seaux `diaspora.service.*`), puis droit sur la demande :
  * le DEMANDEUR, ou un SIGNATAIRE VIVANT de la page relu à chaque geste (un rôle
  * retiré, une page désactivée coupent aussitôt). Une demande d'autrui est
- * introuvable (refus indistinct). Les règles viennent de `@diasporale/domain`.
+ * introuvable (refus indistinct). Les règles viennent de `@diaspora-ga/domain`.
  *
  * Idempotence alignée sur le contrat de commande du moteur : même clé et même
  * corps normalisé rendent la demande déjà créée ; même clé et autre corps sont
@@ -54,7 +54,7 @@ import {
   type ServiceRequestActor,
   type ServiceRequestRefusal,
   type ServiceRequestStatus,
-} from "@diasporale/domain"
+} from "@diaspora-ga/domain"
 import { paginationOptsValidator, paginationResultValidator, type PaginationOptions, type PaginationResult } from "convex/server"
 import { v } from "convex/values"
 
@@ -258,7 +258,7 @@ const POLICY_REFUSALS: ReadonlySet<ServiceRequestRefusal> = new Set<ServiceReque
   "reschedule_not_open",
 ])
 
-/** Un refus de la tranche, traduit par DIASPORALE (`errors.<code>`) ; une saisie invalide est `invalidArgument`. */
+/** Un refus de la tranche, traduit par DIASPORA.GA (`errors.<code>`) ; une saisie invalide est `invalidArgument`. */
 function refuseRule(code: ServiceRequestRefusal): never {
   return failAppRule(code, {}, CONFLICT_REFUSALS.has(code) ? "conflict" : POLICY_REFUSALS.has(code) ? "policyRefused" : "invalidArgument")
 }

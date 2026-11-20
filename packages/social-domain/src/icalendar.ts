@@ -60,7 +60,7 @@ export function serializeCalendarEvent(input: CalendarEventInput): string {
   const lines = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//NTSAGUI Digital//DIASPORALE Calendar//FR",
+    "PRODID:-//NTSAGUI Digital//DIASPORA.GA Calendar//FR",
     "CALSCALE:GREGORIAN",
     "BEGIN:VEVENT",
     `UID:${input.uid}`,

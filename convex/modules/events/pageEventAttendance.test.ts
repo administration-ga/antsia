@@ -35,7 +35,7 @@ async function member(t: T, networkId: Id<"networks">, handle: string, displayNa
   await as.mutation(api.modules.people.consents.recordConsent, { purpose: "social_profile", origin: "onboarding" })
   await as.mutation(api.modules.people.profile.publishMyProfile, { handle, displayName })
   await t.run((ctx) => ctx.db.insert("identityLinks", { personId, provider: "idn", subject: `attendance-idn-${personId}`, loa: 2, nationality: "GA", linkedAt: NOW }))
-  await as.mutation(api.modules.diaspora.membership.joinDiasporale, { networkId, facet: { countryOfResidence: "FR", city: "Lyon" } })
+  await as.mutation(api.modules.diaspora.membership.joinDiasporaGa, { networkId, facet: { countryOfResidence: "FR", city: "Lyon" } })
   return { as, personId }
 }
 
@@ -139,12 +139,12 @@ describe("présences QR des événements associatifs", () => {
     const before = await row(f, eventId)
     vi.setSystemTime(OPEN)
     const first = await issue(f, eventId)
-    expect(first.code).toMatch(/^diasporale-attendance:v1:[0-9a-f]{64}$/)
+    expect(first.code).toMatch(/^diaspora-ga-attendance:v1:[0-9a-f]{64}$/)
     const hash = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(first.code))), (byte) => byte.toString(16).padStart(2, "0")).join("")
     const stored = await row(f, eventId)
     expect(stored).toMatchObject({ pageAttendanceTokenHash: hash, pageAttendanceVersion: 1 })
     expect(JSON.stringify(stored)).not.toContain(first.code)
-    expect(JSON.stringify(stored)).not.toContain("diasporale-attendance:v1:")
+    expect(JSON.stringify(stored)).not.toContain("diaspora-ga-attendance:v1:")
     const draft = await preview(f, eventId, first.code)
     expect(draft).toMatchObject({ displayName: "Alice NDONG", checkedInAt: null, version: 1 })
     expect(await get(f, eventId, f.manager)).toMatchObject({ recordedCount: 0, version: 0 })
@@ -176,7 +176,7 @@ describe("présences QR des événements associatifs", () => {
     const fresh = await issue(f, eventId)
     expect(await refusal(preview(f, other.eventId, fresh.code))).toBe("notFound")
     expect(await refusal(f.manager.as.mutation(Q.previewTicket, { networkId: f.root, eventId, code: fresh.code }))).toBe("notFound")
-    for (const code of ["texte arbitraire", "https://example.test/", "diasporale-attendance:v1:" + "a".repeat(64)]) expect(await refusal(preview(f, eventId, code))).toBe("notFound")
+    for (const code of ["texte arbitraire", "https://example.test/", "diaspora-ga-attendance:v1:" + "a".repeat(64)]) expect(await refusal(preview(f, eventId, code))).toBe("notFound")
   })
 
   it("n'admet jamais une attente par QR et laisse un membre en attente gérer son billet déjà confirmé", async () => {

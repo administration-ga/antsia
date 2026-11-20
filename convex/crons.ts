@@ -12,16 +12,16 @@ import { internal } from "./_generated/api"
 
 const crons = cronJobs()
 
-// Tranche DIASPORALE (session DIASPORALE, PD1) : compteurs matérialisés des hubs
-// pays. Sans réseau `diasporale` gouverné par la tranche, le passage ne fait rien.
-crons.daily("compteurs des hubs DIASPORALE", { hourUTC: 2, minuteUTC: 30 }, internal.modules.diaspora.hubs.refreshHubCounters, {})
-// Tranche DIASPORALE (plan global, lignes déléguées par ANTSIA le 18/10/2026) : demandes de
+// Tranche DIASPORA.GA (session DIASPORA.GA, PD1) : compteurs matérialisés des hubs
+// pays. Sans réseau `diaspora-ga` gouverné par la tranche, le passage ne fait rien.
+crons.daily("compteurs des hubs DIASPORA.GA", { hourUTC: 2, minuteUTC: 30 }, internal.modules.diaspora.hubs.refreshHubCounters, {})
+// Tranche DIASPORA.GA (plan global, lignes déléguées par ANTSIA le 18/10/2026) : demandes de
 // service et de mentorat échues passées « expirées », par lots bornés ; la suite au passage suivant.
 crons.interval("diaspora-service-requests-expiry", { minutes: 15 }, internal.modules.diaspora.serviceRequests.expireDueServiceRequests, {})
 crons.interval("diaspora-mentoring-requests-expiry", { hours: 1 }, internal.modules.diaspora.mentoring.expireDueMentoringRequests, {})
-// Mesure du pilote DIASPORALE : agrégats nocturnes, après les compteurs des hubs (chaîne paginée bornée).
+// Mesure du pilote DIASPORA.GA : agrégats nocturnes, après les compteurs des hubs (chaîne paginée bornée).
 crons.daily("diaspora-pilot-metrics", { hourUTC: 2, minuteUTC: 50 }, internal.modules.diaspora.pilotMetrics.refreshPilotMetrics, {})
-// Offres d'emploi DIASPORALE dont la date limite est passée : clôture écrite par lots bornés.
+// Offres d'emploi DIASPORA.GA dont la date limite est passée : clôture écrite par lots bornés.
 crons.interval("diaspora-job-offers-expiry", { hours: 1 }, internal.modules.diaspora.jobs.closeExpiredJobOffers, {})
 
 // Garde des fichiers : relance des analyses perdues (job tombé, redéploiement),

@@ -7,7 +7,7 @@
  *    P16) : carte publique de la page et destination « décisions de la page » pour le seul
  *    signataire VIVANT ; ancien signataire : ni carte ni ouverture ; non-signataire : rien,
  *    et sa propre décision personnelle mène à « Mes données » ;
- *  - mise en relation DIASPORALE : sujet générique (nature + référence opaque), module pur.
+ *  - mise en relation DIASPORA.GA : sujet générique (nature + référence opaque), module pur.
  */
 import { makeFunctionReference } from "convex/server"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
@@ -123,7 +123,7 @@ describe("moderation_decision d'un dossier de page — carte et destination pour
   })
 })
 
-describe("avis de mise en relation DIASPORALE : le déplacement d'un rendez-vous (SV-03, issue #133)", () => {
+describe("avis de mise en relation DIASPORA.GA : le déplacement d'un rendez-vous (SV-03, issue #133)", () => {
   it("deux genres de la mise en relation, distincts de la vie communautaire, du commerce et du domaine commun", () => {
     for (const kind of ["service_booking_reschedule_proposed", "service_booking_rescheduled"] as const) {
       expect(DIASPORA_SERVICE_NOTIFICATION_KINDS, kind).toContain(kind)
@@ -153,7 +153,7 @@ describe("diasporaNoticeTarget — sujet générique d'un avis de mise en relati
   })
 })
 
-describe("avis de la vie communautaire DIASPORALE (délégués par ANTSIA le 19/10/2026)", () => {
+describe("avis de la vie communautaire DIASPORA.GA (délégués par ANTSIA le 19/10/2026)", () => {
   it("les publics et les objets du domaine recopient exactement ceux de la tranche", () => {
     expect([...DIASPORA_COMMUNITY_NOTICE_AUDIENCES]).toEqual([...COMMUNITY_NOTICE_AUDIENCES])
     expect([...DIASPORA_COMMUNITY_NOTICE_OPENS]).toEqual([...COMMUNITY_NOTICE_OPENS])

@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest"
 import { serializeCalendarEvent, type CalendarEventInput } from "./icalendar"
 
 const INPUT: CalendarEventInput = {
-  uid: "diasporale-opaque-event",
+  uid: "diaspora-ga-opaque-event",
   title: "Rencontre associative",
   startAt: Date.UTC(2026, 9, 25, 0, 30), endAt: Date.UTC(2026, 9, 25, 2, 30),
   createdAt: Date.UTC(2026, 9, 18), updatedAt: Date.UTC(2026, 9, 19),
@@ -15,11 +15,11 @@ describe("copie iCalendar privée", () => {
   it("garde les instants UTC autour du changement d'heure et un UID stable entre révisions", () => {
     const first = serializeCalendarEvent(INPUT)
     expect(first).toContain("DTSTART:20261025T003000Z\r\nDTEND:20261025T023000Z")
-    expect(first).toContain("UID:diasporale-opaque-event\r\n")
+    expect(first).toContain("UID:diaspora-ga-opaque-event\r\n")
     expect(first).toContain("SEQUENCE:3\r\n")
     expect(first).toContain("STATUS:CONFIRMED\r\nTRANSP:OPAQUE\r\nCLASS:PRIVATE")
     const cancelled = serializeCalendarEvent({ ...INPUT, sequence: 4, status: "cancelled" })
-    expect(cancelled).toContain("UID:diasporale-opaque-event\r\n")
+    expect(cancelled).toContain("UID:diaspora-ga-opaque-event\r\n")
     expect(cancelled).toContain("SEQUENCE:4\r\n")
     expect(cancelled).toContain("STATUS:CANCELLED\r\nTRANSP:TRANSPARENT")
     expect(first.endsWith("END:VCALENDAR\r\n")).toBe(true)

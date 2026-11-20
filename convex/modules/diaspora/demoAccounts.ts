@@ -1,16 +1,16 @@
 /**
- * Comptes de DÉMONSTRATION de DIASPORALE — développement local, ou déploiement
+ * Comptes de DÉMONSTRATION de DIASPORA.GA — développement local, ou déploiement
  * de démonstration déclaré (ADR-0029, ADR-0038), jamais la production.
  *
  * Sur le modèle de `convex/modules/platform/demoAccounts.ts` (comptes de
- * démonstration de la racine), pour le réseau `diasporale`. Le catalogue vient
- * du domaine (`DIASPORALE_DEMO_ACTOR_SPECS`) : un acteur par statut de membre,
+ * démonstration de la racine), pour le réseau `diaspora-ga`. Le catalogue vient
+ * du domaine (`DIASPORA_GA_DEMO_ACTOR_SPECS`) : un acteur par statut de membre,
  * par nature de page, par rôle et par accès restreint, sur une adresse réservée
- * (`<acteur>@demo.diasporale.test`, domaine `.test` jamais routable).
+ * (`<acteur>@demo.diaspora-ga.test`, domaine `.test` jamais routable).
  *
  * La connexion passe par le VRAI parcours OTP (code lu par `devTools.latestOtp`),
  * l'accueil par les vraies mutations (profil publié, consentements,
- * `joinDiasporale`), appelées par l'application ; les gestes ensuite (profil de
+ * `joinDiasporaGa`), appelées par l'application ; les gestes ensuite (profil de
  * mentor, de talent, offres, mission) aussi. Ce module ne pose que ce qu'un
  * compte ne peut pas se donner seul, pour la seule personne de la session, et
  * seulement si son adresse vérifiée est celle de l'acteur demandé :
@@ -28,16 +28,16 @@
  *   mécanisme du moteur (`graph/connections.blockPair`, le corps de
  *   `blockPerson`), dès que les deux comptes existent ;
  * - EN DERNIER, les sanctions, qui ne sont jamais dérivées : la suspension de
- *   l'acteur « suspendu » dans DIASPORALE seulement (une adhésion suspendue ne se
+ *   l'acteur « suspendu » dans DIASPORA.GA seulement (une adhésion suspendue ne se
  *   rejoint plus), et celle de « suspendu-racine » à la RACINE, par le chemin de
  *   la console (`people/memberships.suspendRootMembership`, celui de
  *   `suspendEverywhere`) : elle vaut partout, sans toucher au statut propre de
- *   son adhésion DIASPORALE.
+ *   son adhésion DIASPORA.GA.
  *
  * L'utilisateur extérieur au réseau (« exterieur ») n'a pas d'adhésion
- * DIASPORALE : l'application ne rejoue que l'accueil d'ANTSIA (consentement,
+ * DIASPORA.GA : l'application ne rejoue que l'accueil d'ANTSIA (consentement,
  * profil publié), l'équipement l'admet à la racine par la vraie règle
- * d'admission et n'écrit rien dans DIASPORALE.
+ * d'admission et n'écrit rien dans DIASPORA.GA.
  *
  * Idempotent : rappelé, il ne recrée rien. Garde : `demoAccountsAllowed` — la
  * double garde du développement local (variable `ANTSIA_DEV_TOOLS` ET backend
@@ -51,15 +51,15 @@ import { assertPageHandle, assertPageName, assertTrustAllowedForOwner, pageTrust
 import { normalizePageAssociationType, normalizePageCity, normalizePageSector } from "@antsia/social-domain/pagePresentation"
 import {
   DAY_MS,
-  DIASPORALE_DEMO_ACTORS,
-  DIASPORALE_DEMO_ACTOR_SPECS,
-  DIASPORALE_DEMO_COUNTRIES,
-  DIASPORALE_NETWORK_SLUG,
-  diasporaleDemoEmailOf,
-  type DiasporaleDemoActor,
-  type DiasporaleDemoActorSpec,
-  type DiasporaleDemoPage,
-} from "@diasporale/domain"
+  DIASPORA_GA_DEMO_ACTORS,
+  DIASPORA_GA_DEMO_ACTOR_SPECS,
+  DIASPORA_GA_DEMO_COUNTRIES,
+  DIASPORA_GA_NETWORK_SLUG,
+  diasporaGaDemoEmailOf,
+  type DiasporaGaDemoActor,
+  type DiasporaGaDemoActorSpec,
+  type DiasporaGaDemoPage,
+} from "@diaspora-ga/domain"
 import { v } from "convex/values"
 
 import { components } from "../../_generated/api"
@@ -84,10 +84,10 @@ import { activeFoundingAdmissionOf, activeSponsorshipOf, applyDerivedStatus, eff
 import { admitFounder } from "./founders"
 import { hubRow } from "./hubs"
 
-export const demoActorValidator = literals(DIASPORALE_DEMO_ACTORS)
+export const demoActorValidator = literals(DIASPORA_GA_DEMO_ACTORS)
 
 /** Le parrain des acteurs parrainés : l'acteur « verifie », vérifié depuis plus de 30 jours. */
-const DEMO_SPONSOR: DiasporaleDemoActor = "verifie"
+const DEMO_SPONSOR: DiasporaGaDemoActor = "verifie"
 /** Ancienneté posée au parrain : au-delà du délai de parrainage (30 jours, strictement). */
 const SPONSOR_SENIORITY_DAYS = 31
 /** L'équipe de modération de démonstration (sans périmètre : elle reçoit les nouveaux signalements). */
@@ -97,18 +97,18 @@ const DEMO_POST_SLUG = "poste-de-demonstration"
 /** Le motif de l'admission fondatrice FICTIVE (EA-01) : aucune décision réelle n'est imitée. */
 const DEMO_FOUNDING_REASON = "Membre fondateur de démonstration (développement local)."
 
-/** Sujets fictifs, propres à DIASPORALE : ceux de la racine (`demo-idn-<acteur>`) portent les mêmes noms d'acteurs. */
-function demoIdnSubjectOf(actor: DiasporaleDemoActor): string {
-  return `diasporale-demo-idn-${actor}`
+/** Sujets fictifs, propres à DIASPORA.GA : ceux de la racine (`demo-idn-<acteur>`) portent les mêmes noms d'acteurs. */
+function demoIdnSubjectOf(actor: DiasporaGaDemoActor): string {
+  return `diaspora-ga-demo-idn-${actor}`
 }
 
-function demoAttestationSubjectOf(actor: DiasporaleDemoActor): string {
-  return `diasporale-demo-attestation-${actor}`
+function demoAttestationSubjectOf(actor: DiasporaGaDemoActor): string {
+  return `diaspora-ga-demo-attestation-${actor}`
 }
 
 /**
  * @publicProjection Développement local ou démonstration déclarée seulement : le
- * catalogue des comptes de démonstration de DIASPORALE (acteur et adresse
+ * catalogue des comptes de démonstration de DIASPORA.GA (acteur et adresse
  * réservée), vide partout ailleurs, production comprise.
  */
 export const catalogue = query({
@@ -116,7 +116,7 @@ export const catalogue = query({
   returns: v.array(v.object({ actor: demoActorValidator, email: v.string() })),
   handler: async () => {
     if (!demoAccountsAllowed()) return []
-    return DIASPORALE_DEMO_ACTORS.map((actor) => ({ actor, email: diasporaleDemoEmailOf(actor) }))
+    return DIASPORA_GA_DEMO_ACTORS.map((actor) => ({ actor, email: diasporaGaDemoEmailOf(actor) }))
   },
 })
 
@@ -131,8 +131,8 @@ async function verifiedEmailOf(ctx: MutationCtx, authUserId: string): Promise<st
   return user.email.trim().toLowerCase()
 }
 
-async function diasporaleNetwork(ctx: MutationCtx): Promise<Doc<"networks"> | null> {
-  const network = await ctx.db.query("networks").withIndex("by_slug", (q) => q.eq("slug", DIASPORALE_NETWORK_SLUG)).unique()
+async function diasporaGaNetwork(ctx: MutationCtx): Promise<Doc<"networks"> | null> {
+  const network = await ctx.db.query("networks").withIndex("by_slug", (q) => q.eq("slug", DIASPORA_GA_NETWORK_SLUG)).unique()
   return isDiasporaNetwork(network) ? network : null
 }
 
@@ -141,11 +141,11 @@ async function diasporaleNetwork(ctx: MutationCtx): Promise<Doc<"networks"> | nu
  * public ne suffit pas : une autre personne peut le porter ; seule compte celle dont
  * l'adresse vérifiée est l'adresse réservée de l'acteur.
  */
-export async function personOfActor(ctx: MutationCtx, actor: DiasporaleDemoActor): Promise<Doc<"persons"> | null> {
-  const profile = DIASPORALE_DEMO_ACTOR_SPECS[actor].profile
+export async function personOfActor(ctx: MutationCtx, actor: DiasporaGaDemoActor): Promise<Doc<"persons"> | null> {
+  const profile = DIASPORA_GA_DEMO_ACTOR_SPECS[actor].profile
   if (profile === null) return null
   const person = await ctx.db.query("persons").withIndex("by_handle", (q) => q.eq("handle", profile.handle)).unique()
-  if (!person || (await verifiedEmailOf(ctx, person.authUserId)) !== diasporaleDemoEmailOf(actor)) return null
+  if (!person || (await verifiedEmailOf(ctx, person.authUserId)) !== diasporaGaDemoEmailOf(actor)) return null
   return person
 }
 
@@ -168,13 +168,13 @@ async function openDemoCountries(ctx: MutationCtx, network: Doc<"networks">, now
   const decided = await ctx.db.query("networkSettingsHistory").withIndex("by_network_and_at", (q) => q.eq("networkId", network._id)).first()
   let open = network.openCountries ?? []
   if (decided === null) {
-    const next = [...open, ...DIASPORALE_DEMO_COUNTRIES.filter((country) => !open.includes(country))]
+    const next = [...open, ...DIASPORA_GA_DEMO_COUNTRIES.filter((country) => !open.includes(country))]
     if (next.length !== open.length) {
       await ctx.db.patch(network._id, { openCountries: next, updatedAt: now })
       open = next
     }
   }
-  for (const country of DIASPORALE_DEMO_COUNTRIES) {
+  for (const country of DIASPORA_GA_DEMO_COUNTRIES) {
     if (!open.includes(country) || (await hubRow(ctx, network._id, country))) continue
     await ctx.db.insert("countryHubs", { networkId: network._id, country, members: 0, associations: 0, companies: 0, upcomingEvents: 0, updatedAt: now })
   }
@@ -186,9 +186,9 @@ async function openDemoCountries(ctx: MutationCtx, network: Doc<"networks">, now
  */
 async function ensureDemoIdentity(
   ctx: MutationCtx,
-  actor: DiasporaleDemoActor,
+  actor: DiasporaGaDemoActor,
   person: Doc<"persons">,
-  idn: NonNullable<DiasporaleDemoActorSpec["grounds"]["idn"]>,
+  idn: NonNullable<DiasporaGaDemoActorSpec["grounds"]["idn"]>,
   now: number,
 ): Promise<void> {
   const subject = demoIdnSubjectOf(actor)
@@ -222,7 +222,7 @@ async function ensureDemoIdentity(
 async function ensureDemoAttestation(
   ctx: MutationCtx,
   network: Doc<"networks">,
-  actor: DiasporaleDemoActor,
+  actor: DiasporaGaDemoActor,
   person: Doc<"persons">,
   country: string,
   now: number,
@@ -315,7 +315,7 @@ async function ensureModerationTeam(ctx: MutationCtx, network: Doc<"networks">, 
 }
 
 /**
- * La page de l'acteur dans DIASPORALE, créée une fois, dans le pays de l'acteur ;
+ * La page de l'acteur dans DIASPORA.GA, créée une fois, dans le pays de l'acteur ;
  * la personne en est l'administratrice acceptée. Rend son identifiant et si elle
  * vient d'être créée (les gestes de la page ne se jouent qu'à la création).
  */
@@ -324,7 +324,7 @@ async function ensureDemoPage(
   network: Doc<"networks">,
   person: Doc<"persons">,
   country: string,
-  spec: DiasporaleDemoPage,
+  spec: DiasporaGaDemoPage,
   now: number,
 ): Promise<{ pageId: Id<"pages">; created: boolean }> {
   const ownerKind = spec.kind
@@ -395,14 +395,14 @@ async function ensureDemoBlock(ctx: MutationCtx, network: Doc<"networks">, block
  * bloqueur est déjà équipé, et ceux qu'il pose, envers ses bloqués déjà équipés.
  * L'ordre d'équipement n'y change rien, comme pour le parrainage.
  */
-async function ensureDemoBlocks(ctx: MutationCtx, network: Doc<"networks">, actor: DiasporaleDemoActor, person: Doc<"persons">): Promise<void> {
-  const blockedBy = DIASPORALE_DEMO_ACTOR_SPECS[actor].blockedBy
+async function ensureDemoBlocks(ctx: MutationCtx, network: Doc<"networks">, actor: DiasporaGaDemoActor, person: Doc<"persons">): Promise<void> {
+  const blockedBy = DIASPORA_GA_DEMO_ACTOR_SPECS[actor].blockedBy
   if (blockedBy !== null) {
     const blocker = await personOfActor(ctx, blockedBy)
     if (blocker) await ensureDemoBlock(ctx, network, blocker, person)
   }
-  for (const blocked of DIASPORALE_DEMO_ACTORS) {
-    if (DIASPORALE_DEMO_ACTOR_SPECS[blocked].blockedBy !== actor) continue
+  for (const blocked of DIASPORA_GA_DEMO_ACTORS) {
+    if (DIASPORA_GA_DEMO_ACTOR_SPECS[blocked].blockedBy !== actor) continue
     const target = await personOfActor(ctx, blocked)
     if (target) await ensureDemoBlock(ctx, network, person, target)
   }
@@ -410,8 +410,8 @@ async function ensureDemoBlocks(ctx: MutationCtx, network: Doc<"networks">, acto
 
 /**
  * La suspension de la RACINE, par le chemin de la console (`suspendRootMembership`,
- * partagé avec `suspendEverywhere`) : elle vaut partout, DIASPORALE compris, et
- * l'adhésion DIASPORALE garde son statut propre. Déjà suspendue : rien.
+ * partagé avec `suspendEverywhere`) : elle vaut partout, DIASPORA.GA compris, et
+ * l'adhésion DIASPORA.GA garde son statut propre. Déjà suspendue : rien.
  */
 async function ensureRootSuspension(ctx: MutationCtx, personId: Id<"persons">): Promise<void> {
   const root = await getRootNetwork(ctx)
@@ -425,7 +425,7 @@ async function ensureRootSuspension(ctx: MutationCtx, personId: Id<"persons">): 
  * l'accueil d'ANTSIA rejoué par l'application (profil publié, consentement au
  * profil social), puis l'admet à la RACINE par la vraie règle d'admission, comme
  * les comptes de démonstration de la racine (`platform/demoAccounts`). Rien ne
- * s'écrit dans DIASPORALE : ni adhésion, ni fait, ni pays.
+ * s'écrit dans DIASPORA.GA : ni adhésion, ni fait, ni pays.
  */
 async function admitOutsiderToRoot(ctx: MutationCtx, person: Doc<"persons">): Promise<void> {
   if (!person.handle || !person.displayName || person.publishedAt === undefined) return fail("profileRequired")
@@ -446,9 +446,9 @@ async function admitOutsiderToRoot(ctx: MutationCtx, person: Doc<"persons">): Pr
 /**
  * @selfScoped Développement local ou démonstration déclarée seulement : équipe le compte de la SESSION en
  * l'acteur demandé, si son adresse vérifiée est celle de cet acteur. Exige
- * l'adhésion faite par le vrai accueil (`joinDiasporale`), sauf pour
+ * l'adhésion faite par le vrai accueil (`joinDiasporaGa`), sauf pour
  * l'utilisateur extérieur au réseau, qui n'en a pas ; idempotente — un second
- * appel ne recrée rien. Rend le statut EFFECTIF dans DIASPORALE (une suspension
+ * appel ne recrée rien. Rend le statut EFFECTIF dans DIASPORA.GA (une suspension
  * de la racine vaut partout) et le rôle, `null` sans adhésion, puis la page de
  * l'acteur (avec `pageCreated` : les gestes de la page ne se jouent qu'une fois).
  */
@@ -464,14 +464,14 @@ export const equipMyDemoAccount = personMutation({
   handler: async (ctx, { actor }) => {
     if (!demoAccountsAllowed()) return fail("policyRefused")
     const person = ctx.person
-    if ((await verifiedEmailOf(ctx, person.authUserId)) !== diasporaleDemoEmailOf(actor)) return fail("policyRefused")
-    const spec = DIASPORALE_DEMO_ACTOR_SPECS[actor]
+    if ((await verifiedEmailOf(ctx, person.authUserId)) !== diasporaGaDemoEmailOf(actor)) return fail("policyRefused")
+    const spec = DIASPORA_GA_DEMO_ACTOR_SPECS[actor]
     // Le nouvel arrivant remplit l'accueil lui-même : rien à équiper.
     if (spec.profile === null) return fail("policyRefused")
-    const network = await diasporaleNetwork(ctx)
+    const network = await diasporaGaNetwork(ctx)
     if (!network) return fail("notFound")
 
-    // L'extérieur au réseau : son compte ANTSIA seulement ; son adhésion DIASPORALE, s'il en a pris une, reste la sienne.
+    // L'extérieur au réseau : son compte ANTSIA seulement ; son adhésion DIASPORA.GA, s'il en a pris une, reste la sienne.
     if (spec.outsider) {
       await admitOutsiderToRoot(ctx, person)
       const { membership, status } = await effectiveStatusIn(ctx, network, person._id)
@@ -484,7 +484,7 @@ export const equipMyDemoAccount = personMutation({
 
     await openDemoCountries(ctx, network, now)
 
-    // Les faits, puis la vraie dérivation (un lien IDN posé après coup n'est pas relu pour diasporale).
+    // Les faits, puis la vraie dérivation (un lien IDN posé après coup n'est pas relu pour diaspora-ga).
     if (spec.grounds.idn) await ensureDemoIdentity(ctx, actor, person, spec.grounds.idn, now)
     if (spec.grounds.consularAttestation) await ensureDemoAttestation(ctx, network, actor, person, spec.country, now)
     if (spec.grounds.foundingAdmission) await ensureDemoFoundingAdmission(ctx, network, person, spec.grounds.foundingAdmission.seniorityWaiver, now)
@@ -499,8 +499,8 @@ export const equipMyDemoAccount = personMutation({
     if (spec.canSponsor && membership.status === "verifiee") {
       const seniority = now - SPONSOR_SENIORITY_DAYS * DAY_MS
       if (membership.statusChangedAt > seniority) await ctx.db.patch(membership._id, { statusChangedAt: seniority })
-      for (const sponsored of DIASPORALE_DEMO_ACTORS) {
-        if (!DIASPORALE_DEMO_ACTOR_SPECS[sponsored].grounds.sponsored) continue
+      for (const sponsored of DIASPORA_GA_DEMO_ACTORS) {
+        if (!DIASPORA_GA_DEMO_ACTOR_SPECS[sponsored].grounds.sponsored) continue
         const filleul = await personOfActor(ctx, sponsored)
         if (!filleul || !(await getMembership(ctx, network._id, filleul._id))) continue
         await ensureSponsorship(ctx, network, person, filleul._id, now)

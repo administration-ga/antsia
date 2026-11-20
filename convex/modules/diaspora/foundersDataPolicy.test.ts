@@ -11,7 +11,7 @@ import { DATA_TABLE_POLICIES } from "../people/dataPolicies"
 const admission: DataRecord = {
   _id: "admission-1",
   _creationTime: 1,
-  networkId: "network-diasporale",
+  networkId: "network-diaspora-ga",
   personId: "person-admise",
   reason: "Responsable d'une association de la diaspora",
   seniorityWaiver: true,
@@ -33,7 +33,7 @@ describe("EA-01 — classement et export d'une admission fondatrice", () => {
     expect(exportableRecord("foundingAdmissions", admission, "person-admise")).toEqual({
       _id: "admission-1",
       _creationTime: 1,
-      networkId: "network-diasporale",
+      networkId: "network-diaspora-ga",
       personId: "person-admise",
       reason: "Responsable d'une association de la diaspora",
       seniorityWaiver: true,

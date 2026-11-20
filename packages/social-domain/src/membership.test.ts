@@ -89,7 +89,7 @@ describe("entryStatusFor — statut d'entrée par politique", () => {
     expect(entryStatusFor("open", { ...none, sponsored: true })).toBe("declaree")
   })
 
-  it("declared_or_verified (DIASPORALE) : compte léger en attente ; IDN ou parrainage déclarés ; attestation vérifiée", () => {
+  it("declared_or_verified (DIASPORA.GA) : compte léger en attente ; IDN ou parrainage déclarés ; attestation vérifiée", () => {
     expect(entryStatusFor("declared_or_verified", none)).toBe("en_attente")
     expect(entryStatusFor("declared_or_verified", { ...none, strongIdentity: true })).toBe("declaree")
     expect(entryStatusFor("declared_or_verified", { ...none, sponsored: true })).toBe("declaree")

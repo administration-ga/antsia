@@ -10,7 +10,7 @@ import { testConvex } from "../test.setup"
 import { IDN_GENERIC_ERROR, IDN_RETURNED_ERRORS, refusalDestination, returnedErrorOf } from "./idnRefusalReturn"
 
 const PRIMARY = "http://localhost:3030"
-const DIASPORALE = "http://localhost:3031"
+const DIASPORA_GA = "http://localhost:3031"
 const CONSOLE = "http://localhost:3032"
 const PARTNER = "https://partner.fixture.test"
 const EVIL = "https://evil.fixture.test"
@@ -96,15 +96,15 @@ async function forgeState(t: T, value: string, state = "F".repeat(32)) {
   await t.mutation(components.betterAuth.adapter.create, { input: { model: "verification", data: { identifier: state, value, expiresAt: now + 600_000, createdAt: now, updatedAt: now } } })
   return state
 }
-const storedState = (state: string, errorURL: string) => JSON.stringify({ callbackURL: `${DIASPORALE}/bienvenue`, codeVerifier: "v".repeat(128), errorURL, expiresAt: Date.now() + 600_000, oauthState: state })
+const storedState = (state: string, errorURL: string) => JSON.stringify({ callbackURL: `${DIASPORA_GA}/bienvenue`, codeVerifier: "v".repeat(128), errorURL, expiresAt: Date.now() + 600_000, oauthState: state })
 
 describe("retour d'un refus IDN — porte de confiance", () => {
   it("une origine de confiance est renvoyée vers sa porte avec le seul paramètre error=access_denied", async () => {
     const t = testConvex({ automaticSessions: false })
-    const state = await start(t, DIASPORALE, { callbackURL: `${DIASPORALE}/bienvenue`, errorCallbackURL: `${DIASPORALE}/entrer` })
+    const state = await start(t, DIASPORA_GA, { callbackURL: `${DIASPORA_GA}/bienvenue`, errorCallbackURL: `${DIASPORA_GA}/entrer` })
     const result = await back(t, refusal(state))
     expect(result.status).toBe(302)
-    expect(result.location).toBe(`${DIASPORALE}/entrer?error=access_denied`)
+    expect(result.location).toBe(`${DIASPORA_GA}/entrer?error=access_denied`)
     const url = new URL(result.location ?? EVIL)
     expect([...url.searchParams.keys()]).toEqual(["error"])
     // Ni description, ni lien d'aide, ni état, ni jeton de passage, ni cookie de session.
@@ -122,9 +122,9 @@ describe("retour d'un refus IDN — porte de confiance", () => {
 
   it.each(IDN_RETURNED_ERRORS)("le code %s de la liste fermée passe tel quel", async (code) => {
     const t = testConvex({ automaticSessions: false })
-    const state = await start(t, DIASPORALE, { callbackURL: `${DIASPORALE}/bienvenue`, errorCallbackURL: `${DIASPORALE}/entrer` })
+    const state = await start(t, DIASPORA_GA, { callbackURL: `${DIASPORA_GA}/bienvenue`, errorCallbackURL: `${DIASPORA_GA}/entrer` })
     const result = await back(t, `error=${code}&state=${state}`)
-    expect(result.location).toBe(`${DIASPORALE}/entrer?error=${code}`)
+    expect(result.location).toBe(`${DIASPORA_GA}/entrer?error=${code}`)
   })
 
   it.each([
@@ -138,9 +138,9 @@ describe("retour d'un refus IDN — porte de confiance", () => {
     ["une réponse sans code ni erreur", ""],
   ])("%s devient le code générique, jamais recopié", async (_label, error) => {
     const t = testConvex({ automaticSessions: false })
-    const state = await start(t, DIASPORALE, { callbackURL: `${DIASPORALE}/bienvenue`, errorCallbackURL: `${DIASPORALE}/entrer` })
+    const state = await start(t, DIASPORA_GA, { callbackURL: `${DIASPORA_GA}/bienvenue`, errorCallbackURL: `${DIASPORA_GA}/entrer` })
     const result = await back(t, `${error}${error ? "&" : ""}state=${state}`)
-    expect(result.location).toBe(`${DIASPORALE}/entrer?error=${IDN_GENERIC_ERROR}`)
+    expect(result.location).toBe(`${DIASPORA_GA}/entrer?error=${IDN_GENERIC_ERROR}`)
   })
 })
 
@@ -149,7 +149,7 @@ describe("retour d'un refus IDN — aucune redirection ouverte", () => {
   // il désactive son contrôle d'origine (`isTest`), ce qui permet de prouver que le retour revérifie seul.
   it("une adresse d'erreur d'une autre origine, même enregistrée au départ d'une porte de confiance, n'est jamais suivie", async () => {
     const t = testConvex({ automaticSessions: false })
-    const state = await start(t, DIASPORALE, { callbackURL: `${DIASPORALE}/bienvenue`, errorCallbackURL: `${EVIL}/entrer` })
+    const state = await start(t, DIASPORA_GA, { callbackURL: `${DIASPORA_GA}/bienvenue`, errorCallbackURL: `${EVIL}/entrer` })
     const result = await back(t, refusal(state))
     expectDefaultPage(result)
     expect(result.location).not.toContain("evil")
@@ -165,7 +165,7 @@ describe("retour d'un refus IDN — aucune redirection ouverte", () => {
     expect(await stateRow(t, state)).toBeNull()
   })
 
-  it.each([`${EVIL}/entrer`, "https://diasporale.com.evil.fixture.test/entrer", "https://diasporale.com@evil.fixture.test/entrer", "//evil.fixture.test/entrer"])("un état forgé vers %s reçoit la page par défaut", async (errorURL) => {
+  it.each([`${EVIL}/entrer`, "https://diaspora.ga.evil.fixture.test/entrer", "https://diaspora.ga@evil.fixture.test/entrer", "//evil.fixture.test/entrer"])("un état forgé vers %s reçoit la page par défaut", async (errorURL) => {
     const t = testConvex({ automaticSessions: false })
     const state = await forgeState(t, storedState("F".repeat(32), errorURL))
     expectDefaultPage(await back(t, refusal(state)))
@@ -173,18 +173,18 @@ describe("retour d'un refus IDN — aucune redirection ouverte", () => {
   })
 
   it("seules l'origine exacte et un chemin simple sont admis ; requête et fragment ne ressortent pas", () => {
-    const allowlist = ["https://diasporale.com", "http://localhost:3031"]
-    expect(refusalDestination("https://diasporale.com/entrer", allowlist)).toBe("https://diasporale.com/entrer")
+    const allowlist = ["https://diaspora.ga", "http://localhost:3031"]
+    expect(refusalDestination("https://diaspora.ga/entrer", allowlist)).toBe("https://diaspora.ga/entrer")
     expect(refusalDestination("http://localhost:3031/demo/entrer", allowlist)).toBe("http://localhost:3031/demo/entrer")
-    expect(refusalDestination("https://diasporale.com/entrer?next=%2Fadmin&error_description=x#fragment", allowlist)).toBe("https://diasporale.com/entrer")
+    expect(refusalDestination("https://diaspora.ga/entrer?next=%2Fadmin&error_description=x#fragment", allowlist)).toBe("https://diaspora.ga/entrer")
     for (const unsafe of [
       undefined, 42, "", "/entrer", "//evil.fixture.test/entrer", "javascript:alert(1)", "data:text/html,x",
-      `${EVIL}/entrer`, "https://diasporale.com.evil.fixture.test/entrer", "https://evil.fixture.test/https://diasporale.com/entrer",
-      "https://diasporale.com@evil.fixture.test/entrer", "https://user:secret@diasporale.com/entrer", "http://diasporale.com/entrer",
-      "https://diasporale.com:8443/entrer", "https://diasporale.com:443/entrer", "https://DIASPORALE.com/entrer",
-      "https://diasporale.com//evil.fixture.test/entrer", "https://diasporale.com/entrer\\@evil.fixture.test", "https://diasporale.com\\evil.fixture.test",
-      "https://diasporale.com/%2F%2Fevil.fixture.test", "https://diasporale.com/a/../entrer", " https://diasporale.com/entrer",
-      "https://diasporale.com/entrer\n", `https://diasporale.com/${"a".repeat(2_100)}`, "http://127.0.0.1:3031/entrer",
+      `${EVIL}/entrer`, "https://diaspora.ga.evil.fixture.test/entrer", "https://evil.fixture.test/https://diaspora.ga/entrer",
+      "https://diaspora.ga@evil.fixture.test/entrer", "https://user:secret@diaspora.ga/entrer", "http://diaspora.ga/entrer",
+      "https://diaspora.ga:8443/entrer", "https://diaspora.ga:443/entrer", "https://DIASPORA.ga/entrer",
+      "https://diaspora.ga//evil.fixture.test/entrer", "https://diaspora.ga/entrer\\@evil.fixture.test", "https://diaspora.ga\\evil.fixture.test",
+      "https://diaspora.ga/%2F%2Fevil.fixture.test", "https://diaspora.ga/a/../entrer", " https://diaspora.ga/entrer",
+      "https://diaspora.ga/entrer\n", `https://diaspora.ga/${"a".repeat(2_100)}`, "http://127.0.0.1:3031/entrer",
     ]) expect(refusalDestination(unsafe, allowlist), String(unsafe)).toBeNull()
   })
 
@@ -199,13 +199,13 @@ describe("retour d'un refus IDN — aucune redirection ouverte", () => {
 describe("retour d'un refus IDN — état introuvable, expiré, rejoué ou illisible : page par défaut", () => {
   it.each([["sans état", ""], ["état inconnu", `&state=${"u".repeat(32)}`], ["état de forme étrangère", "&state=abc"], ["état trop long", `&state=${"u".repeat(33)}`]])("%s", async (_label, state) => {
     const t = testConvex({ automaticSessions: false })
-    await start(t, DIASPORALE, { callbackURL: `${DIASPORALE}/bienvenue`, errorCallbackURL: `${DIASPORALE}/entrer` })
+    await start(t, DIASPORA_GA, { callbackURL: `${DIASPORA_GA}/bienvenue`, errorCallbackURL: `${DIASPORA_GA}/entrer` })
     expectDefaultPage(await back(t, `error=access_denied${state}`))
   })
 
   it("un état expiré en base est supprimé et rend la page par défaut", async () => {
     const t = testConvex({ automaticSessions: false })
-    const state = await start(t, DIASPORALE, { callbackURL: `${DIASPORALE}/bienvenue`, errorCallbackURL: `${DIASPORALE}/entrer` })
+    const state = await start(t, DIASPORA_GA, { callbackURL: `${DIASPORA_GA}/bienvenue`, errorCallbackURL: `${DIASPORA_GA}/entrer` })
     await t.mutation(components.betterAuth.adapter.updateOne, { input: { model: "verification", where: [{ field: "identifier", value: state }], update: { expiresAt: Date.now() - 1 } } })
     expectDefaultPage(await back(t, refusal(state)))
     expect(await stateRow(t, state)).toBeNull()
@@ -213,7 +213,7 @@ describe("retour d'un refus IDN — état introuvable, expiré, rejoué ou illis
 
   it("un état dont l'échéance propre est passée est consommé et rend la page par défaut", async () => {
     const t = testConvex({ automaticSessions: false })
-    const state = await start(t, DIASPORALE, { callbackURL: `${DIASPORALE}/bienvenue`, errorCallbackURL: `${DIASPORALE}/entrer` })
+    const state = await start(t, DIASPORA_GA, { callbackURL: `${DIASPORA_GA}/bienvenue`, errorCallbackURL: `${DIASPORA_GA}/entrer` })
     const row = object(await stateRow(t, state))
     const value = { ...object(JSON.parse(field(row, "value"))), expiresAt: Date.now() - 1 }
     await t.mutation(components.betterAuth.adapter.updateOne, { input: { model: "verification", where: [{ field: "identifier", value: state }], update: { value: JSON.stringify(value) } } })
@@ -223,8 +223,8 @@ describe("retour d'un refus IDN — état introuvable, expiré, rejoué ou illis
 
   it("un état relu pour ce renvoi n'est plus rejouable", async () => {
     const t = testConvex({ automaticSessions: false })
-    const state = await start(t, DIASPORALE, { callbackURL: `${DIASPORALE}/bienvenue`, errorCallbackURL: `${DIASPORALE}/entrer` })
-    expect((await back(t, refusal(state))).location).toBe(`${DIASPORALE}/entrer?error=access_denied`)
+    const state = await start(t, DIASPORA_GA, { callbackURL: `${DIASPORA_GA}/bienvenue`, errorCallbackURL: `${DIASPORA_GA}/entrer` })
+    expect((await back(t, refusal(state))).location).toBe(`${DIASPORA_GA}/entrer?error=access_denied`)
     expectDefaultPage(await back(t, refusal(state)))
     // Ni un second refus, ni un code d'autorisation présenté après coup avec le même état.
     const late = await back(t, `code=fixture-late&state=${state}&iss=${encodeURIComponent(ISSUER)}`)
@@ -234,9 +234,9 @@ describe("retour d'un refus IDN — état introuvable, expiré, rejoué ou illis
 
   it("deux retours concurrents du même état ne renvoient qu'une fois vers la porte", async () => {
     const t = testConvex({ automaticSessions: false })
-    const state = await start(t, DIASPORALE, { callbackURL: `${DIASPORALE}/bienvenue`, errorCallbackURL: `${DIASPORALE}/entrer` })
+    const state = await start(t, DIASPORA_GA, { callbackURL: `${DIASPORA_GA}/bienvenue`, errorCallbackURL: `${DIASPORA_GA}/entrer` })
     const results = await Promise.all([back(t, refusal(state)), back(t, refusal(state))])
-    expect(results.filter((result) => result.location === `${DIASPORALE}/entrer?error=access_denied`)).toHaveLength(1)
+    expect(results.filter((result) => result.location === `${DIASPORA_GA}/entrer?error=access_denied`)).toHaveLength(1)
     expect(results.filter((result) => result.location?.startsWith(DEFAULT_PAGE))).toHaveLength(1)
   })
 
@@ -268,11 +268,11 @@ describe("retour d'un refus IDN — le reste ne change pas", () => {
 
   it("le chemin de réussite, adresse d'erreur comprise, mène toujours au retour avec son jeton de passage", async () => {
     const t = testConvex({ automaticSessions: false })
-    const state = await start(t, DIASPORALE, { callbackURL: `${DIASPORALE}/bienvenue`, errorCallbackURL: `${DIASPORALE}/entrer` })
+    const state = await start(t, DIASPORA_GA, { callbackURL: `${DIASPORA_GA}/bienvenue`, errorCallbackURL: `${DIASPORA_GA}/entrer` })
     const result = await back(t, `code=fixture-code&state=${state}&iss=${encodeURIComponent(ISSUER)}`)
     expect(result.status).toBe(302)
     const url = new URL(result.location ?? EVIL)
-    expect(`${url.origin}${url.pathname}`).toBe(`${DIASPORALE}/bienvenue`)
+    expect(`${url.origin}${url.pathname}`).toBe(`${DIASPORA_GA}/bienvenue`)
     expect(url.searchParams.get("ott")).toBeTruthy()
     expect(url.searchParams.get("error")).toBeNull()
   })

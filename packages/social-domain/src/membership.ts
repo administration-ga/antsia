@@ -94,7 +94,7 @@ export type EntryEvidence = {
  * Statut d'entrée selon la politique du réseau ; `null` = adhésion directe
  * impossible (un miroir ne s'alimente que par reflet signé).
  * - `open` (ANTSIA) : `verifiee` avec une identité forte, sinon `declaree` ;
- * - `declared_or_verified` (DIASPORALE, cahier DIASPORALE §6.2) : vérification
+ * - `declared_or_verified` (DIASPORA.GA, cahier DIASPORA.GA §6.2) : vérification
  *   externe → `verifiee` ; identité forte ou parrainage → `declaree` ; compte
  *   léger seul → `en_attente` (lecture seule jusqu'au parrainage) ;
  * - `mirror` : jamais par adhésion directe.

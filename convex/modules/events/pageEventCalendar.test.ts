@@ -32,7 +32,7 @@ async function member(t: T, networkId: Id<"networks">, handle: string, displayNa
   await as.mutation(api.modules.people.consents.recordConsent, { purpose: "social_profile", origin: "onboarding" })
   await as.mutation(api.modules.people.profile.publishMyProfile, { handle, displayName })
   await t.run((ctx) => ctx.db.insert("identityLinks", { personId, provider: "idn", subject: `calendar-idn-${personId}`, loa: 2, nationality: "GA", linkedAt: NOW }))
-  await as.mutation(api.modules.diaspora.membership.joinDiasporale, { networkId, facet: { countryOfResidence: "FR", city: "Lyon" } })
+  await as.mutation(api.modules.diaspora.membership.joinDiasporaGa, { networkId, facet: { countryOfResidence: "FR", city: "Lyon" } })
   return { as, personId }
 }
 
@@ -176,8 +176,8 @@ describe("copie iCalendar authentifiée", () => {
     await register(f, eventId)
     await register(f, eventId, f.bob)
     const confirmed = await file(f, eventId), waiting = await file(f, eventId, f.bob)
-    expect(confirmed).toMatchObject({ filename: "diasporale-event.ics", mediaType: "text/calendar;charset=utf-8" })
-    expect(uidOf(confirmed.content)).toMatch(/^diasporale-[0-9a-f]{64}$/)
+    expect(confirmed).toMatchObject({ filename: "diaspora-ga-event.ics", mediaType: "text/calendar;charset=utf-8" })
+    expect(uidOf(confirmed.content)).toMatch(/^diaspora-ga-[0-9a-f]{64}$/)
     expect(uidOf(confirmed.content)).toBe(uidOf(waiting.content))
     expect(uidOf(confirmed.content)).toBe(uidOf(readOnly.content))
     expect(unfolded(confirmed.content)).toContain("STATUS:CONFIRMED\r\nTRANSP:OPAQUE")
@@ -186,7 +186,7 @@ describe("copie iCalendar authentifiée", () => {
     expect(unfolded(confirmed.content)).toContain("DESCRIPTION:Rencontre\\, échanges\\; projets")
     expect(confirmed.content).toContain("CLASS:PRIVATE")
     expect(confirmed.content).not.toMatch(/^(?:ATTENDEE|ORGANIZER|URL|METHOD):|^BEGIN:VALARM/m)
-    for (const value of [eventId, f.networkId, f.alice.personId, f.bob.personId, f.manager.personId, "association-agenda", "diasporale-attendance:"]) expect(confirmed.content).not.toContain(value)
+    for (const value of [eventId, f.networkId, f.alice.personId, f.bob.personId, f.manager.personId, "association-agenda", "diaspora-ga-attendance:"]) expect(confirmed.content).not.toContain(value)
     vi.setSystemTime(NOW + 100)
     expect(await file(f, eventId)).toEqual(confirmed)
   })

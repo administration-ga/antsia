@@ -1,5 +1,5 @@
 /**
- * Annuaire des membres de DIASPORALE (EXF-DG-19, EXF-DG-46) — opt-in, par niveau.
+ * Annuaire des membres de DIASPORA.GA (EXF-DG-19, EXF-DG-46) — opt-in, par niveau.
  *
  * La recherche générique du moteur (`searchPeople`) refuse ce réseau : le niveau
  * « pays » dépend du LECTEUR, que la projection générique `peopleDirectory` ne
@@ -25,7 +25,7 @@ import {
   type MembershipStatus,
   normalizeCountryCode,
   projectFacet,
-} from "@diasporale/domain"
+} from "@diaspora-ga/domain"
 import { v } from "convex/values"
 
 import type { Doc, Id } from "../../_generated/dataModel"

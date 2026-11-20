@@ -1,5 +1,5 @@
 /**
- * Mentorat bénévole DIASPORALE (DG-024, troisième tranche, lot G8 point 2).
+ * Mentorat bénévole DIASPORA.GA (DG-024, troisième tranche, lot G8 point 2).
  *
  * Être mentor est un OPT-IN explicite (consentement horodaté, révocable par le
  * retrait), jamais déduit de la facette (« disponible pour aider » ne fait de
@@ -13,7 +13,7 @@
  * Gardes, dans l'ordre du moteur : adhésion (constructeurs) → éligibilité
  * (capacité du domaine) → limitation de débit (seaux `diaspora.mentor.*`) →
  * droit (le mentor sur son profil ; le mentoré ou le mentor sur LEUR demande ;
- * une demande d'autrui est introuvable) → règles de `@diasporale/domain`.
+ * une demande d'autrui est introuvable) → règles de `@diaspora-ga/domain`.
  * Retirer sa demande, décliner, clore, mettre en pause ou retirer son profil
  * restent possibles à un membre redevenu « en attente » : on sort toujours.
  *
@@ -80,7 +80,7 @@ import {
   projectMentorPlace,
   type Result,
   transitionMentorState,
-} from "@diasporale/domain"
+} from "@diaspora-ga/domain"
 import { paginationOptsValidator, paginationResultValidator, type PaginationOptions, type PaginationResult } from "convex/server"
 import { v } from "convex/values"
 
@@ -264,7 +264,7 @@ const POLICY_REFUSALS: ReadonlySet<MentoringRefusal> = new Set<MentoringRefusal>
   "mentoring_action_forbidden",
 ])
 
-/** Un refus de la tranche, traduit par DIASPORALE (`errors.<code>`) ; une saisie invalide est `invalidArgument`. */
+/** Un refus de la tranche, traduit par DIASPORA.GA (`errors.<code>`) ; une saisie invalide est `invalidArgument`. */
 function refuseRule(code: MentoringRefusal): never {
   return failAppRule(code, {}, CONFLICT_REFUSALS.has(code) ? "conflict" : POLICY_REFUSALS.has(code) ? "policyRefused" : "invalidArgument")
 }

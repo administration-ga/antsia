@@ -1,6 +1,6 @@
 /**
- * DIASPORALE — avis de MISE EN RELATION (DG-010, DG-015, DG-016 ; plan global §7.4).
- * PROPRIÉTAIRE : session DIASPORALE, chantier « notifications de mise en relation ».
+ * DIASPORA.GA — avis de MISE EN RELATION (DG-010, DG-015, DG-016 ; plan global §7.4).
+ * PROPRIÉTAIRE : session DIASPORA.GA, chantier « notifications de mise en relation ».
  *
  * Un professionnel apprend qu'une demande lui arrive ; un demandeur, que la page lui
  * propose, décline, annule ou constate ; l'une ou l'autre partie, qu'un nouvel horaire est
@@ -27,7 +27,7 @@
  *   d'abord ; l'échéance passe par un job par demande, hors du lot d'expiration.
  * - Aucune fonction publique ici ; la seule fonction Convex est interne (le job d'échéance).
  */
-import { isResponsibleRole, type ServiceRequestActor } from "@diasporale/domain"
+import { isResponsibleRole, type ServiceRequestActor } from "@diaspora-ga/domain"
 import { v } from "convex/values"
 
 import { internal } from "../../_generated/api"
@@ -210,7 +210,7 @@ async function reviewReplyTarget(ctx: ReadCtx, network: Doc<"networks">, recipie
 }
 
 /**
- * Ce qu'un avis de la tranche désigne pour son destinataire, ou `null` : réseau DIASPORALE
+ * Ce qu'un avis de la tranche désigne pour son destinataire, ou `null` : réseau DIASPORA.GA
  * actif, personne présente (ni effacée ni en effacement), membre active du réseau, puis
  * les droits propres au sujet.
  */

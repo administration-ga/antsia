@@ -1,7 +1,7 @@
 /**
  * CM-09 — FAVORIS d'offres : « Enregistrer » sur une carte ou une fiche, « Mes favoris » dans Profil.
  *
- * Brique commune du plan directeur (§ 5.1) : NU-03 (annonces), UM-05 (emploi) et DS-11 (DIASPORALE)
+ * Brique commune du plan directeur (§ 5.1) : NU-03 (annonces), UM-05 (emploi) et DS-11 (DIASPORA.GA)
  * s'y branchent. Ses fonctions publiques — `save`, `remove`, `isSaved`, `listMine`, `pruneUnavailable` —
  * portent toutes `networkId` (constructeurs `networkQuery`/`networkMutation`, `requireMembership` en tête) ;
  * une offre se désigne comme sur sa fiche : `handle` de la boutique et `offerRef`.

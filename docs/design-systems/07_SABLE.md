@@ -15,7 +15,7 @@ Navigation : [Index des sept systèmes](README.md) · [Socle commun](00_SOCLE_CO
 
 ## 1. Intention et identifiants
 
-Sable porte dans ANTSIA les couleurs du thème Sable de DIASPORALE : bleu Gabon, sarcelle et sable doré. Le papier presque blanc et les cartes sable reçoivent une encre brune. Les polices et la géométrie restent celles du système commun d’ANTSIA.
+Sable porte dans ANTSIA les couleurs du thème Sable de DIASPORA.GA : bleu Gabon, sarcelle et sable doré. Le papier presque blanc et les cartes sable reçoivent une encre brune. Les polices et la géométrie restent celles du système commun d’ANTSIA.
 
 | Élément | Valeur |
 |---|---|

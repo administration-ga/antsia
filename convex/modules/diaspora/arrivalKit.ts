@@ -1,13 +1,13 @@
 /**
- * Kit d'arrivée DIASPORALE (DG-024 b, plan global §4 G8 point 3) — tranche `diaspora`,
- * écrite par la session DIASPORALE (chantier « kit d'arrivée »).
+ * Kit d'arrivée DIASPORA.GA (DG-024 b, plan global §4 G8 point 3) — tranche `diaspora`,
+ * écrite par la session DIASPORA.GA (chantier « kit d'arrivée »).
  *
  * Des ressources pratiques DATÉES par pays et par ville (démarches, logement, santé…),
  * chacune avec sa source citée (adresse https sans identifiant de suivi) et sa date de
  * dernière vérification. Une ressource est PERSONNELLE (son auteur la gère) ou portée
  * par une PAGE (ses signataires vivants la gèrent, relus à chaque acte).
  *
- * Cycle (règles pures de `@diasporale/domain`) : brouillon → soumise → publiée → à
+ * Cycle (règles pures de `@diaspora-ga/domain`) : brouillon → soumise → publiée → à
  * revoir → archivée. Une version n'entre dans le kit public qu'après la relecture d'une
  * personne DIFFÉRENTE de celles qui l'ont écrite et de l'équipe de la page qui la
  * porte : un membre vérifié, ou le signataire vivant d'une page. Toute nouvelle version
@@ -69,7 +69,7 @@ import {
   type ArrivalKitReviewerFacts,
   type ArrivalKitStatus,
   type MemberCapability,
-} from "@diasporale/domain"
+} from "@diaspora-ga/domain"
 import { type PaginationOptions, paginationOptsValidator, paginationResultValidator, type PaginationResult } from "convex/server"
 import { type Infer, v } from "convex/values"
 

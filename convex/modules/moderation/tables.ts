@@ -46,7 +46,7 @@ export const moderationTargetValidator = v.union(
   // signalable par une partie au fil seulement — le dossier ne garde que la référence, jamais le texte.
   v.object({ kind: v.literal("thematicGroup"), id: v.id("thematicGroups") }),
   v.object({ kind: v.literal("personalMessage"), id: v.id("personalMessages") }),
-  // Vague H DIASPORALE (G9, ajout délégué) : contenus de l'entraide, du mentorat, du kit d'arrivée et de l'emploi.
+  // Vague H DIASPORA.GA (G9, ajout délégué) : contenus de l'entraide, du mentorat, du kit d'arrivée et de l'emploi.
   v.object({ kind: v.literal("diasporaAidQuestion"), id: v.id("aidQuestions") }),
   v.object({ kind: v.literal("diasporaAidAnswer"), id: v.id("aidAnswers") }),
   v.object({ kind: v.literal("diasporaAidMission"), id: v.id("aidMissions") }),

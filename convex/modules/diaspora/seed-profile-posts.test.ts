@@ -98,9 +98,9 @@ describe("diaspora/seed:profilePostsForRecette", () => {
     expect(await posts(t)).toEqual([])
   })
 
-  it("ne crée aucun réseau si DIASPORALE n'existe pas", async () => {
+  it("ne crée aucun réseau si DIASPORA.GA n'existe pas", async () => {
     const t = testConvex()
-    await expect(t.mutation(internal.modules.diaspora.seed.profilePostsForRecette, ARGS)).rejects.toThrow(/réseau diasporale actif/)
+    await expect(t.mutation(internal.modules.diaspora.seed.profilePostsForRecette, ARGS)).rejects.toThrow(/réseau diaspora-ga actif/)
     expect(await t.run(async (ctx) => await ctx.db.query("networks").take(5))).toEqual([])
   })
 
@@ -220,7 +220,7 @@ describe("diaspora/seed:albumDraftsForRecette", () => {
 
   it("ne crée ni réseau ni profil quand les prérequis manquent", async () => {
     const t = testConvex()
-    await expect(t.mutation(internal.modules.diaspora.seed.albumDraftsForRecette, ARGS)).rejects.toThrow(/réseau diasporale actif/)
+    await expect(t.mutation(internal.modules.diaspora.seed.albumDraftsForRecette, ARGS)).rejects.toThrow(/réseau diaspora-ga actif/)
     expect(await t.run(async (ctx) => await ctx.db.query("networks").take(5))).toEqual([])
     await seedNetworks(t)
     await expect(t.mutation(internal.modules.diaspora.seed.albumDraftsForRecette, ARGS)).rejects.toThrow(/profil fictif préexistant/)
@@ -284,7 +284,7 @@ describe("diaspora/seed:albumDraftsForRecette", () => {
     expect(first.map((album) => album.title).sort()).toEqual(Array.from({ length: 13 }, (_, index) => `PD4 album recette ${String(index + 1).padStart(2, "0")}/13`))
     for (const album of first) {
       expect(album).toMatchObject({ networkId: network, ownerPersonId: personId, audience: "connections", status: "draft", itemCount: 0 })
-      expect(album.idempotencyKey).toMatch(/^diasporale:pd4-album-recette:relations\.recette:\d{2}$/)
+      expect(album.idempotencyKey).toMatch(/^diaspora-ga:pd4-album-recette:relations\.recette:\d{2}$/)
       expect(album.coverItemId).toBeUndefined()
       expect(album.publishedAt).toBeUndefined()
       expect(album.deletingAt).toBeUndefined()
@@ -331,7 +331,7 @@ describe("diaspora/seed:albumDraftsForRecette", () => {
       audience: "connections",
       status: "draft",
       itemCount: 0,
-      idempotencyKey: `diasporale:pd4-album-recette:${HANDLE}:13`,
+      idempotencyKey: `diaspora-ga:pd4-album-recette:${HANDLE}:13`,
       ...(state === "suppression en cours" ? { deletingAt: NOW } : {}),
       createdAt: NOW,
       updatedAt: NOW,
@@ -387,7 +387,7 @@ describe("diaspora/seed:storyReaderForRecette", () => {
     expect(await follows(t)).toEqual([])
   })
 
-  it.each(["en_attente", "declaree"] as const)("crée seulement l'abonnement DIASPORALE et son agrégat, puis rejoue sans rien modifier (racine %s)", async (rootStatus) => {
+  it.each(["en_attente", "declaree"] as const)("crée seulement l'abonnement DIASPORA.GA et son agrégat, puis rejoue sans rien modifier (racine %s)", async (rootStatus) => {
     const t = testConvex()
     const { author, reader } = await storyReaderFixture(t, { rootStatus })
     const snapshot = async () => await t.run(async (ctx) => ({
@@ -422,7 +422,7 @@ describe("diaspora/seed:storyReaderForRecette", () => {
     expect(engineErrorCode(refusal)).toBe("statusInsufficient")
   })
 
-  it("un abonnement d'un autre réseau ne remplace pas celui de DIASPORALE", async () => {
+  it("un abonnement d'un autre réseau ne remplace pas celui de DIASPORA.GA", async () => {
     const t = testConvex()
     const { author, reader } = await storyReaderFixture(t)
     await t.run(async (ctx) => {
@@ -445,7 +445,7 @@ describe("diaspora/seed:storyReaderForRecette", () => {
     const { author } = await storyReaderFixture(t)
     await t.run(async (ctx) => await ctx.db.patch(author.network, { status: "archived" }))
 
-    await expect(t.mutation(internal.modules.diaspora.seed.storyReaderForRecette, ARGS)).rejects.toThrow(/réseau diasporale actif/)
+    await expect(t.mutation(internal.modules.diaspora.seed.storyReaderForRecette, ARGS)).rejects.toThrow(/réseau diaspora-ga actif/)
     expect(await follows(t)).toEqual([])
     expect(await t.run(async (ctx) => await ctx.db.get(author.network))).toMatchObject({ status: "archived" })
   })

@@ -1,5 +1,5 @@
 // @vitest-environment edge-runtime
-/** Mentorat DIASPORALE (DG-024) : vraies sessions, opt-in, plafonds, paires, échéances, visibilité de la facette, blocages. */
+/** Mentorat DIASPORA.GA (DG-024) : vraies sessions, opt-in, plafonds, paires, échéances, visibilité de la facette, blocages. */
 import { engineErrorAppRule, engineErrorCode } from "@antsia/social-contracts/errors"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
@@ -49,7 +49,7 @@ async function member(t: T, networkId: Id<"networks">, handle: string, displayNa
   await t.run(async (ctx) => {
     await ctx.db.insert("identityLinks", { personId, provider: "idn", subject: `idn-${personId}`, loa: 2, nationality: "GA", linkedAt: NOW })
   })
-  await as.mutation(api.modules.diaspora.membership.joinDiasporale, { networkId, facet })
+  await as.mutation(api.modules.diaspora.membership.joinDiasporaGa, { networkId, facet })
   return { as, personId }
 }
 
@@ -144,7 +144,7 @@ async function send(f: Fixture, as: Member, overrides: Parameters<typeof request
   return await as.as.mutation(M.requestMentoring, requestArgs(f.networkId, f.mentorId, overrides))
 }
 
-describe("mentorat DIASPORALE", () => {
+describe("mentorat DIASPORA.GA", () => {
   it("parcours complet : opt-in, recherche par pays et domaine, demande consentie, acceptation avec créneau, clôture, sans relation ni avis créés", async () => {
     const f = await fixture()
     const before = await socialTrace(f.t)

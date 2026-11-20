@@ -88,7 +88,7 @@ export const MODERATION_POLICY_BOUNDS = {
  *   plus de 30 écritures modérées en une minute, toutes surfaces confondues, ne se font qu'en inondant
  *   plusieurs surfaces à la fois.
  * Restent hors de ces défauts : les contenus portés par une page (DG-016) et les avis de prestation, en
- * relecture tant qu'aucun réglage n'est posé ; les contenus de la vague H de DIASPORALE, publiés sans règle
+ * relecture tant qu'aucun réglage n'est posé ; les contenus de la vague H de DIASPORA.GA, publiés sans règle
  * tant qu'aucun réglage n'est posé (tranche `diaspora`).
  */
 export const MODERATION_POLICY_DEFAULTS: ModerationPolicyValues = Object.freeze({ preReview: false, maxLinks: 2, maxWrites: 30, windowMs: 60_000 })

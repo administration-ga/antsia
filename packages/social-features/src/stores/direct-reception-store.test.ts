@@ -17,7 +17,7 @@ describe("DL-04 — choix de réception retenu sur l'appareil", () => {
     // « Rechargement » : la mémoire de module repart de zéro, le stockage reste.
     directReceptionStore.__resetForTests()
     expect(directReceptionStore.getPreference(PREFIX)).toEqual({ mode: "audio", quality: "auto" })
-    expect(directReceptionStore.getPreference("antsia:diasporale:")).toEqual({ mode: "video", quality: "auto" })
+    expect(directReceptionStore.getPreference("antsia:diaspora-ga:")).toEqual({ mode: "video", quality: "auto" })
     expect(personalStateKeys(window.localStorage)).toContain(directReceptionStorageKey(PREFIX))
   })
   it("stockage refusé (navigation privée) : la page marche, le choix tient pour l'onglet", () => {

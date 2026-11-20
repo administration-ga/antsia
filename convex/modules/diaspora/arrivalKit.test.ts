@@ -1,6 +1,6 @@
 // @vitest-environment edge-runtime
 /**
- * Kit d'arrivée DIASPORALE (DG-024 b) : proposer, relire par une AUTRE personne habilitée,
+ * Kit d'arrivée DIASPORA.GA (DG-024 b) : proposer, relire par une AUTRE personne habilitée,
  * publier, marquer « à revoir », signaler une information périmée, retirer — avec de
  * vraies sessions et le vrai limiteur de débit. Scénarios exigés : relecture par
  * l'auteur refusée, adresse non https refusée, double signalement, ancienneté → à
@@ -8,7 +8,7 @@
  * versions, la visibilité et le plafond.
  */
 import { engineErrorAppRule, engineErrorCode } from "@antsia/social-contracts/errors"
-import { ARRIVAL_KIT_OUTDATED_FLAG_THRESHOLD, ARRIVAL_KIT_RESOURCES_PER_PROPOSER_MAX, DAY_MS } from "@diasporale/domain"
+import { ARRIVAL_KIT_OUTDATED_FLAG_THRESHOLD, ARRIVAL_KIT_RESOURCES_PER_PROPOSER_MAX, DAY_MS } from "@diaspora-ga/domain"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { api, internal } from "../../_generated/api"
@@ -50,7 +50,7 @@ afterEach(() => {
 })
 
 /**
- * Un membre de DIASPORALE au profil publié : déclaré (IDN de garantie 1 par défaut),
+ * Un membre de DIASPORA.GA au profil publié : déclaré (IDN de garantie 1 par défaut),
  * ou vérifié par une attestation consulaire.
  */
 async function member(t: T, networkId: Id<"networks">, handle: string, options: { verified?: boolean; loa?: number } = {}) {
@@ -66,7 +66,7 @@ async function member(t: T, networkId: Id<"networks">, handle: string, options: 
       })
     }
   })
-  await as.mutation(api.modules.diaspora.membership.joinDiasporale, { networkId, facet: { countryOfResidence: "FR", city: "Paris" } })
+  await as.mutation(api.modules.diaspora.membership.joinDiasporaGa, { networkId, facet: { countryOfResidence: "FR", city: "Paris" } })
   return { as, personId, handle }
 }
 

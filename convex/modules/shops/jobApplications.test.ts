@@ -216,7 +216,7 @@ describe("P15 — candidater : choix explicite, nom civil normalisé", () => {
     const f = await fixture(), file = await pdf(f)
     // L'admission de débit précède le handler, rejeu compris (ADR-0009 §4) : un membre déclaré
     // sans badge relève de `shop.job.apply.reinforced` (un envoi par huit heures). Le rejeu est
-    // éprouvé sous le seau ordinaire, avec une identité forte (patron DIASPORALE, `diaspora/jobs.test.ts`).
+    // éprouvé sous le seau ordinaire, avec une identité forte (patron DIASPORA.GA, `diaspora/jobs.test.ts`).
     await f.t.run(async (ctx) => ctx.db.insert("identityLinks", { personId: f.candidate.personId, provider: "idn", subject: "idn-candidat-recette", loa: 2, linkedAt: NOW }))
     const first = await f.candidate.as.mutation(apply, choice(f, [file.fileId]))
     expect(await f.candidate.as.mutation(apply, choice(f, [file.fileId]))).toEqual(first)

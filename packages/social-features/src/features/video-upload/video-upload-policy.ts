@@ -133,7 +133,7 @@ const TRANSCODE_HARD_STOP_MARGIN_MS = 1_500
 
 /**
  * Pourquoi une vidéo n'est pas préparée — un code à LISTE FERMÉE (issue antsia#142), rendu À CÔTÉ
- * de la phrase : antsia.ga montre la phrase, un écran qui a ses propres textes (DIASPORALE)
+ * de la phrase : antsia.ga montre la phrase, un écran qui a ses propres textes (DIASPORA.GA)
  * traduit le code. Chacun veut dire : la vidéo n'est PAS envoyée.
  *
  * Ni le poids ni l'annulation n'y figurent : aucun fichier n'est pesé ici (l'original choisi comme

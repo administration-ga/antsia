@@ -1,6 +1,6 @@
 /**
- * Entraide DIASPORALE (DG-024 a, lot G8 du plan global) — tranche `diaspora`,
- * écrite par la session DIASPORALE (chantier « entraide ») :
+ * Entraide DIASPORA.GA (DG-024 a, lot G8 du plan global) — tranche `diaspora`,
+ * écrite par la session DIASPORA.GA (chantier « entraide ») :
  *
  * - les QUESTIONS d'entraide d'un pays (et d'une ville saisie, sans GPS), leurs
  *   réponses et la « réponse retenue » choisie par l'auteur de la question
@@ -9,11 +9,11 @@
  *   signataires VIVANTS (relus à chaque acte, `liveSignatoryRole`), et les
  *   inscriptions des bénévoles, avec places relues dans la transaction.
  *
- * Gardes, dans cet ordre, pour chaque écriture : adhésion au réseau DIASPORALE
+ * Gardes, dans cet ordre, pour chaque écriture : adhésion au réseau DIASPORA.GA
  * (constructeur) → éligibilité (capacité du statut, règle du domaine) → débit
  * (`diaspora.aid.post`, `.answer`, `.manage` ; le seau renforcé s'applique seul
  * aux comptes légers) → droit sur la ressource → règles du domaine
- * (`@diasporale/domain`, codes fermés `MUTUAL_AID_REFUSALS`).
+ * (`@diaspora-ga/domain`, codes fermés `MUTUAL_AID_REFUSALS`).
  *
  * Lectures : bornées au réseau et paginées (cinquante lignes, deux mégaoctets au
  * plus) ; un auteur bloqué (dans un sens ou dans l'autre) n'est pas servi ; un
@@ -67,7 +67,7 @@ import {
   type MemberCapability,
   type MutualAidRefusal,
   type Result,
-} from "@diasporale/domain"
+} from "@diaspora-ga/domain"
 import { type PaginationOptions, paginationOptsValidator, paginationResultValidator, type PaginationResult } from "convex/server"
 import { type Infer, v } from "convex/values"
 

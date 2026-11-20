@@ -201,17 +201,17 @@ const RATE_LIMITS = {
   // SU01h : mesures sur ordre du juge (ouvrir, confirmer, noter l'action au fond, lever) ; une ordonnance
   // peut viser plusieurs comptes ou contenus d'un coup. Valeur de départ.
   "operator.judicial": { kind: "token bucket", rate: 60, period: HOUR, capacity: 20 },
-  // Tranche DIASPORALE (`convex/modules/diaspora`, PD1). Entrer et régler sa
+  // Tranche DIASPORA.GA (`convex/modules/diaspora`, PD1). Entrer et régler sa
   // facette consomment « network.join » et « person.facet » : une personne n'a
   // qu'un budget, quel que soit le chemin. Les quotas MÉTIER (10 parrainages
   // par 30 jours glissants, 24 h entre deux demandes d'attestation) vivent dans
-  // `@diasporale/domain`, en plus de ces seaux.
+  // `@diaspora-ga/domain`, en plus de ces seaux.
   "diaspora.sponsor": { kind: "token bucket", rate: 10, period: HOUR, capacity: 5 },
   "diaspora.sponsor.revoke": { kind: "token bucket", rate: 20, period: HOUR, capacity: 10 },
   "diaspora.attestation.request": { kind: "token bucket", rate: 3, period: DAY, capacity: 1 },
-  // Mise en relation DIASPORALE (services, demandes, rendez-vous, adhésions
-  // d'associations), demandée par la session DIASPORALE le 18/10/2026. Les
-  // quotas métier restent dans `@diasporale/domain`, en plus de ces seaux.
+  // Mise en relation DIASPORA.GA (services, demandes, rendez-vous, adhésions
+  // d'associations), demandée par la session DIASPORA.GA le 18/10/2026. Les
+  // quotas métier restent dans `@diaspora-ga/domain`, en plus de ces seaux.
   "diaspora.service.offer": { kind: "token bucket", rate: 30, period: HOUR, capacity: 10 },
   "diaspora.service.request": { kind: "token bucket", rate: 20, period: HOUR, capacity: 5 },
   "diaspora.service.request.reinforced": { kind: "token bucket", rate: 5, period: DAY, capacity: 2 },
@@ -220,8 +220,8 @@ const RATE_LIMITS = {
   "diaspora.service.review": { kind: "token bucket", rate: 10, period: DAY, capacity: 3 },
   "diaspora.association.membership": { kind: "token bucket", rate: 30, period: HOUR, capacity: 10 },
   "diaspora.association.manage": { kind: "token bucket", rate: 120, period: HOUR, capacity: 30 },
-  // Vague H DIASPORALE (entraide, kit d'arrivée, mentorat, talents et emploi,
-  // modération par pays), ajoutée par la session DIASPORALE sur délégation
+  // Vague H DIASPORA.GA (entraide, kit d'arrivée, mentorat, talents et emploi,
+  // modération par pays), ajoutée par la session DIASPORA.GA sur délégation
   // d'ANTSIA le 18/10/2026. Valeurs de départ, mesurées au pilote.
   "diaspora.aid.post": { kind: "token bucket", rate: 20, period: HOUR, capacity: 5 },
   "diaspora.aid.post.reinforced": { kind: "token bucket", rate: 5, period: DAY, capacity: 2 },

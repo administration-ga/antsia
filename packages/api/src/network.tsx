@@ -99,7 +99,7 @@ export interface EngineRoutes {
  *
  *  · `"volets"` (défaut) : la coque historique — barre « Menu » et volets du
  *    réseau au téléphone, rail des volets au bureau. Une application qui ne
- *    déclare rien (DIASPORALE) la garde, sans aucun changement de son côté.
+ *    déclare rien (DIASPORA.GA) la garde, sans aucun changement de son côté.
  *  · `"destinations"` : cinq destinations stables — Fil · Découvrir · Créer ·
  *    Messages · Profil — au téléphone comme au bureau. N'est retenue que si
  *    l'application sert AUSSI `routes.discover` et `routes.me` : une
@@ -141,7 +141,7 @@ export type EnginePostPresentation = "classic" | "media" | "charte"
  * social-commerce du 18/10/2026, `docs/etudes/2026-10-18-social-commerce/`).
  *
  *  · `"list"` (défaut) : le fil historique, en liste, partout. Une application
- *    qui ne déclare rien (DIASPORALE) le garde, sans aucun changement de son
+ *    qui ne déclare rien (DIASPORA.GA) le garde, sans aucun changement de son
  *    côté.
  *  · `"immersive"` : le fil propose AUSSI un lecteur immersif — une
  *    publication principale par hauteur disponible, défilement vertical natif
@@ -161,7 +161,7 @@ export type EngineFeedPresentation = "list" | "immersive"
  * que `postPresentation` et `feedPresentation`, jamais un droit :
  *
  *  · `"cards"` (défaut) : les cartes verticales où la vignette remplit le cadre
- *    (arbitrage du 20/08/2026). Une application qui ne déclare rien (DIASPORALE)
+ *    (arbitrage du 20/08/2026). Une application qui ne déclare rien (DIASPORA.GA)
  *    la garde, sans aucun changement.
  *  · `"rings"` : des médaillons ronds dans leur anneau, le prénom dessous, la
  *    création en tête (« Vous » et son « + ») — la maquette de la série 3

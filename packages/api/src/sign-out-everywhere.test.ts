@@ -130,26 +130,26 @@ describe("signOutEverywhere — révocation prouvée avant nettoyage", () => {
 
 describe("signOutEverywhere — état moteur et aucune purge étrangère", () => {
   it("conserve l'apparence non personnelle mais purge les brouillons et les clés voisines", async () => {
-    const store = storage({ "antsia:antsia:appearance": "dark", "antsia:diasporale:appearance": "light", "antsia:antsia:appearance:draft": "private", "antsia:antsia:post-drafts:v1:p1": "private" })
+    const store = storage({ "antsia:antsia:appearance": "dark", "antsia:diaspora-ga:appearance": "light", "antsia:antsia:appearance:draft": "private", "antsia:antsia:post-drafts:v1:p1": "private" })
     const { authClient } = client()
     const result = await signOutEverywhere(authClient, { storages: [store] })
-    expect([...store.map.keys()]).toEqual(["antsia:antsia:appearance", "antsia:diasporale:appearance"])
+    expect([...store.map.keys()]).toEqual(["antsia:antsia:appearance", "antsia:diaspora-ga:appearance"])
     expect(result.purged).toEqual(["antsia:antsia:appearance:draft", "antsia:antsia:post-drafts:v1:p1"])
   })
   it("conserve le thème de l'appareil, repli hors session, sans élargir la règle à ses voisines", async () => {
-    const store = storage({ "antsia:antsia:theme": "foret", "antsia:diasporale:theme": "lagon", "antsia:antsia:theme:draft": "private", "antsia:antsia:themes": "private", "antsia:antsia:sub:theme": "private" })
+    const store = storage({ "antsia:antsia:theme": "foret", "antsia:diaspora-ga:theme": "lagon", "antsia:antsia:theme:draft": "private", "antsia:antsia:themes": "private", "antsia:antsia:sub:theme": "private" })
     const { authClient } = client()
     const result = await signOutEverywhere(authClient, { storages: [store] })
-    expect([...store.map.keys()]).toEqual(["antsia:antsia:theme", "antsia:diasporale:theme"])
+    expect([...store.map.keys()]).toEqual(["antsia:antsia:theme", "antsia:diaspora-ga:theme"])
     expect(result.purged).toEqual(["antsia:antsia:theme:draft", "antsia:antsia:themes", "antsia:antsia:sub:theme"])
   })
   it("purge les deux noms du moteur et les deux clés auth dans les deux storages", async () => {
-    const local = storage({ "antsia:antsia:ringtone-muted": "1", "antia:antia:ringtone-muted": "1", "better-auth_cookie": "secret", theme: "dark", i18nextLng: "fr", "diasporale:demonstration:v1": "demo", "other-product:profile": "other" })
-    const session = storage({ "antsia:diasporale:messagerie-dock:v6": "private", "antia:diasporale:post-drafts:v1:p1": "private", "better-auth_session_data": "private", "better-auth_cookie_extra": "other", "citizen-reduce-motion": "1" })
+    const local = storage({ "antsia:antsia:ringtone-muted": "1", "antia:antia:ringtone-muted": "1", "better-auth_cookie": "secret", theme: "dark", i18nextLng: "fr", "diaspora-ga:demonstration:v1": "demo", "other-product:profile": "other" })
+    const session = storage({ "antsia:diaspora-ga:messagerie-dock:v6": "private", "antia:diaspora-ga:post-drafts:v1:p1": "private", "better-auth_session_data": "private", "better-auth_cookie_extra": "other", "citizen-reduce-motion": "1" })
     const { authClient } = client()
     const result = await signOutEverywhere(authClient, { storages: [local, session] })
     expect(result.purged).toHaveLength(6)
-    expect([...local.map.keys()]).toEqual(["theme", "i18nextLng", "diasporale:demonstration:v1", "other-product:profile"])
+    expect([...local.map.keys()]).toEqual(["theme", "i18nextLng", "diaspora-ga:demonstration:v1", "other-product:profile"])
     expect([...session.map.keys()]).toEqual(["better-auth_cookie_extra", "citizen-reduce-motion"])
   })
 

@@ -63,9 +63,9 @@ describe("genres commerce — liste fermée, publics et catégorie", () => {
     for (const value of ["", ":debut", "booking A", "texte libre é", "45 000 XAF", "x".repeat(161), "a\nb"]) expect(isCommerceNoticeTransition(value), value).toBe(false)
   })
 
-  it("les natures de destination et les publics DIASPORALE sont fermés", () => {
+  it("les natures de destination et les publics DIASPORA.GA sont fermés", () => {
     // CC-2b (ADR-0025) : la conversation contextuelle, sujet générique routé par l'application de la nature.
-    // 19/10/2026 : l'avis de la vie communautaire DIASPORALE (entraide, mentorat, emploi, kit d'arrivée).
+    // 19/10/2026 : l'avis de la vie communautaire DIASPORA.GA (entraide, mentorat, emploi, kit d'arrivée).
     // SU01d : « Mes signalements », destination de l'accusé de réception et de la décision au déclarant.
     expect(NOTIFICATION_OPEN_TARGET_KINDS).toEqual(["serviceRequest", "commercialThread", "jobApplication", "pageModerationDecisions", "personalDecisions", "personalReports", "diasporaServiceNotice", "diasporaCommunityNotice", "contextualThread", "page", "thematicGroup"]) // PG-01 : la page d'un avis de gouvernance ; NP-04 : la fiche du groupe d'une invitation.
     expect(DIASPORA_NOTICE_AUDIENCES).toEqual(["requester", "provider", "responsible", "member"])

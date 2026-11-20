@@ -1,7 +1,7 @@
 /**
  * CC-2a (contrat CONVERSATION-CONTEXTUELLE-V1 §10.3 accepté, ADR-0025) — le TYPE du
  * résolveur que fournit une tranche, par nature. AUCUNE fonction, AUCUNE valeur d'exécution :
- * ce fichier est le point d'import STABLE de la tranche DIASPORALE
+ * ce fichier est le point d'import STABLE de la tranche DIASPORA.GA
  * (`convex/modules/diaspora/conversationContexts.ts`), qui n'a ainsi besoin d'aucun interne du
  * moteur. Il ne dépend que des types générés et du domaine pur (cliquet `contextual-registry`).
  *
@@ -13,7 +13,7 @@
  *
  * Obligations du résolveur : lecture seule (aucune écriture, aucun planificateur, aucun avis) ;
  * lectures bornées par index, sans `.collect()` non bornée ; déterminisme (même instantané et
- * même instant, même résultat) ; aucune lecture hors du moteur ; `@diasporale/domain` importé
+ * même instant, même résultat) ; aucune lecture hors du moteur ; `@diaspora-ga/domain` importé
  * dans la tranche seulement ; tout refus prend la forme `null` (ou `false`), jamais une
  * exception porteuse de raison. Les résolveurs V1 ne lisent ni signataires, ni blocages, ni adhésions.
  * MP09 peut relire les prérequis de sa visibilité professionnelle en db-only ; ces refus propres
@@ -94,5 +94,5 @@ export type ContextualResolver<K extends ContextualKind> = {
 
 /** Ce que la tranche exporte (`DIASPORA_CONVERSATION_CONTEXTS`) : une entrée par nature V1. */
 export type ContextualResolvers<Kinds extends ContextualKind = ContextualLegacyV1Kind> = { readonly [K in Kinds]: ContextualResolver<K> }
-/** Ancien contrat exhaustif conservé sans édition de la tranche DIASPORALE. */
+/** Ancien contrat exhaustif conservé sans édition de la tranche DIASPORA.GA. */
 export type ContextualLegacyV1Resolvers = ContextualResolvers<ContextualLegacyV1Kind>

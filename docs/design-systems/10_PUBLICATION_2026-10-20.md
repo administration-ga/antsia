@@ -35,7 +35,7 @@ de tests candidatures du checkout courant ne sont pas nécessaires à cette base
 et ne sont pas publiées.
 
 Aucune fonction Convex de production, configuration d'environnement, application
-de démonstration, console ou application DIASPORALE n'a été déployée.
+de démonstration, console ou application DIASPORA.GA n'a été déployée.
 
 ## Vérification du paquet exact
 

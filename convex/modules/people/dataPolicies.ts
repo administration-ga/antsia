@@ -183,11 +183,11 @@ export const DATA_TABLE_POLICIES: Record<string, { shared?: boolean; owners?: re
   consularAttestations: {},
   communityImports: {shared: true},
   memberPrivacy: {},
-  // Admissions fondatrices de DIASPORALE (EA-01) : la ligne appartient à la personne admise ; l'opérateur n'y est qu'une référence.
+  // Admissions fondatrices de DIASPORA.GA (EA-01) : la ligne appartient à la personne admise ; l'opérateur n'y est qu'une référence.
   foundingAdmissions: {owners: ["personId"]},
-  // Catalogue des services DIASPORALE : contenu d'une PAGE, aucune référence personnelle stockée.
+  // Catalogue des services DIASPORA.GA : contenu d'une PAGE, aucune référence personnelle stockée.
   serviceOffers: {shared: true},
-  // Demandes DIASPORALE : au demandeur ; propositions et rendez-vous suivent leur demande
+  // Demandes DIASPORA.GA : au demandeur ; propositions et rendez-vous suivent leur demande
   // (le signataire auteur parle pour la page : référence anonymisée à son effacement).
   serviceRequests: {owners: ["requesterPersonId"]},
   serviceProposals: {owners: [], parents: ["requestId"]},
@@ -197,9 +197,9 @@ export const DATA_TABLE_POLICIES: Record<string, { shared?: boolean; owners?: re
   serviceReviews: {owners: ["authorPersonId"], parents: ["requestId"]},
   // Un tableau vide empêche le repli sur la référence personnelle du signataire.
   serviceReviewReplies: {owners: [], parents: ["reviewId"]},
-  // Adhésions d'associations DIASPORALE : une ligne par personne et par page, à la personne.
+  // Adhésions d'associations DIASPORA.GA : une ligne par personne et par page, à la personne.
   associationMemberships: {owners: ["personId"]},
-  // Vague H DIASPORALE (classement délégué par ANTSIA le 18/10/2026).
+  // Vague H DIASPORA.GA (classement délégué par ANTSIA le 18/10/2026).
   // Entraide : question et réponse à leur auteur (comme une publication et ses commentaires) ;
   // la mission est un contenu de PAGE ; l'inscription bénévole est à la personne et suit sa mission.
   aidQuestions: {owners: ["authorPersonId"]},
@@ -213,12 +213,12 @@ export const DATA_TABLE_POLICIES: Record<string, { shared?: boolean; owners?: re
   mentoringRequests: {owners: ["menteePersonId", "mentorPersonId"], parents: ["mentorProfileId"]},
   // Mesure du pilote : agrégats anonymes du réseau, comme `countryHubs` (recalculés, jamais par personne).
   pilotMetricsDaily: {shared: true},
-  // Talents et emploi DIASPORALE (DG-025) : l'offre est un contenu de PAGE ; la candidature et le
+  // Talents et emploi DIASPORA.GA (DG-025) : l'offre est un contenu de PAGE ; la candidature et le
   // profil de talent sont à la personne (le signataire qui décide reste une référence anonymisée).
   jobOffers: {shared: true},
   jobApplications: {owners: ["candidatePersonId"]},
   talentProfiles: {owners: ["personId"]},
-  // Kit d'arrivée DIASPORALE (DG-024 b) : une ressource PERSONNELLE est à son auteur (comme une
+  // Kit d'arrivée DIASPORA.GA (DG-024 b) : une ressource PERSONNELLE est à son auteur (comme une
   // publication) ; portée par une page, elle reste à la page et ses références d'auteur, de révision
   // et de relecture sont anonymisées. Les relectures suivent leur ressource (le relecteur est une
   // référence d'audit) ; un signalement « périmée » est à son auteur et suit sa ressource.

@@ -195,7 +195,7 @@
     "applications": "Other spaces",
     "handoffFailed": "The handoff did not complete. Try again.",
     "antsia_ga": "ANTSIA",
-    "diasporale_com": "DIASPORALE",
+    "diaspora_ga": "DIASPORA.GA",
     "admin_antsia_ga": "Console ANTSIA"
   },
   "personal": {
@@ -371,7 +371,7 @@
         },
         "sable": {
           "name": "Sand",
-          "description": "Gabon blue, teal and golden sand. DIASPORALE’s theme."
+          "description": "Gabon blue, teal and golden sand. DIASPORA.GA’s theme."
         }
       }
     },

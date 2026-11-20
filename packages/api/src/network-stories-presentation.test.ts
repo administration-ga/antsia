@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest"
 import { resolveEngineStoriesPresentation, resolveEngineWordmark, type EngineStoriesPresentation } from "./network"
 
 describe("resolveEngineStoriesPresentation — les médaillons sur déclaration seulement", () => {
-  it("garde les cartes sans déclaration ou avec une valeur inconnue (DIASPORALE inchangée)", () => {
+  it("garde les cartes sans déclaration ou avec une valeur inconnue (DIASPORA.GA inchangée)", () => {
     expect(resolveEngineStoriesPresentation(undefined)).toBe("cards")
     expect(resolveEngineStoriesPresentation("cards")).toBe("cards")
     expect(resolveEngineStoriesPresentation("bubbles" as unknown as EngineStoriesPresentation)).toBe("cards")

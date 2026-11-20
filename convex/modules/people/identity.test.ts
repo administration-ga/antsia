@@ -86,7 +86,7 @@ describe("preuve IDN et personne unique", () => {
     await t.mutation(internal.modules.people.identity.recordIdnProof, { subject: "idn-awa", loa: 2 })
     await first.as.mutation(api.modules.people.identity.linkIdn, {})
     const secondSession = await createTestSession(t, first.userId)
-    const second = t.withIdentity({ subject: first.userId, sessionId: secondSession, issuer: "fixture-engine", applicationOrigin: "diasporale" })
+    const second = t.withIdentity({ subject: first.userId, sessionId: secondSession, issuer: "fixture-engine", applicationOrigin: "diaspora-ga" })
     expect(await second.mutation(api.modules.people.persons.ensureMyPerson, {})).toBe(first.personId)
     expect(await first.as.mutation(api.modules.people.persons.ensureMyPerson, {})).toBe(first.personId)
     expect(await t.run(async (ctx) => await ctx.db.query("persons").take(5))).toHaveLength(1)

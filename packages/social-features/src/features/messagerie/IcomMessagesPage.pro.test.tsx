@@ -97,7 +97,7 @@ describe("ADR-0036 — iCom et iCom Pro dans la page de messagerie", () => {
     expect(screen.getByRole("link", { name: "messagerie:icomViews.calls" }).querySelector(".msg-badge")).toBeNull()
     expect(state.voicemailsEnabled.at(-1)).toBe(false)
   })
-  it("sans injection iCom Pro (DIASPORALE), la messagerie unique reste telle quelle", () => {
+  it("sans injection iCom Pro (DIASPORA.GA), la messagerie unique reste telle quelle", () => {
     state.search = "espace=pro&brique=iappel"
     render(<IcomMessagesPage isMobile={false} commercial={commercial} contextual={contextual} />)
     expect(screen.getByRole("heading", { level: 1 }).getAttribute("data-space")).toBeNull()

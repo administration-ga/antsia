@@ -4,7 +4,7 @@
  * useCoordinatedVideo — branche UNE vidéo de publication sur le coordinateur
  * de lecture de la session (lot P04).
  *
- * Sans coordinateur monté (`MediaPlaybackProvider` absent : DIASPORALE, carte
+ * Sans coordinateur monté (`MediaPlaybackProvider` absent : DIASPORA.GA, carte
  * publique), le hook rend `null` et ne fait rien : la vidéo garde son rendu et
  * son comportement P03 à l'identique (commandes natives, métadonnées).
  *

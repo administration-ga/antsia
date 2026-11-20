@@ -6,7 +6,7 @@
  * l'appui, et la décision entre au journal fermé du moteur (`membership.role_set`). Le retrait
  * vaut à l'acte suivant : les gardes relisent le rôle à chaque appel. Tout opérateur LIT la liste.
  *
- * Réseau gouverné par une tranche (`networks.managedBy`, ex. DIASPORALE) : ADMIS, contrairement à
+ * Réseau gouverné par une tranche (`networks.managedBy`, ex. DIASPORA.GA) : ADMIS, contrairement à
  * ce que prévoyait le plan 13 — décision du propriétaire rapportée par l'issue 98 (« lever le refus
  * plutôt que dupliquer le mécanisme dans la tranche ») : la console nomme le premier administrateur,
  * puis l'administration du réseau nomme ses responsables dans sa tranche, par la même aide du

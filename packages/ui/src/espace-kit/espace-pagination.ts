@@ -8,7 +8,7 @@
  * `EspacePagination.tsx` ne fait que rendre ce que ces fonctions calculent.
  *
  * ⚠️ Le paquet `@antsia/ui` n'a PAS d'i18n : il est monté par des applications
- * différentes (le réseau ANTSIA, DIASPORALE), chacune avec ses langues. Les
+ * différentes (le réseau ANTSIA, DIASPORA.GA), chacune avec ses langues. Les
  * PHRASES arrivent donc traduites de l'appelant (`EspacePaginationLabels`),
  * comme le `closeLabel` du tiroir et d'`Alert` ; ce module choisit laquelle
  * dire et la remplit — il n'en écrit aucune.

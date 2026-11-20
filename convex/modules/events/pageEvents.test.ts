@@ -31,7 +31,7 @@ async function member(t: T, networkId: Id<"networks">, handle: string, displayNa
   await as.mutation(api.modules.people.consents.recordConsent, { purpose: "social_profile", origin: "onboarding" })
   await as.mutation(api.modules.people.profile.publishMyProfile, { handle, displayName })
   await t.run((ctx) => ctx.db.insert("identityLinks", { personId, provider: "idn", subject: `page-event-idn-${personId}`, loa: 1, nationality: "GA", linkedAt: NOW }))
-  await as.mutation(api.modules.diaspora.membership.joinDiasporale, { networkId, facet: { countryOfResidence: "FR", city: "Lyon" } })
+  await as.mutation(api.modules.diaspora.membership.joinDiasporaGa, { networkId, facet: { countryOfResidence: "FR", city: "Lyon" } })
   return { as, personId }
 }
 
@@ -316,7 +316,7 @@ describe("événements collectifs d'association", () => {
     expect((await list(f, f.participant, { numItems: -1, cursor: null })).items).toHaveLength(1)
   })
 
-  it("exige une session admise et le réseau DIASPORALE, puis referme une adhésion racine suspendue", async () => {
+  it("exige une session admise et le réseau DIASPORA.GA, puis referme une adhésion racine suspendue", async () => {
     const f = await fixture()
     const { eventId } = await create(f, { audience: "network" })
     expect(await refusal(f.t.query(E.get, { networkId: f.networkId, eventId }))).toBe("unauthenticated")

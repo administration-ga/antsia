@@ -1,12 +1,12 @@
 // @vitest-environment edge-runtime
 /**
- * Adhésion aux associations DIASPORALE (DG-010) : gestes de la personne et des
+ * Adhésion aux associations DIASPORA.GA (DG-010) : gestes de la personne et des
  * responsables, gardes vivantes, refus indistincts — avec de vraies sessions.
  * Scénarios du plan global : R-G10 (aucun membre sans geste), R-G11 (rôle retiré,
  * accès coupé), R-G14 (aucune liste hors des responsables).
  */
 import { engineErrorAppRule, engineErrorCode } from "@antsia/social-contracts/errors"
-import { ASSOCIATION_REJECTION_COOLDOWN_MS } from "@diasporale/domain"
+import { ASSOCIATION_REJECTION_COOLDOWN_MS } from "@diaspora-ga/domain"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { api, internal } from "../../_generated/api"
@@ -31,7 +31,7 @@ afterEach(() => {
   vi.unstubAllEnvs()
 })
 
-/** Un membre déclaré de DIASPORALE (lien IDN de garantie 1), au profil publié. */
+/** Un membre déclaré de DIASPORA.GA (lien IDN de garantie 1), au profil publié. */
 async function member(t: T, networkId: Id<"networks">, handle: string) {
   const as = t.withIdentity({ subject: `auth-${handle}` })
   const personId = await as.mutation(api.modules.people.persons.ensureMyPerson, {})
@@ -40,7 +40,7 @@ async function member(t: T, networkId: Id<"networks">, handle: string) {
   await t.run(async (ctx) => {
     await ctx.db.insert("identityLinks", { personId, provider: "idn", subject: `idn-${personId}`, loa: 1, nationality: "GA", linkedAt: NOW })
   })
-  await as.mutation(api.modules.diaspora.membership.joinDiasporale, { networkId, facet: { countryOfResidence: "FR", city: "Lyon" } })
+  await as.mutation(api.modules.diaspora.membership.joinDiasporaGa, { networkId, facet: { countryOfResidence: "FR", city: "Lyon" } })
   return { as, personId, handle }
 }
 
@@ -309,7 +309,7 @@ describe("adhésion — gardes : responsables vivants, réseau, pages et statuts
     await grant(f.t, f.networkId, orphanId, f.other.personId, "signatory")
     expect((await mine(f, f.applicant, orphanId)).request.refusal).toBe("association_not_managed")
     // L'administrateur qui quitte le réseau laisse l'association sans équipe.
-    await f.admin.as.mutation(api.modules.diaspora.membership.leaveDiasporale, { networkId: f.networkId })
+    await f.admin.as.mutation(api.modules.diaspora.membership.leaveDiasporaGa, { networkId: f.networkId })
     expect((await mine(f, f.applicant)).request.refusal).toBe("association_not_managed")
   })
 
@@ -353,7 +353,7 @@ describe("adhésion — gardes : responsables vivants, réseau, pages et statuts
   it("une personne partie du réseau disparaît des listes et ne se décide plus", async () => {
     const f = await fixture()
     const { membershipId } = await f.applicant.as.mutation(A.requestAssociationMembership, { networkId: f.networkId, pageId: f.pageId })
-    await f.applicant.as.mutation(api.modules.diaspora.membership.leaveDiasporale, { networkId: f.networkId })
+    await f.applicant.as.mutation(api.modules.diaspora.membership.leaveDiasporaGa, { networkId: f.networkId })
     expect((await list(f, f.admin, "requested")).page).toEqual([])
     expect(await refusal(f.admin.as.mutation(A.decideAssociationMembership, { networkId: f.networkId, membershipId, decision: "accept", expectedVersion: 1 }))).toBe("notFound")
   })

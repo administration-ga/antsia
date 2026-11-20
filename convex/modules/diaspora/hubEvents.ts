@@ -19,7 +19,7 @@
  * Rien n'est compté à la lecture ; aucun inscrit, aucune capacité, aucun état du
  * lecteur ne sort d'ici : la fiche de l'évènement les dit, sous sa propre garde.
  */
-import { parseResidenceCountry } from "@diasporale/domain"
+import { parseResidenceCountry } from "@diaspora-ga/domain"
 import { type Infer, v } from "convex/values"
 
 import type { Doc } from "../../_generated/dataModel"

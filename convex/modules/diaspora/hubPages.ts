@@ -1,5 +1,5 @@
 /**
- * Les PAGES d'un hub pays, et ce que DIASPORALE ajoute à la fiche d'une page (DG-007).
+ * Les PAGES d'un hub pays, et ce que DIASPORA.GA ajoute à la fiche d'une page (DG-007).
  *
  * - `listCountryPages` : les pages ACTIVES et LISIBLES d'un pays du réseau, par
  *   nature (officielles, associations, entreprises). Une fenêtre BORNÉE de
@@ -9,14 +9,14 @@
  *   lecteur). Rien n'y est compté : les compteurs du hub sont MATÉRIALISÉS par le
  *   passage nocturne (`hubs.ts`).
  * - `pageStanding` : la revendicabilité d'une page pour CE lecteur, jugée par la
- *   règle du moteur (`assertPageClaimable`) et par celle de DIASPORALE (une
+ *   règle du moteur (`assertPageClaimable`) et par celle de DIASPORA.GA (une
  *   institution ne se revendique jamais) ; et (AS-11a) si la page est SANS
  *   RESPONSABLE (`orphan`), pour le bandeau de la fiche.
  *
  * Les gardes sont IMPORTÉES du module des pages, jamais réécrites : une seule
  * définition de « cette page se lit d'ici » et de « cette personne parle en son nom ».
  */
-import { parseResidenceCountry } from "@diasporale/domain"
+import { parseResidenceCountry } from "@diaspora-ga/domain"
 import { type Infer, v } from "convex/values"
 
 import type { Doc, Id } from "../../_generated/dataModel"
@@ -55,7 +55,7 @@ function hubKindOf(page: Doc<"pages">): HubKind | null {
  * native (un reflet reste sous l'autorité de sa source), et soit aucun
  * administrateur vivant, soit le lecteur est cet administrateur (sa demande est
  * alors une demande de vérification). Une institution ne se revendique jamais
- * dans DIASPORALE (cahier §12.3).
+ * dans DIASPORA.GA (cahier §12.3).
  */
 export async function isPageClaimableBy(ctx: Pick<QueryCtx, "db">, page: Doc<"pages">, readerPersonId: Id<"persons">): Promise<boolean> {
   if (page.status !== "active" || page.trust !== "community" || page.ownerKind === "institution") return false
@@ -127,7 +127,7 @@ export const listCountryPages = networkQuery({
 })
 
 /**
- * Ce que DIASPORALE ajoute à la fiche d'une page lisible d'ici ; inconnue, retirée, en sommeil ou
+ * Ce que DIASPORA.GA ajoute à la fiche d'une page lisible d'ici ; inconnue, retirée, en sommeil ou
  * d'ailleurs : le même `null`. `orphan` (AS-11a) se montre à tout lecteur.
  */
 export const pageStanding = networkQuery({

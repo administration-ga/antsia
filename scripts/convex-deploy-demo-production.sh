@@ -44,7 +44,7 @@ case "$mode" in verifier|demo|graines|production|tout) ;; *) echo "Mode inconnu 
 
 ANTSIA_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ECOSYSTEMS="$(cd "$ANTSIA_DIR/.." && pwd)"
-DIASPORALE_DIR="$ECOSYSTEMS/DIASPORALE"
+DIASPORA_GA_DIR="$ECOSYSTEMS/DIASPORA_GA"
 
 fail() { echo "ARRÊT : $*" >&2; exit 1; }
 step() { echo; echo "── $*"; }
@@ -69,12 +69,12 @@ if [ "$mode" != "production" ]; then check_key "démonstration" ANTSIA_CONVEX_DE
 if [ "$mode" != "demo" ] && [ "$mode" != "graines" ]; then check_key "production" ANTSIA_CONVEX_PROD_DEPLOY_KEY "$PROD_DEPLOYMENT"; fi
 
 git -C "$ANTSIA_DIR" fetch --quiet origin main
-git -C "$DIASPORALE_DIR" fetch --quiet origin main
+git -C "$DIASPORA_GA_DIR" fetch --quiet origin main
 ANTSIA_REV="$(git -C "$ANTSIA_DIR" rev-parse origin/main)"
-DIASPORALE_REV="$(git -C "$DIASPORALE_DIR" rev-parse origin/main)"
+DIASPORA_GA_REV="$(git -C "$DIASPORA_GA_DIR" rev-parse origin/main)"
 git -C "$ANTSIA_DIR" cat-file -e "origin/main:$MARKETPLACE_MARKER" 2>/dev/null \
   || fail "origin/main ($ANTSIA_REV) ne contient pas la marketplace : fusionner la PR 36 d'abord."
-echo "Source : ANTSIA origin/main $ANTSIA_REV, DIASPORALE origin/main $DIASPORALE_REV."
+echo "Source : ANTSIA origin/main $ANTSIA_REV, DIASPORA_GA origin/main $DIASPORA_GA_REV."
 
 free_mib="$(df -m "${TMPDIR:-/tmp}" | awk 'NR==2 {print $4}')"
 [ "$free_mib" -ge "$MIN_FREE_MIB" ] || fail "seulement $free_mib Mio libres (il en faut $MIN_FREE_MIB pour l'installation)."
@@ -86,9 +86,9 @@ step "Export propre et installation"
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/antsia-convex-deploy.XXXXXX")"
 cleanup() { rm -rf -- "${WORK:?}"; }
 trap cleanup EXIT
-mkdir -p "$WORK/ANTSIA" "$WORK/DIASPORALE"
+mkdir -p "$WORK/ANTSIA" "$WORK/DIASPORA_GA"
 git -C "$ANTSIA_DIR" archive "$ANTSIA_REV" | tar -x -C "$WORK/ANTSIA"
-git -C "$DIASPORALE_DIR" archive "$DIASPORALE_REV" | tar -x -C "$WORK/DIASPORALE"
+git -C "$DIASPORA_GA_DIR" archive "$DIASPORA_GA_REV" | tar -x -C "$WORK/DIASPORA_GA"
 (cd "$WORK/ANTSIA" && bun install --frozen-lockfile)
 
 deploy() {

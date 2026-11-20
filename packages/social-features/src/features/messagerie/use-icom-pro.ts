@@ -6,7 +6,7 @@
  * Oui dès qu'une activité professionnelle existe : une boutique tenue ou mandatée, un profil
  * professionnel, une conversation de boutique (côté client compris) ou une mise en relation.
  * Chaque source est une lecture serveur existante, bornée à une ligne ; aucune n'est lue sans la
- * capacité `icomPro` déclarée par l'application (DIASPORALE n'en lit aucune).
+ * capacité `icomPro` déclarée par l'application (DIASPORA.GA n'en lit aucune).
  *
  * `null` : la réponse n'est pas encore connue — la bascule ne s'affiche qu'une fois tranché, pour
  * ne pas apparaître puis disparaître.

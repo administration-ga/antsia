@@ -1,7 +1,7 @@
 /**
- * DIASPORALE — avis NEUTRES de la vie communautaire (vague H du plan global : entraide,
+ * DIASPORA.GA — avis NEUTRES de la vie communautaire (vague H du plan global : entraide,
  * mentorat, emploi, kit d'arrivée), sur le modèle des avis de mise en relation
- * (`serviceNotifications.ts`). PROPRIÉTAIRE : session DIASPORALE.
+ * (`serviceNotifications.ts`). PROPRIÉTAIRE : session DIASPORA.GA.
  *
  * Ce que l'avis apprend, et à qui :
  *   · entraide : à l'auteur d'une question, qu'une réponse y est publiée ; à l'auteur d'une
@@ -292,7 +292,7 @@ async function resourceTarget(ctx: ReadCtx, network: Doc<"networks">, recipientP
 }
 
 /**
- * Ce qu'un avis communautaire désigne pour son destinataire, ou `null` : réseau DIASPORALE
+ * Ce qu'un avis communautaire désigne pour son destinataire, ou `null` : réseau DIASPORA.GA
  * actif, personne présente (ni effacée ni en effacement), membre active du réseau, puis les
  * droits propres au sujet.
  */

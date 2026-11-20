@@ -556,7 +556,7 @@
   /* ── Couche de base et ombres, portées au contrat des thèmes (lot P01b,
      18/10/2026) ──
      Valeurs par défaut identiques au rendu antérieur de chaque consommateur
-     (console, DIASPORALE) : un thème peut désormais les redéclarer. Déclarées
+     (console, DIASPORA.GA) : un thème peut désormais les redéclarer. Déclarées
      dans ce seul bloc clair, sans entrée dans le bloc sombre : `var(--ring)`
      se résout en sombre sur l'anneau sombre du thème courant. */
   /* Couleur d'outline de tout élément (`theme.css`, règle universelle de la
@@ -582,7 +582,7 @@
   /* ── Surfaces et liens des publications, portés au contrat des thèmes (lot
      P03, 18/10/2026) ──
      Défauts IDENTIQUES au rendu antérieur de chaque consommateur (console,
-     DIASPORALE) : seul un thème qui les redéclare change d'aspect. Déclarés
+     DIASPORA.GA) : seul un thème qui les redéclare change d'aspect. Déclarés
      dans ce seul bloc clair, sans entrée dans le bloc sombre. */
   /* Rayon des surfaces de premier niveau du réseau (cartes du fil, mini-cartes,
      panneaux de la page réseau) : MÊME valeur que la couche de communication,
@@ -616,7 +616,7 @@
      Tous à `initial` : chaque site retombe sur SA valeur historique, écrite en
      repli là où il les lit (`var(--role-react-fill, var(--primary-fill))`,
      `var(--ui2-button-radius, 6px)`…). Seuls les thèmes qui les redéclarent
-     (antsia-*.css) changent d'aspect ; DIASPORALE et la console ne bougent pas. */
+     (antsia-*.css) changent d'aspect ; DIASPORA.GA et la console ne bougent pas. */
   /* Texte posé sur l'aplat d'identité (`--primary-fill`). Une identité claire
      (turquoise, mandarine) y porte un texte foncé. Repli : `--on-fill`. */
   --primary-fill-on: initial;

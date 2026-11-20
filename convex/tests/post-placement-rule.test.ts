@@ -1,7 +1,7 @@
 // @vitest-environment edge-runtime
 /**
  * Règle de PLACEMENT d'une publication fournie par la tranche qui gouverne le réseau (HB-03, issue
- * antsia#96, demande de la session DIASPORALE) : `posts.publish`, `pages.publishAsPage` et
+ * antsia#96, demande de la session DIASPORA.GA) : `posts.publish`, `pages.publishAsPage` et
  * `events.announce` appellent, AVANT d'écrire, la règle inscrite au registre
  * (`modules/networks/postPlacementRegistry`).
  *

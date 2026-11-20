@@ -20,17 +20,17 @@ const KEY_PREFIX = "antsia:pa8-public-recette:"
 const SPECS = [
   { key: "native-network", body: "PA8 recette fictive — publication native réservée aux membres", source: "root", visibility: "network" },
   { key: "native-root", body: "PA8 recette fictive — publication native choisie sans compte #recettepa8", source: "root", visibility: "root" },
-  { key: "child-network", body: "PA8 recette fictive — contexte DIASPORALE réservé à son réseau", source: "child", visibility: "network" },
-  { key: "child-root", body: "PA8 recette fictive — contribution DIASPORALE choisie pour ANTSIA #recettepa8", source: "child", visibility: "root" },
+  { key: "child-network", body: "PA8 recette fictive — contexte DIASPORA.GA réservé à son réseau", source: "child", visibility: "network" },
+  { key: "child-root", body: "PA8 recette fictive — contribution DIASPORA.GA choisie pour ANTSIA #recettepa8", source: "child", visibility: "root" },
 ] as const
 
 async function target(ctx: MutationCtx, confirmation: string): Promise<{ root: Doc<"networks">; child: Doc<"networks">; person: Doc<"persons"> }> {
   assertSeedsAllowed(confirmation)
   if (!isLocalDeployment()) throw new Error("Recette refusée : backend local obligatoire")
   const root = await getRootNetwork(ctx)
-  const child = await ctx.db.query("networks").withIndex("by_slug", (q) => q.eq("slug", "diasporale")).unique()
+  const child = await ctx.db.query("networks").withIndex("by_slug", (q) => q.eq("slug", "diaspora-ga")).unique()
   const person = await ctx.db.query("persons").withIndex("by_handle", (q) => q.eq("handle", RECETTE_HANDLE)).unique()
-  if (!root || !child || child.kind !== "closed" || child.status !== "active" || child.parentId !== root._id || child.managedBy !== "diaspora") throw new Error("Recette refusée : racine et DIASPORALE préexistants requis")
+  if (!root || !child || child.kind !== "closed" || child.status !== "active" || child.parentId !== root._id || child.managedBy !== "diaspora") throw new Error("Recette refusée : racine et DIASPORA.GA préexistants requis")
   if (!person || !isDiscoverablePerson(person) || !await memberHasStatus(ctx, root._id, person._id, "declaree") || !await memberHasStatus(ctx, child._id, person._id, "declaree")) throw new Error("Recette refusée : profil fictif et adhésions autorisées préexistants requis")
   const digest = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(RECETTE_EMAIL)))).map((byte) => byte.toString(16).padStart(2, "0")).join("")
   if (await verifiedEmailHashOf(ctx, person._id) !== digest) throw new Error("Recette refusée : adresse fictive vérifiée requise")

@@ -1,8 +1,8 @@
 /**
  * Règles pures des événements d'association (DG-010, DG-023), lues par le module `events/`
- * du moteur. Le moteur n'importe le domaine de DIASPORALE que dans sa tranche : les
+ * du moteur. Le moteur n'importe le domaine de DIASPORA.GA que dans sa tranche : les
  * `events/pageEvent*.ts` passent par ce module, sans changer leurs chemins d'API.
- * PROPRIÉTAIRE : DIASPORALE.
+ * PROPRIÉTAIRE : DIASPORA.GA.
  */
 export {
   ASSOCIATION_EVENT_ATTENDANCE_TICKET_TTL_MS,
@@ -18,4 +18,4 @@ export {
   parseAssociationEventCapacity,
   parseAssociationEventDeadline,
   type AssociationEventReminderState,
-} from "@diasporale/domain"
+} from "@diaspora-ga/domain"

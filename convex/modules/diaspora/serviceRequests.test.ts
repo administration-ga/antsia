@@ -1,5 +1,5 @@
 // @vitest-environment edge-runtime
-/** Demandes de service DIASPORALE (DG-014/015) : vraies sessions, gardes, versions, créneaux, échéances. */
+/** Demandes de service DIASPORA.GA (DG-014/015) : vraies sessions, gardes, versions, créneaux, échéances. */
 import { engineErrorAppRule, engineErrorCode } from "@antsia/social-contracts/errors"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
@@ -44,7 +44,7 @@ async function member(t: T, networkId: Id<"networks">, handle: string, displayNa
   await t.run(async (ctx) => {
     await ctx.db.insert("identityLinks", { personId, provider: "idn", subject: `idn-${personId}`, loa: 2, nationality: "GA", linkedAt: NOW })
   })
-  await as.mutation(api.modules.diaspora.membership.joinDiasporale, { networkId, facet: { countryOfResidence: "FR", city: "Paris" } })
+  await as.mutation(api.modules.diaspora.membership.joinDiasporaGa, { networkId, facet: { countryOfResidence: "FR", city: "Paris" } })
   return { as, personId }
 }
 
@@ -135,7 +135,7 @@ async function setMembership(t: T, networkId: Id<"networks">, personId: Id<"pers
   })
 }
 
-describe("demandes de service DIASPORALE", () => {
+describe("demandes de service DIASPORA.GA", () => {
   it("parcours complet : envoi, proposition, accord, réalisation constatée après le début, sans avis ni relation créés", async () => {
     const f = await fixture()
     const before = await socialTrace(f.t)

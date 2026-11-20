@@ -1,6 +1,6 @@
 // @vitest-environment edge-runtime
 /**
- * Pages d'un hub pays et compteurs matérialisés des pages (DIASPORALE DG-007) :
+ * Pages d'un hub pays et compteurs matérialisés des pages (DIASPORA.GA DG-007) :
  * listes bornées par nature, garde de lecture des pages, revendicabilité pour le
  * lecteur, refus indistinct hors du réseau gouverné, et comptage nocturne des
  * associations et des entreprises — jamais à la lecture.
@@ -39,7 +39,7 @@ async function fixture() {
   return { t, root, network, reader }
 }
 
-/** Un membre DÉCLARÉ de DIASPORALE (IDN de garantie 1, nationalité gabonaise). */
+/** Un membre DÉCLARÉ de DIASPORA.GA (IDN de garantie 1, nationalité gabonaise). */
 async function member(t: T, networkId: Id<"networks">, handle: string) {
   const as = t.withIdentity({ subject: `auth-${handle}` })
   const personId = await as.mutation(api.modules.people.persons.ensureMyPerson, {})
@@ -48,7 +48,7 @@ async function member(t: T, networkId: Id<"networks">, handle: string) {
   await t.run(async (ctx) => {
     await ctx.db.insert("identityLinks", { personId, provider: "idn", subject: `idn-${personId}`, loa: 1, nationality: "GA", linkedAt: NOW })
   })
-  await as.mutation(api.modules.diaspora.membership.joinDiasporale, { networkId, facet: { countryOfResidence: "FR" } })
+  await as.mutation(api.modules.diaspora.membership.joinDiasporaGa, { networkId, facet: { countryOfResidence: "FR" } })
   return { as, personId }
 }
 
@@ -184,7 +184,7 @@ describe("listCountryPages — les pages publiées et lisibles d'un pays", () =>
 })
 
 describe("pageStanding — la revendicabilité, pour CE lecteur", () => {
-  it("suit la règle du moteur et celle de DIASPORALE", async () => {
+  it("suit la règle du moteur et celle de DIASPORA.GA", async () => {
     const { t, network, reader } = await fixture()
     const owner = await member(t, network, "responsable")
     const held = await page(t, network, { ownerKind: "association", handle: "association-tenue" })

@@ -21,7 +21,7 @@ describe("catalogue réel du moteur", () => {
     const plan = buildPlan(readCatalog(), "antsia_ga", { NEXT_PUBLIC_CONVEX_URL: "u" })
     const substitutions = plan.build[plan.build.indexOf("--substitutions") + 1]
     expect(substitutions).toContain("_NEXT_PUBLIC_CONVEX_URL=u")
-    expect(substitutions).toContain("_NEXT_PUBLIC_DIASPORALE_DATA_SOURCE=,")
+    expect(substitutions).toContain("_NEXT_PUBLIC_DIASPORA_GA_DATA_SOURCE=,")
     expect(substitutions.split(",").filter((entry) => entry.startsWith("_NEXT_PUBLIC_")).length).toBe(11)
   })
 
@@ -71,14 +71,14 @@ describe("catalogue réel du moteur", () => {
     expect(checkCatalog(catalog)).toContain(`antsia_ga : variable facultative non admise ${name}`)
   })
 
-  test("une application externe (DIASPORALE) a son plan, avec ses propres variables", () => {
-    const plan = buildPlan(readCatalog(), "diasporale_com", {})
-    expect(plan.dockerLocal).toContain("DIASPORALE/apps/diasporale_com/Dockerfile")
+  test("une application externe (DIASPORA_GA) a son plan, avec ses propres variables", () => {
+    const plan = buildPlan(readCatalog(), "diaspora_ga", {})
+    expect(plan.dockerLocal).toContain("DIASPORA_GA/apps/diaspora_ga/Dockerfile")
     expect(plan.build.join(" ")).toContain("_NEXT_PUBLIC_CONSULATE_URL=<NEXT_PUBLIC_CONSULATE_URL>")
   })
 
   test("les espaces de travail externes dont dépend la racine sont connus", () => {
-    expect(externalRootWorkspaces()).toEqual(["DIASPORALE/packages/diasporale-domain"])
+    expect(externalRootWorkspaces()).toEqual(["DIASPORA_GA/packages/diaspora-ga-domain"])
   })
 
   test("refuse une application inconnue", () => {

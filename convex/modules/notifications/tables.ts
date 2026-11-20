@@ -15,7 +15,7 @@ import { literals } from "../../lib/validators"
 
 /**
  * Genres de la tranche `diaspora` — mise en relation (DG-010, DG-015, DG-016 ; plan
- * global DIASPORALE §7.4). HORS du domaine commun (`NOTIFICATION_KINDS`) : une cloche
+ * global DIASPORA.GA §7.4). HORS du domaine commun (`NOTIFICATION_KINDS`) : une cloche
  * qui ne les connaît pas les dit « nouvelle activité ». Émis par
  * `convex/modules/diaspora/serviceNotifications.ts` via `notifyPerson`, toujours SANS
  * acteur (avis du système), sans besoin, montant, créneau ni nom ; relus avec leur
@@ -68,12 +68,12 @@ export function isDiasporaServiceNotificationKind(kind: string): kind is Diaspor
 }
 
 /**
- * Genres de la tranche `diaspora` — vie communautaire (vague H du plan global DIASPORALE :
+ * Genres de la tranche `diaspora` — vie communautaire (vague H du plan global DIASPORA.GA :
  * entraide, mentorat, emploi, kit d'arrivée), sur le modèle de la mise en relation. HORS du
  * domaine commun. Émis par `convex/modules/diaspora/communityNotifications.ts` via
  * `notifyPerson`, toujours SANS acteur (avis du système), sans contenu, motif ni nom ; relus
  * avec leur garde à l'écriture, à la lecture de la cloche et avant tout transport.
- * Ajout du 19/10/2026, délégué par ANTSIA (DIASPORALE docs/32 §8).
+ * Ajout du 19/10/2026, délégué par ANTSIA (DIASPORA.GA docs/32 §8).
  */
 export const DIASPORA_COMMUNITY_NOTIFICATION_KINDS = [
   /** Auteur d'une question d'entraide : une réponse y est publiée. */
