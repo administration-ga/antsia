@@ -139,8 +139,12 @@ describe("habiliter un signataire", () => {
     const bob = await joinTeam(t, root, alice, pageId, "bob", "signatory")
     const carol = await enter(t, root, "carol")
     await alice.as.mutation(SIG.grantPageRole, { networkId: root, pageId, handle: "carol", role: "moderator" })
-    // Décliner une invitation jamais acceptée n'est pas un départ.
+    // Décliner une invitation jamais acceptée n'est pas un départ : AUCUNE ligne, de quelque action
+    // et sur quelque sujet que ce soit (le journal entier est compté avant et après le refus).
+    const wholeJournal = async () => await t.run(async (ctx) => (await ctx.db.query("engineAudit").take(200)).length)
+    const beforeRefusal = await wholeJournal()
     expect(await carol.as.mutation(SIG.respondToPageInvitation, { networkId: root, pageId, accept: false })).toEqual({ role: null })
+    expect(await wholeJournal()).toBe(beforeRefusal)
     const before = (await journal(t, "pages", pageId)).length
     expect(await bob.as.mutation(SIG.revokePageRole, { networkId: root, pageId, personId: bob.personId })).toEqual({ revoked: true })
     const leaves = (await journal(t, "pages", pageId)).filter((row) => row.action === "page.signatory_leave")

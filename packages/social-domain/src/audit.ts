@@ -78,8 +78,9 @@ export const AUDIT_ACTIONS = [
    * Recette du 20/11 : le responsable (administrateur de la page) ou un modérateur VIVANT du groupe
    * d'une association retire la publication d'autrui. Sujet : la publication (`posts`). Qualité :
    * `page_admin` pour le responsable, `member` pour un modérateur (convention de
-   * `page.comment_remove`). Détail : `pageId` et `groupId`. Une publication déjà retirée, ou retirée
-   * par son auteur, n'écrit rien ; un groupe ordinaire, sans page, non plus.
+   * `page.comment_remove`). Détail : `pageId`, `groupId` et `role` (le rôle VIVANT dans le groupe au
+   * moment du geste : `owner` ou `moderator`). Une publication déjà retirée, ou retirée par son
+   * auteur, n'écrit rien ; un groupe ordinaire, sans page, non plus.
    */
   "page.group_post_remove",
   /**

@@ -777,8 +777,9 @@ describe("recette du 20/11 — le journal du groupe d'une association", () => {
     expect(await remove(bob, byModerator)).toEqual({ removed: true })
     const first = await journalOf(t, "posts", byModerator)
     expect(first).toHaveLength(1)
-    expect(first[0]).toMatchObject({ action: "page.group_post_remove", capacity: "member", actorPersonId: bob.personId, networkId, subjectTable: "posts", subjectId: byModerator, details: { pageId, groupId } })
-    expect(Object.keys(first[0]?.details ?? {}).sort()).toEqual(["groupId", "pageId"])
+    expect(first[0]).toMatchObject({ action: "page.group_post_remove", capacity: "member", actorPersonId: bob.personId, networkId, subjectTable: "posts", subjectId: byModerator, details: { pageId, groupId, role: "moderator" } })
+    // Le détail dit le rôle VIVANT au geste, qui distingue un modérateur du responsable — rien d'autre.
+    expect(Object.keys(first[0]?.details ?? {}).sort()).toEqual(["groupId", "pageId", "role"])
     // Déjà retirée : la responsable rejoue le geste, rien de plus n'est écrit.
     expect(await remove(alice, byModerator)).toEqual({ removed: true })
     expect(await journalOf(t, "posts", byModerator)).toHaveLength(1)
@@ -786,7 +787,7 @@ describe("recette du 20/11 — le journal du groupe d'une association", () => {
     // La responsable (administratrice de la page) retire une autre publication d'autrui.
     const byOwner = await publish(carla, "Seconde publication de l'adhérente.", "journal-2")
     await remove(alice, byOwner)
-    expect(await journalOf(t, "posts", byOwner)).toMatchObject([{ action: "page.group_post_remove", capacity: "page_admin", actorPersonId: alice.personId, details: { pageId, groupId } }])
+    expect(await journalOf(t, "posts", byOwner)).toMatchObject([{ action: "page.group_post_remove", capacity: "page_admin", actorPersonId: alice.personId, details: { pageId, groupId, role: "owner" } }])
 
     // Retirer SA propre publication n'est pas une décision : rien n'est écrit.
     const own = await publish(bob, "Publication du modérateur lui-même.", "journal-3")

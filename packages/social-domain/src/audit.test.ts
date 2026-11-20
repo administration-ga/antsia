@@ -51,10 +51,10 @@ describe("journal des décisions — détail et motif", () => {
   it("recette du 20/11 : le départ volontaire de l'équipe, la fermeture du groupe d'une association et le retrait d'une publication de ce groupe sont des actions du journal, au détail plat", () => {
     expect(AUDIT_ACTIONS).toEqual(expect.arrayContaining(["page.signatory_leave", "page.group_close", "page.group_post_remove"]))
     expect(AUDIT_SUBJECT_TABLES).toEqual(expect.arrayContaining(["pages", "posts"]))
-    // Les détails que le moteur écrit : le rôle quitté ; le groupe fermé ; la page et le groupe de la publication retirée.
+    // Les détails que le moteur écrit : le rôle quitté ; le groupe fermé ; la page, le groupe et le rôle vivant de qui retire la publication.
     expect(auditDetailsProblems({ role: "moderator" })).toEqual([])
     expect(auditDetailsProblems({ groupId: "thematicGroups_1" })).toEqual([])
-    expect(auditDetailsProblems({ pageId: "pages_1", groupId: "thematicGroups_1" })).toEqual([])
+    expect(auditDetailsProblems({ pageId: "pages_1", groupId: "thematicGroups_1", role: "owner" })).toEqual([])
   })
 
   it("seul le système agit sans acteur", () => {

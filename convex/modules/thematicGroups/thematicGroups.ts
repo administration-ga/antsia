@@ -1158,7 +1158,8 @@ export const unpinGroupPost = networkMutation({
  * d'AUTRUI est une décision de l'équipe de la page — une ligne au journal
  * (`page.group_post_remove`, sujet la publication), à la qualité de `page.comment_remove`
  * (`page_admin` pour le responsable, administrateur de la page ; `member` pour un
- * modérateur). Une publication déjà retirée, ou retirée par son auteur, n'écrit rien.
+ * modérateur) ; le détail porte le rôle VIVANT au geste (`owner`, `moderator`), comme
+ * `page.comment_remove`. Une publication déjà retirée, ou retirée par son auteur, n'écrit rien.
  */
 export const removeGroupPost = networkMutation({
   minStatus: "declaree",
@@ -1181,7 +1182,7 @@ export const removeGroupPost = networkMutation({
         actorPersonId: ctx.person._id,
         networkId: group.networkId,
         subject: { table: "posts", id: post._id },
-        details: { pageId: group.associationPageId, groupId: group._id },
+        details: { pageId: group.associationPageId, groupId: group._id, role: membership.role },
         at: now,
       })
     }
