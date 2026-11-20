@@ -54,11 +54,35 @@ export const AUDIT_ACTIONS = [
   "page.handle_set",
   "page.signatory_grant",
   "page.signatory_revoke",
+  /**
+   * Recette du 20/11 : un membre ACCEPTÉ de l'équipe de la page (administrateur qui n'est pas le
+   * dernier, signataire ou modérateur) la quitte de lui-même. Sujet : la page (`pages`). Qualité :
+   * `member`. Détail : `role`, le rôle quitté. Le retrait par un administrateur reste
+   * `page.signatory_revoke` ; décliner une invitation jamais acceptée n'est pas un départ : rien
+   * n'est journalisé.
+   */
+  "page.signatory_leave",
   "page.claim_decide",
   "page.post_edit",
   "page.post_pin",
+  /**
+   * Recette du 20/11 (antsia#182) : l'administrateur vivant de la page ferme le groupe de
+   * l'association — le pendant de `page.group_reopen`. Sujet : la page (`pages`). Qualité :
+   * `page_admin`. Détail : `groupId`. Un groupe déjà fermé n'écrit rien ; la fermeture d'un groupe
+   * ordinaire, sans page, n'est pas journalisée.
+   */
+  "page.group_close",
   /** AS-03 (DIASPORALE) : l'administrateur de la page rouvre le groupe de l'association, qu'il avait fermé. */
   "page.group_reopen",
+  /**
+   * Recette du 20/11 : le responsable (administrateur de la page) ou un modérateur VIVANT du groupe
+   * d'une association retire la publication d'autrui. Sujet : la publication (`posts`). Qualité :
+   * `page_admin` pour le responsable, `member` pour un modérateur (convention de
+   * `page.comment_remove`). Détail : `pageId`, `groupId` et `role` (le rôle VIVANT dans le groupe au
+   * moment du geste : `owner` ou `moderator`). Une publication déjà retirée, ou retirée par son
+   * auteur, n'écrit rien ; un groupe ordinaire, sans page, non plus.
+   */
+  "page.group_post_remove",
   /**
    * AS-10 / PG-08 : un membre VIVANT de l'équipe de la page (administrateur, signataire ou
    * modérateur) retire le commentaire d'autrui laissé sous une publication de la page. Sujet : la

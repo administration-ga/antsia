@@ -51,6 +51,7 @@ import { notifyPerson, resolveNotifications } from "../notifications/notify"
 import { findPublishedPersonByHandle, miniProfileCache, type PersonMiniProfile } from "../people/miniProfile"
 import { pageCardOf } from "../pages/access"
 import { type PageCard, pageCardValidator } from "../pages/validators"
+import { appendAudit } from "../platform/audit"
 import { canSeePostDoc, type ReaderContext } from "../posts/access"
 import { markPostRemoved } from "../posts/contentRemoval"
 import { hasNativePostAuthor } from "../posts/nativeAuthor"
@@ -265,7 +266,13 @@ async function requireOwner(ctx: ReadCtx, networkId: Id<"networks">, groupId: Id
   return group
 }
 
-/** Fermer gèle le groupe sans effacer son historique ; monotone et idempotent. */
+/**
+ * Fermer gèle le groupe sans effacer son historique ; monotone et idempotent.
+ * Recette du 20/11 (antsia#182) : le groupe d'une PAGE d'association appartient à la page —
+ * sa fermeture par l'administrateur de la page s'inscrit au journal (`page.group_close`, sujet
+ * la page), le pendant de `page.group_reopen`. Un appel sur un groupe déjà fermé n'écrit rien ;
+ * un groupe ordinaire n'a pas d'action au journal.
+ */
 export const closeGroup = networkMutation({
   minStatus: "declaree",
   args: { groupId: v.id("thematicGroups") },
@@ -276,6 +283,18 @@ export const closeGroup = networkMutation({
     if (group.closedAt === undefined) {
       const now = Date.now()
       await ctx.db.patch(group._id, { closedAt: now, updatedAt: now })
+      if (group.associationPageId !== undefined) {
+        // `requireOwner` a relu l'autorité : seul un administrateur vivant de la page ferme son groupe.
+        await appendAudit(ctx, {
+          action: "page.group_close",
+          capacity: "page_admin",
+          actorPersonId: ctx.person._id,
+          networkId: group.networkId,
+          subject: { table: "pages", id: group.associationPageId },
+          details: { groupId: group._id },
+          at: now,
+        })
+      }
     }
     return { closed: true as const }
   },
@@ -1134,6 +1153,13 @@ export const unpinGroupPost = networkMutation({
  * file du réseau sans s'y substituer. Retirée, pas supprimée : son auteur la
  * voit encore. Une publication hors groupe n'a pas de modérateur de groupe
  * (refus indistinct). Idempotent.
+ *
+ * Recette du 20/11 : dans le groupe d'une PAGE d'association, retirer la publication
+ * d'AUTRUI est une décision de l'équipe de la page — une ligne au journal
+ * (`page.group_post_remove`, sujet la publication), à la qualité de `page.comment_remove`
+ * (`page_admin` pour le responsable, administrateur de la page ; `member` pour un
+ * modérateur) ; le détail porte le rôle VIVANT au geste (`owner`, `moderator`), comme
+ * `page.comment_remove`. Une publication déjà retirée, ou retirée par son auteur, n'écrit rien.
  */
 export const removeGroupPost = networkMutation({
   minStatus: "declaree",
@@ -1143,10 +1169,23 @@ export const removeGroupPost = networkMutation({
     await enforceRateLimit(ctx, "group.moderate", ctx.person._id)
     const post = await ctx.db.get(args.postId)
     if (!post || post.groupId === undefined || post.networkId !== ctx.networkId) return notFound()
-    const { group } = await requireGroupModerator(ctx, ctx.networkId, post.groupId, ctx.person._id)
+    const { group, membership } = await requireGroupModerator(ctx, ctx.networkId, post.groupId, ctx.person._id)
     const now = Date.now()
+    const removing = post.status !== "removed"
     await markPostRemoved(ctx, post, now)
     if (group.pinnedPostId === post._id) await ctx.db.patch(group._id, { pinnedPostId: undefined, updatedAt: now })
+    if (removing && group.associationPageId !== undefined && post.authorPersonId !== ctx.person._id) {
+      // Le rôle VIVANT relu par la garde : `owner` est l'administrateur de la page, `moderator` un signataire ou un animateur.
+      await appendAudit(ctx, {
+        action: "page.group_post_remove",
+        capacity: membership.role === "owner" ? "page_admin" : "member",
+        actorPersonId: ctx.person._id,
+        networkId: group.networkId,
+        subject: { table: "posts", id: post._id },
+        details: { pageId: group.associationPageId, groupId: group._id, role: membership.role },
+        at: now,
+      })
+    }
     return { removed: true as const }
   },
 })
