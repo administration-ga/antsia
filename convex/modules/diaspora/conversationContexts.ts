@@ -1,12 +1,12 @@
 /**
- * Les résolveurs DIASPORALE des conversations contextuelles : sous-lot CC-3a du contrat
+ * Les résolveurs DIASPORA.GA des conversations contextuelles : sous-lot CC-3a du contrat
  * CONVERSATION-CONTEXTUELLE-V1 (accepté le 19/10/2026, ADR-0025), au type de CC-2a
  * (`contextualMessaging/contract.ts`). Seul le registre du moteur
  * (`contextualMessaging/registry.ts`) importe ce fichier.
  *
  * Pour chaque nature, la tranche fournit :
  *   · `load` : l'instantané de l'objet, relu par index. Réseau, demandeur, répondant, phase
- *     calculée par la règle pure de `@diasporale/domain` sur l'état EFFECTIF, appels engagés,
+ *     calculée par la règle pure de `@diaspora-ga/domain` sur l'état EFFECTIF, appels engagés,
  *     premier mot, pièces, statut d'écriture, pays du guichet ;
  *   · `visibleTo` : la visibilité propre de l'objet pour une personne. Un objet en relecture
  *     préalable n'est visible que de sa personne propriétaire (absent pour l'autre côté, N09).
@@ -27,7 +27,7 @@ import {
   mentoringConversation,
   serviceRequestConversation,
   type ConversationFacts,
-} from "@diasporale/domain"
+} from "@diaspora-ga/domain"
 
 import type { Id } from "../../_generated/dataModel"
 import type {

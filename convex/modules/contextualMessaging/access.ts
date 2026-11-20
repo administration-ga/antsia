@@ -412,7 +412,7 @@ export async function canReadContextualMessage(ctx: ContextualReadCtx, networkId
 
 /**
  * Le guichet : une partie au fil, ou un signataire VIVANT de la page répondante, ne tranche
- * jamais un dossier de ce fil (§8, règle DIASPORALE étendue). Lu sur les clés immuables du fil :
+ * jamais un dossier de ce fil (§8, règle DIASPORA.GA étendue). Lu sur les clés immuables du fil :
  * la règle tient même quand l'objet n'est plus lisible.
  */
 export async function contextualDecisionConflict(ctx: Pick<QueryCtx, "db">, messageId: string, actorPersonId: Id<"persons">): Promise<boolean> {

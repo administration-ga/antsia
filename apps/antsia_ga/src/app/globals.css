@@ -1,7 +1,7 @@
 @import "tailwindcss";
 @import "@antsia/ui/styles.css";
 /* Gaboma, la charte du réseau et le thème par défaut (`data-charte="antsia"`), puis les six
-   autres thèmes, dont Sable (la charte de DIASPORALE), que le membre choisit dans Préférences > Thème (`data-charte="antsia-<thème>"`,
+   autres thèmes, dont Sable (la charte de DIASPORA.GA), que le membre choisit dans Préférences > Thème (`data-charte="antsia-<thème>"`,
    ADR-0027). */
 @import "@antsia/ui/themes/antsia.css";
 @import "@antsia/ui/themes/antsia-soleil.css";

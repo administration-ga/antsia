@@ -10,7 +10,7 @@
  * Deux appelants :
  *   - `operator.setPolicy` (console), après SES gardes (administrateur de plateforme, débit, motif),
  *     qui écrit sa ligne de journal en ligne (cliquet `operator-audit`), seulement si `changed` ;
- *   - la graine LOCALE de la tranche DIASPORALE (issue antsia#107, lot LX-04 de DIASPORALE), derrière
+ *   - la graine LOCALE de la tranche DIASPORA.GA (issue antsia#107, lot LX-04 de DIASPORA.GA), derrière
  *     la double garde des graines et `isLocalDeployment`, qui journalise elle-même en qualité `system`.
  */
 import type { ContextualKind } from "@antsia/social-domain/contextualMessaging"

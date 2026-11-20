@@ -37,8 +37,8 @@ export type ContentReportReason = (typeof CONTENT_REPORT_REASONS)[number]
  * proposée pour TOUT objet (et le validateur des publications et commentaires) : un motif d'emploi n'y entre
  * pas, il n'apparaît donc ni sous une publication ni dans l'application mobile.
  *
- * Poste d'une boutique (`commerceJob`) et offre d'emploi de DIASPORALE (`diasporaJobOffer`, demande de la
- * session DIASPORALE du 11/11 : plans EM-01 et MD-13) : `job_fee_requested`, frais demandés au candidat ;
+ * Poste d'une boutique (`commerceJob`) et offre d'emploi de DIASPORA.GA (`diasporaJobOffer`, demande de la
+ * session DIASPORA.GA du 11/11 : plans EM-01 et MD-13) : `job_fee_requested`, frais demandés au candidat ;
  * `job_impersonation`, usurpation d'une entreprise. AUCUN délai réglementé (`reportLegalBasis` → `null`) : l'art. 24 de
  * l'ordonnance n° 0011/PR/2026 ne vise que le cyberharcèlement et le contenu préjudiciable impliquant un
  * mineur (étude SU01, ligne 24) ; une fausse offre d'emploi n'en relève pas.
@@ -156,7 +156,7 @@ export function reportOutcome(status: ContentReportStatus, removedTarget: boolea
 export type AppealStatus = "open" | "upheld" | "overturned"
 
 /**
- * MD-07 (plan 14 de DIASPORALE, décision 6 du propriétaire ; antsia#99) — ce que l'AUTEUR d'un
+ * MD-07 (plan 14 de DIASPORA.GA, décision 6 du propriétaire ; antsia#99) — ce que l'AUTEUR d'un
  * contenu apprend d'un dossier, ou, pour un contenu sans auteur personnel, le signataire de la page
  * qui le porte : une mesure prise (`actioned` : retrait, avertissement, sourdine, suspension,
  * exclusion), et cette même mesure une fois annulée sur son recours (le dossier repasse alors à

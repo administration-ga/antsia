@@ -1,6 +1,6 @@
 // @vitest-environment edge-runtime
 /**
- * Guichet de modération par pays de DIASPORALE (PD6 · G9) : la file du réseau
+ * Guichet de modération par pays de DIASPORA.GA (PD6 · G9) : la file du réseau
  * relue par fenêtres bornées et filtrée par le pays de la CIBLE, la nature et
  * l'équipe ; refus indistinct hors compétence, hors réseau gouverné et pour une
  * autre personne attendue ; conflits annoncés ; décisions par les mutations
@@ -42,7 +42,7 @@ afterEach(() => {
   vi.unstubAllEnvs()
 })
 
-/** Un membre DÉCLARÉ de DIASPORALE (IDN de garantie 1), au rôle réseau demandé. */
+/** Un membre DÉCLARÉ de DIASPORA.GA (IDN de garantie 1), au rôle réseau demandé. */
 async function member(t: T, networkId: Id<"networks">, handle: string, role?: Role): Promise<Member> {
   const as = t.withIdentity({ subject: `desk-${handle}` })
   const personId = await as.mutation(api.modules.people.persons.ensureMyPerson, {})
@@ -51,7 +51,7 @@ async function member(t: T, networkId: Id<"networks">, handle: string, role?: Ro
   await t.run(async (ctx) => {
     await ctx.db.insert("identityLinks", { personId, provider: "idn", subject: `idn-${personId}`, loa: 1, nationality: "GA", linkedAt: NOW })
   })
-  await as.mutation(api.modules.diaspora.membership.joinDiasporale, { networkId, facet: { countryOfResidence: "FR" } })
+  await as.mutation(api.modules.diaspora.membership.joinDiasporaGa, { networkId, facet: { countryOfResidence: "FR" } })
   if (role) {
     await t.run(async (ctx) => {
       const row = await ctx.db.query("networkMemberships").withIndex("by_network_and_person", (q) => q.eq("networkId", networkId).eq("personId", personId)).unique()
@@ -213,7 +213,7 @@ describe("queue — la file filtrée par le pays de la cible", () => {
     const onPageFr = await report(f.t, f.network, { kind: "page", id: pageFr }, { reason: "misinformation" })
     const onComment = await report(f.t, f.network, { kind: "comment", id: commentFr }, { ownerPersonId: f.author.personId })
     const onPerson = await report(f.t, f.network, { kind: "person", id: f.author.personId }, { ownerPersonId: f.author.personId })
-    // Un dossier d'un autre réseau n'entre jamais dans la file de DIASPORALE.
+    // Un dossier d'un autre réseau n'entre jamais dans la file de DIASPORA.GA.
     await report(f.t, f.root, { kind: "post", id: postFr }, { ownerPersonId: f.author.personId })
 
     const ids = async (zone: typeof ALL | typeof NONE | typeof FR | typeof BE, surface?: Doc<"reports">["targetKind"]) =>
@@ -438,7 +438,7 @@ describe("MC-01 — un groupe thématique et un message personnel entrent au gui
       await ctx.db.insert("thematicGroupMembers", { networkId: f.network, groupId: groupBe, personId: f.moderator.personId, role: "moderator", joinedAt: NOW })
       await ctx.db.insert("pageSignatories", { networkId: f.network, pageId: pageFr, personId: f.admin.personId, role: "admin", acceptedAt: NOW, createdAt: NOW, updatedAt: NOW })
     })
-    // Le geste réel du moteur : le dossier naît dans le réseau DIASPORALE, propriétaire vivant posé.
+    // Le geste réel du moteur : le dossier naît dans le réseau DIASPORA.GA, propriétaire vivant posé.
     const { reportId: onGroupBe } = await f.reader.as.mutation(CASES.report, { networkId: f.network, target: { kind: "thematicGroup", id: groupBe }, reason: "misinformation" })
     expect(await f.t.run(async (ctx) => await ctx.db.get(onGroupBe))).toMatchObject({ networkId: f.network, targetKind: "thematicGroup", ownerPersonId: f.author.personId })
     const onGroupOfPage = await report(f.t, f.network, { kind: "thematicGroup", id: groupOfPage }, { reporterPersonId: f.reader.personId, reason: "spam" })
@@ -555,7 +555,7 @@ describe("recours du réseau — à l'administration seule, par pays", () => {
   })
 })
 
-describe("MD-04 — réglages de modération de DIASPORALE, réseau gouverné par la tranche", () => {
+describe("MD-04 — réglages de modération de DIASPORA.GA, réseau gouverné par la tranche", () => {
   it("l'administration du réseau lit les défauts du moteur et la règle de chaque rubrique, puis pose un réglage et un mot bloqué motivés, inscrits au journal", async () => {
     const f = await fixture()
     const initial = await f.admin.as.query(CASES.policies, { networkId: f.network })

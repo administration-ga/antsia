@@ -12,9 +12,9 @@
  *    décision : ses décisions personnelles (« Mes données ») ;
  *  - `report_received`, `report_decided` (SU01d) : ses signalements (« Mes signalements »), pour
  *    le seul déclarant du dossier ;
- *  - mise en relation DIASPORALE (13 genres) : un sujet GÉNÉRIQUE — nature et référence opaque,
+ *  - mise en relation DIASPORA.GA (13 genres) : un sujet GÉNÉRIQUE — nature et référence opaque,
  *    public et adresse de page relus par la tranche (`serviceNoticeView`) — que l'application
- *    DIASPORALE route elle-même ;
+ *    DIASPORA.GA route elle-même ;
  *  - `page_signatory_invite`, `page_claim_decided` (PG-01) : la page, lisible par le destinataire à
  *    l'instant (`pageGovernanceTarget`) ;
  *  - `thematic_group_invite` (NP-04, issue #149) : la fiche du groupe, servie au destinataire à
@@ -60,7 +60,7 @@ export const notificationOpenTargetValidator = v.union(
     requestId: v.union(v.string(), v.null()),
     pageHandle: v.union(v.string(), v.null()),
   }),
-  // Avis de la vie communautaire DIASPORALE : public, objet ouvert et référence opaque, routés par DIASPORALE.
+  // Avis de la vie communautaire DIASPORA.GA : public, objet ouvert et référence opaque, routés par DIASPORA.GA.
   v.object({
     kind: v.literal("diasporaCommunityNotice"),
     audience: literals(DIASPORA_COMMUNITY_NOTICE_AUDIENCES),
@@ -109,7 +109,7 @@ async function moderationDecisionTarget(ctx: ReadCtx, row: Doc<"notifications">)
 }
 
 /**
- * Mise en relation DIASPORALE : le sujet GÉNÉRIQUE de la ligne, à partir de la projection RELUE par
+ * Mise en relation DIASPORA.GA : le sujet GÉNÉRIQUE de la ligne, à partir de la projection RELUE par
  * la tranche (`serviceNoticeView`) ; `null` quand elle ne se lit plus. Module pur hors base.
  */
 export function diasporaNoticeTarget(
@@ -125,7 +125,7 @@ export function diasporaNoticeTarget(
   return { kind: "diasporaServiceNotice", audience: view.audience, subjectKind: subject.subjectKind, subjectId: subject.subjectId, requestId: view.requestId, pageHandle: view.pageHandle }
 }
 
-/** Un avis communautaire DIASPORALE relu par la tranche (`communityNoticeView`) ; `null` quand il ne se lit plus. Module pur hors base. */
+/** Un avis communautaire DIASPORA.GA relu par la tranche (`communityNoticeView`) ; `null` quand il ne se lit plus. Module pur hors base. */
 export function diasporaCommunityNoticeTarget(view: CommunityNoticeDto | null): NotificationOpenTarget | null {
   if (view === null) return null
   return { kind: "diasporaCommunityNotice", audience: view.audience, opens: view.opens, objectId: view.objectId, pageHandle: view.pageHandle }

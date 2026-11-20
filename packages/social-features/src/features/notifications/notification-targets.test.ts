@@ -662,7 +662,7 @@ describe("P14B — destinations typées et avis commerce", () => {
 		expect(notificationRowSentence({ kind: "report_decided", actor: { displayName: "Awa" } }, t)).toBe("Une décision a été prise sur votre signalement.")
 	})
 
-	it("une application qui ne sert pas la nature n'invente aucune adresse ; la mise en relation DIASPORALE ne se route pas ici", () => {
+	it("une application qui ne sert pas la nature n'invente aucune adresse ; la mise en relation DIASPORA.GA ne se route pas ici", () => {
 		expect(notificationTarget(item({ kind: "commerce_service_booking_confirmed", target: { kind: "serviceRequest", requestRowId: "demande-1" } }), ROUTES, t)).toBeNull()
 		expect(notificationTarget(item({ kind: "moderation_decision", subject: subject("report", "r1"), target: { kind: "personalDecisions" } }), ROUTES, t)).toBeNull()
 		expect(notificationTarget(item({ kind: "service_request_received", target: { kind: "diasporaServiceNotice", audience: "provider", subjectKind: "serviceRequest", subjectId: "sr-1", requestId: "sr-1", pageHandle: "salon-demo" } }), TYPED, t)).toBeNull()

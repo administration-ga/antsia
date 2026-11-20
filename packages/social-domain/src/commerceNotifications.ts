@@ -3,7 +3,7 @@
  * tarif fixe) et candidatures P15. Règles PURES, partagées par le moteur et les écrans.
  *
  * - Genres HORS du domaine commun (`NOTIFICATION_KINDS`) : préfixe `commerce_`, aucun nom commun
- *   avec la tranche DIASPORALE ; une cloche qui ne les connaît pas les dit « nouvelle activité ».
+ *   avec la tranche DIASPORA.GA ; une cloche qui ne les connaît pas les dit « nouvelle activité ».
  * - Avis du SYSTÈME : ni acteur, ni contenu, ni montant, ni nom de boutique, ni contact. La ligne
  *   porte un genre et une référence ; l'objet est relu avec ses gardes à l'écriture, à la lecture
  *   de la cloche, avant tout transport et à l'ouverture.

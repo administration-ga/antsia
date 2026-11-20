@@ -1,5 +1,5 @@
 /**
- * Membres fondateurs de DIASPORALE (EA-01, plan 01 de DIASPORALE, décision 1) —
+ * Membres fondateurs de DIASPORA.GA (EA-01, plan 01 de DIASPORA.GA, décision 1) —
  * amorcer la confiance par une DÉCISION tracée du réseau : un opérateur admet,
  * motif à l'appui, une personne déjà entrée d'elle-même dans le réseau (rien
  * d'office), dans une cohorte plafonnée (`FOUNDING_COHORT_MAX`), avec en option
@@ -28,7 +28,7 @@ import {
   FOUNDING_REASON_MIN,
   FOUNDING_WITHDRAWAL_CAUSES,
   type MembershipStatus,
-} from "@diasporale/domain"
+} from "@diaspora-ga/domain"
 import { v } from "convex/values"
 
 import type { Doc, Id } from "../../_generated/dataModel"
@@ -125,7 +125,7 @@ async function requireLiveOperator(ctx: QueryCtx, personId: Id<"persons">): Prom
 }
 
 /**
- * Décision d'exploitation (mutation interne) : admettre une personne de DIASPORALE
+ * Décision d'exploitation (mutation interne) : admettre une personne de DIASPORA.GA
  * dans la cohorte fondatrice, au nom d'un opérateur vivant, motif obligatoire, avec
  * ou sans dispense d'ancienneté pour parrainer.
  */

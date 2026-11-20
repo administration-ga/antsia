@@ -50,11 +50,11 @@ import { thematicGroupsTables } from "./modules/thematicGroups/tables"
  * d'identité, adhésions, facettes, consentements, opérateurs. Les modules
  * dupliqués du socle (PA3) s'y ajoutent, chacun avec `networkId`. Les
  * tranches d'application (`NETWORK_SLICES` : `modules/diaspora`, écrite par la
- * session DIASPORALE) aussi.
+ * session DIASPORA.GA) aussi.
  *
  * `schemaValidation: true` est NON NÉGOCIABLE (le socle l'a désactivée, ce qui
  * laissait les validateurs de tables sans effet à l'exécution — annexe A §0.4).
- * Fichier partagé avec la session DIASPORALE : modifié par la session ANTSIA
+ * Fichier partagé avec la session DIASPORA.GA : modifié par la session ANTSIA
  * seulement, sur demande.
  */
 export default defineSchema(

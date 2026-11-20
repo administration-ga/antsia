@@ -95,7 +95,7 @@ export const POST_IMAGE_MIME_TYPES = ["image/jpeg", "image/png", "image/webp", "
  * plus le QuickTime (.mov) des publications antérieures au lot SD-03, toujours
  * servi par sa ligne (le DTO rend le type stocké). Ce n'est PAS une liste
  * d'acceptation : une nouvelle vidéo suit `POST_VIDEO_UPLOAD_MIME_TYPES`.
- * Gardée telle quelle parce que DIASPORALE la lit encore pour reconnaître une
+ * Gardée telle quelle parce que DIASPORA.GA la lit encore pour reconnaître une
  * vidéo (`postMediaKindOf`) ; elle devra passer à la liste d'envoi de son côté.
  */
 export const POST_VIDEO_MIME_TYPES = ["video/mp4", "video/webm", "video/quicktime"] as const
@@ -235,7 +235,7 @@ export function assertShareable(input: { audience: PersonalPostAudience; status:
 }
 
 // ═══════════════════════════════════════════════════════════════
-// Portée et pays d'une publication (réseaux à portées, ex. DIASPORALE)
+// Portée et pays d'une publication (réseaux à portées, ex. DIASPORA.GA)
 // ═══════════════════════════════════════════════════════════════
 
 /** La portée qui restreint une publication à un PAYS : elle seule exige le pays. */

@@ -95,7 +95,7 @@ describe("MC-02 — lectures bornées et journal des réglages", () => {
     // MC-01 : les surfaces signalables seulement (groupe thématique, message personnel) n'ont aucune règle d'écriture à régler.
     expect(initial.surfaces.map((row) => row.surface)).toEqual([...MODERATION_POLICY_SURFACES])
     expect(initial.surfaces.every((row) => row.policy === null)).toBe(true)
-    // Sans réglage, l'écran dit la règle réelle de chaque surface : défauts, relecture d'office, ou aucune règle (DIASPORALE).
+    // Sans réglage, l'écran dit la règle réelle de chaque surface : défauts, relecture d'office, ou aucune règle (DIASPORA.GA).
     const rule = (surface: string) => initial.surfaces.find((row) => row.surface === surface)?.withoutPolicy
     expect(["post", "comment", "groupMessage", "person", "page"].map(rule)).toEqual(["defaults", "defaults", "defaults", "defaults", "defaults"])
     expect(initial.surfaces.filter((row) => row.withoutPolicy === "held").map((row) => row.surface)).toEqual(["serviceReview", "serviceReviewReply", "commerceOffer", "commerceStorefront", "commerceJob"])

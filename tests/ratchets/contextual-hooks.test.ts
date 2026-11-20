@@ -40,7 +40,7 @@ import { type Finding, formatFindings, lineOf, parseSource, readRepoFile } from 
 const REGISTRY = "convex/modules/contextualMessaging/registry.ts"
 const HOOKS = "convex/modules/contextualMessaging/hooks.ts"
 
-/** Les fichiers de transition de chaque nature (tranche DIASPORALE) et la table qui s'ouvre à la création. */
+/** Les fichiers de transition de chaque nature (tranche DIASPORA.GA) et la table qui s'ouvre à la création. */
 export const HOOKED_SOURCES: Readonly<Record<ContextualKind, { files: readonly string[]; openOnInsert: string | null }>> = {
   professionalCollaboration: { files: ["convex/modules/professionals/collaborations.ts", "convex/modules/professionals/profiles.ts"], openOnInsert: null },
   diasporaServiceRequest: { files: ["convex/modules/diaspora/serviceRequests.ts"], openOnInsert: "serviceRequests" },

@@ -1,6 +1,6 @@
 // @vitest-environment edge-runtime
 /**
- * Réconciliation des adhésions et réseaux GOUVERNÉS (issue antsia#121, lot EA-03 de DIASPORALE) :
+ * Réconciliation des adhésions et réseaux GOUVERNÉS (issue antsia#121, lot EA-03 de DIASPORA.GA) :
  * quand l'identité d'une personne change, chaque adhésion active à un réseau gouverné est confiée au
  * gestionnaire de sa tranche, inscrit au registre des tranches (`modules/networks/sliceRegistry`).
  *

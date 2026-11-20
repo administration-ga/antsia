@@ -1,6 +1,6 @@
 /**
  * Registre FERMÉ des tranches qui gouvernent un réseau (`networks.managedBy`, issue antsia#121,
- * lot EA-03 de DIASPORALE) : une entrée par valeur de `NETWORK_SLICES`. Aucune fonction Convex ici.
+ * lot EA-03 de DIASPORA.GA) : une entrée par valeur de `NETWORK_SLICES`. Aucune fonction Convex ici.
  *
  * Point d'extension : la réconciliation des adhésions (`people/identity.ts`), quand l'identité d'une
  * personne change (lien IDN posé, niveau gagné ou perdu, lien révoqué), confie chaque adhésion ACTIVE

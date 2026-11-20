@@ -80,13 +80,13 @@ describe("proxy Better Auth du moteur", () => {
       const headers = init?.headers as Record<string, string>
       expect(headers.origin).toBe("http://localhost:3031")
       expect(headers["accept-language"]).toBe("en")
-      expect(headers.cookie).toBe("diasporale-langue=en")
+      expect(headers.cookie).toBe("diaspora-ga-langue=en")
       return new Response('{"success":true}', { status: 200, headers: { "content-type": "application/json" } })
     })
     const response = await proxyToConvex(
       request("/api/auth/email-otp/send-verification-otp", {
         method: "POST",
-        headers: { "content-type": "application/json", origin: "http://localhost:3031", "accept-language": "en", cookie: "diasporale-langue=en" },
+        headers: { "content-type": "application/json", origin: "http://localhost:3031", "accept-language": "en", cookie: "diaspora-ga-langue=en" },
         body: '{"email":"ada@example.test","type":"sign-in"}',
       }),
       { convexSiteUrl: SITE, isDev: true, fetchImpl: fetchImpl as unknown as typeof fetch },

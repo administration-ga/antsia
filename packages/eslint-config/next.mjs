@@ -6,7 +6,7 @@ import nextTs from "eslint-config-next/typescript"
 /**
  * Config ESLint partagée (flat) pour les applications Next et les paquets React
  * du moteur ANTSIA (antsia_ga, admin_antsia_ga, social-features, ui, api, et les
- * applications externes comme diasporale_com).
+ * applications externes comme diaspora_ga).
  *
  * = preset Next officiel (core-web-vitals + typescript) — qui enregistre déjà le
  *   plugin `jsx-a11y` — + le socle « pipeline vert » du socle administration.ga

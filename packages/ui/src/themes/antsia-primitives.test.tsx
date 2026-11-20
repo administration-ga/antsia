@@ -119,7 +119,7 @@ describe("système commun réellement consommé par les primitives (ADR-0027)", 
     }
   }
 
-  for (const charte of ["diasporale", "admin-antsia"]) {
+  for (const charte of ["diaspora-ga", "admin-antsia"]) {
     const cascade = new TokenCascade([...base, { name: charte, css: read(`./${charte}.css`) }])
     for (const dark of [false, true]) {
       it(`${charte} ${dark ? "sombre" : "clair"} : les primitives gardent leur géométrie historique`, () => {

@@ -1,5 +1,5 @@
 /**
- * Graine du réseau `diasporale` — hors production seulement (double garde du
+ * Graine du réseau `diaspora-ga` — hors production seulement (double garde du
  * moteur : argument de confirmation ET déploiement local ou autorisé).
  *
  * Réseau fermé, enfant de la racine, GOUVERNÉ par la tranche `diaspora`,
@@ -15,7 +15,7 @@ import { CONTEXTUAL_KINDS } from "@antsia/social-domain/contextualMessaging"
 import { validateFacetSchema } from "@antsia/social-domain/facets"
 import { isActiveStatus } from "@antsia/social-domain/membership"
 import { isValidNetworkSlug, validateNetworkShape } from "@antsia/social-domain/network"
-import { DAY_MS, DIASPORALE_DEMO_ACTOR_SPECS, DIASPORALE_DEMO_ACTORS, DIASPORALE_NETWORK_SEED, DIASPORALE_SLICE, type EngineFacetField } from "@diasporale/domain"
+import { DAY_MS, DIASPORA_GA_DEMO_ACTOR_SPECS, DIASPORA_GA_DEMO_ACTORS, DIASPORA_GA_NETWORK_SEED, DIASPORA_GA_SLICE, type EngineFacetField } from "@diaspora-ga/domain"
 import { v } from "convex/values"
 
 import type { Doc } from "../../_generated/dataModel"
@@ -58,7 +58,7 @@ export const run = internalMutation({
     const root = await getRootNetwork(ctx)
     if (!root) throw new Error("Graine refusée : le réseau racine manque (graine des fondations d'abord).")
 
-    const seed = DIASPORALE_NETWORK_SEED
+    const seed = DIASPORA_GA_NETWORK_SEED
     const facetSchema = { fields: seed.facetSchema.fields.map(engineFacetField) }
     const shapeErrors = validateNetworkShape({
       kind: seed.kind,
@@ -67,7 +67,7 @@ export const run = internalMutation({
       defaultVisibility: seed.defaultVisibility,
     })
     if (!isValidNetworkSlug(seed.slug) || shapeErrors.length > 0 || validateFacetSchema(facetSchema).length > 0) {
-      throw new Error("Graine refusée : réglages du réseau diasporale invalides pour le moteur.")
+      throw new Error("Graine refusée : réglages du réseau diaspora-ga invalides pour le moteur.")
     }
 
     const now = Date.now()
@@ -75,7 +75,7 @@ export const run = internalMutation({
       slug: seed.slug,
       kind: seed.kind,
       parentId: root._id,
-      managedBy: DIASPORALE_SLICE,
+      managedBy: DIASPORA_GA_SLICE,
       name: seed.name,
       membershipPolicy: seed.membershipPolicy,
       defaultVisibility: seed.defaultVisibility,
@@ -123,14 +123,14 @@ export const verifyForRecette = internalMutation({
     assertSeedsAllowed(args.confirmNonProduction)
     const network = await ctx.db
       .query("networks")
-      .withIndex("by_slug", (q) => q.eq("slug", DIASPORALE_NETWORK_SEED.slug))
+      .withIndex("by_slug", (q) => q.eq("slug", DIASPORA_GA_NETWORK_SEED.slug))
       .unique()
     const person = await ctx.db
       .query("persons")
       .withIndex("by_handle", (q) => q.eq("handle", normalizeHandle(args.handle).replace(/^@/, "")))
       .unique()
     const membership = network && person ? await getMembership(ctx, network._id, person._id) : null
-    if (!network || !person || !membership) throw new Error("Recette refusée : aucun membre de diasporale sous cet identifiant.")
+    if (!network || !person || !membership) throw new Error("Recette refusée : aucun membre de diaspora-ga sous cet identifiant.")
 
     const now = Date.now()
     const links = await liveIdentityLinks(ctx, person._id)
@@ -168,11 +168,11 @@ async function requireLocalRecetteAuthor(ctx: MutationCtx): Promise<{ network: D
 
   const network = await ctx.db
     .query("networks")
-    .withIndex("by_slug", (q) => q.eq("slug", DIASPORALE_NETWORK_SEED.slug))
+    .withIndex("by_slug", (q) => q.eq("slug", DIASPORA_GA_NETWORK_SEED.slug))
     .unique()
   const root = await getRootNetwork(ctx)
   if (!isDiasporaNetwork(network) || network.kind !== "closed" || !root || network.parentId !== root._id) {
-    throw new Error("Recette refusée : réseau diasporale actif et racine préexistante requis.")
+    throw new Error("Recette refusée : réseau diaspora-ga actif et racine préexistante requis.")
   }
   const person = await ctx.db
     .query("persons")
@@ -193,7 +193,7 @@ async function requireLocalRecetteAuthor(ctx: MutationCtx): Promise<{ network: D
 
 /**
  * Recette du mur paginé, strictement LOCALE : trente-cinq textes clairement
- * fictifs dans DIASPORALE, jamais à la racine. La personne, son adresse de
+ * fictifs dans DIASPORA.GA, jamais à la racine. La personne, son adresse de
  * recette vérifiée, son profil et ses adhésions doivent déjà exister ; rien
  * de tout cela n'est créé ni modifié ici. Rejouer ne crée que les publications
  * manquantes, sans rétablir ni supprimer une publication existante.
@@ -210,7 +210,7 @@ export const profilePostsForRecette = internalMutation({
     for (let index = 1; index <= PROFILE_POSTS_RECETTE_COUNT; index += 1) {
       const number = String(index).padStart(2, "0")
       const body = `PD4 mur recette ${number}/35 — Publication fictive pour vérifier la pagination du profil.`
-      const idempotencyKey = `diasporale:pd4-mur-recette:${PROFILE_POSTS_RECETTE_HANDLE}:${number}`
+      const idempotencyKey = `diaspora-ga:pd4-mur-recette:${PROFILE_POSTS_RECETTE_HANDLE}:${number}`
       const previous = await ctx.db
         .query("posts")
         .withIndex("by_author_and_idempotencyKey", (q) => q.eq("authorPersonId", person._id).eq("idempotencyKey", idempotencyKey))
@@ -243,7 +243,7 @@ export const albumDraftsForRecette = internalMutation({
     let existing = 0
     for (let index = 1; index <= ALBUM_DRAFTS_RECETTE_COUNT; index += 1) {
       const number = String(index).padStart(2, "0")
-      const idempotencyKey = `diasporale:pd4-album-recette:${PROFILE_POSTS_RECETTE_HANDLE}:${number}`
+      const idempotencyKey = `diaspora-ga:pd4-album-recette:${PROFILE_POSTS_RECETTE_HANDLE}:${number}`
       const previous = await ctx.db
         .query("albums")
         .withIndex("by_owner_idempotencyKey", (q) => q.eq("ownerPersonId", person._id).eq("idempotencyKey", idempotencyKey))
@@ -275,28 +275,28 @@ export const albumDraftsForRecette = internalMutation({
   },
 })
 
-/** Le réseau de recette : `diasporale`, actif, fermé, enfant de la racine préexistante — backend LOCAL seulement. */
+/** Le réseau de recette : `diaspora-ga`, actif, fermé, enfant de la racine préexistante — backend LOCAL seulement. */
 async function requireLocalRecetteNetwork(ctx: MutationCtx): Promise<Doc<"networks">> {
   // Même une autorisation de graines sur un déploiement en nuage ne suffit pas.
   if (!isLocalDeployment()) throw new Error("Recette refusée : backend local obligatoire.")
   const network = await ctx.db
     .query("networks")
-    .withIndex("by_slug", (q) => q.eq("slug", DIASPORALE_NETWORK_SEED.slug))
+    .withIndex("by_slug", (q) => q.eq("slug", DIASPORA_GA_NETWORK_SEED.slug))
     .unique()
   const root = await getRootNetwork(ctx)
   if (!isDiasporaNetwork(network) || network.kind !== "closed" || !root || network.parentId !== root._id) {
-    throw new Error("Recette refusée : réseau diasporale actif et racine préexistante requis.")
+    throw new Error("Recette refusée : réseau diaspora-ga actif et racine préexistante requis.")
   }
   return network
 }
 
 /**
- * LX-04 — Banc de recette LOCAL de la mise en relation (plan 17 de DIASPORALE, § 5 ; décision 2
+ * LX-04 — Banc de recette LOCAL de la mise en relation (plan 17 de DIASPORA.GA, § 5 ; décision 2
  * du § 7 retenue par le propriétaire : une graine locale seulement, gardée, sans opérateur).
  *
  * Gardes : la double garde des graines (confirmation ET déploiement autorisé), puis le backend
  * LOCAL obligatoire : une autorisation de graines posée sur un déploiement en nuage — la
- * démonstration comprise — ne suffit jamais. Le réseau `diasporale` doit déjà exister : rien
+ * démonstration comprise — ne suffit jamais. Le réseau `diaspora-ga` doit déjà exister : rien
  * n'est créé d'office, ni réseau, ni personne, ni adhésion.
  *
  * Idempotente, elle pose :
@@ -327,8 +327,8 @@ export const matchmakingBenchForRecette = internalMutation({
 
     const team = await ensureDemoModerationTeam(ctx, network, now)
     let moderatorsAdded = 0
-    for (const actor of DIASPORALE_DEMO_ACTORS) {
-      if (!DIASPORALE_DEMO_ACTOR_SPECS[actor].moderationTeam) continue
+    for (const actor of DIASPORA_GA_DEMO_ACTORS) {
+      if (!DIASPORA_GA_DEMO_ACTOR_SPECS[actor].moderationTeam) continue
       // Retenue sur son adresse réservée vérifiée, jamais sur son seul identifiant public.
       const person = await personOfActor(ctx, actor)
       if (!person || !(await isActiveMember(ctx, network._id, person._id))) continue

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /**
  * « Écrire » vers une personne avec qui un fil existe déjà ouvre CE fil, pas une
- * conversation vide (constat de DIASPORALE, 16/10/2026).
+ * conversation vide (constat de DIASPORA.GA, 16/10/2026).
  */
 import { act } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"

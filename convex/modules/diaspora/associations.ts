@@ -1,9 +1,9 @@
 /**
- * Adhésion aux associations DIASPORALE (DG-010, lot G3 du plan global) — la
+ * Adhésion aux associations DIASPORA.GA (DG-010, lot G3 du plan global) — la
  * tranche « adhésion » : demander, annuler, quitter ; décider, exclure (motif
  * obligatoire), nommer un animateur, autoriser une nouvelle demande.
  *
- * - Les règles sont celles du domaine pur (`@diasporale/domain/associations`) ;
+ * - Les règles sont celles du domaine pur (`@diaspora-ga/domain/associations`) ;
  *   chaque écriture suit l'ordre du moteur : adhésion au réseau (constructeur)
  *   → éligibilité → débit (`diaspora.association.membership` ou `.manage`) →
  *   droit sur la ressource.
@@ -36,7 +36,7 @@ import {
   parseDecisionReason,
   parseRequestMessage,
   requestStanding,
-} from "@diasporale/domain"
+} from "@diaspora-ga/domain"
 import { type PaginationOptions, paginationOptsValidator, paginationResultValidator, type PaginationResult } from "convex/server"
 import { v } from "convex/values"
 

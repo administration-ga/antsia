@@ -130,7 +130,7 @@ export const leaveNetwork = personMutation({
  * La suspension à la racine elle-même (transition `suspend`) : le statut d'avant
  * gardé pour la levée, l'échéance éventuelle ; elle vaut PARTOUT, la garde la lit
  * à chaque appel. Partagée par la console (`suspendEverywhere`, qui l'audite) et
- * par les comptes de démonstration de DIASPORALE (`diaspora/demoAccounts`,
+ * par les comptes de démonstration de DIASPORA.GA (`diaspora/demoAccounts`,
  * développement local). `false` : transition refusée (déjà suspendue, ou partie).
  */
 export async function suspendRootMembership(ctx: MutationCtx, rootMembership: Doc<"networkMemberships">, until?: number): Promise<boolean> {

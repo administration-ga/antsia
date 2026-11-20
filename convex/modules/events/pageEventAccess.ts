@@ -15,7 +15,7 @@ export interface PageEventAccess {
   readonly moderation: "published" | "pending_review"
 }
 
-/** Page native d'association, active, lisible dans SON réseau DIASPORALE. */
+/** Page native d'association, active, lisible dans SON réseau DIASPORA.GA. */
 export async function associationEventPage(ctx: ReadCtx, network: Doc<"networks">, pageId: Id<"pages">, personId: Id<"persons">): Promise<Doc<"pages"> | null> {
   if (!isDiasporaNetwork(network) || !(await isActiveMember(ctx, network._id, personId))) return null
   const page = await readablePageOrNull(ctx, network, pageId, personId)

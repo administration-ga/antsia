@@ -131,35 +131,35 @@ Les actus des acteurs se reposent une fois par jour à chaque rejeu.
 - **Fermer la démonstration** : retirer `ANTSIA_DEMO_DEPLOYMENT` du déploiement — le bouton
   disparaît, le catalogue se vide et l'équipement est refusé aussitôt.
 
-## 6. DIASPORALE sur la démonstration (ADR-0038)
+## 6. DIASPORA.GA sur la démonstration (ADR-0038)
 
-DIASPORALE se publie sur le même backend de démonstration, dans son propre site. Chaque étape se
+DIASPORA.GA se publie sur le même backend de démonstration, dans son propre site. Chaque étape se
 fait avec l'accord écrit du propriétaire.
 
 1. **Backend de démonstration** :
    - fonctions publiées depuis un `main` qui contient l'ADR-0038 (point 1.4) ;
-   - le réseau `diasporale` semé une fois. Poser `ANTSIA_SEEDS_ALLOWED=true`, lancer
+   - le réseau `diaspora-ga` semé une fois. Poser `ANTSIA_SEEDS_ALLOWED=true`, lancer
      la graine, puis retirer la variable :
 
      ```bash
      CONVEX_DEPLOY_KEY='<même clé>' bunx convex run modules/diaspora/seed:run '{"confirmNonProduction":"ANTSIA_SEEDS_HORS_PRODUCTION"}'
      ```
 
-   - `TRUSTED_ORIGINS` : l'origine du site DIASPORALE de démonstration. `SITE_URL` reste celle
+   - `TRUSTED_ORIGINS` : l'origine du site DIASPORA.GA de démonstration. `SITE_URL` reste celle
      d'antsia.ga.
-2. **Site de démonstration DIASPORALE** : un projet d'hébergement distinct (ex. `diasporale-demo`).
-   - Dossier racine `DIASPORALE/apps/diasporale_com`, Node 24.
+2. **Site de démonstration DIASPORA.GA** : un projet d'hébergement distinct (ex. `diaspora-ga-demo`).
+   - Dossier racine `DIASPORA_GA/apps/diaspora_ga`, Node 24.
    - Installation `cd ../../../ANTSIA && npx --yes bun@1.4.2 install --frozen-lockfile`.
    - Construction `npx --yes bun@1.4.2 run build`.
-   - Publication depuis `ECOSYSTEMES`, ANTSIA et DIASPORALE à jour de `main`, avec ces variables
+   - Publication depuis `ECOSYSTEMES`, ANTSIA et DIASPORA.GA à jour de `main`, avec ces variables
      publiques :
 
      | Variable | Valeur |
      |---|---|
-     | `NEXT_PUBLIC_DIASPORALE_DATA_SOURCE` | `engine` |
+     | `NEXT_PUBLIC_DIASPORA_GA_DATA_SOURCE` | `engine` |
      | `NEXT_PUBLIC_CONVEX_URL` | `https://<nom>.convex.cloud` (démonstration) |
      | `CONVEX_SITE_URL` | `https://<nom>.convex.site` (démonstration) |
-     | `NEXT_PUBLIC_SITE_URL` | l'origine du site DIASPORALE de démonstration |
+     | `NEXT_PUBLIC_SITE_URL` | l'origine du site DIASPORA.GA de démonstration |
 
      Sans `NEXT_PUBLIC_IDN_PORTAL_URL` ni `NEXT_PUBLIC_CONSULATE_URL`, les liens d'élévation ne
      s'affichent pas.

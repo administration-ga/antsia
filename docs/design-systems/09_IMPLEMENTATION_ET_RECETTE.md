@@ -15,7 +15,7 @@ consentements, sessions et contrôleurs de communication restent ceux du moteur.
 Les couleurs fondamentales sont conservées. Les nouveaux raccords sont opt-in :
 jetons à `initial` dans `packages/ui/src/styles/charte.css`, valeurs définies
 uniquement par les sept chartes ANTSIA et anciens styles en repli dans le moteur.
-Les tests d’isolation de DIASPORALE et de la console passent.
+Les tests d’isolation de DIASPORA.GA et de la console passent.
 
 ## Couverture des huit rubriques
 
@@ -618,7 +618,7 @@ publications), une boutique sert la vente. Une page qui vend se présente
 
 - Moteur (`ProfilPagePage`, paquet `@antsia/social-features`) : une prop
   facultative `commerce` reçoit la présentation que l'application pose. Le
-  moteur ne connaît pas la boutique : aucun import d'un produit, et DIASPORALE
+  moteur ne connaît pas la boutique : aucun import d'un produit, et DIASPORA.GA
   ne change pas. Les gestes de la page restent tous : gérer, revendiquer,
   accepter une invitation, publier en son nom, lire le mur.
   - `shop` : l'en-tête de l'application (`hero`) remplace l'identité de la

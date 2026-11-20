@@ -1,4 +1,4 @@
-// Dupliqué de plateforme/espace/espace_administration_ga/src/app/api/auth/[...path]/route.ts @ ad2e7fdc2 — adaptations : factorisé dans @antsia/api pour toutes les applications du moteur (antsia.ga, diasporale.com…), qui le réexportent ; configuration injectable pour les tests (`proxyToConvex`) ; réécriture des cookies `__Secure-` réservée au développement ; journal d'erreur sans détail de requête.
+// Dupliqué de plateforme/espace/espace_administration_ga/src/app/api/auth/[...path]/route.ts @ ad2e7fdc2 — adaptations : factorisé dans @antsia/api pour toutes les applications du moteur (antsia.ga, diaspora.ga…), qui le réexportent ; configuration injectable pour les tests (`proxyToConvex`) ; réécriture des cookies `__Secure-` réservée au développement ; journal d'erreur sans détail de requête.
 /**
  * Proxy Better Auth → actions HTTP Convex du moteur : l'application parle à
  * l'authentification par SA propre origine. Une application l'emploie par

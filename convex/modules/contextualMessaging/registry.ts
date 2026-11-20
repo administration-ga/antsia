@@ -3,7 +3,7 @@
  * une entrée par nature admise. C'est le SEUL fichier du moteur autorisé à importer une tranche
  * (cliquet `contextual-registry`).
  *
- * Les trois natures V1 sont branchées sur les résolveurs livrés par la tranche DIASPORALE
+ * Les trois natures V1 sont branchées sur les résolveurs livrés par la tranche DIASPORA.GA
  * (CC-3a, `convex/modules/diaspora/conversationContexts.ts`, `DIASPORA_CONVERSATION_CONTEXTS`).
  * MP09 ajoute la collaboration professionnelle via son résolveur propre, sous la même politique fermée.
  * Une entrée enregistrée rend OBLIGATOIRES les crochets de sa nature dans les transitions de la

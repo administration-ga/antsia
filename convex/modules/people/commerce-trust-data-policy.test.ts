@@ -2,7 +2,7 @@
  * P16 — confiance et cycle des données du commerce (tests ÉCRITS, NON EXÉCUTÉS, décision du
  * propriétaire du 18/10/2026 « Continuer sans vérifier »).
  *
- * Inventaire relu des tables ajoutées par P07–P15, DP39 et les services DIASPORALE : chacune existe dans le schéma, porte une
+ * Inventaire relu des tables ajoutées par P07–P15, DP39 et les services DIASPORA.GA : chacune existe dans le schéma, porte une
  * disposition explicite, et aucune ligne n'est exportable ni effaçable à la demande d'une autre
  * personne. Un blocage commercial est une intention de PAIRE : il suit le demandeur ; le membre
  * d'équipe qui l'a posé n'en est qu'une référence d'audit, anonymisée à son effacement.

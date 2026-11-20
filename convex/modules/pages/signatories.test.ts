@@ -372,7 +372,7 @@ describe("la console des pages", () => {
 })
 
 describe("le groupe d'adhérents d'une page d'association (EXF-DG-26, contrat DG-010 V1)", () => {
-  // DG-010 V1 (DIASPORALE, `diaspora/associationGroups.ts`) : un groupe PRIVÉ par association, nommé
+  // DG-010 V1 (DIASPORA.GA, `diaspora/associationGroups.ts`) : un groupe PRIVÉ par association, nommé
   // d'après la page ; refus indistinct pour qui n'en est pas administrateur vivant.
   it("seul un administrateur vivant le crée ; le groupe privé ne se lit ni ne se découvre hors de l'association", async () => {
     const t = testConvex()

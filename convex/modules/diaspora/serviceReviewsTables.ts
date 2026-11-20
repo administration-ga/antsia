@@ -1,6 +1,6 @@
 /**
- * Tables des avis admissibles DIASPORALE (DG-016) — PROPRIÉTAIRE : chantier
- * « avis » de la session DIASPORALE ; agrégées par `tables.ts`, donc par
+ * Tables des avis admissibles DIASPORA.GA (DG-016) — PROPRIÉTAIRE : chantier
+ * « avis » de la session DIASPORA.GA ; agrégées par `tables.ts`, donc par
  * `convex/schema.ts`.
  *
  * L'avis appartient au demandeur. La réponse appartient à la PAGE ; son
@@ -8,7 +8,7 @@
  * Les deux retraits sont terminaux : une réservation ne redonne pas un avis,
  * et une page ne recrée pas une réponse retirée sous une autre identité.
  */
-import { SERVICE_REVIEW_PROOFS, SERVICE_REVIEW_STATUSES } from "@diasporale/domain"
+import { SERVICE_REVIEW_PROOFS, SERVICE_REVIEW_STATUSES } from "@diaspora-ga/domain"
 import { defineTable } from "convex/server"
 import { v } from "convex/values"
 

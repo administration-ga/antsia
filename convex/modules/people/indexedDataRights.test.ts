@@ -149,7 +149,7 @@ async function exportAll(w: World) {
     const rows = JSON.parse(page.json) as Array<Record<string, unknown>>
     if (rows.length) (tables[page.table] ??= []).push(...rows)
     if (page.done) break
-    // Contrat lu par DIASPORALE : table suivante sans curseur, ou même table avec un curseur neuf.
+    // Contrat lu par DIASPORA.GA : table suivante sans curseur, ou même table avec un curseur neuf.
     if (page.nextTableIndex === tableIndex + 1) expect(page.cursor).toBeNull()
     else expect(page.nextTableIndex === tableIndex && page.cursor !== null && page.cursor !== cursor).toBe(true)
     tableIndex = page.nextTableIndex; cursor = page.cursor

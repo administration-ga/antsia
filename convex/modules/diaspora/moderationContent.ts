@@ -1,6 +1,6 @@
 /**
- * Modération des contenus de la vague H DIASPORALE (lot G9 du plan global) —
- * tranche `diaspora`, écrite par la session DIASPORALE. Aucune fonction Convex ici.
+ * Modération des contenus de la vague H DIASPORA.GA (lot G9 du plan global) —
+ * tranche `diaspora`, écrite par la session DIASPORA.GA. Aucune fonction Convex ici.
  *
  * Neuf natures, aux noms FIGÉS (partagés avec les écrans) et ajoutées en fin de
  * `MODERATION_SURFACES` (moteur) et de `moderationTargetValidator` :

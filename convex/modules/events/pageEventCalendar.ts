@@ -9,13 +9,13 @@ import { readableGalleryEvent } from "./pageEventGalleryAccess"
 
 async function calendarUid(networkId: string, eventId: string): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`${networkId}:${eventId}`))
-  return `diasporale-${Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("")}`
+  return `diaspora-ga-${Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("")}`
 }
 
 /** Aucun abonnement, URL publique ou effet d'inscription ; les octets sont une copie privée. */
 export const exportIcal = networkQuery({
   args: { eventId: v.id("events"), expectedReaderPersonId: v.id("persons") },
-  returns: v.object({ filename: v.literal("diasporale-event.ics"), content: v.string(), mediaType: v.literal("text/calendar;charset=utf-8") }),
+  returns: v.object({ filename: v.literal("diaspora-ga-event.ics"), content: v.string(), mediaType: v.literal("text/calendar;charset=utf-8") }),
   handler: async (ctx, args) => {
     assertDiasporaNetwork(ctx.network)
     if (ctx.person._id !== args.expectedReaderPersonId) return notFound()
@@ -34,7 +34,7 @@ export const exportIcal = networkQuery({
         startAt: event.startAt, endAt: event.endAt, createdAt: event.createdAt, updatedAt: event.updatedAt,
         sequence: event.version ?? 1, status: event.status === "cancelled" ? "cancelled" : confirmed ? "confirmed" : "tentative",
       })
-      return { filename: "diasporale-event.ics" as const, content, mediaType: "text/calendar;charset=utf-8" as const }
+      return { filename: "diaspora-ga-event.ics" as const, content, mediaType: "text/calendar;charset=utf-8" as const }
     } catch {
       // Une ligne corrompue ne révèle ni contenu ni diagnostic de sérialisation.
       return notFound()

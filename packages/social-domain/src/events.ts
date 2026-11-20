@@ -98,7 +98,7 @@ export function canRespondToPersonalEvent(input: { eventStatus: PersonalEventSta
 
 /**
  * EV-03 (issue antsia#97) — le MOTIF d'annulation d'un événement de PAGE, pris dans une liste
- * FERMÉE, sans texte libre : rien à modérer dans l'urgence (plan 08 de DIASPORALE, décision 2,
+ * FERMÉE, sans texte libre : rien à modérer dans l'urgence (plan 08 de DIASPORA.GA, décision 2,
  * recommandation reprise telle quelle : lieu indisponible, météo, organisateur empêché, autre).
  * Facultatif (les écrans déjà en ligne annulent sans motif), stocké sur l'événement et lu sur sa
  * fiche avec les droits du lecteur ; JAMAIS recopié dans un avis de la cloche.

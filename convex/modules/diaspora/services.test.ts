@@ -1,7 +1,7 @@
 // @vitest-environment edge-runtime
-/** Catalogue des services DIASPORALE : gardes, versions, états, recherche bornée et projections. */
+/** Catalogue des services DIASPORA.GA : gardes, versions, états, recherche bornée et projections. */
 import { engineErrorAppRule, engineErrorCode } from "@antsia/social-contracts/errors"
-import { cityKeyOf, SERVICE_OFFERS_PER_PAGE_MAX, SERVICE_SEARCH_PAGE_MAX, serviceSearchTextOf } from "@diasporale/domain"
+import { cityKeyOf, SERVICE_OFFERS_PER_PAGE_MAX, SERVICE_SEARCH_PAGE_MAX, serviceSearchTextOf } from "@diaspora-ga/domain"
 import type { FunctionReturnType } from "convex/server"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
@@ -52,7 +52,7 @@ async function member(t: T, networkId: Id<"networks">, handle: string): Promise<
   await t.run(async (ctx) => {
     await ctx.db.insert("identityLinks", { personId, provider: "idn", subject: `idn-${personId}`, loa: 1, nationality: "GA", linkedAt: NOW })
   })
-  await as.mutation(api.modules.diaspora.membership.joinDiasporale, { networkId, facet: { countryOfResidence: "FR", city: "Paris" } })
+  await as.mutation(api.modules.diaspora.membership.joinDiasporaGa, { networkId, facet: { countryOfResidence: "FR", city: "Paris" } })
   return { as, personId }
 }
 

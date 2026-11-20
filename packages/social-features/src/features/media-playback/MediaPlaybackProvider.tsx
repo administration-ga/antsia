@@ -8,7 +8,7 @@
  * `NetworkProvider`, autour de ses pages de membre : toutes les vidéos de
  * publication qui s'y rendent (`PostMedia`, présentation « media ») se
  * déclarent au même coordinateur — au plus une joue. Sans ce fournisseur
- * (DIASPORALE, carte publique servie sans compte), les vidéos gardent
+ * (DIASPORA.GA, carte publique servie sans compte), les vidéos gardent
  * exactement leur comportement P03 : aucun changement de leur côté.
  *
  * Le pont d'environnement (`PlaybackEnvironmentBridge`) lit, sans rien écrire :

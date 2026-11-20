@@ -1,13 +1,13 @@
 // @vitest-environment edge-runtime
 /**
- * CC-3a — résolveurs DIASPORALE des conversations contextuelles (contrat
+ * CC-3a — résolveurs DIASPORA.GA des conversations contextuelles (contrat
  * CONVERSATION-CONTEXTUELLE-V1, ADR-0025) : instantané relu par la tranche, phase sur l'état
  * effectif, visibilité propre (relecture préalable), modération, pays du guichet, règle D8.
  * Les fixtures de membres, de pages et d'offres reprennent celles de `mentoring.test.ts` et
  * `jobs.test.ts` (mêmes données fictives).
  */
 import { CONTEXTUAL_KINDS } from "@antsia/social-domain/contextualMessaging"
-import { cityKeyOf, jobSearchTextOf } from "@diasporale/domain"
+import { cityKeyOf, jobSearchTextOf } from "@diaspora-ga/domain"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { api, internal } from "../../_generated/api"
@@ -49,7 +49,7 @@ async function member(t: T, networkId: Id<"networks">, handle: string, displayNa
   await t.run(async (ctx) => {
     await ctx.db.insert("identityLinks", { personId, provider: "idn", subject: `idn-${personId}`, loa: 2, nationality: "GA", linkedAt: NOW })
   })
-  await as.mutation(api.modules.diaspora.membership.joinDiasporale, { networkId, facet: { countryOfResidence: "FR", city: "Paris" } })
+  await as.mutation(api.modules.diaspora.membership.joinDiasporaGa, { networkId, facet: { countryOfResidence: "FR", city: "Paris" } })
   return { as, personId }
 }
 
@@ -69,7 +69,7 @@ async function moderate(t: T, networkId: Id<"networks">, targetKind: "diasporaMe
   })
 }
 
-describe("résolveurs DIASPORALE — forme", () => {
+describe("résolveurs DIASPORA.GA — forme", () => {
   it("une entrée par nature V1 du moteur, chacune avec sa règle de texte", () => {
     expect(Object.keys(CONTEXTS).sort()).toEqual([...CONTEXTUAL_KINDS].sort())
     for (const kind of CONTEXTUAL_KINDS) {

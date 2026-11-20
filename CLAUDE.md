@@ -1,5 +1,7 @@
 # ANTSIA — Consignes pour les agents (Claude Code, Codex)
 
+> Renommage (2026-11-20) : DIASPORALE (diasporale.com) est devenu DIASPORA.GA (diaspora.ga). Les documents datés d'avant gardent l'ancien nom et les anciens chemins ; correspondance : docs/RENOMMAGE_DIASPORA_GA_2026-11-20.md. <!-- renommage:conserver -->
+
 > Moteur social national (backend Convex + paquets `@antsia/*`) et réseau public ANTSIA.
 > Avant tout travail, lire dans l'ordre :
 > 1. `docs/00_CAHIER_DES_CHARGES_ANTSIA.md` (le moteur et le réseau public : invariants, tables, lots) ;
@@ -7,14 +9,14 @@
 >    préambule commun ; l'encart « État » dit où l'on en est) ;
 > 3. `../../../Documentation/RESEAUX_SOCIAUX/00_PLAN_RESEAUX_DANS_LE_RESEAU_DIASPORALE_ANTSIA_2026-10-14.md`
 >    et ses annexes A (backend du socle) et B (front du socle), qui sont la carte de duplication ;
-> 4. `../DIASPORALE/docs/00_CAHIER_DES_CHARGES_DIASPORALE.md` (le premier réseau servi) ;
+> 4. `../DIASPORA_GA/docs/00_CAHIER_DES_CHARGES_DIASPORA_GA.md` (le premier réseau servi) ;
 > 5. `docs/adr/` (décisions du moteur).
 
 ## Ce qu'est ce dépôt
 
 - **Le moteur social national** (backend Convex `antsia` + paquets) et **le réseau public
   ANTSIA** (`apps/antsia_ga`, port 3030) et sa **console** (`apps/admin_antsia_ga`, port 3032).
-  DIASPORALE (`../DIASPORALE`) est une application externe de ce moteur ; sa tranche backend
+  DIASPORA.GA (`../DIASPORA_GA`) est une application externe de ce moteur ; sa tranche backend
   `convex/modules/diaspora/` vit ici.
 - Le code vient du **socle administration.ga sur `origin/main`** (jamais de l'arbre de
   travail partagé, en retard), dupliqué selon les dix règles de PRO.GA (`PRO_GA/docs/11` §2) :
@@ -63,11 +65,11 @@
 - Dépôts voisins : `../../ADMINISTRATION_GA` (source de duplication, lecture seule, sauf PA9
   par PR) ; `../../SERVICES_TRANSVERSES/identite.ga` (clients OIDC par le portail).
 
-## Arbre partagé avec la session DIASPORALE
+## Arbre partagé avec la session DIASPORA.GA
 
 - La session ANTSIA est propriétaire de tout le dépôt, SAUF `convex/modules/diaspora/`,
-  `packages/ui/src/themes/diasporale.css` et `packages/social-contracts/src/i18n/locales/*/diaspora.json`
-  (écrits par la session DIASPORALE).
+  `packages/ui/src/themes/diaspora-ga.css` et `packages/social-contracts/src/i18n/locales/*/diaspora.json`
+  (écrits par la session DIASPORA.GA).
 - Fichiers partagés (`package.json`, `bun.lock`, `convex/schema.ts`, `convex/convex.config.ts`,
   `deploy/catalog.json`) : modifiés par la session ANTSIA seule, sur demande par message.
 - Jamais `git add -A` : `git add -- <chemins>` puis `git commit -- <chemins>`. Aucun changement de

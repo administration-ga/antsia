@@ -3,7 +3,7 @@
 #
 # Contexte de construction = le dossier ECOSYSTEMES (parent d'ANTSIA) : toutes
 # les applications du moteur, y compris les applications externes de
-# DIASPORALE, se construisent dans ce même contexte, avec UNE installation
+# DIASPORA_GA, se construisent dans ce même contexte, avec UNE installation
 # (celle d'ANTSIA). Fichier d'exclusion : Dockerfile.dockerignore, à côté.
 #
 #   docker build -f ANTSIA/apps/antsia_ga/Dockerfile \
@@ -36,10 +36,10 @@ ENV NEXT_PUBLIC_CONVEX_URL=${NEXT_PUBLIC_CONVEX_URL} \
 WORKDIR /src
 
 COPY ANTSIA ./ANTSIA
-# La racine d'ANTSIA dépend du domaine pur de DIASPORALE (tranche
+# La racine d'ANTSIA dépend du domaine pur de DIASPORA_GA (tranche
 # convex/modules/diaspora du moteur) : bun exige, même en installation élaguée,
 # chaque espace de travail dont dépend un espace présent. Ce paquet seul suffit.
-COPY DIASPORALE/packages/diasporale-domain ./DIASPORALE/packages/diasporale-domain
+COPY DIASPORA_GA/packages/diaspora-ga-domain ./DIASPORA_GA/packages/diaspora-ga-domain
 RUN cd ANTSIA && bun install --frozen-lockfile
 RUN cd ANTSIA/apps/antsia_ga && bun run build
 

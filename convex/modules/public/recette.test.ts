@@ -32,7 +32,7 @@ describe("PA8 — recette locale fermée et additive", () => {
     const first = await f.t.mutation(internal.modules.public.recette.prepare, args)
     expect(await f.t.mutation(internal.modules.public.recette.prepare, args)).toEqual(first)
     for (const postId of [first.nativeNetwork, first.childNetwork]) expect(await f.t.query(api.modules.public.projections.getPost, { networkId: f.root, postId })).toBe(null)
-    expect(await f.t.query(api.modules.public.projections.getPost, { networkId: f.root, postId: first.childRoot })).toMatchObject({ origin: { slug: "diasporale" } })
+    expect(await f.t.query(api.modules.public.projections.getPost, { networkId: f.root, postId: first.childRoot })).toMatchObject({ origin: { slug: "diaspora-ga" } })
     expect(await f.t.query(api.modules.public.projections.getPost, { networkId: f.root, postId: first.nativeRoot })).toMatchObject({ origin: { slug: "antsia" } })
     expect(await f.t.run(async (ctx) => ({ persons: await ctx.db.query("persons").take(10), memberships: await ctx.db.query("networkMemberships").take(10) }))).toEqual(initial)
   })

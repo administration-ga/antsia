@@ -1,5 +1,5 @@
 /**
- * Tables du chantier « mesure du pilote » (DG-027 · G11) de la session DIASPORALE —
+ * Tables du chantier « mesure du pilote » (DG-027 · G11) de la session DIASPORA.GA —
  * PROPRIÉTAIRE : ce chantier ; agrégées par `tables.ts`, donc par `convex/schema.ts`.
  *
  * `pilotMetricsDaily` : UNE ligne par réseau, portée et jour UTC — la portée est
@@ -12,7 +12,7 @@
  * à chaque passage ; la lecture ne compte jamais rien. Agrégat partagé : il ne
  * s'exporte ni ne s'efface par personne, il se recalcule.
  */
-import { PILOT_AID_DAILY_COUNTERS, PILOT_DAILY_COUNTERS, type PilotAidDailyCounter, type PilotDailyCounter } from "@diasporale/domain"
+import { PILOT_AID_DAILY_COUNTERS, PILOT_DAILY_COUNTERS, type PilotAidDailyCounter, type PilotDailyCounter } from "@diaspora-ga/domain"
 import { defineTable } from "convex/server"
 import { v } from "convex/values"
 

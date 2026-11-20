@@ -38,7 +38,7 @@ async function member(t: T, networkId: Id<"networks">, handle: string, displayNa
   await as.mutation(api.modules.people.consents.recordConsent, { purpose: "social_profile", origin: "onboarding" })
   await as.mutation(api.modules.people.profile.publishMyProfile, { handle, displayName })
   await t.run(async (ctx) => { await ctx.db.insert("identityLinks", { personId, provider: "idn", subject: `review-idn-${personId}`, loa: 2, nationality: "GA", linkedAt: NOW }) })
-  await as.mutation(api.modules.diaspora.membership.joinDiasporale, { networkId, facet: { countryOfResidence: "FR", city: "Paris" } })
+  await as.mutation(api.modules.diaspora.membership.joinDiasporaGa, { networkId, facet: { countryOfResidence: "FR", city: "Paris" } })
   return { as, personId }
 }
 
@@ -117,7 +117,7 @@ async function networkAdmin(f: Fixture) {
   return f.outsider.as
 }
 
-describe("avis de service DIASPORALE", () => {
+describe("avis de service DIASPORA.GA", () => {
   it("publie la preuve exacte et un nom vivant sans exposer les références privées", async () => {
     const f = await fixture()
     const bookingId = await book(f)

@@ -13,7 +13,7 @@ import { defineApp } from "convex/server"
  * - aggregate : compteurs fragmentés et agrégats matérialisés (PA3, PA10) —
  *   une instance nommée par usage s'ajoute ici, jamais d'instance anonyme ;
  * - resend : courriels (codes à usage unique, digests) (PA4, PA5).
- * Fichier partagé avec la session DIASPORALE : modifié par la session ANTSIA
+ * Fichier partagé avec la session DIASPORA.GA : modifié par la session ANTSIA
  * seulement, sur demande.
  */
 const app = defineApp()

@@ -51,7 +51,7 @@ describe("public avatar variants from the seven ANTSIA chartes", () => {
 
   it("preserves the historical avatar colors and font fallback outside ANTSIA", () => {
     const cascade = new TokenCascade(base)
-    for (const charte of ["admin-antsia", "diasporale"]) for (const dark of [false, true]) {
+    for (const charte of ["admin-antsia", "diaspora-ga"]) for (const dark of [false, true]) {
       const node: ChartedNode = { charte, dark, nested: false }
       for (const token of avatarTokens) expect(cascade.resolve(node, token), token).toBeUndefined()
       expect(cascade.resolveValue(node, "var(--esp-avatar-1-bg, var(--primary-50))")).toBe(cascade.resolve(node, "--primary-50"))

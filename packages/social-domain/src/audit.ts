@@ -72,7 +72,7 @@ export const AUDIT_ACTIONS = [
    * ordinaire, sans page, n'est pas journalisée.
    */
   "page.group_close",
-  /** AS-03 (DIASPORALE) : l'administrateur de la page rouvre le groupe de l'association, qu'il avait fermé. */
+  /** AS-03 (DIASPORA.GA) : l'administrateur de la page rouvre le groupe de l'association, qu'il avait fermé. */
   "page.group_reopen",
   /**
    * Recette du 20/11 : le responsable (administrateur de la page) ou un modérateur VIVANT du groupe
@@ -128,14 +128,14 @@ export const AUDIT_ACTIONS = [
   "diaspora.sponsorship_revoke",
   /**
    * Une personne admise dans la cohorte fondatrice du réseau par un opérateur de plateforme
-   * (EA-01 de DIASPORALE). Sujet : la personne admise (`persons`). Détail : `reason`, le motif
+   * (EA-01 de DIASPORA.GA). Sujet : la personne admise (`persons`). Détail : `reason`, le motif
    * nettoyé par `assertDecisionReason`, et `seniorityWaiver`, la dispense d'ancienneté pour
    * parrainer (booléen).
    */
   "diaspora.founder_admit",
   /**
    * L'admission fondatrice en vigueur retirée par un opérateur de plateforme (EA-01 de
-   * DIASPORALE). Sujet : la personne (`persons`). Détail : `reason`, le motif nettoyé, et
+   * DIASPORA.GA). Sujet : la personne (`persons`). Détail : `reason`, le motif nettoyé, et
    * `cause`, la cause du retrait inscrite sur l'admission (`operator` pour cette décision).
    * L'extinction par le départ de la personne n'est pas une décision : l'admission la date.
    */

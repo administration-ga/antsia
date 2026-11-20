@@ -1,6 +1,6 @@
 /**
- * Tables du catalogue des services DIASPORALE (DG-011/012) — PROPRIÉTAIRE :
- * chantier « catalogue des services » de la session DIASPORALE ; agrégées par
+ * Tables du catalogue des services DIASPORA.GA (DG-011/012) — PROPRIÉTAIRE :
+ * chantier « catalogue des services » de la session DIASPORA.GA ; agrégées par
  * `tables.ts`, donc par `convex/schema.ts`.
  *
  * CONTRAT posé par le coordinateur et consommé par le chantier « demandes et
@@ -13,7 +13,7 @@
  * Mise en relation seulement : un tarif annoncé n'est ni un encaissement ni une
  * commande.
  */
-import { SERVICE_CATEGORIES, SERVICE_DELIVERY_MODES, SERVICE_OFFER_STATUSES } from "@diasporale/domain"
+import { SERVICE_CATEGORIES, SERVICE_DELIVERY_MODES, SERVICE_OFFER_STATUSES } from "@diaspora-ga/domain"
 import { defineTable } from "convex/server"
 import { v } from "convex/values"
 

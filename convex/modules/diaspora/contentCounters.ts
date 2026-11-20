@@ -1,6 +1,6 @@
 /**
- * Compteurs des contenus de la vague H DIASPORALE (lot G9) — tranche `diaspora`,
- * écrite par la session DIASPORALE. Aucune fonction Convex ici.
+ * Compteurs des contenus de la vague H DIASPORA.GA (lot G9) — tranche `diaspora`,
+ * écrite par la session DIASPORA.GA. Aucune fonction Convex ici.
  *
  * - Retrait par la modération et rétablissement (appelés par `moderationTargets`) :
  *   une réponse d'entraide retirée ne compte plus parmi les réponses publiées et,
@@ -16,7 +16,7 @@
  * approuvée) ; `signupCount` les inscriptions confirmées ; `outdatedFlags` les
  * signalements « périmée » de la version COURANTE.
  */
-import { aidMissionStatusFor, aidStatusWithoutAcceptedAnswer } from "@diasporale/domain"
+import { aidMissionStatusFor, aidStatusWithoutAcceptedAnswer } from "@diaspora-ga/domain"
 
 import type { Doc } from "../../_generated/dataModel"
 import type { MutationCtx } from "../../_generated/server"

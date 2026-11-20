@@ -10,7 +10,7 @@
  * Les seules exceptions sont nommées ici et justifiées : identifiants rangés dans un
  * tableau (aucun index Convex n'atteint un élément), et, s'il y en avait, des tables de la
  * tranche `diaspora` encore sans index, relues par un balayage résiduel (aucune depuis que
- * DIASPORALE a posé les index demandés). `erasure.test.ts` échoue sur tout autre chemin sans index.
+ * DIASPORA.GA a posé les index demandés). `erasure.test.ts` échoue sur tout autre chemin sans index.
  */
 import type { PaginationOptions, PaginationResult } from "convex/server"
 import type { ValidatorJSON } from "convex/values"
@@ -75,9 +75,9 @@ export const COLLECTION_REFERENCE_EXCEPTIONS: Readonly<Record<string, string>> =
 }
 
 /**
- * Tranche `diaspora` (écrite par la session DIASPORALE) : tables encore sans index pour l'un de
+ * Tranche `diaspora` (écrite par la session DIASPORA.GA) : tables encore sans index pour l'un de
  * leurs chemins de personne ou de parent. Elles gardent le balayage de leur seule table, dans le
- * réseau DIASPORALE, jusqu'à l'ajout de l'index demandé. Le test retire toute entrée devenue inutile.
+ * réseau DIASPORA.GA, jusqu'à l'ajout de l'index demandé. Le test retire toute entrée devenue inutile.
  * Vide : les douze tables d'abord nommées ici ont reçu leurs index (`by_<champ>`) dans la tranche.
  */
 export const RESIDUAL_SCAN_TABLES: Readonly<Record<string, string>> = {}

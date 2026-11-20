@@ -12,7 +12,7 @@ type Catalog = { applications: Record<string, WebApplication | NativeApplication
 /**
  * Dossiers d'applications des espaces de travail déclarés : celles du moteur
  * (`apps/*`) et les applications EXTERNES installées avec lui
- * (`../DIASPORALE/apps/*`) — un dossier sans `package.json` n'en est pas une.
+ * (`../DIASPORA_GA/apps/*`) — un dossier sans `package.json` n'en est pas une.
  */
 function declaredApplicationDirectories(globs: readonly string[]): string[] {
   const out: string[] = []
@@ -99,6 +99,6 @@ describe("deploy-catalog — chaque application servie est au catalogue (câblag
 
   it("test du test : une application externe lit aussi les paquets de son dépôt", () => {
     expect(packageDirectoriesOf("apps/antsia_ga")).toEqual(["packages"])
-    expect(packageDirectoriesOf("../DIASPORALE/apps/diasporale_com")).toEqual(["packages", "../DIASPORALE/packages"])
+    expect(packageDirectoriesOf("../DIASPORA_GA/apps/diaspora_ga")).toEqual(["packages", "../DIASPORA_GA/packages"])
   })
 })

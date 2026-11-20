@@ -17,8 +17,8 @@ import { ANTSIA_THEME_IDS, antsiaCharteFor } from "./antsia-themes"
  *   contrat reste permis. Ce gel garde aussi la part de la base dont héritent
  *   les autres thèmes. Seules exceptions de la console, nommées jeton par jeton :
  *   le contour des champs et l'anneau natif du navigateur (EX-18, WCAG 1.4.11, `CONSOLE_A11Y_TOKENS`).
- * - DIASPORALE et la console ne voient rien du thème ANTSIA, même chargé dans
- *   la même feuille, avant ou après le leur. Le thème DIASPORALE, écrit par sa
+ * - DIASPORA.GA et la console ne voient rien du thème ANTSIA, même chargé dans
+ *   la même feuille, avant ou après le leur. Le thème DIASPORA.GA, écrit par sa
  *   session, n'est volontairement pas figé ici : seule l'absence d'effet
  *   d'ANTSIA sur lui est vérifiée.
  */
@@ -31,7 +31,7 @@ const BASE = [
   sheet("communication.css", "../styles/communication.css"),
 ]
 const ADMIN = sheet("admin-antsia.css", "./admin-antsia.css")
-const DIASPORALE = sheet("diasporale.css", "./diasporale.css")
+const DIASPORA_GA = sheet("diaspora-ga.css", "./diaspora-ga.css")
 const ANTSIA = sheet("antsia.css", "./antsia.css")
 const ANTSIA_THEMES = ANTSIA_THEME_IDS.map((id) => {
   const charte = antsiaCharteFor(id)
@@ -39,8 +39,8 @@ const ANTSIA_THEMES = ANTSIA_THEME_IDS.map((id) => {
 })
 const NEIGHBORS = [
   ["admin-antsia", ADMIN],
-  ["diasporale", DIASPORALE],
-  ["diasporale-gaboma", sheet("diasporale-gaboma.css", "./diasporale-gaboma.css")],
+  ["diaspora-ga", DIASPORA_GA],
+  ["diaspora-ga-gaboma", sheet("diaspora-ga-gaboma.css", "./diaspora-ga-gaboma.css")],
 ] as const
 
 interface FrozenBase {
@@ -120,11 +120,11 @@ describe("non-régression des chartes voisines", () => {
     expect(read("../styles.css")).toMatch(/@import "\.\/styles\/charte\.css";\s*@import "\.\/styles\/communication\.css";/)
   })
 
-  it("test du test : une règle de thème non scopée fuirait vers DIASPORALE", () => {
+  it("test du test : une règle de thème non scopée fuirait vers DIASPORA.GA", () => {
     const leaking = { name: "antsia.css", css: `${ANTSIA.css}\n[data-charte] { --card: var(--primary-500); }` }
-    const node: ChartedNode = { charte: "diasporale", dark: false, nested: false }
-    const reference = new TokenCascade([...BASE, DIASPORALE]).resolve(node, "--card")
-    expect(new TokenCascade([...BASE, DIASPORALE, leaking]).resolve(node, "--card")).not.toBe(reference)
+    const node: ChartedNode = { charte: "diaspora-ga", dark: false, nested: false }
+    const reference = new TokenCascade([...BASE, DIASPORA_GA]).resolve(node, "--card")
+    expect(new TokenCascade([...BASE, DIASPORA_GA, leaking]).resolve(node, "--card")).not.toBe(reference)
   })
 
   it("test du test : le gel voit une valeur de la base qui change", () => {
@@ -136,7 +136,7 @@ describe("non-régression des chartes voisines", () => {
 
 /**
  * Lot P03 (demandes D1, D3, D5 de la charte) : trois jetons entrent au contrat
- * sans effet des chartes ANTSIA sur les autres réseaux. DIASPORALE peut
+ * sans effet des chartes ANTSIA sur les autres réseaux. DIASPORA.GA peut
  * adopter ces jetons dans sa propre charte, tenue par sa session.
  *
  * - D3 : les six surfaces ÉLEVÉES des publications lisent

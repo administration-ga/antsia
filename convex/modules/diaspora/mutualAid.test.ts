@@ -1,6 +1,6 @@
 // @vitest-environment edge-runtime
 /**
- * Entraide DIASPORALE (DG-024 a) : questions, réponse retenue, missions
+ * Entraide DIASPORA.GA (DG-024 a) : questions, réponse retenue, missions
  * bénévoles et inscriptions — gardes du réseau, du statut, des coordonnées et
  * des équipes vivantes, avec de vraies sessions (harnais `testConvex`).
  *
@@ -10,7 +10,7 @@
  * session de test dure sept jours ; un début de mission passé se pose en base.
  */
 import { engineErrorAppRule, engineErrorCode } from "@antsia/social-contracts/errors"
-import type { AidTheme } from "@diasporale/domain"
+import type { AidTheme } from "@diaspora-ga/domain"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { api, internal } from "../../_generated/api"
@@ -62,7 +62,7 @@ afterEach(() => {
   vi.unstubAllEnvs()
 })
 
-/** Un membre déclaré de DIASPORALE (lien IDN de garantie 2), au profil publié. */
+/** Un membre déclaré de DIASPORA.GA (lien IDN de garantie 2), au profil publié. */
 async function member(t: T, networkId: Id<"networks">, handle: string) {
   const as = t.withIdentity({ subject: `auth-${handle}` })
   const personId = await as.mutation(api.modules.people.persons.ensureMyPerson, {})
@@ -71,7 +71,7 @@ async function member(t: T, networkId: Id<"networks">, handle: string) {
   await t.run(async (ctx) => {
     await ctx.db.insert("identityLinks", { personId, provider: "idn", subject: `idn-${personId}`, loa: 2, nationality: "GA", linkedAt: NOW })
   })
-  await as.mutation(api.modules.diaspora.membership.joinDiasporale, { networkId, facet: { countryOfResidence: "FR", city: "Lyon" } })
+  await as.mutation(api.modules.diaspora.membership.joinDiasporaGa, { networkId, facet: { countryOfResidence: "FR", city: "Lyon" } })
   return { as, personId, handle }
 }
 

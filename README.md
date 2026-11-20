@@ -1,5 +1,7 @@
 # ANTSIA — Le moteur social national et le réseau social public gabonais
 
+> Renommage (2026-11-20) : DIASPORALE (diasporale.com) est devenu DIASPORA.GA (diaspora.ga). Les documents datés d'avant gardent l'ancien nom et les anciens chemins ; correspondance : docs/RENOMMAGE_DIASPORA_GA_2026-11-20.md. <!-- renommage:conserver -->
+
 > **ANTSIA** est le nom confirmé explicitement par le propriétaire le 16/10/2026.
 > Le domaine cible est `antsia.ga` ; son attribution et sa configuration restent au propriétaire.
 > Le renommage local ne vaut pas renommage d’un dépôt ni d’un domaine externe historique.
@@ -9,14 +11,14 @@ Deux objets dans un dépôt :
 
 - **Le moteur social national** : le backend Convex et les paquets (`social-domain`,
   `social-contracts`, `social-features`, `ui`, `api`) qui servent **tous** les réseaux de
-  l'écosystème — ANTSIA, DIASPORALE, et demain d'autres. Il est construit par **duplication** du
+  l'écosystème — ANTSIA, DIASPORA.GA, et demain d'autres. Il est construit par **duplication** du
   réseau social de l'espace agent d'administration.ga (iRéseau, iCom, stories, albums, direct,
   notifications), selon les dix règles de duplication de PRO.GA, et rendu **multi-réseaux par
   construction** (table `networks`, clé `networkId` partout, une personne unique, identités
   externes, modération par réseau, fédération entrante par contrats signés).
 - **Le réseau public ANTSIA** : réseau **racine**, ouvert à toute personne, structuré par la
   confiance (Officiel · Vérifié · Agent public · Communauté), qui **contient** les réseaux
-  fermés : DIASPORALE (diaspora) et le miroir de l'iRéseau de l'administration (reflets des
+  fermés : DIASPORA.GA (diaspora) et le miroir de l'iRéseau de l'administration (reflets des
   pages vérifiées et des publications déclarées publiques).
 
 Édité par **NTSAGUI Digital** ; identité fédérée par **identite.ga** (IDN), fournisseur
@@ -39,7 +41,7 @@ PA10 ajoute le fil personnel matérialisé, la distribution et le rattrapage par
 retraits sous garde vivante, la rétention, les accès indexés d'effacement du fil, la purge
 des téléversements abandonnés et le suivi opérationnel dans la console.
 **Les vérifications sont différées à la demande du propriétaire : aucune charge, restauration,
-recette ni publication n'a été exécutée pour ces nouveaux lots.** DIASPORALE est une application
+recette ni publication n'a été exécutée pour ces nouveaux lots.** DIASPORA.GA est une application
 externe du même moteur (installation unique ici).
 L'avancement prompt par prompt est tenu dans l'encart « État » de
 [`docs/01_PLAN_IMPLEMENTATION_PROMPTS_ANTSIA.md`](docs/01_PLAN_IMPLEMENTATION_PROMPTS_ANTSIA.md).
@@ -47,12 +49,12 @@ L'avancement prompt par prompt est tenu dans l'encart « État » de
 | Document | Rôle |
 |---|---|
 | [`docs/00_CAHIER_DES_CHARGES_ANTSIA.md`](docs/00_CAHIER_DES_CHARGES_ANTSIA.md) | cahier des charges du moteur (partie A) et du réseau public (partie B) : exigences `EXF-AN` / `EXT-AN`, lots A0–A6, parcours R1–R10, arbitrages A1–A10 |
-| [`docs/01_PLAN_IMPLEMENTATION_PROMPTS_ANTSIA.md`](docs/01_PLAN_IMPLEMENTATION_PROMPTS_ANTSIA.md) | onze prompts PA0 → PA10 et leur état ; **DIASPORALE PD0 → PD6 s'exécute entre PA7 et PA8** |
+| [`docs/01_PLAN_IMPLEMENTATION_PROMPTS_ANTSIA.md`](docs/01_PLAN_IMPLEMENTATION_PROMPTS_ANTSIA.md) | onze prompts PA0 → PA10 et leur état ; **DIASPORA.GA PD0 → PD6 s'exécute entre PA7 et PA8** |
 | [`docs/adr/`](docs/adr/) | décisions d'architecture du moteur |
 | [`docs/06_RAPPORT_LANCEMENT.md`](docs/06_RAPPORT_LANCEMENT.md) | état des sources, preuves historiques, vérifications différées, risques et passation PA10 |
 | [`docs/20_EXPLOITATION_ECHELLE_ET_RESTAURATION_PA10.md`](docs/20_EXPLOITATION_ECHELLE_ET_RESTAURATION_PA10.md) | procédures de charge, restauration sur cible jetable et observabilité ; aucune exécutée |
 | `../../../Documentation/RESEAUX_SOCIAUX/` | plan de pilotage « réseaux dans le réseau » et annexes A–D |
-| `../DIASPORALE/docs/00_CAHIER_DES_CHARGES_DIASPORALE.md` | le premier réseau servi par le moteur |
+| `../DIASPORA_GA/docs/00_CAHIER_DES_CHARGES_DIASPORA_GA.md` | le premier réseau servi par le moteur |
 
 ## Le dépôt
 
@@ -76,8 +78,8 @@ ANTSIA/
 └── docs/                    # cahiers, prompts, ADR (owner map, parité, charte, contrats à venir)
 ```
 
-Espaces de travail bun : `apps/*`, `packages/*`, `../DIASPORALE/apps/*`, `../DIASPORALE/packages/*`
-(une seule installation, ici ; DIASPORALE câblé le 15/10 à la demande de son prompt PD0). Les versions
+Espaces de travail bun : `apps/*`, `packages/*`, `../DIASPORA_GA/apps/*`, `../DIASPORA_GA/packages/*`
+(une seule installation, ici ; DIASPORA.GA câblé le 15/10 à la demande de son prompt PD0). Les versions
 vivent une fois dans le **catalogue** du `package.json` racine (`"catalog:"`). Les tâches
 transverses passent par `scripts/workspace-run.mjs` (turbo refuse les espaces de travail hors
 racine).

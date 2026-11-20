@@ -240,7 +240,7 @@ export async function resolveVisibleTarget(ctx: MutationCtx, network: Doc<"netwo
       await requireThread(ctx, network._id, message.threadId, personId)
       return { ...base, ownerPersonId: message.senderPersonId }
     }
-    // Vague H DIASPORALE (G9, délégué) : audience réelle et propriétaire résolus par la tranche (personne, ou page sans propriétaire).
+    // Vague H DIASPORA.GA (G9, délégué) : audience réelle et propriétaire résolus par la tranche (personne, ou page sans propriétaire).
     case "diasporaAidQuestion":
     case "diasporaAidAnswer":
     case "diasporaAidMission":
@@ -268,7 +268,7 @@ async function syncProfessionalTarget(ctx: MutationCtx, target: ResolvedTarget):
 }
 
 export async function removeTarget(ctx: MutationCtx, target: ResolvedTarget): Promise<void> {
-  // Vague H DIASPORALE (G9) : effets de la tranche jugés sur l'état AVANT retrait (idempotents) ; sans effet pour les autres natures.
+  // Vague H DIASPORA.GA (G9) : effets de la tranche jugés sur l'état AVANT retrait (idempotents) ; sans effet pour les autres natures.
   await removeDiasporaTarget(ctx, target.target)
   await setContentModerationStatus(ctx, { networkId: target.networkId, kind: target.target.kind, id: target.target.id, ownerPersonId: target.ownerPersonId }, "removed")
   await syncProfessionalTarget(ctx, target)
@@ -351,7 +351,7 @@ export async function restoreTarget(ctx: MutationCtx, target: ResolvedTarget): P
     if (!head || !live || head.state === "withdrawn" || !jobHeadBelongsToCurrent(head, live)) return notFound()
   }
   const previous = await contentState(ctx, target.target.kind, target.target.id)
-  // Vague H DIASPORALE (G9) : seule une cible RETIRÉE recompte ; ne lève jamais, ne rouvre rien.
+  // Vague H DIASPORA.GA (G9) : seule une cible RETIRÉE recompte ; ne lève jamais, ne rouvre rien.
   await restoreDiasporaTarget(ctx, target.target, previous?.status ?? null)
   await setContentModerationStatus(ctx, { networkId: target.networkId, kind: target.target.kind, id: target.target.id, ownerPersonId: target.ownerPersonId }, "published")
   await syncProfessionalTarget(ctx, target)

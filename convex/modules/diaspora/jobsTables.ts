@@ -1,5 +1,5 @@
 /**
- * Tables du chantier « talents et emploi » (DG-025) de la session DIASPORALE —
+ * Tables du chantier « talents et emploi » (DG-025) de la session DIASPORA.GA —
  * PROPRIÉTAIRE : ce chantier ; agrégées par `tables.ts`, donc par `convex/schema.ts`.
  *
  * Noms imposés par la coordination (globaux au schéma, distincts du lot emploi
@@ -29,7 +29,7 @@ import {
   TALENT_AVAILABILITIES,
   TALENT_PROFILE_STATUSES,
   TALENT_VISIBILITIES,
-} from "@diasporale/domain"
+} from "@diaspora-ga/domain"
 import { defineTable } from "convex/server"
 import { v } from "convex/values"
 

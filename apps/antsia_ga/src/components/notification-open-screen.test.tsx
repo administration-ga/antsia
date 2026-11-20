@@ -214,7 +214,7 @@ describe("destinations typées — services, candidatures, décisions", () => {
     expect(mocks.replace).toHaveBeenCalledExactlyOnceWith(expected)
   })
 
-  it("avis d'équipe sans destination ANTSIA (rendez-vous) ou avis DIASPORALE : centre des notifications, rien d'inventé", async () => {
+  it("avis d'équipe sans destination ANTSIA (rendez-vous) ou avis DIASPORA.GA : centre des notifications, rien d'inventé", async () => {
     const rerender = await mount()
     reply(notice("commerce_service_booking_held", null))
     await rerender()

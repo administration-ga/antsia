@@ -100,7 +100,7 @@ describe("Projection de mesure fermée", () => {
   })
 
   it("ne laisse passer que les noms publics des réseaux documentés et les langues admises", () => {
-    for (const network of ["antsia", "diasporale", "administration"]) expect(isUsageNetwork(network)).toBe(true)
+    for (const network of ["antsia", "diaspora-ga", "administration"]) expect(isUsageNetwork(network)).toBe(true)
     for (const networkSlug of ["persons_private", "jh7a0123456789abcdefghijklmn", "awa.ndong", "/fil", "private-network"]) {
       expect(isUsageNetwork(networkSlug)).toBe(false)
       expect(createUsagePayload({ ...view, networkSlug })).toBeNull()

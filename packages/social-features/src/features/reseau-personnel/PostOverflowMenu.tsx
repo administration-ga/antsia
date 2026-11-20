@@ -93,7 +93,7 @@ export function PostOverflowMenu({
 	/**
 	 * Suivre le bouton au défilement change ce qui se VOIT pendant un
 	 * défilement : réservé aux présentations « media » et « charte » déclarées
-	 * par l'application (ANTSIA). Ailleurs (DIASPORALE), le défilement ferme le
+	 * par l'application (ANTSIA). Ailleurs (DIASPORA.GA), le défilement ferme le
 	 * menu comme avant — en rendant désormais le focus au bouton.
 	 */
 	const followOnScroll = postPresentation === "media" || postPresentation === "charte"

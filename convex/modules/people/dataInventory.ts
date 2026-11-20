@@ -86,7 +86,7 @@ const EXPORT_PERSON_FIELDS: Readonly<Record<string, readonly string[]>> = {
   liveSpeakers: ["personId"], liveViewerGrants: ["personId"], liveAntennaRequests: ["personId"], liveDelegations: ["personId"], liveInvitees: ["personId"], liveChatMutes: ["personId"], liveReactions: ["personId"], liveHostPresence: ["hostPersonId"],
   postMarks: ["personId"], mutes: ["personId"], consularAttestations: ["personId"], memberPrivacy: ["personId"],
   notificationPreferences: ["personId"], pushSubscriptions: ["personId"], notificationDeliveryJobs: ["recipientPersonId"], notificationWeeklyUsage: ["personId"], notificationDigestReceipts: ["personId"], dataExports: ["personId"],
-  // Tranche DIASPORALE (délégué) : le relecteur retrouve ses relectures du kit d'arrivée, sans la ressource.
+  // Tranche DIASPORA.GA (délégué) : le relecteur retrouve ses relectures du kit d'arrivée, sans la ressource.
   kitResourceReviews: ["reviewerPersonId"],
 }
 
@@ -227,10 +227,10 @@ export function exportableRecord(table: string, row: DataRecord, personId: strin
   // SU01h : la personne visée exporte la mesure (genre, cible, dates, texte affiché, levée) ; ni la référence
   // de l'ordonnance (pièce du dossier judiciaire, à demander au greffe), ni les opérateurs, ni les effets internes.
   if (table === "judicialMeasures") return row.subjectPersonId === personId ? projectedRecord(row, [...RECORD_METADATA, "kind", "target", "targetKind", "feature", "correctionText", "originLabel", "status", "startsAt", "endsAt", "executedAt", "liftedAt", "liftCause"]) : null
-  // Tranche DIASPORALE (délégué par ANTSIA le 18/10/2026) : une demande de mentorat appartient aux
+  // Tranche DIASPORA.GA (délégué par ANTSIA le 18/10/2026) : une demande de mentorat appartient aux
   // deux parties ; le mentoré exporte toute sa demande, le mentor jamais l'objectif, le message ni
   // les clés d'idempotence du mentoré (une référence ne vaut pas propriété du contenu d'autrui).
-  // Candidature d'emploi DIASPORALE (DG-025) : au seul candidat, sans clé d'idempotence ni identité du
+  // Candidature d'emploi DIASPORA.GA (DG-025) : au seul candidat, sans clé d'idempotence ni identité du
   // signataire qui a décidé ; le motif de non-sélection, jamais montré sans relecture, reste hors
   // export tant que ce point n'est pas tranché (droit d'accès face à la relecture humaine).
   // Relecture du kit d'arrivée : au seul relecteur, son verdict et son motif, jamais le contenu relu.
@@ -271,7 +271,7 @@ export function exportableRecord(table: string, row: DataRecord, personId: strin
   const owners = policy.owners ?? EXPORT_PERSON_FIELDS[table]
   if (!owners?.some((field) => row[field] === personId)) return null
   if (table === "fileScans") return projectedRecord(row, [...RECORD_METADATA, "storageId", "uploadedByPersonId", "source", "status", "attempts", "scannedAt", "releasedAt"])
-  // Admission fondatrice de DIASPORALE : la décision et son retrait, jamais l'identifiant de l'opérateur qui a décidé.
+  // Admission fondatrice de DIASPORA.GA : la décision et son retrait, jamais l'identifiant de l'opérateur qui a décidé.
   if (table === "foundingAdmissions") return projectedRecord(row, [...RECORD_METADATA, "personId", "reason", "seniorityWaiver", "admittedAt", "withdrawnAt", "withdrawnBy", "withdrawalReason"])
   // Une copie transférée n'ouvre pas l'original retiré/inaccessible par l'export self-scoped.
   if ((table === "personalMessages" || table === "groupMessages") && row.forwardedFrom) {

@@ -1,6 +1,6 @@
 // @vitest-environment edge-runtime
 /**
- * Confiance de la vague H DIASPORALE (G9) : signaler, retirer, rétablir et ranger
+ * Confiance de la vague H DIASPORA.GA (G9) : signaler, retirer, rétablir et ranger
  * par pays les contenus de l'entraide, du mentorat, du kit d'arrivée et de
  * l'emploi, par la porte UNIQUE de modération du moteur (`moderation/cases`,
  * `moderation/reviewProjection`, guichet `moderationDesk`), avec de vraies
@@ -102,7 +102,7 @@ afterEach(() => {
   vi.unstubAllEnvs()
 })
 
-/** Un membre DÉCLARÉ de DIASPORALE (IDN de garantie 2 : seaux ordinaires), au profil publié, résidant en France. */
+/** Un membre DÉCLARÉ de DIASPORA.GA (IDN de garantie 2 : seaux ordinaires), au profil publié, résidant en France. */
 async function member(t: T, networkId: Id<"networks">, handle: string, role?: Role): Promise<Member> {
   const as = t.withIdentity({ subject: `g9-${handle}` })
   const personId = await as.mutation(api.modules.people.persons.ensureMyPerson, {})
@@ -111,7 +111,7 @@ async function member(t: T, networkId: Id<"networks">, handle: string, role?: Ro
   await t.run(async (ctx) => {
     await ctx.db.insert("identityLinks", { personId, provider: "idn", subject: `idn-${personId}`, loa: 2, nationality: "GA", linkedAt: NOW })
   })
-  await as.mutation(api.modules.diaspora.membership.joinDiasporale, { networkId, facet: { countryOfResidence: "FR", city: "Lyon" } })
+  await as.mutation(api.modules.diaspora.membership.joinDiasporaGa, { networkId, facet: { countryOfResidence: "FR", city: "Lyon" } })
   if (role) {
     await t.run(async (ctx) => {
       const row = await ctx.db.query("networkMemberships").withIndex("by_network_and_person", (q) => q.eq("networkId", networkId).eq("personId", personId)).unique()

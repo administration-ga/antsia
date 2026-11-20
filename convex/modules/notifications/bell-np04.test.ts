@@ -1,6 +1,6 @@
 // @vitest-environment edge-runtime
 /**
- * NP-04 (issue antsia#149, demande de DIASPORALE) — la cloche complète.
+ * NP-04 (issue antsia#149, demande de DIASPORA.GA) — la cloche complète.
  *
  *  · `paginateNotifications({ unreadOnly: true })` ne sert que les non-lues, par l'index des
  *    non-lues : le filtre a lieu dans la base, page après page, et non sur ce que l'écran a déjà

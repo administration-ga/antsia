@@ -1,6 +1,6 @@
 // @vitest-environment edge-runtime
 /**
- * Avis de mise en relation DIASPORALE (DG-010, DG-015, DG-016) — vraies sessions, porte unique.
+ * Avis de mise en relation DIASPORA.GA (DG-010, DG-015, DG-016) — vraies sessions, porte unique.
  * Chaque geste écrit le bon avis au bon destinataire, neutre et sans acteur ; un rejeu n'empile
  * rien ; rôle retiré, blocage, suspension, sortie ou soi-même : rien n'est écrit, et une ligne
  * déjà écrite ne se présente plus ; aucun contenu dans la ligne, la cloche ni la file de livraison.
@@ -47,7 +47,7 @@ afterEach(() => {
   vi.unstubAllEnvs()
 })
 
-/** Un membre déclaré de DIASPORALE à identité forte (IDN loa 2), au profil publié. */
+/** Un membre déclaré de DIASPORA.GA à identité forte (IDN loa 2), au profil publié. */
 async function member(t: T, networkId: Id<"networks">, handle: string, displayName: string) {
   const as = t.withIdentity({ subject: `auth-${handle}` })
   const personId = await as.mutation(api.modules.people.persons.ensureMyPerson, {})
@@ -56,7 +56,7 @@ async function member(t: T, networkId: Id<"networks">, handle: string, displayNa
   await t.run(async (ctx) => {
     await ctx.db.insert("identityLinks", { personId, provider: "idn", subject: `idn-${personId}`, loa: 2, nationality: "GA", linkedAt: NOW })
   })
-  await as.mutation(api.modules.diaspora.membership.joinDiasporale, { networkId, facet: { countryOfResidence: "FR", city: "Paris" } })
+  await as.mutation(api.modules.diaspora.membership.joinDiasporaGa, { networkId, facet: { countryOfResidence: "FR", city: "Paris" } })
   return { as, personId }
 }
 
@@ -355,9 +355,9 @@ describe("avis de mise en relation — demandes de service (DG-015)", () => {
     const f = await fixture()
     const network = await f.t.run(async (ctx) => await ctx.db.get(f.networkId))
     if (!network) throw new Error("Réseau de fixture absent")
-    vi.stubEnv("NOTIFICATION_APPLICATIONS_JSON", JSON.stringify([{ applicationId: "diasporale_com", networkSlug: network.slug, origin: "https://diasporale.example.test", entryPath: "/fil" }]))
+    vi.stubEnv("NOTIFICATION_APPLICATIONS_JSON", JSON.stringify([{ applicationId: "diaspora_ga", networkSlug: network.slug, origin: "https://diaspora-ga.example.test", entryPath: "/fil" }]))
     await f.pro.as.mutation(api.modules.notifications.pushSubscriptions.subscribe, {
-      networkId: f.networkId, applicationId: "diasporale_com", deviceId: "device_pro", credential: { provider: "expo", token: "ExpoPushToken[token_pro]" },
+      networkId: f.networkId, applicationId: "diaspora_ga", deviceId: "device_pro", credential: { provider: "expo", token: "ExpoPushToken[token_pro]" },
     })
     await f.pro.as.mutation(api.modules.people.consents.recordConsent, { networkId: f.networkId, purpose: "notifications", origin: "settings" })
     const { requestId } = await f.requester.as.mutation(SR.createServiceRequest, sendArgs(f))

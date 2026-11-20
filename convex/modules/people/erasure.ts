@@ -139,7 +139,7 @@ export const exportMyData = personMutation({
   },
 })
 
-/** Une page de l'export d'une table : `{ table, json, nextTableIndex, cursor, done }`, contrat lu par DIASPORALE. */
+/** Une page de l'export d'une table : `{ table, json, nextTableIndex, cursor, done }`, contrat lu par DIASPORA.GA. */
 export type ExportTablePage = { table: string; json: string; nextTableIndex: number; cursor: string | null; done: boolean }
 
 /**
@@ -224,7 +224,7 @@ async function purgeBlobs(ctx: MutationCtx, row: DataRecord, table: string) {
   }
 }
 async function removeCounters(ctx: MutationCtx, table: string, row: DataRecord) {
-  // Vague H DIASPORALE (G9, délégué) : compteurs de nos tables seulement (réponses, inscriptions, signalements « périmée »).
+  // Vague H DIASPORA.GA (G9, délégué) : compteurs de nos tables seulement (réponses, inscriptions, signalements « périmée »).
   await removeDiasporaCounters(ctx, table, row)
   if (table === "commercialThreads" && typeof row.requesterPersonId === "string" && typeof row.shopId === "string") await rateLimiter.reset(ctx, "commercial.request.pair", { key: `${row.requesterPersonId}:${row.shopId}` })
   // CC-2b : le budget d'un fil contextuel effacé disparaît avec lui (les clés personnelles sont remises à zéro à la fin).

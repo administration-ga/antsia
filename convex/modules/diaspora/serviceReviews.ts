@@ -1,5 +1,5 @@
 /**
- * Avis admissibles et droit de réponse DIASPORALE (DG-016).
+ * Avis admissibles et droit de réponse DIASPORA.GA (DG-016).
  * Un avis par rendez-vous et demandeur, sans auto-évaluation ; les preuves
  * sont relues sur la demande, le rendez-vous et la proposition acceptée.
  * Aucune référence de demande/rendez-vous ni identifiant de profil en public.
@@ -15,7 +15,7 @@ import {
   serviceReviewEligibility,
   type Result,
   type ServiceReviewRefusal,
-} from "@diasporale/domain"
+} from "@diaspora-ga/domain"
 import { paginationOptsValidator, type PaginationOptions } from "convex/server"
 import { v } from "convex/values"
 

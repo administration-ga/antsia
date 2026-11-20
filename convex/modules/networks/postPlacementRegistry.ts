@@ -1,6 +1,6 @@
 /**
  * Registre FERMÉ des RÈGLES DE PLACEMENT d'une publication (HB-03, issue antsia#96, demande de la
- * session DIASPORALE) : une entrée par valeur de `NETWORK_SLICES`. Aucune fonction Convex ici.
+ * session DIASPORA.GA) : une entrée par valeur de `NETWORK_SLICES`. Aucune fonction Convex ici.
  *
  * Point d'extension voisin de `sliceRegistry.ts` (la réconciliation des adhésions), MÊME motif :
  *   - c'est le SEUL fichier du moteur qui importe la règle de placement d'une tranche (une ligne par
@@ -20,7 +20,7 @@
  * fichier admis, aucune ligne, aucun état de modération quand elle refuse.
  *
  * Tranche `diaspora` : la règle (pays de l'auteur ou de la page, pays ouvert, pays admis) est le
- * travail de la session DIASPORALE, dans `convex/modules/diaspora/`. Le jour venu, l'entrée devient
+ * travail de la session DIASPORA.GA, dans `convex/modules/diaspora/`. Le jour venu, l'entrée devient
  *   `diaspora: (ctx, placement) => diasporaPostPlacement(ctx, placement),`
  * TOUJOURS par une flèche : l'appel paresseux ne dépend pas de l'ordre d'initialisation d'un cycle
  * d'imports (la tranche importe des modules du moteur qui importent ce registre).

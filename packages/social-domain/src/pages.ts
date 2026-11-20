@@ -180,7 +180,7 @@ export type PageRole = (typeof PAGE_ROLES)[number]
 
 /**
  * L'ÉQUIPE d'une page (AS-10 / PG-08) : ses signataires (`admin`, `signatory`,
- * affiché « Éditeur » dans DIASPORALE) et ses MODÉRATEURS. Le modérateur ne
+ * affiché « Éditeur » dans DIASPORA.GA) et ses MODÉRATEURS. Le modérateur ne
  * parle pas au nom de la page : il retire les commentaires laissés sous ses
  * publications, voit l'équipe, lit les notes aux abonnés et peut se retirer.
  *

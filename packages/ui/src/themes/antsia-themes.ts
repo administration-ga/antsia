@@ -2,7 +2,7 @@
  * Les chartes qu'un membre d'antsia.ga choisit dans ses réglages (Préférences >
  * Thème, ADR-0027) : Gaboma, la charte du réseau (`antsia.css`, premier élément,
  * choix par défaut), puis six thèmes, chacun dans `antsia-<thème>.css` — dont Sable,
- * la charte de DIASPORALE portée dans le réseau (19/10/2026). Chaque
+ * la charte de DIASPORA.GA portée dans le réseau (19/10/2026). Chaque
  * thème a trois couleurs, chacune avec ses fonctions, sur des fonds neutres ;
  * `antsia-themes.test.ts` vérifie que cette liste et les fichiers du dossier
  * coïncident.

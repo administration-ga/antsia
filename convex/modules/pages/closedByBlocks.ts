@@ -1,6 +1,6 @@
 /**
  * Une page FERMÉE à une personne par les blocages (issue antsia#141 ; décision 5 du plan 05 de
- * DIASPORALE, lot RP-03) — aucune fonction Convex ici.
+ * DIASPORA.GA, lot RP-03) — aucune fonction Convex ici.
  *
  * Une page se ferme, de façon INDISTINCTE, à la personne que TOUS ses signataires vivants ont
  * bloquée, ou qui les a tous bloqués : le blocage compte dans un sens ou dans l'autre, dans

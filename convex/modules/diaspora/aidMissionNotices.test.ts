@@ -49,14 +49,14 @@ beforeEach(() => {
 })
 afterEach(() => { vi.useRealTimers(); vi.unstubAllEnvs() })
 
-/** Un membre déclaré de DIASPORALE (lien IDN de garantie 2), au profil publié. */
+/** Un membre déclaré de DIASPORA.GA (lien IDN de garantie 2), au profil publié. */
 async function member(t: T, networkId: Id<"networks">, handle: string) {
   const as = t.withIdentity({ subject: `benevoles-${handle}` })
   const personId = await as.mutation(api.modules.people.persons.ensureMyPerson, {})
   await as.mutation(api.modules.people.consents.recordConsent, { purpose: "social_profile", origin: "onboarding" })
   await as.mutation(api.modules.people.profile.publishMyProfile, { handle, displayName: handle })
   await t.run((ctx) => ctx.db.insert("identityLinks", { personId, provider: "idn", subject: `benevoles-idn-${personId}`, loa: 2, nationality: "GA", linkedAt: NOW }))
-  await as.mutation(api.modules.diaspora.membership.joinDiasporale, { networkId, facet: { countryOfResidence: "FR", city: "Lyon" } })
+  await as.mutation(api.modules.diaspora.membership.joinDiasporaGa, { networkId, facet: { countryOfResidence: "FR", city: "Lyon" } })
   return { as, personId }
 }
 type Member = Awaited<ReturnType<typeof member>>

@@ -2,7 +2,7 @@
 /**
  * `writeContextualPolicy` seule (issue antsia#107) : l'écriture de la politique, sans garde ni journal,
  * que partagent la console (`operator.setPolicy`, couverte par `contextualMessaging.test.ts`) et la
- * graine locale de la tranche DIASPORALE. Horloge figée : les passages planifiés ne s'exécutent pas
+ * graine locale de la tranche DIASPORA.GA. Horloge figée : les passages planifiés ne s'exécutent pas
  * d'eux-mêmes, `_scheduled_functions` dit ce que l'aide a programmé.
  */
 import { engineErrorCode } from "@antsia/social-contracts/errors"

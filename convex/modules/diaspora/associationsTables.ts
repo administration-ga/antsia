@@ -1,11 +1,11 @@
 /**
- * Tables des adhésions aux associations DIASPORALE (DG-010) — PROPRIÉTAIRE :
- * chantier « associations » de la session DIASPORALE ; agrégées par `tables.ts`,
+ * Tables des adhésions aux associations DIASPORA.GA (DG-010) — PROPRIÉTAIRE :
+ * chantier « associations » de la session DIASPORA.GA ; agrégées par `tables.ts`,
  * donc par `convex/schema.ts`.
  *
  * `associationMemberships` : UNE ligne par personne et par page d'association,
  * qui porte le DERNIER état de son adhésion (règles pures dans
- * `@diasporale/domain/associations`). Elle naît TOUJOURS d'une demande de la
+ * `@diaspora-ga/domain/associations`). Elle naît TOUJOURS d'une demande de la
  * personne : aucune fonction n'en crée pour autrui, aucun import n'en écrit.
  * Distincte de l'abonnement à la page (`pageFollows`) : suivre l'actualité
  * n'est pas adhérer. Aucune coordonnée, aucun nom n'y est stocké (le nom
@@ -17,7 +17,7 @@ import {
   ASSOCIATION_MEMBER_ROLES,
   ASSOCIATION_MEMBERSHIP_STATUSES,
   ASSOCIATION_RESPONSIBLE_ROLES,
-} from "@diasporale/domain"
+} from "@diaspora-ga/domain"
 import { defineTable } from "convex/server"
 import { v } from "convex/values"
 

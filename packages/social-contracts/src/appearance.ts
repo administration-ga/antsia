@@ -5,7 +5,7 @@
  * vivent dans `@antsia/ui` (`ANTSIA_THEME_IDS`) ; les deux listes doivent
  * coïncider, ce que vérifie `apps/antsia_ga/src/components/theme-picker.test.tsx`.
  * Le premier identifiant, Gaboma, est la charte du réseau et le thème par défaut
- * (ADR-0027). Le dernier, Sable, est la charte de DIASPORALE portée dans le réseau
+ * (ADR-0027). Le dernier, Sable, est la charte de DIASPORA.GA portée dans le réseau
  * (19/10/2026).
  */
 export const MEMBER_THEME_IDS = ["gaboma", "soleil", "foret", "corail", "lagon", "electrique", "sable"] as const

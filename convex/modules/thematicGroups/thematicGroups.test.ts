@@ -693,7 +693,7 @@ describe("le signalement d'une publication de groupe", () => {
  */
 const ASSOCIATION_NOW = Date.UTC(2026, 9, 18, 10)
 
-/** Le groupe d'une association n'existe que dans un réseau qui a la portée `diaspora` : la graine de DIASPORALE. */
+/** Le groupe d'une association n'existe que dans un réseau qui a la portée `diaspora` : la graine de DIASPORA.GA. */
 async function associationGroupFixture(t: T) {
   vi.useFakeTimers({ toFake: ["Date"] })
   vi.setSystemTime(ASSOCIATION_NOW)
@@ -707,7 +707,7 @@ async function associationGroupFixture(t: T) {
     await t.run(async (ctx) => {
       await ctx.db.insert("identityLinks", { personId, provider: "idn", subject: `idn-${handle}`, loa: 2, nationality: "GA", linkedAt: ASSOCIATION_NOW })
     })
-    await as.mutation(api.modules.diaspora.membership.joinDiasporale, { networkId, facet: { countryOfResidence: "FR", city: "Lyon" } })
+    await as.mutation(api.modules.diaspora.membership.joinDiasporaGa, { networkId, facet: { countryOfResidence: "FR", city: "Lyon" } })
     return { as, personId, handle }
   }
   const alice = await member("alice")

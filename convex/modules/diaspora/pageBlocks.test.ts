@@ -1,11 +1,11 @@
 // @vitest-environment edge-runtime
 /**
- * RP-03 de DIASPORALE (décision 5 du plan 05) : une demande d'une personne vers
+ * RP-03 de DIASPORA.GA (décision 5 du plan 05) : une demande d'une personne vers
  * une page dont TOUS les signataires vivants sont en blocage avec elle reçoit le
  * refus indistinct ; un seul signataire ne ferme pas une page collective ; on
  * sort toujours d'un échange ; une ressource du kit reste lisible.
  *
- * Un test par ligne de la matrice (docs/40 de DIASPORALE), avec de vraies
+ * Un test par ligne de la matrice (docs/40 de DIASPORA.GA), avec de vraies
  * sessions et de vrais blocages (`graph.connections.blockPerson`).
  */
 import { engineErrorAppRule, engineErrorCode } from "@antsia/social-contracts/errors"
@@ -80,7 +80,7 @@ async function member(t: T, networkId: Id<"networks">, handle: string) {
   await t.run(async (ctx) => {
     await ctx.db.insert("identityLinks", { personId, provider: "idn", subject: `idn-${personId}`, loa: 2, nationality: "GA", linkedAt: NOW })
   })
-  await as.mutation(api.modules.diaspora.membership.joinDiasporale, { networkId, facet: { countryOfResidence: "FR", city: "Paris" } })
+  await as.mutation(api.modules.diaspora.membership.joinDiasporaGa, { networkId, facet: { countryOfResidence: "FR", city: "Paris" } })
   return { as, personId }
 }
 

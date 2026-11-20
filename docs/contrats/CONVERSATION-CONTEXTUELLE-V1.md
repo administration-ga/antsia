@@ -5,12 +5,12 @@ Lot « Contrat CC » (table de réservation : `docs/etudes/2026-10-18-social-com
 « Continuer sans vérifier ». Aucune commande de vérification, de génération, de test ni de build
 n'a été lancée pour ce document. Aucun code, aucun ADR, aucun schéma n'est écrit ici.
 Statut : **Accepté** — validation du propriétaire du 19/10/2026, relayée par la session
-DIASPORALE : « Je valide les décisions D1 à D16 du contrat CONVERSATION-CONTEXTUELLE-V1, avec les
+DIASPORA.GA : « Je valide les décisions D1 à D16 du contrat CONVERSATION-CONTEXTUELLE-V1, avec les
 amendements D5 et D8 ; transmets-le à ANTSIA. » D7 et D13 restent à confirmer juridiquement
 (ADR-0025).
 
-**Révision du 19/10 (retours de la session DIASPORALE, transmis par le coordinateur), puis
-validation.** D2, D3, D4 et D6 ont été acceptés tels quels par DIASPORALE ; D5 retient l'option
+**Révision du 19/10 (retours de la session DIASPORA.GA, transmis par le coordinateur), puis
+validation.** D2, D3, D4 et D6 ont été acceptés tels quels par DIASPORA.GA ; D5 retient l'option
 (a) ; D8 devient une règle de texte qui reçoit le contexte de l'émetteur ; le crochet de
 `closeExpiredJobOffers` est retiré du §6.3. Le propriétaire a ensuite validé D1 à D16, avec les
 amendements D5 et D8 et la correction du §6.3 (marqués « validé » aux §5.5, §5.8, §6.3, §10.3,
@@ -23,17 +23,17 @@ relation sociale. Elle n'ouvre pas la messagerie personnelle aux inconnus (ADR-0
 rejetée) et ne duplique pas le canal commercial P10 (ADR-0021).
 
 **Sources relues le 19/10.** Elles proviennent de l'arbre partagé non commité. P10, P14, P15 et
-les tranches DIASPORALE y sont « raccordés, jamais exécutés ».
+les tranches DIASPORA.GA y sont « raccordés, jamais exécutés ».
 - ANTSIA : `CLAUDE.md` ; études `05`, `06` et `EXECUTION.md` ; rapports P05, P10, P14 et P15 ;
   `docs/21` ; ADR-0009, 0019, 0021 et 0024.
 - Code moteur : `convex/modules/commercialMessaging/**` ;
   `convex/modules/messaging/{inbox,participation,attachmentStorage}.ts` ;
   `packages/social-contracts/src/messaging.ts`. Les points d'appui cités dans `calls`,
   `notifications`, `moderation`, `people` et `pages` ont aussi été relus.
-- Tranche DIASPORALE dans le moteur :
+- Tranche DIASPORA.GA dans le moteur :
   `convex/modules/diaspora/{serviceRequests*,mentoring*,jobs*,serviceNotifications,moderationContent,facts}.ts`.
-- Dépôt DIASPORALE : `docs/{14,17,18,21,32}` et
-  `packages/diasporale-domain/src/{service-requests,mentoring,jobs}.ts`.
+- Dépôt DIASPORA.GA : `docs/{14,17,18,21,32}` et
+  `packages/diaspora-ga-domain/src/{service-requests,mentoring,jobs}.ts`.
 
 Les références de code décrivent ces sources telles qu'elles ont été lues. Elles doivent être
 relues avant CC-2, parce que P16 révise en ce moment les modules commerce.
@@ -292,7 +292,7 @@ zéro les clés personnelles, comme pour `commercial.request.pair`.
   19/10/2026** : la règle reçoit le CONTEXTE de l'émetteur, pas le texte
   seul — `textRule({ text, kind, side, voice })` rend `{ ok: true }` ou
   `{ ok: false, code }`, où `code` est un code fermé de la tranche (par exemple
-  `context_address_forbidden`). DIASPORALE refuse l'adresse exacte en voix de **personne**
+  `context_address_forbidden`). DIASPORA.GA refuse l'adresse exacte en voix de **personne**
   (plan G5 point 6 : « une adresse de domicile n'entre ni dans le fil ni dans les notifications
   externes ») et l'admet en voix de **page** : une page n'a aucune adresse dans le moteur, et
   l'adresse est alors le lieu même de la prestation. Le moteur applique la règle APRÈS la règle
@@ -482,7 +482,7 @@ l'un de ces trois événements : l'effacement de l'objet, la suppression de l'ob
 D7.
 
 Les 90 jours de P10 sont un choix technique propre à P10 ; ils ne sont pas hérités. Les objets
-DIASPORALE n'ont pas non plus de purge temporelle. Une fois une durée décidée avec un conseil
+DIASPORA.GA n'ont pas non plus de purge temporelle. Une fois une durée décidée avec un conseil
 compétent, il faudra :
 - poser `purgeAt` à la fermeture ;
 - ajouter une tâche planifiée à identifiant ASCII ;
@@ -495,7 +495,7 @@ compétent, il faudra :
   - `contextual_message` pour un nouveau message ;
   - `contextual_closed` pour une clôture par un côté.
 
-  Les transitions de l'objet gardent leurs avis DIASPORALE existants (les 13 genres de la
+  Les transitions de l'objet gardent leurs avis DIASPORA.GA existants (les 13 genres de la
   tranche) ; aucun avis n'est doublé.
 - **Sujet** : `{ contextualThread }`. Cela demande une colonne `subjectContextualThreadId` et
   l'ajout de `contextualThread` à `NOTIFICATION_SUBJECT_KINDS`.
@@ -520,12 +520,12 @@ compétent, il faudra :
 - **Ouverture** : `notifications.open.resolveOpenTarget` rend le genre et
   `{ kind: "contextualThread", id }` seulement si le sujet est encore visible. L'écran compose
   l'adresse à partir des routes de l'application (`apps/*/src/lib/routes.ts` dans ANTSIA,
-  `apps/diasporale_com/src/lib/routes.ts` dans DIASPORALE) ; sinon il affiche un repli neutre.
+  `apps/diaspora_ga/src/lib/routes.ts` dans DIASPORA.GA) ; sinon il affiche un repli neutre.
   L'ouverture ne marque rien comme lu, et une adresse fournie par la charge n'est jamais suivie.
 - **Appels** : ils passent par le canal d'appel existant. `ringsFor` et `incomingCallAllowed`
   appliquent le contexte d'appel (§11.3).
 - **Hors périmètre** : la suite (2) d'`EXECUTION.md`, c'est-à-dire la destination ciblée des 13
-  genres DIASPORALE, emprunte la même mécanique sans être traitée ici.
+  genres DIASPORA.GA, emprunte la même mécanique sans être traitée ici.
 
 ## 8. Modération
 
@@ -533,11 +533,11 @@ compétent, il faudra :
   cibles. La nature affichée au guichet est dérivée du fil côté serveur : par exemple
   « `contextualMessage` · `diasporaServiceRequest` ». Elle ne vient jamais de la personne qui
   signale. Le pays du guichet est celui de l'objet, fourni par la tranche (§10.3). Cela suit la
-  règle DIASPORALE : pays de l'offre pour une candidature, zone du contenu sinon.
+  règle DIASPORA.GA : pays de l'offre pour une candidature, zone du contenu sinon.
 - **Écriture** : le message passe par la modération, avec un propriétaire.
   - En voix de personne, le propriétaire est `authorPersonId`.
   - En voix de page, c'est `ownerPageId`. Le champ existe déjà dans `moderationContentStates` :
-    la tranche DIASPORALE l'utilise et P16 le lit. Il faut toutefois une variante de
+    la tranche DIASPORA.GA l'utilise et P16 le lit. Il faut toutefois une variante de
     `moderateContentWrite` qui accepte un propriétaire de type page, car la version actuelle
     n'accepte qu'une personne.
   - La prélecture suit la politique du réseau pour cette surface (D15).
@@ -551,7 +551,7 @@ compétent, il faudra :
   participant, ni message voisin, ni contenu de l'objet. L'auteur réel d'un message en voix de
   page est visible des seuls outils de décision des modérateurs.
 - **Décision** : par les équipes habilitées. Une partie au fil, ou un signataire de la page
-  concernée, ne tranche jamais un dossier de ce fil. C'est la règle DIASPORALE, étendue ici.
+  concernée, ne tranche jamais un dossier de ce fil. C'est la règle DIASPORA.GA, étendue ici.
 - Les états de modération sont supprimés avec leur message.
 
 ## 9. Export et effacement
@@ -637,12 +637,12 @@ fonction. Son implémentation vit dans la tranche, dans `convex/modules/diaspora
 Chaque nature fournit les éléments suivants.
 
 - **Chargeur** `load(ctx en lecture seule, objectId, now)`. Il rend `null` si l'objet est absent
-  ou hors d'un réseau DIASPORALE (`isDiasporaNetwork`). Sinon, il rend un instantané qui contient :
+  ou hors d'un réseau DIASPORA.GA (`isDiasporaNetwork`). Sinon, il rend un instantané qui contient :
   - `networkId` ;
   - `requester` : `{ personId }` ;
   - `responder` : `{ pageId }` ou `{ personId }` ;
   - `phase` : `not_open`, `open` ou `closed`, calculée par la règle pure de
-    `@diasporale/domain` à partir de l'état **effectif** de l'objet ;
+    `@diaspora-ga/domain` à partir de l'état **effectif** de l'objet ;
   - `callsEngaged`, `responderFirst` et les pièces admises par côté ;
   - `writeMinStatus` par côté, dans le vocabulaire des statuts du moteur ;
   - `moderationCountry`, le pays du guichet.
@@ -690,14 +690,14 @@ Obligations du résolveur :
 - lectures bornées, par index, sans `.collect()` non bornée ;
 - déterminisme : même instantané et même instant donnent le même résultat ;
 - aucune lecture hors du moteur ;
-- `@diasporale/domain` importé dans la tranche seulement (cliquet `no-cross-product-imports`) ;
+- `@diaspora-ga/domain` importé dans la tranche seulement (cliquet `no-cross-product-imports`) ;
 - tout refus prend la forme `null`, jamais une exception porteuse de raison ;
 - aucune lecture des signataires, des blocages ni des adhésions, qui restent au moteur ;
 - tests purs de toutes les correspondances du §6.2.
 
 ### 10.4 Répartition entre la tranche et le moteur
 
-| Sujet | La tranche DIASPORALE fournit | Le moteur ANTSIA garde |
+| Sujet | La tranche DIASPORA.GA fournit | Le moteur ANTSIA garde |
 |---|---|---|
 | Objet | chargeur, règle pure état → phase, visibilité, pays du guichet | registre fermé, validateur des natures, colonnes typées |
 | Cycle | appels de `openContextualConversation`, `syncContextualConversation` et `purgeContextualConversation` dans ses transitions et passages | cache, fermeture, purge, revalidation des appels |
@@ -734,7 +734,7 @@ Obligations du résolveur :
    le transfert CRM, le retrait privé et la tombe préventive. P14 s'appuie sur une conversation
    P10 acceptée (`commerceServiceRequests.threadId`). Déplacer ces fils toucherait un contrat
    inter-produits.
-4. **Produit.** L'accord D-G01 du 18/10 interdit à la mise en relation DIASPORALE tout lien
+4. **Produit.** L'accord D-G01 du 18/10 interdit à la mise en relation DIASPORA.GA tout lien
    PRO.GA et tout vocabulaire « commerce ». DG-013 ne peut donc pas emprunter un canal attaché à
    une boutique.
 5. **Risque.** P10 est « raccordé, jamais exécuté » et en revue P16. Le modifier maintenant
@@ -772,7 +772,7 @@ convergence écrite (§11.4).
 | `calls` | Un appel porte au plus un contexte : `commercialThreadId` **ou** `contextualThreadId`, jamais les deux. Tous les embranchements existants passent par le sélecteur : accès, sonnerie, ouverture d'avis, jeton à 60 secondes, fermeture de salle, journal, refus de la messagerie vocale et de l'appel de groupe. Ces embranchements sont dans `calls/{access,direct,livekitActions,token,state,ringing,history,lifecycle,voicemail,groupCalls}.ts` et `notifications/{open,policy}.ts` |
 | Cloche | Genres et sujets distincts : `commercial_contact` et `commercialThread` d'un côté ; `contextual_message`, `contextual_closed` et `contextualThread` de l'autre |
 | Modération | Surfaces distinctes : `commercialMessage` et `contextualMessage` ; mêmes règles d'aperçu |
-| Messages | Sources distinctes, injectées par l'application. Le filtre « Boutiques » reste à P10 ; un filtre « Mises en relation » est ajouté côté DIASPORALE. Aucun identifiant n'est converti d'une famille à l'autre |
+| Messages | Sources distinctes, injectées par l'application. Le filtre « Boutiques » reste à P10 ; un filtre « Mises en relation » est ajouté côté DIASPORA.GA. Aucun identifiant n'est converti d'une famille à l'autre |
 | Données | Aucune table partagée ; aucune lecture croisée entre les deux modules |
 
 ### 11.4 Voie de convergence (CC-8, facultative, hors V1)
@@ -795,7 +795,7 @@ Aucune de ces étapes n'est engagée par ce contrat.
 ### 11.5 P14 et P15
 
 - **P14** (services ANTSIA × PRO.GA) continue de partir d'une conversation P10 acceptée. Les
-  services DIASPORALE (DG-014) passent par la nature `diasporaServiceRequest`. Les deux chemins
+  services DIASPORA.GA (DG-014) passent par la nature `diasporaServiceRequest`. Les deux chemins
   coexistent parce que les produits diffèrent (D-G01).
 - **P15** : la nature `commerceJobApplication` est réservée, et non implémentée (D11), pour trois
   raisons :
@@ -819,7 +819,7 @@ Fichiers cibles :
 - domaine pur : `packages/social-domain/src/contextualMessaging.test.ts` (nom livré par CC-1, aligné
   sur le module `@antsia/social-domain/contextualMessaging` du §10.3) ;
 - tranche : `convex/modules/diaspora/conversationContexts.test.ts` ;
-- domaine DIASPORALE : `packages/diasporale-domain/src/conversation-contexts.test.ts` ;
+- domaine DIASPORA.GA : `packages/diaspora-ga-domain/src/conversation-contexts.test.ts` ;
 - non-régression personnelle : `convex/modules/messaging/messaging.test.ts` ;
 - cliquets : nouveaux `tests/ratchets/contextual-registry.test.ts` et
   `tests/ratchets/contextual-hooks.test.ts`, et ajout du module à `network-scoped-functions`.
@@ -969,19 +969,19 @@ Règles de l'arbre partagé, inchangées :
 | 0 | CC-0 | propriétaire et coordinateur | décisions D1 à D16 ; ADR, numéro à réserver ; réservation | `docs/adr/00xx-conversations-contextuelles.md` ; `EXECUTION.md` (coordinateur) |
 | 1 | CC-1 | ANTSIA, moteur | domaine pur : natures, phases, côtés, voix, capacités, politiques statiques, règle neutre de texte, de clé et d'empreinte, `CONTEXTUAL_RETENTION = null` ; genres, sujet, catégorie et surface de modération | créés `packages/social-domain/src/contextualMessaging.ts` et son test (nom livré) ; modifiés `notifications.ts`, `notificationDelivery.ts`, `moderationPolicy.ts` ; `commercialContact.ts` en option (ré-export, accord P10 et P16) |
 | 2 | CC-2a | ANTSIA, moteur | type du résolveur, sans fonction, pour débloquer la tranche | créé `convex/modules/contextualMessaging/contract.ts` |
-| 3 | CC-3a | DIASPORALE, tranche | règles pures et chargeurs des trois natures, visibilité, pays du guichet, règle de texte | DIASPORALE : créés `packages/diasporale-domain/src/conversation-contexts.ts` et son test. Tranche : créés `convex/modules/diaspora/conversationContexts.ts` et son test |
+| 3 | CC-3a | DIASPORA.GA, tranche | règles pures et chargeurs des trois natures, visibilité, pays du guichet, règle de texte | DIASPORA.GA : créés `packages/diaspora-ga-domain/src/conversation-contexts.ts` et son test. Tranche : créés `convex/modules/diaspora/conversationContexts.ts` et son test |
 | 3 (en parallèle) | CC-2b | ANTSIA, moteur | tables, registre, accès (résolveur injecté dans les tests, jamais enregistré), fils, messages, états, politique et console, aides, rétention inactive ; avis, modération, données, débits, cliquets | créés `contextualMessaging/{tables,registry,access,threads,messages,personStates,operator,hooks,retention}.ts` et le test ; `apps/admin_antsia_ga/src/components/console-contextual-policy.tsx`. Modifiés `convex/schema.ts`, `convex/lib/rateLimit.ts`, `people/{dataPolicies,dataInventory,erasure}.ts`, `notifications/{tables,notify,policy,open,bell}.ts`, `moderation/{tables,targets,reviewProjection,policy}.ts`, `tests/ratchets/network-scoped-functions.test.ts`, `console-pages.tsx`, `operations.json` FR/EN. Créés les cliquets `contextual-registry` et `contextual-hooks` |
-| 4 | CC-3b | DIASPORALE, tranche | crochets dans les transitions et les passages ; fermetures système ; manifeste | modifiés `convex/modules/diaspora/{serviceRequests,mentoring,jobs,moderationTargets,manifest}.ts` ; libellés dans le fragment DIASPORALE |
+| 4 | CC-3b | DIASPORA.GA, tranche | crochets dans les transitions et les passages ; fermetures système ; manifeste | modifiés `convex/modules/diaspora/{serviceRequests,mentoring,jobs,moderationTargets,manifest}.ts` ; libellés dans le fragment DIASPORA.GA |
 | 5 | CC-4 | ANTSIA, moteur | appels : sélecteur de contexte, accords, revalidation, jeton court, journal | créé `contextualMessaging/calls.ts` et `contextualCalls.test.ts` ; modifiés `calls/{tables,direct,access,evaluate,livekitActions,token,state,ringing,history,lifecycle,voicemail,groupCalls}.ts` et `notifications/{open,policy}.ts` |
 | 6 | CC-5 | ANTSIA, interface partagée | source contextuelle et vue réutilisant composeur et bulles ; textes FR/EN | créés `packages/social-features/src/features/messagerie/{contextual-messaging-source.ts,ContextualConversationView.tsx}` et leurs tests, plus le fragment `messagerie.contexte.json` FR/EN ; modifiés `MessagesRoute.tsx` et `IcomMessagesPage.tsx` (source injectable), `notifications.json`. Aucune nature V1 dans le réseau racine : `apps/antsia_ga` n'est pas touché |
-| 7 | CC-6 | DIASPORALE, interface | port, adaptateur moteur, démonstration, entrées depuis « Mes demandes », « Demandes reçues », « Mes mentorats » et les candidatures ; liens profonds | DIASPORALE : créés `packages/diasporale-features/src/data/conversations-port.ts`, `src/demo/conversations.ts`, les composants, `src/i18n/locales/{fr,en}/conversations.json`, `apps/diasporale_com/src/data/engine-conversations.ts` ; modifié `apps/diasporale_com/src/lib/routes.ts` |
+| 7 | CC-6 | DIASPORA.GA, interface | port, adaptateur moteur, démonstration, entrées depuis « Mes demandes », « Demandes reçues », « Mes mentorats » et les candidatures ; liens profonds | DIASPORA.GA : créés `packages/diaspora-ga-features/src/data/conversations-port.ts`, `src/demo/conversations.ts`, les composants, `src/i18n/locales/{fr,en}/conversations.json`, `apps/diaspora_ga/src/data/engine-conversations.ts` ; modifié `apps/diaspora_ga/src/lib/routes.ts` |
 | — | CC-V | coordinateur | génération, vérification commune, recettes à deux comptes | sur instruction du propriétaire uniquement |
 | plus tard | CC-7 | ANTSIA × PRO.GA | nature `commerceJobApplication` (D11) | contrat privé jumeau d'abord, puis code |
 | plus tard | CC-8 | ANTSIA (P10) | convergence facultative de P10 (§11.4) | après vérification de P10 et D1 |
 
 ## 14. Décisions du propriétaire — validées le 19/10/2026
 
-Validation du propriétaire, relayée par la session DIASPORALE, citée mot pour mot : « Je valide
+Validation du propriétaire, relayée par la session DIASPORA.GA, citée mot pour mot : « Je valide
 les décisions D1 à D16 du contrat CONVERSATION-CONTEXTUELLE-V1, avec les amendements D5 et D8 ;
 transmets-le à ANTSIA. » Elle couvre D1 à D16 tels que ci-dessous, D5 et D8 amendés, et la
 correction du §6.3. D7 et D13 restent à confirmer juridiquement.
@@ -989,13 +989,13 @@ correction du §6.3. D7 et D13 restent à confirmer juridiquement.
 | N° | Question | Décision | Statut |
 |---|---|---|---|
 | D1 | P10 : distinct ou migré | Distinct en V1 (§11.1) ; convergence CC-8 facultative, seulement après vérification et recette de P10 | **validée** |
-| D2 | Composition du côté page | Tous les signataires vivants, ce qui s'aligne sur DG-004 et sur les droits actuels des demandes. Variante écartée : sous-ensemble mandaté (modèle P10) | **validée** (acceptée telle quelle par DIASPORALE) |
-| D3 | Voix des côtés page (services, candidatures) | Voix de page. Le coéquipier est visible de l'équipe seulement ; le signataire est nommé seulement s'il consent à un appel | **validée** (acceptée telle quelle par DIASPORALE) |
-| D4 | Premier mot pour une demande de service | Au répondant, parce que la demande structurée tient lieu de premier message. Variante écartée : écriture libre dès l'envoi | **validée** (acceptée telle quelle par DIASPORALE) |
+| D2 | Composition du côté page | Tous les signataires vivants, ce qui s'aligne sur DG-004 et sur les droits actuels des demandes. Variante écartée : sous-ensemble mandaté (modèle P10) | **validée** (acceptée telle quelle par DIASPORA.GA) |
+| D3 | Voix des côtés page (services, candidatures) | Voix de page. Le coéquipier est visible de l'équipe seulement ; le signataire est nommé seulement s'il consent à un appel | **validée** (acceptée telle quelle par DIASPORA.GA) |
+| D4 | Premier mot pour une demande de service | Au répondant, parce que la demande structurée tient lieu de premier message. Variante écartée : écriture libre dès l'envoi | **validée** (acceptée telle quelle par DIASPORA.GA) |
 | D5 | Appels par nature | Accords des deux côtés, à partir de `proposed` pour un service, d'`accepted` pour un mentorat, de `shortlisted` pour une candidature. **Amendement (option (a))** : l'accord explicite donné dans le fil vaut admission pour ce seul fil, au-dessus du réglage « hors de mes relations : silencieux » ; « ne pas déranger », occupation et absence restent appliqués ; la projection indique au lecteur l'effet de ses propres réglages (CC-4). Ancienne recommandation (réglage maintenu, comme P10) écartée | **validée, amendée** |
-| D6 | Candidature présélectionnée dont l'offre est close | Fil maintenu jusqu'à la décision de l'équipe, qui peut ne pas retenir ou clore le fil (D12). Précision : aucun état « recrutement terminé » en V1, aucun crochet dans `closeExpiredJobOffers` ; seule une offre retirée par la modération ferme ses candidatures (chargeur), avec synchronisation bornée par `removeDiasporaTarget` / `restoreDiasporaTarget` (correction du §6.3) | **validée** (acceptée par DIASPORALE, §6.3 corrigé) |
+| D6 | Candidature présélectionnée dont l'offre est close | Fil maintenu jusqu'à la décision de l'équipe, qui peut ne pas retenir ou clore le fil (D12). Précision : aucun état « recrutement terminé » en V1, aucun crochet dans `closeExpiredJobOffers` ; seule une offre retirée par la modération ferme ses candidatures (chargeur), avec synchronisation bornée par `removeDiasporaTarget` / `restoreDiasporaTarget` (correction du §6.3) | **validée** (acceptée par DIASPORA.GA, §6.3 corrigé) |
 | D7 | Conservation après fermeture | Aucune durée (`null`) tant qu'elle n'est pas décidée avec un conseil compétent. P10 garde ses 90 jours | **validée** ; **à confirmer juridiquement** |
-| D8 | Règle de texte DIASPORALE | Refus d'une adresse exacte (G5 point 6). Coordonnées permises, puisque la messagerie est le canal de contact du réseau. **Amendement** : la règle reçoit le contexte de l'émetteur (`{ text, kind, side, voice }`) ; adresse exacte refusée en voix de personne, admise en voix de page (lieu de la prestation) ; code fermé de la tranche traduit pour la seule partie émettrice (§5.5, §10.3) | **validée, amendée** |
+| D8 | Règle de texte DIASPORA.GA | Refus d'une adresse exacte (G5 point 6). Coordonnées permises, puisque la messagerie est le canal de contact du réseau. **Amendement** : la règle reçoit le contexte de l'émetteur (`{ text, kind, side, voice }`) ; adresse exacte refusée en voix de personne, admise en voix de page (lieu de la prestation) ; code fermé de la tranche traduit pour la seule partie émettrice (§5.5, §10.3) | **validée, amendée** |
 | D9 | Pièces par message | `chat_attachment`, au plus deux par message comme P10, ouvertes selon le §6.2 | **validée** |
 | D10 | Effet d'une politique fermée sur l'existant | Lecture seule de l'historique. Variante écartée : masquage, qui est le comportement de P10 | **validée** |
 | D11 | Nature P15 `commerceJobApplication` | Différée jusqu'aux quatre conditions du §11.5. Variante écartée : aucune conversation ANTSIA pour P15 | **validée** |
@@ -1009,10 +1009,10 @@ correction du §6.3. D7 et D13 restent à confirmer juridiquement.
 
 - **Aucune exécution.** Aucun test, aucune génération, aucun typage, aucun lint, aucun build,
   aucun navigateur et aucune commande Convex n'ont été lancés. Les références décrivent des
-  sources partagées non commitées et non vérifiées (P10, P14, P15, vagues G et H de DIASPORALE),
+  sources partagées non commitées et non vérifiées (P10, P14, P15, vagues G et H de DIASPORA.GA),
   susceptibles de changer, notamment sous P16.
 - Les noms de fonctions, de tables et de seaux sont **normatifs** depuis la validation du
   19/10/2026 (ADR-0025 accepté). D7 et D13 restent à confirmer juridiquement.
-- Le contrat ne traite pas la destination ciblée des 13 genres d'avis DIASPORALE (suite (2)
+- Le contrat ne traite pas la destination ciblée des 13 genres d'avis DIASPORA.GA (suite (2)
   d'`EXECUTION.md`), ni la messagerie personnelle, ni le chiffrement de bout en bout, ni les
   appels natifs (P17).

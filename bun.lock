@@ -12,7 +12,7 @@
         "@convex-dev/migrations": "catalog:",
         "@convex-dev/rate-limiter": "catalog:",
         "@convex-dev/resend": "catalog:",
-        "@diasporale/domain": "workspace:*",
+        "@diaspora-ga/domain": "workspace:*",
         "@idn-ga/better-auth": "catalog:",
         "better-auth": "catalog:",
         "convex": "catalog:",
@@ -32,8 +32,8 @@
         "vitest": "catalog:",
       },
     },
-    "../DIASPORALE/apps/diasporale_com": {
-      "name": "diasporale-com",
+    "../DIASPORA_GA/apps/diaspora_ga": {
+      "name": "diaspora-ga",
       "version": "0.1.0",
       "dependencies": {
         "@antsia/api": "workspace:*",
@@ -41,8 +41,8 @@
         "@antsia/social-domain": "workspace:*",
         "@antsia/social-features": "workspace:*",
         "@antsia/ui": "workspace:*",
-        "@diasporale/domain": "workspace:*",
-        "@diasporale/features": "workspace:*",
+        "@diaspora-ga/domain": "workspace:*",
+        "@diaspora-ga/features": "workspace:*",
         "@hookform/resolvers": "catalog:",
         "convex": "catalog:",
         "i18next": "catalog:",
@@ -75,8 +75,8 @@
         "vitest": "catalog:",
       },
     },
-    "../DIASPORALE/packages/diasporale-domain": {
-      "name": "@diasporale/domain",
+    "../DIASPORA_GA/packages/diaspora-ga-domain": {
+      "name": "@diaspora-ga/domain",
       "version": "0.1.0",
       "devDependencies": {
         "@antsia/tsconfig": "workspace:*",
@@ -84,8 +84,8 @@
         "typescript": "catalog:",
       },
     },
-    "../DIASPORALE/packages/diasporale-features": {
-      "name": "@diasporale/features",
+    "../DIASPORA_GA/packages/diaspora-ga-features": {
+      "name": "@diaspora-ga/features",
       "version": "0.1.0",
       "dependencies": {
         "@antsia/api": "workspace:*",
@@ -93,7 +93,7 @@
         "@antsia/social-domain": "workspace:*",
         "@antsia/social-features": "workspace:*",
         "@antsia/ui": "workspace:*",
-        "@diasporale/domain": "workspace:*",
+        "@diaspora-ga/domain": "workspace:*",
         "@hookform/resolvers": "catalog:",
         "class-variance-authority": "catalog:",
         "clsx": "catalog:",
@@ -705,9 +705,9 @@
 
     "@csstools/css-tokenizer": ["@csstools/css-tokenizer@4.0.2", "", {}, "sha512-OoKoR0f76dCY666JlcbhmVTs2drYj1GUXZTYTcbUgJjh9Nv41aFfZ21bPQTERm5+L5cBDo466NltB2lplS5GBw=="],
 
-    "@diasporale/domain": ["@diasporale/domain@workspace:../DIASPORALE/packages/diasporale-domain"],
+    "@diaspora-ga/domain": ["@diaspora-ga/domain@workspace:../DIASPORA_GA/packages/diaspora-ga-domain"],
 
-    "@diasporale/features": ["@diasporale/features@workspace:../DIASPORALE/packages/diasporale-features"],
+    "@diaspora-ga/features": ["@diaspora-ga/features@workspace:../DIASPORA_GA/packages/diaspora-ga-features"],
 
     "@edge-runtime/primitives": ["@edge-runtime/primitives@6.0.0", "", {}, "sha512-FqoxaBT+prPBHBwE1WXS1ocnu/VLTQyZ6NMUBAdbP7N2hsFTTxMC/jMu2D/8GAlMQfxeuppcPuCUk/HO3fpIvA=="],
 
@@ -1605,7 +1605,7 @@
 
     "detect-node-es": ["detect-node-es@1.1.0", "", {}, "sha512-ypdmJU/TbBby2Dxibuv7ZLW3Bs1QEmM7nHjEANfohJLvE0XVujisn1qPJcZxg+qDucsr+bP6fLD1rPS3AhJ7EQ=="],
 
-    "diasporale-com": ["diasporale-com@workspace:../DIASPORALE/apps/diasporale_com"],
+    "diaspora-ga": ["diaspora-ga@workspace:../DIASPORA_GA/apps/diaspora_ga"],
 
     "dnssd-advertise": ["dnssd-advertise@1.1.6", "", {}, "sha512-Ndrrf6BMPalkQPd/zubL+4YghH2J9NspapQ09uDXwYbvOPkP0oaqf5CkcwJ0b50kS2O3ul6yVu+jz+RY62Cejg=="],
 

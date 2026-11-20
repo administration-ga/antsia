@@ -10,10 +10,10 @@ import { fileURLToPath } from "node:url"
 // Aucun secret, serveur ou base de données n'est emporté.
 const app = resolve(dirname(fileURLToPath(import.meta.url)), "..")
 const repository = resolve(app, "../..")
-const sibling = resolve(repository, "../DIASPORALE")
-const refs = [process.env.ANTSIA_BUILD_REF, process.env.DIASPORALE_BUILD_REF]
+const sibling = resolve(repository, "../DIASPORA_GA")
+const refs = [process.env.ANTSIA_BUILD_REF, process.env.DIASPORA_GA_BUILD_REF]
 if (refs.some((ref) => !ref || !/^[0-9a-f]{40}$/.test(ref))) {
-  throw new Error("Provide full immutable ANTSIA_BUILD_REF and DIASPORALE_BUILD_REF commit IDs")
+  throw new Error("Provide full immutable ANTSIA_BUILD_REF and DIASPORA_GA_BUILD_REF commit IDs")
 }
 const cache = join(homedir(), "Library/Caches/antsia-native-builds")
 mkdirSync(cache, { recursive: true })
@@ -37,7 +37,7 @@ const overlay = [
   "packages/social-native/src/sign-out.ts", "packages/social-native/src/sign-out.test.ts",
 ]
 const manifest = { commits: {}, overlay: {}, createdAt: new Date().toISOString() }
-for (const [index, [name, source]] of [["ANTSIA", repository], ["DIASPORALE", sibling]].entries()) {
+for (const [index, [name, source]] of [["ANTSIA", repository], ["DIASPORA_GA", sibling]].entries()) {
   const ref = refs[index]
   const files = execFileSync("git", ["ls-tree", "-r", "--name-only", ref], { cwd: source, encoding: "utf8" }).trim().split("\n")
   if (files.some((file) => /(?:^|\/)\.env(?:\.|$)/.test(file) && !file.endsWith(".env.example") || /(?:credentials\.json|\.(?:p12|mobileprovision|keystore|jks))$/.test(file))) {
