@@ -114,7 +114,7 @@ describe("habiliter un signataire", () => {
     expect(await codeOf(carol.as.mutation(SIG.respondToPageInvitation, { networkId: root, pageId, accept: true }))).toBe("notFound")
   })
 
-  it("seul un administrateur habilite ou retire ; chaque décision est tracée — se retirer soi-même ne l'est pas", async () => {
+  it("seul un administrateur habilite ou retire ; chaque décision est tracée — se retirer soi-même l'est comme un départ", async () => {
     const t = testConvex()
     const { root, alice, pageId } = await alicePage(t)
     const bob = await enter(t, root, "bob")
@@ -127,8 +127,38 @@ describe("habiliter un signataire", () => {
     await alice.as.mutation(SIG.grantPageRole, { networkId: root, pageId, handle: "carol", role: "signatory" })
     await alice.as.mutation(SIG.revokePageRole, { networkId: root, pageId, personId: carol.personId })
     expect(await bob.as.mutation(SIG.revokePageRole, { networkId: root, pageId, personId: bob.personId })).toEqual({ revoked: true })
-    expect((await journal(t, "pages", pageId)).map((row) => row.action)).toEqual(["page.signatory_grant", "page.signatory_grant", "page.signatory_revoke"])
+    expect((await journal(t, "pages", pageId)).map((row) => row.action)).toEqual(["page.signatory_grant", "page.signatory_grant", "page.signatory_revoke", "page.signatory_leave"])
     expect((await journal(t, "pages", pageId))[0]).toMatchObject({ capacity: "page_admin", actorPersonId: alice.personId })
+    // Le retrait par l'administratrice reste une révocation, à son nom.
+    expect((await journal(t, "pages", pageId))[2]).toMatchObject({ action: "page.signatory_revoke", capacity: "page_admin", actorPersonId: alice.personId, details: { targetPersonId: carol.personId, role: "signatory" } })
+  })
+
+  it("recette du 20/11 : quitter l'équipe de soi-même écrit UNE ligne `page.signatory_leave` ; le rejouer, ou décliner une invitation, n'en écrit aucune", async () => {
+    const t = testConvex()
+    const { root, alice, pageId } = await alicePage(t)
+    const bob = await joinTeam(t, root, alice, pageId, "bob", "signatory")
+    const carol = await enter(t, root, "carol")
+    await alice.as.mutation(SIG.grantPageRole, { networkId: root, pageId, handle: "carol", role: "moderator" })
+    // Décliner une invitation jamais acceptée n'est pas un départ.
+    expect(await carol.as.mutation(SIG.respondToPageInvitation, { networkId: root, pageId, accept: false })).toEqual({ role: null })
+    const before = (await journal(t, "pages", pageId)).length
+    expect(await bob.as.mutation(SIG.revokePageRole, { networkId: root, pageId, personId: bob.personId })).toEqual({ revoked: true })
+    const leaves = (await journal(t, "pages", pageId)).filter((row) => row.action === "page.signatory_leave")
+    expect(leaves).toHaveLength(1)
+    expect(leaves[0]).toMatchObject({ capacity: "member", actorPersonId: bob.personId, networkId: root, subjectTable: "pages", subjectId: pageId, details: { role: "signatory" } })
+    // Le détail ne nomme que le rôle : ni la personne (c'est l'acteur), ni aucun texte.
+    expect(Object.keys(leaves[0]?.details ?? {})).toEqual(["role"])
+    // Rejoué, le départ est refusé (plus membre de l'équipe) et n'écrit rien de plus.
+    expect(await codeOf(bob.as.mutation(SIG.revokePageRole, { networkId: root, pageId, personId: bob.personId }))).toBe("pageRoleRequired")
+    expect((await journal(t, "pages", pageId)).length).toBe(before + 1)
+  })
+
+  it("recette du 20/11 : une administratrice qui n'est pas la dernière quitte l'équipe — départ journalisé à titre de membre, rôle `admin`", async () => {
+    const t = testConvex()
+    const { root, alice, pageId } = await alicePage(t)
+    const dora = await joinTeam(t, root, alice, pageId, "dora", "admin")
+    expect(await dora.as.mutation(SIG.revokePageRole, { networkId: root, pageId, personId: dora.personId })).toEqual({ revoked: true })
+    expect((await journal(t, "pages", pageId)).at(-1)).toMatchObject({ action: "page.signatory_leave", capacity: "member", actorPersonId: dora.personId, details: { role: "admin" } })
   })
 
   it("le dernier administrateur vivant ne part ni ne se rétrograde ; avec un second, il le peut", async () => {
@@ -221,7 +251,7 @@ describe("AS-10 / PG-08 — le modérateur de page", () => {
     expect(await codeOf(carol.as.mutation(P.publishAsPage, { networkId: root, pageId, body: "Au nom de la page ?" }))).toBe("pageRoleRequired")
   })
 
-  it("il se retire lui-même, sans ligne de journal ; il n'habilite ni ne retire personne", async () => {
+  it("il se retire lui-même, départ journalisé (`page.signatory_leave`) ; il n'habilite ni ne retire personne", async () => {
     const t = testConvex()
     const { root, alice, pageId } = await alicePage(t)
     const bob = await joinTeam(t, root, alice, pageId, "bob", "signatory")
@@ -233,7 +263,8 @@ describe("AS-10 / PG-08 — le modérateur de page", () => {
     expect(await codeOf(bob.as.mutation(SIG.grantPageRole, { networkId: root, pageId, handle: "dora", role: "moderator" }))).toBe("pageRoleRequired")
     expect(await carol.as.mutation(SIG.revokePageRole, { networkId: root, pageId, personId: carol.personId })).toEqual({ revoked: true })
     expect(await codeOf(carol.as.query(SIG.listPageSignatories, { networkId: root, pageId }))).toBe("pageRoleRequired")
-    expect((await journal(t, "pages", pageId)).map((row) => row.action)).toEqual(["page.signatory_grant", "page.signatory_grant"])
+    expect((await journal(t, "pages", pageId)).map((row) => row.action)).toEqual(["page.signatory_grant", "page.signatory_grant", "page.signatory_leave"])
+    expect((await journal(t, "pages", pageId)).at(-1)).toMatchObject({ capacity: "member", actorPersonId: carol.personId, details: { role: "moderator" } })
   })
 
   it("le plafond de l'équipe compte les modérateurs, invitations comprises", async () => {

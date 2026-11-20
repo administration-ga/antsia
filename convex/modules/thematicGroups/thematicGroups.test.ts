@@ -685,3 +685,127 @@ describe("le signalement d'une publication de groupe", () => {
     expect(await t.run(async (ctx) => (await ctx.db.get(scanId))?.networkId)).toBe(root)
   })
 })
+
+/**
+ * Recette du 20/11 (antsia#182) : le groupe d'une PAGE d'association est tenu par la page — sa
+ * fermeture et le retrait d'une publication d'autrui s'inscrivent au journal du moteur, comme sa
+ * réouverture (`page.group_reopen`). Un groupe ordinaire n'a aucune action au journal.
+ */
+const ASSOCIATION_NOW = Date.UTC(2026, 9, 18, 10)
+
+/** Le groupe d'une association n'existe que dans un réseau qui a la portée `diaspora` : la graine de DIASPORALE. */
+async function associationGroupFixture(t: T) {
+  vi.useFakeTimers({ toFake: ["Date"] })
+  vi.setSystemTime(ASSOCIATION_NOW)
+  await seed(t)
+  const { network: networkId } = await t.mutation(internal.modules.diaspora.seed.run, { confirmNonProduction: SEED_CONFIRMATION })
+  const member = async (handle: string): Promise<Person> => {
+    const as = t.withIdentity({ subject: `auth-${handle}` })
+    const personId = await as.mutation(api.modules.people.persons.ensureMyPerson, {})
+    await as.mutation(api.modules.people.consents.recordConsent, { purpose: "social_profile", origin: "onboarding" })
+    await as.mutation(api.modules.people.profile.publishMyProfile, { handle, displayName: handle })
+    await t.run(async (ctx) => {
+      await ctx.db.insert("identityLinks", { personId, provider: "idn", subject: `idn-${handle}`, loa: 2, nationality: "GA", linkedAt: ASSOCIATION_NOW })
+    })
+    await as.mutation(api.modules.diaspora.membership.joinDiasporale, { networkId, facet: { countryOfResidence: "FR", city: "Lyon" } })
+    return { as, personId, handle }
+  }
+  const alice = await member("alice")
+  const bob = await member("bob")
+  const carla = await member("carla")
+  const pageId = await t.run(async (ctx) => {
+    const now = ASSOCIATION_NOW
+    const pageId = await ctx.db.insert("pages", {
+      networkId, handle: "collectif-journal", name: "Collectif du journal", ownerKind: "association", trust: "community", trustRank: 0,
+      visibility: "network", onRoot: false, status: "active", searchText: "collectif journal", createdAt: now, updatedAt: now,
+    })
+    // Alice administre la page (responsable du groupe), Bob y signe (modérateur du groupe).
+    await ctx.db.insert("pageSignatories", { networkId, pageId, personId: alice.personId, role: "admin", acceptedAt: now, createdAt: now, updatedAt: now })
+    await ctx.db.insert("pageSignatories", { networkId, pageId, personId: bob.personId, role: "signatory", acceptedAt: now, createdAt: now, updatedAt: now })
+    // Carla est une adhérente acceptée de l'association (simple membre du groupe).
+    await ctx.db.insert("associationMemberships", { networkId, pageId, personId: carla.personId, status: "accepted", role: "member", requestedAt: now, statusChangedAt: now, decidedAt: now, decidedByPersonId: alice.personId, version: 1, createdAt: now, updatedAt: now })
+    return pageId
+  })
+  const { groupId } = await alice.as.mutation(api.modules.thematicGroups.thematicGroups.create, { networkId, name: "Adhérents", associationPageId: pageId, idempotencyKey: "groupe-journal" })
+  for (const person of [bob, carla]) await person.as.mutation(api.modules.thematicGroups.thematicGroups.join, { networkId, groupId })
+  return { networkId, alice, bob, carla, pageId, groupId }
+}
+
+async function journalOf(t: T, table: "pages" | "posts", id: string) {
+  return await t.run(async (ctx) => await ctx.db.query("engineAudit").withIndex("by_subject_at", (q) => q.eq("subjectTable", table).eq("subjectId", id)).take(20))
+}
+
+async function journalSize(t: T): Promise<number> {
+  return await t.run(async (ctx) => (await ctx.db.query("engineAudit").take(200)).length)
+}
+
+describe("recette du 20/11 — le journal du groupe d'une association", () => {
+  it("fermer le groupe d'une association écrit UNE ligne `page.group_close` sur la page ; fermer à nouveau n'en écrit aucune", async () => {
+    const t = testConvex()
+    const { networkId, alice, pageId, groupId } = await associationGroupFixture(t)
+    expect(await alice.as.mutation(api.modules.thematicGroups.thematicGroups.closeGroup, { networkId, groupId })).toEqual({ closed: true })
+    const closedAt = await t.run(async (ctx) => (await ctx.db.get(groupId))?.closedAt)
+    const closes = (await journalOf(t, "pages", pageId)).filter((row) => row.action === "page.group_close")
+    expect(closes).toHaveLength(1)
+    expect(closes[0]).toMatchObject({ capacity: "page_admin", actorPersonId: alice.personId, networkId, subjectTable: "pages", subjectId: pageId, details: { groupId }, at: closedAt })
+    expect(Object.keys(closes[0]?.details ?? {})).toEqual(["groupId"])
+    // Rejoué (double clic), l'appel rend le même état, sans seconde ligne.
+    expect(await alice.as.mutation(api.modules.thematicGroups.thematicGroups.closeGroup, { networkId, groupId })).toEqual({ closed: true })
+    expect((await journalOf(t, "pages", pageId)).filter((row) => row.action === "page.group_close")).toHaveLength(1)
+  })
+
+  it("fermer un groupe ordinaire, sans page, n'écrit rien au journal", async () => {
+    const t = testConvex()
+    const { root } = await seed(t)
+    const alice = await enter(t, root, "alice")
+    const groupId = await createGroup(alice, root)
+    const before = await journalSize(t)
+    await alice.as.mutation(api.modules.thematicGroups.thematicGroups.closeGroup, { networkId: root, groupId })
+    expect((await card(alice, root, groupId)).state).toBe("closed")
+    expect(await journalSize(t)).toBe(before)
+  })
+
+  it("retirer la publication d'autrui : UNE ligne `page.group_post_remove` sur la publication (modérateur `member`, responsable `page_admin`) ; déjà retirée ou la sienne, aucune", async () => {
+    const t = testConvex()
+    const { networkId, alice, bob, carla, pageId, groupId } = await associationGroupFixture(t)
+    const publish = async (author: Person, body: string, idempotencyKey: string) =>
+      (await author.as.mutation(api.modules.posts.posts.publish, { networkId, body, audience: "group", groupId, reach: "diaspora", alsoOnRoot: false, idempotencyKey })).postId
+    const remove = (actor: Person, postId: Id<"posts">) => actor.as.mutation(api.modules.thematicGroups.thematicGroups.removeGroupPost, { networkId, postId })
+
+    // Un modérateur (signataire de la page) retire la publication d'une adhérente.
+    const byModerator = await publish(carla, "Première publication de l'adhérente.", "journal-1")
+    expect(await remove(bob, byModerator)).toEqual({ removed: true })
+    const first = await journalOf(t, "posts", byModerator)
+    expect(first).toHaveLength(1)
+    expect(first[0]).toMatchObject({ action: "page.group_post_remove", capacity: "member", actorPersonId: bob.personId, networkId, subjectTable: "posts", subjectId: byModerator, details: { pageId, groupId } })
+    expect(Object.keys(first[0]?.details ?? {}).sort()).toEqual(["groupId", "pageId"])
+    // Déjà retirée : la responsable rejoue le geste, rien de plus n'est écrit.
+    expect(await remove(alice, byModerator)).toEqual({ removed: true })
+    expect(await journalOf(t, "posts", byModerator)).toHaveLength(1)
+
+    // La responsable (administratrice de la page) retire une autre publication d'autrui.
+    const byOwner = await publish(carla, "Seconde publication de l'adhérente.", "journal-2")
+    await remove(alice, byOwner)
+    expect(await journalOf(t, "posts", byOwner)).toMatchObject([{ action: "page.group_post_remove", capacity: "page_admin", actorPersonId: alice.personId, details: { pageId, groupId } }])
+
+    // Retirer SA propre publication n'est pas une décision : rien n'est écrit.
+    const own = await publish(bob, "Publication du modérateur lui-même.", "journal-3")
+    await remove(bob, own)
+    expect(await t.run(async (ctx) => (await ctx.db.get(own))?.status)).toBe("removed")
+    expect(await journalOf(t, "posts", own)).toEqual([])
+  })
+
+  it("retirer une publication d'un groupe ordinaire, sans page, n'écrit rien au journal", async () => {
+    const t = testConvex()
+    const { root } = await seed(t)
+    const alice = await enter(t, root, "alice")
+    const bob = await enter(t, root, "bob")
+    const groupId = await createGroup(alice, root)
+    await bob.as.mutation(api.modules.thematicGroups.thematicGroups.join, { networkId: root, groupId })
+    const { postId } = await bob.as.mutation(api.modules.posts.posts.publish, { networkId: root, body: "Dans un groupe ordinaire", audience: "group", groupId })
+    const before = await journalSize(t)
+    await alice.as.mutation(api.modules.thematicGroups.thematicGroups.removeGroupPost, { networkId: root, postId })
+    expect(await t.run(async (ctx) => (await ctx.db.get(postId))?.status)).toBe("removed")
+    expect(await journalSize(t)).toBe(before)
+  })
+})

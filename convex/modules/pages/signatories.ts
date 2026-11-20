@@ -11,8 +11,11 @@
  *  · signer pour une page OFFICIELLE exige une identité forte (IDN `loa ≥ 2`) ;
  *  · la page garde toujours au moins un administrateur vivant ;
  *  · habiliter et révoquer sont des DÉCISIONS : une ligne au journal
- *    (`page.signatory_grant`, `page.signatory_revoke`, qualité `page_admin`) —
- *    se retirer soi-même ou décliner une invitation n'en sont pas ;
+ *    (`page.signatory_grant`, `page.signatory_revoke`, qualité `page_admin`) ;
+ *    se retirer soi-même n'en est pas une, mais l'équipe change : depuis la
+ *    recette du 20/11, le départ s'inscrit aussi (`page.signatory_leave`,
+ *    qualité `member`, détail : le rôle quitté). Décliner une invitation jamais
+ *    acceptée n'écrit rien ;
  *  · PG-01 : une invitation en attente fait sonner la cloche de la personne
  *    invitée (`page_signatory_invite`, sans acteur ni nom de page) ; la ligne se
  *    RÉSOUT à la réponse (acceptée, déclinée) ou au retrait de l'invitation ;
@@ -160,9 +163,13 @@ export const grantPageRole = networkMutation({
 })
 
 /**
- * Retirer un membre de l'équipe — un administrateur vivant (décision tracée), ou
- * la personne elle-même, QUEL QUE SOIT son rôle, modérateur compris (AS-10 : elle
- * se retire, ce n'est pas une décision). Le dernier administrateur vivant ne part pas.
+ * Retirer un membre de l'équipe — un administrateur vivant (décision tracée,
+ * `page.signatory_revoke`), ou la personne elle-même, QUEL QUE SOIT son rôle,
+ * modérateur compris (AS-10 : elle se retire, ce n'est pas une décision ; recette
+ * du 20/11 : le départ s'inscrit au journal, `page.signatory_leave`, à titre de
+ * `member`). Se retirer exige une ligne ACCEPTÉE (`requirePageTeam`) : une
+ * invitation en attente se décline par `respondToPageInvitation`, sans journal.
+ * Le dernier administrateur vivant ne part pas.
  */
 export const revokePageRole = networkMutation({
   minStatus: "en_attente",
@@ -186,7 +193,17 @@ export const revokePageRole = networkMutation({
     // Un signataire retiré sort du cercle de la page : sa connexion DÉJÀ ouverte à un direct
     // réservé aux abonnés est coupée, sauf s'il en reste abonné (la décision d'accès juge).
     await ctx.scheduler.runAfter(0, internal.modules.live.revocation.kickUserFromPageDirects, { personId: args.personId, pageId: page._id, cursor: null })
-    if (!self) {
+    if (self) {
+      // Le départ volontaire : l'acteur est la personne qui part ; le détail ne dit que le rôle quitté.
+      await appendAudit(ctx, {
+        action: "page.signatory_leave",
+        capacity: "member",
+        actorPersonId: ctx.person._id,
+        networkId: page.networkId,
+        subject: { table: "pages", id: page._id },
+        details: { role: row.role },
+      })
+    } else {
       await appendAudit(ctx, {
         action: "page.signatory_revoke",
         capacity: "page_admin",
