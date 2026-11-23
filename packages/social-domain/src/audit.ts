@@ -169,6 +169,15 @@ export const AUDIT_ACTIONS = [
    * ne vérifie pas.
    */
   "diaspora.country_set",
+  // Porte des comptes de démonstration (CH-817, `convex/modules/platform/demoGate.ts`) : actes du
+  // SYSTÈME (qualité `system`, sans réseau), sujet = la ligne de la liste (`demoGateAllowlist`),
+  // détail `{ scope }` seul — jamais un numéro, un code ni un jeton.
+  /** Un numéro inscrit (ou réinscrit) sur la liste d'une portée, par la fonction interne que lance le propriétaire. */
+  "demo.gate_allow",
+  /** Un numéro retiré de la liste d'une portée : ses défis et ses sessions cessent de valoir. */
+  "demo.gate_revoke",
+  /** Une session de porte ouverte par un code juste. Les essais ratés ne sont pas journalisés. */
+  "demo.gate_access",
 ] as const
 export type AuditAction = (typeof AUDIT_ACTIONS)[number]
 
@@ -181,7 +190,7 @@ export const AUDIT_CAPACITIES = ["platform_admin", "platform_operator", "network
 export type AuditCapacity = (typeof AUDIT_CAPACITIES)[number]
 
 /** Les tables qu'une décision peut viser — une référence, jamais un contenu. */
-export const AUDIT_SUBJECT_TABLES = ["networks", "networkArchiveRequests", "operators", "consoleIncidents", "consoleMetrics", "persons", "fileScans", "contentReports", "posts", "pages", "pageClaims", "reports", "moderationTeams", "sanctions", "appeals", "moderationPolicies", "blockedTerms", "moderationContentStates", "moderationTransparency", "dataErasureJobs", "dataExports", "federationEmitters", "federationDeadLetters", "mirrors", "shops", "judicialMeasures"] as const
+export const AUDIT_SUBJECT_TABLES = ["networks", "networkArchiveRequests", "operators", "consoleIncidents", "consoleMetrics", "persons", "fileScans", "contentReports", "posts", "pages", "pageClaims", "reports", "moderationTeams", "sanctions", "appeals", "moderationPolicies", "blockedTerms", "moderationContentStates", "moderationTransparency", "dataErasureJobs", "dataExports", "federationEmitters", "federationDeadLetters", "mirrors", "shops", "judicialMeasures", "demoGateAllowlist"] as const
 export type AuditSubjectTable = (typeof AUDIT_SUBJECT_TABLES)[number]
 
 export type AuditSubject = { table: AuditSubjectTable; id: string }

@@ -52,6 +52,18 @@ const RATE_LIMITS = {
   // Authentification (clé : l'adresse ou le numéro normalisé, jamais l'IP seule)
   "auth.login": { kind: "token bucket", rate: 5, period: 15 * MINUTE, capacity: 5 },
   "auth.otp.send": { kind: "token bucket", rate: 3, period: 5 * MINUTE, capacity: 3 },
+  // Porte des comptes de démonstration (CH-817, `modules/platform/demoGate.ts`). Demande, dans cet
+  // ordre : adresse (refus visible, 429), liste, numéro (quart d'heure, jour), défis actifs, puis
+  // commun ; vérification : adresse seule (429), chaque défi gardant ses cinq essais. Clés : la
+  // portée (commun) ou une EMPREINTE HMAC (adresse, numéro), jamais une valeur en clair. Le commun
+  // est le fusible de coût des envois WhatsApp, consommé APRÈS la liste et les seaux du numéro : des
+  // numéros hors liste ne le vident pas (CH-817 E5, constats 5 et 11b). Plus de commun à la
+  // vérification : des identifiants leurres le vidaient pour tous (constat 5c).
+  "demoGate.request.ip": { kind: "token bucket", rate: 10, period: HOUR, capacity: 10 },
+  "demoGate.request.phone": { kind: "token bucket", rate: 3, period: 15 * MINUTE, capacity: 3 },
+  "demoGate.request.phone.daily": { kind: "token bucket", rate: 10, period: DAY, capacity: 10 },
+  "demoGate.request.global": { kind: "token bucket", rate: 120, period: HOUR, capacity: 120 },
+  "demoGate.verify.ip": { kind: "token bucket", rate: 20, period: 15 * MINUTE, capacity: 20 },
   // Fondations (PA2)
   "person.ensure": { kind: "token bucket", rate: 10, period: HOUR, capacity: 5 },
   "person.bootstrap": { kind: "token bucket", rate: 1200, period: HOUR, capacity: 300 },
@@ -374,7 +386,8 @@ export const rateLimiter = new RateLimiter(components.rateLimiter, RATE_LIMITS)
 /** Suppression effective des clés personnelles du composant lors de l'effacement. */
 export async function erasePersonalRateLimits(ctx: MutationCtx, personId: string, authUserId: string, contacts: readonly string[]): Promise<void> {
   for (const name of Object.keys(RATE_LIMITS) as RateLimitBucket[]) {
-    if (name === "federation.receive") continue
+    // Seaux sans clé personnelle : émetteurs fédérés ; porte de démonstration (portée ou empreinte HMAC, CH-817).
+    if (name === "federation.receive" || name.startsWith("demoGate.")) continue
     const keys = name.startsWith("auth.") ? contacts : name === "person.bootstrap" ? [authUserId] : [personId]
     for (const key of keys) await rateLimiter.reset(ctx, name, { key })
   }

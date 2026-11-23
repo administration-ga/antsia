@@ -3,8 +3,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { Resend } from "@convex-dev/resend"
 
+import { DEMO_GATE_TOKEN_HEADER } from "@antsia/social-contracts/demoGate"
+
 import catalog from "../../deploy/catalog.json"
 import { api, components, internal } from "../_generated/api"
+import { demoGateDigest } from "../lib/demoGate"
+import { allowPhonesImpl, DEMO_GATE_SESSION_TTL_MS, revokePhonesImpl } from "../modules/platform/demoGate"
 import { createTestSession, testConvex } from "../test.setup"
 import { OTP_TTL_SECONDS } from "./auth"
 import { otpPresentation } from "./delivery"
@@ -55,10 +59,10 @@ function textField(value: unknown, key: string): string {
   return field
 }
 
-async function request(t: T, path: string, { method = "POST", body, token, origin = PRIMARY_ORIGIN, acceptLanguage, browserCookie }: { method?: "GET" | "POST"; body?: Record<string, unknown>; token?: string; origin?: string; acceptLanguage?: string; browserCookie?: string } = {}) {
+async function request(t: T, path: string, { method = "POST", body, token, origin = PRIMARY_ORIGIN, acceptLanguage, browserCookie, extraHeaders }: { method?: "GET" | "POST"; body?: Record<string, unknown>; token?: string; origin?: string; acceptLanguage?: string; browserCookie?: string; extraHeaders?: Record<string, string> } = {}) {
   const response = await t.action(async (ctx) => {
     const { createAuth } = await import("./auth")
-    const headers = new Headers({ Origin: origin })
+    const headers = new Headers({ Origin: origin, ...extraHeaders })
     if (body) headers.set("Content-Type", "application/json")
     if (token) headers.set("Authorization", `Bearer ${token}`)
     if (acceptLanguage) headers.set("Accept-Language", acceptLanguage)
@@ -68,7 +72,7 @@ async function request(t: T, path: string, { method = "POST", body, token, origi
       headers,
       ...(body ? { body: JSON.stringify(body) } : {}),
     }))
-    return { status: result.status, body: await result.text(), tokenHeader: result.headers.get("set-auth-token"), hasBrowserCookie: result.headers.has("set-better-auth-cookie"), retryAfter: result.headers.get("retry-after") }
+    return { status: result.status, body: await result.text(), tokenHeader: result.headers.get("set-auth-token"), hasBrowserCookie: result.headers.has("set-better-auth-cookie"), retryAfter: result.headers.get("retry-after"), setCookie: result.headers.get("set-cookie"), location: result.headers.get("location") }
   })
   return { ...response, data: response.body ? JSON.parse(response.body) as unknown : null }
 }
@@ -349,6 +353,195 @@ describe("déploiement de démonstration déclaré : les comptes réservés seul
   })
 })
 
+describe("CH-817 E5 — la porte des comptes de démonstration verrouille la CONNEXION (constat 1)", () => {
+  // Valeurs FICTIVES : numéros de la plage réservée à la fiction (Ofcom, 07700 900xxx), domaine `.test`.
+  const GATE_SECRET = "fictional-demo-gate-secret-0123456789abcdef"
+  const GATE_WHATSAPP = {
+    WHATSAPP_PROVIDER: "bird",
+    WHATSAPP_ENDPOINT: "https://whatsapp.example.test/messages",
+    WHATSAPP_API_KEY: "fictional-access-key-0123456789",
+    WHATSAPP_TEMPLATE: "fictional-project:fictional-version",
+  }
+  const GATE_PHONE = "+447700900123"
+  const GATE_TOKEN = "fictional_session_token_0123456789abcdefABC"
+  const FAMILY = "moderateur@demo.diaspora-ga.test"
+  const ROOT_DEMO = "membre@demo.antsia.test"
+  const WITH_TOKEN = { [DEMO_GATE_TOKEN_HEADER]: GATE_TOKEN }
+
+  /** La porte ARMÉE et complète (`gated`), sur le développement local du `beforeEach`. */
+  function armGate() {
+    vi.stubEnv("ANTSIA_DEMO_GATE_SECRET", GATE_SECRET)
+    for (const [key, value] of Object.entries(GATE_WHATSAPP)) vi.stubEnv(key, value)
+  }
+
+  /**
+   * Une session de porte de jeton `token`, ouverte à l'instant `at` pour un numéro inscrit au même
+   * instant (lignes écrites comme `completeVerify` les écrit) ; vaut trente minutes.
+   */
+  async function gateSession(t: T, { at = Date.now(), token = GATE_TOKEN }: { at?: number; token?: string } = {}) {
+    await t.run((ctx) => allowPhonesImpl(ctx, { scope: "diaspora-ga", phones: [GATE_PHONE] }, at))
+    await t.run(async (ctx) => {
+      const phoneHash = await demoGateDigest(GATE_SECRET, "demo-gate-phone", GATE_PHONE)
+      const entry = await ctx.db.query("demoGateAllowlist").withIndex("by_scope_phoneHash", (q) => q.eq("scope", "diaspora-ga").eq("phoneHash", phoneHash)).first()
+      if (!entry) throw new Error("ligne de liste de recette absente")
+      const challengeId = await ctx.db.insert("demoGateChallenges", { scope: "diaspora-ga", challengeId: `auth-${at}`.padEnd(32, "x"), phoneHash, codeDigest: "c".repeat(64), status: "verified", attemptsUsed: 0, createdAt: at, expiresAt: at + 300_000, verifiedAt: at })
+      await ctx.db.insert("demoGateSessions", { scope: "diaspora-ga", tokenDigest: await demoGateDigest(GATE_SECRET, "demo-gate-session", token), allowlistId: entry._id, challengeId, createdAt: at, expiresAt: at + DEMO_GATE_SESSION_TTL_MS })
+    })
+  }
+
+  const send = (t: T, email: string, extraHeaders?: Record<string, string>) => request(t, "/email-otp/send-verification-otp", { body: { email, type: "sign-in" }, extraHeaders })
+  const signInWith = (t: T, email: string, otp: string, extraHeaders?: Record<string, string>) => request(t, "/sign-in/email-otp", { body: { email, otp }, extraHeaders })
+  const recordedCodes = (t: T) => t.run((ctx) => ctx.db.query("devOtpCodes").take(20))
+  const verificationOf = (t: T, email: string) => t.query(components.betterAuth.adapter.findOne, { model: "verification", where: [{ field: "identifier", value: `sign-in-otp-${email}` }] })
+
+  /** L'invité qui a passé la porte : envoi et lecture avec le jeton, rend le code. */
+  async function gatedCode(t: T, email = FAMILY): Promise<string> {
+    const sent = await send(t, email, WITH_TOKEN)
+    expect(sent.status).toBe(200)
+    const code = await t.query(api.modules.platform.devTools.latestOtp, { email, gateToken: GATE_TOKEN })
+    if (!code) throw new Error("code de recette absent")
+    return code.code
+  }
+
+  it("sans en-tête : l'envoi répond comme un envoi réel sans rien enregistrer, la connexion comme un code faux", async () => {
+    armGate()
+    const t = testConvex({ automaticSessions: false })
+    // La référence : une adresse ordinaire, envoi réel puis code faux.
+    const ordinarySend = await send(t, EMAIL)
+    const ordinaryWrong = await signInWith(t, EMAIL, "000000")
+    expect(ordinarySend.status).toBe(200)
+    expect(ordinaryWrong.status).toBe(400)
+
+    const refusedSend = await send(t, FAMILY)
+    expect(refusedSend.status).toBe(ordinarySend.status)
+    expect(refusedSend.data).toEqual(ordinarySend.data)
+    expect(refusedSend.data).toEqual({ success: true })
+    expect(refusedSend.tokenHeader).toBeNull()
+    expect((await recordedCodes(t)).map((row) => row.email)).toEqual([EMAIL])
+    expect(await verificationOf(t, FAMILY)).toBeNull()
+
+    const refusedSignIn = await signInWith(t, FAMILY, "000000")
+    expect(refusedSignIn.status).toBe(ordinaryWrong.status)
+    expect(refusedSignIn.data).toEqual(ordinaryWrong.data)
+    expect(refusedSignIn.tokenHeader).toBeNull()
+    expect(await t.run((ctx) => ctx.db.query("persons").first())).toBeNull()
+  })
+
+  it("les refus n'entament aucun seau : avec le jeton, l'envoi passe après quatre refus et la connexion après six", async () => {
+    armGate()
+    const t = testConvex({ automaticSessions: false })
+    await gateSession(t)
+    for (let attempt = 0; attempt < 4; attempt++) expect((await send(t, FAMILY)).status).toBe(200)
+    expect(await recordedCodes(t)).toEqual([])
+    const code = await gatedCode(t)
+    for (let attempt = 0; attempt < 6; attempt++) expect((await signInWith(t, FAMILY, code)).status).toBe(400)
+    const result = await signInWith(t, FAMILY, code, WITH_TOKEN)
+    expect(result.status).toBe(200)
+    expect(record(record(result.data).user).email).toBe(FAMILY)
+  })
+
+  it("jeton hors forme, inconnu, échu, numéro retiré, numéro réinscrit avec une ancienne session : refus", async () => {
+    armGate()
+    const now = Date.now()
+    const cases: { label: string; prepare: (t: T) => Promise<void>; header: Record<string, string> }[] = [
+      { label: "hors forme", prepare: (t) => gateSession(t), header: { [DEMO_GATE_TOKEN_HEADER]: `${GATE_TOKEN}x` } },
+      { label: "inconnu", prepare: (t) => gateSession(t), header: { [DEMO_GATE_TOKEN_HEADER]: "u".repeat(43) } },
+      { label: "échu", prepare: (t) => gateSession(t, { at: now - DEMO_GATE_SESSION_TTL_MS - 1_000 }), header: WITH_TOKEN },
+      {
+        label: "numéro retiré",
+        prepare: async (t) => { await gateSession(t, { at: now - 2_000 }); await t.run((ctx) => revokePhonesImpl(ctx, { scope: "diaspora-ga", phones: [GATE_PHONE] }, now - 1_000)) },
+        header: WITH_TOKEN,
+      },
+      {
+        label: "numéro réinscrit",
+        prepare: async (t) => {
+          await gateSession(t, { at: now - 3_000 })
+          await t.run((ctx) => revokePhonesImpl(ctx, { scope: "diaspora-ga", phones: [GATE_PHONE] }, now - 2_000))
+          await t.run((ctx) => allowPhonesImpl(ctx, { scope: "diaspora-ga", phones: [GATE_PHONE] }, now - 1_000))
+        },
+        header: WITH_TOKEN,
+      },
+    ]
+    for (const { label, prepare, header } of cases) {
+      const t = testConvex({ automaticSessions: false })
+      await prepare(t)
+      const refused = await send(t, FAMILY, header)
+      expect(refused.status, label).toBe(200)
+      expect(await recordedCodes(t), label).toEqual([])
+      expect(await verificationOf(t, FAMILY), label).toBeNull()
+      expect((await signInWith(t, FAMILY, "000000", header)).data, label).toEqual({ code: "INVALID_OTP", message: "Invalid OTP" })
+    }
+  })
+
+  it("porte indisponible (WhatsApp retiré) : refus même avec un jeton valide et le bon code", async () => {
+    armGate()
+    const t = testConvex({ automaticSessions: false })
+    await gateSession(t)
+    const code = await gatedCode(t)
+    vi.stubEnv("WHATSAPP_PROVIDER", undefined)
+    const refused = await signInWith(t, FAMILY, code, WITH_TOKEN)
+    expect(refused.status).toBe(400)
+    expect(refused.data).toEqual({ code: "INVALID_OTP", message: "Invalid OTP" })
+    await t.run(async (ctx) => { for (const row of await ctx.db.query("devOtpCodes").take(5)) await ctx.db.delete(row._id) })
+    expect((await send(t, FAMILY, WITH_TOKEN)).data).toEqual({ success: true })
+    expect(await recordedCodes(t)).toEqual([])
+    // Contrôle : la porte de nouveau complète, le même code (jamais consommé) ouvre la session.
+    vi.stubEnv("WHATSAPP_PROVIDER", "bird")
+    expect((await signInWith(t, FAMILY, code, WITH_TOKEN)).status).toBe(200)
+  })
+
+  it("variantes de casse et d'espaces de la famille : gardées comme l'adresse normalisée", async () => {
+    armGate()
+    const t = testConvex({ automaticSessions: false })
+    await gateSession(t)
+    const code = await gatedCode(t)
+    for (const variant of ["MODERATEUR@DEMO.DIASPORA-GA.TEST", "Moderateur@Demo.Diaspora-GA.test", ` ${FAMILY} `]) {
+      expect((await send(t, variant)).data, variant).toEqual({ success: true })
+      expect((await signInWith(t, variant, code)).data, variant).toEqual({ code: "INVALID_OTP", message: "Invalid OTP" })
+    }
+    // Un seul code enregistré : celui de l'envoi muni du jeton, jamais rejoué par une variante.
+    expect((await recordedCodes(t)).map((row) => row.code)).toEqual([code])
+    expect((await signInWith(t, FAMILY.toUpperCase(), code, WITH_TOKEN)).status).toBe(200)
+  })
+
+  it("porte armée : l'adresse de la racine et l'adresse ordinaire se connectent comme avant, sans en-tête", async () => {
+    armGate()
+    const t = testConvex({ automaticSessions: false })
+    for (const email of [ROOT_DEMO, EMAIL]) {
+      const code = await issueCode(t, "email", email)
+      const result = await signIn(t, "email", code.code, email)
+      expect(result.status, email).toBe(200)
+    }
+  })
+
+  it("porte non armée (variable absente) : la famille entre comme avant, sans en-tête ; un jeton présenté est sans effet", async () => {
+    const t = testConvex({ automaticSessions: false })
+    const code = await issueCode(t, "email", FAMILY)
+    expect((await signIn(t, "email", code.code, FAMILY)).status).toBe(200)
+    const again = await send(t, FAMILY, WITH_TOKEN)
+    expect(again.status).toBe(200)
+    expect(await t.query(api.modules.platform.devTools.latestOtp, { email: FAMILY })).not.toBeNull()
+  })
+
+  it("production (comptes de démonstration fermés), même avec le secret et WhatsApp : la garde ne s'applique pas", async () => {
+    armGate()
+    vi.stubEnv("CONVEX_CLOUD_URL", "https://production-antsia-456.convex.cloud")
+    vi.stubEnv("ANTSIA_DEV_TOOLS", undefined)
+    const t = testConvex({ automaticSessions: false })
+    // Le refus d'avant la porte (aucun transport), pas la réponse de la garde.
+    const refusal = await send(t, FAMILY)
+    expect(refusal.status).toBe(503)
+    expect(record(refusal.data).code).toBe("otpDeliveryUnavailable")
+  })
+
+  it("CORS : la pré-vérification des routes d'authentification admet l'en-tête du jeton", async () => {
+    const t = testConvex({ automaticSessions: false })
+    const preflight = await t.fetch("/api/auth/sign-in/email-otp", { method: "OPTIONS", headers: { Origin: PRIMARY_ORIGIN, "Access-Control-Request-Method": "POST", "Access-Control-Request-Headers": DEMO_GATE_TOKEN_HEADER } })
+    expect(preflight.status).toBe(204)
+    expect(preflight.headers.get("access-control-allow-headers")).toContain(DEMO_GATE_TOKEN_HEADER)
+  })
+})
+
 describe("langue de la personne et marque du réseau dans le code de connexion", () => {
   const DIASPORA_GA_ORIGIN = new URL(catalog.applications.diaspora_ga.site_url).origin
   const ANTSIA_ORIGIN = new URL(catalog.applications.antsia_ga.site_url).origin
@@ -563,6 +756,27 @@ describe("composition du fournisseur d'identité", () => {
     expect(await t.query(components.betterAuth.adapter.findOne, { model: "account", where: [{ field: "userId", value: userId }, { field: "providerId", value: "credential" }] })).toBeNull()
   })
 
+  // CH-817 E5 (relecture de sécurité, constat 1) : `check-verification-otp` échappait au seau de
+  // connexion (trois essais par code, sans fin de codes) et aucune application n'appelle ces deux
+  // routes. Fermées pour TOUTES les adresses, avant tout seau : un code qu'elles auraient lu ou
+  // consommé reste entier, et le seau de connexion n'est pas entamé.
+  it.each([
+    { path: "/email-otp/check-verification-otp", body: (otp: string) => ({ email: EMAIL, type: "sign-in", otp }) },
+    { path: "/email-otp/verify-email", body: (otp: string) => ({ email: EMAIL, otp }) },
+  ])("ferme $path : 404 `routeDisabled`, sans seau, sans toucher au code", async ({ path, body }) => {
+    const t = testConvex({ automaticSessions: false })
+    const code = await issueCode(t, "email")
+    // Six appels avec le BON code : au-delà des trois essais du code et des cinq du seau de connexion.
+    for (let attempt = 0; attempt < 6; attempt++) {
+      const refusal = await request(t, path, { body: body(code.code) })
+      expect(refusal.status).toBe(404)
+      expect(record(refusal.data)).toEqual({ code: "routeDisabled", message: "routeDisabled" })
+      expect(refusal.tokenHeader).toBeNull()
+    }
+    const result = await signIn(t, "email", code.code)
+    expect(result.status).toBe(200)
+  })
+
   it("un lien de réinitialisation valide ne peut activer le callback de mot de passe", async () => {
     const t = testConvex({ automaticSessions: false })
     const { token, userId } = await loggedIn(t)
@@ -613,6 +827,94 @@ describe("composition du fournisseur d'identité", () => {
     expect(url.searchParams.get("state")).toBeTruthy()
     expect(record(result.data).redirect).toBe(true)
     expect(result.hasBrowserCookie).toBe(browserCookie !== undefined)
+  })
+})
+
+// CH-817 E5 (écart relevé par le cliquet de surface) : avec IDN, `generic-oauth` inscrit IDN parmi les
+// fournisseurs sociaux du cœur. `/sign-in/social` partait chez IDN sans `prompt=login` ni crochet natif
+// de départ, et `/callback/:id` pouvait ouvrir une session IDN hors des crochets du rappel central
+// (sans cookie, retour natif lié à S256, retour de refus). Aucune application ne les appelle : fermées
+// pour tous, avant tout seau. IDN n'entre que par `/sign-in/oauth2` et `/oauth2/callback/idn`.
+describe("routes du cœur où `generic-oauth` inscrit IDN : fermées (CH-817 E5)", () => {
+  const IDN_ISSUER = "https://idn.example.test"
+  const NO_SESSION_TRACE = { token: null, browserCookie: false, cookie: null, location: null }
+  const traceOf = (response: Awaited<ReturnType<typeof request>>) => ({ token: response.tokenHeader, browserCookie: response.hasBrowserCookie, cookie: response.setCookie, location: response.location })
+  const rowsOf = async (t: T, model: "session" | "verification") => ((await t.query(components.betterAuth.adapter.findMany, { model, paginationOpts: { cursor: null, numItems: 50 } })) as { page: unknown[] }).page
+  const stateRowOf = (t: T, state: string) => t.query(components.betterAuth.adapter.findOne, { model: "verification", where: [{ field: "identifier", value: state }] })
+
+  /** Le transport IDN simulé (découverte, jeton, profil) ; chaque chemin appelé est noté. */
+  function stubIdnTransport(): string[] {
+    const calls: string[] = []
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = new URL(input instanceof Request ? input.url : String(input))
+      calls.push(url.pathname)
+      const json = (value: unknown) => new Response(JSON.stringify(value), { headers: { "Content-Type": "application/json" } })
+      if (url.pathname.endsWith("/.well-known/openid-configuration")) return json({ issuer: IDN_ISSUER, authorization_endpoint: `${IDN_ISSUER}/authorize`, token_endpoint: `${IDN_ISSUER}/token`, userinfo_endpoint: `${IDN_ISSUER}/userinfo` })
+      if (url.pathname === "/token") return json({ access_token: "fixture-access-social", token_type: "Bearer", expires_in: 3600 })
+      if (url.pathname === "/userinfo") return json({ sub: "fixture-idn-social", email: "idn-social@example.test", email_verified: true, loa: 2 })
+      throw new Error("Transport externe inattendu dans la recette IDN")
+    }))
+    return calls
+  }
+
+  it.each([{ idn: false }, { idn: true }])("IDN configuré : $idn — `/sign-in/social` et `/callback/:id` répondent 404 `routeDisabled`, sans seau, sans état, sans cookie ni session", async ({ idn }) => {
+    if (idn) configureIdnFixture()
+    const calls = stubIdnTransport()
+    const t = testConvex({ automaticSessions: false })
+    const closedRoutes = [
+      // Une adresse dans le corps : si un seau par adresse comptait ces appels, la connexion finale serait refusée.
+      { path: "/sign-in/social", method: "POST" as const, body: { provider: "idn", callbackURL: `${PRIMARY_ORIGIN}/bienvenue`, email: EMAIL } },
+      // Le routeur la sert au chemin concret ; le crochet la voit sous son gabarit `/callback/:id`.
+      { path: `/callback/idn?code=fixture-code&state=fixture-state&iss=${encodeURIComponent(IDN_ISSUER)}`, method: "GET" as const },
+    ]
+    // Six fois chaque route : au-delà des cinq essais du seau de connexion et des trois du seau d'envoi.
+    for (let attempt = 0; attempt < 6; attempt++) {
+      for (const route of closedRoutes) {
+        const refusal = await request(t, route.path, { method: route.method, ...(route.body ? { body: route.body } : {}) })
+        expect(refusal.status, route.path).toBe(404)
+        expect(record(refusal.data), route.path).toEqual({ code: "routeDisabled", message: "routeDisabled" })
+        expect(traceOf(refusal), route.path).toEqual(NO_SESSION_TRACE)
+      }
+    }
+    // Rien n'a parlé à IDN, rien n'est écrit : ni état OAuth, ni session.
+    expect(calls).toEqual([])
+    expect(await rowsOf(t, "verification")).toEqual([])
+    expect(await rowsOf(t, "session")).toEqual([])
+    const code = await issueCode(t, "email")
+    expect((await signIn(t, "email", code.code)).status).toBe(200)
+  })
+
+  it("IDN configuré : l'état d'un vrai départ n'est pas consommé par `/callback/:id`, et le rappel central l'accepte ensuite", async () => {
+    configureIdnFixture()
+    const calls = stubIdnTransport()
+    const t = testConvex({ automaticSessions: false })
+    const start = await request(t, "/sign-in/oauth2", { body: { providerId: "idn", callbackURL: `${PRIMARY_ORIGIN}/bienvenue` } })
+    expect(start.status).toBe(200)
+    const authorization = new URL(textField(start.data, "url"))
+    expect(authorization.searchParams.get("prompt")).toBe("login")
+    const state = authorization.searchParams.get("state") ?? ""
+    expect(state).not.toBe("")
+    const query = `code=fixture-code&state=${encodeURIComponent(state)}&iss=${encodeURIComponent(IDN_ISSUER)}`
+
+    const refusal = await request(t, `/callback/idn?${query}`, { method: "GET" })
+    expect(refusal.status).toBe(404)
+    expect(record(refusal.data)).toEqual({ code: "routeDisabled", message: "routeDisabled" })
+    expect(traceOf(refusal)).toEqual(NO_SESSION_TRACE)
+    // Aucun échange de code chez IDN, aucune session, et l'état du départ reste entier.
+    expect(calls.filter((path) => path === "/token" || path === "/userinfo")).toEqual([])
+    expect(await rowsOf(t, "session")).toEqual([])
+    expect(await stateRowOf(t, state)).not.toBeNull()
+
+    // Le rappel central n'est pas visé : il consomme l'état, échange le code et livre la session par le
+    // seul jeton à usage unique.
+    const central = await request(t, `/oauth2/callback/idn?${query}`, { method: "GET" })
+    expect(central.status).toBe(302)
+    const destination = new URL(central.location ?? "")
+    expect(`${destination.origin}${destination.pathname}`).toBe(`${PRIMARY_ORIGIN}/bienvenue`)
+    expect(destination.searchParams.get("ott")).toBeTruthy()
+    expect(calls).toContain("/token")
+    expect(await stateRowOf(t, state)).toBeNull()
+    expect(await rowsOf(t, "session")).toHaveLength(1)
   })
 })
 

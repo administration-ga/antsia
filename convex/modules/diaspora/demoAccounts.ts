@@ -23,7 +23,8 @@
  * - le rôle de réseau et l'équipe de modération de démonstration ;
  * - la page (association, entreprise, média, communauté, institution), sa
  *   confiance et sa présentation, la personne en étant l'administratrice ;
- * - l'ouverture des pays de la démonstration, si personne n'en a encore décidé ;
+ * - le hub des pays de la démonstration DÉJÀ ouverts : aucun pays n'est ouvert
+ *   ici (CH-817 E3), l'ouverture reste une décision de l'administration du réseau ;
  * - le blocage d'un acteur par un autre (« bloque » par « verifie »), par le vrai
  *   mécanisme du moteur (`graph/connections.blockPair`, le corps de
  *   `blockPerson`), dès que les deux comptes existent ;
@@ -44,7 +45,25 @@
  * local), ou le déploiement de démonstration déclaré par son nom même
  * (`ANTSIA_DEMO_DEPLOYMENT`), comme les comptes d'ANTSIA. Ailleurs, le catalogue
  * est vide et la mutation refuse : aucune production ne peut s'en servir.
+ *
+ * CH-817 E3 — deux verrous de plus, qui resserrent sans rien ouvrir :
+ * - la PORTE (`platform/demoGate.ts`) : armée, le catalogue est vide sans session de
+ *   porte valide (`gateToken`), comme le code affiché (`devTools.latestOtp`, le
+ *   verrou réel : sans code, aucune session sur une adresse réservée) ;
+ * - la RÈGLE du catalogue (`diasporaGaDemoActorsOffered`) : un acteur n'est proposé,
+ *   et ne s'équipe, que si ses modules (`openFeaturesOf`) et son pays sont ouverts ;
+ *   les acteurs de recette (accès restreints, média, collectif) en développement
+ *   local seulement. Un acteur non proposé est refusé d'un refus indistinct.
+ * CH-817 E4 — l'équipement planifie les publications d'exemple de l'acteur
+ * (`./demoContent.ts#animateActor`), écrites par le moteur après la transaction.
+ * CH-817 E5 (relecture de sécurité, constats 2 et 4) :
+ * - `closeDemoSessions` ferme les sessions Better Auth des acteurs DÉCLARÉS, et d'eux seuls :
+ *   planifiée par le retrait d'un numéro de la porte (`platform/demoGate.revokePhones`) et par sa
+ *   remise à zéro (`resetScope`, à l'armement et à chaque rotation du secret) ;
+ * - `accountEmailOf` et `isDeclaredDiasporaGaDemoEmail` servent le refus de `joinDiasporaGa` : porte
+ *   armée, une adresse réservée qui n'est pas celle d'un acteur déclaré n'entre pas dans le réseau.
  */
+import type { DemoGateScope } from "@antsia/social-contracts/demoGate"
 import { CONSENT_TEXT_VERSIONS, isConsentInForce, missingConsentsToJoin } from "@antsia/social-domain/consent"
 import { entryStatusFor } from "@antsia/social-domain/membership"
 import { assertPageHandle, assertPageName, assertTrustAllowedForOwner, pageTrustRank } from "@antsia/social-domain/pages"
@@ -55,6 +74,7 @@ import {
   DIASPORA_GA_DEMO_ACTOR_SPECS,
   DIASPORA_GA_DEMO_COUNTRIES,
   DIASPORA_GA_NETWORK_SLUG,
+  diasporaGaDemoActorsOffered,
   diasporaGaDemoEmailOf,
   type DiasporaGaDemoActor,
   type DiasporaGaDemoActorSpec,
@@ -62,13 +82,14 @@ import {
 } from "@diaspora-ga/domain"
 import { v } from "convex/values"
 
-import { components } from "../../_generated/api"
+import { components, internal } from "../../_generated/api"
 import type { Doc, Id } from "../../_generated/dataModel"
-import { type MutationCtx, query } from "../../_generated/server"
+import { internalMutation, type MutationCtx, query, type QueryCtx } from "../../_generated/server"
 import { getMembership, getRootNetwork, isActiveMember } from "../../lib/access"
-import { demoAccountsAllowed } from "../../lib/devTools"
+import { demoAccountsAllowed, devToolsAllowed } from "../../lib/devTools"
 import { checked, fail } from "../../lib/errors"
 import { personMutation } from "../../lib/functions"
+import { openFeaturesOf } from "../../lib/networkFeatures"
 import { literals, membershipRoleValidator, membershipStatusValidator } from "../../lib/validators"
 import { blockPair } from "../graph/connections"
 import { ownBlockIntent } from "../graph/graph"
@@ -78,6 +99,8 @@ import { admitToNetwork, setMembershipStatus } from "../people/admission"
 import { syncIdentityForPerson } from "../people/identity"
 import { suspendRootMembership } from "../people/memberships"
 import { hasStrongIdentityFor, liveIdentityLinks } from "../people/persons"
+import { demoGateAdmission } from "../platform/devTools"
+import { demoGateScopeValidator } from "../platform/tables"
 import { refreshReaderContexts } from "../posts/feedMaterialization"
 import { sha256Hex } from "./attestation"
 import { activeFoundingAdmissionOf, activeSponsorshipOf, applyDerivedStatus, effectiveStatusIn, isDiasporaNetwork, membershipGrounds } from "./facts"
@@ -106,18 +129,111 @@ function demoAttestationSubjectOf(actor: DiasporaGaDemoActor): string {
   return `diaspora-ga-demo-attestation-${actor}`
 }
 
+/** Le réseau DIASPORA.GA, s'il est semé et gouverné par la tranche ; `null` sinon. */
+export async function diasporaGaNetwork(ctx: Pick<QueryCtx, "db">): Promise<Doc<"networks"> | null> {
+  const network = await ctx.db.query("networks").withIndex("by_slug", (q) => q.eq("slug", DIASPORA_GA_NETWORK_SLUG)).unique()
+  return isDiasporaNetwork(network) ? network : null
+}
+
+/**
+ * Les acteurs PROPOSÉS ici, dans l'ordre du panneau (CH-817 E3) : la règle du domaine
+ * (`diasporaGaDemoActorsOffered`), appliquée aux modules ouverts tels que le moteur les
+ * calcule (`openFeaturesOf` : un module n'y figure qu'avec son parent), aux pays ouverts
+ * du réseau, et au développement local (`devToolsAllowed`) pour les acteurs de recette.
+ * Le catalogue et l'équipement lisent la même liste.
+ */
+export async function offeredDemoActors(ctx: Pick<QueryCtx, "db">, network: Doc<"networks">): Promise<DiasporaGaDemoActor[]> {
+  return diasporaGaDemoActorsOffered({
+    openFeatures: await openFeaturesOf(ctx, network),
+    openCountries: network.openCountries ?? [],
+    local: devToolsAllowed(),
+  })
+}
+
 /**
  * @publicProjection Développement local ou démonstration déclarée seulement : le
  * catalogue des comptes de démonstration de DIASPORA.GA (acteur et adresse
- * réservée), vide partout ailleurs, production comprise.
+ * réservée), vide partout ailleurs, production comprise. CH-817 E3 : seuls les
+ * acteurs PROPOSÉS par la règle (modules et pays ouverts, recette en local) ; porte
+ * armée, vide sans session de porte valide (`gateToken`), et chaque entrée porte
+ * alors l'échéance de la session (`gateExpiresAt`), jamais le jeton.
  */
 export const catalogue = query({
-  args: {},
-  returns: v.array(v.object({ actor: demoActorValidator, email: v.string() })),
-  handler: async () => {
+  args: { gateToken: v.optional(v.string()) },
+  returns: v.array(v.object({ actor: demoActorValidator, email: v.string(), gateExpiresAt: v.optional(v.number()) })),
+  handler: async (ctx, { gateToken }) => {
     if (!demoAccountsAllowed()) return []
-    return DIASPORA_GA_DEMO_ACTORS.map((actor) => ({ actor, email: diasporaGaDemoEmailOf(actor) }))
+    const admission = await demoGateAdmission(ctx, "diaspora-ga", gateToken)
+    if (!admission.admitted) return []
+    const network = await diasporaGaNetwork(ctx)
+    if (!network) return []
+    const gate = admission.sessionExpiresAt !== null ? { gateExpiresAt: admission.sessionExpiresAt } : {}
+    return (await offeredDemoActors(ctx, network)).map((actor) => ({ actor, email: diasporaGaDemoEmailOf(actor), ...gate }))
   },
+})
+
+/**
+ * L'adresse d'un compte, VÉRIFIÉE OU NON, normalisée, relue dans le composant d'authentification
+ * (CH-817 E5, § 7.3) : le refus de `joinDiasporaGa` regarde l'adresse même du compte, que Better Auth
+ * l'ait marquée vérifiée ou pas encore.
+ */
+export async function accountEmailOf(ctx: Pick<MutationCtx, "runQuery">, authUserId: string): Promise<string | null> {
+  const user = await ctx.runQuery(components.betterAuth.adapter.findOne, {
+    model: "user",
+    where: [{ field: "_id", value: authUserId }],
+    select: ["_id", "email"],
+  }) as { _id: string; email: string } | null
+  if (!user || user._id !== authUserId || typeof user.email !== "string") return null
+  return user.email.trim().toLowerCase()
+}
+
+/** L'adresse (normalisée) est-elle celle d'un acteur DÉCLARÉ de DIASPORA.GA ? Une adresse libre de la famille ne l'est pas. */
+export function isDeclaredDiasporaGaDemoEmail(email: string): boolean {
+  const normalized = email.trim().toLowerCase()
+  return DIASPORA_GA_DEMO_ACTORS.some((actor) => diasporaGaDemoEmailOf(actor) === normalized)
+}
+
+/** Sessions supprimées au plus par compte et par passage ; au-delà, la mutation se replanifie. */
+const DEMO_SESSIONS_PER_ACCOUNT = 100
+
+export type CloseDemoSessionsResult = { accounts: number; sessionsClosed: number; complete: boolean }
+
+/**
+ * CH-817 E5 (constat 2) — ferme les sessions Better Auth des acteurs DÉCLARÉS de la portée : pour
+ * chacune des adresses déclarées (`diasporaGaDemoEmailOf`), le compte (`user` par `email`), puis ses
+ * sessions (`session` par `userId`, modèle `people/erasure.ts`), 100 au plus par compte ; incomplète,
+ * elle se replanifie. Aucune autre adresse n'est touchée, ni celles de la racine, ni les adresses
+ * libres de la famille. Fermée hors des comptes de démonstration (production comprise). Rend des
+ * nombres, jamais une adresse.
+ */
+export async function closeDemoSessionsImpl(ctx: MutationCtx, args: { scope: DemoGateScope }): Promise<CloseDemoSessionsResult> {
+  const result: CloseDemoSessionsResult = { accounts: 0, sessionsClosed: 0, complete: true }
+  if (!demoAccountsAllowed() || args.scope !== "diaspora-ga") return result
+  for (const actor of DIASPORA_GA_DEMO_ACTORS) {
+    const email = diasporaGaDemoEmailOf(actor)
+    const user = await ctx.runQuery(components.betterAuth.adapter.findOne, {
+      model: "user",
+      where: [{ field: "email", value: email }],
+      select: ["_id", "email"],
+    }) as { _id: string; email: string } | null
+    if (!user || user.email.trim().toLowerCase() !== email) continue
+    result.accounts += 1
+    const closed = await ctx.runMutation(components.betterAuth.adapter.deleteMany, {
+      input: { model: "session", where: [{ field: "userId", value: user._id }] },
+      paginationOpts: { cursor: null, numItems: DEMO_SESSIONS_PER_ACCOUNT },
+    })
+    result.sessionsClosed += closed.count
+    if (!closed.isDone) result.complete = false
+  }
+  if (!result.complete) await ctx.scheduler.runAfter(0, internal.modules.diaspora.demoAccounts.closeDemoSessions, { scope: args.scope })
+  return result
+}
+
+/** Ferme les sessions des acteurs déclarés de la portée (voir `closeDemoSessionsImpl`) ; planifiée par la porte, argument `{ scope }` seul. */
+export const closeDemoSessions = internalMutation({
+  args: { scope: demoGateScopeValidator },
+  returns: v.object({ accounts: v.number(), sessionsClosed: v.number(), complete: v.boolean() }),
+  handler: async (ctx, args) => await closeDemoSessionsImpl(ctx, args),
 })
 
 /** L'adresse vérifiée d'un compte, relue dans le composant d'authentification. */
@@ -129,11 +245,6 @@ async function verifiedEmailOf(ctx: MutationCtx, authUserId: string): Promise<st
   }) as { _id: string; email: string; emailVerified?: boolean } | null
   if (!user || user._id !== authUserId || user.emailVerified !== true) return null
   return user.email.trim().toLowerCase()
-}
-
-async function diasporaGaNetwork(ctx: MutationCtx): Promise<Doc<"networks"> | null> {
-  const network = await ctx.db.query("networks").withIndex("by_slug", (q) => q.eq("slug", DIASPORA_GA_NETWORK_SLUG)).unique()
-  return isDiasporaNetwork(network) ? network : null
 }
 
 /**
@@ -160,20 +271,13 @@ async function rederive(ctx: MutationCtx, network: Doc<"networks">, personId: Id
 }
 
 /**
- * Les pays de la démonstration (France, Belgique, Canada), ouverts seulement si
- * personne n'a encore décidé des pays du réseau (aucune trace dans
- * `networkSettingsHistory`) ; une décision existante n'est jamais touchée.
+ * Le hub des pays de la démonstration (France, Belgique, Canada) DÉJÀ ouverts. CH-817 E3 :
+ * plus aucun pays n'est ouvert d'office — l'ouverture est une décision de l'administration du
+ * réseau (`networkSettings.setOpenCountry`) ; un acteur d'un pays fermé n'est ni proposé ni
+ * équipé. Ne reste que le hub qui manquerait à un pays ouvert autrement (par la graine).
  */
-async function openDemoCountries(ctx: MutationCtx, network: Doc<"networks">, now: number): Promise<void> {
-  const decided = await ctx.db.query("networkSettingsHistory").withIndex("by_network_and_at", (q) => q.eq("networkId", network._id)).first()
-  let open = network.openCountries ?? []
-  if (decided === null) {
-    const next = [...open, ...DIASPORA_GA_DEMO_COUNTRIES.filter((country) => !open.includes(country))]
-    if (next.length !== open.length) {
-      await ctx.db.patch(network._id, { openCountries: next, updatedAt: now })
-      open = next
-    }
-  }
+async function ensureDemoCountryHubs(ctx: MutationCtx, network: Doc<"networks">, now: number): Promise<void> {
+  const open = network.openCountries ?? []
   for (const country of DIASPORA_GA_DEMO_COUNTRIES) {
     if (!open.includes(country) || (await hubRow(ctx, network._id, country))) continue
     await ctx.db.insert("countryHubs", { networkId: network._id, country, members: 0, associations: 0, companies: 0, upcomingEvents: 0, updatedAt: now })
@@ -451,6 +555,10 @@ async function admitOutsiderToRoot(ctx: MutationCtx, person: Doc<"persons">): Pr
  * appel ne recrée rien. Rend le statut EFFECTIF dans DIASPORA.GA (une suspension
  * de la racine vaut partout) et le rôle, `null` sans adhésion, puis la page de
  * l'acteur (avec `pageCreated` : les gestes de la page ne se jouent qu'une fois).
+ * CH-817 E3 : un acteur que la règle ne PROPOSE pas ici (module ou pays fermé, recette
+ * hors du développement local) est refusé (`policyRefused`, le refus de toute autre
+ * garde), avant toute écriture. CH-817 E4 : planifie ses publications d'exemple
+ * (`demoContent.animateActor`), et celles des filleuls que son parrainage vient de déclarer.
  */
 export const equipMyDemoAccount = personMutation({
   args: { actor: demoActorValidator },
@@ -470,6 +578,8 @@ export const equipMyDemoAccount = personMutation({
     if (spec.profile === null) return fail("policyRefused")
     const network = await diasporaGaNetwork(ctx)
     if (!network) return fail("notFound")
+    // CH-817 E3 : la règle du catalogue tient aussi l'équipement — un acteur non proposé ici ne s'équipe pas.
+    if (!(await offeredDemoActors(ctx, network)).includes(actor)) return fail("policyRefused")
 
     // L'extérieur au réseau : son compte ANTSIA seulement ; son adhésion DIASPORA.GA, s'il en a pris une, reste la sienne.
     if (spec.outsider) {
@@ -482,7 +592,7 @@ export const equipMyDemoAccount = personMutation({
     if (!joined || joined.status === "partie") return fail("notFound")
     const now = Date.now()
 
-    await openDemoCountries(ctx, network, now)
+    await ensureDemoCountryHubs(ctx, network, now)
 
     // Les faits, puis la vraie dérivation (un lien IDN posé après coup n'est pas relu pour diaspora-ga).
     if (spec.grounds.idn) await ensureDemoIdentity(ctx, actor, person, spec.grounds.idn, now)
@@ -505,6 +615,8 @@ export const equipMyDemoAccount = personMutation({
         if (!filleul || !(await getMembership(ctx, network._id, filleul._id))) continue
         await ensureSponsorship(ctx, network, person, filleul._id, now)
         await rederive(ctx, network, filleul._id, now)
+        // CH-817 E4 : le filleul équipé avant son parrain, déclaré à l'instant, publie à son tour.
+        await ctx.scheduler.runAfter(0, internal.modules.diaspora.demoContent.animateActor, { actor: sponsored })
       }
     }
 
@@ -524,6 +636,8 @@ export const equipMyDemoAccount = personMutation({
     // Le statut que lit l'application : une suspension de la racine vaut partout.
     const final = await effectiveStatusIn(ctx, network, person._id)
     if (!final.membership || final.status === null) return fail("notFound")
+    // CH-817 E4 : ses publications d'exemple, ses réactions et son commentaire, écrits après cette transaction.
+    await ctx.scheduler.runAfter(0, internal.modules.diaspora.demoContent.animateActor, { actor })
     return { actor, status: final.status, role: final.membership.role, pageId: page?.pageId ?? null, pageCreated: page?.created ?? false }
   },
 })

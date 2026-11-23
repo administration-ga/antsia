@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/http.ts (l. 120-180, 235-238, 243-385 et 1274-1444) @ ad2e7fdc2 — adaptations : routes d'authentification et webhook Egress LiveKit seulement (les autres routes du socle sont administratives) ; liste blanche CORS = origines de confiance du moteur, en-têtes exposés `Set-Better-Auth-Cookie` et `Retry-After` (EA-08, issue #151) ; contournement `mode` partagé avec `betterAuth/auth.ts` ; journalisation d'une erreur 500 sans écriture en base ; webhook Egress (`POST /webhooks/livekit-egress`) : PROPRIÉTÉ LIMITÉE AU DIRECT (`lib/livekitEgressWebhook`, seul propriétaire d'un egress dans le moteur), jeton vérifié par l'action Node du direct (`modules/live/egressActions.verifyEgressWebhook`), état de capture vers `modules/live/replay.markEgressState`, rapatriement planifié vers `modules/live/egressActions.ingestEgressFile` (ni début de capture ni taille : fusion iRéunion exclue), statut lu dans le module pur du domaine, comparaison à temps constant tirée de `lib/livekitEgressWebhook`.
+// Dupliqué de socle/convex/http.ts (l. 120-180, 235-238, 243-385 et 1274-1444) @ ad2e7fdc2 — adaptations : routes d'authentification et webhook Egress LiveKit seulement (les autres routes du socle sont administratives) ; liste blanche CORS = origines de confiance du moteur, en-têtes exposés `Set-Better-Auth-Cookie` et `Retry-After` (EA-08, issue #151) ; contournement `mode` partagé avec `betterAuth/auth.ts` ; journalisation d'une erreur 500 sans écriture en base ; webhook Egress (`POST /webhooks/livekit-egress`) : PROPRIÉTÉ LIMITÉE AU DIRECT (`lib/livekitEgressWebhook`, seul propriétaire d'un egress dans le moteur), jeton vérifié par l'action Node du direct (`modules/live/egressActions.verifyEgressWebhook`), état de capture vers `modules/live/replay.markEgressState`, rapatriement planifié vers `modules/live/egressActions.ingestEgressFile` (ni début de capture ni taille : fusion iRéunion exclue), statut lu dans le module pur du domaine, comparaison à temps constant tirée de `lib/livekitEgressWebhook` ; CH-817 : en-têtes CORS extraits vers `lib/httpCors.ts`, routes de la porte des comptes de démonstration (`modules/platform/demoGateHttp.ts`).
 /**
  * Routes HTTP du moteur.
  *
@@ -9,15 +9,18 @@
  * Le webhook Egress LiveKit (`/webhooks/livekit-egress`) ramène les
  * rediffusions des directs (module `live`).
  */
+import { DEMO_GATE_PATHS } from "@antsia/social-contracts/demoGate"
 import { directEgressOutcomeFromStatus } from "@antsia/social-domain/live/replayComposition"
 import { httpRouter } from "convex/server"
 
 import { inbox as federationInbox } from "./modules/federation/http"
 import { media as catalogueMedia } from "./modules/federation/commerceCatalogMediaHttp"
 import { transfer as agentConsentTransfer, AGENT_CONSENT_TRANSFER_PATH } from "./modules/federation/agentConsentTransfer"
+import { demoGatePreflight, requestCode as demoGateRequest, verifyCode as demoGateVerify } from "./modules/platform/demoGateHttp"
 import { internal } from "./_generated/api"
 import { httpAction } from "./_generated/server"
-import { createAuth, trustedOrigins } from "./betterAuth/auth"
+import { createAuth } from "./betterAuth/auth"
+import { buildPreflightHeaders, withCorsHeaders } from "./lib/httpCors"
 import {
   completeEgressForOwners,
   egressEndedNeedsFile,
@@ -35,43 +38,8 @@ http.route({ pathPrefix: "/catalogue/media/", method: "GET", handler: catalogueM
 
 const AUTH_PATH = "/api/auth"
 
-/** En-têtes CORS pour une origine de confiance seulement ; une inconnue n'en reçoit aucun. */
-function buildCorsHeaders(requestOrigin: string | null): Record<string, string> {
-  const origin = requestOrigin ?? ""
-  if (!trustedOrigins().includes(origin)) return {}
-  return {
-    "Access-Control-Allow-Origin": origin,
-    "Access-Control-Allow-Credentials": "true",
-    // Le greffon crossDomain transporte la session dans `Set-Better-Auth-Cookie` : un
-    // client hors origine ne le lit pas sans cette exposition. `Retry-After` (EA-08,
-    // issue #151) : le délai restant d'un refus de débit, lisible de même.
-    "Access-Control-Expose-Headers": "Set-Better-Auth-Cookie, Retry-After",
-  }
-}
-
-function buildPreflightHeaders(requestOrigin: string | null): Record<string, string> {
-  const cors = buildCorsHeaders(requestOrigin)
-  if (!cors["Access-Control-Allow-Origin"]) return {}
-  return {
-    ...cors,
-    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    // `Better-Auth-Cookie` : envoyé par le client crossDomain sur CHAQUE requête.
-    "Access-Control-Allow-Headers": "Authorization, Content-Type, Better-Auth-Cookie",
-    "Access-Control-Max-Age": "86400",
-  }
-}
-
-/**
- * Better Auth ne pose aucun en-tête CORS : on recopie la réponse avec ceux de la
- * liste blanche (les en-têtes d'une redirection sont immuables, d'où la copie).
- */
-function withCorsHeaders(response: Response, origin: string | null): Response {
-  const cors = buildCorsHeaders(origin)
-  if (!cors["Access-Control-Allow-Origin"]) return response
-  const headers = new Headers(response.headers)
-  for (const [name, value] of Object.entries(cors)) headers.set(name, value)
-  return new Response(response.body, { status: response.status, statusText: response.statusText, headers })
-}
+// Les en-têtes CORS (liste blanche des origines de confiance) vivent dans `lib/httpCors.ts`
+// depuis CH-817 : la porte des comptes de démonstration les partage, sans changement.
 
 // Découverte OIDC (validation des JWT Convex).
 http.route({
@@ -266,5 +234,17 @@ http.route({
 
 http.route({ path: "/federation/inbox", method: "POST", handler: federationInbox })
 http.route({ path: AGENT_CONSENT_TRANSFER_PATH, method: "POST", handler: agentConsentTransfer })
+
+// ============================================================================
+// Porte des comptes de démonstration (CH-817) — code WhatsApp puis session courte
+// ============================================================================
+// Le navigateur l'appelle DIRECTEMENT (le relais d'authentification des sites retire
+// `x-forwarded-for`). Admissions nominatives : `modules/platform/demoGateHttp.ts`
+// (cliquet `rate-limited-writes`). Porte fermée ou non armée : 404.
+http.route({ path: DEMO_GATE_PATHS.request, method: "POST", handler: demoGateRequest })
+http.route({ path: DEMO_GATE_PATHS.verify, method: "POST", handler: demoGateVerify })
+for (const path of [DEMO_GATE_PATHS.request, DEMO_GATE_PATHS.verify]) {
+  http.route({ path, method: "OPTIONS", handler: httpAction(async (_ctx, request) => demoGatePreflight(request)) })
+}
 
 export default http
