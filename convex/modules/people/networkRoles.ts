@@ -23,7 +23,13 @@
  * - un réseau qui a un administrateur ACTIF en garde toujours un (`NETWORK_LAST_ADMIN`) — par le
  *   retrait du rôle ici, et par le DÉPART VOLONTAIRE avec `assertLeaveKeepsNetworkAdmin`, que
  *   chaque chemin de départ volontaire appelle (moteur : `./memberships.leaveNetwork`, cascade de
- *   la racine comprise ; tranche : son propre chemin de départ) ;
+ *   la racine comprise ; tranche : son propre chemin de départ). La console, la tranche et le départ
+ *   volontaire n'y dérogent jamais ;
+ * - SEULE exception, CH-831 (ADR-0043) : l'option `allowLastAdmin`, que passe le seul retrait de
+ *   l'amorçage de la démonstration (`platform/networkAdminBootstrap.withdraw`, cliquet
+ *   `operator-audit`). Avec elle, la garde du dernier administrateur n'est pas consultée ; hors de la
+ *   démonstration déclarée et du développement local (`demoAccountsAllowed`), production comprise,
+ *   l'option est refusée (`policyRefused`) avant toute lecture et toute écriture ;
  * - au plus `NETWORK_ROLE_HOLDERS_MAX` titulaires par rôle et par réseau (`policyRefused`).
  */
 import type { MembershipRole } from "@antsia/social-domain/membership"
@@ -31,6 +37,7 @@ import type { MembershipRole } from "@antsia/social-domain/membership"
 import type { Doc, Id } from "../../_generated/dataModel"
 import type { MutationCtx, QueryCtx } from "../../_generated/server"
 import { getMembership, memberHasStatus } from "../../lib/access"
+import { demoAccountsAllowed } from "../../lib/devTools"
 import { fail, failRule, notFound } from "../../lib/errors"
 import type { AuditEntry } from "../platform/audit"
 
@@ -105,13 +112,16 @@ export async function assertLeaveKeepsNetworkAdmin(ctx: Pick<QueryCtx, "db">, ne
 
 /**
  * Pose (`network_admin`, `network_moderator`) ou retire (`member`) le rôle de réseau de
- * l'adhésion EXISTANTE de `personId` dans `network`. Voir l'en-tête pour les refus.
+ * l'adhésion EXISTANTE de `personId` dans `network`. Voir l'en-tête pour les refus, et pour
+ * `allowLastAdmin` (retrait de l'amorçage de la démonstration seulement).
  */
 export async function setMembershipRole(
   ctx: MutationCtx,
-  input: { network: Doc<"networks">; personId: Id<"persons">; role: MembershipRole },
+  input: { network: Doc<"networks">; personId: Id<"persons">; role: MembershipRole; allowLastAdmin?: true },
 ): Promise<NetworkRoleChange> {
-  const { network, personId, role } = input
+  const { network, personId, role, allowLastAdmin } = input
+  // CH-831 : l'option ne vaut que sur la démonstration déclarée ou en local ; ailleurs, refus avant tout.
+  if (allowLastAdmin === true && !demoAccountsAllowed()) return fail("policyRefused")
   if (network.status !== "active") return notFound()
   const membership = await getMembership(ctx, network._id, personId)
   if (!membership) return notFound()
@@ -126,7 +136,7 @@ export async function setMembershipRole(
       .take(NETWORK_ROLE_HOLDERS_MAX)
     if (holders.length >= NETWORK_ROLE_HOLDERS_MAX) return fail("policyRefused")
   }
-  if (await isLastActiveAdmin(ctx, membership)) return failRule("NETWORK_LAST_ADMIN")
+  if (allowLastAdmin !== true && (await isLastActiveAdmin(ctx, membership))) return failRule("NETWORK_LAST_ADMIN")
   await ctx.db.patch(membership._id, { role })
   return { personId, from: membership.role, to: role, changed: true }
 }
