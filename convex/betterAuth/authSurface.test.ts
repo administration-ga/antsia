@@ -19,7 +19,7 @@ import {
   type AuthRateBucket,
   type AuthRouteClassification,
   DEMO_GATED_AUTH_PATHS,
-  DISABLED_OTP_PATHS,
+  DISABLED_ROUTE_PATHS,
   isPasswordRequest,
   RL_LOGIN_PATHS,
   RL_OTP_SEND_PATHS,
@@ -110,7 +110,7 @@ type HookFacts = {
 }
 
 const HOOKS: HookFacts = {
-  closedBy: (path) => (isPasswordRequest({ path }) ? "password" : DISABLED_OTP_PATHS.has(path) ? "routeDisabled" : null),
+  closedBy: (path) => (isPasswordRequest({ path }) ? "password" : DISABLED_ROUTE_PATHS.has(path) ? "routeDisabled" : null),
   demoGated: DEMO_GATED_AUTH_PATHS,
   // Miroir du crochet des seaux (`auth.ts`) : il s'applique aux deux ensembles, `auth.otp.send` pour
   // l'envoi, `auth.login` sinon.
@@ -121,7 +121,7 @@ const HOOKS: HookFacts = {
     ["DEMO_GATED_AUTH_PATHS", DEMO_GATED_AUTH_PATHS],
     ["RL_LOGIN_PATHS", RL_LOGIN_PATHS],
     ["RL_OTP_SEND_PATHS", RL_OTP_SEND_PATHS],
-    ["DISABLED_OTP_PATHS", DISABLED_OTP_PATHS],
+    ["DISABLED_ROUTE_PATHS", DISABLED_ROUTE_PATHS],
   ]),
 }
 
@@ -211,9 +211,10 @@ describe("cliquet de la surface d'authentification (CH-817 E5)", () => {
     configureIdnFixture()
     const { conditions } = await surfaceOf(testConvex({ automaticSessions: false }))
     expect(conditions).toEqual({
-      // `generic-oauth` inscrit IDN parmi les fournisseurs sociaux (Better Auth 1.6) : c'est pourquoi
-      // `/sign-in/social` et `/callback/:id` l'atteignent (leurs raisons dans la table). Un autre
-      // fournisseur ajouté ici ouvrirait d'autres entrées : il arrête le cliquet.
+      // `generic-oauth` inscrit IDN parmi les fournisseurs sociaux (Better Auth 1.6) : `/sign-in/social`
+      // et `/callback/:id` l'atteignaient hors des crochets d'IDN, d'où leur fermeture (`DISABLED_ROUTE_PATHS`).
+      // Un autre fournisseur ajouté ici passerait par d'autres routes encore ouvertes (`/link-social`) :
+      // il arrête le cliquet.
       socialProviders: ["idn"],
       sendVerificationEmail: false,
       autoSignInAfterVerification: false,

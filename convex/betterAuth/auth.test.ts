@@ -72,7 +72,7 @@ async function request(t: T, path: string, { method = "POST", body, token, origi
       headers,
       ...(body ? { body: JSON.stringify(body) } : {}),
     }))
-    return { status: result.status, body: await result.text(), tokenHeader: result.headers.get("set-auth-token"), hasBrowserCookie: result.headers.has("set-better-auth-cookie"), retryAfter: result.headers.get("retry-after") }
+    return { status: result.status, body: await result.text(), tokenHeader: result.headers.get("set-auth-token"), hasBrowserCookie: result.headers.has("set-better-auth-cookie"), retryAfter: result.headers.get("retry-after"), setCookie: result.headers.get("set-cookie"), location: result.headers.get("location") }
   })
   return { ...response, data: response.body ? JSON.parse(response.body) as unknown : null }
 }
@@ -827,6 +827,94 @@ describe("composition du fournisseur d'identité", () => {
     expect(url.searchParams.get("state")).toBeTruthy()
     expect(record(result.data).redirect).toBe(true)
     expect(result.hasBrowserCookie).toBe(browserCookie !== undefined)
+  })
+})
+
+// CH-817 E5 (écart relevé par le cliquet de surface) : avec IDN, `generic-oauth` inscrit IDN parmi les
+// fournisseurs sociaux du cœur. `/sign-in/social` partait chez IDN sans `prompt=login` ni crochet natif
+// de départ, et `/callback/:id` pouvait ouvrir une session IDN hors des crochets du rappel central
+// (sans cookie, retour natif lié à S256, retour de refus). Aucune application ne les appelle : fermées
+// pour tous, avant tout seau. IDN n'entre que par `/sign-in/oauth2` et `/oauth2/callback/idn`.
+describe("routes du cœur où `generic-oauth` inscrit IDN : fermées (CH-817 E5)", () => {
+  const IDN_ISSUER = "https://idn.example.test"
+  const NO_SESSION_TRACE = { token: null, browserCookie: false, cookie: null, location: null }
+  const traceOf = (response: Awaited<ReturnType<typeof request>>) => ({ token: response.tokenHeader, browserCookie: response.hasBrowserCookie, cookie: response.setCookie, location: response.location })
+  const rowsOf = async (t: T, model: "session" | "verification") => ((await t.query(components.betterAuth.adapter.findMany, { model, paginationOpts: { cursor: null, numItems: 50 } })) as { page: unknown[] }).page
+  const stateRowOf = (t: T, state: string) => t.query(components.betterAuth.adapter.findOne, { model: "verification", where: [{ field: "identifier", value: state }] })
+
+  /** Le transport IDN simulé (découverte, jeton, profil) ; chaque chemin appelé est noté. */
+  function stubIdnTransport(): string[] {
+    const calls: string[] = []
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = new URL(input instanceof Request ? input.url : String(input))
+      calls.push(url.pathname)
+      const json = (value: unknown) => new Response(JSON.stringify(value), { headers: { "Content-Type": "application/json" } })
+      if (url.pathname.endsWith("/.well-known/openid-configuration")) return json({ issuer: IDN_ISSUER, authorization_endpoint: `${IDN_ISSUER}/authorize`, token_endpoint: `${IDN_ISSUER}/token`, userinfo_endpoint: `${IDN_ISSUER}/userinfo` })
+      if (url.pathname === "/token") return json({ access_token: "fixture-access-social", token_type: "Bearer", expires_in: 3600 })
+      if (url.pathname === "/userinfo") return json({ sub: "fixture-idn-social", email: "idn-social@example.test", email_verified: true, loa: 2 })
+      throw new Error("Transport externe inattendu dans la recette IDN")
+    }))
+    return calls
+  }
+
+  it.each([{ idn: false }, { idn: true }])("IDN configuré : $idn — `/sign-in/social` et `/callback/:id` répondent 404 `routeDisabled`, sans seau, sans état, sans cookie ni session", async ({ idn }) => {
+    if (idn) configureIdnFixture()
+    const calls = stubIdnTransport()
+    const t = testConvex({ automaticSessions: false })
+    const closedRoutes = [
+      // Une adresse dans le corps : si un seau par adresse comptait ces appels, la connexion finale serait refusée.
+      { path: "/sign-in/social", method: "POST" as const, body: { provider: "idn", callbackURL: `${PRIMARY_ORIGIN}/bienvenue`, email: EMAIL } },
+      // Le routeur la sert au chemin concret ; le crochet la voit sous son gabarit `/callback/:id`.
+      { path: `/callback/idn?code=fixture-code&state=fixture-state&iss=${encodeURIComponent(IDN_ISSUER)}`, method: "GET" as const },
+    ]
+    // Six fois chaque route : au-delà des cinq essais du seau de connexion et des trois du seau d'envoi.
+    for (let attempt = 0; attempt < 6; attempt++) {
+      for (const route of closedRoutes) {
+        const refusal = await request(t, route.path, { method: route.method, ...(route.body ? { body: route.body } : {}) })
+        expect(refusal.status, route.path).toBe(404)
+        expect(record(refusal.data), route.path).toEqual({ code: "routeDisabled", message: "routeDisabled" })
+        expect(traceOf(refusal), route.path).toEqual(NO_SESSION_TRACE)
+      }
+    }
+    // Rien n'a parlé à IDN, rien n'est écrit : ni état OAuth, ni session.
+    expect(calls).toEqual([])
+    expect(await rowsOf(t, "verification")).toEqual([])
+    expect(await rowsOf(t, "session")).toEqual([])
+    const code = await issueCode(t, "email")
+    expect((await signIn(t, "email", code.code)).status).toBe(200)
+  })
+
+  it("IDN configuré : l'état d'un vrai départ n'est pas consommé par `/callback/:id`, et le rappel central l'accepte ensuite", async () => {
+    configureIdnFixture()
+    const calls = stubIdnTransport()
+    const t = testConvex({ automaticSessions: false })
+    const start = await request(t, "/sign-in/oauth2", { body: { providerId: "idn", callbackURL: `${PRIMARY_ORIGIN}/bienvenue` } })
+    expect(start.status).toBe(200)
+    const authorization = new URL(textField(start.data, "url"))
+    expect(authorization.searchParams.get("prompt")).toBe("login")
+    const state = authorization.searchParams.get("state") ?? ""
+    expect(state).not.toBe("")
+    const query = `code=fixture-code&state=${encodeURIComponent(state)}&iss=${encodeURIComponent(IDN_ISSUER)}`
+
+    const refusal = await request(t, `/callback/idn?${query}`, { method: "GET" })
+    expect(refusal.status).toBe(404)
+    expect(record(refusal.data)).toEqual({ code: "routeDisabled", message: "routeDisabled" })
+    expect(traceOf(refusal)).toEqual(NO_SESSION_TRACE)
+    // Aucun échange de code chez IDN, aucune session, et l'état du départ reste entier.
+    expect(calls.filter((path) => path === "/token" || path === "/userinfo")).toEqual([])
+    expect(await rowsOf(t, "session")).toEqual([])
+    expect(await stateRowOf(t, state)).not.toBeNull()
+
+    // Le rappel central n'est pas visé : il consomme l'état, échange le code et livre la session par le
+    // seul jeton à usage unique.
+    const central = await request(t, `/oauth2/callback/idn?${query}`, { method: "GET" })
+    expect(central.status).toBe(302)
+    const destination = new URL(central.location ?? "")
+    expect(`${destination.origin}${destination.pathname}`).toBe(`${PRIMARY_ORIGIN}/bienvenue`)
+    expect(destination.searchParams.get("ott")).toBeTruthy()
+    expect(calls).toContain("/token")
+    expect(await stateRowOf(t, state)).toBeNull()
+    expect(await rowsOf(t, "session")).toHaveLength(1)
   })
 })
 

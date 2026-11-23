@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/betterAuth/auth.ts @ ad2e7fdc2 — adaptations : PA4, IDN avec PKCE et preuve serveur minimale, comptes légers par OTP e-mail/SMS, aucune route de mot de passe ; origines du catalogue et de l'environnement ; session sept jours et JWT trente minutes avec sessionId contrôlé côté serveur ; OTT trois minutes ; délivrance locale bornée ou transport configuré, erreurs et limitation de débit du moteur ; refus ou abandon chez IDN renvoyé à la porte de départ de confiance (issue #122) ; refus de débit porteur du délai restant, `retryAfterMs` et `Retry-After` (EA-08, issue #151) ; preuve de session IDN scellée avec l'application où la session est livrée, prise de l'état OAuth enregistré au départ (ADR-0042, CH-815) ; rappel IDN central web sans aucun cookie ni jeton porteur, la session ne passant que par le jeton à usage unique (revue CH-815 A1b, constat F1) ; routes `check-verification-otp` et `verify-email` du greffon e-mail fermées pour toutes les adresses, et garde de la porte des comptes de démonstration sur l'envoi du code et la connexion de sa famille d'adresses, avant les seaux (CH-817 E5, constat 1) ; surface des routes classée route par route (`AUTH_ROUTE_SURFACE`), figée par le cliquet `authSurface.test.ts` (CH-817 E5).
+// Dupliqué de socle/convex/betterAuth/auth.ts @ ad2e7fdc2 — adaptations : PA4, IDN avec PKCE et preuve serveur minimale, comptes légers par OTP e-mail/SMS, aucune route de mot de passe ; origines du catalogue et de l'environnement ; session sept jours et JWT trente minutes avec sessionId contrôlé côté serveur ; OTT trois minutes ; délivrance locale bornée ou transport configuré, erreurs et limitation de débit du moteur ; refus ou abandon chez IDN renvoyé à la porte de départ de confiance (issue #122) ; refus de débit porteur du délai restant, `retryAfterMs` et `Retry-After` (EA-08, issue #151) ; preuve de session IDN scellée avec l'application où la session est livrée, prise de l'état OAuth enregistré au départ (ADR-0042, CH-815) ; rappel IDN central web sans aucun cookie ni jeton porteur, la session ne passant que par le jeton à usage unique (revue CH-815 A1b, constat F1) ; routes `check-verification-otp` et `verify-email` du greffon e-mail fermées pour toutes les adresses, et garde de la porte des comptes de démonstration sur l'envoi du code et la connexion de sa famille d'adresses, avant les seaux (CH-817 E5, constat 1) ; surface des routes classée route par route (`AUTH_ROUTE_SURFACE`), figée par le cliquet `authSurface.test.ts` (CH-817 E5) ; routes du cœur `/sign-in/social` et `/callback/:id`, où `generic-oauth` inscrit IDN, fermées pour tous : IDN n'entre que par `/sign-in/oauth2` et son rappel central (CH-817 E5, écart du cliquet).
 /**
  * Better Auth du moteur — l'émetteur UNIQUE des jetons Convex (ADR-0002).
  *
@@ -127,11 +127,23 @@ export const PASSWORD_PATHS: ReadonlySet<string> = new Set([
   "/phone-number/request-password-reset", "/phone-number/reset-password",
 ])
 
-// CH-817 E5 (relecture de sécurité, constat 1) : deux routes du greffon e-mail qu'aucune application
-// n'appelle (elles n'envoient que `sign-in`). `check-verification-otp` échappait au seau de connexion
-// (trois essais par code, autant de codes qu'en permet l'envoi) ; `verify-email` consommait un code
-// hors de toute connexion. Fermées pour TOUTES les adresses, production comprise : restriction pure.
-export const DISABLED_OTP_PATHS: ReadonlySet<string> = new Set<string>(["/email-otp/check-verification-otp", "/email-otp/verify-email"])
+// Routes sans appelant, fermées pour TOUS, production comprise (404 `routeDisabled`, avant tout seau) :
+// une route sans appelant se ferme, elle ne se limite pas. Restriction pure.
+// - CH-817 E5 (relecture de sécurité, constat 1) : deux routes du greffon e-mail qu'aucune application
+//   n'appelle (elles n'envoient que `sign-in`). `check-verification-otp` échappait au seau de connexion
+//   (trois essais par code, autant de codes qu'en permet l'envoi) ; `verify-email` consommait un code
+//   hors de toute connexion.
+// - CH-817 E5 (écart relevé par le cliquet `authSurface.test.ts`) : avec IDN, `generic-oauth` inscrit IDN
+//   parmi les fournisseurs sociaux du cœur. `/sign-in/social` partait chez IDN sans `prompt=login` ni
+//   crochet natif de départ ; `/callback/:id` pouvait ouvrir une session IDN hors des crochets du rappel
+//   central (sans cookie, retour natif lié à S256, retour de refus). Aucune application ne les appelle :
+//   toutes partent par `/sign-in/oauth2`, et le client IDN n'a pour retour que `/oauth2/callback/idn`.
+//   Le crochet voit le GABARIT de la route (`endpoint.path`, Better Auth 1.6) : une requête `/callback/idn`
+//   y arrive sous `/callback/:id` ; l'égalité exacte ne vise pas `/oauth2/callback/:providerId`.
+export const DISABLED_ROUTE_PATHS: ReadonlySet<string> = new Set<string>([
+  "/email-otp/check-verification-otp", "/email-otp/verify-email",
+  "/sign-in/social", "/callback/:id",
+])
 
 export function isPasswordRequest(hookCtx: { path?: string; body?: unknown }): boolean {
   const path = hookCtx.path ?? ""
@@ -144,7 +156,7 @@ export type AuthRateBucket = "auth.login" | "auth.otp.send"
 
 /**
  * Le classement d'une route : `closed` (404 des crochets : `password` = `isPasswordRequest`,
- * `routeDisabled` = `DISABLED_OTP_PATHS`), `demoGated` (garde de la porte puis seau), `rateLimited`
+ * `routeDisabled` = `DISABLED_ROUTE_PATHS`), `demoGated` (garde de la porte puis seau), `rateLimited`
  * (seau par adresse), `sessionRequired` (intergiciel de session de Better Auth, ou contrôle dans le
  * gestionnaire), `serverOnly` (`metadata.SERVER_ONLY` : le routeur ne l'expose pas), `public`
  * (justification écrite).
@@ -168,11 +180,11 @@ export type AuthRouteClassification =
  */
 export const AUTH_ROUTE_SURFACE: Readonly<Record<string, AuthRouteClassification>> = {
   // Cœur de Better Auth.
-  // ÉCART SIGNALÉ (CH-817 E5) : `generic-oauth` inscrit IDN parmi les fournisseurs sociaux (seul
-  // fournisseur, vérifié par le cliquet). Ces deux routes du cœur atteignent donc IDN hors des
-  // crochets liés à `/sign-in/oauth2` et `/oauth2/callback/...`.
-  "/sign-in/social": { kind: "public", reason: "Départ IDN (`provider: \"idn\"`) : URL d'autorisation avec état, PKCE et rappel central, mais SANS `prompt=login` ni crochet natif de départ ; aucune session émise ici." },
-  "/callback/:id": { kind: "public", reason: "Rappel du cœur (`id` « idn ») : peut OUVRIR UNE SESSION IDN hors des crochets du rappel central (sans cookie, retour natif, refus) ; état OAuth et PKCE exigés." },
+  // `generic-oauth` inscrit IDN parmi les fournisseurs sociaux (seul fournisseur, vérifié par le cliquet) :
+  // ces deux routes du cœur atteignaient IDN hors des crochets liés à `/sign-in/oauth2` et
+  // `/oauth2/callback/...`. Les classer `public` était faux (le cliquet l'a montré) : fermées (CH-817 E5).
+  "/sign-in/social": { kind: "closed", by: "routeDisabled", reason: "Départ IDN du cœur (`provider: \"idn\"`) : partait SANS `prompt=login` ni crochet natif de départ ; aucune application ne l'appelle (toutes passent par `/sign-in/oauth2`)." },
+  "/callback/:id": { kind: "closed", by: "routeDisabled", reason: "Rappel du cœur (`id` « idn ») : ouvrait une session IDN hors des crochets du rappel central (sans cookie, retour natif, refus) ; IDN ne renvoie qu'à `/oauth2/callback/idn`." },
   "/get-session": { kind: "public", reason: "Relit la session présentée ; sans session, rend null. N'émet ni code ni session." },
   "/sign-out": { kind: "public", reason: "Ferme la session présentée ; sans session, sans effet." },
   "/sign-up/email": { kind: "closed", by: "password", reason: "Inscription par mot de passe : aucune route de mot de passe dans le moteur." },
@@ -280,7 +292,7 @@ const rateLimitPlugin = (ctx: GenericCtx<DataModel>): BetterAuthPlugin => ({
       },
       {
         // Juste après les mots de passe, avant tout seau : la route n'existe pas, rien n'est compté.
-        matcher: (hookCtx) => DISABLED_OTP_PATHS.has(hookCtx.path ?? ""),
+        matcher: (hookCtx) => DISABLED_ROUTE_PATHS.has(hookCtx.path ?? ""),
         handler: createAuthMiddleware(async () => {
           throw new APIError("NOT_FOUND", { message: "routeDisabled", code: "routeDisabled" })
         }),
