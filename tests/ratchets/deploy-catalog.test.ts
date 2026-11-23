@@ -1,11 +1,13 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs"
 import { join, posix } from "node:path"
 
+import { isValidNetworkSlug } from "@antsia/social-domain/network"
 import { describe, expect, it } from "vitest"
 
 import { isTestFile, listFiles, REPO_ROOT } from "./lib/source-files"
 
-type WebApplication = { platform: "web"; path: string; dev_port: number; build_args: string[] }
+/** `administers_network` (ADR-0042) : le réseau qu'ADMINISTRE l'application, lu par la garde `networkAdmin*` du moteur. */
+type WebApplication = { platform: "web"; path: string; dev_port: number; build_args: string[]; administers_network?: string }
 type NativeApplication = { platform: "expo-native"; path: string; config: string; entry: string; public_env: string[]; config_env: string[] }
 type Catalog = { applications: Record<string, WebApplication | NativeApplication> }
 
@@ -95,6 +97,18 @@ describe("deploy-catalog — chaque application servie est au catalogue (câblag
       }
     }
     expect([...new Set(problems)]).toEqual([])
+  })
+
+  it("ADR-0042 : une application qui administre un réseau est web, nomme un identifiant de réseau valide, et chaque déclaration est voulue", () => {
+    const administering = Object.entries(catalog.applications).filter(([, app]) => "administers_network" in app)
+    for (const [key, app] of administering) {
+      expect(app.platform, key).toBe("web")
+      const network = (app as WebApplication).administers_network
+      expect(typeof network === "string" && isValidNetworkSlug(network), key).toBe(true)
+    }
+    // Le contrat CH-815 : l'application d'administration de DIASPORA.GA, et elle seule. Une autorité de plus
+    // sur un réseau (ou une application des membres qui en recevrait une) se décide ici, à la lecture.
+    expect(Object.fromEntries(administering.map(([key, app]) => [key, (app as WebApplication).administers_network]))).toEqual({ admin_diaspora_ga: "diaspora-ga" })
   })
 
   it("test du test : une application externe lit aussi les paquets de son dépôt", () => {

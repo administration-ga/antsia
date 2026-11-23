@@ -1,5 +1,5 @@
 {
-  "//": "Catalogue exhaustif des applications du moteur ANTSIA. Les entrées web déclarent service, Dockerfile construit en contexte ECOSYSTEMES, origine, port, arguments publics de build et variables d'exécution. Chaque NEXT_PUBLIC_* doit être un ARG Docker et une substitution Cloud Build. Les entrées expo-native déclarent plateformes, configuration, point d'entrée, variables EXPO_PUBLIC_* du binaire et variables privées de configuration : aucune URL, identité de distribution, port ou chaîne de publication n'est inventé. Leur présence ne prouve aucune compilation ni distribution. Les domaines web sont des hypothèses du cahier ; aucune publication sans décision du propriétaire. Une application EXTERNE (DIASPORA_GA) a son chemin relatif à ANTSIA et se construit avec son Dockerfile dans le même contexte. Fichier partagé avec DIASPORA_GA : modifié par la session ANTSIA seulement.",
+  "//": "Catalogue exhaustif des applications du moteur ANTSIA. Les entrées web déclarent service, Dockerfile construit en contexte ECOSYSTEMES, origine, port, arguments publics de build et variables d'exécution. Chaque NEXT_PUBLIC_* doit être un ARG Docker et une substitution Cloud Build. Les entrées expo-native déclarent plateformes, configuration, point d'entrée, variables EXPO_PUBLIC_* du binaire et variables privées de configuration : aucune URL, identité de distribution, port ou chaîne de publication n'est inventé. Leur présence ne prouve aucune compilation ni distribution. Les domaines web sont des hypothèses du cahier ; aucune publication sans décision du propriétaire. Une application EXTERNE (DIASPORA_GA) a son chemin relatif à ANTSIA et se construit avec son Dockerfile dans le même contexte. Une application web qui ADMINISTRE un réseau le déclare par `administers_network` (l'identifiant d'adresse du réseau, ADR-0042) : seule source de cette autorité, lue par la garde `networkAdmin*` du moteur. Fichier partagé avec DIASPORA_GA : modifié par la session ANTSIA seulement.",
   "contextDir": "ECOSYSTEMES",
   "applications": {
     "antsia_ga": {
@@ -34,6 +34,18 @@
       "site_url": "https://diaspora.ga",
       "dev_port": 3031,
       "build_args": ["NEXT_PUBLIC_CONVEX_URL", "NEXT_PUBLIC_SITE_URL", "NEXT_PUBLIC_BUILD_SHA", "NEXT_PUBLIC_DIASPORA_GA_DATA_SOURCE", "NEXT_PUBLIC_IDN_PORTAL_URL", "NEXT_PUBLIC_CONSULATE_URL"],
+      "runtime_env": ["CONVEX_SITE_URL"]
+    },
+    "admin_diaspora_ga": {
+      "platform": "web",
+      "package": "admin-diaspora-ga",
+      "path": "../DIASPORA_GA/apps/admin_diaspora_ga",
+      "service": "admin-diaspora-ga",
+      "dockerfile": "DIASPORA_GA/apps/admin_diaspora_ga/Dockerfile",
+      "site_url": "https://admin.diaspora.ga",
+      "dev_port": 3033,
+      "administers_network": "diaspora-ga",
+      "build_args": ["NEXT_PUBLIC_CONVEX_URL", "NEXT_PUBLIC_SITE_URL", "NEXT_PUBLIC_BUILD_SHA", "NEXT_PUBLIC_MEMBERS_SITE_URL"],
       "runtime_env": ["CONVEX_SITE_URL"]
     },
     "antsia_mobile": {
