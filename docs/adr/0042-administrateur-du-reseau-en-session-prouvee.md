@@ -277,3 +277,31 @@ l'[ADR-0039](0039-console-idn-niveau-1.md).
 Recettes : `convex/modules/platform/consoleApplication.test.ts`, `convex/betterAuth/idnApplication.test.ts`
 (vrai parcours jusqu'à `myOperator`), `convex/betterAuth/settings.test.ts`,
 `convex/modules/networks/adminAccess.test.ts`, cliquet `deploy-catalog`.
+
+## Amendement du 2026-11-23 (CH-815, suite des pays ouverts) — Routage des signalements par pays
+
+Statut « Proposé ». Remplace le point « Le pays d'une équipe ne délimite encore aucune compétence » de l'amendement
+A3 (suite), comme le prévoyait la décision de l'architecte (« le futur routage par pays se fera dans `cases.report` »).
+
+- **Décision.** Le pays d'une équipe délimite sa compétence. Le moteur adresse le dossier d'un contenu à l'équipe de
+  SON pays, puis de sa nature ; la racine et tout réseau dont aucune équipe ne porte de pays routent comme avant.
+- **Règle** (`@antsia/social-domain/moderationRouting`, appelée par `moderation/routing`). Parmi les équipes actives
+  du réseau (100 au plus, lues par `by_network_active`, la plus ancienne d'abord) : contenu d'un pays C → l'équipe de
+  C de cette nature, puis l'équipe généraliste de C, puis l'équipe sans pays de cette nature, puis l'équipe sans pays
+  généraliste, sinon le réseau. Contenu sans pays → les seules équipes sans pays, sinon le réseau : jamais une équipe
+  d'un pays. Entre deux équipes de même rang, la plus ancienne. Le pays est celui que PORTE le contenu, par la
+  définition du guichet par pays, déménagée telle quelle dans `diaspora/moderationCountry` et partagée : jamais le pays
+  du déclarant ni celui de l'auteur. Il n'est lu que si une équipe active du réseau porte un pays.
+- **Où.** À la création du dossier (`cases.report`, `moderation.reportPost` et `reportComment`) ; pour la relecture
+  préalable (`cases.paginatePending`, `cases.reviewContent`, `reviewProjection.preview`, le guichet `pendingQueue`,
+  et la lecture d'un contenu retenu, `policy.canReadModeratedContent`, ouverte à toute équipe éligible : nature
+  compatible, pays égal ou absent) ; pour les revendications de page (`pages/claims.pageClaimReviewer`, jugé page par
+  page). Aucune table, aucun champ, aucun index nouveau : le dossier garde l'équipe choisie (`reports.teamId`), la
+  compétence se relit à l'acte (`cases.teamCapacity`), inchangée.
+- **Conséquences.** Le membre d'une équipe d'un pays a la file de son pays et la tranche ; celui d'une équipe d'un
+  autre pays reçoit le refus indistinct. L'administration du réseau lit tout, comme avant ; un modérateur du réseau
+  garde la file du réseau et les dossiers sans équipe, comme avant. **Un deuxième pays peut s'ouvrir dès que son équipe
+  existe** (`setOpenCountry` exige déjà une équipe du pays avec un modérateur actif). Changer le pays d'une équipe ne
+  déplace pas les dossiers qui lui sont déjà adressés ; ceux d'une équipe désactivée restent à l'administration du
+  réseau, comme avant (aucun réacheminement).
+- Recettes : `packages/social-domain/src/moderationRouting.test.ts`, `convex/modules/moderation/countryRouting.test.ts`.
