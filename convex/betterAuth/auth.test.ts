@@ -444,6 +444,15 @@ describe("langue de la personne et marque du réseau dans le code de connexion",
     for (const origin of [null, undefined, "https://foreign.example.test"]) expect(otpPresentation({ origin, acceptLanguage: undefined }, {})).toEqual({ locale: "fr", brand: "ANTSIA" })
     expect(otpPresentation({ origin: null, acceptLanguage: undefined }, { AUTH_DEFAULT_LOCALE: "en" }).locale).toBe("en")
   })
+
+  it("revue CH-815 A1b : une origine de démonstration déclarée pour DIASPORA.GA, et de confiance, porte sa marque", () => {
+    const demo = "https://membres.demo.example.test"
+    const declared = { APPLICATION_EXTRA_ORIGINS_JSON: JSON.stringify({ diaspora_ga: [demo] }) }
+    expect(otpPresentation({ origin: demo, acceptLanguage: "fr" }, { ...declared, TRUSTED_ORIGINS: demo })).toEqual({ locale: "fr", brand: "DIASPORA.GA" })
+    // Déclarée sans être de confiance, ou de confiance sans être déclarée : la marque du réseau racine.
+    expect(otpPresentation({ origin: demo, acceptLanguage: "fr" }, declared).brand).toBe("ANTSIA")
+    expect(otpPresentation({ origin: demo, acceptLanguage: "fr" }, { TRUSTED_ORIGINS: demo }).brand).toBe("ANTSIA")
+  })
 })
 
 describe("passage entre applications et jetons émis", () => {

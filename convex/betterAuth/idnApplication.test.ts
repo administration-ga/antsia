@@ -287,3 +287,31 @@ describe("revue F2 — une application qui administre un réseau n'est scellée 
     expect(await proofs(t)).toEqual([{ application: "diaspora_ga", loa: 2 }])
   })
 })
+
+describe("revue CH-815 A1b — une administration servie sur une origine de démonstration déclarée", () => {
+  const DEMO_ADMIN = "https://admin.demo.example.test"
+
+  it("sans déclaration, la session n'est scellée pour aucune application (le risque relevé au lot A8)", async () => {
+    vi.stubEnv("TRUSTED_ORIGINS", DEMO_ADMIN)
+    const t = testConvex({ automaticSessions: false })
+    stubIdn("idn-demo-sans-declaration")
+    const state = await startFrom(t, DEMO_ADMIN, returnURLs(`${DEMO_ADMIN}/entrer`))
+    expect((await returnFromIdn(t, state)).origin).toBe(DEMO_ADMIN)
+    expect(await proofs(t)).toEqual([{ application: undefined, loa: 2 }])
+  })
+
+  it("déclarée pour l'application d'administration et de confiance : scellée à son entrée exacte, et là seulement", async () => {
+    vi.stubEnv("TRUSTED_ORIGINS", DEMO_ADMIN)
+    vi.stubEnv("APPLICATION_EXTRA_ORIGINS_JSON", JSON.stringify({ [NETWORK_ADMIN_APPLICATION_KEY]: [DEMO_ADMIN] }))
+    const t = testConvex({ automaticSessions: false })
+    stubIdn("idn-demo-declaree")
+    const state = await startFrom(t, DEMO_ADMIN, returnURLs(`${DEMO_ADMIN}/entrer`))
+    const callback = await callbackFromIdn(t, state)
+    expect(callback.setCookies).toEqual([])
+    expect(new URL(callback.location ?? "").origin).toBe(DEMO_ADMIN)
+    expect(await proofs(t)).toEqual([{ application: NETWORK_ADMIN_APPLICATION_KEY, loa: 2 }])
+    stubIdn("idn-demo-autre-chemin")
+    await returnFromIdn(t, await startFrom(t, DEMO_ADMIN, returnURLs(`${DEMO_ADMIN}/anything?x=`)))
+    expect(await proofs(t)).toEqual(expect.arrayContaining([{ application: undefined, loa: 2 }]))
+  })
+})
