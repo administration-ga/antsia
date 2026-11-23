@@ -56,7 +56,14 @@
  *   local seulement. Un acteur non proposé est refusé d'un refus indistinct.
  * CH-817 E4 — l'équipement planifie les publications d'exemple de l'acteur
  * (`./demoContent.ts#animateActor`), écrites par le moteur après la transaction.
+ * CH-817 E5 (relecture de sécurité, constats 2 et 4) :
+ * - `closeDemoSessions` ferme les sessions Better Auth des acteurs DÉCLARÉS, et d'eux seuls :
+ *   planifiée par le retrait d'un numéro de la porte (`platform/demoGate.revokePhones`) et par sa
+ *   remise à zéro (`resetScope`, à l'armement et à chaque rotation du secret) ;
+ * - `accountEmailOf` et `isDeclaredDiasporaGaDemoEmail` servent le refus de `joinDiasporaGa` : porte
+ *   armée, une adresse réservée qui n'est pas celle d'un acteur déclaré n'entre pas dans le réseau.
  */
+import type { DemoGateScope } from "@antsia/social-contracts/demoGate"
 import { CONSENT_TEXT_VERSIONS, isConsentInForce, missingConsentsToJoin } from "@antsia/social-domain/consent"
 import { entryStatusFor } from "@antsia/social-domain/membership"
 import { assertPageHandle, assertPageName, assertTrustAllowedForOwner, pageTrustRank } from "@antsia/social-domain/pages"
@@ -77,7 +84,7 @@ import { v } from "convex/values"
 
 import { components, internal } from "../../_generated/api"
 import type { Doc, Id } from "../../_generated/dataModel"
-import { type MutationCtx, query, type QueryCtx } from "../../_generated/server"
+import { internalMutation, type MutationCtx, query, type QueryCtx } from "../../_generated/server"
 import { getMembership, getRootNetwork, isActiveMember } from "../../lib/access"
 import { demoAccountsAllowed, devToolsAllowed } from "../../lib/devTools"
 import { checked, fail } from "../../lib/errors"
@@ -93,6 +100,7 @@ import { syncIdentityForPerson } from "../people/identity"
 import { suspendRootMembership } from "../people/memberships"
 import { hasStrongIdentityFor, liveIdentityLinks } from "../people/persons"
 import { demoGateAdmission } from "../platform/devTools"
+import { demoGateScopeValidator } from "../platform/tables"
 import { refreshReaderContexts } from "../posts/feedMaterialization"
 import { sha256Hex } from "./attestation"
 import { activeFoundingAdmissionOf, activeSponsorshipOf, applyDerivedStatus, effectiveStatusIn, isDiasporaNetwork, membershipGrounds } from "./facts"
@@ -162,6 +170,70 @@ export const catalogue = query({
     const gate = admission.sessionExpiresAt !== null ? { gateExpiresAt: admission.sessionExpiresAt } : {}
     return (await offeredDemoActors(ctx, network)).map((actor) => ({ actor, email: diasporaGaDemoEmailOf(actor), ...gate }))
   },
+})
+
+/**
+ * L'adresse d'un compte, VÉRIFIÉE OU NON, normalisée, relue dans le composant d'authentification
+ * (CH-817 E5, § 7.3) : le refus de `joinDiasporaGa` regarde l'adresse même du compte, que Better Auth
+ * l'ait marquée vérifiée ou pas encore.
+ */
+export async function accountEmailOf(ctx: Pick<MutationCtx, "runQuery">, authUserId: string): Promise<string | null> {
+  const user = await ctx.runQuery(components.betterAuth.adapter.findOne, {
+    model: "user",
+    where: [{ field: "_id", value: authUserId }],
+    select: ["_id", "email"],
+  }) as { _id: string; email: string } | null
+  if (!user || user._id !== authUserId || typeof user.email !== "string") return null
+  return user.email.trim().toLowerCase()
+}
+
+/** L'adresse (normalisée) est-elle celle d'un acteur DÉCLARÉ de DIASPORA.GA ? Une adresse libre de la famille ne l'est pas. */
+export function isDeclaredDiasporaGaDemoEmail(email: string): boolean {
+  const normalized = email.trim().toLowerCase()
+  return DIASPORA_GA_DEMO_ACTORS.some((actor) => diasporaGaDemoEmailOf(actor) === normalized)
+}
+
+/** Sessions supprimées au plus par compte et par passage ; au-delà, la mutation se replanifie. */
+const DEMO_SESSIONS_PER_ACCOUNT = 100
+
+export type CloseDemoSessionsResult = { accounts: number; sessionsClosed: number; complete: boolean }
+
+/**
+ * CH-817 E5 (constat 2) — ferme les sessions Better Auth des acteurs DÉCLARÉS de la portée : pour
+ * chacune des adresses déclarées (`diasporaGaDemoEmailOf`), le compte (`user` par `email`), puis ses
+ * sessions (`session` par `userId`, modèle `people/erasure.ts`), 100 au plus par compte ; incomplète,
+ * elle se replanifie. Aucune autre adresse n'est touchée, ni celles de la racine, ni les adresses
+ * libres de la famille. Fermée hors des comptes de démonstration (production comprise). Rend des
+ * nombres, jamais une adresse.
+ */
+export async function closeDemoSessionsImpl(ctx: MutationCtx, args: { scope: DemoGateScope }): Promise<CloseDemoSessionsResult> {
+  const result: CloseDemoSessionsResult = { accounts: 0, sessionsClosed: 0, complete: true }
+  if (!demoAccountsAllowed() || args.scope !== "diaspora-ga") return result
+  for (const actor of DIASPORA_GA_DEMO_ACTORS) {
+    const email = diasporaGaDemoEmailOf(actor)
+    const user = await ctx.runQuery(components.betterAuth.adapter.findOne, {
+      model: "user",
+      where: [{ field: "email", value: email }],
+      select: ["_id", "email"],
+    }) as { _id: string; email: string } | null
+    if (!user || user.email.trim().toLowerCase() !== email) continue
+    result.accounts += 1
+    const closed = await ctx.runMutation(components.betterAuth.adapter.deleteMany, {
+      input: { model: "session", where: [{ field: "userId", value: user._id }] },
+      paginationOpts: { cursor: null, numItems: DEMO_SESSIONS_PER_ACCOUNT },
+    })
+    result.sessionsClosed += closed.count
+    if (!closed.isDone) result.complete = false
+  }
+  if (!result.complete) await ctx.scheduler.runAfter(0, internal.modules.diaspora.demoAccounts.closeDemoSessions, { scope: args.scope })
+  return result
+}
+
+/** Ferme les sessions des acteurs déclarés de la portée (voir `closeDemoSessionsImpl`) ; planifiée par la porte, argument `{ scope }` seul. */
+export const closeDemoSessions = internalMutation({
+  args: { scope: demoGateScopeValidator },
+  returns: v.object({ accounts: v.number(), sessionsClosed: v.number(), complete: v.boolean() }),
+  handler: async (ctx, args) => await closeDemoSessionsImpl(ctx, args),
 })
 
 /** L'adresse vérifiée d'un compte, relue dans le composant d'authentification. */

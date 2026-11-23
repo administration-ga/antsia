@@ -19,6 +19,7 @@ import {
   demoGateSessionByDigest,
   demoGateSessionOf,
   markDeliveryFailedImpl,
+  resetScopeImpl,
   revokePhonesImpl,
 } from "./demoGate"
 
@@ -425,6 +426,65 @@ describe("liste des numéros — fonctions internes du propriétaire", () => {
       audit: await ctx.db.query("engineAudit").take(50),
     })))
     for (const secret of ["447700900123", "447700900456", "7700 900", TOKEN, SECRET]) expect(dump).not.toContain(secret)
+  })
+})
+
+describe("CH-817 E5 — retrait, remise à zéro et fermeture des sessions de compte (constats 2 et 12)", () => {
+  /** Les fonctions planifiées vers la fermeture des sessions de compte, avec leurs arguments. */
+  async function scheduledClosures(t: T) {
+    const rows = await t.run((ctx) => ctx.db.system.query("_scheduled_functions").take(20))
+    return rows.filter((row) => row.name.includes("closeDemoSessions")).map((row) => row.args)
+  }
+
+  it("un retrait effectif planifie `closeDemoSessions` avec la seule portée ; un retrait sans effet, rien", async () => {
+    const t = testConvex()
+    await allow(t)
+    expect(await t.run((ctx) => revokePhonesImpl(ctx, { scope: SCOPE, phones: [OTHER_PHONE] }, NOW + 1, GATED))).toMatchObject({ revoked: 0 })
+    expect(await scheduledClosures(t)).toEqual([])
+    expect(await t.run((ctx) => revokePhonesImpl(ctx, { scope: SCOPE, phones: [PHONE] }, NOW + 2, GATED))).toMatchObject({ revoked: 1 })
+    const closures = await scheduledClosures(t)
+    expect(closures).toEqual([[{ scope: SCOPE }]])
+    for (const secret of ["447700900123", "7700 900"]) expect(JSON.stringify(closures)).not.toContain(secret)
+  })
+
+  it("constat 12 : après une rotation, la liste ne se rejoue plus (plafond) ; `resetScope` puis vingt numéros de nouveau", async () => {
+    const t = testConvex()
+    const phones = Array.from({ length: 20 }, (_, index) => `+447700900${(100 + index).toString()}`)
+    expect(await allow(t, phones)).toEqual({ added: 20, alreadyAllowed: 0, active: 20 })
+    const rotated = { ...GATED, ANTSIA_DEMO_GATE_SECRET: `${SECRET}-renouvele` }
+    // Les anciennes empreintes ne se calculent plus : ni retirables, ni remplaçables.
+    expect(await t.run((ctx) => revokePhonesImpl(ctx, { scope: SCOPE, phones }, NOW + 1, rotated))).toEqual({ revoked: 0, notAllowed: 20, active: 20 })
+    await expect(t.run((ctx) => allowPhonesImpl(ctx, { scope: SCOPE, phones }, NOW + 2, rotated))).rejects.toThrow("demoGateAllowlistFull")
+    expect(await t.run((ctx) => resetScopeImpl(ctx, { scope: SCOPE }, NOW + 3, rotated))).toEqual({ revoked: 20, active: 0 })
+    expect(await t.run((ctx) => allowPhonesImpl(ctx, { scope: SCOPE, phones }, NOW + 4, rotated))).toEqual({ added: 20, alreadyAllowed: 0, active: 20 })
+    expect(await t.run((ctx) => allowlistSummaryImpl(ctx, { scope: SCOPE }))).toMatchObject({ active: 20, revoked: 20 })
+  })
+
+  it("`resetScope` fait tomber défis et sessions de porte, journalise chaque retrait, planifie la fermeture des sessions de compte", async () => {
+    const t = testConvex()
+    await allow(t, [PHONE, OTHER_PHONE])
+    const pending = await open(t, "pending")
+    const verified = await open(t, "verified", NOW + 1)
+    expect(await complete(t, verified, true, NOW + 2, await demoGateDigest(SECRET, "demo-gate-session", TOKEN))).toMatchObject({ ok: true })
+    expect(await t.run((ctx) => resetScopeImpl(ctx, { scope: SCOPE }, NOW + 3, GATED))).toEqual({ revoked: 2, active: 0 })
+    expect((await challenge(t, "pending"))?.status).toBe("superseded")
+    expect(await complete(t, pending, true, NOW + 4)).toEqual({ ok: false })
+    expect(await t.run((ctx) => demoGateSessionOf(ctx, { scope: SCOPE, token: TOKEN }, { env: GATED, now: NOW + 4 }))).toBeNull()
+    const audit = await t.run((ctx) => ctx.db.query("engineAudit").take(20))
+    expect(audit.filter((row) => row.action === "demo.gate_revoke")).toHaveLength(2)
+    expect(await scheduledClosures(t)).toEqual([[{ scope: SCOPE }]])
+    // Rejouée sur une liste vide (armement) : rien à retirer, la fermeture des sessions est planifiée quand même.
+    expect(await t.run((ctx) => resetScopeImpl(ctx, { scope: SCOPE }, NOW + 5, GATED))).toEqual({ revoked: 0, active: 0 })
+    expect(await scheduledClosures(t)).toHaveLength(2)
+  })
+
+  it("`resetScope` refusée là où les comptes de démonstration sont fermés (la production comprise), sans rien écrire", async () => {
+    const t = testConvex()
+    await allow(t)
+    const production = { CONVEX_CLOUD_URL: "https://production-antsia-456.convex.cloud", ANTSIA_DEMO_GATE_SECRET: SECRET, ...WHATSAPP }
+    await expect(t.run((ctx) => resetScopeImpl(ctx, { scope: SCOPE }, NOW + 1, production))).rejects.toThrow("demoGateClosed")
+    expect((await t.run((ctx) => allowlistSummaryImpl(ctx, { scope: SCOPE }))).active).toBe(1)
+    expect(await scheduledClosures(t)).toEqual([])
   })
 })
 

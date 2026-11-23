@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/modules/demoAccess/accessStore.ts @ 1379d45f9 — adaptations : numéro (empreinte HMAC) au lieu d'adresse en clair ; liste des numéros en table d'empreintes (`allowPhones`, `revokePhones`, `allowlistSummary`) au lieu d'une liste écrite dans le code ; admissions de débit dans les mutations (`admitRequest` : adresse, liste, numéro, défis actifs, commun ; `admitVerify` : adresse) au lieu de l'action Node ; jusqu'à trois défis actifs par numéro, sans remplacement (CH-817 E5) ; défi et session liés à une portée ; une session ne vaut que tant que sa ligne de liste est active ; journal `demo.gate_allow` / `demo.gate_revoke` / `demo.gate_access` ; aide de validation de session pour les lectures du moteur (`demoGateSessionOf`, `demoGateAdmits`) ; purge opportuniste reprise telle quelle.
+// Dupliqué de socle/convex/modules/demoAccess/accessStore.ts @ 1379d45f9 — adaptations : numéro (empreinte HMAC) au lieu d'adresse en clair ; liste des numéros en table d'empreintes (`allowPhones`, `revokePhones`, `allowlistSummary`) au lieu d'une liste écrite dans le code ; admissions de débit dans les mutations (`admitRequest` : adresse, liste, numéro, défis actifs, commun ; `admitVerify` : adresse) au lieu de l'action Node ; jusqu'à trois défis actifs par numéro, sans remplacement (CH-817 E5) ; défi et session liés à une portée ; une session ne vaut que tant que sa ligne de liste est active ; journal `demo.gate_allow` / `demo.gate_revoke` / `demo.gate_access` ; retrait et remise à zéro (`resetScope`) qui ferment les sessions des comptes de démonstration (CH-817 E5) ; aide de validation de session pour les lectures du moteur (`demoGateSessionOf`, `demoGateAdmits`) ; purge opportuniste reprise telle quelle.
 /**
  * La porte des comptes de démonstration (CH-817) — le magasin transactionnel.
  *
@@ -14,8 +14,14 @@
  * 4. Les lectures du moteur qui ouvrent les comptes de démonstration (catalogue, code affiché :
  *    lot E3) appellent `demoGateAdmits` avec le jeton reçu.
  *
+ * 5. CH-817 E5 : la CONNEXION d'une adresse de la famille exige une session de porte valide (crochet
+ *    de `betterAuth/auth.ts`, qui lit `sessionAdmits`). Retirer un numéro (`revokePhones`) ou remettre
+ *    la portée à zéro (`resetScope`) ferme aussi les sessions des comptes de démonstration déclarés
+ *    (`diaspora/demoAccounts.closeDemoSessions`, planifiée avec la seule portée).
+ *
  * Rien n'est jamais gardé en clair : ni numéro, ni code, ni jeton — en base, au journal ou dans un
- * argument planifié. La liste se remplit par `allowPhones`, que lance le propriétaire.
+ * argument planifié. La liste se gère par `scripts/demo-gate-list.mjs` (`allow`, `revoke`, `reset`),
+ * que lance le propriétaire : numéros lus sur l'entrée standard, jamais tapés dans une commande.
  */
 import {
   DEMO_GATE_ACTIVE_CHALLENGES_MAX,
@@ -29,6 +35,7 @@ import {
 } from "@antsia/social-contracts/demoGate"
 import { v } from "convex/values"
 
+import { internal } from "../../_generated/api"
 import type { Doc, Id } from "../../_generated/dataModel"
 import { internalMutation, internalQuery, type MutationCtx, type QueryCtx } from "../../_generated/server"
 import { OTP_TTL_SECONDS } from "../../betterAuth/settings"
@@ -409,9 +416,11 @@ export async function allowPhonesImpl(ctx: MutationCtx, args: { scope: DemoGateS
 }
 
 /**
- * Inscrit des numéros sur la liste d'une portée (`npx convex run modules/platform/demoGate:allowPhones`
- * sur le déploiement de démonstration, par le propriétaire ; les numéros ne s'écrivent jamais dans
- * un dépôt). Rend des NOMBRES, jamais un numéro. Changer le secret invalide la liste : la rejouer.
+ * Inscrit des numéros sur la liste d'une portée, sur le déploiement de démonstration, par le
+ * propriétaire et par la seule voie documentée : `scripts/demo-gate-list.mjs allow` (numéros lus sur
+ * l'entrée standard, normalisés et refusés par RANG avant tout appel ; jamais de `convex run` tapé à
+ * la main, jamais un numéro dans un dépôt). Rend des NOMBRES, jamais un numéro. Changer le secret
+ * invalide la liste : `reset` puis `allow`.
  */
 export const allowPhones = internalMutation({
   args: { scope: demoGateScopeValidator, phones: v.array(v.string()) },
@@ -434,15 +443,52 @@ export async function revokePhonesImpl(ctx: MutationCtx, args: { scope: DemoGate
     await appendAudit(ctx, { action: "demo.gate_revoke", capacity: "system", subject: { table: "demoGateAllowlist", id: entry._id }, details: { scope: args.scope }, at: now })
     revoked++
   }
+  // CH-817 E5 (constat 2) : une session de compte ouverte survivait au retrait. Les comptes sont
+  // partagés, la session n'est liée à aucun numéro : celles de tous les acteurs déclarés tombent.
+  if (revoked > 0) await ctx.scheduler.runAfter(0, internal.modules.diaspora.demoAccounts.closeDemoSessions, { scope: args.scope })
   const active = (await scopeRows(ctx, args.scope)).filter((row) => row.revokedAt === undefined).length
   return { revoked, notAllowed: hashes.length - revoked, active }
 }
 
-/** Retire des numéros de la liste d'une portée. Rend des nombres, jamais un numéro. */
+/** Retire des numéros de la liste d'une portée (`scripts/demo-gate-list.mjs revoke`). Rend des nombres, jamais un numéro. */
 export const revokePhones = internalMutation({
   args: { scope: demoGateScopeValidator, phones: v.array(v.string()) },
   returns: v.object({ revoked: v.number(), notAllowed: v.number(), active: v.number() }),
   handler: async (ctx, args) => await revokePhonesImpl(ctx, args, Date.now()),
+})
+
+export type ResetScopeResult = { revoked: number; active: number }
+
+/**
+ * CH-817 E5 (constats 2 et 12) — remet la portée à zéro : TOUTES ses lignes actives (500 lues au
+ * plus) sont retirées, leurs défis en cours tombent, et les sessions des comptes de démonstration
+ * déclarés sont fermées (planifié). Geste du propriétaire à l'armement et à chaque rotation du
+ * secret, AVANT de rejouer la liste : après une rotation, les anciennes empreintes ne se calculent
+ * plus, ne se retirent donc plus par `revokePhones` et compteraient dans le plafond de vingt. N'a
+ * besoin d'aucun numéro ni du secret ; refusée sur un déploiement où les comptes de démonstration
+ * sont fermés (production comprise). Rend des nombres.
+ */
+export async function resetScopeImpl(ctx: MutationCtx, args: { scope: DemoGateScope }, now: number, env: Env = process.env): Promise<ResetScopeResult> {
+  if (demoGateState(env) === "closed") throw new Error("demoGateClosed: comptes de démonstration fermés sur ce déploiement")
+  let revoked = 0
+  for (const row of await scopeRows(ctx, args.scope)) {
+    if (row.revokedAt !== undefined) continue
+    await ctx.db.patch(row._id, { revokedAt: now })
+    await supersedeActiveChallenges(ctx, args.scope, row.phoneHash, now)
+    await appendAudit(ctx, { action: "demo.gate_revoke", capacity: "system", subject: { table: "demoGateAllowlist", id: row._id }, details: { scope: args.scope }, at: now })
+    revoked++
+  }
+  // Toujours : à l'armement, des sessions de compte ouvertes avant la porte doivent tomber aussi.
+  await ctx.scheduler.runAfter(0, internal.modules.diaspora.demoAccounts.closeDemoSessions, { scope: args.scope })
+  const active = (await scopeRows(ctx, args.scope)).filter((row) => row.revokedAt === undefined).length
+  return { revoked, active }
+}
+
+/** Remet la portée à zéro (`scripts/demo-gate-list.mjs reset`) : voir `resetScopeImpl`. */
+export const resetScope = internalMutation({
+  args: { scope: demoGateScopeValidator },
+  returns: v.object({ revoked: v.number(), active: v.number() }),
+  handler: async (ctx, args) => await resetScopeImpl(ctx, args, Date.now()),
 })
 
 export type AllowlistSummary = { active: number; revoked: number; lastAddedAt: number | null; lastRevokedAt: number | null; maxActive: number }

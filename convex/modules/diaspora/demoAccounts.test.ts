@@ -1353,3 +1353,92 @@ describe("comptes de démonstration DIASPORA.GA — porte armée (CH-817 E3)", (
     expect(await equip(as, "moderateur")).toMatchObject({ actor: "moderateur", status: "verifiee", role: "network_moderator" })
   })
 })
+
+describe("CH-817 E5 — porte armée : l'entrée dans le réseau et la fermeture des sessions", () => {
+  const ROOT_FAMILY = { email: "membre@demo.antsia.test", handle: "racine.recette", displayName: "Racine RECETTE", country: "FR" }
+  const FREE_ADDRESS = { email: `libre@${DEMO_EMAIL_DOMAIN}`, handle: "libre.recette", displayName: "Libre RECETTE", country: "FR" }
+
+  async function tryJoin(t: T, diasporaGa: Id<"networks">, options: { email: string; handle: string; displayName: string; country: string; emailVerified?: boolean }) {
+    const user = await welcomed(t, options)
+    const refusal = await code(user.as.mutation(api.modules.diaspora.membership.joinDiasporaGa, { networkId: diasporaGa, facet: { countryOfResidence: options.country }, directoryVisibility: "hidden" }))
+    const membership = await t.run(async (ctx) => await ctx.db.query("networkMemberships").withIndex("by_network_and_person", (q) => q.eq("networkId", diasporaGa).eq("personId", user.personId)).unique())
+    return { refusal, membership }
+  }
+
+  it("constat 4 : la famille de la racine et une adresse libre de la famille n'entrent pas ; un acteur déclaré entre", async () => {
+    armGate()
+    const { t, diasporaGa } = await fixture()
+    const unverified = { email: `libre.nv@${DEMO_EMAIL_DOMAIN}`, handle: "libre.nv.recette", displayName: "Libre RECETTE", country: "FR", emailVerified: false }
+    for (const options of [ROOT_FAMILY, unverified, FREE_ADDRESS]) {
+      const { refusal, membership } = await tryJoin(t, diasporaGa, options)
+      expect(refusal, options.email).toBe("notFound")
+      expect(membership, options.email).toBeNull()
+    }
+    const actor = await joinedActor(t, diasporaGa, "declare")
+    expect(await membershipOf(t, diasporaGa, actor.personId)).toMatchObject({ status: "en_attente" })
+    // Une adresse ordinaire n'est pas concernée.
+    expect((await tryJoin(t, diasporaGa, { email: "ordinaire@example.test", handle: "ordinaire.recette", displayName: "Ordinaire RECETTE", country: "FR" })).refusal).toBeNull()
+  })
+
+  it("porte indisponible : même refus ; porte non armée : la famille de la racine entre comme avant", async () => {
+    armGate()
+    vi.stubEnv("WHATSAPP_PROVIDER", undefined)
+    const unavailable = await fixture()
+    expect((await tryJoin(unavailable.t, unavailable.diasporaGa, ROOT_FAMILY)).refusal).toBe("notFound")
+
+    declareDemo()
+    vi.stubEnv("ANTSIA_DEMO_GATE_SECRET", undefined)
+    const open = await fixture()
+    const { refusal, membership } = await tryJoin(open.t, open.diasporaGa, ROOT_FAMILY)
+    expect(refusal).toBeNull()
+    expect(membership).not.toBeNull()
+  })
+
+  /** Un compte Better Auth et `sessions` sessions sur cette adresse ; rend son identifiant. */
+  async function accountWithSessions(t: T, email: string, sessions: number): Promise<string> {
+    const now = Date.now()
+    const userId = idOf(await t.mutation(components.betterAuth.adapter.create, { input: { model: "user", data: { name: "ANTSIA", email, emailVerified: true, createdAt: now, updatedAt: now } } }))
+    for (let index = 0; index < sessions; index++) await createTestSession(t, userId)
+    return userId
+  }
+
+  async function sessionCount(t: T, userId: string): Promise<number> {
+    const result: { page: unknown[] } = await t.query(components.betterAuth.adapter.findMany, { model: "session", where: [{ field: "userId", value: userId }], paginationOpts: { cursor: null, numItems: 200 } })
+    return result.page.length
+  }
+
+  it("constat 2 : `closeDemoSessions` ne ferme que les sessions des acteurs DÉCLARÉS", async () => {
+    declareDemo()
+    const t = testConvex({ automaticSessions: false })
+    const declared = [await accountWithSessions(t, diasporaGaDemoEmailOf("verifie"), 2), await accountWithSessions(t, diasporaGaDemoEmailOf("moderateur"), 1)]
+    const spared = [
+      await accountWithSessions(t, FREE_ADDRESS.email, 1),
+      await accountWithSessions(t, ROOT_FAMILY.email, 1),
+      await accountWithSessions(t, "alice@example.test", 1),
+    ]
+    expect(await t.mutation(internal.modules.diaspora.demoAccounts.closeDemoSessions, { scope: GATE_SCOPE })).toEqual({ accounts: 2, sessionsClosed: 3, complete: true })
+    for (const userId of declared) expect(await sessionCount(t, userId)).toBe(0)
+    for (const userId of spared) expect(await sessionCount(t, userId)).toBe(1)
+
+    // La production (comptes de démonstration fermés) : rien n'est touché.
+    vi.stubEnv("CONVEX_CLOUD_URL", "https://production-antsia-456.convex.cloud")
+    const verifie = declared[0]!
+    await createTestSession(t, verifie)
+    expect(await t.mutation(internal.modules.diaspora.demoAccounts.closeDemoSessions, { scope: GATE_SCOPE })).toEqual({ accounts: 0, sessionsClosed: 0, complete: true })
+    expect(await sessionCount(t, verifie)).toBe(1)
+  })
+
+  it("au-delà de cent sessions sur un compte, `closeDemoSessions` se replanifie jusqu'à la dernière", async () => {
+    declareDemo()
+    vi.useFakeTimers()
+    try {
+      const t = testConvex({ automaticSessions: false })
+      const userId = await accountWithSessions(t, diasporaGaDemoEmailOf("verifie"), 101)
+      expect(await t.mutation(internal.modules.diaspora.demoAccounts.closeDemoSessions, { scope: GATE_SCOPE })).toEqual({ accounts: 1, sessionsClosed: 100, complete: false })
+      await t.finishAllScheduledFunctions(vi.runAllTimers)
+      expect(await sessionCount(t, userId)).toBe(0)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+})
