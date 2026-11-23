@@ -48,6 +48,7 @@ const NA = api.modules.moderation.networkAdmin
 const CASES = api.modules.moderation.cases
 const APPEALS = api.modules.moderation.networkAppeals
 const AUDIT = api.modules.platform.audit
+const FEATURES = api.modules.networks.features
 
 beforeEach(() => {
   vi.stubEnv("CONVEX_CLOUD_URL", "http://127.0.0.1:3210")
@@ -164,8 +165,9 @@ function movedDoors(f: Fixture, who: Pick<Member, "personId">, as: As, networkId
     // Mesure
     pilotMetrics: () => as.query(PILOT.pilotMetrics, { networkId, days: 30 }),
     pilotMetricsAccess: () => as.query(PILOT.pilotMetricsAccess, { networkId }),
-    // Journal
+    // Journal ; la dernière décision de chaque module (section « Modules »)
     journal: () => as.query(AUDIT.paginateNetworkAdminAudit, { networkId, paginationOpts: PAGE }),
+    lastDecisions: () => as.query(FEATURES.lastDecisions, { networkId }),
   }
 }
 
@@ -243,6 +245,8 @@ describe("A6 — les décisions du réseau ne se prennent plus depuis l'applicat
     // Mesure : avant tout passage, la mesure se dit non faite.
     expect(await door.pilotMetricsAccess()).toEqual({ allowed: true })
     expect(await door.pilotMetrics()).toMatchObject({ measured: false, country: null, days: 30 })
+    // Modules : la recette les a ouverts sans décision au journal — aucun n'a de dernière décision à montrer.
+    expect(await door.lastDecisions()).toEqual([])
 
     const journal = await decisions(f)
     expect(journal.map((row) => row.action).sort()).toEqual(["membership.role_set", "moderation.appeal_decide", "moderation.policy_set", "moderation.team_create", "moderation.team_member_set", "moderation.term_set"])

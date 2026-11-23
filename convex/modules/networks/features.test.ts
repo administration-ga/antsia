@@ -14,7 +14,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { api, internal } from "../../_generated/api"
 import type { Id } from "../../_generated/dataModel"
 import { SEED_CONFIRMATION } from "../../seeds/foundations"
-import { createTestNetworkAdminProof, createTestOperatorProof, testConvex } from "../../test.setup"
+import { createTestNetworkAdminProof, createTestOperatorProof, createTestSession, testConvex } from "../../test.setup"
 
 // ADR-0042 : l'administrateur du réseau règle ses fonctionnalités depuis l'application d'administration
 // (contrat CH-815) ; son entrée au catalogue est posée tant que l'entrée réelle n'est pas fusionnée.
@@ -312,5 +312,32 @@ describe("ADR-0041 — fonctionnalités d'un réseau gouverné", () => {
     expect((await f.reader.as.query(F.operatorSettings, { networkId: f.network })).find((row) => row.feature === "mutualAid")?.open).toBe(true)
     expect(await featureAudit(f)).toEqual([{ capacity: "platform_admin", actorPersonId: f.moderator.personId, subjectTable: "networks", details: { reason: REASON, feature: "mutualAid", enabled: true } }])
     expect(await readOf(f, "mutualAid", f.reader.as)).toBeDefined()
+  })
+})
+
+describe("ADR-0042 (CH-815 A6) — la dernière décision de chaque module, pour l'application d'administration", () => {
+  it("refusée à la session des membres, au modérateur et au membre ; l'administrateur prouvé lit chaque décision posée, un module jamais décidé n'y figure pas", async () => {
+    const f = await fixture()
+    // L'administrateur, mais dans une session ordinaire de l'application des membres (non scellée).
+    const subject = "features-admin.reseau"
+    const membersSession = f.t.withIdentity({ subject, sessionId: await createTestSession(f.t, subject) })
+    for (const [label, as] of [["membre", f.reader.as], ["modérateur", f.moderator.as], ["administrateur, application des membres", membersSession]] as const) {
+      expect(await codeOf(as.query(F.lastDecisions, { networkId: f.network })), label).toBe("notFound")
+    }
+    expect(await f.admin.as.query(F.lastDecisions, { networkId: f.network })).toEqual([])
+
+    await open(f, "pages")
+    vi.setSystemTime(NOW + 1_000)
+    await open(f, "mentoring")
+    vi.setSystemTime(NOW + 2_000)
+    const closing = "Fermeture décidée après le bilan du pilote."
+    await f.admin.as.mutation(F.setFeature, { networkId: f.network, feature: "mentoring", enabled: false, reason: closing })
+    const actor = { personId: f.admin.personId, displayName: "admin.reseau", handle: "admin.reseau" }
+    expect(await f.admin.as.query(F.lastDecisions, { networkId: f.network })).toEqual([
+      { feature: "pages", enabled: true, at: NOW, reason: REASON, capacity: "network_admin", actor },
+      { feature: "mentoring", enabled: false, at: NOW + 2_000, reason: closing, capacity: "network_admin", actor },
+    ])
+    // La racine n'a ni modules ni décision ; la session d'administration de DIASPORA.GA n'y lit rien.
+    expect(await codeOf(f.admin.as.query(F.lastDecisions, { networkId: f.root }))).toBe("notFound")
   })
 })
