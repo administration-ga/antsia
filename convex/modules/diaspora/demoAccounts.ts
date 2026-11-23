@@ -54,6 +54,8 @@
  *   et ne s'équipe, que si ses modules (`openFeaturesOf`) et son pays sont ouverts ;
  *   les acteurs de recette (accès restreints, média, collectif) en développement
  *   local seulement. Un acteur non proposé est refusé d'un refus indistinct.
+ * CH-817 E4 — l'équipement planifie les publications d'exemple de l'acteur
+ * (`./demoContent.ts#animateActor`), écrites par le moteur après la transaction.
  */
 import { CONSENT_TEXT_VERSIONS, isConsentInForce, missingConsentsToJoin } from "@antsia/social-domain/consent"
 import { entryStatusFor } from "@antsia/social-domain/membership"
@@ -73,7 +75,7 @@ import {
 } from "@diaspora-ga/domain"
 import { v } from "convex/values"
 
-import { components } from "../../_generated/api"
+import { components, internal } from "../../_generated/api"
 import type { Doc, Id } from "../../_generated/dataModel"
 import { type MutationCtx, query, type QueryCtx } from "../../_generated/server"
 import { getMembership, getRootNetwork, isActiveMember } from "../../lib/access"
@@ -483,7 +485,8 @@ async function admitOutsiderToRoot(ctx: MutationCtx, person: Doc<"persons">): Pr
  * l'acteur (avec `pageCreated` : les gestes de la page ne se jouent qu'une fois).
  * CH-817 E3 : un acteur que la règle ne PROPOSE pas ici (module ou pays fermé, recette
  * hors du développement local) est refusé (`policyRefused`, le refus de toute autre
- * garde), avant toute écriture.
+ * garde), avant toute écriture. CH-817 E4 : planifie ses publications d'exemple
+ * (`demoContent.animateActor`), et celles des filleuls que son parrainage vient de déclarer.
  */
 export const equipMyDemoAccount = personMutation({
   args: { actor: demoActorValidator },
@@ -540,6 +543,8 @@ export const equipMyDemoAccount = personMutation({
         if (!filleul || !(await getMembership(ctx, network._id, filleul._id))) continue
         await ensureSponsorship(ctx, network, person, filleul._id, now)
         await rederive(ctx, network, filleul._id, now)
+        // CH-817 E4 : le filleul équipé avant son parrain, déclaré à l'instant, publie à son tour.
+        await ctx.scheduler.runAfter(0, internal.modules.diaspora.demoContent.animateActor, { actor: sponsored })
       }
     }
 
@@ -559,6 +564,8 @@ export const equipMyDemoAccount = personMutation({
     // Le statut que lit l'application : une suspension de la racine vaut partout.
     const final = await effectiveStatusIn(ctx, network, person._id)
     if (!final.membership || final.status === null) return fail("notFound")
+    // CH-817 E4 : ses publications d'exemple, ses réactions et son commentaire, écrits après cette transaction.
+    await ctx.scheduler.runAfter(0, internal.modules.diaspora.demoContent.animateActor, { actor })
     return { actor, status: final.status, role: final.membership.role, pageId: page?.pageId ?? null, pageCreated: page?.created ?? false }
   },
 })
