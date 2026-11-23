@@ -25,11 +25,16 @@
  *   hors réseau gouverné ou pour une autre personne attendue : le refus
  *   indistinct. Aucun DTO ne porte de déclarant, d'auteur, de corps de contenu,
  *   de pièce privée ni de coordonnée ; l'aperçu reste `moderation/reviewProjection`.
- * - Aucune décision ici : elles passent par les mutations EXISTANTES du moteur
- *   (`cases.decide`, `cases.reviewContent`, `cases.reviewNetworkAppeal`,
- *   `cases.createTeam`, `cases.setTeamMember`), motivées et journalisées par lui ;
- *   les responsables du réseau (MD-01) se nomment par `membership.setResponsibleRole`,
- *   sur l'aide du moteur. `party` dit seulement à l'écran pourquoi la personne ne décide pas : ce que
+ * - Aucune décision ici : elles passent par les mutations EXISTANTES du moteur,
+ *   motivées et journalisées par lui. Le bureau des membres (diaspora.ga) TRAITE :
+ *   `cases.decide`, `cases.reviewContent`, `pages/claims.decidePageClaim`.
+ *   L'application d'administration DÉCIDE (CH-815 A6, ADR-0042, fiche D5) : les
+ *   recours montés au réseau, l'équipe et les responsables passent par
+ *   `moderation/networkAdmin` (`reviewNetworkAppeal`, `createTeam`, `setTeamMember`)
+ *   et `membership.setResponsibleRole` ; leurs lectures ici (`appealQueue`,
+ *   `teamRoster`, `responsibles`, `teamCandidate`) sont des `networkAdminQuery` :
+ *   une session de l'application des membres reçoit le refus indistinct, même
+ *   celle de l'administrateur. `party` dit seulement à l'écran pourquoi la personne ne décide pas : ce que
  *   le moteur refuse (auteur, page signée, ancien décideur, auteur du recours ;
  *   MC-01 : propriétaire ou modérateur vivant du groupe visé), plus deux
  *   retenues de l'écran (déclarant du dossier ; signataire de la page visée par
@@ -56,7 +61,7 @@ import type { Doc, Id } from "../../_generated/dataModel"
 import type { QueryCtx } from "../../_generated/server"
 import { isActiveMember } from "../../lib/access"
 import { fail, notFound } from "../../lib/errors"
-import { networkQuery } from "../../lib/functions"
+import { networkAdminQuery, networkQuery } from "../../lib/functions"
 import { requireReportCapacity, teamCapacity } from "../moderation/cases"
 import { contentState } from "../moderation/policy"
 import { moderationSurfaceValidator, moderationTargetValidator, sanctionKindValidator } from "../moderation/tables"
@@ -590,10 +595,12 @@ function guardDesk(ctx: DeskCtx, expectedPersonId: Id<"persons">): void {
  * Ma capacité de modération dans DIASPORA.GA : rôle réseau, équipes vivantes
  * (toutes pour l'administration du réseau, les siennes sinon). `null` pour un
  * membre sans compétence : rien n'est dit des équipes ni de leurs membres.
- * Les réglages (MD-04) se lisent et se posent par les fonctions du moteur
- * (`cases.policies`, `cases.blockedTermsPage`, `cases.setPolicy`,
- * `cases.setBlockedTerm`), ouvertes à l'administration de CE réseau : le guichet
- * dit seulement qui y a droit.
+ * Les réglages (MD-04) se lisent et se posent, depuis l'application
+ * d'administration (CH-815 A6), par `moderation/networkAdmin` (`policies`,
+ * `blockedTermsPage`, `setPolicy`, `setBlockedTerm`) : le guichet dit seulement
+ * qui y a droit. `canReviewAppeals`, `canManageTeams` et `canManagePolicy`
+ * disent ce droit (le rôle), pas que le bureau des membres l'exerce : depuis
+ * A6, ces gestes ne se font plus d'ici.
  */
 export const myDesk = networkQuery({
   minStatus: "declaree",
@@ -781,10 +788,10 @@ export const pendingQueue = networkQuery({
  * Les recours du réseau à examiner, avec les gardes de `networkAppeals.paginate`
  * (administration du réseau, recours de niveau réseau sur un dossier d'équipe,
  * sanctions du même réseau), filtrés par pays et nature ; le plus ancien d'abord.
- * Décision : `cases.reviewNetworkAppeal`.
+ * CH-815 A6 : depuis l'application d'administration seule (`networkAdminQuery`,
+ * qui relit le rôle) ; décision : `moderation/networkAdmin.reviewNetworkAppeal`.
  */
-export const appealQueue = networkQuery({
-  minStatus: "declaree",
+export const appealQueue = networkAdminQuery({
   args: {
     expectedPersonId: v.id("persons"),
     zone: zoneValidator,
@@ -794,7 +801,6 @@ export const appealQueue = networkQuery({
   returns: v.object({ items: v.array(appealValidator), continueCursor: cursorValidator, isDone: v.boolean() }),
   handler: async (ctx, args) => {
     guardDesk(ctx, args.expectedPersonId)
-    if (ctx.membership.role !== "network_admin") return notFound()
     if (ctx.network.kind === "closed" && ctx.network.parentId !== ctx.rootNetwork._id) return notFound()
     const zone = zoneOf(args.zone)
     const result = await ctx.db
@@ -837,15 +843,14 @@ export const appealQueue = networkQuery({
 /**
  * La composition d'une équipe active, pour l'administration du réseau seule
  * (responsables identifiés par leur profil PUBLIÉ) ; `inNetwork` signale un
- * membre d'équipe qui n'est plus membre actif du réseau.
+ * membre d'équipe qui n'est plus membre actif du réseau. CH-815 A6 : depuis
+ * l'application d'administration seule (`networkAdminQuery`, qui relit le rôle).
  */
-export const teamRoster = networkQuery({
-  minStatus: "declaree",
+export const teamRoster = networkAdminQuery({
   args: { expectedPersonId: v.id("persons"), teamId: v.id("moderationTeams") },
   returns: v.object({ members: v.array(memberValidator), more: v.boolean() }),
   handler: async (ctx, { expectedPersonId, teamId }) => {
     guardDesk(ctx, expectedPersonId)
-    if (ctx.membership.role !== "network_admin") return notFound()
     const team = await ctx.db.get(teamId)
     if (!team || team.networkId !== ctx.networkId || !team.active) return notFound()
     const rows = await ctx.db
@@ -875,15 +880,14 @@ export const teamRoster = networkQuery({
  * coordonnée ni un nom civil ; `active` dit si le rôle s'exerce (une adhésion
  * en attente ou suspendue le garde sans le faire valoir). Lecture bornée par
  * l'index du rôle, au plus `NETWORK_ROLE_HOLDERS_MAX` titulaires par rôle (la
- * borne de l'aide du moteur) ; `more` dit qu'il en existe au-delà.
+ * borne de l'aide du moteur) ; `more` dit qu'il en existe au-delà. CH-815 A6 :
+ * depuis l'application d'administration seule (`networkAdminQuery`, qui relit le rôle).
  */
-export const responsibles = networkQuery({
-  minStatus: "declaree",
+export const responsibles = networkAdminQuery({
   args: { expectedPersonId: v.id("persons") },
   returns: v.object({ members: v.array(responsibleValidator), more: v.boolean() }),
   handler: async (ctx, { expectedPersonId }) => {
     guardDesk(ctx, expectedPersonId)
-    if (ctx.membership.role !== "network_admin") return notFound()
     const members: ResponsibleRow[] = []
     let more = false
     for (const role of NETWORK_RESPONSIBLE_ROLES) {
@@ -912,14 +916,13 @@ export const responsibles = networkQuery({
  * Le membre actif du réseau désigné par son identifiant public, pour
  * l'administration du réseau qui compose une équipe ou nomme un responsable ;
  * `null` sinon (identifiant inconnu, profil retiré, non-membre : la même réponse).
+ * CH-815 A6 : depuis l'application d'administration seule (`networkAdminQuery`, qui relit le rôle).
  */
-export const teamCandidate = networkQuery({
-  minStatus: "declaree",
+export const teamCandidate = networkAdminQuery({
   args: { expectedPersonId: v.id("persons"), handle: v.string() },
   returns: v.union(v.object({ personId: v.id("persons"), handle: v.string(), displayName: v.string() }), v.null()),
   handler: async (ctx, { expectedPersonId, handle }) => {
     guardDesk(ctx, expectedPersonId)
-    if (ctx.membership.role !== "network_admin") return notFound()
     const raw = handle.trim().replace(/^@/, "")
     if (raw.length === 0 || raw.length > HANDLE_INPUT_MAX) return null
     const person = await findPublishedPersonByHandle(ctx, ctx.networkId, raw)

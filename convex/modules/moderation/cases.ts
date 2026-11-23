@@ -1,7 +1,7 @@
 /** PA5 : dossiers polymorphes, compétence vivante, décisions et recours sans copie de contenu. */
 import { assertDecisionReason, type AuditCapacity } from "@antsia/social-domain/audit"
 import { authorDecisionOutcome, isReportReasonAllowedFor, reportOutcome } from "@antsia/social-domain/moderation"
-import { validSanctionDuration } from "@antsia/social-domain/moderationPolicy"
+import { type ModerationSurface, validSanctionDuration } from "@antsia/social-domain/moderationPolicy"
 import { parseCommercePublicBody } from "@antsia/social-domain/commerce/projection"
 import { paginationOptsValidator } from "convex/server"
 import { v } from "convex/values"
@@ -11,12 +11,13 @@ import type { MutationCtx, QueryCtx } from "../../_generated/server"
 import { getMembership, getRootNetwork, isActiveMember } from "../../lib/access"
 import { checked, fail, notFound } from "../../lib/errors"
 import { networkMutation, networkQuery, operatorMutation, operatorQuery, personMutation, personQuery } from "../../lib/functions"
+import { isAdministeredNetwork } from "../../lib/networkAdminIdentity"
 import { enforceRateLimit } from "../../lib/rateLimit"
 import { contextualDecisionConflict } from "../contextualMessaging/access"
 import { editorialAccessOrNull } from "../editorial/access"
 import { notifyPerson } from "../notifications/notify"
 import { livePageTeamRole, liveSignatoryRole, signatoryRowsOf } from "../pages/access"
-import { appendAudit, networkRoleCapacity, operatorCapacity } from "../platform/audit"
+import { appendAudit, type AuditEntry, networkRoleCapacity, operatorCapacity } from "../platform/audit"
 import { liveThematicGroupMembership } from "../thematicGroups/access"
 import { contentState, owningPageOfReport } from "./policy"
 import { professionalReviewSource } from "./professionalReviewSource"
@@ -24,7 +25,7 @@ import { editorialMediaReviewSource, editorialReviewSource } from "./editorialRe
 import { acknowledgeReport, legalDeadlineColumns, notifyReporterOfDecision } from "./reporterNotices"
 import { refreshSuspension } from "./sanctions"
 import { contentReportStatusValidator, moderationSurfaceValidator, moderationTargetValidator, sanctionKindValidator } from "./tables"
-import { blockedTermsPage as readBlockedTermsPage, blockedTermsPageValidator, moderationSettings, moderationSettingsValidator, writeBlockedTerm, writeModerationPolicy } from "./settings"
+import { blockedTermsPage as readBlockedTermsPage, blockedTermsPageValidator, type ModerationPolicyInput, moderationSettings, moderationSettingsValidator, writeBlockedTerm, writeModerationPolicy } from "./settings"
 import { removeTarget, resolveVisibleTarget, restoreTarget } from "./targets"
 
 type ReadCtx = Pick<QueryCtx, "db">
@@ -140,8 +141,70 @@ export async function requireReportCapacity(ctx: ReadCtx, actor: NetworkActor, r
   return await teamCapacity(ctx, actor, row.targetKind, row.teamId)
 }
 
-async function requireNetworkAdmin(actor: NetworkActor): Promise<void> {
-  if (actor.membership.role !== "network_admin") return notFound()
+/**
+ * Parmi les membres, seul l'administrateur du réseau décide (MC-02 : réglages ; équipes ; recours
+ * montés au réseau). CH-815 A6 (ADR-0042, fiche D5) : pour un réseau qui a son application
+ * d'administration au catalogue (`isAdministeredNetwork`), ces décisions ne se prennent plus ici,
+ * mais par les jumeaux de `moderation/networkAdmin`, en session prouvée de cette application : le
+ * refus indistinct, quel que soit le rôle. La racine et tout autre réseau ne changent pas.
+ */
+async function requireNetworkAdmin(actor: Pick<NetworkActor, "membership"> & { network: Pick<Doc<"networks">, "slug"> }): Promise<void> {
+  if (actor.membership.role !== "network_admin" || isAdministeredNetwork(actor.network)) return notFound()
+}
+
+/** Qui décide au nom du réseau : le réseau et la personne (la qualité est `network_admin`). */
+type NetworkDecider = { networkId: Id<"networks">; personId: Id<"persons"> }
+
+const deciderOf = (ctx: { networkId: Id<"networks">; person: Doc<"persons"> }): NetworkDecider => ({ networkId: ctx.networkId, personId: ctx.person._id })
+
+// ── Décisions du réseau (CH-815 A6) ───────────────────────────────────────
+// Le cœur de chaque décision, partagé par l'original (application des membres, réseau sans
+// application d'administration) et son jumeau (`moderation/networkAdmin`). Chaque aide juge ses
+// arguments, écrit, et REND la ligne de journal : l'appelant l'inscrit lui-même (`appendAudit`
+// visible dans la décision, cliquet `network-admin-audit`). La garde et les budgets restent chez
+// l'appelant (rôle et budget `moderation.decide` ici ; constructeur et `writeBucket` au jumeau).
+
+/** Créer une équipe de modération du réseau (100 équipes actives au plus). */
+export async function createNetworkTeam(ctx: MutationCtx, actor: NetworkDecider, args: { name: string; scope?: ModerationSurface; reason: string }): Promise<{ teamId: Id<"moderationTeams">; audit: AuditEntry }> {
+  const name = args.name.trim()
+  if (name.length < 2 || name.length > 100) return fail("invalidArgument", { field: "name" })
+  const reason = motiveOf(args.reason)
+  const existing = await ctx.db.query("moderationTeams").withIndex("by_network_active", (q) => q.eq("networkId", actor.networkId).eq("active", true)).take(100)
+  if (existing.length >= 100) return fail("policyRefused")
+  const teamId = await ctx.db.insert("moderationTeams", { networkId: actor.networkId, name, ...(args.scope ? { scope: args.scope } : {}), active: true, createdAt: Date.now() })
+  return { teamId, audit: { action: "moderation.team_create", capacity: "network_admin", actorPersonId: actor.personId, networkId: actor.networkId, subject: { table: "moderationTeams", id: teamId }, details: { reason, scope: args.scope ?? null } } }
+}
+
+/** Ajouter ou retirer un membre actif du réseau d'une équipe active du réseau. */
+export async function setNetworkTeamMember(ctx: MutationCtx, actor: NetworkDecider, args: { teamId: Id<"moderationTeams">; personId: Id<"persons">; active: boolean; reason: string }): Promise<AuditEntry> {
+  const reason = motiveOf(args.reason)
+  const team = await ctx.db.get(args.teamId)
+  if (!team || team.networkId !== actor.networkId || !team.active || (args.active && !(await isActiveMember(ctx, actor.networkId, args.personId)))) return notFound()
+  const member = await ctx.db.query("moderationTeamMembers").withIndex("by_team_person", (q) => q.eq("teamId", team._id).eq("personId", args.personId)).unique()
+  if (member) await ctx.db.patch(member._id, { active: args.active, updatedAt: Date.now() })
+  else await ctx.db.insert("moderationTeamMembers", { networkId: actor.networkId, teamId: team._id, personId: args.personId, active: args.active, updatedAt: Date.now() })
+  return { action: "moderation.team_member_set", capacity: "network_admin", actorPersonId: actor.personId, networkId: actor.networkId, subject: { table: "moderationTeams", id: team._id }, details: { reason, personId: args.personId, active: args.active } }
+}
+
+/** Juger un recours monté au réseau (niveau `network`), sans réutiliser le décideur ni l'auteur du recours. */
+export async function reviewNetworkAppealOf(ctx: MutationCtx, actor: NetworkDecider, args: { appealId: Id<"appeals">; overturn: boolean; reason: string }): Promise<AuditEntry> {
+  const row = await ctx.db.get(args.appealId)
+  if (!row || row.networkId !== actor.networkId || row.level !== "network") return notFound()
+  return await decideAppeal(ctx, row, actor.personId, "network_admin", args.overturn, motiveOf(args.reason))
+}
+
+/** Poser le réglage de relecture, de liens et de cadence d'une surface du réseau. */
+export async function setNetworkPolicy(ctx: MutationCtx, actor: NetworkDecider, args: ModerationPolicyInput & { reason: string }): Promise<{ policyId: Id<"moderationPolicies">; audit: AuditEntry }> {
+  const reason = motiveOf(args.reason)
+  const { policyId, details } = await writeModerationPolicy(ctx, actor.networkId, args)
+  return { policyId, audit: { action: "moderation.policy_set", capacity: "network_admin", actorPersonId: actor.personId, networkId: actor.networkId, subject: { table: "moderationPolicies", id: policyId }, details: { reason, ...details } } }
+}
+
+/** Activer ou retirer un mot bloqué du réseau. */
+export async function setNetworkBlockedTerm(ctx: MutationCtx, actor: NetworkDecider, args: { term: string; active: boolean; reason: string }): Promise<{ termId: Id<"blockedTerms">; audit: AuditEntry }> {
+  const reason = motiveOf(args.reason)
+  const { termId, details } = await writeBlockedTerm(ctx, actor.networkId, args.term, args.active)
+  return { termId, audit: { action: "moderation.term_set", capacity: "network_admin", actorPersonId: actor.personId, networkId: actor.networkId, subject: { table: "blockedTerms", id: termId }, details: { reason, ...details } } }
 }
 
 function queueDto(row: Doc<"reports">) {
@@ -198,34 +261,25 @@ export const report = networkMutation({
   },
 })
 
+/** CH-815 A6 : refusé pour un réseau administré (jumeau : `moderation/networkAdmin.createTeam`). */
 export const createTeam = networkMutation({
   args: { name: v.string(), scope: v.optional(moderationSurfaceValidator), reason: v.string() },
   handler: async (ctx, args) => {
     await requireNetworkAdmin(ctx)
     await enforceRateLimit(ctx, "moderation.decide", ctx.person._id)
-    const name = args.name.trim()
-    if (name.length < 2 || name.length > 100) return fail("invalidArgument", { field: "name" })
-    const reason = motiveOf(args.reason)
-    const existing = await ctx.db.query("moderationTeams").withIndex("by_network_active", (q) => q.eq("networkId", ctx.networkId).eq("active", true)).take(100)
-    if (existing.length >= 100) return fail("policyRefused")
-    const teamId = await ctx.db.insert("moderationTeams", { networkId: ctx.networkId, name, ...(args.scope ? { scope: args.scope } : {}), active: true, createdAt: Date.now() })
-    await appendAudit(ctx, { action: "moderation.team_create", capacity: "network_admin", actorPersonId: ctx.person._id, networkId: ctx.networkId, subject: { table: "moderationTeams", id: teamId }, details: { reason, scope: args.scope ?? null } })
+    const { teamId, audit } = await createNetworkTeam(ctx, deciderOf(ctx), args)
+    await appendAudit(ctx, audit)
     return { teamId }
   },
 })
 
+/** CH-815 A6 : refusé pour un réseau administré (jumeau : `moderation/networkAdmin.setTeamMember`). */
 export const setTeamMember = networkMutation({
   args: { teamId: v.id("moderationTeams"), personId: v.id("persons"), active: v.boolean(), reason: v.string() },
   handler: async (ctx, args) => {
     await requireNetworkAdmin(ctx)
     await enforceRateLimit(ctx, "moderation.decide", ctx.person._id)
-    const reason = motiveOf(args.reason)
-    const team = await ctx.db.get(args.teamId)
-    if (!team || team.networkId !== ctx.networkId || !team.active || (args.active && !(await isActiveMember(ctx, ctx.networkId, args.personId)))) return notFound()
-    const member = await ctx.db.query("moderationTeamMembers").withIndex("by_team_person", (q) => q.eq("teamId", team._id).eq("personId", args.personId)).unique()
-    if (member) await ctx.db.patch(member._id, { active: args.active, updatedAt: Date.now() })
-    else await ctx.db.insert("moderationTeamMembers", { networkId: ctx.networkId, teamId: team._id, personId: args.personId, active: args.active, updatedAt: Date.now() })
-    await appendAudit(ctx, { action: "moderation.team_member_set", capacity: "network_admin", actorPersonId: ctx.person._id, networkId: ctx.networkId, subject: { table: "moderationTeams", id: team._id }, details: { reason, personId: args.personId, active: args.active } })
+    await appendAudit(ctx, await setNetworkTeamMember(ctx, deciderOf(ctx), args))
     return null
   },
 })
@@ -404,14 +458,13 @@ async function decideAppeal(ctx: MutationCtx, appeal: Doc<"appeals">, actorPerso
   return { action: "moderation.appeal_decide" as const, capacity, actorPersonId, networkId: row.networkId, subject: { table: "appeals" as const, id: appeal._id }, details: { reason, overturn, level: appeal.level } }
 }
 
+/** CH-815 A6 : refusé pour un réseau administré (jumeau : `moderation/networkAdmin.reviewNetworkAppeal`). */
 export const reviewNetworkAppeal = networkMutation({
   args: { appealId: v.id("appeals"), overturn: v.boolean(), reason: v.string() },
   handler: async (ctx, args) => {
     await requireNetworkAdmin(ctx)
     await enforceRateLimit(ctx, "moderation.decide", ctx.person._id)
-    const row = await ctx.db.get(args.appealId)
-    if (!row || row.networkId !== ctx.networkId || row.level !== "network") return notFound()
-    await appendAudit(ctx, await decideAppeal(ctx, row, ctx.person._id, "network_admin", args.overturn, motiveOf(args.reason)))
+    await appendAudit(ctx, await reviewNetworkAppealOf(ctx, deciderOf(ctx), args))
     return null
   },
 })
@@ -517,7 +570,7 @@ export const pageDecisions = networkQuery({
 /**
  * MC-02 — les réglages de modération du réseau, par surface : le réglage posé, ou `null` quand les défauts
  * prudents du moteur s'appliquent (`defaults`). Administrateur du réseau seulement ; tout autre lecteur
- * reçoit le refus indistinct.
+ * reçoit le refus indistinct. CH-815 A6 : refusé pour un réseau administré (jumeau : `moderation/networkAdmin.policies`).
  */
 export const policies = networkQuery({
   minStatus: "declaree",
@@ -529,7 +582,7 @@ export const policies = networkQuery({
   },
 })
 
-/** MC-02 — les mots bloqués actifs du réseau, par pages de 50 au plus. Administrateur du réseau seulement. */
+/** MC-02 — les mots bloqués actifs du réseau, par pages de 50 au plus. Administrateur du réseau seulement. CH-815 A6 : refusé pour un réseau administré (jumeau : `moderation/networkAdmin.blockedTermsPage`). */
 export const blockedTermsPage = networkQuery({
   minStatus: "declaree",
   args: { paginationOpts: paginationOptsValidator },
@@ -540,26 +593,26 @@ export const blockedTermsPage = networkQuery({
   },
 })
 
+/** CH-815 A6 : refusé pour un réseau administré (jumeau : `moderation/networkAdmin.setPolicy`). */
 export const setPolicy = networkMutation({
   args: { surface: moderationSurfaceValidator, preReview: v.boolean(), maxLinks: v.number(), maxWrites: v.number(), windowMs: v.number(), reason: v.string() },
   handler: async (ctx, args) => {
     await requireNetworkAdmin(ctx)
     await enforceRateLimit(ctx, "moderation.decide", ctx.person._id)
-    const reason = motiveOf(args.reason)
-    const { policyId, details } = await writeModerationPolicy(ctx, ctx.networkId, args)
-    await appendAudit(ctx, { action: "moderation.policy_set", capacity: "network_admin", actorPersonId: ctx.person._id, networkId: ctx.networkId, subject: { table: "moderationPolicies", id: policyId }, details: { reason, ...details } })
+    const { policyId, audit } = await setNetworkPolicy(ctx, deciderOf(ctx), args)
+    await appendAudit(ctx, audit)
     return { policyId }
   },
 })
 
+/** CH-815 A6 : refusé pour un réseau administré (jumeau : `moderation/networkAdmin.setBlockedTerm`). */
 export const setBlockedTerm = networkMutation({
   args: { term: v.string(), active: v.boolean(), reason: v.string() },
   handler: async (ctx, args) => {
     await requireNetworkAdmin(ctx)
     await enforceRateLimit(ctx, "moderation.decide", ctx.person._id)
-    const reason = motiveOf(args.reason)
-    const { termId, details } = await writeBlockedTerm(ctx, ctx.networkId, args.term, args.active)
-    await appendAudit(ctx, { action: "moderation.term_set", capacity: "network_admin", actorPersonId: ctx.person._id, networkId: ctx.networkId, subject: { table: "blockedTerms", id: termId }, details: { reason, ...details } })
+    const { termId, audit } = await setNetworkBlockedTerm(ctx, deciderOf(ctx), args)
+    await appendAudit(ctx, audit)
     return { termId }
   },
 })

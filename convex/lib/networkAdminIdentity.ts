@@ -21,13 +21,24 @@
  */
 import type { Doc, Id } from "../_generated/dataModel"
 import type { MutationCtx, QueryCtx } from "../_generated/server"
-import { networkAdministeredBy } from "../betterAuth/settings"
+import { hasNetworkAdministration, networkAdministeredBy } from "../betterAuth/settings"
 import { canHoldNetworkRole } from "../modules/people/networkRoles"
 import type { NetworkAccess } from "./access"
 import { notFound } from "./errors"
 import { liveIdnSessionProofOrNull } from "./operatorIdentity"
 
 export type NetworkAdminSession = Doc<"operatorSessionProofs">
+
+/**
+ * CH-815 A6 (fiche D5, « le bureau traite, l'administration décide ») — ce réseau a-t-il une
+ * application d'administration au catalogue ? Alors ses décisions (recours montés au réseau,
+ * équipes, réglages de modération) ne se prennent que par les constructeurs de l'administrateur :
+ * les fonctions partagées du moteur qui les prenaient depuis l'application des membres rendent,
+ * pour ce réseau seulement, le refus indistinct ; la racine et tout autre réseau ne changent pas.
+ */
+export function isAdministeredNetwork(network: Pick<Doc<"networks">, "slug">): boolean {
+  return hasNetworkAdministration(network.slug)
+}
 
 /** La preuve a-t-elle été scellée pour une application qui administre CE réseau ? */
 export function proofAdministersNetwork(proof: NetworkAdminSession, network: Doc<"networks">): boolean {

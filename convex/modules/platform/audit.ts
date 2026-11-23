@@ -8,8 +8,10 @@
  * modération ou de page aussi (tests de chaque module).
  *
  * LIRE : la console lit tout (par réseau, par sujet) ; un administrateur ou un
- * modérateur lit le journal de SON réseau ; tout autre lecteur reçoit le refus
- * indistinct.
+ * modérateur lit le journal de SON réseau ; l'administration d'un réseau, depuis
+ * son application d'administration, le lit filtré par action (ADR-0042, CH-815
+ * A6 : section « Journal », dernière décision de chaque module) ; tout autre
+ * lecteur reçoit le refus indistinct.
  */
 import {
   type AuditAction,
@@ -26,9 +28,9 @@ import { v } from "convex/values"
 import type { Doc, Id } from "../../_generated/dataModel"
 import type { MutationCtx, QueryCtx } from "../../_generated/server"
 import { notFound } from "../../lib/errors"
-import { networkQuery, operatorQuery } from "../../lib/functions"
+import { networkAdminQuery, networkQuery, operatorQuery } from "../../lib/functions"
 import { miniProfileCache, type PersonMiniProfile } from "../people/miniProfile"
-import { auditSubjectTableValidator } from "./tables"
+import { auditActionValidator, auditSubjectTableValidator } from "./tables"
 
 export type AuditEntry = {
   action: AuditAction
@@ -146,5 +148,38 @@ export const paginateNetworkAudit = networkQuery({
       .order("desc")
       .paginate(args.paginationOpts)
     return { ...result, page: await toDtos(ctx, result.page) }
+  },
+})
+
+/** Lignes du journal du réseau relues par fenêtre de la lecture d'administration (l'écran en demande vingt). */
+export const NETWORK_ADMIN_AUDIT_WINDOW_MAX = 50
+
+export type NetworkAdminAuditEntryDto = AuditEntryDto & {
+  /** Le motif de la décision (`details.reason`), `null` si l'acte n'en porte pas. */
+  reason: string | null
+}
+
+/**
+ * ADR-0042 (CH-815 A6) — le journal de CE réseau pour son administration, depuis son application
+ * d'administration (section « Journal », dernière décision de chaque module) : qui a décidé quoi,
+ * quand, à quel titre, avec quel motif. Même projection que la console (`toDtos` : nom et
+ * identifiant PUBLIÉS de l'acteur, qualité, action, sujet, détail borné, date), plus le motif à part ;
+ * aucune donnée de personne au-delà. La plus récente d'abord, fenêtres de 50 lignes au plus.
+ * Filtre facultatif par action, appliqué à la fenêtre lue : une fenêtre filtrée peut être vide et
+ * annoncer sa suite (`isDone`, `continueCursor`), l'écran demande alors la suivante.
+ */
+export const paginateNetworkAdminAudit = networkAdminQuery({
+  args: { action: v.optional(auditActionValidator), paginationOpts: paginationOptsValidator },
+  handler: async (ctx, args): Promise<PaginationResult<NetworkAdminAuditEntryDto>> => {
+    const requested = Number.isFinite(args.paginationOpts.numItems) ? Math.trunc(args.paginationOpts.numItems) : 1
+    const numItems = Math.max(1, Math.min(NETWORK_ADMIN_AUDIT_WINDOW_MAX, requested))
+    const result = await ctx.db
+      .query("engineAudit")
+      .withIndex("by_network_at", (q) => q.eq("networkId", ctx.networkId))
+      .order("desc")
+      .paginate({ ...args.paginationOpts, numItems })
+    const rows = args.action === undefined ? result.page : result.page.filter((row) => row.action === args.action)
+    const page = (await toDtos(ctx, rows)).map((entry) => ({ ...entry, reason: typeof entry.details?.reason === "string" ? entry.details.reason : null }))
+    return { ...result, page }
   },
 })

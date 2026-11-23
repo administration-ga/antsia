@@ -30,12 +30,14 @@
  *
  * Les lectures rendent des PRÉSENTATIONS (`@diaspora-ga/domain`, pilot-metrics) :
  * un compte sous le seuil s'y dit « moins de 5 », un taux garde sa base, une
- * part trop proche de sa base est masquée. `pilotMetrics` est réservée aux
- * responsables du réseau (administrateurs, modérateurs) — refus indistinct
- * sinon ; les opérateurs lisent la même projection par `consolePilotMetrics`.
+ * part trop proche de sa base est masquée. `pilotMetrics` est réservée à
+ * l'administration du réseau, depuis son application d'administration (CH-815
+ * A6, ADR-0042, fiche D5 : section « Mesure ») — `networkAdminQuery`, gardée
+ * par la clé `pilotMetrics` ; refus indistinct sinon, modération du réseau et
+ * session de l'application des membres comprises ; les opérateurs lisent la même
+ * projection par `consolePilotMetrics`.
  */
 import {
-  canReadPilotMetrics,
   DAY_MS,
   DIASPORA_GA_NETWORK_SLUG,
   emptyPilotCounts,
@@ -69,7 +71,7 @@ import { internal } from "../../_generated/api"
 import type { Doc, Id } from "../../_generated/dataModel"
 import { internalMutation, type MutationCtx, type QueryCtx } from "../../_generated/server"
 import { failAppRule, notFound } from "../../lib/errors"
-import { networkQuery, operatorQuery } from "../../lib/functions"
+import { networkAdminQuery, operatorQuery } from "../../lib/functions"
 import { literals } from "../../lib/validators"
 import { contentState } from "../moderation/policy"
 import { readablePageOrNull } from "../pages/access"
@@ -708,29 +710,33 @@ async function readPilotMetrics(ctx: QueryCtx, network: Doc<"networks">, args: {
 }
 
 /**
- * La mesure du pilote, pour les responsables du réseau (administrateurs et
- * modérateurs) ; tout autre membre reçoit le refus indistinct, avant tout
- * jugement de ses arguments. `country` absent ou `null` : tout le réseau.
+ * La mesure du pilote, pour l'administration du réseau, depuis son application
+ * d'administration (CH-815 A6) ; tout autre appelant reçoit le refus indistinct,
+ * avant tout jugement de ses arguments. `country` absent ou `null` : tout le réseau.
  */
-export const pilotMetrics = networkQuery({
+export const pilotMetrics = networkAdminQuery({
   feature: "pilotMetrics",
   args: readArgs,
   returns: pilotMetricsViewValidator,
   handler: async (ctx, args): Promise<PilotMetricsView> => {
     assertDiasporaNetwork(ctx.network)
-    if (!canReadPilotMetrics(ctx.membership.role)) return notFound()
     return await readPilotMetrics(ctx, ctx.network, args)
   },
 })
 
-/** Le lecteur peut-il ouvrir la mesure ? Il ne lit que son propre rôle (entrée du menu, écran). */
-export const pilotMetricsAccess = networkQuery({
+/**
+ * L'appelant peut-il ouvrir la mesure (entrée du menu, écran) ? Forme inchangée :
+ * depuis CH-815 A6, seule l'administration du réseau, en session prouvée de son
+ * application d'administration et la clé ouverte, reçoit une réponse (toujours
+ * `allowed: true`) ; tout autre appelant, le refus indistinct.
+ */
+export const pilotMetricsAccess = networkAdminQuery({
   feature: "pilotMetrics",
   args: {},
   returns: v.object({ allowed: v.boolean() }),
   handler: async (ctx): Promise<{ allowed: boolean }> => {
     assertDiasporaNetwork(ctx.network)
-    return { allowed: canReadPilotMetrics(ctx.membership.role) }
+    return { allowed: true }
   },
 })
 

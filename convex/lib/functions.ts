@@ -27,7 +27,8 @@
  *                                    réseau, accès journalisé (`lib/networkAdminIdentity.ts`) ;
  *                                    refus indistinct (`notFound`) ; `allowUnloggedAccess`
  *                                    pour les deux portes d'entrée seulement ; le handler lit
- *                                    aussi `ctx.adminSession` (la preuve).
+ *                                    aussi `ctx.adminSession` (la preuve). Option `feature`
+ *                                    (CH-815 A6), comme celle de `networkQuery`, après la garde.
  *
  * Les constructeurs de mutation consomment un budget commun obligatoire
  * par personne ; `writeBucket` ajoute un budget de surface sans copier la garde.
@@ -55,7 +56,8 @@ type NetworkExtra = { minStatus?: ActiveMembershipStatus; feature?: NetworkFeatu
 type NetworkMutationExtra = NetworkExtra & { writeBucket?: RateLimitBucket }
 type NetworkActionExtra = NetworkExtra & { readOnly?: true; writeBucket?: ActionWriteBucket }
 type OperatorExtra = { allowUnloggedAccess?: true }
-type NetworkAdminExtra = { allowUnloggedAccess?: true }
+/** `feature` (CH-815 A6) : comme `networkQuery`, une fonctionnalité fermée rend le refus indistinct — ici APRÈS la garde de l'administrateur, avant tout budget. */
+type NetworkAdminExtra = { allowUnloggedAccess?: true; feature?: NetworkFeature }
 type NetworkAdminMutationExtra = NetworkAdminExtra & { writeBucket?: RateLimitBucket }
 
 /**
@@ -179,6 +181,8 @@ export const networkAdminQuery = customQuery(query, {
   input: async (ctx, { networkId }, extra: NetworkAdminExtra) => {
     const access = await requireMembership(ctx, networkId, "en_attente")
     const adminSession = await requireNetworkAdminSession(ctx, access, extra)
+    // CH-815 A6 : fonctionnalité fermée, refus indistinct (la mesure du pilote reste gardée par sa clé).
+    if (extra.feature) await requireNetworkFeature(ctx, access.network, extra.feature)
     return { ctx: { ...access, networkId: access.network._id, adminSession }, args: {} }
   },
 })
@@ -189,6 +193,8 @@ export const networkAdminMutation = customMutation(mutation, {
   input: async (ctx, { networkId }, extra: NetworkAdminMutationExtra) => {
     const access = await requireMembership(ctx, networkId, "en_attente")
     const adminSession = await requireNetworkAdminSession(ctx, access, extra)
+    // CH-815 A6 : fonctionnalité fermée, refus indistinct AVANT la garde d'écriture et tout budget.
+    if (extra.feature) await requireNetworkFeature(ctx, access.network, extra.feature)
     await assertSocialWriteAllowed(ctx, networkId, access.person._id)
     await enforceRateLimit({ ...ctx, ...access, networkId }, "social.write", access.person._id)
     await enforceRateLimit({ ...ctx, ...access, networkId }, "network_admin.write", access.person._id)

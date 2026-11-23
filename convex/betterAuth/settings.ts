@@ -74,6 +74,15 @@ export function networkAdministeredBy(application: string | null | undefined, ap
   return app?.platform === "web" && typeof app.administers_network === "string" && app.administers_network.length > 0 ? app.administers_network : null
 }
 
+/**
+ * ADR-0042 (CH-815 A6) — ce réseau (son `slug`) a-t-il une application d'administration au
+ * catalogue ? Ses décisions ne se prennent alors que là : les fonctions partagées du moteur qui les
+ * prenaient depuis l'application des membres le refusent (`lib/networkAdminIdentity.isAdministeredNetwork`).
+ */
+export function hasNetworkAdministration(networkSlug: string, applications: Readonly<Record<string, CatalogApplication>> = catalog.applications): boolean {
+  return Object.keys(applications).some((key) => networkAdministeredBy(key, applications) === networkSlug)
+}
+
 const MAX_RETURN_URL_LENGTH = 2_048
 
 /** L'application d'une adresse ABSOLUE de retour : http(s), sans identifiants, d'une origine de confiance au catalogue ; `null` sinon. */
