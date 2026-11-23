@@ -25,6 +25,9 @@
  *  - `thematicGroup` (NP-04, issue antsia#149) : la fiche du groupe d'une invitation
  *    (`thematic_group_invite`), servie à CE lecteur à l'instant par la garde de la fiche
  *    (`thematicGroups.getGroup`) — l'invitation s'y accepte ou s'y décline.
+ *  - `personalThread` (IC-09) : la conversation à deux d'un avis `personal_message`, celle de la
+ *    paire (lecteur, acteur) dans le réseau de l'avis, active et sans blocage à l'instant ; jamais
+ *    le message, ni un aperçu.
  */
 import type { ContextualKind, ContextualSide } from "./contextualMessaging"
 
@@ -40,6 +43,7 @@ export const NOTIFICATION_OPEN_TARGET_KINDS = [
   "contextualThread",
   "page",
   "thematicGroup",
+  "personalThread",
 ] as const
 export type NotificationOpenTargetKind = (typeof NOTIFICATION_OPEN_TARGET_KINDS)[number]
 
@@ -110,4 +114,9 @@ export type NotificationOpenTarget =
       kind: "thematicGroup"
       /** Le groupe (identifiant du moteur), dont la fiche est servie à ce lecteur à l'instant. */
       groupId: string
+    }
+  | {
+      kind: "personalThread"
+      /** IC-09 : le fil à deux (identifiant du moteur), lisible par ce lecteur à l'instant. */
+      threadId: string
     }

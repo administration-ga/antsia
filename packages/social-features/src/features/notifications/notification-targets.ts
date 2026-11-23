@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/notifications/notification-targets.ts @ ad2e7fdc2 — adaptations : plus aucune adresse écrite — la cible se compose sur les adresses INJECTÉES de l'application (`NotificationRoutes`, tirées de `useRoutes()` : page réseau `home()` et ses paramètres de vue de `reseau-agent-nav`, messagerie `messages()` par `conversationHref`, journal iAppel par `icomMobileTabHref`, profil `profile(handle)` et albums d'un profil composés dessus, conférence `conference(sessionId)`) ; `reseauBaseHref` retiré (la page réseau du moteur est toujours l'accueil, la publication n'est plus masquée) ; sujet du moteur en forme générique `{ kind, id }` au lieu des colonnes `subject…Id`, aiguillé par un `switch` exhaustif sur les natures du domaine ; cible « direct » (démarrage, invitations, rediffusion publiée) composée sur l'adresse INJECTÉE de la conférence (`conference(sessionId)`) pour le sujet `liveSession` du moteur au lieu de `subjectDirectSessionId` et d'une adresse de l'espace, avec son rappel `onOpenDirect` ; cibles ajoutées pour les sujets du moteur (album d'un profil, appel et message vocal vers le journal iAppel ; analyse de fichier sans cible) et profil du parrain pour `sponsorship_received` ; état d'invitation du domaine (`@antsia/social-domain/connectionState`) ; libellés et phrases traduits (`t` en DERNIER paramètre de `notificationTarget`, `notificationRowAction`, `connectionInviteOutcome` ; clés qualifiées `notifications:notificationTargets.…`) ; ajouts : `notificationRowSentence` (phrase de TOUS les genres du moteur — ceux de `shared.notificationSentence` et, ici, page suivie, album, fichier retenu, appel manqué, message vocal, parrainages et attestations de DIASPORA.GA ; nom neutre quand le profil n'est pas publié), `notificationRowNote` (résultat d'une invitation, statut vivant d'un fichier retenu) et `targetCallback`.
+// Dupliqué de socle/packages/agent-features/src/features/notifications/notification-targets.ts @ ad2e7fdc2 — adaptations : plus aucune adresse écrite — la cible se compose sur les adresses INJECTÉES de l'application (`NotificationRoutes`, tirées de `useRoutes()` : page réseau `home()` et ses paramètres de vue de `reseau-agent-nav`, messagerie `messages()` par `conversationHref`, journal iAppel par `icomMobileTabHref`, profil `profile(handle)` et albums d'un profil composés dessus, conférence `conference(sessionId)`) ; `reseauBaseHref` retiré (la page réseau du moteur est toujours l'accueil, la publication n'est plus masquée) ; sujet du moteur en forme générique `{ kind, id }` au lieu des colonnes `subject…Id`, aiguillé par un `switch` exhaustif sur les natures du domaine ; cible « direct » (démarrage, invitations, rediffusion publiée) composée sur l'adresse INJECTÉE de la conférence (`conference(sessionId)`) pour le sujet `liveSession` du moteur au lieu de `subjectDirectSessionId` et d'une adresse de l'espace, avec son rappel `onOpenDirect` ; cibles ajoutées pour les sujets du moteur (album d'un profil, appel et message vocal vers le journal iAppel ; analyse de fichier sans cible) et profil du parrain pour `sponsorship_received` ; état d'invitation du domaine (`@antsia/social-domain/connectionState`) ; libellés et phrases traduits (`t` en DERNIER paramètre de `notificationTarget`, `notificationRowAction`, `connectionInviteOutcome` ; clés qualifiées `notifications:notificationTargets.…`) ; ajouts : `notificationRowSentence` (phrase de TOUS les genres du moteur — ceux de `shared.notificationSentence` et, ici, page suivie, album, fichier retenu, appel manqué, message vocal, parrainages et attestations de DIASPORA.GA ; nom neutre quand le profil n'est pas publié), `notificationRowNote` (résultat d'une invitation, statut vivant d'un fichier retenu) et `targetCallback`. ; IC-09 : message à deux (`personal_message`) — phrase qui nomme l'expéditeur, sans contenu, et cible `personalThread` vers SA conversation (`conversationHref(chatKey(fil))`).
 /**
  * notification-targets — CE QU'OUVRE une ligne de notification, par où, et ce
  * qu'elle DIT.
@@ -30,7 +30,7 @@ import type { TFunction } from "i18next"
 
 import { RESEAU_AGENT_POST_PARAM, reseauAgentGroupeHref, reseauAgentHref } from "../../shell/reseau-agent-nav"
 import { icomMobileTabHref } from "../messagerie/icom-mobile-tabs"
-import { groupeKey } from "../messagerie/messagerie-dock"
+import { chatKey, groupeKey } from "../messagerie/messagerie-dock"
 import { conversationHref } from "../messagerie/messagerie-routes"
 import { NOTIFICATION_SENTENCE_KINDS, notificationSentence, type NotificationSentenceKind, resolutionSentence } from "../reseau-personnel/shared"
 
@@ -41,6 +41,8 @@ export type NotificationTargetKind =
 	| "post"
 	| "commercialThread"
 	| "groupThread"
+	/** IC-09 : une conversation à deux, relue par le serveur pour le lecteur (destination typée). */
+	| "personalThread"
 	| "group"
 	| "event"
 	| "connection"
@@ -256,6 +258,12 @@ function typedTarget(target: NotificationOpenTarget, routes: NotificationRoutes,
 			const id = clean(target.groupId)
 			return id === null ? null : { kind: "group", id, href: reseauAgentGroupeHref(id, routes.home()), label: t(OPEN_LABEL) }
 		}
+		// IC-09 : la conversation à deux d'un message, relue par le serveur pour ce lecteur ; jamais le message.
+		case "personalThread": {
+			const id = clean(target.threadId)
+			const href = id === null ? null : conversationHref(chatKey(id), routes.messages())
+			return id === null || href === null ? null : { kind: "personalThread", id, href, label: t(OPEN_LABEL) }
+		}
 		default:
 			return unknownTarget(target)
 	}
@@ -382,6 +390,7 @@ export function targetCallback(kind: NotificationTargetKind, targets: Notificati
 		case "profile":
 			return targets.onOpenProfile
 		case "commercialThread":
+		case "personalThread":
 		case "album":
 		case "calls":
 		case "serviceRequest":
@@ -512,6 +521,8 @@ const ENGINE_ONLY_SENTENCES: Readonly<Record<EngineOnlyKind, { actor: string | n
 	file_withheld: { actor: null, system: "notifications:notificationTargets.sentence.fileWithheld" },
 	call_missed: { actor: "notifications:notificationTargets.sentence.callMissed", system: null },
 	voicemail_left: { actor: "notifications:notificationTargets.sentence.voicemailLeft", system: null },
+	// IC-09 : la relation qui a écrit est nommée (profil publié, déjà visible dans iCom) ; jamais le message.
+	personal_message: { actor: "notifications:notificationTargets.sentence.personalMessage", system: null },
 	// Tranche DIASPORA.GA (`convex/modules/diaspora/`), sans sujet.
 	sponsorship_received: { actor: "notifications:notificationTargets.sentence.sponsorshipReceived", system: null },
 	sponsorship_withdrawn: {

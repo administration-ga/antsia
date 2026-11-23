@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/modules/reseauPersonnel/notifications.ts (l. 54-126, genres, résolutions et clé de sujet) @ ad2e7fdc2 — adaptations : règles PURES sorties du backend ; genres du moteur (le direct s'appelle `live`, l'évènement personnel `event`, l'avis de la garde des fichiers `file_withheld`) ; sujet en forme générique `{ kind, id }` ; sujet « session de direct » (`liveSession`, le `subjectDirectSessionId` du socle) rétabli avec le module `live` (lot 16).
+// Dupliqué de socle/convex/modules/reseauPersonnel/notifications.ts (l. 54-126, genres, résolutions et clé de sujet) @ ad2e7fdc2 — adaptations : règles PURES sorties du backend ; genres du moteur (le direct s'appelle `live`, l'évènement personnel `event`, l'avis de la garde des fichiers `file_withheld`) ; sujet en forme générique `{ kind, id }` ; sujet « session de direct » (`liveSession`, le `subjectDirectSessionId` du socle) rétabli avec le module `live` (lot 16) ; IC-09 (diverge du socle) : genre `personal_message` (message à deux, la paire désigne le fil, aucun sujet stocké).
 /**
  * La cloche sociale — genres, résolutions et clés de dédoublonnage.
  *
@@ -23,6 +23,14 @@ export const NOTIFICATION_KINDS = [
   "new_follower",
   /** Conversation de groupe : le sujet est le FIL, jamais un message. */
   "group_message",
+  /**
+   * IC-09 : une relation m'a écrit dans notre conversation à deux. AUCUN sujet stocké : la paire
+   * (moi, l'acteur) désigne le fil — un seul par paire et par réseau —, relu avec sa garde à
+   * l'écriture, à la lecture de la cloche, avant tout transport et à l'ouverture. Dédoublonné
+   * par acteur, donc par fil : au plus une ligne par conversation, rafraîchie à chaque message.
+   * Jamais le texte, une pièce ni un aperçu.
+   */
+  "personal_message",
   "commercial_contact",
   /**
    * Conversation contextuelle (CC-1, ADR-0025) : un nouveau message. Le sujet est le FIL ;
