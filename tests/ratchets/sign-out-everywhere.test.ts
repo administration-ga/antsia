@@ -19,6 +19,8 @@ const CONSUMERS = [
   "apps/antsia_ga/src/lib/sign-out.ts",
   "apps/admin_antsia_ga/src/lib/sign-out.ts",
   "../DIASPORA_GA/apps/diaspora_ga/src/data/engine-source.ts",
+  // CH-815 (ADR-0042) : l'application d'administration de DIASPORA.GA, « Se déconnecter partout ».
+  "../DIASPORA_GA/apps/admin_diaspora_ga/src/lib/sign-out.ts",
 ]
 
 function unwrap(expression: ts.Expression): ts.Expression {
