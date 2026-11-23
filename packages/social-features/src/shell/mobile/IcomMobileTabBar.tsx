@@ -1,4 +1,4 @@
-// Réécrit d'après socle/packages/agent-features/src/features/messagerie/IcomMobileTabBar.tsx @ ad2e7fdc2 — barre déplacée dans la coque (`shell/mobile/`) ; sans le menu principal de l'espace agent (`EspaceMobileVoletsRow`, volets iProfil · iRéseau · iBoîte · iCom) ni `personal-nav` : le premier emplacement est un LIEN vers l'accueil du réseau (`useRoutes().home()`), là où vivent sa barre et son menu, au lieu de basculer la barre ; seuil mobile `MOBILE_ONLY_CLASS` de `@antsia/ui/overlay` ; adresses des briques composées depuis la base injectée (`useRoutes().messages()`) ; libellés et pastilles traduits (`icomMobileTabText`, `icomMobileBadge`, clés `icomMobileTabBar.*`) ; mêmes props (`active`, `badges`), mêmes repères (`data-mobile-nav`, `data-icom-mobile-nav`) et mêmes classes de géométrie (`.esp-reseau-tabbar`, `.rm-*`) ; IC-02 : pastille des messages vocaux non écoutés sur iAppel (`badges.unheardVoicemails`).
+// Réécrit d'après socle/packages/agent-features/src/features/messagerie/IcomMobileTabBar.tsx @ ad2e7fdc2 — barre déplacée dans la coque (`shell/mobile/`) ; sans le menu principal de l'espace agent (`EspaceMobileVoletsRow`, volets iProfil · iRéseau · iBoîte · iCom) ni `personal-nav` : le premier emplacement est un LIEN vers l'accueil du réseau (`useRoutes().home()`), là où vivent sa barre et son menu, au lieu de basculer la barre ; seuil mobile `MOBILE_ONLY_CLASS` de `@antsia/ui/overlay` ; adresses des briques composées depuis la base injectée (`useRoutes().messages()`) ; libellés et pastilles traduits (`icomMobileTabText`, `icomMobileBadge`, clés `icomMobileTabBar.*`) ; mêmes props (`active`, `badges`), mêmes repères (`data-mobile-nav`, `data-icom-mobile-nav`) et mêmes classes de géométrie (`.esp-reseau-tabbar`, `.rm-*`) ; IC-02 : pastille des messages vocaux non écoutés sur iAppel (`badges.unheardVoicemails`) ; CH-817 : iAppel absent de la barre quand l'application ne propose pas d'appel (`useCallsAvailable()`, `visibleIcomMobileSubtabs`).
 "use client"
 
 /**
@@ -28,7 +28,7 @@
  * barre se rendrait en cinq liens empilés, sans icônes ni pastilles.
  */
 
-import { useNetwork, useRoutes } from "@antsia/api/network"
+import { useCallsAvailable, useNetwork, useRoutes } from "@antsia/api/network"
 import { Link } from "@antsia/api/routing"
 import { Icon } from "@antsia/ui"
 import { MOBILE_ONLY_CLASS } from "@antsia/ui/overlay"
@@ -36,10 +36,10 @@ import { useEffect, useRef } from "react"
 import { useTranslation } from "react-i18next"
 import {
   ICOM_MOBILE_MENU_TAB,
-  ICOM_MOBILE_SUBTABS,
   icomMobileBadge,
   icomMobileTabHref,
   icomMobileTabText,
+  visibleIcomMobileSubtabs,
   type IcomMobileBrique,
 } from "../../features/messagerie/icom-mobile-tabs"
 import { ICOM_VIEWS } from "../../features/messagerie/icom-views"
@@ -56,6 +56,8 @@ export function IcomMobileTabBar({ active, badges }: IcomMobileTabBarProps) {
   const routes = useRoutes()
   const { navigation, navigationLayout } = useNetwork()
   const destinations = navigation === "destinations"
+  // CH-817 : une application sans appels ne montre pas iAppel (la couche qui REÇOIT un appel reste montée).
+  const callsAvailable = useCallsAvailable()
   const bases = { home: routes.home(), messages: routes.messages() }
   const subtabsRef = useRef<HTMLDivElement>(null)
   const menu = icomMobileTabText(ICOM_MOBILE_MENU_TAB.id, t)
@@ -98,7 +100,7 @@ export function IcomMobileTabBar({ active, badges }: IcomMobileTabBarProps) {
             role="group"
             aria-label={t("icomMobileTabBar.subtabsLabel")}
           >
-            {ICOM_MOBILE_SUBTABS.filter((tab) => !destinations || tab.id !== "actus").map((tab) => {
+            {visibleIcomMobileSubtabs({ callsAvailable, destinations }).map((tab) => {
               const badge = icomMobileBadge(tab.id, badges, t)
               const isActive = tab.id === active
               const shortLabel = destinations ? t(ICOM_VIEWS.find((view) => view.brique === tab.id)?.labelKey ?? "icomViews.conversations") : icomMobileTabText(tab.id, t).shortLabel

@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/messagerie/icom-mobile-tabs.ts @ ad2e7fdc2 — adaptations : adresses composées depuis les bases INJECTÉES (`icomMobileTabHref(id, bases)`, `bases = { home, messages }` tirées de `useRoutes()`) ; le premier emplacement, faute de menu principal d'espace (volets de l'espace agent non repris), REVIENT à l'accueil du réseau (lien vers `home`) au lieu de basculer la barre ; libellés sortis du module — `IcomMobileTab` ne porte plus que `id` et `icon`, les textes viennent de `icomMobileTabText(id, t)` (dérivés des clés du dock, `t` en dernier paramètre) ; phrases des pastilles traduites et pluralisées (`icomMobileBadge(id, counts, t)`) ; IC-02 : iAppel porte les messages vocaux non écoutés (`voicemailTabBadge`).
+// Dupliqué de socle/packages/agent-features/src/features/messagerie/icom-mobile-tabs.ts @ ad2e7fdc2 — adaptations : adresses composées depuis les bases INJECTÉES (`icomMobileTabHref(id, bases)`, `bases = { home, messages }` tirées de `useRoutes()`) ; le premier emplacement, faute de menu principal d'espace (volets de l'espace agent non repris), REVIENT à l'accueil du réseau (lien vers `home`) au lieu de basculer la barre ; libellés sortis du module — `IcomMobileTab` ne porte plus que `id` et `icon`, les textes viennent de `icomMobileTabText(id, t)` (dérivés des clés du dock, `t` en dernier paramètre) ; phrases des pastilles traduites et pluralisées (`icomMobileBadge(id, counts, t)`) ; IC-02 : iAppel porte les messages vocaux non écoutés (`voicemailTabBadge`). ; CH-817 (diverge du socle) : appels fermés par l'application, iAppel quitte la barre (`visibleIcomMobileSubtabs`) et `?brique=iappel` retombe sur iChat (`parseIcomBrique(raw, callsAvailable)`).
 /**
  * icom-mobile-tabs — la barre basse d'iCom au téléphone (ADR-0079 du socle).
  *
@@ -40,7 +40,9 @@ import { formatUnreadBadge } from "../reseau-personnel/shared"
 import {
   ICOM_DOCK_TABS,
   normalizeIcomDockTab,
+  servedIcomDockTab,
   type IcomDockTabId,
+  type IcomTabsOptions,
 } from "./icom-dock"
 
 /** Le paramètre d'URL de la brique — `<messages>?brique=…`. */
@@ -55,12 +57,17 @@ export type IcomMobileTabId = "menu_principal" | IcomMobileBrique
 /**
  * Ramène n'importe quelle entrée sur une brique connue — `ichat` par défaut,
  * comme le dock (`normalizeIcomDockTab`). Jamais d'écran vide.
+ *
+ * CH-817 : `callsAvailable = false` (l'application ne propose pas d'appel),
+ * `?brique=iappel` retombe sur iChat, comme la carte (`servedIcomDockTab`).
+ * Absent : appels proposés, comportement historique.
  */
 export function parseIcomBrique(
   raw: string | null | undefined,
+  callsAvailable = true,
 ): IcomMobileBrique {
   if (raw === "actus") return "actus"
-  return normalizeIcomDockTab(raw)
+  return servedIcomDockTab(normalizeIcomDockTab(raw), callsAvailable)
 }
 
 export interface IcomMobileTab {
@@ -105,6 +112,17 @@ export const ICOM_MOBILE_SUBTABS: readonly IcomMobileSubtab[] = Object.freeze([
   { id: "iappel" as const, icon: "phone" as const },
   { id: "icontact" as const, icon: "users" as const },
 ])
+
+/**
+ * Les briques MONTRÉES à droite du menu, dans leur ordre : sans iAppel quand
+ * l'application ne propose pas d'appel (CH-817), sans Statuts sous la
+ * navigation par destinations (les statuts restent atteignables depuis le fil).
+ */
+export function visibleIcomMobileSubtabs(options: IcomTabsOptions): readonly IcomMobileSubtab[] {
+  return ICOM_MOBILE_SUBTABS.filter(
+    (tab) => (options.callsAvailable || tab.id !== "iappel") && (options.destinations !== true || tab.id !== "actus"),
+  )
+}
 
 /**
  * Les CINQ emplacements dans leur ordre sémantique. Cette vue agrégée reste

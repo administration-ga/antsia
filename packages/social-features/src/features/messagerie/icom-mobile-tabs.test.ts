@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/messagerie/icom-mobile-tabs.test.ts @ ad2e7fdc2 — adaptations : adresses composées depuis des bases INJECTÉES (celles des routes de test) au lieu de `/espace/messages` ; le retour mène désormais à l'accueil du réseau (le cas « il ne navigue pas » devient « il ramène à l'accueil ») ; textes lus par `icomMobileTabText` / `icomMobileBadge` avec l'instance i18n du moteur (français, et anglais pour les pluriels) ; description des Statuts réécrite (plus de « surface iCom » des stories).
+// Dupliqué de socle/packages/agent-features/src/features/messagerie/icom-mobile-tabs.test.ts @ ad2e7fdc2 — adaptations : adresses composées depuis des bases INJECTÉES (celles des routes de test) au lieu de `/espace/messages` ; le retour mène désormais à l'accueil du réseau (le cas « il ne navigue pas » devient « il ramène à l'accueil ») ; textes lus par `icomMobileTabText` / `icomMobileBadge` avec l'instance i18n du moteur (français, et anglais pour les pluriels) ; description des Statuts réécrite (plus de « surface iCom » des stories). ; CH-817 : briques montrées et `?brique=iappel` selon les appels proposés.
 import { describe, expect, it } from "vitest"
 
 import { createAppI18n } from "../../i18n"
@@ -12,6 +12,7 @@ import {
 	icomMobileTabHref,
 	icomMobileTabText,
 	parseIcomBrique,
+	visibleIcomMobileSubtabs,
 	voicemailTabBadge,
 } from "./icom-mobile-tabs"
 
@@ -32,6 +33,26 @@ describe("parseIcomBrique", () => {
 		expect(parseIcomBrique(null)).toBe("ichat")
 		expect(parseIcomBrique(undefined)).toBe("ichat")
 		expect(parseIcomBrique("annuaire")).toBe("ichat")
+	})
+
+	it("CH-817 : appels fermés, un lien vers iAppel ouvre iChat ; les autres briques restent", () => {
+		expect(parseIcomBrique("iappel", false)).toBe("ichat")
+		expect(parseIcomBrique("actus", false)).toBe("actus")
+		expect(parseIcomBrique("icontact", false)).toBe("icontact")
+		// Appels proposés (déclaration absente ou vraie) : rien ne change.
+		expect(parseIcomBrique("iappel", true)).toBe("iappel")
+	})
+})
+
+describe("visibleIcomMobileSubtabs — CH-817", () => {
+	it("appels proposés : les quatre briques, inchangées", () => {
+		expect(visibleIcomMobileSubtabs({ callsAvailable: true }).map((tab) => tab.id)).toEqual(["ichat", "actus", "iappel", "icontact"])
+	})
+
+	it("appels fermés : iAppel quitte la barre ; sous destinations, Statuts aussi", () => {
+		expect(visibleIcomMobileSubtabs({ callsAvailable: false }).map((tab) => tab.id)).toEqual(["ichat", "actus", "icontact"])
+		expect(visibleIcomMobileSubtabs({ callsAvailable: false, destinations: true }).map((tab) => tab.id)).toEqual(["ichat", "icontact"])
+		expect(visibleIcomMobileSubtabs({ callsAvailable: true, destinations: true }).map((tab) => tab.id)).toEqual(["ichat", "iappel", "icontact"])
 	})
 })
 

@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/messagerie/MessagerieDock.tsx @ ad2e7fdc2 — adaptations : portail détaché re-scopé par la charte DU RÉSEAU (`data-charte` = `useNetwork().charte`) ; stockage par réseau — position flottante sous `icomFloatPlacementStorageKey(storagePrefix)` et `configureDockStorage(storagePrefix)` rappelé au montage (idempotent, la coque l'appelle d'abord) ; réconciliation des brouillons sur les fenêtres de la source personnelle (`SOURCE_AGENT.useThreads` / `useGroupThreads` → `messaging.inbox.paginateMyThreads`, `groups.threads.paginateMyGroupThreads`) au lieu de `listMyThreads` / `listMyGroupThreads`, identifiants `threadId` du moteur ; seuil mobile par `@antsia/ui/overlay` ; libellés des briques lus par leurs clés (`ICOM_DOCK_TABS`) ; toutes les chaînes d'interface traduites (clés `messagerieDock.*`, annonce des non-lus pluralisée) ; hôte d'appel `ICOM_AGENT_CALL_HOST_ID` inchangé (nom et valeur) ; doc : adresses de l'espace agent remplacées par la base injectée de l'application. ; IC-02 : pastille des messages vocaux non écoutés sur la brique des appels (`voicemailTabBadge`, phrase `sr-only`).
+// Dupliqué de socle/packages/agent-features/src/features/messagerie/MessagerieDock.tsx @ ad2e7fdc2 — adaptations : portail détaché re-scopé par la charte DU RÉSEAU (`data-charte` = `useNetwork().charte`) ; stockage par réseau — position flottante sous `icomFloatPlacementStorageKey(storagePrefix)` et `configureDockStorage(storagePrefix)` rappelé au montage (idempotent, la coque l'appelle d'abord) ; réconciliation des brouillons sur les fenêtres de la source personnelle (`SOURCE_AGENT.useThreads` / `useGroupThreads` → `messaging.inbox.paginateMyThreads`, `groups.threads.paginateMyGroupThreads`) au lieu de `listMyThreads` / `listMyGroupThreads`, identifiants `threadId` du moteur ; seuil mobile par `@antsia/ui/overlay` ; libellés des briques lus par leurs clés (`ICOM_DOCK_TABS`) ; toutes les chaînes d'interface traduites (clés `messagerieDock.*`, annonce des non-lus pluralisée) ; hôte d'appel `ICOM_AGENT_CALL_HOST_ID` inchangé (nom et valeur) ; doc : adresses de l'espace agent remplacées par la base injectée de l'application. ; IC-02 : pastille des messages vocaux non écoutés sur la brique des appels (`voicemailTabBadge`, phrase `sr-only`). ; CH-817 (diverge du socle) : barre des briques sortie dans `IcomDockTabBar` ; sans appels proposés (`useCallsAvailable()`), iAppel n'y est pas, un lien vers iAppel ouvre iChat et la messagerie vocale n'est pas lue pour la pastille.
 "use client"
 
 /**
@@ -45,16 +45,12 @@
  * inutilisable. UNE SEULE région `aria-live` pour toute la carte.
  */
 
-import { useNetwork, useRoutes } from "@antsia/api/network"
+import { useCallsAvailable, useNetwork, useRoutes } from "@antsia/api/network"
 import { usePathname, useRouter, useSearchParams } from "@antsia/api/routing"
 import {
-	Camera,
 	ChevronDown,
 	Grip,
 	Maximize2,
-	MessageCircle,
-	Phone,
-	Users,
 	X,
 } from "lucide-react"
 import { useEffect, useRef, useState, type RefObject } from "react"
@@ -86,17 +82,17 @@ import {
 	useDockState,
 } from "./dock-store"
 import {
-	ICOM_DOCK_TABS,
 	ICOM_DOCK_TAB_DEFAULT,
 	icomDockBody,
 	icomTabsVisible,
+	servedIcomDockTab,
 	type IcomDockTabId,
 } from "./icom-dock"
 import { IcomActusPanel } from "./IcomActusPanel"
 import { IcomAppelJournal } from "./IcomAppelJournal"
+import { IcomDockTabBar } from "./IcomDockTabBar"
 import { voicemailTabBadge } from "./icom-mobile-tabs"
 import { IcomRelationsPanel } from "./IcomRelationsPanel"
-import { ICOM_VIEWS } from "./icom-views"
 import { messagerieListScope } from "./messagerie-list-state"
 import {
 	readIcomDesktopEntry,
@@ -117,18 +113,6 @@ import { SOURCE_AGENT } from "./messagerie-source"
 import { MessagerieStyles } from "./messagerie-styles"
 import { TYPING_PING_INTERVAL_MS } from "./messagerie-typing"
 import type { MessagerieNav, MessagerieVariant } from "./messagerie-views"
-
-/**
- * L'icône de chaque brique — modèle WhatsApp : la barre de navigation est
- * BASSE, à icônes, et le nom du module ne s'écrit nulle part — un module
- * composé ne s'écrit pas, il se compose.
- */
-const TAB_ICONS: Record<IcomDockTabId, typeof MessageCircle> = {
-	ichat: MessageCircle,
-	actus: Camera,
-	iappel: Phone,
-	icontact: Users,
-}
 
 /**
  * La carte est un TÉLÉPHONE : un appel personnel se dessine DEDANS, quelle
@@ -177,6 +161,8 @@ export function MessagerieDock() {
 	const pathname = usePathname()
 	const destinations = navigation === "destinations"
 	const messagesDestination = destinations && (pathname === messagesBase || pathname.startsWith(`${messagesBase}/`))
+	// CH-817 : sans appels proposés par l'application, ni brique iAppel ni sa pastille.
+	const callsAvailable = useCallsAvailable()
 	const searchParams = useSearchParams()
 	const routeSearch = searchParams.toString()
 	const [tab, setTab] = useState<IcomDockTabId>(ICOM_DOCK_TAB_DEFAULT)
@@ -220,7 +206,8 @@ export function MessagerieDock() {
 			dockStore.back()
 		}
 
-		setTab(entry.brique)
+		// CH-817 : un lien vers iAppel, appels fermés, ouvre iChat — la barre ne montre pas iAppel.
+		setTab(servedIcomDockTab(entry.brique, callsAvailable))
 		setInvitation(entry.invitation)
 		setGroupeInfosId(
 			entry.infosOpen && entry.conversation?.kind === "groupe"
@@ -231,7 +218,7 @@ export function MessagerieDock() {
 		router.replace(withoutIcomDesktopEntry(pathname, routeSearch), {
 			scroll: false,
 		})
-	}, [isMobile, pathname, routeSearch, router, destinations])
+	}, [isMobile, pathname, routeSearch, router, destinations, callsAvailable])
 	/* Le repli est toujours la porte d'entrée iChat. On efface donc une
 	   sélection secondaire dès que la surface se rétracte ; les brouillons,
 	   eux, restent dans le store et ne sont jamais perdus. */
@@ -263,7 +250,7 @@ export function MessagerieDock() {
 	const nonLus = SOURCE_AGENT.useUnreadTotals()
 	// IC-02 : la pastille de la brique des appels — la carte rendue seulement (au
 	// téléphone et sur la page Messages, la carte n'existe pas : aucune souscription).
-	const voicemailBadge = voicemailTabBadge(useVoicemailInbox(isMobile === false && !messagesDestination).unreadCount, t)
+	const voicemailBadge = voicemailTabBadge(useVoicemailInbox(isMobile === false && !messagesDestination && callsAvailable).unreadCount, t)
 
 	/**
 	 * Au DÉTACHEMENT, porter le focus dans la fenêtre : le geste vient d'un
@@ -509,40 +496,19 @@ export function MessagerieDock() {
 			    dès qu'on lit ou qu'on écrit, pour ne pas proposer de quitter
 			    un brouillon sans le dire. */}
 			{icomTabsVisible(dock.view.kind) ? (
-				<div
-					className="icom-tabs"
-					role="tablist"
-					aria-label={t("messagerieDock.title")}
-				>
-					{ICOM_DOCK_TABS.filter((item) => !destinations || item.id !== "actus").map((item) => {
-						const Icon = TAB_ICONS[item.id]
-						const badge = item.id === "iappel" ? voicemailBadge : null
-						return (
-							<button
-								key={item.id}
-								type="button"
-								role="tab"
-								className="icom-tab"
-								aria-selected={activeTab === item.id}
-								title={t(item.descriptionKey)}
-								onClick={() => {
-									setTab(item.id)
-									/* Replié, le dock garde son en-tête ET cette barre.
-									   Choisir une brique l'ouvre directement, comme la
-									   navigation WhatsApp. */
-									dockStore.setOpen(true)
-								}}
-							>
-								<span aria-hidden="true" className="icom-tab-icon">
-									<Icon size={17} />
-									{badge !== null ? <span className="msg-badge icom-tab-badge">{badge.badge}</span> : null}
-								</span>
-								{t(destinations ? ICOM_VIEWS.find((view) => view.brique === item.id)?.labelKey ?? item.labelKey : item.labelKey)}
-								{badge !== null ? <span className="sr-only">{badge.label}</span> : null}
-							</button>
-						)
-					})}
-				</div>
+				/* CH-817 : la barre montre les seules briques servies (sans iAppel
+				   quand l'application ne propose pas d'appel — `IcomDockTabBar`). */
+				<IcomDockTabBar
+					activeTab={activeTab}
+					voicemailBadge={voicemailBadge}
+					onSelect={(item) => {
+						setTab(item)
+						/* Replié, le dock garde son en-tête ET cette barre.
+						   Choisir une brique l'ouvre directement, comme la
+						   navigation WhatsApp. */
+						dockStore.setOpen(true)
+					}}
+				/>
 			) : null}
 		</div>
 	)
