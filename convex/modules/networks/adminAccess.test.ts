@@ -112,18 +112,18 @@ async function setRole(t: T, networkId: Id<"networks">, personId: Id<"persons">,
 }
 
 /** Le retour IDN scelle une NOUVELLE session de la personne, pour `application` (absente : preuve d'avant ADR-0042). */
-async function idnSession(t: T, who: Account, application?: string): Promise<Session> {
+async function idnSession(t: T, who: Account, application?: string, loa: 1 | 2 | 3 = 2): Promise<Session> {
   const session = await openSession(t, who.authUserId)
-  await t.mutation(internal.modules.people.identity.recordIdnProof, { subject: who.idnSubject, loa: 2 })
+  await t.mutation(internal.modules.people.identity.recordIdnProof, { subject: who.idnSubject, loa })
   await t.mutation(internal.modules.platform.operatorAccess.recordIdnSession, {
-    sessionId: session.sessionId, authUserId: who.authUserId, idnSubject: who.idnSubject, loa: 2, ...(application ? { application } : {}),
+    sessionId: session.sessionId, authUserId: who.authUserId, idnSubject: who.idnSubject, loa, ...(application ? { application } : {}),
   })
   return session
 }
 
 /** Une session prouvée de l'application d'administration ; accès journalisé sauf `logged: false`. */
-async function adminSession(t: T, who: Account, networkId: Id<"networks">, { logged = true }: { logged?: boolean } = {}): Promise<Session> {
-  const session = await idnSession(t, who, ADMIN_APP)
+async function adminSession(t: T, who: Account, networkId: Id<"networks">, { logged = true, loa = 2 }: { logged?: boolean; loa?: 1 | 2 | 3 } = {}): Promise<Session> {
+  const session = await idnSession(t, who, ADMIN_APP, loa)
   if (logged) await session.as.mutation(A.recordAccess, { networkId })
   return session
 }
@@ -314,5 +314,137 @@ describe("ADR-0042 — console et administration du réseau ne se valent jamais 
       await expectAllRefused(f, session.as, f.network, `console (${application ?? "preuve sans application"})`)
       expect((await proofOf(f.t, session.sessionId))?.networkAdminAccess).toBeUndefined()
     }
+  })
+})
+
+/** Les portes du lot refusent toutes du MÊME refus que `reference` (celui d'un membre, ou d'un anonyme). */
+async function expectAllRefusedLike(f: Fixture, as: As, networkId: Id<"networks">, reference: unknown, label: string) {
+  const before = await writes(f)
+  for (const [door, call] of Object.entries(doors(as, networkId))) expect(await refusalOf(call()), `${label} — ${door}`).toEqual(reference)
+  expect(await writes(f), label).toEqual(before)
+}
+
+async function setMembership(t: T, networkId: Id<"networks">, personId: Id<"persons">, patch: { status: "en_attente" | "declaree" | "suspendue"; statusBeforeSuspension?: "declaree" }) {
+  await t.run(async (ctx) => {
+    const row = await ctx.db.query("networkMemberships").withIndex("by_network_and_person", (q) => q.eq("networkId", networkId).eq("personId", personId)).unique()
+    if (!row) throw new Error("Adhésion de fixture absente")
+    await ctx.db.patch(row._id, patch)
+  })
+}
+
+describe("revue CH-815 A1b — les admissions et les refus que la recette d'A1 ne couvrait pas", () => {
+  it("une identité de garantie 1, le seuil de la console (ADR-0039), est admise", async () => {
+    expect(CONSOLE_MIN_LOA).toBe(1)
+    const f = await fixture()
+    await f.t.run(async (ctx) => {
+      const link = await ctx.db.query("identityLinks").withIndex("by_person_and_provider", (q) => q.eq("personId", f.admin.personId).eq("provider", "idn")).unique()
+      if (link) await ctx.db.patch(link._id, { loa: 1 })
+    })
+    const session = await adminSession(f.t, f.admin, f.network, { loa: 1 })
+    expect((await proofOf(f.t, session.sessionId))?.loa).toBe(1)
+    expect(await doors(session.as, f.network).settings()).toHaveLength(8)
+    expect(await doors(session.as, f.network).setFeature()).toEqual({ changed: true })
+  })
+
+  it("un lien IDN révoqué est refusé, sur une session déjà journalisée", async () => {
+    const f = await fixture()
+    const session = await adminSession(f.t, f.admin, f.network)
+    expect(await doors(session.as, f.network).settings()).toHaveLength(8)
+    await f.t.run(async (ctx) => {
+      const link = await ctx.db.query("identityLinks").withIndex("by_person_and_provider", (q) => q.eq("personId", f.admin.personId).eq("provider", "idn")).unique()
+      if (link) await ctx.db.patch(link._id, { revokedAt: NOW })
+    })
+    await expectAllRefused(f, session.as, f.network, "lien IDN révoqué")
+  })
+
+  it("une session supprimée par « Se déconnecter partout » est refusée comme une personne sans session", async () => {
+    const f = await fixture()
+    const session = await adminSession(f.t, f.admin, f.network)
+    expect(await doors(session.as, f.network).settings()).toHaveLength(8)
+    // La porte partagée révoque TOUTES les sessions Better Auth de la personne.
+    for (const sessionId of [session.sessionId, f.admin.sessionId]) {
+      await f.t.mutation(components.betterAuth.adapter.deleteOne, { input: { model: "session", where: [{ field: "_id", value: sessionId }] } })
+    }
+    const anonymous = await refusalOf(f.t.query(A.myNetworkAdmin, { networkId: f.network }))
+    expect(anonymous).toEqual({ code: "unauthenticated" })
+    await expectAllRefusedLike(f, session.as, f.network, anonymous, "session révoquée")
+  })
+
+  it("une suspension à la racine rend le refus de tout membre suspendu", async () => {
+    const f = await fixture()
+    const reader = await account(f.t, f.network, "membre.suspendu.racine")
+    const session = await adminSession(f.t, f.admin, f.network)
+    for (const personId of [f.admin.personId, reader.personId]) await setMembership(f.t, f.root, personId, { status: "suspendue", statusBeforeSuspension: "declaree" })
+    const memberRefusal = await refusalOf(reader.as.query(F.open, { networkId: f.network }))
+    expect(memberRefusal).toEqual({ code: "membershipSuspended" })
+    await expectAllRefusedLike(f, session.as, f.network, memberRefusal, "suspension racine")
+  })
+
+  it("une suspension du compte sur ordre du juge rend le refus de tout membre suspendu", async () => {
+    const f = await fixture()
+    const reader = await account(f.t, f.network, "membre.mesure.juge")
+    const session = await adminSession(f.t, f.admin, f.network)
+    await f.t.run(async (ctx) => {
+      for (const personId of [f.admin.personId, reader.personId]) {
+        await ctx.db.insert("judicialMeasures", {
+          networkId: f.root, kind: "suspend_account", target: { kind: "person", id: personId }, targetKind: "person", targetId: personId, subjectPersonId: personId,
+          orderReference: "RG FICTIF 2026/0815", status: "active", startsAt: NOW - 1, executedAt: NOW - 1, createdByPersonId: reader.personId,
+          effects: { membershipSuspended: true, pageDeactivated: false, contentRemoved: false }, createdAt: NOW - 1, updatedAt: NOW - 1,
+        })
+      }
+    })
+    const memberRefusal = await refusalOf(reader.as.query(F.open, { networkId: f.network }))
+    expect(memberRefusal).toEqual({ code: "membershipSuspended" })
+    await expectAllRefusedLike(f, session.as, f.network, memberRefusal, "mesure du juge")
+  })
+
+  it("un administrateur dont l'adhésion est revenue « en attente » ne peut exercer le rôle : refus indistinct", async () => {
+    const f = await fixture()
+    const session = await adminSession(f.t, f.admin, f.network)
+    await setMembership(f.t, f.network, f.admin.personId, { status: "en_attente" })
+    await expectAllRefused(f, session.as, f.network, "adhésion en attente")
+  })
+
+  it("un réseau archivé : refus indistinct", async () => {
+    const f = await fixture()
+    const session = await adminSession(f.t, f.admin, f.network)
+    await f.t.run(async (ctx) => { await ctx.db.patch(f.network, { status: "archived" }) })
+    await expectAllRefused(f, session.as, f.network, "réseau archivé")
+  })
+
+  it("la garde d'écriture de la modération : réduit au silence dans le réseau, l'administrateur lit mais ne décide pas", async () => {
+    const f = await fixture()
+    const session = await adminSession(f.t, f.admin, f.network)
+    await f.t.run(async (ctx) => {
+      const target = { kind: "person" as const, id: f.admin.personId }
+      const reportId = await ctx.db.insert("reports", { networkId: f.network, target, targetKind: "person", targetId: f.admin.personId, ownerPersonId: f.admin.personId, reason: "Recette de garde", level: "network", status: "actioned", createdAt: NOW, updatedAt: NOW })
+      await ctx.db.insert("sanctions", { networkId: f.network, reportId, personId: f.admin.personId, kind: "mute", status: "active", reason: "Recette de garde", target, createdAt: NOW, updatedAt: NOW })
+    })
+    const before = await writes(f)
+    expect(await doors(session.as, f.network).settings()).toHaveLength(8)
+    expect(await refusalOf(doors(session.as, f.network).setFeature())).toEqual({ code: "policyRefused" })
+    expect(await writes(f)).toEqual(before)
+  })
+})
+
+describe("revue CH-815 A1b — le sceau de la preuve (`recordIdnSession`)", () => {
+  it("refuse une clé d'application inconnue ou native, et un nouveau sceau différent ; le même sceau est idempotent", async () => {
+    const f = await fixture()
+    const operatorRequired = { code: "operatorRequired" }
+    const sealWith = async (session: Session, application?: string) => {
+      await f.t.mutation(internal.modules.people.identity.recordIdnProof, { subject: f.admin.idnSubject, loa: 2 })
+      return await refusalOf(f.t.mutation(internal.modules.platform.operatorAccess.recordIdnSession, {
+        sessionId: session.sessionId, authUserId: f.admin.authUserId, idnSubject: f.admin.idnSubject, loa: 2, ...(application !== undefined ? { application } : {}),
+      }))
+    }
+    const fresh = await openSession(f.t, f.admin.authUserId)
+    for (const application of ["inconnue", "antsia_mobile", "", "__proto__"]) expect(await sealWith(fresh, application), application).toEqual(operatorRequired)
+    expect(await proofOf(f.t, fresh.sessionId)).toBeNull()
+
+    const sealed = await idnSession(f.t, f.admin, ADMIN_APP)
+    const proof = await proofOf(f.t, sealed.sessionId)
+    for (const application of [MEMBERS_APP, CONSOLE_APP, undefined]) expect(await sealWith(sealed, application), String(application)).toEqual(operatorRequired)
+    expect(await sealWith(sealed, ADMIN_APP)).toBeNull()
+    expect(await proofOf(f.t, sealed.sessionId)).toEqual(proof)
   })
 })

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import catalog from "../../deploy/catalog.json"
-import { applicationOfOAuthState, applicationOfOrigin, authenticationConfiguration, idnConfiguration, idnProfileProof, isE164Phone, isWebApplicationKey, networkAdministeredBy, parseOriginList, smsConfiguration, trustedOrigins } from "./settings"
+import { applicationOfOAuthState, applicationOfOrigin, authenticationConfiguration, entryPathOf, extraApplicationOrigins, idnConfiguration, idnProfileProof, isE164Phone, isWebApplicationKey, networkAdministeredBy, parseOriginList, smsConfiguration, trustedOrigins } from "./settings"
 
 // L'inventaire reste exhaustif ; seules les entrées web déclarent une origine HTTP.
 const webApplications = Object.entries(catalog.applications).flatMap(([key, app]) =>
@@ -164,6 +164,30 @@ describe("ADR-0042 — application où un retour IDN livre la session", () => {
     expect(applicationOfOAuthState(state, {})).toBeNull()
   })
 
+  it("revue F2 — une application qui administre un réseau : les trois adresses valent exactement son entrée (`entry_path`)", () => {
+    const admin = webApplications.find((app) => app.key === "admin_diaspora_ga")
+    if (!admin || !("entry_path" in admin)) throw new Error("Entrée d'administration attendue au catalogue, avec son chemin d'entrée")
+    const entry = `${new URL(admin.site_url).origin}${admin.entry_path}`
+    expect(admin.entry_path).toBe("/entrer")
+    expect(applicationOfOAuthState({ callbackURL: entry, newUserURL: entry, errorURL: entry }, {})).toBe("admin_diaspora_ga")
+    for (const [label, state] of [
+      ["requête", { callbackURL: `${entry}?x=`, newUserURL: entry, errorURL: entry }],
+      ["fragment", { callbackURL: `${entry}#x`, newUserURL: entry, errorURL: entry }],
+      ["autre chemin", { callbackURL: `${new URL(admin.site_url).origin}/anything`, newUserURL: entry, errorURL: entry }],
+      ["nouvel utilisateur absent", { callbackURL: entry, errorURL: entry }],
+      ["nouvel utilisateur vide", { callbackURL: entry, newUserURL: "", errorURL: entry }],
+      ["erreur absente", { callbackURL: entry, newUserURL: entry }],
+      ["erreur ailleurs", { callbackURL: entry, newUserURL: entry, errorURL: `${entry}/erreur` }],
+      ["casse différente", { callbackURL: entry.replace("/entrer", "/Entrer"), newUserURL: entry, errorURL: entry }],
+    ] as const) expect(applicationOfOAuthState(state, {}), label).toBeNull()
+    // Une application qui administre un réseau sans chemin d'entrée déclaré n'est jamais scellée (fermé par défaut).
+    const applications = { administration: { platform: "web", administers_network: "reseau-fictif" } }
+    expect(networkAdministeredBy("administration", applications)).toBe("reseau-fictif")
+    expect(entryPathOf("administration", applications)).toBeNull()
+    expect(entryPathOf("admin_diaspora_ga")).toBe("/entrer")
+    expect(entryPathOf("diaspora_ga")).toBeNull()
+  })
+
   it("seule une application WEB du catalogue est une clé de preuve", () => {
     for (const app of webApplications) expect(isWebApplicationKey(app.key)).toBe(true)
     for (const key of ["antsia_mobile", "inconnue", "", "__proto__"]) expect(isWebApplicationKey(key)).toBe(false)
@@ -180,6 +204,71 @@ describe("ADR-0042 — application où un retour IDN livre la session", () => {
     for (const key of ["membres", "natif", "vide", "inconnue", "toString", "", null, undefined]) expect(networkAdministeredBy(key, applications)).toBeNull()
     // Le catalogue réel : ni le site public, ni la console, ni l'application des membres n'administrent un réseau.
     for (const key of ["antsia_ga", "admin_antsia_ga", "diaspora_ga", "antsia_mobile"]) expect(networkAdministeredBy(key)).toBeNull()
+  })
+})
+
+describe("revue CH-815 A1b — origines supplémentaires d'une application, déclarées par le déploiement", () => {
+  const DEMO_ADMIN = "https://admin.demo.example.test"
+  const DEMO_MEMBERS = "https://membres.demo.example.test"
+  const declared = JSON.stringify({ admin_diaspora_ga: [DEMO_ADMIN], diaspora_ga: [DEMO_MEMBERS] })
+  const env = { APPLICATION_EXTRA_ORIGINS_JSON: declared, TRUSTED_ORIGINS: `${DEMO_ADMIN}, ${DEMO_MEMBERS}` }
+  const entry = `${DEMO_ADMIN}/entrer`
+
+  it("absente ou vide : aucune correspondance, une origine hors catalogue n'a pas d'application", () => {
+    for (const raw of [undefined, "", "   "]) expect(extraApplicationOrigins({ APPLICATION_EXTRA_ORIGINS_JSON: raw }).size).toBe(0)
+    expect(applicationOfOrigin(DEMO_ADMIN, { TRUSTED_ORIGINS: DEMO_ADMIN })).toBeNull()
+    // Le risque relevé au lot A8 : sans déclaration, une administration servie en démonstration n'est jamais scellée.
+    expect(applicationOfOAuthState({ callbackURL: entry, newUserURL: entry, errorURL: entry }, { TRUSTED_ORIGINS: DEMO_ADMIN })).toBeNull()
+  })
+
+  it("une origine déclarée ET de confiance nomme son application ; le sceau de l'administration y vaut à son entrée exacte", () => {
+    expect([...extraApplicationOrigins(env)]).toEqual([[DEMO_ADMIN, "admin_diaspora_ga"], [DEMO_MEMBERS, "diaspora_ga"]])
+    expect(applicationOfOrigin(DEMO_ADMIN, env)).toBe("admin_diaspora_ga")
+    expect(applicationOfOrigin(`${DEMO_ADMIN}/entrer`, env)).toBe("admin_diaspora_ga")
+    expect(applicationOfOrigin(DEMO_MEMBERS, env)).toBe("diaspora_ga")
+    expect(applicationOfOAuthState({ callbackURL: entry, newUserURL: entry, errorURL: entry }, env)).toBe("admin_diaspora_ga")
+    expect(applicationOfOAuthState({ callbackURL: `${DEMO_ADMIN}/autre`, newUserURL: entry, errorURL: entry }, env)).toBeNull()
+    expect(applicationOfOAuthState({ callbackURL: `${DEMO_MEMBERS}/fil` }, env)).toBe("diaspora_ga")
+    // Les adresses du catalogue gardent leur application.
+    expect(applicationOfOrigin("https://diaspora.ga", env)).toBe("diaspora_ga")
+  })
+
+  it("la déclaration n'ajoute aucune confiance : une origine déclarée hors de TRUSTED_ORIGINS n'a pas d'application", () => {
+    const untrusted = { APPLICATION_EXTRA_ORIGINS_JSON: declared, TRUSTED_ORIGINS: DEMO_MEMBERS }
+    expect(trustedOrigins(untrusted)).not.toContain(DEMO_ADMIN)
+    expect(applicationOfOrigin(DEMO_ADMIN, untrusted)).toBeNull()
+    expect(applicationOfOAuthState({ callbackURL: entry, newUserURL: entry, errorURL: entry }, untrusted)).toBeNull()
+    expect(applicationOfOrigin(DEMO_MEMBERS, untrusted)).toBe("diaspora_ga")
+  })
+
+  it.each([
+    ["un JSON illisible", "{"],
+    ["un tableau", JSON.stringify([DEMO_ADMIN])],
+    ["null", "null"],
+    ["une chaîne", JSON.stringify(DEMO_ADMIN)],
+    ["une clé inconnue", JSON.stringify({ inconnue: [DEMO_ADMIN] })],
+    ["une clé inconnue à côté d'une clé valide", JSON.stringify({ admin_diaspora_ga: [DEMO_ADMIN], inconnue: [DEMO_MEMBERS] })],
+    ["une application native", JSON.stringify({ antsia_mobile: [DEMO_ADMIN] })],
+    ["la clé __proto__", `{"__proto__": ["${DEMO_ADMIN}"]}`],
+    ["une liste vide", JSON.stringify({ admin_diaspora_ga: [] })],
+    ["une valeur qui n'est pas une liste", JSON.stringify({ admin_diaspora_ga: DEMO_ADMIN })],
+    ["une valeur qui n'est pas une chaîne", JSON.stringify({ admin_diaspora_ga: [42] })],
+    ["une origine en http", JSON.stringify({ admin_diaspora_ga: ["http://admin.demo.example.test"] })],
+    ["un chemin", JSON.stringify({ admin_diaspora_ga: [`${DEMO_ADMIN}/entrer`] })],
+    ["une barre oblique finale", JSON.stringify({ admin_diaspora_ga: [`${DEMO_ADMIN}/`] })],
+    ["une requête", JSON.stringify({ admin_diaspora_ga: [`${DEMO_ADMIN}?x=1`] })],
+    ["des identifiants", JSON.stringify({ admin_diaspora_ga: ["https://u:p@admin.demo.example.test"] })],
+    ["des majuscules", JSON.stringify({ admin_diaspora_ga: ["https://Admin.demo.example.test"] })],
+    ["le port par défaut écrit", JSON.stringify({ admin_diaspora_ga: ["https://admin.demo.example.test:443"] })],
+    ["une origine répétée entre deux applications", JSON.stringify({ admin_diaspora_ga: [DEMO_ADMIN], diaspora_ga: [DEMO_ADMIN] })],
+    ["une origine répétée dans une application", JSON.stringify({ admin_diaspora_ga: [DEMO_ADMIN, DEMO_ADMIN] })],
+    ["l'adresse d'une application du catalogue", JSON.stringify({ admin_diaspora_ga: ["https://diaspora.ga"] })],
+    ["trop d'origines", JSON.stringify({ admin_diaspora_ga: Array.from({ length: 9 }, (_, index) => `https://demo${index}.example.test`) })],
+  ])("une déclaration hors forme est ignorée EN ENTIER : %s", (_label, raw) => {
+    const refused = { APPLICATION_EXTRA_ORIGINS_JSON: raw, TRUSTED_ORIGINS: `${DEMO_ADMIN}, ${DEMO_MEMBERS}` }
+    expect(extraApplicationOrigins(refused).size).toBe(0)
+    expect(applicationOfOrigin(DEMO_ADMIN, refused)).toBeNull()
+    expect(applicationOfOrigin(DEMO_MEMBERS, refused)).toBeNull()
   })
 })
 

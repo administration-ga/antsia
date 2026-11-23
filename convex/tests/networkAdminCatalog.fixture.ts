@@ -20,6 +20,7 @@ export const NETWORK_ADMIN_APPLICATION = {
   site_url: "https://admin.diaspora.ga",
   dev_port: 3033,
   administers_network: "diaspora-ga",
+  entry_path: "/entrer",
   build_args: ["NEXT_PUBLIC_CONVEX_URL", "NEXT_PUBLIC_SITE_URL", "NEXT_PUBLIC_BUILD_SHA", "NEXT_PUBLIC_MEMBERS_SITE_URL"],
   runtime_env: ["CONVEX_SITE_URL"],
 } as const

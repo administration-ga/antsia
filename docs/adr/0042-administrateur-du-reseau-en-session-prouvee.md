@@ -190,3 +190,42 @@ d'antsia#176 visait la console).
   donc pas de donnée où se lire.
 
 Recette : `convex/modules/diaspora/networkAdmin.test.ts`.
+
+## Amendement du 2026-11-23 (CH-815, lot A1b) — durcissement après relecture
+
+Statut « Proposé ». Revue de sécurité du lot A1 ; le code fait foi (`convex/betterAuth/`,
+`packages/api/src/auth-proxy.ts`).
+
+- **F1 — le rappel central ne pose aucun cookie.** Le rappel IDN est une navigation vers
+  `${SITE_URL}/api/auth/oauth2/callback/idn`, servie par l'application de cette origine. Better Auth y
+  posait le jeton de session (sept jours) et le JWT Convex, que `crossDomain` ne convertit que pour une
+  requête portant `better-auth-cookie` (jamais une navigation) : avec ce seul cookie,
+  `/api/auth/convex/token` rendait un JWT de la session scellée à tout script du site de SITE_URL, pour
+  l'administration d'un réseau comme pour la console. Un greffon, toujours le dernier de la chaîne
+  (`betterAuth/idnWebCallback.ts`), retire du rappel IDN web tout `Set-Cookie` et le jeton porteur
+  (`set-auth-token`), après l'émission du jeton à usage unique. Aucune application n'en dépendait : toutes
+  échangent ce jeton sans cookie du navigateur, antsia.ga (servie à SITE_URL) comprise. Parcours natif
+  inchangé. Défense en profondeur : le relais partagé ne relaie aucun cookie ni jeton porteur sur
+  `/api/auth/oauth2/callback/*`.
+- **F2 — l'administration n'est scellée qu'à son entrée exacte.** Champ de catalogue `entry_path`, requis
+  pour toute application qui porte `administers_network` et pour elle seule (`/entrer` pour
+  `admin_diaspora_ga`, cliquet `deploy-catalog`). `applicationOfOAuthState` ne scelle une telle application
+  que si `callbackURL`, `newUserURL` et `errorURL` valent exactement son origine suivie de `entry_path`,
+  sans requête ni fragment ; une adresse absente ne vaut pas l'entrée. Les autres applications ne
+  changent pas.
+- **Relais sans cookie du navigateur, sur option.** `AuthProxyOptions.browserCookies` (`relay` par
+  défaut, `drop`) et la fabrique `createAuthProxyHandlers(options)`.
+- **F4 — accès non journalisé.** Cliquet `unlogged-access` : `allowUnloggedAccess` n'est admis que dans
+  `networks/adminAccess.{myNetworkAdmin, recordAccess}` et `platform/operatorAccess.{myOperator, recordAccess}`.
+- **Origines de démonstration.** Variable facultative `APPLICATION_EXTRA_ORIGINS_JSON` (nom seulement,
+  `.env.example`) : elle nomme l'application d'origines supplémentaires, lue strictement (une faute et la
+  variable entière est ignorée), sans rien rendre de confiance (chaque origine doit aussi être dans
+  `TRUSTED_ORIGINS`). Sans elle, une application d'administration servie sur une origine de démonstration
+  n'est jamais scellée.
+- **Non traité, décision du propriétaire (F3).** La console n'est liée à aucune application : elle n'est
+  bornée que par exclusion (une preuve scellée pour une application qui administre un réseau ne l'ouvre
+  pas) ; une session IDN de l'application des membres d'un opérateur ouvre donc la console.
+
+Recettes : `convex/betterAuth/idnApplication.test.ts`, `convex/betterAuth/settings.test.ts`,
+`convex/modules/networks/adminAccess.test.ts`, `packages/api/src/auth-proxy.test.ts`, cliquets
+`deploy-catalog` et `unlogged-access`.

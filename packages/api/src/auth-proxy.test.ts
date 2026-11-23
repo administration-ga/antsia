@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server"
-import { describe, expect, it, vi } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 
-import { devCookie, proxyToConvex } from "./auth-proxy"
+import { createAuthProxyHandlers, devCookie, proxyToConvex } from "./auth-proxy"
 
 const SITE = "http://127.0.0.1:3211"
 
@@ -119,5 +119,88 @@ describe("proxy Better Auth du moteur", () => {
 
   it("devCookie retire __Secure- et Secure, et passe SameSite=None en Lax", () => {
     expect(devCookie("__Secure-a=b; Secure; SameSite=None")).toBe("a=b; SameSite=Lax")
+  })
+})
+
+/** Une réponse du moteur qui pose deux cookies, rend la session au client et le jeton porteur. */
+function upstreamWithCookies(status = 200, extra: Record<string, string> = {}) {
+  const headers = new Headers({ "content-type": "application/json", "set-better-auth-cookie": "better-auth.session_token=abc; Max-Age=604800", "set-auth-token": "abc", ...extra })
+  headers.append("set-cookie", "better-auth.session_token=abc; Path=/; HttpOnly; SameSite=Lax")
+  headers.append("set-cookie", "better-auth.convex_jwt=jwt; Path=/; HttpOnly; SameSite=Lax")
+  return new Response(status === 302 ? null : "{}", { status, headers })
+}
+
+/** Le relais avec un moteur simulé : rend la réponse relayée et les en-têtes partis vers le moteur. */
+function recordingFetch(response: () => Response) {
+  const sent: Record<string, string>[] = []
+  const fetchImpl = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
+    sent.push({ ...(init?.headers as Record<string, string>) })
+    return response()
+  })
+  return { fetchImpl: fetchImpl as unknown as typeof fetch, sent }
+}
+
+describe("revue CH-815 A1b — cookies du navigateur dans le relais", () => {
+  afterEach(() => { vi.unstubAllEnvs() })
+
+  it("par défaut (`relay`) : le Cookie entrant part, les Set-Cookie reviennent, hors rappel OAuth", async () => {
+    const { fetchImpl, sent } = recordingFetch(() => upstreamWithCookies())
+    const response = await proxyToConvex(request("/api/auth/get-session", { headers: { cookie: "a=b", "better-auth-cookie": "better-auth.session_token=abc" } }), { convexSiteUrl: SITE, isDev: false, fetchImpl })
+    expect(sent[0]?.cookie).toBe("a=b")
+    expect(sent[0]?.["better-auth-cookie"]).toBe("better-auth.session_token=abc")
+    expect(response.headers.getSetCookie()).toHaveLength(2)
+    expect(response.headers.get("set-better-auth-cookie")).toContain("session_token")
+  })
+
+  it.each([
+    ["le rappel IDN", "/api/auth/oauth2/callback/idn?code=c&state=s", ""],
+    ["un autre fournisseur", "/api/auth/oauth2/callback/autre?code=c", ""],
+    ["le rappel derrière un préfixe public", "/demo/api/auth/oauth2/callback/idn?code=c&state=s", "/demo"],
+  ])("défense en profondeur : %s ne pose jamais de cookie ni de jeton porteur, même en mode `relay`", async (_label, path, publicBasePath) => {
+    const { fetchImpl } = recordingFetch(() => upstreamWithCookies(302, { location: "https://app.example.test/entrer?ott=x" }))
+    const response = await proxyToConvex(request(path), { convexSiteUrl: SITE, isDev: false, publicBasePath, fetchImpl })
+    expect(response.status).toBe(302)
+    expect(response.headers.get("location")).toBe("https://app.example.test/entrer?ott=x")
+    expect(response.headers.getSetCookie()).toEqual([])
+    expect(response.headers.get("set-auth-token")).toBeNull()
+  })
+
+  it("`drop` : aucun Cookie ne part, aucun Set-Cookie ne revient ; la session du client passe par ses en-têtes", async () => {
+    const { fetchImpl, sent } = recordingFetch(() => upstreamWithCookies())
+    const response = await proxyToConvex(
+      request("/api/auth/get-session", { headers: { cookie: "better-auth.session_token=pose-par-un-voisin", "better-auth-cookie": "better-auth.session_token=abc", origin: "http://localhost:3033" } }),
+      { convexSiteUrl: SITE, isDev: true, browserCookies: "drop", fetchImpl },
+    )
+    expect(Object.keys(sent[0] ?? {}).map((name) => name.toLowerCase())).not.toContain("cookie")
+    expect(sent[0]?.["better-auth-cookie"]).toBe("better-auth.session_token=abc")
+    expect(sent[0]?.origin).toBe("http://localhost:3033")
+    expect(response.headers.getSetCookie()).toEqual([])
+    expect(response.headers.get("set-better-auth-cookie")).toBe("better-auth.session_token=abc; Max-Age=604800")
+    expect(response.status).toBe(200)
+  })
+
+  it("`createAuthProxyHandlers` : les cinq méthodes, l'option appliquée à chacune, CONVEX_SITE_URL lu à la requête", async () => {
+    const { fetchImpl, sent } = recordingFetch(() => upstreamWithCookies())
+    const handlers = createAuthProxyHandlers({ browserCookies: "drop", fetchImpl })
+    expect(Object.keys(handlers).sort()).toEqual(["DELETE", "GET", "PATCH", "POST", "PUT"])
+    vi.stubEnv("CONVEX_SITE_URL", SITE)
+    for (const method of ["GET", "POST", "PUT", "PATCH", "DELETE"] as const) {
+      const response = await handlers[method](request("/api/auth/get-session", { method, headers: { cookie: "a=b" }, ...(method === "GET" ? {} : { body: "{}" }) }))
+      expect(response.status, method).toBe(200)
+      expect(response.headers.getSetCookie(), method).toEqual([])
+    }
+    expect(sent).toHaveLength(5)
+    for (const headers of sent) expect(headers.cookie).toBeUndefined()
+    expect(fetchImpl).toHaveBeenCalledWith(`${SITE}/api/auth/get-session`, expect.objectContaining({ method: "DELETE" }))
+    vi.stubEnv("CONVEX_SITE_URL", undefined)
+    expect((await handlers.GET(request("/api/auth/get-session"))).status).toBe(500)
+  })
+
+  it("`createAuthProxyHandlers()` sans option garde le comportement des exports historiques (`relay`)", async () => {
+    const { fetchImpl, sent } = recordingFetch(() => upstreamWithCookies())
+    vi.stubEnv("CONVEX_SITE_URL", SITE)
+    const response = await createAuthProxyHandlers({ fetchImpl }).POST(request("/api/auth/get-session", { method: "POST", headers: { cookie: "a=b" }, body: "{}" }))
+    expect(sent[0]?.cookie).toBe("a=b")
+    expect(response.headers.getSetCookie()).toHaveLength(2)
   })
 })

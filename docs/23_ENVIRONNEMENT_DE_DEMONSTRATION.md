@@ -147,6 +147,11 @@ fait avec l'accord écrit du propriétaire.
 
    - `TRUSTED_ORIGINS` : l'origine du site DIASPORA.GA de démonstration. `SITE_URL` reste celle
      d'antsia.ga.
+   - `APPLICATION_EXTRA_ORIGINS_JSON` (facultative, revue CH-815 A1b) : nomme l'application de
+     chaque origine de démonstration (`{"diaspora_ga": ["<origine>"], "admin_diaspora_ga": ["<origine>"]}`),
+     chacune aussi dans `TRUSTED_ORIGINS`. Sans elle, le code part à la marque ANTSIA et une
+     session de l'application d'administration servie en démonstration n'est jamais scellée pour
+     elle : l'administrateur du réseau n'y entre pas. Forme et refus : `.env.example`.
 2. **Site de démonstration DIASPORA.GA** : un projet d'hébergement distinct (ex. `diaspora-ga-demo`).
    - Dossier racine `DIASPORA_GA/apps/diaspora_ga`, Node 24.
    - Installation `cd ../../../ANTSIA && npx --yes bun@1.4.2 install --frozen-lockfile`.

@@ -11,6 +11,7 @@
 import type * as betterAuth_auth from "../betterAuth/auth.js";
 import type * as betterAuth_delivery from "../betterAuth/delivery.js";
 import type * as betterAuth_idnRefusalReturn from "../betterAuth/idnRefusalReturn.js";
+import type * as betterAuth_idnWebCallback from "../betterAuth/idnWebCallback.js";
 import type * as betterAuth_nativeIdn from "../betterAuth/nativeIdn.js";
 import type * as betterAuth_settings from "../betterAuth/settings.js";
 import type * as crons from "../crons.js";
@@ -517,6 +518,7 @@ declare const fullApi: ApiFromModules<{
   "betterAuth/auth": typeof betterAuth_auth;
   "betterAuth/delivery": typeof betterAuth_delivery;
   "betterAuth/idnRefusalReturn": typeof betterAuth_idnRefusalReturn;
+  "betterAuth/idnWebCallback": typeof betterAuth_idnWebCallback;
   "betterAuth/nativeIdn": typeof betterAuth_nativeIdn;
   "betterAuth/settings": typeof betterAuth_settings;
   crons: typeof crons;

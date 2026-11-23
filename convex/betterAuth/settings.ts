@@ -31,8 +31,55 @@ const webApplications = Object.entries(catalog.applications).flatMap(([key, app]
 )
 
 /**
- * L'application du catalogue servie à cette origine : son adresse publique, ou son
- * port local quand les outils de développement sont ouverts. `null` sinon.
+ * Les origines SUPPLÉMENTAIRES d'une application du catalogue, déclarées par le déploiement
+ * (`APPLICATION_EXTRA_ORIGINS_JSON`, revue CH-815 A1b) : une application servie ailleurs qu'à son
+ * `site_url`, typiquement sur un déploiement de démonstration. Jamais une valeur écrite ici.
+ *
+ * Forme : un objet JSON `{ "<clé d'application WEB du catalogue>": ["https://origine", …] }`, au plus
+ * `MAX_EXTRA_ORIGINS_PER_APPLICATION` origines par clé, chacune HTTPS, EXACTE (sans chemin, ni requête,
+ * ni fragment, ni identifiants, telle que `URL.origin` l'écrit), ni répétée, ni déjà l'adresse d'une
+ * application du catalogue. Une seule faute (JSON illisible, clé inconnue ou native, valeur hors forme)
+ * et la variable ENTIÈRE est ignorée : aucune correspondance plutôt qu'une correspondance devinée.
+ *
+ * La correspondance NOMME l'application d'une origine (sceau de la session IDN, marque du code) ; elle
+ * n'ajoute aucune confiance : une origine qui n'est pas aussi dans `TRUSTED_ORIGINS` (ou `SITE_URL`)
+ * n'a pas d'application.
+ */
+export const MAX_EXTRA_ORIGINS_PER_APPLICATION = 8
+const MAX_EXTRA_ORIGINS_LENGTH = 8_192
+
+function exactHttpsOrigin(value: unknown): string | null {
+  if (typeof value !== "string" || value.length > 256) return null
+  try {
+    const url = new URL(value)
+    return url.protocol === "https:" && !url.username && !url.password && url.origin === value ? value : null
+  } catch { return null }
+}
+
+export function extraApplicationOrigins(env: Env = process.env): ReadonlyMap<string, ApplicationKey> {
+  const raw = env.APPLICATION_EXTRA_ORIGINS_JSON
+  const none = new Map<string, ApplicationKey>()
+  if (!raw?.trim() || raw.length > MAX_EXTRA_ORIGINS_LENGTH) return none
+  let parsed: unknown
+  try { parsed = JSON.parse(raw) } catch { return none }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return none
+  const catalogOrigins = new Set(webApplications.flatMap((app) => parseOriginList(app.site_url)))
+  const mapping = new Map<string, ApplicationKey>()
+  for (const [key, origins] of Object.entries(parsed)) {
+    if (!isWebApplicationKey(key) || !Array.isArray(origins) || origins.length === 0 || origins.length > MAX_EXTRA_ORIGINS_PER_APPLICATION) return none
+    for (const value of origins) {
+      const origin = exactHttpsOrigin(value)
+      if (!origin || catalogOrigins.has(origin) || mapping.has(origin)) return none
+      mapping.set(origin, key)
+    }
+  }
+  return mapping
+}
+
+/**
+ * L'application du catalogue servie à cette origine : son adresse publique, son port local quand les
+ * outils de développement sont ouverts, ou une origine supplémentaire déclarée par le déploiement ET
+ * de confiance (`extraApplicationOrigins`). `null` sinon.
  */
 export function applicationOfOrigin(origin: string | null | undefined, env: Env = process.env): ApplicationKey | null {
   const [normalized] = parseOriginList(origin ?? "")
@@ -42,7 +89,10 @@ export function applicationOfOrigin(origin: string | null | undefined, env: Env 
     if (parseOriginList(app.site_url).includes(normalized)) return app.key
     if (local && [`http://localhost:${app.dev_port}`, `http://127.0.0.1:${app.dev_port}`].includes(normalized)) return app.key
   }
-  return null
+  const declared = extraApplicationOrigins(env).get(normalized)
+  if (declared === undefined) return null
+  const trusted = [...parseOriginList(env.SITE_URL), ...parseOriginList(env.TRUSTED_ORIGINS)]
+  return trusted.includes(normalized) ? declared : null
 }
 
 export function trustedOrigins(env: Env = process.env): string[] {
@@ -60,7 +110,7 @@ export function isWebApplicationKey(key: string): key is ApplicationKey {
 }
 
 /** Ce que le catalogue dit d'une application pour l'administration d'un réseau. */
-type CatalogApplication = { readonly platform: string; readonly administers_network?: string }
+type CatalogApplication = { readonly platform: string; readonly administers_network?: string; readonly entry_path?: string }
 
 /**
  * ADR-0042 — le réseau (son identifiant d'adresse, `slug`) qu'ADMINISTRE une application web du
@@ -81,6 +131,22 @@ export function networkAdministeredBy(application: string | null | undefined, ap
  */
 export function hasNetworkAdministration(networkSlug: string, applications: Readonly<Record<string, CatalogApplication>> = catalog.applications): boolean {
   return Object.keys(applications).some((key) => networkAdministeredBy(key, applications) === networkSlug)
+}
+
+// Un chemin d'entrée : des segments de caractères non réservés, sans segment vide, sans barre finale,
+// ni requête, ni fragment, ni encodage (la même forme que les chemins sûrs du retour d'un refus IDN).
+const ENTRY_PATH = /^(?:\/[A-Za-z0-9._~-]+)+$/
+
+/**
+ * Revue CH-815 A1b (constat F2) — le chemin d'ENTRÉE d'une application web du catalogue (`entry_path`),
+ * la seule page où elle reçoit le retour d'IDN et son jeton à usage unique ; `null` s'il n'est pas
+ * déclaré, ou pas sous la forme d'un chemin simple. Requis pour toute application qui administre un
+ * réseau (cliquet `deploy-catalog`).
+ */
+export function entryPathOf(application: string | null | undefined, applications: Readonly<Record<string, CatalogApplication>> = catalog.applications): string | null {
+  if (!application || !Object.prototype.hasOwnProperty.call(applications, application)) return null
+  const app = applications[application]
+  return app?.platform === "web" && typeof app.entry_path === "string" && ENTRY_PATH.test(app.entry_path) ? app.entry_path : null
 }
 
 const MAX_RETURN_URL_LENGTH = 2_048
@@ -114,16 +180,33 @@ function applicationOfReturnURL(value: unknown, env: Env): ApplicationKey | null
  * D'où la règle : l'application de l'origine EXACTE de `callbackURL` (absolue, http(s), sans
  * identifiants, de confiance, au catalogue) ; une adresse de nouvel utilisateur (`newUserURL`), si
  * elle est donnée, doit mener à la MÊME application (Better Auth y redirige un compte neuf) ; un
- * parcours natif (`antsiaNative`) n'en a aucune. Tout le reste rend `null` : la preuve ne vaut alors
- * pour aucune administration de réseau (fermé par défaut).
+ * parcours natif (`antsiaNative`) n'en a aucune. Pour une application qui administre un réseau, les trois
+ * adresses doivent valoir exactement son entrée (`administrationEntryMatches`, constat F2). Tout le reste
+ * rend `null` : la preuve ne vaut alors pour aucune administration de réseau (fermé par défaut).
  */
 export function applicationOfOAuthState(state: unknown, env: Env = process.env): ApplicationKey | null {
   if (!state || typeof state !== "object" || Object.prototype.hasOwnProperty.call(state, "antsiaNative")) return null
-  const { callbackURL, newUserURL } = state as { callbackURL?: unknown; newUserURL?: unknown }
+  const { callbackURL, newUserURL, errorURL } = state as { callbackURL?: unknown; newUserURL?: unknown; errorURL?: unknown }
   const application = applicationOfReturnURL(callbackURL, env)
-  if (application === null) return null
+  if (application === null || typeof callbackURL !== "string") return null
+  if (networkAdministeredBy(application) !== null) return administrationEntryMatches(application, callbackURL, newUserURL, errorURL) ? application : null
   if (newUserURL !== undefined && newUserURL !== "" && applicationOfReturnURL(newUserURL, env) !== application) return null
   return application
+}
+
+/**
+ * Revue CH-815 A1b (constat F2) — une application qui ADMINISTRE un réseau n'est scellée que si les TROIS
+ * adresses de retour enregistrées au départ (`callbackURL`, `newUserURL`, `errorURL`) valent EXACTEMENT
+ * son origine suivie de son chemin d'entrée (`entry_path`), sans requête ni fragment : le jeton à usage
+ * unique de la session n'atterrit alors que sur sa page d'entrée, qui l'échange et l'efface. Une adresse
+ * absente ne vaut pas l'entrée (Better Auth complète une adresse d'erreur absente par la sienne, au rappel
+ * central) ; un chemin d'entrée non déclaré ne scelle rien (fermé par défaut).
+ */
+function administrationEntryMatches(application: ApplicationKey, callbackURL: string, newUserURL: unknown, errorURL: unknown): boolean {
+  const entryPath = entryPathOf(application)
+  if (entryPath === null) return false
+  const entry = `${new URL(callbackURL).origin}${entryPath}`
+  return callbackURL === entry && newUserURL === entry && errorURL === entry
 }
 
 function secureEndpoint(value: string | undefined): string | undefined {
