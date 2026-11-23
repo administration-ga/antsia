@@ -124,10 +124,11 @@ function cookieNames(setCookies: readonly string[]): string[] {
 /**
  * L'application de départ échange le jeton à usage unique, comme son amorçage (`crossDomainClient`) :
  * `credentials: "omit"`, session vide dans `Better-Auth-Cookie`, session rendue dans `Set-Better-Auth-Cookie`.
- * Rend la paire de cookies que l'application garde dans son stockage.
+ * Le client appelle `/cross-domain/one-time-token/verify`, que `convex/http.ts` réécrit vers l'endpoint du
+ * greffon `oneTimeToken` appelé ici. Rend la paire de cookies que l'application garde dans son stockage.
  */
 async function adoptOneTimeToken(t: T, origin: string, ott: string): Promise<string> {
-  const adopted = await authRequest(t, "/cross-domain/one-time-token/verify", { method: "POST", origin, headers: { "Better-Auth-Cookie": "" }, body: { token: ott } })
+  const adopted = await authRequest(t, "/one-time-token/verify", { method: "POST", origin, headers: { "Better-Auth-Cookie": "" }, body: { token: ott } })
   expect(adopted.status, adopted.body).toBe(200)
   expect(adopted.setCookies, "l'échange ne pose aucun cookie sur l'origine de l'application").toEqual([])
   const stored = parseSetCookieHeader(adopted.setBetterAuthCookie ?? "")

@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/betterAuth/auth.ts @ ad2e7fdc2 — adaptations : PA4, IDN avec PKCE et preuve serveur minimale, comptes légers par OTP e-mail/SMS, aucune route de mot de passe ; origines du catalogue et de l'environnement ; session sept jours et JWT trente minutes avec sessionId contrôlé côté serveur ; OTT trois minutes ; délivrance locale bornée ou transport configuré, erreurs et limitation de débit du moteur ; refus ou abandon chez IDN renvoyé à la porte de départ de confiance (issue #122) ; refus de débit porteur du délai restant, `retryAfterMs` et `Retry-After` (EA-08, issue #151) ; preuve de session IDN scellée avec l'application où la session est livrée, prise de l'état OAuth enregistré au départ (ADR-0042, CH-815).
+// Dupliqué de socle/convex/betterAuth/auth.ts @ ad2e7fdc2 — adaptations : PA4, IDN avec PKCE et preuve serveur minimale, comptes légers par OTP e-mail/SMS, aucune route de mot de passe ; origines du catalogue et de l'environnement ; session sept jours et JWT trente minutes avec sessionId contrôlé côté serveur ; OTT trois minutes ; délivrance locale bornée ou transport configuré, erreurs et limitation de débit du moteur ; refus ou abandon chez IDN renvoyé à la porte de départ de confiance (issue #122) ; refus de débit porteur du délai restant, `retryAfterMs` et `Retry-After` (EA-08, issue #151) ; preuve de session IDN scellée avec l'application où la session est livrée, prise de l'état OAuth enregistré au départ (ADR-0042, CH-815) ; rappel IDN central web sans aucun cookie ni jeton porteur, la session ne passant que par le jeton à usage unique (revue CH-815 A1b, constat F1).
 /**
  * Better Auth du moteur — l'émetteur UNIQUE des jetons Convex (ADR-0002).
  *
@@ -23,6 +23,7 @@ import authConfig from "../auth.config"
 import { devToolsAllowed } from "../lib/devTools"
 import { deliverOtp, type OtpRequest } from "./delivery"
 import { idnRefusalReturn } from "./idnRefusalReturn"
+import { idnWebCallbackWithoutCookies } from "./idnWebCallback"
 import { isNativeIdnOAuth, nativeIdn } from "./nativeIdn"
 import { applicationOfOAuthState, authenticationConfiguration, idnConfiguration, idnProfileProof, isE164Phone, OTP_TTL_SECONDS, trustedOrigins } from "./settings"
 
@@ -343,6 +344,9 @@ export const createAuth = (ctx: GenericCtx<DataModel>, requestOrigin?: string | 
           getTempName: () => BRAND_NAME,
         },
       }),
+      // TOUJOURS le dernier greffon : son crochet passe après le jeton à usage unique (`crossDomain`), le JWT
+      // Convex et le jeton porteur, et retire du rappel IDN web tout cookie de session (constat F1).
+      ...(idnProvider.length ? [idnWebCallbackWithoutCookies()] : []),
     ],
   })
 }
