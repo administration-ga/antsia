@@ -327,6 +327,7 @@ import type * as modules_pages_followedUpdates from "../modules/pages/followedUp
 import type * as modules_pages_follows from "../modules/pages/follows.js";
 import type * as modules_pages_governanceNoticeAccess from "../modules/pages/governanceNoticeAccess.js";
 import type * as modules_pages_identity from "../modules/pages/identity.js";
+import type * as modules_pages_networkAdmin from "../modules/pages/networkAdmin.js";
 import type * as modules_pages_pages from "../modules/pages/pages.js";
 import type * as modules_pages_presentation from "../modules/pages/presentation.js";
 import type * as modules_pages_shopPages from "../modules/pages/shopPages.js";
@@ -831,6 +832,7 @@ declare const fullApi: ApiFromModules<{
   "modules/pages/follows": typeof modules_pages_follows;
   "modules/pages/governanceNoticeAccess": typeof modules_pages_governanceNoticeAccess;
   "modules/pages/identity": typeof modules_pages_identity;
+  "modules/pages/networkAdmin": typeof modules_pages_networkAdmin;
   "modules/pages/pages": typeof modules_pages_pages;
   "modules/pages/presentation": typeof modules_pages_presentation;
   "modules/pages/shopPages": typeof modules_pages_shopPages;

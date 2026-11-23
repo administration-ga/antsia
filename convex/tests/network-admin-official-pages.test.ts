@@ -180,7 +180,7 @@ async function pageDecisions(f: Fixture) {
   return await f.t.run(async (ctx) =>
     (await ctx.db.query("engineAudit").withIndex("by_network_at", (q) => q.eq("networkId", f.network)).take(200))
       .filter((row) => row.action.startsWith("page."))
-      .map((row) => ({ action: row.action, capacity: row.capacity, actorPersonId: row.actorPersonId, subject: row.subject, details: row.details })),
+      .map((row) => ({ action: row.action, capacity: row.capacity, actorPersonId: row.actorPersonId, subject: { table: row.subjectTable, id: row.subjectId }, details: row.details })),
   )
 }
 
@@ -339,7 +339,9 @@ describe("A2 — mettre en sommeil et réveiller une page officielle (règles du
     const asleep = await f.adminApp.query(NA.officialPages, { networkId: f.network, status: "inactive", paginationOpts: PAGE })
     expect(asleep.page.map((row) => [row.pageId, row.state, row.sleepEndsAt])).toEqual([[f.pageId, "asleep", NOW + PAGE_SLEEP_MS]])
     expect(await f.adminApp.mutation(NA.wakeOfficialPage, { networkId: f.network, pageId: f.pageId, reason: REASON })).toEqual({ status: "active" })
-    expect((await f.t.run(async (ctx) => await ctx.db.get(f.pageId)))).toMatchObject({ status: "active", sleepEndsAt: undefined })
+    const woken = await f.t.run(async (ctx) => await ctx.db.get(f.pageId))
+    expect(woken?.status).toBe("active")
+    expect(woken?.sleepEndsAt).toBeUndefined()
     const journal = (await pageDecisions(f)).filter((row) => row.action === "page.sleep" || row.action === "page.wake")
     expect(journal).toEqual([
       { action: "page.sleep", capacity: "network_admin", actorPersonId: f.admin.personId, subject: { table: "pages", id: f.pageId }, details: { reason: REASON, sleepEndsAt: NOW + PAGE_SLEEP_MS } },
@@ -351,8 +353,10 @@ describe("A2 — mettre en sommeil et réveiller une page officielle (règles du
     const f = await fixture()
     await f.adminApp.mutation(NA.sleepOfficialPage, { networkId: f.network, pageId: f.pageId, reason: REASON })
     vi.setSystemTime(NOW + PAGE_SLEEP_MS + 1)
-    expect((await f.adminApp.query(NA.officialPages, { networkId: f.network, status: "inactive", paginationOpts: PAGE })).page[0]?.state).toBe("expired")
-    expect(await f.adminApp.mutation(NA.wakeOfficialPage, { networkId: f.network, pageId: f.pageId, reason: REASON })).toEqual({ status: "active" })
+    // Trente jours ont passé : l'administrateur rentre par une session neuve de l'application d'administration.
+    const later = await openTestNetworkAdminSession(f.t, f.admin.as, f.admin.personId, f.network)
+    expect((await later.query(NA.officialPages, { networkId: f.network, status: "inactive", paginationOpts: PAGE })).page[0]?.state).toBe("expired")
+    expect(await later.mutation(NA.wakeOfficialPage, { networkId: f.network, pageId: f.pageId, reason: REASON })).toEqual({ status: "active" })
   })
 
   it("une page retirée par la plateforme ne se réveille pas d'ici ; une page déjà en sommeil ne se rendort pas", async () => {

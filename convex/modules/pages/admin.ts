@@ -7,7 +7,7 @@
  * « Officiel ». Retirer une page ne supprime rien : ses publications cessent
  * d'être servies, ses abonnements demeurent, une réactivation rend tout.
  */
-import { assertDecisionReason } from "@antsia/social-domain/audit"
+import { assertDecisionReason, type AuditCapacity } from "@antsia/social-domain/audit"
 import { assertCountryCode } from "@antsia/social-domain/content"
 import {
   assertPageHandle,
@@ -24,7 +24,7 @@ import { paginationOptsValidator, type PaginationResult } from "convex/server"
 import { v } from "convex/values"
 
 import { internal } from "../../_generated/api"
-import type { Doc } from "../../_generated/dataModel"
+import type { Doc, Id } from "../../_generated/dataModel"
 import type { MutationCtx, QueryCtx } from "../../_generated/server"
 import { isActiveMember } from "../../lib/access"
 import { checked, fail, failRule, notFound } from "../../lib/errors"
@@ -36,9 +36,10 @@ import { assertNativePageManagement, isFederatedPage } from "../federation/mirro
 import { notifyPerson } from "../notifications/notify"
 import { hasJudicialPageHold } from "../moderation/judicialHolds"
 import { hasStrongIdentityFor } from "../people/persons"
-import { appendAudit, operatorCapacity } from "../platform/audit"
+import { livePersonProfile } from "../people/miniProfile"
+import { appendAudit, type AuditEntry, operatorCapacity } from "../platform/audit"
 import { assertPageHandleFree, isPageOnRoot, liveSignatoryRole, pageSearchText, signatoryRowOf, signatoryRowsOf } from "./access"
-import { applyTeamRoleTransition } from "./signatories"
+import { applyTeamRoleTransition, removePageTeamRow } from "./signatories"
 import { pageStatusValidator } from "./validators"
 
 /** Ce que la console doit voir — l'état RÉEL, sans caviardage (ni identifiant de stockage). */
@@ -59,6 +60,148 @@ function toAdminDto(page: Doc<"pages">) {
     /** AS-11a : l'échéance du sommeil posé par un administrateur de la page ; `null` hors sommeil (retrait de l'opérateur ou du juge compris). */
     sleepEndsAt: page.sleepEndsAt ?? null,
   }
+}
+
+/** Ce qu'il faut pour faire naître une page d'institution (`insertInstitutionPage`). */
+export type InstitutionPageInput = {
+  name: string
+  handle?: string
+  shortName?: string
+  description?: string
+  country?: string
+  /** La règle de visibilité de la page ; la racine ne connaît que `network`. */
+  visibility: Doc<"pages">["visibility"]
+  /** Référence d'import contractuel : la console seule la pose (idempotence d'un import). */
+  importRef?: string
+}
+
+/**
+ * CH-815 A2 — LE chemin qui fait naître une page d'INSTITUTION « Officiel », partagé par la console
+ * (`createInstitutionPage`) et par l'administration d'un réseau (`pages/networkAdmin.createOfficialPage`) :
+ * les mêmes règles de nom, d'adresse, de sigle, de description et de pays, l'adresse libre exigée,
+ * la confiance « Officiel » et son rang, la lisibilité depuis la racine dénormalisée. L'appelant a
+ * relu le motif et choisi la visibilité ; il inscrit sa décision au journal à SON titre.
+ */
+export async function insertInstitutionPage(ctx: MutationCtx, network: Doc<"networks">, input: InstitutionPageInput, now: number): Promise<{ pageId: Id<"pages">; handle: string }> {
+  const name = checked(() => assertPageName(input.name))
+  const handle = checked(() => assertPageHandle(input.handle ?? name))
+  const shortName = checked(() => normalizePageShortName(input.shortName))
+  const description = checked(() => normalizePageDescription(input.description))
+  const country = input.country === undefined ? undefined : checked(() => assertCountryCode(input.country ?? ""))
+  await assertPageHandleFree(ctx, handle)
+  const pageId = await ctx.db.insert("pages", {
+    networkId: network._id,
+    handle,
+    name,
+    ...(shortName !== undefined ? { shortName } : {}),
+    ...(description !== undefined ? { description } : {}),
+    ownerKind: "institution",
+    trust: "official",
+    trustRank: pageTrustRank("official"),
+    ...(country !== undefined ? { country } : {}),
+    visibility: input.visibility,
+    onRoot: isPageOnRoot(network, input.visibility),
+    status: "active",
+    ...(input.importRef !== undefined ? { importRef: input.importRef } : {}),
+    searchText: pageSearchText({ name, ...(shortName !== undefined ? { shortName } : {}), handle }),
+    createdAt: now,
+    updatedAt: now,
+  })
+  return { pageId, handle }
+}
+
+/** Qui décide un geste d'équipe sur une page d'institution, à quel titre, et pourquoi. */
+type InstitutionDecision = { actorPersonId: Id<"persons">; capacity: AuditCapacity; motive: string; now: number }
+
+/**
+ * CH-815 A2 — HABILITER l'administrateur d'une page d'institution : le chemin partagé par la console
+ * (`grantPageAdmin`) et par l'administration du réseau (`pages/networkAdmin`). C'est une INVITATION que
+ * la personne accepte ; signer pour une page officielle exige une identité forte (IDN `loa ≥ 2`,
+ * `PAGE_SIGNATORY_IDENTITY_REQUIRED`), relue encore à l'acceptation. Déjà administratrice : rien n'est
+ * écrit, ni trace ni cloche. `requireRoom` : une ligne neuve respecte le plafond de l'équipe. La ligne
+ * de journal (`page.signatory_grant`, à titre de l'appelant) est RENDUE, et l'appelant l'inscrit dans sa
+ * définition même (cliquets `operator-audit`, `network-admin-audit`) ; `null` : rien n'a changé.
+ */
+export async function grantInstitutionAdmin(ctx: MutationCtx, page: Doc<"pages">, person: Doc<"persons">, decision: InstitutionDecision & { requireRoom: boolean }): Promise<{ invited: boolean; audit: AuditEntry | null }> {
+  if (page.trust === "official" && !(await hasStrongIdentityFor(ctx, person._id))) return failRule("PAGE_SIGNATORY_IDENTITY_REQUIRED")
+  const existing = await signatoryRowOf(ctx, page._id, person._id)
+  if (existing?.role === "admin") return { invited: existing.acceptedAt === undefined, audit: null }
+  const { now } = decision
+  if (existing) {
+    await ctx.db.patch(existing._id, { role: "admin", authorityRevision: (existing.authorityRevision ?? 0) + 1, updatedAt: now })
+    // AS-10 : un modérateur accepté promu administrateur parle désormais au nom de la page.
+    const accepted = existing.acceptedAt !== undefined
+    await applyTeamRoleTransition(ctx, { networkId: page.networkId, pageId: page._id, personId: person._id, before: { role: existing.role, accepted }, after: { role: "admin", accepted } })
+  } else {
+    if (decision.requireRoom) {
+      const count = (await signatoryRowsOf(ctx, page._id)).length
+      checked(() => assertPageHasRoomForSignatory(count))
+    }
+    await ctx.db.insert("pageSignatories", { networkId: page.networkId, pageId: page._id, personId: person._id, role: "admin", authorityRevision: 0, createdAt: now, updatedAt: now })
+  }
+  const invited = existing === null || existing.acceptedAt === undefined
+  // PG-01 : l'invitation sonne chez la personne habilitée (sans acteur : la décision ne se nomme pas).
+  if (invited) await notifyPerson(ctx, { networkId: page.networkId, recipientPersonId: person._id, kind: "page_signatory_invite", subject: { page: page._id } })
+  return {
+    invited,
+    audit: {
+      action: "page.signatory_grant",
+      capacity: decision.capacity,
+      actorPersonId: decision.actorPersonId,
+      networkId: page.networkId,
+      subject: { table: "pages", id: page._id },
+      details: { reason: decision.motive, targetPersonId: person._id, role: "admin", previousRole: existing?.role ?? null, invited: existing === null },
+      at: now,
+    },
+  }
+}
+
+/**
+ * CH-815 A2 — RETIRER une personne de l'équipe d'une page d'institution, par décision motivée
+ * (`page.signatory_revoke`, à titre de l'appelant) : le retrait de l'équipe (`removePageTeamRow` :
+ * ligne effacée, invitation en attente résolue, directs de la page coupés). La ligne de journal est
+ * RENDUE à l'appelant, qui l'inscrit ; `null` : la personne n'y était pas, rien n'est écrit.
+ */
+export async function revokeInstitutionTeamMember(ctx: MutationCtx, page: Doc<"pages">, personId: Id<"persons">, decision: InstitutionDecision): Promise<AuditEntry | null> {
+  const row = await signatoryRowOf(ctx, page._id, personId)
+  if (!row) return null
+  await removePageTeamRow(ctx, page, row)
+  return {
+    action: "page.signatory_revoke",
+    capacity: decision.capacity,
+    actorPersonId: decision.actorPersonId,
+    networkId: page.networkId,
+    subject: { table: "pages", id: page._id },
+    details: { reason: decision.motive, targetPersonId: personId, role: row.role },
+    at: decision.now,
+  }
+}
+
+/** Le signataire d'une page d'institution tel que l'administration le voit : l'identifiant et le nom publiés, et si l'invitation est acceptée. */
+export type InstitutionSignatory = { personId: Id<"persons">; handle: string | null; displayName: string | null; accepted: boolean }
+
+/**
+ * CH-815 A2 — LE signataire d'une page d'institution : son premier administrateur ACCEPTÉ et membre
+ * actif du réseau de la page ; sinon la première invitation d'administrateur en attente ; sinon `null`.
+ * L'état de la page n'entre pas en compte (une page en sommeil garde son équipe, figée). Borné par le
+ * plafond des signataires ; nom et identifiant seulement s'ils sont publiés.
+ */
+export async function institutionSignatoryOf(ctx: Pick<QueryCtx, "db">, page: Doc<"pages">): Promise<InstitutionSignatory | null> {
+  const admins = (await signatoryRowsOf(ctx, page._id)).filter((row) => row.role === "admin").sort((a, b) => a.createdAt - b.createdAt)
+  let pending: Doc<"pageSignatories"> | null = null
+  for (const row of admins) {
+    if (row.acceptedAt === undefined) {
+      pending ??= row
+      continue
+    }
+    if (await isActiveMember(ctx, page.networkId, row.personId)) return await signatoryLabel(ctx, row.personId, true)
+  }
+  return pending ? await signatoryLabel(ctx, pending.personId, false) : null
+}
+
+async function signatoryLabel(ctx: Pick<QueryCtx, "db">, personId: Id<"persons">, accepted: boolean): Promise<InstitutionSignatory> {
+  const person = await livePersonProfile(ctx, personId)
+  return { personId, handle: person?.handle ?? null, displayName: person?.displayName ?? null, accepted }
 }
 
 /**
@@ -95,32 +238,16 @@ export const createInstitutionPage = operatorMutation({
         return { pageId: existing._id, handle: existing.handle, created: false }
       }
     }
-    const name = checked(() => assertPageName(args.name))
-    const handle = checked(() => assertPageHandle(args.handle ?? name))
-    const shortName = checked(() => normalizePageShortName(args.shortName))
-    const description = checked(() => normalizePageDescription(args.description))
-    const country = args.country === undefined ? undefined : checked(() => assertCountryCode(args.country ?? ""))
-    await assertPageHandleFree(ctx, handle)
-    const visibility = network.kind === "root" ? "network" : (args.visibility ?? "network")
     const now = Date.now()
-    const pageId = await ctx.db.insert("pages", {
-      networkId: network._id,
-      handle,
-      name,
-      ...(shortName !== undefined ? { shortName } : {}),
-      ...(description !== undefined ? { description } : {}),
-      ownerKind: "institution",
-      trust: "official",
-      trustRank: pageTrustRank("official"),
-      ...(country !== undefined ? { country } : {}),
-      visibility,
-      onRoot: isPageOnRoot(network, visibility),
-      status: "active",
+    const { pageId, handle } = await insertInstitutionPage(ctx, network, {
+      name: args.name,
+      ...(args.handle !== undefined ? { handle: args.handle } : {}),
+      ...(args.shortName !== undefined ? { shortName: args.shortName } : {}),
+      ...(args.description !== undefined ? { description: args.description } : {}),
+      ...(args.country !== undefined ? { country: args.country } : {}),
+      visibility: network.kind === "root" ? "network" : (args.visibility ?? "network"),
       ...(args.importRef !== undefined ? { importRef: args.importRef } : {}),
-      searchText: pageSearchText({ name, ...(shortName !== undefined ? { shortName } : {}), handle }),
-      createdAt: now,
-      updatedAt: now,
-    })
+    }, now)
     await appendAudit(ctx, {
       action: "page.create_official",
       capacity: operatorCapacity(ctx.operator),
@@ -267,28 +394,9 @@ export const grantPageAdmin = operatorMutation({
     const person = await ctx.db.get(args.personId)
     if (!page || page.status !== "active" || !person) return notFound()
     await assertNativePageManagement(ctx, page._id)
-    if (page.trust === "official" && !(await hasStrongIdentityFor(ctx, person._id))) return failRule("PAGE_SIGNATORY_IDENTITY_REQUIRED")
-    const existing = await signatoryRowOf(ctx, page._id, person._id)
-    if (existing?.role === "admin") return { invited: existing.acceptedAt === undefined }
-    const now = Date.now()
-    if (existing) {
-      await ctx.db.patch(existing._id, { role: "admin", authorityRevision: (existing.authorityRevision ?? 0) + 1, updatedAt: now })
-      // AS-10 : un modérateur accepté promu administrateur parle désormais au nom de la page.
-      const accepted = existing.acceptedAt !== undefined
-      await applyTeamRoleTransition(ctx, { networkId: page.networkId, pageId: page._id, personId: person._id, before: { role: existing.role, accepted }, after: { role: "admin", accepted } })
-    } else await ctx.db.insert("pageSignatories", { networkId: page.networkId, pageId: page._id, personId: person._id, role: "admin", authorityRevision: 0, createdAt: now, updatedAt: now })
-    await appendAudit(ctx, {
-      action: "page.signatory_grant",
-      capacity: operatorCapacity(ctx.operator),
-      actorPersonId: ctx.person._id,
-      networkId: page.networkId,
-      subject: { table: "pages", id: page._id },
-      details: { reason: motive, targetPersonId: person._id, role: "admin", previousRole: existing?.role ?? null, invited: existing === null },
-      at: now,
-    })
-    const invited = existing === null || existing.acceptedAt === undefined
-    // PG-01 : l'invitation sonne chez la personne habilitée (sans acteur : l'opérateur ne se nomme pas).
-    if (invited) await notifyPerson(ctx, { networkId: page.networkId, recipientPersonId: person._id, kind: "page_signatory_invite", subject: { page: page._id } })
+    // CH-815 A2 : le chemin partagé avec l'administration du réseau (la console garde son absence de plafond).
+    const { invited, audit } = await grantInstitutionAdmin(ctx, page, person, { actorPersonId: ctx.person._id, capacity: operatorCapacity(ctx.operator), motive, now: Date.now(), requireRoom: false })
+    if (audit) await appendAudit(ctx, audit)
     return { invited }
   },
 })
