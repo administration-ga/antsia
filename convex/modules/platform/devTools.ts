@@ -5,14 +5,61 @@
  * en production la table reste vide et la lecture rend `null`. Sur le
  * déploiement de démonstration déclaré, seuls les codes des adresses réservées
  * aux comptes de démonstration s'enregistrent et se relisent (`demoCodeReadable`).
+ *
+ * CH-817 E3 — la porte des comptes de démonstration (`./demoGate.ts`) est le
+ * verrou RÉEL de DIASPORA.GA : les adresses réservées ne reçoivent aucun courriel,
+ * qui ne lit pas leur code n'entre pas. Porte armée, le code d'une adresse de la
+ * famille `…@demo.diaspora-ga.test` ne se relit qu'avec un jeton de session de
+ * porte valide (`gateToken`) ; toute autre adresse (celles de la racine, celles du
+ * développement local) se lit comme avant. Porte non armée : rien ne change.
  */
+import type { DemoGateScope } from "@antsia/social-contracts/demoGate"
 import { v } from "convex/values"
 
-import { internalMutation, query } from "../../_generated/server"
-import { demoCodeReadable } from "../../lib/devTools"
+import { internalMutation, query, type QueryCtx } from "../../_generated/server"
+import { demoGateState } from "../../lib/demoGate"
+import { DIASPORA_GA_DEMO_EMAIL_DOMAIN, demoCodeReadable } from "../../lib/devTools"
+import { demoGateSessionOf, type DemoGateSessionOptions } from "./demoGate"
 
 function normalizeEmail(email: string): string {
   return email.trim().toLowerCase()
+}
+
+/**
+ * La portée de porte qui gouverne cette adresse, ou `null` : la famille réservée de
+ * DIASPORA.GA seulement. La comparaison se fait sur l'adresse NORMALISÉE, celle sous
+ * laquelle le code est enregistré et relu : une variante de casse ou d'espaces ne
+ * contourne pas la porte.
+ */
+export function demoGateScopeOfEmail(email: string): DemoGateScope | null {
+  return normalizeEmail(email).endsWith(`@${DIASPORA_GA_DEMO_EMAIL_DOMAIN}`) ? "diaspora-ga" : null
+}
+
+/**
+ * Ce que la porte répond à une lecture qui ouvre un compte de démonstration : refus, ou admission
+ * avec l'échéance de la session de porte (`null` quand la porte n'est pas armée et n'en exige aucune).
+ */
+export type DemoGateAdmission = { admitted: false } | { admitted: true; sessionExpiresAt: number | null }
+
+/**
+ * LA règle des lectures qui ouvrent les comptes de démonstration (`catalogue`, `latestOtp`) — celle
+ * de `demoGateAdmits` (lot E2), qui rend en plus l'échéance de la session : porte `open` (non armée)
+ * → admise, sans échéance ; `gated` → seulement avec une session valide pour la portée ; `closed` et
+ * `unavailable` → refusée, pour tous. Une requête fige `Date.now()` : un abonnement ne se réévalue
+ * pas à l'échéance de lui-même ; l'écran lâche son jeton à `sessionExpiresAt` (jamais le jeton n'est
+ * rendu). Lecture seule.
+ */
+export async function demoGateAdmission(
+  ctx: Pick<QueryCtx, "db">,
+  scope: DemoGateScope,
+  token: string | undefined,
+  options: DemoGateSessionOptions = {},
+): Promise<DemoGateAdmission> {
+  const state = demoGateState(options.env ?? process.env)
+  if (state === "open") return { admitted: true, sessionExpiresAt: null }
+  if (state !== "gated") return { admitted: false }
+  const session = await demoGateSessionOf(ctx, { scope, token }, options)
+  return session ? { admitted: true, sessionExpiresAt: session.expiresAt } : { admitted: false }
 }
 
 /** Appelée par l'envoi du code (Better Auth) : une ligne par adresse, remplacée. */
@@ -37,17 +84,28 @@ export const recordOtp = internalMutation({
  * @publicProjection Outil de développement local seulement : rend le dernier
  * code envoyé à cette adresse quand les outils sont ouverts (sur la démonstration
  * déclarée : à une adresse de compte de démonstration), `null` partout ailleurs
- * (production comprise). L'écran décide de l'expiration.
+ * (production comprise). L'écran décide de l'expiration. Porte de démonstration
+ * armée (CH-817 E3) : une adresse de DIASPORA.GA exige un jeton de session de porte
+ * valide (`gateToken`), et la réponse porte alors l'échéance de cette session
+ * (`gateExpiresAt`) ; sans session valide, `null`, comme pour une adresse inconnue.
  */
 export const latestOtp = query({
-  args: { email: v.string() },
-  returns: v.union(v.object({ code: v.string(), expiresAt: v.number() }), v.null()),
+  args: { email: v.string(), gateToken: v.optional(v.string()) },
+  returns: v.union(v.object({ code: v.string(), expiresAt: v.number(), gateExpiresAt: v.optional(v.number()) }), v.null()),
   handler: async (ctx, args) => {
     if (!demoCodeReadable(args.email)) return null
+    const scope = demoGateScopeOfEmail(args.email)
+    let gateExpiresAt: number | null = null
+    if (scope !== null) {
+      const admission = await demoGateAdmission(ctx, scope, args.gateToken)
+      if (!admission.admitted) return null
+      gateExpiresAt = admission.sessionExpiresAt
+    }
     const row = await ctx.db
       .query("devOtpCodes")
       .withIndex("by_email", (q) => q.eq("email", normalizeEmail(args.email)))
       .unique()
-    return row ? { code: row.code, expiresAt: row.expiresAt } : null
+    if (!row) return null
+    return { code: row.code, expiresAt: row.expiresAt, ...(gateExpiresAt !== null ? { gateExpiresAt } : {}) }
   },
 })
