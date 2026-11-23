@@ -12,6 +12,8 @@
  *                        qui administre ce réseau, accès journalisé (ADR-0042,
  *                        `networkAdminQuery` / `networkAdminMutation`) : l'état des
  *                        clés, la bascule motivée ;
+ *   lastDecisions        CH-815 A6, même garde : la dernière décision de chaque clé
+ *                        (instant, motif, qualité, acteur publié), lue au journal ;
  *   operatorSettings,    l'opérateur de la plateforme, en secours (console) :
  *   operatorSetFeature   les mêmes, par réseau, administrateur de plateforme.
  *
@@ -40,7 +42,25 @@ import { networkFeatureRow, openFeaturesOf } from "../../lib/networkFeatures"
 import { requirePlatformAdmin } from "../../lib/operatorIdentity"
 import { enforceRateLimit } from "../../lib/rateLimit"
 import { networkFeatureValidator } from "../../lib/validators"
+import { miniProfileCache } from "../people/miniProfile"
 import { appendAudit, operatorCapacity } from "../platform/audit"
+import { auditCapacityValidator } from "../platform/tables"
+
+/** Lignes du journal relues au même instant qu'une décision (des actes simultanés au même instant sont rares). */
+const SAME_INSTANT_AUDIT_MAX = 50
+
+/** La dernière décision d'une fonctionnalité, telle que l'application d'administration la montre sur sa carte. */
+const lastDecisionValidator = v.object({
+  feature: networkFeatureValidator,
+  /** L'état décidé (celui de la ligne). */
+  enabled: v.boolean(),
+  at: v.number(),
+  reason: v.string(),
+  /** À quel titre : `network_admin`, ou le rôle d'opérateur d'une bascule de secours à la console. */
+  capacity: auditCapacityValidator,
+  /** Nom et identifiant PUBLIÉS seulement, comme le journal de la console ; `null` sans acteur. */
+  actor: v.union(v.object({ personId: v.id("persons"), displayName: v.union(v.string(), v.null()), handle: v.union(v.string(), v.null()) }), v.null()),
+})
 
 /** L'état d'une fonctionnalité, tel que le bureau et la console le montrent. */
 const featureStateValidator = v.object({
@@ -112,6 +132,48 @@ export const settings = networkAdminQuery({
   args: {},
   returns: v.array(featureStateValidator),
   handler: async (ctx) => await featureStates(ctx, ctx.network),
+})
+
+/**
+ * CH-815 A6 — la dernière décision de chaque fonctionnalité du réseau, pour les cartes de la section
+ * « Modules » de l'application d'administration : l'état décidé, l'instant, le motif, la qualité et
+ * l'acteur (profil publié seulement). Lecture bornée, sans nouvel index : pour chaque ligne de
+ * `networkFeatures` du réseau (une par clé de sa tranche au plus), les lignes du journal du réseau AU
+ * MÊME INSTANT (`by_network_at`, `at === updatedAt`, l'instant que la bascule écrit aux deux), dont on
+ * garde la dernière `network.feature_set` de cette clé. Un module jamais décidé (aucune ligne), ou
+ * dont la ligne n'a pas de décision au journal (posée hors bascule), n'y figure pas. Même garde que
+ * `settings` (ADR-0042) ; rien de la preuve de session n'est rendu.
+ */
+export const lastDecisions = networkAdminQuery({
+  args: {},
+  returns: v.array(lastDecisionValidator),
+  handler: async (ctx) => {
+    if (ctx.network.managedBy === undefined) return []
+    const profileOf = miniProfileCache(ctx)
+    const out = []
+    for (const feature of SLICE_NETWORK_FEATURES[ctx.network.managedBy]) {
+      const row = await networkFeatureRow(ctx, ctx.networkId, feature)
+      if (!row) continue
+      const sameInstant = await ctx.db
+        .query("engineAudit")
+        .withIndex("by_network_at", (q) => q.eq("networkId", ctx.networkId).eq("at", row.updatedAt))
+        .take(SAME_INSTANT_AUDIT_MAX)
+      // L'index range les actes d'un même instant dans l'ordre d'écriture : la dernière bascule l'emporte.
+      const decision = sameInstant.filter((entry) => entry.action === "network.feature_set" && entry.details?.feature === feature).at(-1)
+      const reason = decision?.details?.reason
+      if (!decision || typeof reason !== "string") continue
+      const actor = decision.actorPersonId ? await profileOf(decision.actorPersonId) : null
+      out.push({
+        feature,
+        enabled: row.enabled,
+        at: decision.at,
+        reason,
+        capacity: decision.capacity,
+        actor: actor ? { personId: actor.personId, displayName: actor.displayName, handle: actor.handle } : null,
+      })
+    }
+    return out
+  },
 })
 
 /** L'administrateur du réseau ouvre ou ferme une fonctionnalité : motif, règle de dépendance, journal. */

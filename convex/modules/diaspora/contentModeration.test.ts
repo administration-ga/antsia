@@ -21,7 +21,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { api, internal } from "../../_generated/api"
 import type { Doc, Id } from "../../_generated/dataModel"
 import { SEED_CONFIRMATION } from "../../seeds/foundations"
-import { openNetworkFeatures, testConvex } from "../../test.setup"
+import { openNetworkFeatures, openTestNetworkAdminSession, testConvex } from "../../test.setup"
 import { removeTarget, restoreTarget } from "../moderation/targets"
 import { APPLICATION_MESSAGE_EXCERPT, MENTORING_GOAL_EXCERPT } from "./moderationTargets"
 
@@ -39,6 +39,8 @@ const K = api.modules.diaspora.arrivalKit
 const J = api.modules.diaspora.jobs
 const D = api.modules.diaspora.moderationDesk
 const CASES = api.modules.moderation.cases
+/** CH-815 A6 : équipes, recours et réglages du réseau, depuis l'application d'administration. */
+const NA = api.modules.moderation.networkAdmin
 const PREVIEW = api.modules.moderation.reviewProjection.preview
 const FIRST = { numItems: 20, cursor: null }
 const ALL = { kind: "all" as const }
@@ -417,7 +419,8 @@ describe("retrait — invisibilité publique, vue privée, rétablissement", () 
 
   it("une réponse retenue retirée est décomptée et libère la question ; le recours la rétablit et la recompte ; un retrait de son autrice ne décompte pas deux fois", async () => {
     const f = await fixture()
-    const { teamId } = await f.admin.as.mutation(CASES.createTeam, { networkId: f.networkId, name: "Entraide (fixture)", scope: "diasporaAidAnswer", reason: "Ouverture de la modération de l'entraide." })
+    const adminApp = await openTestNetworkAdminSession(f.t, f.admin.as, f.admin.personId, f.networkId)
+    const { teamId } = await adminApp.mutation(NA.createTeam, { networkId: f.networkId, name: "Entraide (fixture)", scope: "diasporaAidAnswer", reason: "Ouverture de la modération de l'entraide." })
     const { questionId } = await ask(f)
     const kept = await f.reader.as.mutation(AID.answerQuestion, { networkId: f.networkId, questionId, body: ANSWER })
     vi.setSystemTime(NOW + 1000)
@@ -442,7 +445,8 @@ describe("retrait — invisibilité publique, vue privée, rétablissement", () 
     // Recours de l'autrice de la réponse, admis par une AUTRE administration : rétablie, recomptée, jamais retenue d'office.
     const { appealId } = await f.reader.as.mutation(CASES.fileAppeal, { reportId, reason: "Ma réponse cite une source publique." })
     const secondAdmin = await member(f.t, f.networkId, "admin2.g9", "network_admin")
-    await secondAdmin.as.mutation(CASES.reviewNetworkAppeal, { networkId: f.networkId, appealId, overturn: true, reason: "Recours admis : la source est publique." })
+    const secondAdminApp = await openTestNetworkAdminSession(f.t, secondAdmin.as, secondAdmin.personId, f.networkId)
+    await secondAdminApp.mutation(NA.reviewNetworkAppeal, { networkId: f.networkId, appealId, overturn: true, reason: "Recours admis : la source est publique." })
     expect(await stateOf(f, "diasporaAidAnswer", kept.answerId)).toMatchObject({ status: "published" })
     const restored = await f.t.run(async (ctx) => ctx.db.get(questionId))
     expect(restored).toMatchObject({ status: "open", answerCount: 2, version: 3 })
@@ -576,7 +580,8 @@ describe("politique — aucune mise en attente implicite", () => {
 
   it("avec une politique explicite : en relecture, servi à sa seule autrice (aucune dérogation de modérateur dans la liste) ; approuvé, il paraît", async () => {
     const f = await fixture()
-    await f.admin.as.mutation(CASES.setPolicy, {
+    const adminApp = await openTestNetworkAdminSession(f.t, f.admin.as, f.admin.personId, f.networkId)
+    await adminApp.mutation(NA.setPolicy, {
       networkId: f.networkId, surface: "diasporaAidQuestion", preReview: true, maxLinks: 2, maxWrites: 10, windowMs: 60_000, reason: "Relecture préalable de l'entraide au lancement.",
     })
     const { questionId } = await ask(f)

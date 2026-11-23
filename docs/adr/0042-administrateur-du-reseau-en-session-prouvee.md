@@ -115,3 +115,34 @@ Rejeté au profit de l'état OAuth enregistré par le moteur.
   `convex/modules/networks/adminAccess.ts`, `convex/modules/networks/features.ts`.
 - Recettes : `convex/modules/networks/adminAccess.test.ts`, `convex/betterAuth/idnApplication.test.ts`,
   `tests/ratchets/network-admin-audit.test.ts`.
+
+## Amendement du 2026-11-23 (CH-815, lot A6) — les décisions quittent le bureau des membres
+
+Statut « Proposé ». Fiche, décision D5 : « le bureau de diaspora.ga traite, l'application
+d'administration décide ». Les décisions suivantes de DIASPORA.GA ne se prennent plus que par les
+constructeurs de l'administrateur du réseau, en session prouvée et journalisée de
+l'application d'administration ; une session de l'application des membres reçoit le refus
+indistinct, même celle de l'administrateur.
+
+- **Propres à la tranche, déménagées en place** (mêmes noms, mêmes arguments) :
+  `diaspora/moderationDesk.appealQueue`, `teamRoster`, `responsibles`, `teamCandidate` ;
+  `diaspora/membership.setResponsibleRole` ; `diaspora/pilotMetrics.pilotMetrics` et
+  `pilotMetricsAccess` (toujours gardées par la clé `pilotMetrics` : les constructeurs de
+  l'administrateur reçoivent l'option `feature` ; la modération du réseau ne lit plus la mesure).
+- **Partagées par le moteur, jumelées** : `moderation/networkAdmin` (`reviewNetworkAppeal`,
+  `createTeam`, `setTeamMember`, `policies`, `blockedTermsPage`, `setPolicy`, `setBlockedTerm`),
+  même cœur métier que `moderation/cases`, même motif, même ligne de journal à titre de
+  `network_admin`, budget `moderation.decide` en plus des deux budgets du constructeur. Les
+  originaux de `moderation/cases`, et `moderation/networkAppeals.paginate`, refusent un réseau qui
+  a son application d'administration au catalogue (`isAdministeredNetwork`) ; pour la racine et
+  tout autre réseau, ils ne changent pas.
+- **Journal** : `platform/audit.paginateNetworkAdminAudit`, la lecture du journal du réseau par
+  son administration, filtrable par action (même projection que la console, plus le motif) ; et
+  `networks/features.lastDecisions`, la dernière décision de chaque module pour ses cartes (lue au
+  journal au même instant que la ligne du module, sans nouvel index).
+- **Restent au bureau des membres** : le travail quotidien des modérateurs (`myDesk`, `queue`,
+  `caseDetail`, `pendingQueue`, `pageClaimQueue`, `cases.deadlineQueue`, `cases.decide`,
+  `cases.reviewContent`, l'aperçu borné, les revendications de page).
+
+Recettes : `convex/tests/network-admin-decisions.test.ts` ; cliquets `network-admin-audit` et
+`network-feature-gates` (constructeurs de l'administrateur lus dans la tranche).

@@ -4,6 +4,7 @@ import { v } from "convex/values"
 
 import { fail, notFound } from "../../lib/errors"
 import { networkQuery } from "../../lib/functions"
+import { isAdministeredNetwork } from "../../lib/networkAdminIdentity"
 import { sanctionKindValidator } from "./tables"
 
 const appealRowValidator = v.object({
@@ -13,13 +14,17 @@ const appealRowValidator = v.object({
   canDecide: v.boolean(),
 })
 
-/** Seules les décisions existantes reviewNetworkAppeal peuvent écrire ; cette porte n'octroie aucun rôle. */
+/**
+ * Seules les décisions existantes reviewNetworkAppeal peuvent écrire ; cette porte n'octroie aucun rôle.
+ * CH-815 A6 (ADR-0042) : un réseau qui a son application d'administration juge ses recours là
+ * (`diaspora/moderationDesk.appealQueue`, `moderation/networkAdmin.reviewNetworkAppeal`) : refus indistinct ici.
+ */
 export const paginate = networkQuery({
   minStatus: "declaree",
   args: { paginationOpts: paginationOptsValidator },
   returns: v.object({ page: v.array(appealRowValidator), isDone: v.boolean(), continueCursor: v.string() }),
   handler: async (ctx, args) => {
-    if (ctx.membership.role !== "network_admin") return notFound()
+    if (ctx.membership.role !== "network_admin" || isAdministeredNetwork(ctx.network)) return notFound()
     if (ctx.network.kind === "closed" && ctx.network.parentId !== ctx.rootNetwork._id) return notFound()
     const options = { ...args.paginationOpts, numItems: Math.min(20, Math.max(1, Math.trunc(args.paginationOpts.numItems))), maximumRowsRead: 20, maximumBytesRead: 1_048_576 }
     const result = await ctx.db.query("appeals").withIndex("by_network_status_createdAt", (q) => q.eq("networkId", ctx.networkId).eq("status", "open")).order("desc").paginate(options)

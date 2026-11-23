@@ -42,7 +42,7 @@ import type { Doc, Id } from "../../_generated/dataModel"
 import { query, type QueryCtx } from "../../_generated/server"
 import { getCurrentPerson, getMembership, getRootNetwork } from "../../lib/access"
 import { checked, fail, failAppRule, notFound } from "../../lib/errors"
-import { networkMutation, networkQuery, personMutation } from "../../lib/functions"
+import { networkAdminMutation, networkMutation, networkQuery, personMutation } from "../../lib/functions"
 import { enforceRateLimit } from "../../lib/rateLimit"
 import { membershipRoleValidator, membershipStatusValidator } from "../../lib/validators"
 import { isBlockedBetween } from "../graph/graph"
@@ -323,20 +323,22 @@ export const revokeSponsorship = networkMutation({
  * au plus cent titulaires d'un rôle (`policyRefused`). Elle entre au journal du
  * moteur dans la même transaction (`membership.role_set`, qualité
  * `network_admin`) ; un rôle déjà posé n'écrit rien. Les gardes du moteur
- * relisent le rôle à chaque appel : la file, les recours et `/pilote` s'ouvrent
+ * relisent le rôle à chaque appel : la file, les recours et la mesure s'ouvrent
  * ou se ferment au geste suivant de la personne.
- * Tout autre membre (modération du réseau comprise) : le refus indistinct, avant
- * tout jugement des arguments. Le premier administrateur est posé par un
- * opérateur de plateforme, à la console (`platform/networkRoles.setNetworkRole`).
+ * CH-815 A6 (ADR-0042, fiche D5) : la nomination est une décision du réseau,
+ * prise depuis l'application d'administration seule (`networkAdminMutation` :
+ * rôle relu, session IDN prouvée de cette application, accès journalisé). Tout
+ * autre appelant — modération du réseau, et l'administrateur lui-même depuis
+ * l'application des membres — reçoit le refus indistinct, avant tout jugement
+ * des arguments. Le premier administrateur est posé par un opérateur de
+ * plateforme, à la console (`platform/networkRoles.setNetworkRole`).
  */
-export const setResponsibleRole = networkMutation({
-  minStatus: "declaree",
+export const setResponsibleRole = networkAdminMutation({
   writeBucket: "diaspora.moderation.decide",
   args: { personId: v.id("persons"), role: membershipRoleValidator, reason: v.string() },
   returns: v.object({ role: membershipRoleValidator, changed: v.boolean() }),
   handler: async (ctx, args) => {
     assertDiasporaNetwork(ctx.network)
-    if (ctx.membership.role !== "network_admin") return notFound()
     const reason = checked(() => assertDecisionReason(args.reason, MODERATION_REASON_MIN))
     const change = await setMembershipRole(ctx, { network: ctx.network, personId: args.personId, role: args.role })
     // La décision entre au journal du moteur, dans la même transaction (rien si le rôle était déjà le sien).

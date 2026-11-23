@@ -11,6 +11,11 @@
  *     chacune de leurs fonctions de réseau porte la clé du module ;
  *   · chaque clé garde au moins une fonction : une fonctionnalité sans garde serait un
  *     interrupteur qui ne coupe rien.
+ *   · ADR-0042 (CH-815 A6) : dans la tranche, les constructeurs de l'administrateur du réseau
+ *     (`networkAdminQuery`, `networkAdminMutation`) se lisent comme ceux du membre — la mesure du
+ *     pilote, lue par l'application d'administration, reste gardée par sa clé. Les modules du
+ *     moteur (`FEATURE_MODULES`) ne lisent que les constructeurs du membre : y garder une
+ *     fonction d'administration est la décision du lot qui l'écrit.
  *
  * COMMENT IL LIT : par l'arbre syntaxique — le manifeste comme les fonctions ; l'option
  * doit être une chaîne littérale dans l'objet passé au constructeur.
@@ -32,7 +37,9 @@ export const FEATURE_MODULES: Readonly<Record<string, NetworkFeature>> = {
   "convex/modules/thematicGroups": "groupsAndEvents",
 }
 
-const NETWORK_BUILDERS = new Set(["networkQuery", "networkMutation", "networkAction"])
+const NETWORK_BUILDERS: ReadonlySet<string> = new Set(["networkQuery", "networkMutation", "networkAction"])
+/** Dans la tranche, ceux de l'administrateur du réseau aussi (ADR-0042, CH-815 A6). */
+const SLICE_BUILDERS: ReadonlySet<string> = new Set([...NETWORK_BUILDERS, "networkAdminQuery", "networkAdminMutation"])
 
 type Classification = NetworkFeature | "core"
 
@@ -60,14 +67,14 @@ export function manifestFeatureFiles(text: string): Map<string, string> {
 }
 
 /** Les fonctions de réseau exportées d'un fichier, et l'option `feature` qu'elles portent (`null` : aucune). */
-export function networkFunctionFeatures(file: string, text: string): { name: string; line: number; feature: string | null }[] {
+export function networkFunctionFeatures(file: string, text: string, builders: ReadonlySet<string> = NETWORK_BUILDERS): { name: string; line: number; feature: string | null }[] {
   const source = parseSource(file, text)
   const names = importedNames(source)
   const out: { name: string; line: number; feature: string | null }[] = []
   for (const { name, node, call } of exportedCalls(source)) {
     if (!ts.isIdentifier(call.expression)) continue
     const builder = names.get(call.expression.text) ?? call.expression.text
-    if (!NETWORK_BUILDERS.has(builder)) continue
+    if (!builders.has(builder)) continue
     const config = call.arguments[0]
     let feature: string | null = null
     if (config && ts.isObjectLiteralExpression(config)) {
@@ -83,9 +90,9 @@ export function networkFunctionFeatures(file: string, text: string): { name: str
 }
 
 /** Les écarts d'un fichier à sa classification. */
-export function detectFeatureGateGaps(file: string, text: string, expected: Classification): Finding[] {
+export function detectFeatureGateGaps(file: string, text: string, expected: Classification, builders: ReadonlySet<string> = NETWORK_BUILDERS): Finding[] {
   const findings: Finding[] = []
-  for (const fn of networkFunctionFeatures(file, text)) {
+  for (const fn of networkFunctionFeatures(file, text, builders)) {
     if (expected === "core") {
       if (fn.feature !== null) findings.push({ file, line: fn.line, message: `« ${fn.name} » porte feature « ${fn.feature} » dans un fichier du socle — classer le fichier sous sa clé` })
     } else if (fn.feature !== expected) {
@@ -113,7 +120,7 @@ describe("network-feature-gates — chaque fonctionnalité activable est gardée
     for (const file of sliceFiles()) {
       const expected = map.get(file.slice(SLICE_DIRECTORY.length + 1))
       if (expected === undefined || !isClassification(expected)) continue
-      findings.push(...detectFeatureGateGaps(file, readRepoFile(file), expected))
+      findings.push(...detectFeatureGateGaps(file, readRepoFile(file), expected, SLICE_BUILDERS))
     }
     for (const [directory, feature] of Object.entries(FEATURE_MODULES)) {
       for (const file of listFiles([directory], [".ts"]).filter((path) => !isTestFile(path))) findings.push(...detectFeatureGateGaps(file, readRepoFile(file), feature))
@@ -123,7 +130,10 @@ describe("network-feature-gates — chaque fonctionnalité activable est gardée
 
   it("chaque clé garde au moins une fonction", () => {
     const gated = new Set<string>()
-    for (const file of [...sliceFiles(), ...listFiles(Object.keys(FEATURE_MODULES), [".ts"]).filter((path) => !isTestFile(path))]) {
+    for (const file of sliceFiles()) {
+      for (const fn of networkFunctionFeatures(file, readRepoFile(file), SLICE_BUILDERS)) if (fn.feature !== null) gated.add(fn.feature)
+    }
+    for (const file of listFiles(Object.keys(FEATURE_MODULES), [".ts"]).filter((path) => !isTestFile(path))) {
       for (const fn of networkFunctionFeatures(file, readRepoFile(file))) if (fn.feature !== null) gated.add(fn.feature)
     }
     expect(NETWORK_FEATURES.filter((feature) => !gated.has(feature))).toEqual([])
@@ -144,5 +154,27 @@ describe("network-feature-gates — chaque fonctionnalité activable est gardée
     expect(detectFeatureGateGaps("convex/modules/diaspora/fixture.ts", source, "core").map((finding) => finding.line)).toEqual([2, 4, 6])
     const manifest = 'export const M = { featureFiles: { "a.ts": "jobs", "b.ts": "core" } satisfies Readonly<Record<string, string>> } as const'
     expect([...manifestFeatureFiles(manifest).entries()]).toEqual([["a.ts", "jobs"], ["b.ts", "core"]])
+  })
+
+  it("test du test (ADR-0042, CH-815 A6) : dans la tranche, une fonction de l'administrateur du réseau porte sa clé ; hors tranche, elle est ignorée", () => {
+    const source = [
+      'import { networkAdminQuery as adminRead, networkAdminMutation } from "../../lib/functions"',
+      'export const gated = adminRead({ feature: "pilotMetrics", args: {}, handler: async () => null })',
+      "export const open = networkAdminMutation({ args: {}, handler: async () => null })",
+    ].join("\n")
+    expect(detectFeatureGateGaps("convex/modules/diaspora/fixture.ts", source, "pilotMetrics", SLICE_BUILDERS).map((finding) => finding.line)).toEqual([3])
+    expect(detectFeatureGateGaps("convex/modules/diaspora/fixture.ts", source, "core", SLICE_BUILDERS).map((finding) => finding.line)).toEqual([2])
+    expect(detectFeatureGateGaps("convex/modules/pages/fixture.ts", source, "pages")).toEqual([])
+  })
+
+  it("la mesure du pilote est gardée par sa clé jusque dans l'application d'administration (CH-815 A6)", () => {
+    const file = `${SLICE_DIRECTORY}/pilotMetrics.ts`
+    const functions = networkFunctionFeatures(file, readRepoFile(file), SLICE_BUILDERS)
+    expect(functions.filter((fn) => fn.name === "pilotMetrics" || fn.name === "pilotMetricsAccess")).toEqual([
+      expect.objectContaining({ name: "pilotMetrics", feature: "pilotMetrics" }),
+      expect.objectContaining({ name: "pilotMetricsAccess", feature: "pilotMetrics" }),
+    ])
+    // Elles ne sont plus des fonctions de membre : le constructeur de l'administrateur les porte.
+    expect(networkFunctionFeatures(file, readRepoFile(file)).map((fn) => fn.name)).toEqual([])
   })
 })
