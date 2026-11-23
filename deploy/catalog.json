@@ -35,8 +35,8 @@
       "dockerfile": "DIASPORA_GA/apps/diaspora_ga/Dockerfile",
       "site_url": "https://diaspora.ga",
       "dev_port": 3031,
-      "build_args": ["NEXT_PUBLIC_CONVEX_URL", "NEXT_PUBLIC_SITE_URL", "NEXT_PUBLIC_BUILD_SHA", "NEXT_PUBLIC_DIASPORA_GA_DATA_SOURCE", "NEXT_PUBLIC_IDN_PORTAL_URL", "NEXT_PUBLIC_CONSULATE_URL"],
-      "runtime_env": ["CONVEX_SITE_URL"]
+      "build_args": ["NEXT_PUBLIC_CONVEX_URL", "NEXT_PUBLIC_SITE_URL", "NEXT_PUBLIC_BUILD_SHA", "NEXT_PUBLIC_DIASPORA_GA_DATA_SOURCE", "NEXT_PUBLIC_IDN_PORTAL_URL", "NEXT_PUBLIC_CONSULATE_URL", "NEXT_PUBLIC_CONVEX_SITE_URL"],
+      "runtime_env": ["CONVEX_SITE_URL", "LIVEKIT_WS_URL"]
     },
     "admin_diaspora_ga": {
       "platform": "web",
