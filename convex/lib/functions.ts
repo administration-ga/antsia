@@ -21,8 +21,15 @@
  *                                    son adhésion, ses consentements) : à
  *                                    justifier par `@selfScoped` dans un module social.
  *   operatorQuery / operatorMutation console du moteur : opérateur de plateforme vivant.
+ *   networkAdminQuery /              ADR-0042 — l'administrateur du réseau : `networkId`
+ *   networkAdminMutation             consommé, adhésion, rôle `network_admin`, preuve IDN
+ *                                    vivante scellée pour l'application qui administre CE
+ *                                    réseau, accès journalisé (`lib/networkAdminIdentity.ts`) ;
+ *                                    refus indistinct (`notFound`) ; `allowUnloggedAccess`
+ *                                    pour les deux portes d'entrée seulement ; le handler lit
+ *                                    aussi `ctx.adminSession` (la preuve).
  *
- * Les trois constructeurs de mutation consomment un budget commun obligatoire
+ * Les constructeurs de mutation consomment un budget commun obligatoire
  * par personne ; `writeBucket` ajoute un budget de surface sans copier la garde.
  * Le cliquet `network-scoped-functions` relit les modules sociaux et refuse
  * toute fonction publique qui n'emprunte pas un constructeur borné ou ne
@@ -40,6 +47,7 @@ import { assertSocialWriteAllowed } from "../modules/moderation/policy"
 import { requireMembership, requirePerson } from "./access"
 import { fail } from "./errors"
 import { requireNetworkFeature } from "./networkFeatures"
+import { requireNetworkAdminSession } from "./networkAdminIdentity"
 import { liveOperatorSessionOrNull, requireOperatorSession } from "./operatorIdentity"
 import { type ActionWriteBucket, enforceRateLimit, type RateLimitBucket } from "./rateLimit"
 
@@ -47,6 +55,8 @@ type NetworkExtra = { minStatus?: ActiveMembershipStatus; feature?: NetworkFeatu
 type NetworkMutationExtra = NetworkExtra & { writeBucket?: RateLimitBucket }
 type NetworkActionExtra = NetworkExtra & { readOnly?: true; writeBucket?: ActionWriteBucket }
 type OperatorExtra = { allowUnloggedAccess?: true }
+type NetworkAdminExtra = { allowUnloggedAccess?: true }
+type NetworkAdminMutationExtra = NetworkAdminExtra & { writeBucket?: RateLimitBucket }
 
 /**
  * Les admissions d'une action, posées par `lib/actionAccess.ts`. Références
@@ -156,5 +166,33 @@ export const operatorMutation = customMutation(mutation, {
     if (!extra.allowUnloggedAccess && access.operatorSessionProof.accessLoggedAt === undefined) return fail("operatorRequired")
     await enforceRateLimit(ctx, "operator.write", access.person._id)
     return { ctx: access, args: {} }
+  },
+})
+
+/**
+ * ADR-0042 — l'adhésion est lue au statut le plus bas (`en_attente`) : un statut insuffisant pour
+ * exercer le rôle rend alors, comme le rôle, la session et le journal, le refus indistinct du
+ * non-membre (`requireNetworkAdminSession`) ; seule une suspension garde le refus de tout membre.
+ */
+export const networkAdminQuery = customQuery(query, {
+  args: { networkId: v.id("networks") },
+  input: async (ctx, { networkId }, extra: NetworkAdminExtra) => {
+    const access = await requireMembership(ctx, networkId, "en_attente")
+    const adminSession = await requireNetworkAdminSession(ctx, access, extra)
+    return { ctx: { ...access, networkId: access.network._id, adminSession }, args: {} }
+  },
+})
+
+/** ADR-0042 — la même garde, puis la garde d'écriture de la modération, le budget commun et celui de l'administration du réseau. */
+export const networkAdminMutation = customMutation(mutation, {
+  args: { networkId: v.id("networks") },
+  input: async (ctx, { networkId }, extra: NetworkAdminMutationExtra) => {
+    const access = await requireMembership(ctx, networkId, "en_attente")
+    const adminSession = await requireNetworkAdminSession(ctx, access, extra)
+    await assertSocialWriteAllowed(ctx, networkId, access.person._id)
+    await enforceRateLimit({ ...ctx, ...access, networkId }, "social.write", access.person._id)
+    await enforceRateLimit({ ...ctx, ...access, networkId }, "network_admin.write", access.person._id)
+    if (extra.writeBucket) await enforceRateLimit({ ...ctx, ...access, networkId }, extra.writeBucket, access.person._id)
+    return { ctx: { ...access, networkId: access.network._id, adminSession }, args: {} }
   },
 })

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import catalog from "../../deploy/catalog.json"
-import { applicationOfOrigin, authenticationConfiguration, idnConfiguration, idnProfileProof, isE164Phone, parseOriginList, smsConfiguration, trustedOrigins } from "./settings"
+import { applicationOfOAuthState, applicationOfOrigin, authenticationConfiguration, idnConfiguration, idnProfileProof, isE164Phone, isWebApplicationKey, networkAdministeredBy, parseOriginList, smsConfiguration, trustedOrigins } from "./settings"
 
 // L'inventaire reste exhaustif ; seules les entrées web déclarent une origine HTTP.
 const webApplications = Object.entries(catalog.applications).flatMap(([key, app]) =>
@@ -124,6 +124,62 @@ describe("application du catalogue servie à une origine", () => {
 
   it.each([null, undefined, "", "null", "not-a-url", "https://foreign.example.test", "https://user:pass@diaspora.ga"])("aucune application pour l'origine %s", (origin) => {
     expect(applicationOfOrigin(origin, local)).toBeNull()
+  })
+})
+
+describe("ADR-0042 — application où un retour IDN livre la session", () => {
+  const members = webApplications.find((app) => app.key === "diaspora_ga")
+  const publicSite = webApplications.find((app) => app.key === "antsia_ga")
+  if (!members || !publicSite) throw new Error("Applications du catalogue attendues absentes")
+  const membersOrigin = new URL(members.site_url).origin
+  const publicOrigin = new URL(publicSite.site_url).origin
+
+  it("l'origine exacte de l'adresse de retour enregistrée, chemin et requête ignorés", () => {
+    expect(applicationOfOAuthState({ callbackURL: `${membersOrigin}/fil?onglet=recent`, codeVerifier: "x", expiresAt: 1 }, {})).toBe("diaspora_ga")
+    expect(applicationOfOAuthState({ callbackURL: publicOrigin }, {})).toBe("antsia_ga")
+    // L'adresse de nouvel utilisateur, absente, vide ou vers la même application, ne change rien.
+    expect(applicationOfOAuthState({ callbackURL: `${membersOrigin}/fil`, newUserURL: "" }, {})).toBe("diaspora_ga")
+    expect(applicationOfOAuthState({ callbackURL: `${membersOrigin}/fil`, newUserURL: `${membersOrigin}/bienvenue` }, {})).toBe("diaspora_ga")
+  })
+
+  it("les ports locaux ne valent qu'avec les outils de développement d'un backend local", () => {
+    const local = { ANTSIA_DEV_TOOLS: "true", CONVEX_CLOUD_URL: "http://127.0.0.1:3210" }
+    expect(applicationOfOAuthState({ callbackURL: `http://localhost:${members.dev_port}/fil` }, local)).toBe("diaspora_ga")
+    expect(applicationOfOAuthState({ callbackURL: `http://localhost:${members.dev_port}/fil` }, {})).toBeNull()
+  })
+
+  it.each([
+    ["aucun état", null],
+    ["un état qui n'est pas un objet", "état"],
+    ["un parcours natif", { callbackURL: `${membersOrigin}/fil`, antsiaNative: { challenge: "c", state: "s", redirectUri: "antsia://auth/idn" } }],
+    ["une adresse relative (aucun départ web de confiance)", { callbackURL: "/fil" }],
+    ["une adresse illisible", { callbackURL: "pas une adresse" }],
+    ["une adresse hors des origines de confiance", { callbackURL: "https://foreign.example.test/fil" }],
+    ["une adresse à identifiants", { callbackURL: `https://user:pass@${new URL(membersOrigin).host}/fil` }],
+    ["un autre schéma", { callbackURL: `ftp://${new URL(membersOrigin).host}/fil` }],
+    ["une adresse trop longue", { callbackURL: `${membersOrigin}/${"a".repeat(2_100)}` }],
+    ["une adresse de nouvel utilisateur vers une autre application", { callbackURL: `${membersOrigin}/fil`, newUserURL: `${publicOrigin}/accueil` }],
+    ["une adresse de nouvel utilisateur illisible", { callbackURL: `${membersOrigin}/fil`, newUserURL: 42 }],
+  ])("aucune application pour %s", (_label, state) => {
+    expect(applicationOfOAuthState(state, {})).toBeNull()
+  })
+
+  it("seule une application WEB du catalogue est une clé de preuve", () => {
+    for (const app of webApplications) expect(isWebApplicationKey(app.key)).toBe(true)
+    for (const key of ["antsia_mobile", "inconnue", "", "__proto__"]) expect(isWebApplicationKey(key)).toBe(false)
+  })
+
+  it("le réseau administré est déclaré au catalogue, par une application web seulement", () => {
+    const applications = {
+      administration: { platform: "web", administers_network: "reseau-fictif" },
+      membres: { platform: "web" },
+      natif: { platform: "expo-native", administers_network: "reseau-fictif" },
+      vide: { platform: "web", administers_network: "" },
+    }
+    expect(networkAdministeredBy("administration", applications)).toBe("reseau-fictif")
+    for (const key of ["membres", "natif", "vide", "inconnue", "toString", "", null, undefined]) expect(networkAdministeredBy(key, applications)).toBeNull()
+    // Le catalogue réel : ni le site public, ni la console, ni l'application des membres n'administrent un réseau.
+    for (const key of ["antsia_ga", "admin_antsia_ga", "diaspora_ga", "antsia_mobile"]) expect(networkAdministeredBy(key)).toBeNull()
   })
 })
 

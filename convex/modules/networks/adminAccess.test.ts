@@ -88,12 +88,19 @@ async function account(t: T, network: Id<"networks">, handle: string, role?: "ne
   const personId = await session.as.mutation(api.modules.people.persons.ensureMyPerson, {})
   await session.as.mutation(api.modules.people.consents.recordConsent, { purpose: "social_profile", origin: "onboarding" })
   await session.as.mutation(api.modules.people.profile.publishMyProfile, { handle, displayName: handle })
-  await t.run(async (ctx) => {
-    await ctx.db.insert("identityLinks", { personId, provider: "idn", subject: idnSubject, loa: 2, nationality: "GA", linkedAt: NOW })
-  })
+  await linkIdn(t, personId, idnSubject)
   await session.as.mutation(api.modules.diaspora.membership.joinDiasporaGa, { networkId: network, facet: { countryOfResidence: "FR", city: "Paris" } })
   if (role) await setRole(t, network, personId, role)
   return { ...session, authUserId, personId, idnSubject }
+}
+
+/** Le lien IDN de la personne (posé dès sa création par son compte IDN, ou ici), garantie 2, nationalité gabonaise. */
+async function linkIdn(t: T, personId: Id<"persons">, subject: string) {
+  await t.run(async (ctx) => {
+    const link = await ctx.db.query("identityLinks").withIndex("by_person_and_provider", (q) => q.eq("personId", personId).eq("provider", "idn")).unique()
+    if (link) await ctx.db.patch(link._id, { subject, loa: 2, nationality: "GA", revokedAt: undefined })
+    else await ctx.db.insert("identityLinks", { personId, provider: "idn", subject, loa: 2, nationality: "GA", linkedAt: NOW })
+  })
 }
 
 async function setRole(t: T, networkId: Id<"networks">, personId: Id<"persons">, role: "member" | "network_admin" | "network_moderator") {
@@ -172,7 +179,7 @@ describe("ADR-0042 — l'administrateur du réseau, en session prouvée de l'app
     await f.t.mutation(components.betterAuth.adapter.create, { input: { model: "account", data: { userId: outsiderUser, providerId: "idn", accountId: "idn-hors-reseau", createdAt: NOW, updatedAt: NOW } } })
     const outsiderSession = await openSession(f.t, outsiderUser)
     const outsiderId = await outsiderSession.as.mutation(api.modules.people.persons.ensureMyPerson, {})
-    await f.t.run(async (ctx) => { await ctx.db.insert("identityLinks", { personId: outsiderId, provider: "idn", subject: "idn-hors-reseau", loa: 2, linkedAt: NOW }) })
+    await linkIdn(f.t, outsiderId, "idn-hors-reseau")
     const outsider: Account = { ...outsiderSession, authUserId: outsiderUser, personId: outsiderId, idnSubject: "idn-hors-reseau" }
     await expectAllRefused(f, (await idnSession(f.t, outsider, ADMIN_APP)).as, f.network, "non-membre")
 
