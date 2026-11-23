@@ -6,8 +6,15 @@ import { describe, expect, it } from "vitest"
 
 import { isTestFile, listFiles, REPO_ROOT } from "./lib/source-files"
 
-/** `administers_network` (ADR-0042) : le réseau qu'ADMINISTRE l'application, lu par la garde `networkAdmin*` du moteur. */
-type WebApplication = { platform: "web"; path: string; dev_port: number; build_args: string[]; administers_network?: string }
+/**
+ * `administers_network` (ADR-0042) : le réseau qu'ADMINISTRE l'application, lu par la garde `networkAdmin*` du moteur ;
+ * `entry_path` (revue CH-815 A1b, constat F2) : sa page d'entrée, seule adresse où le retour d'IDN lui ouvre une
+ * session d'administration (`betterAuth/settings.entryPathOf`).
+ */
+type WebApplication = { platform: "web"; path: string; dev_port: number; build_args: string[]; administers_network?: string; entry_path?: string }
+
+/** La forme d'un chemin d'entrée que lit le moteur : segments non réservés, sans barre finale, ni requête, ni fragment. */
+const ENTRY_PATH = /^(?:\/[A-Za-z0-9._~-]+)+$/
 type NativeApplication = { platform: "expo-native"; path: string; config: string; entry: string; public_env: string[]; config_env: string[] }
 type Catalog = { applications: Record<string, WebApplication | NativeApplication> }
 
@@ -109,6 +116,23 @@ describe("deploy-catalog — chaque application servie est au catalogue (câblag
     // Le contrat CH-815 : l'application d'administration de DIASPORA.GA, et elle seule. Une autorité de plus
     // sur un réseau (ou une application des membres qui en recevrait une) se décide ici, à la lecture.
     expect(Object.fromEntries(administering.map(([key, app]) => [key, (app as WebApplication).administers_network]))).toEqual({ admin_diaspora_ga: "diaspora-ga" })
+  })
+
+  it("revue CH-815 A1b (F2) : une application qui administre un réseau déclare son chemin d'entrée, et elle seule", () => {
+    const withEntry = Object.entries(catalog.applications).filter(([, app]) => "entry_path" in app)
+    const administering = Object.entries(catalog.applications).filter(([, app]) => "administers_network" in app)
+    // Requis pour toute application qui administre un réseau ; absent ailleurs (il ne servirait à rien et se lirait comme une autorité).
+    expect(withEntry.map(([key]) => key).sort()).toEqual(administering.map(([key]) => key).sort())
+    for (const [key, app] of withEntry) {
+      const entryPath = (app as WebApplication).entry_path
+      expect(typeof entryPath === "string" && ENTRY_PATH.test(entryPath), `${key} : chemin d'entrée simple`).toBe(true)
+    }
+    expect(Object.fromEntries(withEntry.map(([key, app]) => [key, (app as WebApplication).entry_path]))).toEqual({ admin_diaspora_ga: "/entrer" })
+  })
+
+  it("test du test : la forme du chemin d'entrée refuse requête, fragment, barre finale et segment vide", () => {
+    for (const path of ["/entrer", "/admin/entrer"]) expect(ENTRY_PATH.test(path), path).toBe(true)
+    for (const path of ["", "/", "entrer", "/entrer/", "/entrer?x=1", "/entrer#x", "//entrer", "/en trer", "/entr%65r", "/entrer\\x"]) expect(ENTRY_PATH.test(path), path).toBe(false)
   })
 
   it("test du test : une application externe lit aussi les paquets de son dépôt", () => {
