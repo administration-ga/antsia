@@ -38,6 +38,9 @@ steps:
       - NEXT_PUBLIC_IDN_PORTAL_URL=${_NEXT_PUBLIC_IDN_PORTAL_URL}
       - --build-arg
       - NEXT_PUBLIC_CONSULATE_URL=${_NEXT_PUBLIC_CONSULATE_URL}
+      # CH-817 : l'origine des actions HTTP lue par le navigateur (porte des comptes de démonstration).
+      - --build-arg
+      - NEXT_PUBLIC_CONVEX_SITE_URL=${_NEXT_PUBLIC_CONVEX_SITE_URL}
       # Variable propre à admin_diaspora_ga (lien « Ouvrir diaspora.ga ») : vide pour les autres applications.
       - --build-arg
       - NEXT_PUBLIC_MEMBERS_SITE_URL=${_NEXT_PUBLIC_MEMBERS_SITE_URL}
