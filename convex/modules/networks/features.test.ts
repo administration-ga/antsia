@@ -115,7 +115,8 @@ function readOf(f: Fixture, feature: NetworkFeature, as: As): Promise<unknown> {
     case "mutualAid": return as.query(api.modules.diaspora.mutualAid.myQuestions, { networkId, paginationOpts: FIRST })
     case "mentoring": return as.query(api.modules.diaspora.mentoring.myMentorProfile, { networkId })
     case "arrivalKit": return as.query(api.modules.diaspora.arrivalKit.myKitStanding, { networkId })
-    case "pilotMetrics": return as.query(api.modules.diaspora.pilotMetrics.pilotMetricsAccess, { networkId })
+    // CH-815 A6 : la mesure du pilote ne se lit que par l'administration du réseau (session prouvée de l'application d'administration).
+    case "pilotMetrics": return f.admin.as.query(api.modules.diaspora.pilotMetrics.pilotMetricsAccess, { networkId })
   }
 }
 

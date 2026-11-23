@@ -3,7 +3,10 @@
  * DG-027 · G11 : passage nocturne chaîné, seuil anti-réidentification, bases
  * des taux, refus indistinct, autre réseau, fenêtres, idempotence du passage,
  * aucun contenu privé dans les agrégats. Sessions réelles (Better Auth), jamais
- * un contournement des gardes. Les lignes sources sont insérées à l'instant de
+ * un contournement des gardes. CH-815 A6 (ADR-0042) : la mesure se lit par
+ * l'administration du réseau seule, en session prouvée et journalisée de
+ * l'application d'administration (`adminApp`) ; la modération et la session du
+ * bureau des membres reçoivent le refus indistinct. Les lignes sources sont insérées à l'instant de
  * leur date métier : l'index de création du moteur les range alors comme en
  * production.
  */
@@ -14,7 +17,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { api, internal } from "../../_generated/api"
 import type { Doc, Id } from "../../_generated/dataModel"
 import { SEED_CONFIRMATION } from "../../seeds/foundations"
-import { createTestOperatorProof, createTestSession, openNetworkFeatures, testConvex } from "../../test.setup"
+import { createTestOperatorProof, createTestSession, openNetworkFeatures, openTestNetworkAdminSession, testConvex } from "../../test.setup"
 
 type T = ReturnType<typeof testConvex>
 type Member = { readonly as: ReturnType<T["withIdentity"]>; readonly personId: Id<"persons"> }
@@ -99,6 +102,8 @@ async function fixture() {
   const plain = await member(t, networkId, "pilote-membre", "Jean MBA")
   await setRole(t, networkId, admin, "network_admin")
   await setRole(t, networkId, moderator, "network_moderator")
+  // CH-815 A6 : la session de l'application d'administration, vivante jusqu'après le passage.
+  const adminApp = await openTestNetworkAdminSession(t, admin.as, admin.personId, networkId, { expiresAt: SESSION_END })
   const ids = await t.run(async (ctx) => {
     const salon = await ctx.db.insert("pages", pageFields(networkId, "salon-pilote", "company"))
     const association = await ctx.db.insert("pages", pageFields(networkId, "association-pilote", "association"))
@@ -106,7 +111,7 @@ async function fixture() {
     const offerBe = await ctx.db.insert("serviceOffers", offerFields(networkId, salon, "BE"))
     return { salon, association, offerFr, offerBe }
   })
-  return { t, root, networkId, admin, moderator, plain, ...ids }
+  return { t, root, networkId, admin, adminApp, moderator, plain, ...ids }
 }
 type Fixture = Awaited<ReturnType<typeof fixture>>
 
@@ -308,15 +313,16 @@ async function seedCohort(f: Fixture) {
   return { first }
 }
 
-describe("mesure du pilote — accès réservé aux responsables du réseau", () => {
-  it("un simple membre reçoit le refus indistinct, avant tout jugement de ses arguments", async () => {
+describe("mesure du pilote — accès réservé à l'administration du réseau", () => {
+  it("un simple membre, la modération et l'administrateur depuis le bureau des membres reçoivent le refus indistinct, avant tout jugement des arguments", async () => {
     const f = await fixture()
     vi.setSystemTime(NOW)
-    expect(await f.plain.as.query(PILOT.pilotMetricsAccess, { networkId: f.networkId })).toEqual({ allowed: false })
-    expect(await code(f.plain.as.query(PILOT.pilotMetrics, { networkId: f.networkId, days: 30 }))).toBe("notFound")
-    expect(await code(f.plain.as.query(PILOT.pilotMetrics, { networkId: f.networkId, days: 14, country: "GA" }))).toBe("notFound")
-    expect(await f.admin.as.query(PILOT.pilotMetricsAccess, { networkId: f.networkId })).toEqual({ allowed: true })
-    expect(await f.moderator.as.query(PILOT.pilotMetricsAccess, { networkId: f.networkId })).toEqual({ allowed: true })
+    for (const as of [f.plain.as, f.moderator.as, f.admin.as]) {
+      expect(await code(as.query(PILOT.pilotMetricsAccess, { networkId: f.networkId }))).toBe("notFound")
+      expect(await code(as.query(PILOT.pilotMetrics, { networkId: f.networkId, days: 30 }))).toBe("notFound")
+      expect(await code(as.query(PILOT.pilotMetrics, { networkId: f.networkId, days: 14, country: "GA" }))).toBe("notFound")
+    }
+    expect(await f.adminApp.query(PILOT.pilotMetricsAccess, { networkId: f.networkId })).toEqual({ allowed: true })
   })
 
   it("une personne hors de DIASPORA.GA ne lit rien, même par la racine", async () => {
@@ -337,18 +343,18 @@ describe("mesure du pilote — accès réservé aux responsables du réseau", ()
     const f = await fixture()
     await setRole(f.t, f.root, f.admin, "network_admin")
     vi.setSystemTime(NOW)
-    expect(await code(f.admin.as.query(PILOT.pilotMetrics, { networkId: f.root, days: 30 }))).toBe("notFound")
-    expect(await code(f.admin.as.query(PILOT.pilotMetricsAccess, { networkId: f.root }))).toBe("notFound")
+    expect(await code(f.adminApp.query(PILOT.pilotMetrics, { networkId: f.root, days: 30 }))).toBe("notFound")
+    expect(await code(f.adminApp.query(PILOT.pilotMetricsAccess, { networkId: f.root }))).toBe("notFound")
   })
 
   it("avant le premier passage, la mesure se dit non faite ; les arguments hors liste sont refusés au responsable", async () => {
     const f = await fixture()
     vi.setSystemTime(NOW)
-    expect(await f.admin.as.query(PILOT.pilotMetrics, { networkId: f.networkId, days: 30 })).toEqual({ measured: false, country: null, days: 30, threshold: PILOT_DISPLAY_THRESHOLD })
-    expect(await f.moderator.as.query(PILOT.pilotMetrics, { networkId: f.networkId, country: "fr", days: 7 })).toEqual({ measured: false, country: "FR", days: 7, threshold: PILOT_DISPLAY_THRESHOLD })
-    expect(await code(f.admin.as.query(PILOT.pilotMetrics, { networkId: f.networkId, days: 14 }))).toBe("pilot_metrics_window_invalid")
-    expect(await code(f.admin.as.query(PILOT.pilotMetrics, { networkId: f.networkId, days: 30, country: "GA" }))).toBe("pilot_metrics_country_invalid")
-    expect(await code(f.admin.as.query(PILOT.pilotMetrics, { networkId: f.networkId, days: 30, country: "XX" }))).toBe("pilot_metrics_country_invalid")
+    expect(await f.adminApp.query(PILOT.pilotMetrics, { networkId: f.networkId, days: 30 })).toEqual({ measured: false, country: null, days: 30, threshold: PILOT_DISPLAY_THRESHOLD })
+    expect(await f.adminApp.query(PILOT.pilotMetrics, { networkId: f.networkId, country: "fr", days: 7 })).toEqual({ measured: false, country: "FR", days: 7, threshold: PILOT_DISPLAY_THRESHOLD })
+    expect(await code(f.adminApp.query(PILOT.pilotMetrics, { networkId: f.networkId, days: 14 }))).toBe("pilot_metrics_window_invalid")
+    expect(await code(f.adminApp.query(PILOT.pilotMetrics, { networkId: f.networkId, days: 30, country: "GA" }))).toBe("pilot_metrics_country_invalid")
+    expect(await code(f.adminApp.query(PILOT.pilotMetrics, { networkId: f.networkId, days: 30, country: "XX" }))).toBe("pilot_metrics_country_invalid")
   })
 })
 
@@ -357,7 +363,7 @@ describe("mesure du pilote — seuil, bases et classes de délai", () => {
     const f = await fixture()
     await seedCohort(f)
     await runPass(f)
-    const { view, byId } = await measured(f.admin.as, { networkId: f.networkId, country: "FR", days: 7 })
+    const { view, byId } = await measured(f.adminApp, { networkId: f.networkId, country: "FR", days: 7 })
     expect(view).toMatchObject({ country: "FR", days: 7, threshold: PILOT_DISPLAY_THRESHOLD, windowStartAt: TODAY - 7 * DAY_MS, windowEndAt: TODAY, computedAt: NOW, daysMeasured: 7 })
     expect(view.indicators.map((indicator) => indicator.id)).toEqual([...PILOT_METRIC_IDS])
     // Six offres actives en France : une en pause et une d'une page fermée ne comptent pas.
@@ -391,17 +397,17 @@ describe("mesure du pilote — seuil, bases et classes de délai", () => {
     const f = await fixture()
     await seedCohort(f)
     await runPass(f)
-    const network = await measured(f.moderator.as, { networkId: f.networkId, days: 7 })
+    const network = await measured(f.adminApp, { networkId: f.networkId, days: 7 })
     expect(network.view.country).toBeNull()
     expect(network.byId.get("offers_active")).toMatchObject({ value: { kind: "value", value: 7 } })
     expect(network.byId.get("requests_sent")).toMatchObject({ value: { kind: "value", value: 13 } })
     expect(network.byId.get("requests_answered")).toMatchObject({ value: { kind: "value", value: 7 }, denominator: { kind: "value", value: 13 }, rate: { kind: "value", percent: 54 } })
     expect(network.byId.get("requests_confirmed")).toMatchObject({ value: { kind: "value", value: 5 }, rate: { kind: "value", percent: 38 } })
-    const belgium = await measured(f.admin.as, { networkId: f.networkId, country: "BE", days: 7 })
+    const belgium = await measured(f.adminApp, { networkId: f.networkId, country: "BE", days: 7 })
     expect(belgium.byId.get("requests_sent")).toMatchObject({ value: { kind: "below_threshold", threshold: 5 } })
     expect(belgium.byId.get("offers_active")).toMatchObject({ value: { kind: "below_threshold", threshold: 5 } })
     // Un pays sans activité est mesuré (le réseau l'est) : tout y est sous le seuil.
-    const canada = await measured(f.admin.as, { networkId: f.networkId, country: "CA", days: 30 })
+    const canada = await measured(f.adminApp, { networkId: f.networkId, country: "CA", days: 30 })
     expect(canada.view.daysMeasured).toBe(30)
     expect(canada.view.indicators.every((indicator) => indicator.kind === "duration" ? indicator.sample.kind === "below_threshold" : indicator.value.kind === "below_threshold")).toBe(true)
     // Les lignes brutes : la ligne du jour garde les comptes exacts, jamais rendus sous le seuil.
@@ -419,7 +425,7 @@ describe("mesure du pilote — seuil, bases et classes de délai", () => {
     await seedCohort(f)
     await runPass(f)
     const stored = JSON.stringify(await storedRows(f))
-    const read = JSON.stringify(await f.admin.as.query(PILOT.pilotMetrics, { networkId: f.networkId, country: "FR", days: 90 }))
+    const read = JSON.stringify(await f.adminApp.query(PILOT.pilotMetrics, { networkId: f.networkId, country: "FR", days: 90 }))
     for (const forbidden of [PRIVATE_NEED, PRIVATE_DETAILS, PRIVATE_REVIEW, PRIVATE_MESSAGE, f.plain.personId, f.admin.personId, f.moderator.personId, f.salon, f.offerFr]) {
       expect(stored).not.toContain(forbidden)
       expect(read).not.toContain(forbidden)
@@ -434,9 +440,9 @@ describe("mesure du pilote — fenêtres de 7, 30 et 90 jours", () => {
     for (let hour = 8; hour < 13; hour += 1) await request(f, { at: daysAgo(40, hour), status: "sent" })
     for (let hour = 8; hour < 13; hour += 1) await request(f, { at: daysAgo(10, hour), status: "sent" })
     await runPass(f)
-    const week = await measured(f.admin.as, { networkId: f.networkId, country: "FR", days: 7 })
-    const month = await measured(f.admin.as, { networkId: f.networkId, country: "FR", days: 30 })
-    const quarter = await measured(f.admin.as, { networkId: f.networkId, country: "FR", days: 90 })
+    const week = await measured(f.adminApp, { networkId: f.networkId, country: "FR", days: 7 })
+    const month = await measured(f.adminApp, { networkId: f.networkId, country: "FR", days: 30 })
+    const quarter = await measured(f.adminApp, { networkId: f.networkId, country: "FR", days: 90 })
     expect(week.byId.get("requests_sent")).toMatchObject({ value: { kind: "below_threshold", threshold: 5 } })
     expect(month.byId.get("requests_sent")).toMatchObject({ value: { kind: "value", value: 5 } })
     expect(quarter.byId.get("requests_sent")).toMatchObject({ value: { kind: "value", value: 10 } })
@@ -488,7 +494,7 @@ describe("mesure du pilote — console du moteur", () => {
     await f.t.run(async (ctx) => { await ctx.db.insert("operators", { personId: operator.personId, role: "platform_operator", grantedAt: Date.now() }) })
     await createTestOperatorProof(f.t, operator.as, operator.personId)
     const fromConsole = await operator.as.query(PILOT.consolePilotMetrics, { networkId: f.networkId, country: "FR", days: 7 })
-    expect(fromConsole).toEqual(await f.admin.as.query(PILOT.pilotMetrics, { networkId: f.networkId, country: "FR", days: 7 }))
+    expect(fromConsole).toEqual(await f.adminApp.query(PILOT.pilotMetrics, { networkId: f.networkId, country: "FR", days: 7 }))
     expect(await code(operator.as.query(PILOT.consolePilotMetrics, { networkId: f.root, days: 7 }))).toBe("notFound")
     expect(await code(f.admin.as.query(PILOT.consolePilotMetrics, { networkId: f.networkId, days: 7 }))).toBe("operatorRequired")
   })
@@ -576,7 +582,7 @@ describe("mesure du pilote — l'utilité de l'entraide (ET-10)", () => {
     const f = await fixture()
     await seedAid(f)
     await runPass(f)
-    const { byId } = await measured(f.admin.as, { networkId: f.networkId, country: "FR", days: 7 })
+    const { byId } = await measured(f.adminApp, { networkId: f.networkId, country: "FR", days: 7 })
     expect(byId.get("aid_questions_asked")).toEqual({ id: "aid_questions_asked", group: "mutual_aid", kind: "count", value: { kind: "value", value: 20 } })
     expect(byId.get("aid_questions_resolved")).toEqual({
       id: "aid_questions_resolved", group: "mutual_aid", kind: "ratio", denominatorId: "aid_questions_asked",
@@ -591,7 +597,7 @@ describe("mesure du pilote — l'utilité de l'entraide (ET-10)", () => {
     expect(byId.get("kit_resources_listed")).toEqual({ id: "kit_resources_listed", group: "mutual_aid", kind: "snapshot", value: { kind: "value", value: 8 } })
     expect(byId.get("kit_resources_to_review")).toMatchObject({ kind: "ratio", denominatorId: "kit_resources_listed", value: { kind: "below_threshold" }, denominator: { kind: "value", value: 8 } })
 
-    const network = await measured(f.admin.as, { networkId: f.networkId, days: 7 })
+    const network = await measured(f.adminApp, { networkId: f.networkId, days: 7 })
     expect(network.byId.get("aid_signups")).toMatchObject({ value: { kind: "value", value: 5 } })
     // La question belge compte pour tout le réseau ; la retirée et la question retirée par la modération, jamais.
     expect(network.byId.get("aid_questions_asked")).toMatchObject({ value: { kind: "value", value: 21 } })
@@ -621,7 +627,7 @@ describe("mesure du pilote — l'utilité de l'entraide (ET-10)", () => {
         await ctx.db.replace(row._id, { networkId: row.networkId, country: row.country, dayStartAt: row.dayStartAt, counts: legacy, firstResponse: row.firstResponse, computedAt: row.computedAt, ...(row.offersActive === undefined ? {} : { offersActive: row.offersActive }) })
       }
     })
-    const { byId } = await measured(f.admin.as, { networkId: f.networkId, days: 30 })
+    const { byId } = await measured(f.adminApp, { networkId: f.networkId, days: 30 })
     expect(byId.get("aid_questions_asked")).toMatchObject({ value: { kind: "below_threshold" } })
     expect(byId.get("kit_resources_listed")).toMatchObject({ value: { kind: "below_threshold" } })
   })

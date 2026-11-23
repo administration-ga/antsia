@@ -75,6 +75,16 @@ describe("network-admin-audit — toute décision de l'administrateur du réseau
     const declared = new Set(networkAdminMutationFiles().flatMap(({ file, text }) => networkAdminMutations(file, text).map(({ name }) => `${file}#${name}`)))
     expect(Object.keys(EXCEPTIONS).filter((key) => !declared.has(key))).toEqual([])
     // Garde-fou du détecteur : s'il ne trouvait plus rien, il passerait au vert sur un parc nu.
-    expect([...declared]).toEqual(expect.arrayContaining(["convex/modules/networks/adminAccess.ts#recordAccess", "convex/modules/networks/features.ts#setFeature"]))
+    expect([...declared]).toEqual(expect.arrayContaining([
+      "convex/modules/networks/adminAccess.ts#recordAccess",
+      "convex/modules/networks/features.ts#setFeature",
+      // CH-815 A6 : les décisions du réseau déménagées vers l'application d'administration.
+      "convex/modules/diaspora/membership.ts#setResponsibleRole",
+      "convex/modules/moderation/networkAdmin.ts#reviewNetworkAppeal",
+      "convex/modules/moderation/networkAdmin.ts#createTeam",
+      "convex/modules/moderation/networkAdmin.ts#setTeamMember",
+      "convex/modules/moderation/networkAdmin.ts#setPolicy",
+      "convex/modules/moderation/networkAdmin.ts#setBlockedTerm",
+    ]))
   })
 })

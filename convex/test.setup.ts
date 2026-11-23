@@ -88,6 +88,29 @@ export async function createTestNetworkAdminProof(
   if (logged) await as.mutation(api.modules.networks.adminAccess.recordAccess, { networkId })
 }
 
+/**
+ * ADR-0042 (CH-815, lot A6) — une SECONDE session de la personne de `as`, ouverte par le retour IDN
+ * de l'application d'administration du réseau (`createTestNetworkAdminProof`, mêmes options), et
+ * rendue comme une nouvelle identité : la session de `as` reste celle de l'application des membres,
+ * non scellée. `expiresAt` borne la nouvelle session (et donc sa preuve). Le rôle est posé par
+ * l'appelant ; `logged: false` pour une personne qui n'administre pas le réseau (`recordAccess` la
+ * refuserait).
+ */
+export async function openTestNetworkAdminSession(
+  t: BackendTest,
+  as: ReturnType<BackendTest["withIdentity"]>,
+  personId: Id<"persons">,
+  networkId: Id<"networks">,
+  { expiresAt, ...options }: { application?: string; loa?: 1 | 2 | 3; logged?: boolean; expiresAt?: number } = {},
+): Promise<ReturnType<BackendTest["withIdentity"]>> {
+  const identity = await as.run(async (ctx) => ctx.auth.getUserIdentity())
+  if (!identity) throw new Error("Identité de fixture absente")
+  const sessionId = await createTestSession(t, identity.subject, expiresAt)
+  const admin = t.withIdentity({ subject: identity.subject, sessionId })
+  await createTestNetworkAdminProof(t, admin, personId, networkId, options)
+  return admin
+}
+
 /** Le retour IDN de la session de `as` : compte IDN, preuve du sujet, lien vivant, preuve de session (pour `application`, si elle est donnée). */
 async function sealTestIdnSession(t: BackendTest, as: ReturnType<BackendTest["withIdentity"]>, personId: Id<"persons">, loa: 1 | 2 | 3, application?: string): Promise<void> {
   const identity = await as.run(async (ctx) => ctx.auth.getUserIdentity())

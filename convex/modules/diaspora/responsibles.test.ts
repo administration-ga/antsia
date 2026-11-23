@@ -3,9 +3,11 @@
  * MD-01 et LX-03 — les responsables de DIASPORA.GA, SANS la porte de démonstration : la
  * console du moteur nomme le premier administrateur (`platform/networkRoles`) ; celui-ci
  * nomme, change et retire les responsables dans la tranche (`membership.setResponsibleRole`),
- * motif à l'appui, par l'aide du moteur ; le rôle ouvre ou ferme la file, les recours et
- * `/pilote` au geste suivant ; la liste des responsables ne montre que des profils publiés.
- * Données de fixture fictives.
+ * motif à l'appui, par l'aide du moteur ; le rôle ouvre ou ferme la file au geste suivant ; la
+ * liste des responsables ne montre que des profils publiés.
+ * CH-815 A6 (ADR-0042) : nommer, lire les responsables, les recours et la mesure du pilote se fait
+ * depuis l'application d'administration, en session prouvée et journalisée ; la mesure n'est plus
+ * lue par la modération. La file reste au bureau des membres. Données de fixture fictives.
  */
 import { engineErrorCode, engineErrorRule } from "@antsia/social-contracts/errors"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
@@ -13,10 +15,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { api, internal } from "../../_generated/api"
 import type { Doc, Id } from "../../_generated/dataModel"
 import { SEED_CONFIRMATION } from "../../seeds/foundations"
-import { createTestOperatorProof, openNetworkFeatures, testConvex } from "../../test.setup"
+import { createTestOperatorProof, openNetworkFeatures, openTestNetworkAdminSession, testConvex } from "../../test.setup"
 
 type T = ReturnType<typeof testConvex>
-type Member = { as: ReturnType<T["withIdentity"]>; personId: Id<"persons"> }
+type As = ReturnType<T["withIdentity"]>
+type Member = { as: As; personId: Id<"persons"> }
 
 const M = api.modules.diaspora.membership
 const D = api.modules.diaspora.moderationDesk
@@ -86,19 +89,36 @@ async function fixture() {
   const moderator = await member(t, network, "ruth.fixture", "Ruth NZÉ")
   const plain = await member(t, network, "jean.fixture", "Jean MBA")
   expect(await operator.as.mutation(CONSOLE.setNetworkRole, { networkId: network, personId: admin.personId, role: "network_admin", reason: "Premier administrateur du réseau (fixture)." })).toEqual({ role: "network_admin", changed: true })
-  return { t, root, network, operator, admin, moderator, plain }
+  return { t, root, network, operator, admin, moderator, plain, adminSessions: new Map<Id<"persons">, As>() }
 }
 type Fixture = Awaited<ReturnType<typeof fixture>>
 
-function name(f: Fixture, who: Member, role: Doc<"networkMemberships">["role"], by: Member = f.admin, reason = REASON) {
-  return by.as.mutation(M.setResponsibleRole, { networkId: f.network, personId: who.personId, role, reason })
+/**
+ * CH-815 A6 — la session de l'application d'administration de la personne, ouverte une fois par le
+ * retour IDN (preuve scellée), et dont l'accès est journalisé dès qu'elle administre le réseau
+ * (`recordAccess`, idempotent ; refusé tant qu'elle ne l'administre pas). La MÊME session sert
+ * avant et après un changement de rôle : le rôle se relit au geste suivant.
+ */
+async function adminApp(f: Fixture, who: Member): Promise<As> {
+  let as = f.adminSessions.get(who.personId)
+  if (!as) {
+    as = await openTestNetworkAdminSession(f.t, who.as, who.personId, f.network, { logged: false })
+    f.adminSessions.set(who.personId, as)
+  }
+  const refusal = await codeOf(as.mutation(api.modules.networks.adminAccess.recordAccess, { networkId: f.network }))
+  if (refusal !== null && refusal !== "notFound") throw new Error(`Journalisation de l'accès refusée : ${refusal}`)
+  return as
+}
+
+async function name(f: Fixture, who: Member, role: Doc<"networkMemberships">["role"], by: Member = f.admin, reason = REASON) {
+  return (await adminApp(f, by)).mutation(M.setResponsibleRole, { networkId: f.network, personId: who.personId, role, reason })
 }
 
 const queueOf = (f: Fixture, who: Member) => who.as.query(D.queue, { networkId: f.network, expectedPersonId: who.personId, zone: ALL, paginationOpts: PAGE })
-const appealsOf = (f: Fixture, who: Member) => who.as.query(D.appealQueue, { networkId: f.network, expectedPersonId: who.personId, zone: ALL, paginationOpts: PAGE })
-const pilotOf = (f: Fixture, who: Member) => who.as.query(PILOT.pilotMetrics, { networkId: f.network, days: 30 })
-const pilotAccessOf = (f: Fixture, who: Member) => who.as.query(PILOT.pilotMetricsAccess, { networkId: f.network })
-const responsiblesOf = (f: Fixture, who: Member, expected: Member = who) => who.as.query(D.responsibles, { networkId: f.network, expectedPersonId: expected.personId })
+const appealsOf = async (f: Fixture, who: Member) => (await adminApp(f, who)).query(D.appealQueue, { networkId: f.network, expectedPersonId: who.personId, zone: ALL, paginationOpts: PAGE })
+const pilotOf = async (f: Fixture, who: Member) => (await adminApp(f, who)).query(PILOT.pilotMetrics, { networkId: f.network, days: 30 })
+const pilotAccessOf = async (f: Fixture, who: Member) => (await adminApp(f, who)).query(PILOT.pilotMetricsAccess, { networkId: f.network })
+const responsiblesOf = async (f: Fixture, who: Member, expected: Member = who) => (await adminApp(f, who)).query(D.responsibles, { networkId: f.network, expectedPersonId: expected.personId })
 
 async function roleOf(t: T, networkId: Id<"networks">, personId: Id<"persons">) {
   return await t.run(async (ctx) => (await ctx.db.query("networkMemberships").withIndex("by_network_and_person", (q) => q.eq("networkId", networkId).eq("personId", personId)).unique())?.role ?? null)
@@ -109,24 +129,23 @@ async function roleJournal(t: T) {
 }
 
 describe("MD-01 — nommer les responsables du réseau, sans la porte de démonstration", () => {
-  it("l'administrateur nommé par la console nomme une modératrice : elle lit toute la file et /pilote ; le retrait les lui ferme au geste suivant", async () => {
+  it("l'administrateur nommé par la console nomme une modératrice : elle lit toute la file ; la mesure et les recours restent à l'administration ; le retrait lui ferme la file au geste suivant", async () => {
     const f = await fixture()
     expect(await codeOf(queueOf(f, f.moderator))).toBe("notFound")
-    expect(await pilotAccessOf(f, f.moderator)).toEqual({ allowed: false })
+    expect(await codeOf(pilotAccessOf(f, f.moderator))).toBe("notFound")
 
     expect(await name(f, f.moderator, "network_moderator")).toEqual({ role: "network_moderator", changed: true })
     expect(await f.moderator.as.query(D.myDesk, { networkId: f.network, expectedPersonId: f.moderator.personId })).toMatchObject({ role: "network_moderator", networkWide: true, canReviewAppeals: false, canManageTeams: false })
     expect(await queueOf(f, f.moderator)).toMatchObject({ items: [], isDone: true })
-    expect(await pilotAccessOf(f, f.moderator)).toEqual({ allowed: true })
-    expect(await codeOf(pilotOf(f, f.moderator))).toBeNull()
-    // La modération du réseau ne juge pas les recours : ils restent à l'administration.
+    // CH-815 A6 : la mesure du pilote et les recours se lisent par l'administration du réseau seule, même en session prouvée.
+    expect(await codeOf(pilotAccessOf(f, f.moderator))).toBe("notFound")
+    expect(await codeOf(pilotOf(f, f.moderator))).toBe("notFound")
     expect(await codeOf(appealsOf(f, f.moderator))).toBe("notFound")
 
     expect(await name(f, f.moderator, "member")).toEqual({ role: "member", changed: true })
     expect(await f.moderator.as.query(D.myDesk, { networkId: f.network, expectedPersonId: f.moderator.personId })).toBeNull()
     expect(await codeOf(queueOf(f, f.moderator))).toBe("notFound")
     expect(await codeOf(pilotOf(f, f.moderator))).toBe("notFound")
-    expect(await pilotAccessOf(f, f.moderator)).toEqual({ allowed: false })
 
     const journal = await roleJournal(f.t)
     expect(journal.map((row) => [row.capacity, row.actorPersonId, row.subjectId, row.details?.from, row.details?.to])).toEqual([
@@ -147,7 +166,9 @@ describe("MD-01 — nommer les responsables du réseau, sans la porte de démons
     expect(await codeOf(name(f, f.plain, "network_moderator", f.moderator))).toBe("notFound")
     expect(await codeOf(name(f, f.moderator, "member", f.moderator))).toBe("notFound")
     // Un autre réseau que DIASPORA.GA : la tranche ne gouverne que le sien.
-    expect(await codeOf(f.admin.as.mutation(M.setResponsibleRole, { networkId: f.root, personId: f.plain.personId, role: "network_moderator", reason: REASON }))).toBe("notFound")
+    expect(await codeOf((await adminApp(f, f.admin)).mutation(M.setResponsibleRole, { networkId: f.root, personId: f.plain.personId, role: "network_moderator", reason: REASON }))).toBe("notFound")
+    // CH-815 A6 : depuis le bureau des membres, l'administrateur lui-même ne nomme plus.
+    expect(await codeOf(f.admin.as.mutation(M.setResponsibleRole, { networkId: f.network, personId: f.plain.personId, role: "network_moderator", reason: REASON }))).toBe("notFound")
     expect(await roleOf(f.t, f.network, f.plain.personId)).toBe("member")
     expect(await roleOf(f.t, f.network, f.moderator.personId)).toBe("network_moderator")
     expect(await roleJournal(f.t)).toHaveLength(before)
@@ -158,7 +179,7 @@ describe("MD-01 — nommer les responsables du réseau, sans la porte de démons
     expect(await codeOf(name(f, f.moderator, "network_moderator", f.admin, "  court  "))).toBe("DECISION_REASON_LENGTH")
     // Une personne sans adhésion à DIASPORA.GA : aucune adhésion n'est créée.
     const outsiderId = await f.t.withIdentity({ subject: "responsables-hors-reseau" }).mutation(api.modules.people.persons.ensureMyPerson, {})
-    expect(await codeOf(f.admin.as.mutation(M.setResponsibleRole, { networkId: f.network, personId: outsiderId, role: "network_moderator", reason: REASON }))).toBe("notFound")
+    expect(await codeOf((await adminApp(f, f.admin)).mutation(M.setResponsibleRole, { networkId: f.network, personId: outsiderId, role: "network_moderator", reason: REASON }))).toBe("notFound")
     expect(await roleOf(f.t, f.network, outsiderId)).toBeNull()
     // Une adhésion EN ATTENTE (aucune preuve) ne reçoit aucun rôle.
     const pending = await member(f.t, f.network, "attente.fixture", "Paul ATTENTE", { idn: false })
@@ -204,7 +225,7 @@ describe("MD-01 — nommer les responsables du réseau, sans la porte de démons
 })
 
 describe("LX-03 — lecteurs du tableau du pilote et de la file des recours", () => {
-  it("un administrateur nommé ouvre /pilote et la file des recours ; retiré, il reçoit le refus indistinct", async () => {
+  it("un administrateur nommé ouvre la mesure et la file des recours (application d'administration) ; retiré, il reçoit le refus indistinct", async () => {
     const f = await fixture()
     expect(await codeOf(pilotOf(f, f.plain))).toBe("notFound")
     expect(await codeOf(appealsOf(f, f.plain))).toBe("notFound")
@@ -215,7 +236,7 @@ describe("LX-03 — lecteurs du tableau du pilote et de la file des recours", ()
     expect(await appealsOf(f, f.plain)).toMatchObject({ items: [], isDone: true })
 
     await name(f, f.plain, "member")
-    expect(await pilotAccessOf(f, f.plain)).toEqual({ allowed: false })
+    expect(await codeOf(pilotAccessOf(f, f.plain))).toBe("notFound")
     expect(await codeOf(pilotOf(f, f.plain))).toBe("notFound")
     expect(await codeOf(appealsOf(f, f.plain))).toBe("notFound")
   })
