@@ -52,7 +52,8 @@ export async function hubRow(ctx: QueryCtx, networkId: Id<"networks">, country: 
     .unique()
 }
 
-function hubView(network: Doc<"networks">, country: string, row: Doc<"countryHubs"> | null) {
+/** La vue d'un hub : son ouverture et la PRÉSENTATION de ses compteurs matérialisés, jamais le chiffre brut. */
+export function hubView(network: Doc<"networks">, country: string, row: Doc<"countryHubs"> | null) {
   return {
     country,
     open: (network.openCountries ?? []).includes(country),

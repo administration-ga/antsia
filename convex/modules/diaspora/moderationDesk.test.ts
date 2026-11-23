@@ -184,14 +184,14 @@ describe("myDesk — la compétence vivante, sans divulgation", () => {
     const teamId = await f.t.run(async (ctx) => ctx.db.insert("moderationTeams", { networkId: f.network, name: "France (fixture)", active: true, createdAt: NOW }))
     expect(await f.admin.as.query(D.myDesk, { networkId: f.network, expectedPersonId: f.admin.personId })).toEqual({
       role: "network_admin", networkWide: true, canReviewAppeals: true, canManageTeams: true, canManagePolicy: true,
-      teams: [{ teamId, name: "France (fixture)", scope: null, isMember: false }],
+      teams: [{ teamId, name: "France (fixture)", scope: null, country: null, isMember: false }],
     })
     // Un modérateur réseau hors de l'équipe ne la voit pas : aucun coéquipier n'est révélé.
     expect((await f.moderator.as.query(D.myDesk, { networkId: f.network, expectedPersonId: f.moderator.personId }))?.teams).toEqual([])
     await f.t.run(async (ctx) => ctx.db.insert("moderationTeamMembers", { networkId: f.network, teamId, personId: f.reader.personId, active: true, updatedAt: NOW }))
     expect(await f.reader.as.query(D.myDesk, { networkId: f.network, expectedPersonId: f.reader.personId })).toEqual({
       role: "team_member", networkWide: false, canReviewAppeals: false, canManageTeams: false, canManagePolicy: false,
-      teams: [{ teamId, name: "France (fixture)", scope: null, isMember: true }],
+      teams: [{ teamId, name: "France (fixture)", scope: null, country: null, isMember: true }],
     })
   })
 

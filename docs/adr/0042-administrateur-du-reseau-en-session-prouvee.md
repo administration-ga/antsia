@@ -229,3 +229,18 @@ Statut « Proposé ». Revue de sécurité du lot A1 ; le code fait foi (`convex
 Recettes : `convex/betterAuth/idnApplication.test.ts`, `convex/betterAuth/settings.test.ts`,
 `convex/modules/networks/adminAccess.test.ts`, `packages/api/src/auth-proxy.test.ts`, cliquets
 `deploy-catalog` et `unlogged-access`.
+
+## Amendement du 2026-11-23 (CH-815, lot A3, suite) — les pays ouverts et l'équipe d'un pays
+
+Statut « Proposé ». Remplace le point « Pays ouverts : en attente » de l'amendement A3.
+- `moderationTeams` gagne un champ facultatif `country` (ISO alpha-2), sans nouvel index (100 équipes actives au
+  plus, lues par `by_network_active`). Posé par `moderation/networkAdmin.createTeam` (`country?`) ou
+  `setTeamCountry` (journal `moderation.team_country_set`). La racine, la console et `moderation/cases` ne changent pas.
+- `diaspora/networkSettings.setOpenCountry` ouvre un pays s'il a une équipe active de ce pays avec au moins un
+  modérateur actif, membre actif du réseau ; fermer est toujours permis. Historique des réglages et journal
+  `diaspora.country_set` à titre de `network_admin`. La console reste le repli d'exploitation, sans cette règle.
+- Les deux associations relais du cahier ne sont pas modélisées : l'administrateur les atteste à l'ouverture
+  (`relayAssociationsAttested`, inscrit au journal). Le moteur ne les vérifie pas.
+- Le pays d'une équipe ne délimite encore aucune compétence : le routage des signalements reste par nature de
+  contenu. Le routage par pays est un lot à part, requis avant l'ouverture d'un deuxième pays.
+- Rejetées : table de tranche équipe–pays (deux sources, routage générique impossible) ; ouverture sans équipe.

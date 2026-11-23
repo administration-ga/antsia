@@ -6,6 +6,11 @@
  * MÊMES arguments, MÊME cœur métier (`createNetworkTeam`, `setNetworkTeamMember`,
  * `reviewNetworkAppealOf`, `setNetworkPolicy`, `setNetworkBlockedTerm`, `moderationSettings`,
  * `blockedTermsPage`), MÊMES règles de motif, MÊME ligne de journal à titre de `network_admin`.
+ * Une seule différence d'arguments, depuis l'amendement A3 (suite) : `createTeam` accepte en plus le
+ * pays de l'équipe (`country?`, ISO alpha-2, jugé par sa forme), que l'original refuse. Et une porte
+ * sans original : `setTeamCountry`, qui pose, change ou retire ce pays (`moderation.team_country_set`).
+ * Le pays d'une équipe ne délimite encore aucune compétence : le routage des signalements reste par
+ * nature de contenu (`cases.report`).
  * Ce qui change est la garde : `networkAdminQuery` / `networkAdminMutation` (adhésion, rôle relu,
  * session IDN prouvée de l'application qui administre CE réseau, accès journalisé ; refus
  * indistinct sinon), puis, pour écrire, la garde d'écriture, `social.write`, `network_admin.write`
@@ -24,7 +29,7 @@ import { v } from "convex/values"
 
 import { networkAdminMutation, networkAdminQuery } from "../../lib/functions"
 import { appendAudit } from "../platform/audit"
-import { createNetworkTeam, reviewNetworkAppealOf, setNetworkBlockedTerm, setNetworkPolicy, setNetworkTeamMember } from "./cases"
+import { createNetworkTeam, reviewNetworkAppealOf, setNetworkBlockedTerm, setNetworkPolicy, setNetworkTeamCountry, setNetworkTeamMember } from "./cases"
 import { blockedTermsPage as readBlockedTermsPage, blockedTermsPageValidator, moderationSettings, moderationSettingsValidator } from "./settings"
 import { moderationSurfaceValidator } from "./tables"
 
@@ -39,10 +44,10 @@ export const reviewNetworkAppeal = networkAdminMutation({
   },
 })
 
-/** Équipe : créer une équipe de modération du réseau (nature facultative). */
+/** Équipe : créer une équipe de modération du réseau (nature et pays facultatifs). */
 export const createTeam = networkAdminMutation({
   writeBucket: "moderation.decide",
-  args: { name: v.string(), scope: v.optional(moderationSurfaceValidator), reason: v.string() },
+  args: { name: v.string(), scope: v.optional(moderationSurfaceValidator), country: v.optional(v.string()), reason: v.string() },
   returns: v.object({ teamId: v.id("moderationTeams") }),
   handler: async (ctx, args) => {
     const { teamId, audit } = await createNetworkTeam(ctx, { networkId: ctx.networkId, personId: ctx.person._id }, args)
@@ -58,6 +63,21 @@ export const setTeamMember = networkAdminMutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     await appendAudit(ctx, await setNetworkTeamMember(ctx, { networkId: ctx.networkId, personId: ctx.person._id }, args))
+    return null
+  },
+})
+
+/**
+ * Équipe : poser, changer ou retirer (`null`) le pays d'une équipe active du réseau (ISO alpha-2, jugé par
+ * sa forme) ; une autre équipe : le refus indistinct. Sans changement, rien n'est écrit.
+ */
+export const setTeamCountry = networkAdminMutation({
+  writeBucket: "moderation.decide",
+  args: { teamId: v.id("moderationTeams"), country: v.union(v.string(), v.null()), reason: v.string() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const audit = await setNetworkTeamCountry(ctx, { networkId: ctx.networkId, personId: ctx.person._id }, args)
+    if (audit) await appendAudit(ctx, audit)
     return null
   },
 })

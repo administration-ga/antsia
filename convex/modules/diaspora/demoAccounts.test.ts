@@ -17,7 +17,7 @@ import { api, components, internal } from "../../_generated/api"
 import type { Id } from "../../_generated/dataModel"
 import { DIASPORA_GA_DEMO_EMAIL_DOMAIN } from "../../lib/devTools"
 import { SEED_CONFIRMATION } from "../../seeds/foundations"
-import { createTestSession, openNetworkFeatures, testConvex } from "../../test.setup"
+import { createTestSession, openNetworkFeatures, openTestNetworkAdminSession, testConvex } from "../../test.setup"
 import { liveSignatoryRole } from "../pages/access"
 
 type T = ReturnType<typeof testConvex>
@@ -1017,6 +1017,29 @@ describe("comptes de démonstration DIASPORA.GA — pays ouverts", () => {
     const countries = (await hubsOf(t, diasporaGa)).map((hub) => hub.country)
     expect(countries).not.toContain("CA")
     expect(countries.filter((country) => country === "BE")).toHaveLength(1)
+  })
+
+  it("CH-815 A3 : une fermeture décidée par l'administration du réseau (setOpenCountry) n'est jamais rouverte par la démonstration", async () => {
+    openDevTools()
+    const { t, diasporaGa } = await fixture()
+    // L'administratrice du réseau, en session prouvée de l'application d'administration (adresse fictive hors du domaine réservé).
+    const admin = await welcomed(t, { email: "admin.pays@exemple.test", handle: "admin.pays", displayName: "Admin pays" })
+    await t.run(async (ctx) => {
+      await ctx.db.insert("identityLinks", { personId: admin.personId, provider: "idn", subject: `idn-${admin.personId}`, loa: 2, nationality: "GA", linkedAt: Date.now() })
+    })
+    await admin.as.mutation(api.modules.diaspora.membership.joinDiasporaGa, { networkId: diasporaGa, facet: { countryOfResidence: "FR" }, directoryVisibility: "hidden" })
+    await t.run(async (ctx) => {
+      const row = await ctx.db.query("networkMemberships").withIndex("by_network_and_person", (q) => q.eq("networkId", diasporaGa).eq("personId", admin.personId)).unique()
+      await ctx.db.patch(present(row, "adhésion")._id, { role: "network_admin" })
+    })
+    const adminApp = await openTestNetworkAdminSession(t, admin.as, admin.personId, diasporaGa)
+    expect(await adminApp.mutation(api.modules.diaspora.networkSettings.setOpenCountry, { networkId: diasporaGa, country: "FR", open: false, reason: "Fermeture décidée par l'administration (fixture)." })).toEqual({ open: false, changed: true })
+    const { as } = await joinedActor(t, diasporaGa, "leger")
+    await equip(as, "leger")
+    expect((await networkOf(t, diasporaGa)).openCountries).toEqual([])
+    const countries = (await hubsOf(t, diasporaGa)).map((hub) => hub.country)
+    expect(countries).not.toContain("BE")
+    expect(countries).not.toContain("CA")
   })
 })
 
