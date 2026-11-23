@@ -22,7 +22,7 @@ describe("catalogue réel du moteur", () => {
     const substitutions = plan.build[plan.build.indexOf("--substitutions") + 1]
     expect(substitutions).toContain("_NEXT_PUBLIC_CONVEX_URL=u")
     expect(substitutions).toContain("_NEXT_PUBLIC_DIASPORA_GA_DATA_SOURCE=,")
-    expect(substitutions.split(",").filter((entry) => entry.startsWith("_NEXT_PUBLIC_")).length).toBe(11)
+    expect(substitutions.split(",").filter((entry) => entry.startsWith("_NEXT_PUBLIC_")).length).toBe(12)
   })
 
   test("la mesure facultative absente reste vide, sans imposer sa configuration ni inscrire un marqueur", () => {
