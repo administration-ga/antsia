@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import catalog from "../../deploy/catalog.json"
-import { applicationOfOAuthState, applicationOfOrigin, authenticationConfiguration, idnConfiguration, idnProfileProof, isE164Phone, isWebApplicationKey, networkAdministeredBy, parseOriginList, smsConfiguration, trustedOrigins } from "./settings"
+import { applicationOfOAuthState, applicationOfOrigin, authenticationConfiguration, entryPathOf, idnConfiguration, idnProfileProof, isE164Phone, isWebApplicationKey, networkAdministeredBy, parseOriginList, smsConfiguration, trustedOrigins } from "./settings"
 
 // L'inventaire reste exhaustif ; seules les entrées web déclarent une origine HTTP.
 const webApplications = Object.entries(catalog.applications).flatMap(([key, app]) =>
@@ -162,6 +162,30 @@ describe("ADR-0042 — application où un retour IDN livre la session", () => {
     ["une adresse de nouvel utilisateur illisible", { callbackURL: `${membersOrigin}/fil`, newUserURL: 42 }],
   ])("aucune application pour %s", (_label, state) => {
     expect(applicationOfOAuthState(state, {})).toBeNull()
+  })
+
+  it("revue F2 — une application qui administre un réseau : les trois adresses valent exactement son entrée (`entry_path`)", () => {
+    const admin = webApplications.find((app) => app.key === "admin_diaspora_ga")
+    if (!admin || !("entry_path" in admin)) throw new Error("Entrée d'administration attendue au catalogue, avec son chemin d'entrée")
+    const entry = `${new URL(admin.site_url).origin}${admin.entry_path}`
+    expect(admin.entry_path).toBe("/entrer")
+    expect(applicationOfOAuthState({ callbackURL: entry, newUserURL: entry, errorURL: entry }, {})).toBe("admin_diaspora_ga")
+    for (const [label, state] of [
+      ["requête", { callbackURL: `${entry}?x=`, newUserURL: entry, errorURL: entry }],
+      ["fragment", { callbackURL: `${entry}#x`, newUserURL: entry, errorURL: entry }],
+      ["autre chemin", { callbackURL: `${new URL(admin.site_url).origin}/anything`, newUserURL: entry, errorURL: entry }],
+      ["nouvel utilisateur absent", { callbackURL: entry, errorURL: entry }],
+      ["nouvel utilisateur vide", { callbackURL: entry, newUserURL: "", errorURL: entry }],
+      ["erreur absente", { callbackURL: entry, newUserURL: entry }],
+      ["erreur ailleurs", { callbackURL: entry, newUserURL: entry, errorURL: `${entry}/erreur` }],
+      ["casse différente", { callbackURL: entry.replace("/entrer", "/Entrer"), newUserURL: entry, errorURL: entry }],
+    ] as const) expect(applicationOfOAuthState(state, {}), label).toBeNull()
+    // Une application qui administre un réseau sans chemin d'entrée déclaré n'est jamais scellée (fermé par défaut).
+    const applications = { administration: { platform: "web", administers_network: "reseau-fictif" } }
+    expect(networkAdministeredBy("administration", applications)).toBe("reseau-fictif")
+    expect(entryPathOf("administration", applications)).toBeNull()
+    expect(entryPathOf("admin_diaspora_ga")).toBe("/entrer")
+    expect(entryPathOf("diaspora_ga")).toBeNull()
   })
 
   it("seule une application WEB du catalogue est une clé de preuve", () => {
