@@ -45,6 +45,12 @@ export const AUDIT_ACTIONS = [
   // Modération d'un réseau
   "moderation.report_decide",
   "moderation.team_create", "moderation.team_member_set", "moderation.policy_set", "moderation.term_set",
+  /**
+   * CH-815 A3 (ADR-0042) : le pays d'une équipe de modération posé, changé ou retiré par l'administration du
+   * réseau. Sujet : l'équipe (`moderationTeams`). Détail : `reason`, `country` (ISO alpha-2 ou `null`) et
+   * `previousCountry` (idem).
+   */
+  "moderation.team_country_set",
   "moderation.appeal_file", "moderation.appeal_decide", "moderation.content_review",
   "moderation.sanction_expire", "moderation.transparency_compute",
   // SU01h : mesures sur ordre du juge (référé numérique, art. 39 à 44) — exécution par un opérateur,
@@ -155,6 +161,14 @@ export const AUDIT_ACTIONS = [
    * départ de la personne n'est pas une décision : l'admission la date.
    */
   "diaspora.founder_withdraw",
+  /**
+   * Un pays du réseau ouvert ou fermé par l'administration du réseau (CH-815 A3, ADR-0042). Sujet : le
+   * réseau (`networks`). Détail : `reason`, le motif nettoyé ; `country` (ISO alpha-2) ; `open` ;
+   * `activeModerators`, les modérateurs actifs des équipes du pays au moment de la décision ; et
+   * `relayAssociationsAttested`, l'attestation par l'administrateur des associations relais, que le moteur
+   * ne vérifie pas.
+   */
+  "diaspora.country_set",
 ] as const
 export type AuditAction = (typeof AUDIT_ACTIONS)[number]
 

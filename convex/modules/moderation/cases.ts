@@ -164,15 +164,45 @@ const deciderOf = (ctx: { networkId: Id<"networks">; person: Doc<"persons"> }): 
 // visible dans la décision, cliquet `network-admin-audit`). La garde et les budgets restent chez
 // l'appelant (rôle et budget `moderation.decide` ici ; constructeur et `writeBucket` au jumeau).
 
-/** Créer une équipe de modération du réseau (100 équipes actives au plus). */
-export async function createNetworkTeam(ctx: MutationCtx, actor: NetworkDecider, args: { name: string; scope?: ModerationSurface; reason: string }): Promise<{ teamId: Id<"moderationTeams">; audit: AuditEntry }> {
+/**
+ * CH-815 A3 (ADR-0042) — le pays d'une équipe se juge par sa FORME seule (ISO 3166-1 alpha-2 en
+ * majuscules, comme `networks.openCountries`) : le moteur ne connaît pas la liste des pays d'un réseau,
+ * que sa tranche juge (`diaspora/networkSettings`).
+ */
+function teamCountryOf(country: string): string {
+  return /^[A-Z]{2}$/.test(country) ? country : fail("invalidArgument", { field: "country" })
+}
+
+/**
+ * Créer une équipe de modération du réseau (100 équipes actives au plus). `country` n'est passé que par
+ * le jumeau d'administration (`moderation/networkAdmin.createTeam`) : l'original garde ses arguments, et
+ * une équipe sans pays ne porte ni champ ni détail de plus.
+ */
+export async function createNetworkTeam(ctx: MutationCtx, actor: NetworkDecider, args: { name: string; scope?: ModerationSurface; country?: string; reason: string }): Promise<{ teamId: Id<"moderationTeams">; audit: AuditEntry }> {
   const name = args.name.trim()
   if (name.length < 2 || name.length > 100) return fail("invalidArgument", { field: "name" })
+  const country = args.country === undefined ? undefined : teamCountryOf(args.country)
   const reason = motiveOf(args.reason)
   const existing = await ctx.db.query("moderationTeams").withIndex("by_network_active", (q) => q.eq("networkId", actor.networkId).eq("active", true)).take(100)
   if (existing.length >= 100) return fail("policyRefused")
-  const teamId = await ctx.db.insert("moderationTeams", { networkId: actor.networkId, name, ...(args.scope ? { scope: args.scope } : {}), active: true, createdAt: Date.now() })
-  return { teamId, audit: { action: "moderation.team_create", capacity: "network_admin", actorPersonId: actor.personId, networkId: actor.networkId, subject: { table: "moderationTeams", id: teamId }, details: { reason, scope: args.scope ?? null } } }
+  const teamId = await ctx.db.insert("moderationTeams", { networkId: actor.networkId, name, ...(args.scope ? { scope: args.scope } : {}), ...(country !== undefined ? { country } : {}), active: true, createdAt: Date.now() })
+  return { teamId, audit: { action: "moderation.team_create", capacity: "network_admin", actorPersonId: actor.personId, networkId: actor.networkId, subject: { table: "moderationTeams", id: teamId }, details: { reason, scope: args.scope ?? null, ...(country !== undefined ? { country } : {}) } } }
+}
+
+/**
+ * CH-815 A3 (ADR-0042) — poser, changer ou retirer (`null`) le pays d'une équipe ACTIVE du réseau ; une
+ * autre équipe : le refus indistinct. Rend la ligne de journal, ou `null` quand rien ne change (ni
+ * écriture ni ligne). Seul le jumeau d'administration l'appelle.
+ */
+export async function setNetworkTeamCountry(ctx: MutationCtx, actor: NetworkDecider, args: { teamId: Id<"moderationTeams">; country: string | null; reason: string }): Promise<AuditEntry | null> {
+  const country = args.country === null ? null : teamCountryOf(args.country)
+  const reason = motiveOf(args.reason)
+  const team = await ctx.db.get(args.teamId)
+  if (!team || team.networkId !== actor.networkId || !team.active) return notFound()
+  const previousCountry = team.country ?? null
+  if (previousCountry === country) return null
+  await ctx.db.patch(team._id, { country: country ?? undefined })
+  return { action: "moderation.team_country_set", capacity: "network_admin", actorPersonId: actor.personId, networkId: actor.networkId, subject: { table: "moderationTeams", id: team._id }, details: { reason, country, previousCountry } }
 }
 
 /** Ajouter ou retirer un membre actif du réseau d'une équipe active du réseau. */

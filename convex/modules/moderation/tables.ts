@@ -86,8 +86,14 @@ export const moderationTables = {
     .index("by_network_createdAt", ["networkId", "createdAt"])
     .index("by_reviewedByPersonId", ["reviewedByPersonId"])
     .index("by_target_id", ["target.id"]),
-  moderationTeams: defineTable({ networkId: v.id("networks"), name: v.string(), scope: v.optional(moderationSurfaceValidator), active: v.boolean(), createdAt: v.number() })
-    .index("by_network_active", ["networkId", "active"]),
+  moderationTeams: defineTable({
+    networkId: v.id("networks"), name: v.string(), scope: v.optional(moderationSurfaceValidator),
+    // CH-815 A3 (ADR-0042) : le pays de l'équipe (ISO 3166-1 alpha-2), facultatif, posé par l'administration du
+    // réseau. Il ne délimite encore aucune compétence (le routage reste par `scope`) ; aucun index : 100 équipes
+    // actives au plus, relues par `by_network_active`.
+    country: v.optional(v.string()),
+    active: v.boolean(), createdAt: v.number(),
+  }).index("by_network_active", ["networkId", "active"]),
   moderationTeamMembers: defineTable({ networkId: v.id("networks"), teamId: v.id("moderationTeams"), personId: v.id("persons"), active: v.boolean(), updatedAt: v.number() })
     .index("by_team_person", ["teamId", "personId"])
     .index("by_person_active", ["personId", "active"]),
