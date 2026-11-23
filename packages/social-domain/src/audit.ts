@@ -141,16 +141,18 @@ export const AUDIT_ACTIONS = [
   "diaspora.sponsorship_revoke",
   /**
    * Une personne admise dans la cohorte fondatrice du réseau par un opérateur de plateforme
-   * (EA-01 de DIASPORA.GA). Sujet : la personne admise (`persons`). Détail : `reason`, le motif
+   * (EA-01 de DIASPORA.GA) ou, depuis CH-815 A3 (ADR-0042), par l'administration du réseau
+   * (qualité `network_admin`). Sujet : la personne admise (`persons`). Détail : `reason`, le motif
    * nettoyé par `assertDecisionReason`, et `seniorityWaiver`, la dispense d'ancienneté pour
    * parrainer (booléen).
    */
   "diaspora.founder_admit",
   /**
    * L'admission fondatrice en vigueur retirée par un opérateur de plateforme (EA-01 de
-   * DIASPORA.GA). Sujet : la personne (`persons`). Détail : `reason`, le motif nettoyé, et
-   * `cause`, la cause du retrait inscrite sur l'admission (`operator` pour cette décision).
-   * L'extinction par le départ de la personne n'est pas une décision : l'admission la date.
+   * DIASPORA.GA) ou par l'administration du réseau (CH-815 A3). Sujet : la personne (`persons`).
+   * Détail : `reason`, le motif nettoyé, et `cause`, la cause du retrait inscrite sur l'admission
+   * (`operator` pour toute décision motivée ; la qualité dit qui l'a prise). L'extinction par le
+   * départ de la personne n'est pas une décision : l'admission la date.
    */
   "diaspora.founder_withdraw",
 ] as const

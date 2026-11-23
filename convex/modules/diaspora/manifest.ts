@@ -29,7 +29,8 @@ export const DIASPORA_SLICE_MANIFEST = {
     "consularAttestations",
     "communityImports",
     "memberPrivacy",
-    // EA-01 : admissions fondatrices décidées par un opérateur (classement de données attendu du moteur).
+    // EA-01 : admissions fondatrices décidées par un opérateur ou, depuis CH-815 A3, par l'administration
+    // du réseau (classées dans `people/dataPolicies.ts` : la personne admise en est propriétaire).
     "foundingAdmissions",
     // Plan global (docs/14 de DIASPORA.GA) : catalogue des services (DG-011/012),
     // demandes et rendez-vous (DG-014/015), adhésions aux associations (DG-010).
@@ -139,6 +140,8 @@ export const DIASPORA_SLICE_MANIFEST = {
     "moderationTargets.ts": "core",
     "mutualAid.ts": "mutualAid",
     "mutualAidTables.ts": "mutualAid",
+    // CH-815 A3 (ADR-0042) : le tableau de bord du réseau, pour son administration.
+    "networkSettings.ts": "core",
     "pilotMetrics.ts": "pilotMetrics",
     "pilotMetricsTables.ts": "pilotMetrics",
     "profile.ts": "core",

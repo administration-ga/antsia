@@ -170,3 +170,23 @@ le super admin) et § 4.2 (« Institutions et pages officielles »).
 - **Reste à la plateforme** : le retrait du badge (`setPageTrust`), le retrait et l'adresse d'une page.
 
 Recette : `convex/tests/network-admin-official-pages.test.ts`.
+
+## Amendement du 2026-11-23 (CH-815, lot A3) — la cohorte fondatrice et le tableau de bord
+
+Statut « Proposé ». Fiche, § 4.2 (« Fondateurs », « Tableau de bord ») et § 7 (porte du propriétaire :
+l'admission des fondateurs depuis l'application d'administration est « à confirmer », l'accord écrit
+d'antsia#176 visait la console).
+
+- **Fondateurs** (`diaspora/founders`) : `cohort`, `candidate`, `admit`, `withdraw`, jumeaux de
+  `listFoundingAdmissions` et des décisions d'exploitation, même cœur (`admitFounder`, `withdrawFounder`) et
+  mêmes refus du domaine ; journal `diaspora.founder_admit` / `diaspora.founder_withdraw` à titre de
+  `network_admin`. La cause d'un retrait décidé reste `operator` (liste fermée du domaine de DIASPORA.GA).
+- **Tableau de bord** (`diaspora/networkSettings.overview`) : les seuls compteurs tenus par le moteur
+  (modules ouverts, cohorte, pays ouverts). Les membres par statut, les admissions en attente, les
+  signalements et recours ouverts et les pages à vérifier ne sont tenus par aucun compteur : ils ne sont
+  pas rendus.
+- **Pays ouverts** : en attente d'une décision — le moteur ne rattache aucune équipe de modération à un
+  pays (`moderationTeams.scope` est une nature de contenu), la règle « refusé sans équipe du pays » n'a
+  donc pas de donnée où se lire.
+
+Recette : `convex/modules/diaspora/networkAdmin.test.ts`.
