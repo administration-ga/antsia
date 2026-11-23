@@ -14,12 +14,15 @@
  *   unique, que l'application de départ échange. L'application servie à SITE_URL elle-même entre ainsi.
  * - F2 : une application qui administre un réseau n'est scellée que si les trois adresses de retour valent
  *   EXACTEMENT son origine suivie de son chemin d'entrée (`entry_path` au catalogue), sans requête ni fragment.
+ * - F3 : la console du moteur (`operator_console` au catalogue) suit la même règle d'entrée exacte, et seule une
+ *   session scellée pour elle ouvre la console : le vrai parcours, jusqu'à `myOperator`, le prouve.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { parseSetCookieHeader } from "better-auth/cookies"
 
-import { testConvex } from "../test.setup"
+import { api } from "../_generated/api"
+import { OPERATOR_CONSOLE_APPLICATION, testConvex } from "../test.setup"
 import { NETWORK_ADMIN_APPLICATION_KEY } from "../tests/networkAdminCatalog.fixture"
 
 // L'application d'administration au catalogue (contrat CH-815) : posée tant que l'entrée réelle n'est pas fusionnée.
@@ -33,6 +36,7 @@ type T = ReturnType<typeof testConvex>
 const PRIMARY_ORIGIN = "http://localhost:3030"
 const MEMBERS_ORIGIN = "http://localhost:3031"
 const ADMIN_ORIGIN = "http://localhost:3033"
+const CONSOLE_ORIGIN = "http://localhost:3032"
 const ISSUER = "https://idn.example.test"
 const DISCOVERY = `${ISSUER}/api/auth/convex/.well-known/openid-configuration`
 const TOKEN_ENDPOINT = `${ISSUER}/api/auth/oauth2/token`
@@ -147,6 +151,16 @@ async function convexSessionOf(t: T, origin: string, storedCookie: string): Prom
   return claims.sessionId
 }
 
+/** L'identité Convex (sujet et session) que l'application obtient avec SA session, pour appeler les fonctions du moteur. */
+async function convexIdentityOf(t: T, origin: string, storedCookie: string): Promise<{ subject: string; sessionId: string }> {
+  const token = await authRequest(t, "/convex/token", { method: "GET", origin, headers: { "Better-Auth-Cookie": storedCookie } })
+  expect(token.status, token.body).toBe(200)
+  const jwt = (JSON.parse(token.body) as { token: string }).token
+  const claims = JSON.parse(atob((jwt.split(".")[1] ?? "").replaceAll("-", "+").replaceAll("_", "/"))) as { sub?: unknown; sessionId?: unknown }
+  if (typeof claims.sub !== "string" || typeof claims.sessionId !== "string") throw new Error("JWT sans sujet ni session")
+  return { subject: claims.sub, sessionId: claims.sessionId }
+}
+
 async function sealedSessions(t: T) {
   return await t.run(async (ctx) => (await ctx.db.query("operatorSessionProofs").take(10)).map((proof) => ({ sessionId: proof.sessionId, application: proof.application })))
 }
@@ -210,6 +224,7 @@ describe("revue F1 — le rappel central ne pose aucun cookie de session sur l'o
     ["l'application d'administration", ADMIN_ORIGIN, "/entrer", NETWORK_ADMIN_APPLICATION_KEY],
     ["l'application des membres", MEMBERS_ORIGIN, "/fil", "diaspora_ga"],
     ["l'application servie à SITE_URL elle-même", PRIMARY_ORIGIN, "/fil", "antsia_ga"],
+    ["la console du moteur", CONSOLE_ORIGIN, "/entrer", OPERATOR_CONSOLE_APPLICATION],
   ])("départ de %s : aucun cookie au rappel, la session passe par le seul jeton à usage unique", async (_label, origin, path, application) => {
     const t = testConvex({ automaticSessions: false })
     stubIdn(`idn-sans-cookie-${application}`)
@@ -285,6 +300,91 @@ describe("revue F2 — une application qui administre un réseau n'est scellée 
     const state = await startFrom(t, MEMBERS_ORIGIN, { callbackURL: `${MEMBERS_ORIGIN}/fil?onglet=recent` })
     await returnFromIdn(t, state)
     expect(await proofs(t)).toEqual([{ application: "diaspora_ga", loa: 2 }])
+  })
+})
+
+describe("revue CH-815 F3 — la console n'est scellée qu'à son entrée exacte, et seule sa session l'ouvre", () => {
+  /** Le vrai parcours jusqu'à la session de l'application : départ, rappel central, échange du jeton à usage unique. */
+  async function signInThrough(t: T, origin: string, body: Record<string, unknown>) {
+    const location = await returnFromIdn(t, await startFrom(t, origin, body))
+    const ott = location.searchParams.get("ott")
+    if (!ott) throw new Error("Jeton à usage unique absent")
+    const identity = await convexIdentityOf(t, location.origin, await adoptOneTimeToken(t, location.origin, ott))
+    const as = t.withIdentity(identity)
+    // La personne naît de son geste d'entrée ; l'habilitation d'opérateur est posée par le propriétaire.
+    const personId = await as.mutation(api.modules.people.persons.ensureMyPerson, {})
+    await t.run(async (ctx) => { await ctx.db.insert("operators", { personId, role: "platform_admin", grantedAt: Date.now() }) })
+    return { location, as }
+  }
+
+  async function refusalCodeOf(promise: Promise<unknown>): Promise<unknown> {
+    try { await promise; return null } catch (error) { return (error as { data?: { code?: unknown } }).data?.code ?? String(error) }
+  }
+
+  it("départ de la console vers son entrée exacte : scellée pour elle, la session échangée ouvre la console d'un opérateur habilité", async () => {
+    const t = testConvex({ automaticSessions: false })
+    stubIdn("idn-console-entree")
+    const { location, as } = await signInThrough(t, CONSOLE_ORIGIN, returnURLs(`${CONSOLE_ORIGIN}/entrer`))
+    expect(`${location.origin}${location.pathname}`).toBe(`${CONSOLE_ORIGIN}/entrer`)
+    expect(await proofs(t)).toEqual([{ application: OPERATOR_CONSOLE_APPLICATION, loa: 2 }])
+    expect((await as.query(api.modules.platform.operatorAccess.myOperator, {})).role).toBe("platform_admin")
+    await as.mutation(api.modules.platform.operatorAccess.recordAccess, {})
+    expect(await as.query(api.modules.networks.networks.listForConsole, {})).toEqual([])
+  })
+
+  it.each([
+    ["l'application des membres", MEMBERS_ORIGIN, { callbackURL: `${MEMBERS_ORIGIN}/fil` }, "diaspora_ga"],
+    ["le site public", PRIMARY_ORIGIN, { callbackURL: `${PRIMARY_ORIGIN}/fil` }, "antsia_ga"],
+    ["l'administration de DIASPORA.GA", ADMIN_ORIGIN, returnURLs(`${ADMIN_ORIGIN}/entrer`), NETWORK_ADMIN_APPLICATION_KEY],
+  ] as const)("le même parcours depuis %s : la session est scellée pour elle et la console la refuse", async (_label, origin, urls, application) => {
+    const t = testConvex({ automaticSessions: false })
+    stubIdn(`idn-hors-console-${application}`)
+    const { as } = await signInThrough(t, origin, urls)
+    expect(await proofs(t)).toEqual([{ application, loa: 2 }])
+    expect(await refusalCodeOf(as.query(api.modules.platform.operatorAccess.myOperator, {}))).toBe("operatorRequired")
+    expect(await refusalCodeOf(as.mutation(api.modules.platform.operatorAccess.recordAccess, {}))).toBe("operatorRequired")
+  })
+
+  it("l'ancien départ de la console (accueil relatif, erreur relative, sans adresse de nouvel utilisateur) ne la scelle plus : l'opérateur se reconnecte", async () => {
+    const t = testConvex({ automaticSessions: false })
+    stubIdn("idn-console-ancien-depart")
+    const { as } = await signInThrough(t, CONSOLE_ORIGIN, { callbackURL: "/", errorCallbackURL: "/entrer" })
+    expect(await proofs(t)).toEqual([{ application: undefined, loa: 2 }])
+    expect(await refusalCodeOf(as.query(api.modules.platform.operatorAccess.myOperator, {}))).toBe("operatorRequired")
+  })
+
+  it.each([
+    ["l'accueil", returnURLs(`${CONSOLE_ORIGIN}/`)],
+    ["un état de console", returnURLs(`${CONSOLE_ORIGIN}/?section=files`)],
+    ["une requête", returnURLs(`${CONSOLE_ORIGIN}/entrer?retour=/`)],
+    ["un fragment", returnURLs(`${CONSOLE_ORIGIN}/entrer#suite`)],
+    ["une barre oblique finale", returnURLs(`${CONSOLE_ORIGIN}/entrer/`)],
+    ["sans adresse de nouvel utilisateur", { callbackURL: `${CONSOLE_ORIGIN}/entrer`, errorCallbackURL: `${CONSOLE_ORIGIN}/entrer` }],
+    ["sans adresse d'erreur", { callbackURL: `${CONSOLE_ORIGIN}/entrer`, newUserCallbackURL: `${CONSOLE_ORIGIN}/entrer` }],
+  ])("départ de la console avec %s : rien n'est scellé", async (_label, urls) => {
+    const t = testConvex({ automaticSessions: false })
+    stubIdn("idn-console-adresse-non-epinglee")
+    await returnFromIdn(t, await startFrom(t, CONSOLE_ORIGIN, urls))
+    expect(await proofs(t)).toEqual([{ application: undefined, loa: 2 }])
+  })
+
+  it("une autre origine de confiance qui donne l'entrée relative de la console garde sa session : rien n'est scellé pour la console", async () => {
+    const t = testConvex({ automaticSessions: false })
+    stubIdn("idn-membres-entree-relative")
+    // Better Auth rend l'adresse relative absolue à l'origine de DÉPART : la session revient aux membres.
+    const location = await returnFromIdn(t, await startFrom(t, MEMBERS_ORIGIN, returnURLs("/entrer")))
+    expect(location.origin).toBe(MEMBERS_ORIGIN)
+    expect(await proofs(t)).toEqual([{ application: "diaspora_ga", loa: 2 }])
+  })
+
+  it("l'entrée exacte de la console donnée par une autre origine : le jeton n'est livré qu'à l'entrée de la console", async () => {
+    // Même règle que l'administration d'un réseau (A1b) : la session n'existe que dans l'application qui
+    // échange le jeton à usage unique, ici la console ; le site de départ n'en reçoit rien.
+    const t = testConvex({ automaticSessions: false })
+    stubIdn("idn-membres-entree-console")
+    const location = await returnFromIdn(t, await startFrom(t, MEMBERS_ORIGIN, returnURLs(`${CONSOLE_ORIGIN}/entrer`)))
+    expect(`${location.origin}${location.pathname}`).toBe(`${CONSOLE_ORIGIN}/entrer`)
+    expect(await proofs(t)).toEqual([{ application: OPERATOR_CONSOLE_APPLICATION, loa: 2 }])
   })
 })
 

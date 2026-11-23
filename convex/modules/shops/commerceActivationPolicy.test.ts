@@ -2,7 +2,7 @@
 /** P16 : module réel fermé, sans mock ni activation d'environnement. Scénarios écrits, non exécutés. */
 import { describe, expect, it } from "vitest"
 import { api, components, internal } from "../../_generated/api"
-import { createTestSession, testConvex } from "../../test.setup"
+import { createTestSession, OPERATOR_CONSOLE_APPLICATION, testConvex } from "../../test.setup"
 import { SEED_CONFIRMATION } from "../../seeds/foundations"
 import { COMMERCE_CATEGORY_RULES } from "@antsia/social-domain/commerce-prohibited-categories"
 import { COMMERCE_ACTIVATION_DECISIONS, commerceActivationReady } from "./commerceActivation"
@@ -21,7 +21,7 @@ async function fixture() {
   const sessionId = await createTestSession(t, authUserId), as = t.withIdentity({ subject: authUserId, sessionId })
   const personId = await as.mutation(api.modules.people.persons.ensureMyPerson, {})
   await t.run(ctx => ctx.db.insert("operators", { personId, role: "platform_admin", grantedAt: now }))
-  await t.mutation(internal.modules.platform.operatorAccess.recordIdnSession, { sessionId, authUserId, idnSubject: subject, loa: 2 })
+  await t.mutation(internal.modules.platform.operatorAccess.recordIdnSession, { sessionId, authUserId, idnSubject: subject, loa: 2, application: OPERATOR_CONSOLE_APPLICATION })
   await as.mutation(api.modules.platform.operatorAccess.recordAccess, {})
   return { t, as, networkId, personId, now }
 }

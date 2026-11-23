@@ -1,5 +1,5 @@
 {
-  "//": "Catalogue exhaustif des applications du moteur ANTSIA. Les entrées web déclarent service, Dockerfile construit en contexte ECOSYSTEMES, origine, port, arguments publics de build et variables d'exécution. Chaque NEXT_PUBLIC_* doit être un ARG Docker et une substitution Cloud Build. Les entrées expo-native déclarent plateformes, configuration, point d'entrée, variables EXPO_PUBLIC_* du binaire et variables privées de configuration : aucune URL, identité de distribution, port ou chaîne de publication n'est inventé. Leur présence ne prouve aucune compilation ni distribution. Les domaines web sont des hypothèses du cahier ; aucune publication sans décision du propriétaire. Une application EXTERNE (DIASPORA_GA) a son chemin relatif à ANTSIA et se construit avec son Dockerfile dans le même contexte. Une application web qui ADMINISTRE un réseau le déclare par `administers_network` (l'identifiant d'adresse du réseau, ADR-0042) : seule source de cette autorité, lue par la garde `networkAdmin*` du moteur ; elle déclare aussi son chemin d'entrée (`entry_path`), seule adresse où le retour d'IDN lui ouvre une session d'administration. Fichier partagé avec DIASPORA_GA : modifié par la session ANTSIA seulement.",
+  "//": "Catalogue exhaustif des applications du moteur ANTSIA. Les entrées web déclarent service, Dockerfile construit en contexte ECOSYSTEMES, origine, port, arguments publics de build et variables d'exécution. Chaque NEXT_PUBLIC_* doit être un ARG Docker et une substitution Cloud Build. Les entrées expo-native déclarent plateformes, configuration, point d'entrée, variables EXPO_PUBLIC_* du binaire et variables privées de configuration : aucune URL, identité de distribution, port ou chaîne de publication n'est inventé. Leur présence ne prouve aucune compilation ni distribution. Les domaines web sont des hypothèses du cahier ; aucune publication sans décision du propriétaire. Une application EXTERNE (DIASPORA_GA) a son chemin relatif à ANTSIA et se construit avec son Dockerfile dans le même contexte. Une application web qui ADMINISTRE un réseau le déclare par `administers_network` (l'identifiant d'adresse du réseau, ADR-0042) : seule source de cette autorité, lue par la garde `networkAdmin*` du moteur ; elle déclare aussi son chemin d'entrée (`entry_path`), seule adresse où le retour d'IDN lui ouvre une session d'administration. La console du moteur se déclare par `operator_console: true` (revue CH-815, constat F3) : seule application dont une session IDN ouvre la console, elle n'administre aucun réseau et déclare elle aussi son `entry_path`. Fichier partagé avec DIASPORA_GA : modifié par la session ANTSIA seulement.",
   "contextDir": "ECOSYSTEMES",
   "applications": {
     "antsia_ga": {
@@ -22,6 +22,8 @@
       "dockerfile": "ANTSIA/apps/admin_antsia_ga/Dockerfile",
       "site_url": "https://admin.antsia.ga",
       "dev_port": 3032,
+      "operator_console": true,
+      "entry_path": "/entrer",
       "build_args": ["NEXT_PUBLIC_CONVEX_URL", "NEXT_PUBLIC_SITE_URL", "NEXT_PUBLIC_BUILD_SHA"],
       "runtime_env": ["CONVEX_SITE_URL"]
     },

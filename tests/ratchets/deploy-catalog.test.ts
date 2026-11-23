@@ -8,10 +8,12 @@ import { isTestFile, listFiles, REPO_ROOT } from "./lib/source-files"
 
 /**
  * `administers_network` (ADR-0042) : le réseau qu'ADMINISTRE l'application, lu par la garde `networkAdmin*` du moteur ;
- * `entry_path` (revue CH-815 A1b, constat F2) : sa page d'entrée, seule adresse où le retour d'IDN lui ouvre une
- * session d'administration (`betterAuth/settings.entryPathOf`).
+ * `operator_console` (revue CH-815, constat F3) : l'application est LA console du moteur, seule dont une session IDN
+ * ouvre la console (`betterAuth/settings.isOperatorConsoleApplication`) ;
+ * `entry_path` (revue CH-815 A1b, constat F2, étendu par F3) : sa page d'entrée, seule adresse où le retour d'IDN lui
+ * ouvre une session d'administration ou de console (`betterAuth/settings.entryPathOf`).
  */
-type WebApplication = { platform: "web"; path: string; dev_port: number; build_args: string[]; administers_network?: string; entry_path?: string }
+type WebApplication = { platform: "web"; path: string; dev_port: number; build_args: string[]; administers_network?: string; operator_console?: unknown; entry_path?: string }
 
 /** La forme d'un chemin d'entrée que lit le moteur : segments non réservés, sans barre finale, ni requête, ni fragment. */
 const ENTRY_PATH = /^(?:\/[A-Za-z0-9._~-]+)+$/
@@ -118,16 +120,39 @@ describe("deploy-catalog — chaque application servie est au catalogue (câblag
     expect(Object.fromEntries(administering.map(([key, app]) => [key, (app as WebApplication).administers_network]))).toEqual({ admin_diaspora_ga: "diaspora-ga" })
   })
 
-  it("revue CH-815 A1b (F2) : une application qui administre un réseau déclare son chemin d'entrée, et elle seule", () => {
+  it("revue CH-815 F3 : une seule application est la console du moteur ; web, déclarée par `true`, elle n'administre aucun réseau", () => {
+    const consoles = Object.entries(catalog.applications).filter(([, app]) => "operator_console" in app)
+    for (const [key, app] of consoles) {
+      expect(app.platform, key).toBe("web")
+      expect((app as WebApplication).operator_console, `${key} : la seule valeur admise est true`).toBe(true)
+      // Les deux autorités ne se confondent jamais : une console n'administre pas un réseau.
+      expect("administers_network" in app, key).toBe(false)
+    }
+    // La console du moteur, et elle seule. Une autre console (ou une application des membres qui le deviendrait) se décide ici, à la lecture.
+    expect(consoles.map(([key]) => key)).toEqual(["admin_antsia_ga"])
+  })
+
+  it("revue CH-815 A1b (F2) et F3 : une application qui administre un réseau ou qui est la console déclare son chemin d'entrée, et elles seules", () => {
     const withEntry = Object.entries(catalog.applications).filter(([, app]) => "entry_path" in app)
-    const administering = Object.entries(catalog.applications).filter(([, app]) => "administers_network" in app)
-    // Requis pour toute application qui administre un réseau ; absent ailleurs (il ne servirait à rien et se lirait comme une autorité).
-    expect(withEntry.map(([key]) => key).sort()).toEqual(administering.map(([key]) => key).sort())
+    const pinned = Object.entries(catalog.applications).filter(([, app]) => "administers_network" in app || "operator_console" in app)
+    // Requis pour toute application qui administre un réseau ou qui est la console ; absent ailleurs (il ne servirait à rien et se lirait comme une autorité).
+    expect(withEntry.map(([key]) => key).sort()).toEqual(pinned.map(([key]) => key).sort())
     for (const [key, app] of withEntry) {
       const entryPath = (app as WebApplication).entry_path
       expect(typeof entryPath === "string" && ENTRY_PATH.test(entryPath), `${key} : chemin d'entrée simple`).toBe(true)
     }
-    expect(Object.fromEntries(withEntry.map(([key, app]) => [key, (app as WebApplication).entry_path]))).toEqual({ admin_diaspora_ga: "/entrer" })
+    expect(Object.fromEntries(withEntry.map(([key, app]) => [key, (app as WebApplication).entry_path]))).toEqual({ admin_antsia_ga: "/entrer", admin_diaspora_ga: "/entrer" })
+  })
+
+  it("revue CH-815 F3 : le chemin d'entrée de la console est sa page de connexion réelle", () => {
+    const consoleApp = catalog.applications.admin_antsia_ga as WebApplication | undefined
+    const entryPath = consoleApp?.entry_path ?? ""
+    expect(ENTRY_PATH.test(entryPath), `chemin d'entrée de la console : « ${entryPath} »`).toBe(true)
+    // `src/app/<chemin>/page.tsx` : l'adresse où le moteur livre la session est servie par l'application.
+    expect(existsSync(join(REPO_ROOT, consoleApp?.path ?? "", "src/app", entryPath.slice(1), "page.tsx")), entryPath).toBe(true)
+    // Et c'est l'adresse que la console donne à IDN (`routes.signIn`, d'où `idnReturnURLs`) : sinon plus aucun sceau.
+    const routesSource = readFileSync(join(REPO_ROOT, consoleApp?.path ?? "", "src/lib/routes.ts"), "utf8")
+    expect(routesSource).toContain(`signIn: () => "${entryPath}",`)
   })
 
   it("test du test : la forme du chemin d'entrée refuse requête, fragment, barre finale et segment vide", () => {

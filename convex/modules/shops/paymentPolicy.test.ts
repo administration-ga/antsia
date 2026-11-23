@@ -1,7 +1,7 @@
 // @vitest-environment edge-runtime
 import { describe, expect, it, vi } from "vitest"
 import { api, components, internal } from "../../_generated/api"
-import { createTestSession, testConvex } from "../../test.setup"
+import { createTestSession, OPERATOR_CONSOLE_APPLICATION, testConvex } from "../../test.setup"
 import { SEED_CONFIRMATION } from "../../seeds/foundations"
 
 async function fixture(role: "platform_admin" | "platform_operator" = "platform_admin") {
@@ -15,7 +15,7 @@ async function fixture(role: "platform_admin" | "platform_operator" = "platform_
   const sessionId = await createTestSession(t, authUserId), as = t.withIdentity({ subject: authUserId, sessionId })
   const personId = await as.mutation(api.modules.people.persons.ensureMyPerson, {})
   await t.run(ctx => ctx.db.insert("operators", { personId, role, grantedAt: now }))
-  await t.mutation(internal.modules.platform.operatorAccess.recordIdnSession, { sessionId, authUserId, idnSubject: subject, loa: 2 })
+  await t.mutation(internal.modules.platform.operatorAccess.recordIdnSession, { sessionId, authUserId, idnSubject: subject, loa: 2, application: OPERATOR_CONSOLE_APPLICATION })
   await as.mutation(api.modules.platform.operatorAccess.recordAccess, {})
   return { t, as, personId, networkId }
 }

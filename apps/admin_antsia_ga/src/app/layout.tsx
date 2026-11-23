@@ -24,6 +24,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   const { locale, t } = getAppT()
   return (
     <html lang={locale} data-charte="admin-antsia" suppressHydrationWarning>
+      <head>
+        {/* Aucune adresse de page ne part en `Referer` (revue CH-815 F3), comme l'en-tête `Referrer-Policy` de `next.config.ts`. */}
+        <meta name="referrer" content="no-referrer" />
+      </head>
       <body className="min-h-dvh">
         <a
           href="#contenu"

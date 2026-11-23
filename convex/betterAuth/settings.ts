@@ -109,8 +109,8 @@ export function isWebApplicationKey(key: string): key is ApplicationKey {
   return webApplications.some((app) => app.key === key)
 }
 
-/** Ce que le catalogue dit d'une application pour l'administration d'un réseau. */
-type CatalogApplication = { readonly platform: string; readonly administers_network?: string; readonly entry_path?: string }
+/** Ce que le catalogue dit d'une application pour l'administration d'un réseau et pour la console. */
+type CatalogApplication = { readonly platform: string; readonly administers_network?: string; readonly operator_console?: boolean; readonly entry_path?: string }
 
 /**
  * ADR-0042 — le réseau (son identifiant d'adresse, `slug`) qu'ADMINISTRE une application web du
@@ -133,6 +133,29 @@ export function hasNetworkAdministration(networkSlug: string, applications: Read
   return Object.keys(applications).some((key) => networkAdministeredBy(key, applications) === networkSlug)
 }
 
+/**
+ * Revue CH-815, constat F3 — l'application est-elle LA console du moteur ? Une application web du
+ * catalogue qui le déclare par `operator_console: true` (la valeur `true` seule) et qui n'administre
+ * aucun réseau : les deux autorités ne se confondent jamais. Le catalogue est la seule source, comme
+ * pour `administers_network` : aucune ligne en base, aucun argument d'un client ne fait d'une
+ * application la console. Seule une preuve de session scellée pour elle ouvre la console
+ * (`lib/operatorIdentity.isLiveOperatorSession`) ; une clé absente, inconnue ou native n'est jamais
+ * la console (fermé par défaut). Le cliquet `deploy-catalog` n'en admet qu'une.
+ */
+export function isOperatorConsoleApplication(application: string | null | undefined, applications: Readonly<Record<string, CatalogApplication>> = catalog.applications): boolean {
+  if (!application || !Object.prototype.hasOwnProperty.call(applications, application)) return false
+  const app = applications[application]
+  return app?.platform === "web" && app.operator_console === true && networkAdministeredBy(application, applications) === null
+}
+
+/**
+ * L'application n'est-elle scellée qu'à son entrée exacte ? Toute application qui administre un réseau
+ * (constat F2) et la console du moteur (constat F3) : leur session ouvre une autorité.
+ */
+function requiresExactEntry(application: string): boolean {
+  return networkAdministeredBy(application) !== null || isOperatorConsoleApplication(application)
+}
+
 // Un chemin d'entrée : des segments de caractères non réservés, sans segment vide, sans barre finale,
 // ni requête, ni fragment, ni encodage (la même forme que les chemins sûrs du retour d'un refus IDN).
 const ENTRY_PATH = /^(?:\/[A-Za-z0-9._~-]+)+$/
@@ -141,7 +164,7 @@ const ENTRY_PATH = /^(?:\/[A-Za-z0-9._~-]+)+$/
  * Revue CH-815 A1b (constat F2) — le chemin d'ENTRÉE d'une application web du catalogue (`entry_path`),
  * la seule page où elle reçoit le retour d'IDN et son jeton à usage unique ; `null` s'il n'est pas
  * déclaré, ou pas sous la forme d'un chemin simple. Requis pour toute application qui administre un
- * réseau (cliquet `deploy-catalog`).
+ * réseau et pour la console du moteur (constat F3), et pour elles seules (cliquet `deploy-catalog`).
  */
 export function entryPathOf(application: string | null | undefined, applications: Readonly<Record<string, CatalogApplication>> = catalog.applications): string | null {
   if (!application || !Object.prototype.hasOwnProperty.call(applications, application)) return null
@@ -180,29 +203,31 @@ function applicationOfReturnURL(value: unknown, env: Env): ApplicationKey | null
  * D'où la règle : l'application de l'origine EXACTE de `callbackURL` (absolue, http(s), sans
  * identifiants, de confiance, au catalogue) ; une adresse de nouvel utilisateur (`newUserURL`), si
  * elle est donnée, doit mener à la MÊME application (Better Auth y redirige un compte neuf) ; un
- * parcours natif (`antsiaNative`) n'en a aucune. Pour une application qui administre un réseau, les trois
- * adresses doivent valoir exactement son entrée (`administrationEntryMatches`, constat F2). Tout le reste
- * rend `null` : la preuve ne vaut alors pour aucune administration de réseau (fermé par défaut).
+ * parcours natif (`antsiaNative`) n'en a aucune. Pour une application qui administre un réseau (constat
+ * F2) et pour la console du moteur (constat F3), les trois adresses doivent valoir exactement son entrée
+ * (`exactEntryMatches`). Tout le reste rend `null` : la preuve ne vaut alors ni pour l'administration
+ * d'un réseau, ni pour la console (fermé par défaut).
  */
 export function applicationOfOAuthState(state: unknown, env: Env = process.env): ApplicationKey | null {
   if (!state || typeof state !== "object" || Object.prototype.hasOwnProperty.call(state, "antsiaNative")) return null
   const { callbackURL, newUserURL, errorURL } = state as { callbackURL?: unknown; newUserURL?: unknown; errorURL?: unknown }
   const application = applicationOfReturnURL(callbackURL, env)
   if (application === null || typeof callbackURL !== "string") return null
-  if (networkAdministeredBy(application) !== null) return administrationEntryMatches(application, callbackURL, newUserURL, errorURL) ? application : null
+  if (requiresExactEntry(application)) return exactEntryMatches(application, callbackURL, newUserURL, errorURL) ? application : null
   if (newUserURL !== undefined && newUserURL !== "" && applicationOfReturnURL(newUserURL, env) !== application) return null
   return application
 }
 
 /**
- * Revue CH-815 A1b (constat F2) — une application qui ADMINISTRE un réseau n'est scellée que si les TROIS
- * adresses de retour enregistrées au départ (`callbackURL`, `newUserURL`, `errorURL`) valent EXACTEMENT
- * son origine suivie de son chemin d'entrée (`entry_path`), sans requête ni fragment : le jeton à usage
- * unique de la session n'atterrit alors que sur sa page d'entrée, qui l'échange et l'efface. Une adresse
- * absente ne vaut pas l'entrée (Better Auth complète une adresse d'erreur absente par la sienne, au rappel
- * central) ; un chemin d'entrée non déclaré ne scelle rien (fermé par défaut).
+ * Revue CH-815 A1b (constat F2), étendue à la console (constat F3) — une application qui ADMINISTRE un
+ * réseau, ou la console du moteur, n'est scellée que si les TROIS adresses de retour enregistrées au départ
+ * (`callbackURL`, `newUserURL`, `errorURL`) valent EXACTEMENT son origine suivie de son chemin d'entrée
+ * (`entry_path`), sans requête ni fragment : le jeton à usage unique de la session n'atterrit alors que sur
+ * sa page d'entrée, qui l'échange et l'efface. Une adresse absente ne vaut pas l'entrée (Better Auth
+ * complète une adresse d'erreur absente par la sienne, au rappel central) ; un chemin d'entrée non déclaré
+ * ne scelle rien (fermé par défaut).
  */
-function administrationEntryMatches(application: ApplicationKey, callbackURL: string, newUserURL: unknown, errorURL: unknown): boolean {
+function exactEntryMatches(application: ApplicationKey, callbackURL: string, newUserURL: unknown, errorURL: unknown): boolean {
   const entryPath = entryPathOf(application)
   if (entryPath === null) return false
   const entry = `${new URL(callbackURL).origin}${entryPath}`

@@ -33,8 +33,8 @@ export const platformTables = {
      * ADR-0042 — la clé, au catalogue (`deploy/catalog.json`), de l'application web où le retour IDN
      * a LIVRÉ la session, établie par le serveur à partir de l'état OAuth qu'il avait lui-même
      * enregistré (`betterAuth/settings.applicationOfOAuthState`). Absente : preuve d'avant ADR-0042,
-     * parcours natif, ou retour sans application de confiance — l'administration d'un réseau la
-     * refuse. Une chaîne et non une liste fermée : retirer une application du catalogue ne doit pas
+     * parcours natif, ou retour sans application de confiance — l'administration d'un réseau et,
+     * depuis la revue CH-815 F3, la console la refusent (la console n'admet que sa propre clé). Une chaîne et non une liste fermée : retirer une application du catalogue ne doit pas
      * rendre invalides, au déploiement, des preuves qui expirent d'elles-mêmes en sept jours.
      */
     application: v.optional(v.string()),

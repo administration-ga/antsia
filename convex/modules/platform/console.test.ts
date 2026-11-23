@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { api, components, internal } from "../../_generated/api"
 import type { Doc, Id } from "../../_generated/dataModel"
 import { SEED_CONFIRMATION } from "../../seeds/foundations"
-import { createTestSession, testConvex } from "../../test.setup"
+import { createTestSession, OPERATOR_CONSOLE_APPLICATION, testConvex } from "../../test.setup"
 
 type T = ReturnType<typeof testConvex>
 const C = api.modules.platform.console
@@ -28,7 +28,7 @@ async function operator(t: T, networkId: Id<"networks">, loa: 1 | 2 = 2) {
   const sessionId = await createTestSession(t, userId)
   const as = t.withIdentity({ subject: userId, sessionId, applicationOrigin: "admin_antsia", issuer: "fixture-engine" })
   await t.mutation(internal.modules.people.identity.recordIdnProof, { subject, loa })
-  await t.mutation(internal.modules.platform.operatorAccess.recordIdnSession, { sessionId, authUserId: userId, idnSubject: subject, loa })
+  await t.mutation(internal.modules.platform.operatorAccess.recordIdnSession, { sessionId, authUserId: userId, idnSubject: subject, loa, application: OPERATOR_CONSOLE_APPLICATION })
   const personId = await as.mutation(api.modules.people.persons.ensureMyPerson, {})
   await t.run(async (ctx) => {
     await ctx.db.insert("operators", { personId, role: "platform_operator", grantedAt: now })
