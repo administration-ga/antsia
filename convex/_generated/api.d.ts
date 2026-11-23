@@ -371,6 +371,7 @@ import type * as modules_platform_demoAccounts from "../modules/platform/demoAcc
 import type * as modules_platform_demoGate from "../modules/platform/demoGate.js";
 import type * as modules_platform_demoGateHttp from "../modules/platform/demoGateHttp.js";
 import type * as modules_platform_devTools from "../modules/platform/devTools.js";
+import type * as modules_platform_networkAdminBootstrap from "../modules/platform/networkAdminBootstrap.js";
 import type * as modules_platform_networkRoles from "../modules/platform/networkRoles.js";
 import type * as modules_platform_operationalHealth from "../modules/platform/operationalHealth.js";
 import type * as modules_platform_operationalTables from "../modules/platform/operationalTables.js";
@@ -887,6 +888,7 @@ declare const fullApi: ApiFromModules<{
   "modules/platform/demoGate": typeof modules_platform_demoGate;
   "modules/platform/demoGateHttp": typeof modules_platform_demoGateHttp;
   "modules/platform/devTools": typeof modules_platform_devTools;
+  "modules/platform/networkAdminBootstrap": typeof modules_platform_networkAdminBootstrap;
   "modules/platform/networkRoles": typeof modules_platform_networkRoles;
   "modules/platform/operationalHealth": typeof modules_platform_operationalHealth;
   "modules/platform/operationalTables": typeof modules_platform_operationalTables;
