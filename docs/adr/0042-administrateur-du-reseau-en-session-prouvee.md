@@ -305,3 +305,17 @@ A3 (suite), comme le prévoyait la décision de l'architecte (« le futur routag
   déplace pas les dossiers qui lui sont déjà adressés ; ceux d'une équipe désactivée restent à l'administration du
   réseau, comme avant (aucun réacheminement).
 - Recettes : `packages/social-domain/src/moderationRouting.test.ts`, `convex/modules/moderation/countryRouting.test.ts`.
+
+## Amendement du 2026-11-23 (CH-831) — le premier administrateur sur la démonstration
+
+Statut « Proposé ». Précise la conséquence neutre « Le premier administrateur est nommé à la console » : la
+démonstration n'a pas de console. Détail : [ADR-0043](0043-administrateur-du-reseau-sur-la-demonstration.md).
+
+- **Sur la démonstration déclarée**, le premier administrateur d'un réseau administré est nommé par l'amorçage
+  d'ADR-0043 : la fonction interne `platform/networkAdminBootstrap.nameFirst`, lancée par le propriétaire avec la
+  clé du déploiement, journalisée (`membership.role_set`, qualité `system`, `origin: "bootstrap"`), sur une
+  adhésion existante ; `withdraw` la défait.
+- **En production**, la console reste le seul chemin (`setNetworkRole`) : les deux fonctions y sont refusées.
+- La garde de cette décision ne change pas : la personne nommée n'administre qu'en session IDN prouvée de
+  l'application d'administration, accès journalisé. Sur la démonstration, cette session vient du client IDN
+  dédié de la démonstration (ADR-0043, point 1).

@@ -33,12 +33,21 @@ déploiement. Sur tout autre déploiement, le catalogue est vide et l'équipemen
    | Variable | Valeur |
    |---|---|
    | `ANTSIA_DEMO_DEPLOYMENT` | le `<nom>` relevé au point 1, exactement |
-   | `SITE_URL` | l'origine du site de démonstration (l'adresse du projet de démonstration chez l'hébergeur) |
+   | `SITE_URL` | l'origine du site de démonstration (l'adresse du projet de démonstration chez l'hébergeur), sous la règle ci-dessous |
    | `BETTER_AUTH_SECRET` | un secret **neuf**, propre à la démonstration (au moins 32 caractères, par ex. `openssl rand -base64 48`) |
    | `ANTSIA_SEEDS_ALLOWED` | `true`, le temps de la graine (point 5), puis la retirer |
+   | `IDN_CLIENT_ID`, `IDN_CLIENT_SECRET`, `IDN_ISSUER` (ou `IDN_DISCOVERY_URL`) | ceux du client d'identité numérique **DÉDIÉ** à la démonstration, chez identite.ga, en mode bac à sable (niveau 1, limité à ses comptes de test) ; **jamais** le client de production (ADR-0043) |
 
-   À **ne pas** poser : `ANTSIA_DEV_TOOLS`, `RESEND_*`, `IDN_*`, `SMS_*`. Sans eux, seules les huit
-   adresses réservées entrent ; une vraie adresse reçoit « envoi indisponible ».
+   À **ne pas** poser : `ANTSIA_DEV_TOOLS`, `RESEND_*`, `SMS_*`. Sans eux, une vraie adresse reçoit
+   « envoi indisponible » ; seules les adresses réservées entrent par code. Par IDN, seuls les comptes
+   de test du client de démonstration entrent : identite.ga refuse tout autre titulaire.
+
+   **Règle de `SITE_URL`.** Le retour IDN arrive toujours à
+   `origine(SITE_URL)/api/auth/oauth2/callback/idn` (`convex/betterAuth/auth.ts`). `SITE_URL` doit donc
+   être une origine dont le relais sert `/api/auth/*` **à la racine** vers CE moteur de démonstration.
+   Une origine dont la racine relaie vers un autre moteur (par exemple celle du site principal, quand
+   la démonstration n'y est servie que sous un préfixe comme `/demo`) enverrait le retour IDN à cet
+   autre moteur : la connexion par IDN échouerait sur la démonstration.
 4. Publier les fonctions depuis `ECOSYSTEMES/ANTSIA`, à jour de `main` :
 
    ```bash
@@ -81,6 +90,9 @@ déploiement. Sur tout autre déploiement, le catalogue est vide et l'équipemen
    badge Vérifié. Rejouer pour « Administration » (page Officiel) et « Modération ».
 3. Sur la production (adresse du site principal) : aucun panneau de démonstration ;
    `modules/platform/demoAccounts:catalogue` rend `[]`.
+4. DIASPORA.GA : l'administrateur du réseau n'existe qu'après l'amorçage (§ 7). Après chaque remise à
+   zéro, il a disparu : la personne rentre par IDN sur le site des membres et rejoint le réseau, puis
+   l'amorçage se rejoue.
 
 ## 4. Contenus de démonstration (graines d'animation, propriétaire)
 
@@ -123,7 +135,8 @@ Les actus des acteurs se reposent une fois par jour à chaque rejeu.
   que la démonstration montre le même produit.
 - **Remise à zéro** : les comptes étant partagés, effacer périodiquement les données du déploiement
   de démonstration (ou en recréer un), puis rejouer la graine (point 1.5) et les graines
-  d'animation (point 4). Les huit comptes se recréent au premier appui.
+  d'animation (point 4). Les huit comptes se recréent au premier appui. L'administrateur de
+  DIASPORA.GA, lui, disparaît avec les données : rejouer son adhésion par IDN, puis l'amorçage (§ 7).
 - **Limites connues** : par adresse, trois codes par cinq minutes et cinq connexions par quinze
   minutes (seaux du moteur, non desserrés) — plusieurs visiteurs sur le même compte au même moment
   peuvent attendre quelques minutes. Un domaine personnalisé qui remplacerait l'adresse
@@ -152,6 +165,11 @@ fait avec l'accord écrit du propriétaire.
      chacune aussi dans `TRUSTED_ORIGINS`. Sans elle, le code part à la marque ANTSIA et une
      session de l'application d'administration servie en démonstration n'est jamais scellée pour
      elle : l'administrateur du réseau n'y entre pas. Forme et refus : `.env.example`.
+   - L'application d'administration servie à son adresse du catalogue (`site_url` de
+     `admin_diaspora_ga` dans `deploy/catalog.json`) n'a besoin de rien dans `TRUSTED_ORIGINS` : les
+     adresses du catalogue sont déjà de confiance et nomment déjà leur application. Ne **jamais**
+     écrire une adresse du catalogue dans `APPLICATION_EXTRA_ORIGINS_JSON` : une seule faute, et la
+     variable entière est ignorée (aucune origine de démonstration ne garde son application).
 2. **Site de démonstration DIASPORA.GA** : un projet d'hébergement distinct (ex. `diaspora-ga-demo`).
    - Dossier racine `DIASPORA_GA/apps/diaspora_ga`, Node 24.
    - Installation `cd ../../../ANTSIA && npx --yes bun@1.4.2 install --frozen-lockfile`.
@@ -193,3 +211,73 @@ fait avec l'accord écrit du propriétaire.
      `reset` à l'armement et à chaque changement du secret, AVANT `allow` : il retire toute la liste
      et ferme les sessions des comptes de démonstration déclarés ; `revoke` les ferme aussi.
      `--dry-run` compte les numéros sans rien envoyer.
+
+## 7. Amorcer le premier administrateur du réseau (ADR-0043, propriétaire)
+
+La démonstration n'a pas de console : le premier administrateur de DIASPORA.GA y est nommé depuis le
+terminal du propriétaire, par une fonction interne journalisée. En production, ces fonctions sont
+refusées : la console reste le seul chemin. Le compte `demo.administrateur` ne compte pas : il entre
+par code et n'administre jamais le réseau (ADR-0042).
+
+**Avant.**
+
+- Les fonctions du moteur sont publiées sur la démonstration, à jour d'un `main` qui contient
+  l'ADR-0043 (point 1.4), avec les variables `IDN_*` du client de démonstration et un `SITE_URL` qui
+  suit la règle du § 1.
+- La personne s'est connectée **par IDN sur le site des membres**, a choisi son identifiant public,
+  et a **rejoint le réseau** `diaspora-ga`. Elle figure parmi les comptes de test du client IDN de
+  démonstration (sinon identite.ga la refuse avant même le moteur).
+
+**Nommer**, avec la clé du déploiement de démonstration dans l'environnement (jamais dans un
+fichier) ; `<identifiant>` est l'identifiant public de la personne, le même dans la phrase et dans
+`handle` :
+
+```bash
+CONVEX_DEPLOY_KEY='<clé du déploiement de démonstration>' node scripts/convex-dev.mjs run modules/platform/networkAdminBootstrap:nameFirst '{"confirmation":"NAME_FIRST_NETWORK_ADMIN diaspora-ga <identifiant>","networkSlug":"diaspora-ga","handle":"<identifiant>","reason":"<motif, de 10 à 500 caractères>"}'
+```
+
+**Retirer** (le retour en arrière) :
+
+```bash
+CONVEX_DEPLOY_KEY='<même clé>' node scripts/convex-dev.mjs run modules/platform/networkAdminBootstrap:withdraw '{"confirmation":"WITHDRAW_NETWORK_ADMIN diaspora-ga <identifiant>","networkSlug":"diaspora-ga","handle":"<identifiant>","reason":"<motif, de 10 à 500 caractères>"}'
+```
+
+La phrase de confirmation reprend le réseau et l'identifiant tels qu'ils sont tapés dans la
+commande. L'identifiant se lit normalisé (`@` de tête retiré, minuscules).
+
+**Résultat** : `{ changed, from, to, personId, handle }` — la personne visée (son identifiant normalisé)
+et son rôle avant et après. `changed: false` : la personne était déjà administratrice, rien n'est
+écrit. Chaque geste qui change le rôle écrit une ligne au journal du réseau : `membership.role_set`,
+qualité `system`, sans acteur, détail `origin: "bootstrap"` et le motif.
+
+**Refus** (code stable dans `appRule`, avec le code d'erreur du moteur) :
+
+| `appRule` | Code | Sens |
+|---|---|---|
+| `bootstrap_closed` | `policyRefused` | ce déploiement n'est pas la démonstration déclarée (ni le développement local) |
+| `bootstrap_confirmation` | `invalidArgument` | la phrase ne correspond pas exactement au geste, au réseau et à l'identifiant |
+| `bootstrap_network_unknown` | `notFound` | aucun réseau ne porte cet identifiant d'adresse |
+| `bootstrap_network_inactive` | `policyRefused` | le réseau est archivé |
+| `bootstrap_network_not_administered` | `policyRefused` | aucune application d'administration de ce réseau au catalogue |
+| `bootstrap_person_unknown` | `notFound` | identifiant inconnu ; pour `nameFirst`, aussi un compte d'authentification illisible |
+| `bootstrap_membership_missing` | `notFound` | la personne n'a pas rejoint le réseau (aucune adhésion n'est créée d'office) |
+| `bootstrap_person_erasing` | `policyRefused` | `nameFirst` : effacement du compte demandé ou fait |
+| `bootstrap_demo_account` | `policyRefused` | compte de démonstration (domaine réservé) : ni nommé, ni retiré ici |
+| `bootstrap_idn_link_missing` | `policyRefused` | `nameFirst` : aucun lien IDN vivant |
+| `bootstrap_membership_inactive` | `statusInsufficient` | `nameFirst` : adhésion en attente ou suspendue |
+| `bootstrap_admin_present` | `conflict` | `nameFirst` : un vrai administrateur actif existe déjà (le retirer d'abord, ou le laisser nommer depuis l'application) |
+| `bootstrap_not_admin` | `conflict` | `withdraw` : la personne ne tient pas le rôle |
+
+Un motif trop court ou trop long rend `invalidArgument`, règle `DECISION_REASON_LENGTH`.
+
+`withdraw` peut retirer le dernier administrateur actif : le réseau revient à l'état d'avant
+l'amorçage, et `nameFirst` peut nommer quelqu'un d'autre. Il n'exige ni lien IDN ni adhésion active :
+retirer un pouvoir n'attend jamais.
+
+**Après**, vérifier :
+
+1. la personne entre par l'application d'administration (connexion IDN, entrée `/entrer`) et voit le
+   réseau ;
+2. `demo.administrateur`, connecté par code, y reçoit le refus ;
+3. un deuxième administrateur se nomme depuis l'application d'administration (section des
+   responsables, `diaspora/membership.setResponsibleRole`), plus par l'amorçage.
