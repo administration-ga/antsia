@@ -17,6 +17,11 @@
  * scellée pour diaspora.ga), un modérateur et un membre reçoivent le refus du non-membre, sans rien
  * écrire ; la session prouvée et journalisée de l'application d'administration passe, et chaque
  * décision entre au journal à titre de `network_admin`. Le modérateur garde son bureau quotidien.
+ *
+ * Amendement A3 (suite) : le PAYS d'une équipe (`moderationTeams.country`, ISO alpha-2, facultatif).
+ * Le jumeau `createTeam` l'accepte (`country?`), `setTeamCountry` le pose, le change ou le retire,
+ * chaque changement au journal (`moderation.team_country_set`) ; l'original `cases.createTeam` garde
+ * ses arguments (un pays y est refusé par le validateur) et une équipe créée sans pays reste sans pays.
  * Données de fixture fictives.
  */
 import { MODERATION_POLICY_DEFAULTS } from "@antsia/social-domain/moderationPolicy"
@@ -156,6 +161,7 @@ function movedDoors(f: Fixture, who: Pick<Member, "personId">, as: As, networkId
     responsibles: () => as.query(D.responsibles, { networkId, expectedPersonId }),
     createTeam: () => as.mutation(NA.createTeam, { networkId, name: "Belgique (fixture)", reason: REASON }),
     setTeamMember: () => as.mutation(NA.setTeamMember, { networkId, teamId: f.teamId, personId: f.reader.personId, active: true, reason: REASON }),
+    setTeamCountry: () => as.mutation(NA.setTeamCountry, { networkId, teamId: f.teamId, country: "FR", reason: REASON }),
     setResponsibleRole: () => as.mutation(MEMBERSHIP.setResponsibleRole, { networkId, personId: f.reader.personId, role: "network_moderator", reason: REASON }),
     // Règles
     policies: () => as.query(NA.policies, { networkId }),
@@ -190,7 +196,7 @@ function originalDoors(f: Fixture, as: As, networkId: Id<"networks">, teamId: Id
 async function writes(f: Fixture, networkId: Id<"networks"> = f.network) {
   return await f.t.run(async (ctx) => ({
     audit: (await ctx.db.query("engineAudit").withIndex("by_network_at", (q) => q.eq("networkId", networkId)).take(200)).length,
-    teams: (await ctx.db.query("moderationTeams").withIndex("by_network_active", (q) => q.eq("networkId", networkId)).take(20)).map((row) => row.name),
+    teams: (await ctx.db.query("moderationTeams").withIndex("by_network_active", (q) => q.eq("networkId", networkId)).take(20)).map((row) => [row.name, row.country ?? null]),
     members: (await ctx.db.query("moderationTeamMembers").withIndex("by_team_person", (q) => q.eq("teamId", f.teamId)).take(20)).map((row) => [row.personId, row.active]),
     policies: (await ctx.db.query("moderationPolicies").withIndex("by_network_surface", (q) => q.eq("networkId", networkId)).take(20)).length,
     terms: (await ctx.db.query("blockedTerms").withIndex("by_network_active", (q) => q.eq("networkId", networkId)).take(20)).length,
@@ -340,5 +346,96 @@ describe("A6 — le bureau de diaspora.ga garde le travail quotidien des modéra
     const expectedPersonId = f.admin.personId
     expect(await f.admin.as.query(D.myDesk, { networkId: f.network, expectedPersonId })).toMatchObject({ role: "network_admin", networkWide: true })
     expect((await f.admin.as.query(D.queue, { networkId: f.network, expectedPersonId, zone: ALL, paginationOpts: PAGE })).items.map((row) => row.reportId)).toEqual([f.openId])
+  })
+})
+
+/** Les lignes `moderation.team_*` du journal d'un réseau, dans l'ordre d'écriture. */
+async function teamDecisions(f: Fixture, networkId: Id<"networks"> = f.network) {
+  return await f.t.run(async (ctx) =>
+    (await ctx.db.query("engineAudit").withIndex("by_network_at", (q) => q.eq("networkId", networkId)).take(200))
+      .filter((row) => row.action === "moderation.team_create" || row.action === "moderation.team_country_set")
+      .map((row) => ({ action: row.action, capacity: row.capacity, actorPersonId: row.actorPersonId, subject: { table: row.subjectTable, id: row.subjectId }, details: row.details })),
+  )
+}
+
+async function teamRow(f: Fixture, teamId: Id<"moderationTeams">) {
+  const row = await f.t.run(async (ctx) => await ctx.db.get(teamId))
+  if (!row) throw new Error("Équipe de fixture absente")
+  return row
+}
+
+describe("A3 (suite) — le pays d'une équipe de modération, par l'administration du réseau", () => {
+  it("l'original cases.createTeam garde ses arguments : un pays y est refusé ; une équipe créée sans pays reste sans pays, au journal inchangé", async () => {
+    const f = await fixture()
+    await setRole(f.t, f.root, f.admin.personId, "network_admin")
+    const before = await writes(f, f.root)
+    await expect(f.admin.as.mutation(CASES.createTeam, { networkId: f.root, name: "Publications (fixture)", scope: "post", country: "FR", reason: REASON } as never)).rejects.toThrow()
+    expect(await writes(f, f.root)).toEqual(before)
+    const { teamId } = await f.admin.as.mutation(CASES.createTeam, { networkId: f.root, name: "Publications (fixture)", scope: "post", reason: REASON })
+    const row = await teamRow(f, teamId)
+    expect(Object.keys(row)).not.toContain("country")
+    expect(await teamDecisions(f, f.root)).toEqual([
+      { action: "moderation.team_create", capacity: "network_admin", actorPersonId: f.admin.personId, subject: { table: "moderationTeams", id: teamId }, details: { reason: REASON, scope: "post" } },
+    ])
+    // Le jumeau, sans pays : la même équipe, le même journal, aucun champ de plus.
+    const twin = await f.adminApp.mutation(NA.createTeam, { networkId: f.network, name: "Sans pays (fixture)", reason: REASON })
+    expect(Object.keys(await teamRow(f, twin.teamId))).not.toContain("country")
+    expect((await teamDecisions(f)).map((row) => row.details)).toEqual([{ reason: REASON, scope: null }])
+  })
+
+  it("le jumeau createTeam pose le pays d'une équipe et l'inscrit au journal ; un pays mal formé est refusé sans rien écrire", async () => {
+    const f = await fixture()
+    const { teamId } = await f.adminApp.mutation(NA.createTeam, { networkId: f.network, name: "Belgique (fixture)", country: "BE", reason: REASON })
+    expect((await teamRow(f, teamId)).country).toBe("BE")
+    expect(await teamDecisions(f)).toEqual([
+      { action: "moderation.team_create", capacity: "network_admin", actorPersonId: f.admin.personId, subject: { table: "moderationTeams", id: teamId }, details: { reason: REASON, scope: null, country: "BE" } },
+    ])
+    const before = await writes(f)
+    for (const country of ["be", "BEL", "B", "", "B1"]) {
+      expect(await refusalOf(f.adminApp.mutation(NA.createTeam, { networkId: f.network, name: "Mal formé (fixture)", country, reason: REASON })), country).toEqual({ code: "invalidArgument", field: "country" })
+    }
+    expect(await writes(f)).toEqual(before)
+  })
+
+  it("setTeamCountry pose, change puis retire le pays ; chaque changement entre au journal à titre de network_admin ; sans changement, rien n'est écrit", async () => {
+    const f = await fixture()
+    expect(await f.adminApp.mutation(NA.setTeamCountry, { networkId: f.network, teamId: f.teamId, country: "FR", reason: REASON })).toBeNull()
+    expect((await teamRow(f, f.teamId)).country).toBe("FR")
+    const unchanged = await writes(f)
+    expect(await f.adminApp.mutation(NA.setTeamCountry, { networkId: f.network, teamId: f.teamId, country: "FR", reason: REASON })).toBeNull()
+    expect(await writes(f)).toEqual(unchanged)
+    expect(await f.adminApp.mutation(NA.setTeamCountry, { networkId: f.network, teamId: f.teamId, country: "BE", reason: REASON })).toBeNull()
+    expect(await f.adminApp.mutation(NA.setTeamCountry, { networkId: f.network, teamId: f.teamId, country: null, reason: REASON })).toBeNull()
+    expect(Object.keys(await teamRow(f, f.teamId))).not.toContain("country")
+    const subject = { table: "moderationTeams", id: f.teamId }
+    expect(await teamDecisions(f)).toEqual([
+      { action: "moderation.team_country_set", capacity: "network_admin", actorPersonId: f.admin.personId, subject, details: { reason: REASON, country: "FR", previousCountry: null } },
+      { action: "moderation.team_country_set", capacity: "network_admin", actorPersonId: f.admin.personId, subject, details: { reason: REASON, country: "BE", previousCountry: "FR" } },
+      { action: "moderation.team_country_set", capacity: "network_admin", actorPersonId: f.admin.personId, subject, details: { reason: REASON, country: null, previousCountry: "BE" } },
+    ])
+  })
+
+  it("setTeamCountry refuse l'équipe d'un autre réseau, une équipe retirée, un pays mal formé et un motif trop court, sans rien écrire", async () => {
+    const f = await fixture()
+    const { rootTeam, retired } = await f.t.run(async (ctx) => ({
+      rootTeam: await ctx.db.insert("moderationTeams", { networkId: f.root, name: "Racine (fixture)", active: true, createdAt: NOW }),
+      retired: await ctx.db.insert("moderationTeams", { networkId: f.network, name: "Retirée (fixture)", active: false, createdAt: NOW }),
+    }))
+    const before = await writes(f)
+    const call = (teamId: Id<"moderationTeams">, country: string | null, reason = REASON) => f.adminApp.mutation(NA.setTeamCountry, { networkId: f.network, teamId, country, reason })
+    expect(await refusalOf(call(rootTeam, "FR"))).toEqual(REFUSAL)
+    expect(await refusalOf(call(retired, "FR"))).toEqual(REFUSAL)
+    for (const country of ["fr", "FRA", "", "F1"]) expect(await refusalOf(call(f.teamId, country)), country).toEqual({ code: "invalidArgument", field: "country" })
+    expect(await refusalOf(call(f.teamId, "FR", "ab"))).toMatchObject({ code: "invalidArgument" })
+    expect(await writes(f)).toEqual(before)
+    expect(Object.keys(await teamRow(f, rootTeam))).not.toContain("country")
+    expect(Object.keys(await teamRow(f, retired))).not.toContain("country")
+  })
+
+  it("le bureau des membres montre le pays de chaque équipe (null sans pays)", async () => {
+    const f = await fixture()
+    const { teamId } = await f.adminApp.mutation(NA.createTeam, { networkId: f.network, name: "Canada (fixture)", country: "CA", reason: REASON })
+    const desk = await f.admin.as.query(D.myDesk, { networkId: f.network, expectedPersonId: f.admin.personId })
+    expect(desk?.teams.map((row) => [row.teamId, row.country])).toEqual(expect.arrayContaining([[f.teamId, null], [teamId, "CA"]]))
   })
 })
