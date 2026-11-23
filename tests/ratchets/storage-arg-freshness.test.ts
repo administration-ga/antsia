@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/tests/storageArgFreshnessRatchet.test.ts @ ad2e7fdc2 — adaptations : constructeurs publics du moteur (`networkMutation`, `personMutation`, `operatorMutation`, `mutation`, `action`, `networkAction`) ; gardes `assertFreshUpload` et `admitPosedUploads` (ni `admitPosedImages`, ni preuve de reprise FP) ; aucune exception ; analyseur sur des sources injectables, pour un « test du test » sur sources fabriquées.
+// Dupliqué de socle/convex/tests/storageArgFreshnessRatchet.test.ts @ ad2e7fdc2 — adaptations : constructeurs publics du moteur (`networkMutation`, `personMutation`, `operatorMutation`, `networkAdminMutation`, `mutation`, `action`, `networkAction`) ; gardes `assertFreshUpload` et `admitPosedUploads` (ni `admitPosedImages`, ni preuve de reprise FP) ; aucune exception ; analyseur sur des sources injectables, pour un « test du test » sur sources fabriquées.
 /**
  * storage-arg-freshness — CE QU'IL INTERDIT : qu'une fonction PUBLIQUE
  * d'écriture (mutation ou action) reçoive un identifiant de fichier
@@ -30,7 +30,7 @@ import { calledNames, exportedCalls, importedNames } from "./lib/detectors"
 import { isTestFile, listFiles, readRepoFile, walk } from "./lib/source-files"
 
 /** Constructeurs de fonctions PUBLIQUES qui peuvent écrire (ou faire écrire). */
-const PUBLIC_BUILDERS = new Set(["mutation", "networkMutation", "personMutation", "operatorMutation", "action", "networkAction", "authMutation", "authAction"])
+const PUBLIC_BUILDERS = new Set(["mutation", "networkMutation", "personMutation", "operatorMutation", "networkAdminMutation", "action", "networkAction", "authMutation", "authAction"])
 
 /** Les gardes de départ du point fixe. */
 const GUARDS = ["assertFreshUpload", "admitPosedUploads"]

@@ -6,7 +6,8 @@ import { type Finding, formatFindings, isTestFile, listFiles, readRepoFile } fro
 
 /**
  * Dossiers des MODULES SOCIAUX du moteur. Toute fonction publique qui y vit doit
- * être bornée par le réseau : constructeur `networkQuery`/`networkMutation`, ou
+ * être bornée par le réseau : constructeur `networkQuery`/`networkMutation` (ou, pour
+ * l'administrateur du réseau, `networkAdminQuery`/`networkAdminMutation`, ADR-0042), ou
  * `requireMembership(ctx, args.networkId, …)` explicite avec `networkId` en
  * argument, ou projection publique allowlistée (`@publicProjection <raison>`).
  *
@@ -96,6 +97,8 @@ describe("network-scoped-functions — toute fonction sociale est bornée par le
       "/** @selfScoped trop court */",
       "export const shortReason = personQuery({ args: {}, handler: async () => null })",
       "export const console = operatorMutation({ args: {}, handler: async () => null })",
+      "export const adminRead = networkAdminQuery({ args: {}, handler: async () => null })",
+      "export const adminWrite = networkAdminMutation({ args: {}, handler: async () => null })",
     ].join("\n")
     const findings = detectUnscopedFunctions("convex/modules/posts/posts.ts", source)
     expect(findings.map((finding) => finding.line)).toEqual([1, 13])

@@ -23,8 +23,8 @@ const SYSTEM_HTTP_ADMISSIONS = new Map([
  * admission système nominative.
  */
 const READ_ONLY_HTTP_ACTIONS = new Set(["convex/modules/federation/commerceCatalogMediaHttp.ts#media"])
-const PUBLIC_WRITES = new Set(["mutation", "action", "authMutation", "authAction", "httpAction", "networkMutation", "personMutation", "operatorMutation", "networkAction"])
-const GUARDED_MUTATIONS = new Set(["networkMutation", "personMutation", "operatorMutation"])
+const PUBLIC_WRITES = new Set(["mutation", "action", "authMutation", "authAction", "httpAction", "networkMutation", "personMutation", "operatorMutation", "networkAdminMutation", "networkAction"])
+const GUARDED_MUTATIONS = new Set(["networkMutation", "personMutation", "operatorMutation", "networkAdminMutation"])
 const EFFECTS = new Set(["insert", "patch", "replace", "delete", "store", "generateUploadUrl", "runMutation", "runAction", "runAfter", "runAt"])
 
 type Binding = { name: string; module: string; mutable?: boolean }
@@ -208,7 +208,7 @@ export function detectUnmeteredWrites(file: string, text: string): Finding[] {
     if (!PUBLIC_WRITES.has(builder)) {
       const expectedModules: Record<string, string> = {
         query: SERVER, internalQuery: SERVER, internalMutation: SERVER, internalAction: SERVER,
-        networkQuery: FUNCTIONS, personQuery: FUNCTIONS, operatorQuery: FUNCTIONS,
+        networkQuery: FUNCTIONS, personQuery: FUNCTIONS, operatorQuery: FUNCTIONS, networkAdminQuery: FUNCTIONS,
         literals: "convex/lib/validators", makeFunctionReference: "convex/server",
       }
       // Aucun constructeur indirect inconnu dans un module social : une aide
@@ -294,6 +294,11 @@ describe("rate-limited-writes — admission obligatoire de toute entrée publiqu
     ])
     expect(gateSequence(`${FUNCTIONS}.ts`, "personMutation")).toEqual(["convex/lib/access#requirePerson", `${RATE_LIMIT}#enforceRateLimit:person.write`])
     expect(gateSequence(`${FUNCTIONS}.ts`, "operatorMutation")).toContain(`${RATE_LIMIT}#enforceRateLimit:operator.write`)
+    // ADR-0042 : adhésion, rôle, preuve et journal AVANT la garde d'écriture et les deux budgets obligatoires.
+    expect(gateSequence(`${FUNCTIONS}.ts`, "networkAdminMutation").slice(0, 5)).toEqual([
+      "convex/lib/access#requireMembership", "convex/lib/networkAdminIdentity#requireNetworkAdminSession", "convex/modules/moderation/policy#assertSocialWriteAllowed",
+      `${RATE_LIMIT}#enforceRateLimit:social.write`, `${RATE_LIMIT}#enforceRateLimit:network_admin.write`,
+    ])
     expect(gateSequence("convex/lib/actionAccess.ts", "admitActionWrite", 0).slice(0, 4)).toEqual([
       "convex/lib/access#requireMembership", "convex/modules/moderation/policy#assertSocialWriteAllowed", `${RATE_LIMIT}#enforceRateLimit:social.write`, `${RATE_LIMIT}#enforceRateLimit:action.write`,
     ])
