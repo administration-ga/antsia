@@ -10,6 +10,7 @@
  * classée dans `AUTH_ROUTE_SURFACE` avec une raison, que chaque ligne ait encore sa route, et que
  * chaque classe soit vraie selon les MÊMES ensembles exportés que lisent les crochets.
  */
+import type { BetterAuthOptions } from "better-auth"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { freshSessionMiddleware, requestOnlySessionMiddleware, sensitiveSessionMiddleware, sessionMiddleware } from "better-auth/api"
 
@@ -84,17 +85,20 @@ async function surfaceOf(t: T): Promise<{ routes: RouteFact[]; conditions: Condi
       })
     }
     const context = await auth.$context
+    // Les options sont typées sur l'objet réellement passé : on les relit sous le type GÉNÉRAL de
+    // Better Auth, pour pouvoir constater l'ABSENCE d'un réglage (`emailVerification`, `user`).
+    const options: BetterAuthOptions = context.options
     const emailOtp = auth.options.plugins?.find((plugin) => plugin.id === "email-otp")
     const emailOtpOptions = (emailOtp && "options" in emailOtp ? emailOtp.options : undefined) as { changeEmail?: { enabled?: boolean }; overrideDefaultEmailVerification?: boolean } | undefined
     const conditions: Conditions = {
       socialProviders: context.socialProviders.map((provider) => provider.id).sort(),
-      sendVerificationEmail: typeof context.options.emailVerification?.sendVerificationEmail === "function",
-      autoSignInAfterVerification: context.options.emailVerification?.autoSignInAfterVerification === true,
-      userChangeEmail: context.options.user?.changeEmail?.enabled === true,
-      userDeleteUser: context.options.user?.deleteUser?.enabled === true,
+      sendVerificationEmail: typeof options.emailVerification?.sendVerificationEmail === "function",
+      autoSignInAfterVerification: options.emailVerification?.autoSignInAfterVerification === true,
+      userChangeEmail: options.user?.changeEmail?.enabled === true,
+      userDeleteUser: options.user?.deleteUser?.enabled === true,
       emailOtpChangeEmail: emailOtpOptions?.changeEmail?.enabled === true,
       emailOtpOverridesVerification: emailOtpOptions?.overrideDefaultEmailVerification === true,
-      emailAndPassword: context.options.emailAndPassword?.enabled === true,
+      emailAndPassword: options.emailAndPassword?.enabled === true,
     }
     return { routes, conditions }
   })
