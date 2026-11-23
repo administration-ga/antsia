@@ -6,7 +6,9 @@
  * Ce qui est prouvé : 404 porte fermée ou non armée, 503 indisponible ; réponses IDENTIQUES (statut,
  * forme, durée plancher) pour un numéro autorisé, refusé et limité ; parcours complet du code reçu à
  * la session ; un défi consommé une fois ; un envoi manqué invalide le défi ; 400 pour une demande
- * mal formée ; 429 avec `Retry-After` ; CORS des seules origines de confiance ; rien en clair.
+ * mal formée ; 429 avec `Retry-After`, aussitôt, pour une adresse limitée (demande et vérification) ;
+ * un fournisseur lent ne se voit pas au chronomètre (durée bornée par le HAUT, la même pour un numéro
+ * hors liste : CH-817 E5, constat 3) ; CORS des seules origines de confiance ; rien en clair.
  */
 import { DEMO_GATE_CHALLENGE_ID_PATTERN, DEMO_GATE_CODE_PATTERN, DEMO_GATE_PATHS, DEMO_GATE_TOKEN_PATTERN, formatDemoGateCode } from "@antsia/social-contracts/demoGate"
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest"
@@ -14,6 +16,7 @@ import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vite
 import { api, internal } from "../../_generated/api"
 import { demoGateDigest } from "../../lib/demoGate"
 import { rateLimiter } from "../../lib/rateLimit"
+import { WHATSAPP_TIMEOUT_MS } from "../../lib/whatsappDelivery"
 import { testConvex } from "../../test.setup"
 import { demoGateSessionOf, DEMO_GATE_SESSION_TTL_MS } from "./demoGate"
 import { DEMO_GATE_REQUEST_FLOOR_MS, DEMO_GATE_VERIFY_FLOOR_MS } from "./demoGateHttp"
@@ -147,8 +150,56 @@ describe("demande — une seule réponse pour autorisé, refusé et limité", ()
     expect(challenges.map((row) => row.challengeId)).toContain(allowed.body.challengeId)
     expect(challenges.map((row) => row.challengeId)).not.toContain(refused.body.challengeId)
     expect(challenges.map((row) => row.challengeId)).not.toContain(limited.body.challengeId)
-    expect(challenges.filter((row) => row.status === "active")).toHaveLength(1)
-  }, 30_000)
+    // CH-817 E5 : les trois défis servis restent actifs (aucun ne remplace le précédent).
+    expect(challenges.filter((row) => row.status === "active")).toHaveLength(3)
+  }, 60_000)
+
+  it("CH-817 E5, constat 3 : le délai d'envoi tient sous la durée plancher, avec une seconde de marge", () => {
+    expect(WHATSAPP_TIMEOUT_MS + 1_000).toBeLessThanOrEqual(DEMO_GATE_REQUEST_FLOOR_MS)
+  })
+
+  it("CH-817 E5, constat 3 : fournisseur lent — durée bornée par le HAUT, la même pour un numéro hors liste", async () => {
+    // Un fournisseur qui ne répond qu'au bout de quinze secondes, et que seul le délai d'envoi interrompt.
+    provider.mockImplementation((_url, init) => new Promise<Response>((resolve, reject) => {
+      const timer = setTimeout(() => resolve(new Response(JSON.stringify({ id: "message-fictif" }), { status: 202 })), 15_000)
+      init?.signal?.addEventListener("abort", () => { clearTimeout(timer); reject(init.signal?.reason) }, { once: true })
+    }))
+    vi.spyOn(console, "warn").mockImplementation(() => undefined)
+    const t = testConvex({ automaticSessions: false })
+    await allow(t)
+    const listed = await requestCode(t)
+    const stranger = await requestCode(t, STRANGER)
+    expect(provider).toHaveBeenCalledTimes(1)
+    for (const { response, elapsed } of [listed, stranger]) {
+      expect(response.status).toBe(202)
+      expect(elapsed).toBeGreaterThanOrEqual(DEMO_GATE_REQUEST_FLOOR_MS - 10)
+      expect(elapsed).toBeLessThanOrEqual(DEMO_GATE_REQUEST_FLOOR_MS + 300)
+    }
+    expect(Math.abs(listed.elapsed - stranger.elapsed)).toBeLessThan(300)
+    // L'envoi interrompu invalide le défi : personne ne connaît un code jamais reçu.
+    const row = await t.run((ctx) => ctx.db.query("demoGateChallenges").withIndex("by_challengeId", (q) => q.eq("challengeId", String(listed.body.challengeId))).first())
+    expect(row?.status).toBe("delivery_failed")
+  }, 40_000)
+
+  it("CH-817 E5, constat 5 : adresse limitée — 429 aussitôt, sans plancher, `Retry-After` ; rien ne part", async () => {
+    const t = testConvex({ automaticSessions: false })
+    await allow(t)
+    // Sans `x-forwarded-for`, l'adresse est la clé partagée `unknown` (fiche CH-817 § 2).
+    const ipKeyHash = await demoGateDigest(SECRET, "demo-gate-ip", "unknown")
+    await t.run(async (ctx) => { await rateLimiter.limit(ctx, "demoGate.request.ip", { key: ipKeyHash, count: 10 }) })
+    for (const phone of [PHONE, STRANGER]) {
+      const { response, body, elapsed } = await requestCode(t, phone)
+      expect(response.status).toBe(429)
+      expect(body.ok).toBe(false)
+      expect(body.error).toBe("rate_limited")
+      expect(Number(body.retryAfterMs)).toBeGreaterThan(0)
+      expect(Number(response.headers.get("retry-after"))).toBeGreaterThanOrEqual(1)
+      expect(response.headers.get("access-control-allow-origin")).toBe(PRIMARY_ORIGIN)
+      expect(elapsed).toBeLessThan(500)
+    }
+    expect(provider).not.toHaveBeenCalled()
+    expect(await t.run((ctx) => ctx.db.query("demoGateChallenges").take(5))).toEqual([])
+  })
 })
 
 describe("vérification — du code reçu à la session", () => {
@@ -217,8 +268,10 @@ describe("vérification — du code reçu à la session", () => {
     // Sans `x-forwarded-for`, l'adresse est la clé partagée `unknown` (fiche CH-817 § 2).
     const ipKeyHash = await demoGateDigest(SECRET, "demo-gate-ip", "unknown")
     await t.run(async (ctx) => { await rateLimiter.limit(ctx, "demoGate.verify.ip", { key: ipKeyHash, count: 20 }) })
-    const { response, body } = await verifyCode(t, "D".repeat(32), "482913K")
+    const { response, body, elapsed } = await verifyCode(t, "D".repeat(32), "482913K")
     expect(response.status).toBe(429)
+    // Aussitôt, sans la durée plancher d'une seconde.
+    expect(elapsed).toBeLessThan(500)
     expect(body.ok).toBe(false)
     expect(body.error).toBe("rate_limited")
     expect(Number(body.retryAfterMs)).toBeGreaterThan(0)

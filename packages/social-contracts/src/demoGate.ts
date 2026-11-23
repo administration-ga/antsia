@@ -50,6 +50,11 @@ export const DEMO_GATE_CODE_SPACE = 10 ** DEMO_GATE_CODE_DIGITS * DEMO_GATE_CODE
 export const DEMO_GATE_CODE_PATTERN = /^\d{6}[A-HJ-NP-Z]$/
 /** Essais par défi : au cinquième code erroné, le défi est épuisé. */
 export const DEMO_GATE_MAX_ATTEMPTS = 5
+/**
+ * Défis actifs non échus au plus par numéro (CH-817 E5, constat 6) : une nouvelle demande ne remplace
+ * plus le défi en cours, elle s'y ajoute, jusqu'à trois ; chacun reste vérifiable avec son code.
+ */
+export const DEMO_GATE_ACTIVE_CHALLENGES_MAX = 3
 /** Durée d'une session de porte : trente minutes, non renouvelable. */
 export const DEMO_GATE_SESSION_TTL_SECONDS = 30 * 60
 /** Numéros actifs au plus sur la liste d'une portée. */

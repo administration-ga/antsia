@@ -1,5 +1,5 @@
 // @vitest-environment edge-runtime
-// Dupliqué de socle/convex/modules/demoAccess/accessStore.test.ts @ 1379d45f9 — adaptations : empreintes de numéro au lieu d'adresses ; liste en table (`allowPhones`, `revokePhones`, `allowlistSummary`) ; seaux de débit des admissions (adresse avant commun, numéro, quota du jour) ; portée ; session relue contre la liste ; journal de la porte ; aide `demoGateSessionOf` / `demoGateAdmits` des lectures du moteur ; garde d'état des mutations internes ; rien en clair.
+// Dupliqué de socle/convex/modules/demoAccess/accessStore.test.ts @ 1379d45f9 — adaptations : empreintes de numéro au lieu d'adresses ; liste en table (`allowPhones`, `revokePhones`, `allowlistSummary`) ; seaux de débit des admissions (adresse visible, liste, numéro, quota du jour, défis actifs, commun en dernier — CH-817 E5) ; portée ; session relue contre la liste ; journal de la porte ; aide `demoGateSessionOf` / `demoGateAdmits` des lectures du moteur ; garde d'état des mutations internes ; rien en clair.
 /** CH-817 — le magasin transactionnel de la porte des comptes de démonstration. */
 import { afterEach, describe, expect, it, vi } from "vitest"
 
@@ -58,8 +58,15 @@ async function challenge(t: T, suffix: string) {
 
 async function open(t: T, suffix: string, now = NOW) {
   const args = await requestArgs(suffix)
-  expect(await t.run((ctx) => admitRequestImpl(ctx, args, now))).toEqual({ deliver: true })
+  expect(await t.run((ctx) => admitRequestImpl(ctx, args, now))).toEqual({ status: "decided", deliver: true })
   return args
+}
+
+const DECIDED_REFUSED = { status: "decided", deliver: false } as const
+
+/** La valeur restante d'un seau de la porte. */
+async function bucketValue(t: T, name: "demoGate.request.global" | "demoGate.request.phone" | "demoGate.request.ip", key: string) {
+  return (await t.run((ctx) => rateLimiter.getValue(ctx, name, { key }))).value
 }
 
 function complete(t: T, args: { challengeId: string; codeDigest: string }, codeMatches: boolean, now = NOW + 1, tokenDigest = "f".repeat(64)) {
@@ -75,55 +82,91 @@ describe("demande — un défi pour un numéro de la liste seulement", () => {
     const t = testConvex()
     await allow(t)
     const decoy = await requestArgs("decoy", OTHER_PHONE)
-    expect(await t.run((ctx) => admitRequestImpl(ctx, decoy, NOW))).toEqual({ deliver: false })
+    expect(await t.run((ctx) => admitRequestImpl(ctx, decoy, NOW))).toEqual(DECIDED_REFUSED)
     expect(await t.run((ctx) => ctx.db.query("demoGateChallenges").take(10))).toEqual([])
   })
 
-  it("invalide l'ancien défi actif à chaque nouvelle demande", async () => {
+  it("CH-817 E5, constat 6 : une nouvelle demande ne remplace plus la précédente ; les deux codes restent vérifiables", async () => {
     const t = testConvex()
     await allow(t)
-    await open(t, "first")
-    await open(t, "second", NOW + 1)
-    expect((await challenge(t, "first"))?.status).toBe("superseded")
+    const first = await open(t, "first")
+    const second = await open(t, "second", NOW + 1)
+    expect((await challenge(t, "first"))?.status).toBe("active")
     expect((await challenge(t, "second"))?.status).toBe("active")
+    expect(await complete(t, second, true, NOW + 2, "a".repeat(64))).toMatchObject({ ok: true })
+    expect(await complete(t, first, true, NOW + 3, "b".repeat(64))).toMatchObject({ ok: true })
+    expect(await t.run((ctx) => ctx.db.query("demoGateSessions").take(10))).toHaveLength(2)
+  })
+
+  it("CH-817 E5 : trois défis actifs non échus au plus par numéro ; un défi échu ne compte plus", async () => {
+    const t = testConvex()
+    await allow(t)
+    const phoneHash = await hashOf(PHONE)
+    // Trois défis encore actifs, posés plus tôt (les seaux du numéro restent pleins pour ce test).
+    await t.run(async (ctx) => {
+      for (const suffix of ["live1", "live2", "live3"]) {
+        await ctx.db.insert("demoGateChallenges", { scope: SCOPE, challengeId: challengeIdOf(suffix), phoneHash, codeDigest: "d".repeat(64), status: "active", attemptsUsed: 0, createdAt: NOW - 1_000, expiresAt: NOW + DEMO_GATE_CHALLENGE_TTL_MS - 1_000 })
+      }
+    })
+    const globalBefore = await bucketValue(t, "demoGate.request.global", SCOPE)
+    expect(await t.run(async (ctx) => admitRequestImpl(ctx, await requestArgs("fourth"), NOW))).toEqual(DECIDED_REFUSED)
+    expect(await challenge(t, "fourth")).toBeNull()
+    // Refusé avant le seau commun : le fusible de coût n'est pas entamé.
+    expect(await bucketValue(t, "demoGate.request.global", SCOPE)).toBe(globalBefore)
+    // Le plus ancien échoit : la demande suivante passe.
+    expect(await t.run(async (ctx) => admitRequestImpl(ctx, await requestArgs("later"), NOW + DEMO_GATE_CHALLENGE_TTL_MS))).toEqual({ status: "decided", deliver: true })
   })
 
   it("trois demandes par quart d'heure pour un numéro, puis rien ; quota du jour épuisé : rien", async () => {
     const t = testConvex()
     await allow(t)
     for (const suffix of ["one", "two", "three"]) await open(t, suffix)
-    expect(await t.run(async (ctx) => admitRequestImpl(ctx, await requestArgs("four"), NOW))).toEqual({ deliver: false })
+    expect(await t.run(async (ctx) => admitRequestImpl(ctx, await requestArgs("four"), NOW))).toEqual(DECIDED_REFUSED)
     expect(await challenge(t, "four")).toBeNull()
 
     const daily = testConvex()
     await allow(daily)
     await daily.run(async (ctx) => { await rateLimiter.limit(ctx, "demoGate.request.phone.daily", { key: await hashOf(PHONE), count: 10 }) })
-    expect(await daily.run(async (ctx) => admitRequestImpl(ctx, await requestArgs("daily"), NOW))).toEqual({ deliver: false })
+    expect(await daily.run(async (ctx) => admitRequestImpl(ctx, await requestArgs("daily"), NOW))).toEqual(DECIDED_REFUSED)
   })
 
-  it("seau de l'adresse AVANT le seau commun : un appelant limité ne vide pas le seau de tous", async () => {
+  it("CH-817 E5, constat 5 : des numéros hors liste ne consomment pas le seau commun ; un numéro de la liste, si", async () => {
     const t = testConvex()
     await allow(t)
-    // Dix demandes de numéros hors liste épuisent le seau de cette adresse (10 par heure).
-    for (let index = 0; index < 10; index++) {
-      expect(await t.run(async (ctx) => admitRequestImpl(ctx, await requestArgs(`stranger${index}`, `+4477009002${index.toString().padStart(2, "0")}`), NOW))).toEqual({ deliver: false })
+    const full = await bucketValue(t, "demoGate.request.global", SCOPE)
+    for (let index = 0; index < 5; index++) {
+      expect(await t.run(async (ctx) => admitRequestImpl(ctx, await requestArgs(`stranger${index}`, `+4477009002${index.toString().padStart(2, "0")}`, { ipKeyHash: `${index}`.repeat(64) }), NOW))).toEqual(DECIDED_REFUSED)
     }
-    const before = await t.run((ctx) => rateLimiter.getValue(ctx, "demoGate.request.global", { key: SCOPE }))
-    // Un numéro de la liste, depuis la même adresse : refusé, sans consommer le seau commun.
-    expect(await t.run(async (ctx) => admitRequestImpl(ctx, await requestArgs("listed"), NOW))).toEqual({ deliver: false })
-    const after = await t.run((ctx) => rateLimiter.getValue(ctx, "demoGate.request.global", { key: SCOPE }))
-    expect(after.value).toBeGreaterThanOrEqual(before.value)
-    // Depuis une autre adresse, il passe.
-    expect(await t.run(async (ctx) => admitRequestImpl(ctx, await requestArgs("elsewhere", PHONE, { ipKeyHash: "2".repeat(64) }), NOW))).toEqual({ deliver: true })
+    expect(await bucketValue(t, "demoGate.request.global", SCOPE)).toBe(full)
+    await open(t, "listed")
+    expect(await bucketValue(t, "demoGate.request.global", SCOPE)).toBe(full - 1)
+  })
+
+  it("CH-817 E5 : adresse limitée → « limited » avec un délai, avant la liste ; rien d'autre n'est consommé", async () => {
+    const t = testConvex()
+    await allow(t)
+    await t.run(async (ctx) => { await rateLimiter.limit(ctx, "demoGate.request.ip", { key: IP, count: 10 }) })
+    const phoneBefore = await bucketValue(t, "demoGate.request.phone", await hashOf(PHONE))
+    const globalBefore = await bucketValue(t, "demoGate.request.global", SCOPE)
+    for (const phone of [PHONE, OTHER_PHONE]) {
+      const limited = await t.run(async (ctx) => admitRequestImpl(ctx, await requestArgs(`limited${phone.slice(-3)}`, phone), NOW))
+      expect(limited.status).toBe("limited")
+      expect(limited.status === "limited" && limited.retryAfterMs > 0).toBe(true)
+    }
+    expect(await bucketValue(t, "demoGate.request.phone", await hashOf(PHONE))).toBe(phoneBefore)
+    expect(await bucketValue(t, "demoGate.request.global", SCOPE)).toBe(globalBefore)
+    expect(await t.run((ctx) => ctx.db.query("demoGateChallenges").take(10))).toEqual([])
+    // Depuis une autre adresse, le numéro de la liste passe.
+    expect(await t.run(async (ctx) => admitRequestImpl(ctx, await requestArgs("elsewhere", PHONE, { ipKeyHash: "2".repeat(64) }), NOW))).toEqual({ status: "decided", deliver: true })
   })
 
   it("arguments hors forme : refusés sans rien écrire", async () => {
     const t = testConvex()
     await allow(t)
     for (const overrides of [{ ipKeyHash: "pas-une-empreinte" }, { codeDigest: "court" }]) {
-      expect(await t.run(async (ctx) => admitRequestImpl(ctx, await requestArgs("bad", PHONE, overrides), NOW))).toEqual({ deliver: false })
+      expect(await t.run(async (ctx) => admitRequestImpl(ctx, await requestArgs("bad", PHONE, overrides), NOW))).toEqual(DECIDED_REFUSED)
     }
-    expect(await t.run(async (ctx) => admitRequestImpl(ctx, { ...(await requestArgs("bad")), challengeId: "court" }, NOW))).toEqual({ deliver: false })
+    expect(await t.run(async (ctx) => admitRequestImpl(ctx, { ...(await requestArgs("bad")), challengeId: "court" }, NOW))).toEqual(DECIDED_REFUSED)
     expect(await t.run((ctx) => ctx.db.query("demoGateChallenges").take(10))).toEqual([])
   })
 
@@ -185,16 +228,19 @@ describe("vérification — cinq essais, cinq minutes, une seule fois", () => {
     expect((await challenge(t, "bound"))?.status).toBe("active")
   })
 
-  it("vingt essais par quart d'heure et par adresse, six cents par heure en tout : au-delà, « limited » avec un délai", async () => {
+  it("vingt essais par quart d'heure et par adresse : au-delà, « limited » avec un délai ; plus de seau commun (CH-817 E5)", async () => {
     const t = testConvex()
     await t.run(async (ctx) => { await rateLimiter.limit(ctx, "demoGate.verify.ip", { key: IP, count: 20 }) })
     const limited = await t.run((ctx) => admitVerifyImpl(ctx, { scope: SCOPE, challengeId: challengeIdOf("any"), ipKeyHash: IP }, NOW))
     expect(limited.status).toBe("limited")
     expect(limited.status === "limited" && limited.retryAfterMs > 0).toBe(true)
 
-    const global = testConvex()
-    await global.run(async (ctx) => { await rateLimiter.limit(ctx, "demoGate.verify.global", { key: SCOPE, count: 600 }) })
-    expect((await global.run((ctx) => admitVerifyImpl(ctx, { scope: SCOPE, challengeId: challengeIdOf("any"), ipKeyHash: IP }, NOW))).status).toBe("limited")
+    // Constat 5c : quarante adresses qui essaient des leurres ne ferment rien à une quarante et unième.
+    const crowd = testConvex()
+    for (let index = 0; index < 40; index++) {
+      await crowd.run(async (ctx) => { await rateLimiter.limit(ctx, "demoGate.verify.ip", { key: index.toString(16).padStart(64, "a"), count: 20 }) })
+    }
+    expect((await crowd.run((ctx) => admitVerifyImpl(ctx, { scope: SCOPE, challengeId: challengeIdOf("any"), ipKeyHash: IP }, NOW))).status).toBe("unknown")
   })
 
   it("consomme le défi une fois, ne garde que l'empreinte du jeton et journalise l'accès", async () => {
@@ -389,13 +435,13 @@ describe("mutations internes — fermées hors d'une porte armée", () => {
     const args = await requestArgs("guarded")
     for (const [key, value] of Object.entries(LOCAL)) vi.stubEnv(key, value)
     vi.stubEnv("ANTSIA_DEMO_GATE_SECRET", undefined)
-    expect(await t.mutation(internal.modules.platform.demoGate.admitRequest, args)).toEqual({ deliver: false })
+    expect(await t.mutation(internal.modules.platform.demoGate.admitRequest, args)).toEqual(DECIDED_REFUSED)
     expect(await t.mutation(internal.modules.platform.demoGate.admitVerify, { scope: SCOPE, challengeId: args.challengeId, ipKeyHash: IP })).toEqual({ status: "unknown" })
     expect(await t.mutation(internal.modules.platform.demoGate.completeVerify, { scope: SCOPE, challengeId: args.challengeId, expectedCodeDigest: args.codeDigest, codeMatches: true, tokenDigest: "f".repeat(64) })).toEqual({ ok: false })
     expect(await t.run((ctx) => ctx.db.query("demoGateChallenges").take(10))).toEqual([])
     // Armée : la même demande ouvre un défi.
     for (const [key, value] of Object.entries(GATED)) vi.stubEnv(key, value)
-    expect(await t.mutation(internal.modules.platform.demoGate.admitRequest, args)).toEqual({ deliver: true })
+    expect(await t.mutation(internal.modules.platform.demoGate.admitRequest, args)).toEqual({ status: "decided", deliver: true })
     expect(await t.query(internal.modules.platform.demoGate.allowlistSummary, { scope: SCOPE })).toMatchObject({ active: 1, revoked: 0 })
   })
 })

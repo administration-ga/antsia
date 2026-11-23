@@ -86,7 +86,7 @@ describe("sendWhatsAppOtp — admis par le fournisseur, ou indisponible", () => 
     expect(init?.method).toBe("POST")
     expect(init?.redirect).toBe("error")
     expect(init?.signal).toBeInstanceOf(AbortSignal)
-    expect(WHATSAPP_TIMEOUT_MS).toBe(8_000)
+    expect(WHATSAPP_TIMEOUT_MS).toBe(3_000)
     expect(init?.headers).toEqual({ "Content-Type": "application/json", Accept: "application/json", Authorization: `AccessKey ${ENV.WHATSAPP_API_KEY}` })
     expect(JSON.parse(String(init?.body))).toEqual(birdTemplateMessage(MESSAGE, configured()))
   })

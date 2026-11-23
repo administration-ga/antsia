@@ -16,7 +16,7 @@
  *   Bird le porte par le canal de l'adresse d'envoi et ne la lit pas.
  *
  * Garanties : jamais de faux succès (seule une réponse 2xx qui porte l'identifiant du message vaut
- * `accepted`) ; aucune redirection suivie ; huit secondes au plus ; RIEN au journal (ni numéro, ni
+ * `accepted`) ; aucune redirection suivie ; trois secondes au plus (en deçà de la durée plancher de la porte, CH-817 E5) ; RIEN au journal (ni numéro, ni
  * code, ni réponse du fournisseur, qui peut recopier le message).
  */
 import type { OtpLocale } from "@antsia/social-contracts/authentication"
@@ -36,8 +36,12 @@ export type WhatsAppConfiguration = {
   from?: string
 }
 
-/** Délai maximal d'un envoi, en millisecondes. */
-export const WHATSAPP_TIMEOUT_MS = 8_000
+/**
+ * Délai maximal d'un envoi, en millisecondes (corps de la réponse compris : le même signal l'interrompt).
+ * CH-817 E5 (constat 3) : trois secondes, pour rester sous la durée plancher d'une demande de la porte
+ * (`DEMO_GATE_REQUEST_FLOOR_MS`, quatre secondes) : un fournisseur lent ne se voit pas au chronomètre.
+ */
+export const WHATSAPP_TIMEOUT_MS = 3_000
 /** Une réponse du fournisseur n'est lue que sur cette longueur. */
 const RESPONSE_MAX_BYTES = 65_536
 

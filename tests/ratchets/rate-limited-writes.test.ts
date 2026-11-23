@@ -15,8 +15,9 @@ const SYSTEM_HTTP_ADMISSIONS = new Map([
   ["convex/modules/federation/http.ts#inbox", "modules.federation.inbox.admit"],
   // PA9C : transfert de consentement d'agent signé ; `redeem` consomme `federation.receive` avant tout effet.
   ["convex/modules/federation/agentConsentTransfer.ts#transfer", "modules.federation.agentConsentTransfer.redeem"],
-  // CH-817 : porte des comptes de démonstration, sans session ; chaque route consomme ses seaux
-  // (adresse, commun, liste, numéro) dans sa mutation d'admission avant tout autre effet.
+  // CH-817 : porte des comptes de démonstration, sans session ; chaque route consomme ses seaux dans
+  // sa mutation d'admission avant tout autre effet (demande : adresse, liste, numéro, défis actifs,
+  // commun ; vérification : adresse — CH-817 E5).
   ["convex/modules/platform/demoGateHttp.ts#requestCode", "modules.platform.demoGate.admitRequest"],
   ["convex/modules/platform/demoGateHttp.ts#verifyCode", "modules.platform.demoGate.admitVerify"],
 ])
@@ -340,7 +341,12 @@ describe("rate-limited-writes — admission obligatoire de toute entrée publiqu
     expect(detectUnmeteredWrites(file, other)).toHaveLength(1)
     // Les mutations d'admission consomment leurs seaux nommés.
     const store = readRepoFile("convex/modules/platform/demoGate.ts")
-    for (const bucket of ["demoGate.request.ip", "demoGate.request.global", "demoGate.request.phone", "demoGate.request.phone.daily", "demoGate.verify.ip", "demoGate.verify.global"]) expect(store).toContain(`"${bucket}"`)
+    for (const bucket of ["demoGate.request.ip", "demoGate.request.global", "demoGate.request.phone", "demoGate.request.phone.daily", "demoGate.verify.ip"]) expect(store).toContain(`"${bucket}"`)
+    // CH-817 E5 : plus de seau commun à la vérification ; celui de la demande, après la liste et le numéro.
+    expect(store).not.toContain(`"demoGate.verify.global"`)
+    const order = ["demoGate.request.ip", "demoGate.request.phone", "demoGate.request.phone.daily", "demoGate.request.global"].map((bucket) => store.indexOf(`"${bucket}"`))
+    expect(order).toEqual([...order].sort((a, b) => a - b))
+    expect(store.indexOf("activeEntry(ctx, args.scope, args.phoneHash)")).toBeLessThan(order[3]!)
   })
 
   it("l'inbox système consomme son budget avant les effets et sa porte HTTP attend l'admission", () => {

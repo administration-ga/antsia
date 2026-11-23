@@ -93,7 +93,8 @@ export const platformTables = {
   }).index("by_scope_phoneHash", ["scope", "phoneHash"]),
 
   /**
-   * Les DÉFIS : un par demande admise d'un numéro de la liste, le nouveau remplace l'ancien.
+   * Les DÉFIS : un par demande admise d'un numéro de la liste ; trois actifs non échus au plus, une
+   * nouvelle demande ne remplace plus les précédents (CH-817 E5) ; `superseded` : le numéro a quitté la liste.
    * `codeDigest` lie le code au défi et à l'empreinte du numéro. Cinq essais, cinq minutes ;
    * un envoi WhatsApp échoué invalide le défi (`delivery_failed`). Purgés 24 h après expiration.
    */

@@ -141,7 +141,7 @@ async function openGateSession(t: T, now: number, label = "e3"): Promise<number>
   const codeDigest = await demoGateDigest(GATE_SECRET, "demo-gate-code", label)
   const phoneHash = await demoGateDigest(GATE_SECRET, "demo-gate-phone", GATE_PHONE)
   const tokenDigest = await demoGateDigest(GATE_SECRET, "demo-gate-session", GATE_TOKEN)
-  expect(await t.run((ctx) => admitRequestImpl(ctx, { scope: GATE_SCOPE, phoneHash, ipKeyHash: "1".repeat(64), challengeId, codeDigest }, now))).toEqual({ deliver: true })
+  expect(await t.run((ctx) => admitRequestImpl(ctx, { scope: GATE_SCOPE, phoneHash, ipKeyHash: "1".repeat(64), challengeId, codeDigest }, now))).toEqual({ status: "decided", deliver: true })
   const verified = await t.run((ctx) => completeVerifyImpl(ctx, { scope: GATE_SCOPE, challengeId, expectedCodeDigest: codeDigest, codeMatches: true, tokenDigest }, now))
   if (!verified.ok) throw new Error("session de porte de test non ouverte")
   return verified.expiresAt

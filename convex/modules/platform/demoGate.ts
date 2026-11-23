@@ -1,13 +1,14 @@
-// Dupliqué de socle/convex/modules/demoAccess/accessStore.ts @ 1379d45f9 — adaptations : numéro (empreinte HMAC) au lieu d'adresse en clair ; liste des numéros en table d'empreintes (`allowPhones`, `revokePhones`, `allowlistSummary`) au lieu d'une liste écrite dans le code ; admissions de débit dans les mutations (`admitRequest` : adresse, commun, liste, numéro ; `admitVerify` : adresse, commun) au lieu de l'action Node ; défi et session liés à une portée ; une session ne vaut que tant que sa ligne de liste est active ; journal `demo.gate_allow` / `demo.gate_revoke` / `demo.gate_access` ; aide de validation de session pour les lectures du moteur (`demoGateSessionOf`, `demoGateAdmits`) ; purge opportuniste reprise telle quelle.
+// Dupliqué de socle/convex/modules/demoAccess/accessStore.ts @ 1379d45f9 — adaptations : numéro (empreinte HMAC) au lieu d'adresse en clair ; liste des numéros en table d'empreintes (`allowPhones`, `revokePhones`, `allowlistSummary`) au lieu d'une liste écrite dans le code ; admissions de débit dans les mutations (`admitRequest` : adresse, liste, numéro, défis actifs, commun ; `admitVerify` : adresse) au lieu de l'action Node ; jusqu'à trois défis actifs par numéro, sans remplacement (CH-817 E5) ; défi et session liés à une portée ; une session ne vaut que tant que sa ligne de liste est active ; journal `demo.gate_allow` / `demo.gate_revoke` / `demo.gate_access` ; aide de validation de session pour les lectures du moteur (`demoGateSessionOf`, `demoGateAdmits`) ; purge opportuniste reprise telle quelle.
 /**
  * La porte des comptes de démonstration (CH-817) — le magasin transactionnel.
  *
  * Chemin d'un accès :
  * 1. `POST /demo-gate/request` (`./demoGateHttp.ts`) tire un code et un identifiant de défi, puis
- *    appelle `admitRequest` avec des EMPREINTES seulement (numéro, adresse, code). La réponse est la
+ *    appelle `admitRequest` avec des EMPREINTES seulement (numéro, adresse, code). Une adresse limitée
+ *    reçoit un refus VISIBLE et immédiat (il ne dépend pas du numéro) ; au-delà, la réponse est la
  *    même pour un numéro autorisé, refusé ou limité ; seul un numéro de la liste reçoit un défi.
  * 2. Le code part par WhatsApp ; un échec invalide le défi (`markDeliveryFailed`).
- * 3. `POST /demo-gate/verify` appelle `admitVerify` (débit, défi actif), compare l'empreinte du
+ * 3. `POST /demo-gate/verify` appelle `admitVerify` (débit de l'adresse, défi actif), compare l'empreinte du
  *    code à temps constant, puis `completeVerify` consomme le défi et ouvre une session de trente
  *    minutes dont seule l'empreinte du jeton est gardée.
  * 4. Les lectures du moteur qui ouvrent les comptes de démonstration (catalogue, code affiché :
@@ -17,6 +18,7 @@
  * argument planifié. La liste se remplit par `allowPhones`, que lance le propriétaire.
  */
 import {
+  DEMO_GATE_ACTIVE_CHALLENGES_MAX,
   DEMO_GATE_ALLOWLIST_MAX,
   DEMO_GATE_CHALLENGE_ID_PATTERN,
   DEMO_GATE_MAX_ATTEMPTS,
@@ -46,8 +48,12 @@ const CLEANUP_BATCH_SIZE = 20
 const CHALLENGE_RETENTION_MS = 24 * 60 * 60 * 1_000
 /** Lignes lues au plus pour une portée de la liste (actives et retirées). */
 const ALLOWLIST_SCAN_MAX = 500
-/** Défis actifs relus au plus pour un numéro (un seul en principe). */
-const ACTIVE_CHALLENGES_MAX = 8
+/**
+ * Défis encore actifs relus au plus pour un numéro, des plus récents aux plus anciens, quand un retrait
+ * les fait tomber : au plus `DEMO_GATE_ACTIVE_CHALLENGES_MAX` sont non échus, les autres attendent la
+ * purge (un défi échu ne s'ouvre plus de toute façon).
+ */
+const ACTIVE_CHALLENGES_SCAN = 32
 const HEX_DIGEST = /^[0-9a-f]{64}$/
 
 function isDigest(value: string): boolean {
@@ -69,13 +75,31 @@ async function challengeById(ctx: Pick<QueryCtx, "db">, challengeId: string): Pr
     .first()
 }
 
-/** Les défis encore actifs d'un numéro deviennent `superseded` (le nouveau remplace l'ancien, ou le numéro est retiré). */
+/**
+ * Les défis encore actifs d'un numéro deviennent `superseded` : seulement quand le numéro quitte la
+ * liste (`revokePhones`, `resetScope`). Depuis CH-817 E5 (constat 6), une nouvelle demande ne remplace
+ * plus les défis en cours : un tiers qui connaît le numéro ne fait plus tomber le code de l'invité.
+ */
 async function supersedeActiveChallenges(ctx: MutationCtx, scope: DemoGateScope, phoneHash: string, now: number): Promise<void> {
   const active = await ctx.db
     .query("demoGateChallenges")
     .withIndex("by_scope_phoneHash_status", (q) => q.eq("scope", scope).eq("phoneHash", phoneHash).eq("status", "active"))
-    .take(ACTIVE_CHALLENGES_MAX)
+    .order("desc")
+    .take(ACTIVE_CHALLENGES_SCAN)
   for (const challenge of active) await ctx.db.patch(challenge._id, { status: "superseded", invalidatedAt: now })
+}
+
+/**
+ * Les défis actifs NON ÉCHUS d'un numéro, comptés jusqu'à `limit` : des plus récents aux plus anciens
+ * (durée de vie constante, créés dans l'ordre), le premier défi échu rencontré clôt le décompte.
+ */
+async function liveChallengesOf(ctx: Pick<QueryCtx, "db">, scope: DemoGateScope, phoneHash: string, now: number, limit: number): Promise<number> {
+  const newest = await ctx.db
+    .query("demoGateChallenges")
+    .withIndex("by_scope_phoneHash_status", (q) => q.eq("scope", scope).eq("phoneHash", phoneHash).eq("status", "active"))
+    .order("desc")
+    .take(limit)
+  return newest.filter((challenge) => challenge.expiresAt > now).length
 }
 
 async function cleanupExpiredGateData(ctx: MutationCtx, now: number): Promise<void> {
@@ -96,25 +120,33 @@ async function cleanupExpiredGateData(ctx: MutationCtx, now: number): Promise<vo
 // ─────────────────────────────────────────────────────────────────────────────
 
 export type AdmitRequestArgs = { scope: DemoGateScope; phoneHash: string; ipKeyHash: string; challengeId: string; codeDigest: string }
-export type AdmitRequestResult = { deliver: boolean }
+export type AdmitRequestResult = { status: "limited"; retryAfterMs: number } | { status: "decided"; deliver: boolean }
 
 /**
- * Admet une demande de code. Seaux consommés dans cet ordre : adresse, commun, liste, numéro (le
- * seau de l'adresse d'abord, pour qu'un seul appelant ne vide pas le seau commun de tous). Le défi
- * n'est créé que pour un numéro ACTIF de la liste, dans ses limites ; sinon rien n'est écrit et
- * l'identifiant reçu reste un leurre jamais enregistré. `deliver` ne sort jamais de l'action HTTP.
+ * Admet une demande de code (CH-817 E5, constats 5 et 6), dans cet ordre : formes → seau de
+ * l'ADRESSE → liste → seaux du numéro (quart d'heure, jour) → moins de trois défis actifs non échus
+ * → seau COMMUN de la portée → identifiant inconnu → défi inséré SANS remplacer les précédents, purge.
+ *
+ * - Adresse limitée : `limited`, que l'action dit VISIBLEMENT et aussitôt (429) : ce refus ne dépend
+ *   pas du numéro, il n'apprend rien de la liste.
+ * - Tout autre refus : `decided` avec `deliver: false`, rien n'est écrit, l'identifiant reçu reste un
+ *   leurre jamais enregistré, et l'action répond comme pour un numéro servi.
+ * - Le seau commun (fusible de coût des envois) ne se consomme qu'APRÈS la liste et les seaux du
+ *   numéro : des numéros hors liste ne le vident plus.
+ * `deliver` ne sort jamais de l'action HTTP.
  */
 export async function admitRequestImpl(ctx: MutationCtx, args: AdmitRequestArgs, now: number): Promise<AdmitRequestResult> {
-  const refused: AdmitRequestResult = { deliver: false }
+  const refused: AdmitRequestResult = { status: "decided", deliver: false }
   if (!isDigest(args.phoneHash) || !isDigest(args.ipKeyHash) || !isDigest(args.codeDigest) || !DEMO_GATE_CHALLENGE_ID_PATTERN.test(args.challengeId)) return refused
-  if (!(await rateLimiter.limit(ctx, "demoGate.request.ip", { key: args.ipKeyHash })).ok) return refused
-  if (!(await rateLimiter.limit(ctx, "demoGate.request.global", { key: args.scope })).ok) return refused
+  const ip = await rateLimiter.limit(ctx, "demoGate.request.ip", { key: args.ipKeyHash })
+  if (!ip.ok) return { status: "limited", retryAfterMs: ip.retryAfter }
   if (!(await activeEntry(ctx, args.scope, args.phoneHash))) return refused
   if (!(await rateLimiter.limit(ctx, "demoGate.request.phone", { key: args.phoneHash })).ok) return refused
   if (!(await rateLimiter.limit(ctx, "demoGate.request.phone.daily", { key: args.phoneHash })).ok) return refused
+  if ((await liveChallengesOf(ctx, args.scope, args.phoneHash, now, DEMO_GATE_ACTIVE_CHALLENGES_MAX)) >= DEMO_GATE_ACTIVE_CHALLENGES_MAX) return refused
+  if (!(await rateLimiter.limit(ctx, "demoGate.request.global", { key: args.scope })).ok) return refused
   // Un identifiant déjà connu (collision de 192 bits, ou rejeu) n'ouvre rien.
   if (await challengeById(ctx, args.challengeId)) return refused
-  await supersedeActiveChallenges(ctx, args.scope, args.phoneHash, now)
   await ctx.db.insert("demoGateChallenges", {
     scope: args.scope,
     challengeId: args.challengeId,
@@ -126,17 +158,20 @@ export async function admitRequestImpl(ctx: MutationCtx, args: AdmitRequestArgs,
     expiresAt: now + DEMO_GATE_CHALLENGE_TTL_MS,
   })
   await cleanupExpiredGateData(ctx, now)
-  return { deliver: true }
+  return { status: "decided", deliver: true }
 }
 
 const hexArg = v.string()
 
 export const admitRequest = internalMutation({
   args: { scope: demoGateScopeValidator, phoneHash: hexArg, ipKeyHash: hexArg, challengeId: v.string(), codeDigest: hexArg },
-  returns: v.object({ deliver: v.boolean() }),
-  handler: async (ctx, args) => {
+  returns: v.union(
+    v.object({ status: v.literal("limited"), retryAfterMs: v.number() }),
+    v.object({ status: v.literal("decided"), deliver: v.boolean() }),
+  ),
+  handler: async (ctx, args): Promise<AdmitRequestResult> => {
     // Défense en profondeur : l'action HTTP l'a déjà vérifié.
-    if (demoGateState() !== "gated") return { deliver: false }
+    if (demoGateState() !== "gated") return { status: "decided", deliver: false }
     return await admitRequestImpl(ctx, args, Date.now())
   },
 })
@@ -167,16 +202,16 @@ export type AdmitVerifyResult =
   | { status: "open"; phoneHash: string; codeDigest: string }
 
 /**
- * Admet un essai : seaux de l'adresse puis commun, puis le défi — actif, de la portée, non
- * expiré (un défi expiré est marqué). Rend les EMPREINTES dont l'action a besoin pour comparer le
- * code ; un défi inconnu, leurre compris, rend `unknown`, que l'action dit comme un code faux.
+ * Admet un essai : seau de l'adresse (refus visible et immédiat), puis le défi — actif, de la portée,
+ * non expiré (un défi expiré est marqué). Rend les EMPREINTES dont l'action a besoin pour comparer le
+ * code ; un défi inconnu, leurre compris, rend `unknown`, que l'action dit comme un code faux. Plus
+ * de seau commun (CH-817 E5, constat 5c : des identifiants leurres le vidaient pour tous) : chaque
+ * défi garde son plafond de cinq essais.
  */
 export async function admitVerifyImpl(ctx: MutationCtx, args: AdmitVerifyArgs, now: number): Promise<AdmitVerifyResult> {
   if (!isDigest(args.ipKeyHash)) return { status: "unknown" }
   const ip = await rateLimiter.limit(ctx, "demoGate.verify.ip", { key: args.ipKeyHash })
   if (!ip.ok) return { status: "limited", retryAfterMs: ip.retryAfter }
-  const global = await rateLimiter.limit(ctx, "demoGate.verify.global", { key: args.scope })
-  if (!global.ok) return { status: "limited", retryAfterMs: global.retryAfter }
   if (!DEMO_GATE_CHALLENGE_ID_PATTERN.test(args.challengeId)) return { status: "unknown" }
   const challenge = await challengeById(ctx, args.challengeId)
   if (!challenge || challenge.scope !== args.scope || challenge.status !== "active") return { status: "unknown" }
