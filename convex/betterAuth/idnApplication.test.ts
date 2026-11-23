@@ -315,3 +315,28 @@ describe("revue CH-815 A1b — une administration servie sur une origine de dém
     expect(await proofs(t)).toEqual(expect.arrayContaining([{ application: undefined, loa: 2 }]))
   })
 })
+
+describe("revue CH-815 A1b — le rattachement d'un compte IDN (`/oauth2/link`) ne scelle rien", () => {
+  it("une session d'administration qui rattache son compte IDN ne crée ni session ni preuve, et ne pose aucun cookie", async () => {
+    const t = testConvex({ automaticSessions: false })
+    stubIdn("idn-rattachement")
+    const state = await startFrom(t, ADMIN_ORIGIN, returnURLs(`${ADMIN_ORIGIN}/entrer`))
+    const ott = (await returnFromIdn(t, state)).searchParams.get("ott")
+    if (!ott) throw new Error("Jeton à usage unique absent")
+    const stored = await adoptOneTimeToken(t, ADMIN_ORIGIN, ott)
+    expect(await proofs(t)).toEqual([{ application: NETWORK_ADMIN_APPLICATION_KEY, loa: 2 }])
+
+    const linked = await authRequest(t, "/oauth2/link", { method: "POST", origin: ADMIN_ORIGIN, headers: { "Better-Auth-Cookie": stored }, body: { providerId: "idn", ...returnURLs(`${ADMIN_ORIGIN}/entrer`) } })
+    expect(linked.status, linked.body).toBe(200)
+    const linkState = new URL(JSON.parse(linked.body).url as string).searchParams.get("state")
+    if (!linkState) throw new Error("État OAuth du rattachement absent")
+    vi.spyOn(console, "error").mockImplementation(() => {})
+    const callback = await callbackFromIdn(t, linkState)
+    // Le rattachement RÉUSSI (aucun code d'erreur) renvoie à l'adresse de retour, sans jeton à usage unique : aucune session n'est née.
+    const destination = new URL(callback.location ?? "")
+    expect(destination.searchParams.get("error")).toBeNull()
+    expect(destination.searchParams.get("ott")).toBeNull()
+    expect(callback.setCookies).toEqual([])
+    expect(await proofs(t)).toEqual([{ application: NETWORK_ADMIN_APPLICATION_KEY, loa: 2 }])
+  })
+})
