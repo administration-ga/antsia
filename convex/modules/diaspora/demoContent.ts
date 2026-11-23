@@ -38,7 +38,7 @@
  */
 import { engineErrorCode } from "@antsia/social-contracts/errors"
 import { normalizeCivilName } from "@antsia/social-domain/civilName"
-import { assertPersonalCommentBody, assertPostContent, assertPostReach, PERSONAL_POST_STATUSES, REACH_REQUIRING_COUNTRY } from "@antsia/social-domain/content"
+import { assertPersonalCommentBody, assertPostContent, assertPostReach, REACH_REQUIRING_COUNTRY } from "@antsia/social-domain/content"
 import { assertPageHandle } from "@antsia/social-domain/pages"
 import {
   DIASPORA_GA_DEMO_ACTOR_SPECS,
@@ -66,8 +66,11 @@ import { writePost } from "../posts/postWrite"
 import { demoActorValidator, diasporaGaNetwork, personOfActor } from "./demoAccounts"
 import { effectiveStatusIn } from "./facts"
 
-/** Commentaires racines relus au plus, par statut, pour savoir si l'acteur a déjà commenté. */
-const ROOT_COMMENTS_SCAN = 200
+/**
+ * Commentaires de l'acteur relus au plus (index `by_authorPersonId`) pour savoir s'il a déjà commenté
+ * une publication (CH-817 E5, constat 8). Au-delà, on ne sait pas : rien ne s'écrit.
+ */
+const AUTHOR_COMMENTS_SCAN = 200
 
 type Placement = { reach?: string; country?: string }
 type ReadyActors = Map<DiasporaGaDemoActor, Doc<"persons"> | null>
@@ -185,7 +188,8 @@ async function ensureDemoPost(
     authorPersonId: author._id,
     body,
     audience: "public",
-    visibility: entry.visibility,
+    // Constat 11c : le littéral, quoi que dise une entrée du catalogue.
+    visibility: "network",
     ...placement,
     idempotencyKey,
     ...(page ? { pageId: page._id } : {}),
@@ -219,23 +223,26 @@ async function reactOnce(ctx: MutationCtx, network: Doc<"networks">, post: Doc<"
   return true
 }
 
-/** L'acteur a-t-il déjà un commentaire racine sous cette publication, retiré compris ? Lecture bornée par statut. */
-async function hasRootComment(ctx: MutationCtx, postId: Id<"posts">, personId: Id<"persons">): Promise<boolean> {
-  for (const status of PERSONAL_POST_STATUSES) {
-    const rows = await ctx.db
-      .query("postComments")
-      .withIndex("by_post_parent_status_createdAt", (q) => q.eq("postId", postId).eq("parentCommentId", undefined).eq("status", status))
-      .take(ROOT_COMMENTS_SCAN)
-    if (rows.some((row) => row.authorPersonId === personId)) return true
-  }
-  return false
+/**
+ * L'acteur a-t-il déjà un commentaire racine sous cette publication, retiré compris ? Recherche PAR
+ * AUTEUR (CH-817 E5, constat 8 : relire les plus anciens commentaires de la publication laissait passer
+ * un doublon au-delà de deux cents) : `present`, `absent` (lecture complète), ou `unknown` quand la
+ * lecture est saturée — l'appelant n'écrit alors RIEN. Pas de clé stable : elle changerait le schéma.
+ */
+async function rootCommentState(ctx: MutationCtx, postId: Id<"posts">, personId: Id<"persons">): Promise<"present" | "absent" | "unknown"> {
+  const rows = await ctx.db
+    .query("postComments")
+    .withIndex("by_authorPersonId", (q) => q.eq("authorPersonId", personId))
+    .take(AUTHOR_COMMENTS_SCAN)
+  if (rows.some((row) => row.postId === postId && row.parentCommentId === undefined)) return "present"
+  return rows.length >= AUTHOR_COMMENTS_SCAN ? "unknown" : "absent"
 }
 
 /** Le commentaire déclaré, une fois : discussion ouverte, relecture de modération, agrégat des commentaires. Retiré, il n'est jamais recréé. */
 async function commentOnce(ctx: MutationCtx, network: Doc<"networks">, post: Doc<"posts">, author: Doc<"persons">, commenter: Doc<"persons">, text: string): Promise<boolean> {
   if (!(await mayEngage(ctx, network, post, author, commenter))) return false
   if (!(await passes(() => assertPostDiscussionOpen(ctx, post)))) return false
-  if (await hasRootComment(ctx, post._id, commenter._id)) return false
+  if ((await rootCommentState(ctx, post._id, commenter._id)) !== "absent") return false
   const body = checked(() => assertPersonalCommentBody(text))
   const now = Date.now()
   const commentId = await ctx.db.insert("postComments", { networkId: post.networkId, postId: post._id, authorPersonId: commenter._id, body, status: "published", createdAt: now, updatedAt: now })

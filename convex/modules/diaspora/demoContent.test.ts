@@ -193,6 +193,47 @@ describe("publications d'exemple — dans DIASPORA.GA seulement, jamais à la ra
     }
   })
 
+  it("CH-817 E5, constat 8 : le commentaire d'exemple n'est pas doublé au-delà de deux cents commentaires de la publication", async () => {
+    const { t, diasporaGa } = await fixture()
+    const entry = entryOf("declare:arrivee")
+    const commenterActor = present(entry.comment, "commentaire").actor
+    const declare = await joinedActor(t, diasporaGa, "declare")
+    await equip(t, declare.as, "declare")
+    const arrivee = present(await demoPostOf(t, declare.personId, entry), "declare:arrivee")
+    // Deux cents commentaires racines d'un autre compte, AVANT celui de l'acteur : la lecture d'avant
+    // (les plus anciens de la publication) ne voyait plus le sien et le doublait.
+    await t.run(async (ctx) => {
+      for (let index = 0; index < 200; index++) {
+        await ctx.db.insert("postComments", { networkId: diasporaGa, postId: arrivee._id, authorPersonId: declare.personId, body: `Commentaire de recette ${index}`, status: "published", createdAt: Date.now(), updatedAt: Date.now() })
+      }
+    })
+    const commenter = await joinedActor(t, diasporaGa, commenterActor)
+    await equip(t, commenter.as, commenterActor)
+    const mine = async () => (await t.run(async (ctx) => await ctx.db.query("postComments").withIndex("by_authorPersonId", (q) => q.eq("authorPersonId", commenter.personId)).take(50))).filter((row) => row.postId === arrivee._id)
+    expect(await mine()).toHaveLength(1)
+    expect((await animate(t, commenterActor)).commentsCreated).toBe(0)
+    expect((await animate(t, "declare")).commentsCreated).toBe(0)
+    expect(await mine()).toHaveLength(1)
+  })
+
+  it("CH-817 E5, constat 8 : lecture par auteur saturée (deux cents commentaires ailleurs) → rien ne s'écrit", async () => {
+    const { t, diasporaGa } = await fixture()
+    const entry = entryOf("declare:arrivee")
+    const commenterActor = present(entry.comment, "commentaire").actor
+    const declare = await joinedActor(t, diasporaGa, "declare")
+    const commenter = await joinedActor(t, diasporaGa, commenterActor)
+    await equip(t, declare.as, "declare")
+    const arrivee = present(await demoPostOf(t, declare.personId, entry), "declare:arrivee")
+    const elsewhere = present((await postsByAuthor(t, declare.personId)).find((post) => post._id !== arrivee._id), "autre publication")
+    await t.run(async (ctx) => {
+      for (let index = 0; index < 200; index++) {
+        await ctx.db.insert("postComments", { networkId: diasporaGa, postId: elsewhere._id, authorPersonId: commenter.personId, parentCommentId: undefined, body: `Commentaire de recette ${index}`, status: "published", createdAt: Date.now(), updatedAt: Date.now() })
+      }
+    })
+    await equip(t, commenter.as, commenterActor)
+    expect((await rootCommentsOf(t, arrivee._id)).filter((row) => row.authorPersonId === commenter.personId)).toEqual([])
+  })
+
   it("une publication retirée par son auteur n'est jamais recréée, et ne reçoit plus rien", async () => {
     const { t, diasporaGa } = await fixture()
     const declare = await joinedActor(t, diasporaGa, "declare")
