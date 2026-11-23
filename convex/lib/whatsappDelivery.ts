@@ -21,10 +21,11 @@
  * - `WHATSAPP_TEMPLATE` : le modèle, qui déclare la variable `code` (`bird` : son slug, d'un seul
  *   tenant, par exemple un modèle géré par Bird `bird_…` ; `bird-channels` :
  *   `<identifiant de projet>:<identifiant de version>`) ;
- * - `WHATSAPP_FROM` (facultative) : `bird` : le numéro expéditeur E.164 de l'espace de travail, exigé
- *   par Bird pour un modèle propre et JAMAIS envoyé pour un modèle géré par Bird (slug `bird_…` :
- *   Bird refuse alors l'expéditeur) ; `bird-channels` : non lue à l'envoi (le canal de l'adresse
- *   d'envoi porte l'expéditeur) ;
+ * - `WHATSAPP_FROM` : `bird` : le numéro expéditeur E.164 de l'espace de travail, OBLIGATOIRE pour
+ *   un modèle propre (Bird l'exige : sans lui, pas de configuration, la porte est « indisponible »)
+ *   et JAMAIS envoyé pour un modèle géré par Bird (slug `bird_…` : Bird refuse alors l'expéditeur,
+ *   la variable y est facultative) ; `bird-channels` : facultative, non lue à l'envoi (le canal de
+ *   l'adresse d'envoi porte l'expéditeur) ;
  * - `WHATSAPP_TEMPLATE_LANGUAGES` (facultative, `bird` seulement) : les langues sous lesquelles le
  *   modèle est publié, étiquettes BCP-47 séparées par des virgules (seize au plus). La langue de
  *   l'interface n'est demandée que si elle y figure (étiquette exacte, ou dont c'est la langue
@@ -132,6 +133,9 @@ function birdConfiguration(env: Env): BirdWhatsAppConfiguration | null {
   const languages = templateLanguages(env.WHATSAPP_TEMPLATE_LANGUAGES)
   if (!endpoint || !API_KEY.test(apiKey) || !template || languages === null) return null
   if (from && !isE164Phone(from)) return null
+  // Un modèle PROPRE exige son expéditeur chez Bird : sans lui chaque envoi serait refusé, code après
+  // code, sans que personne le voie. Mieux vaut une porte « indisponible » dès la configuration.
+  if (!from && !template.slug.startsWith(BIRD_MANAGED_TEMPLATE_PREFIX)) return null
   return { provider: "bird", endpoint, apiKey, template, ...(from ? { from } : {}), ...(languages ? { languages } : {}) }
 }
 

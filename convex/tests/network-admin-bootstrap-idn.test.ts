@@ -60,7 +60,7 @@ const GATE_ENV = {
   WHATSAPP_PROVIDER: "bird",
   WHATSAPP_ENDPOINT: "https://whatsapp.example.test/messages",
   WHATSAPP_API_KEY: "fictional-access-key-0123456789",
-  WHATSAPP_TEMPLATE: "fictional_otp",
+  WHATSAPP_TEMPLATE: "bird_fictional_otp",
 }
 
 beforeEach(() => {

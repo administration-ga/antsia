@@ -25,7 +25,7 @@ const BIRD_ENV = {
   WHATSAPP_PROVIDER: "bird",
   WHATSAPP_ENDPOINT: "https://whatsapp.example.test/v1/whatsapp/messages",
   WHATSAPP_API_KEY: "fictional-workspace-key-0123456789",
-  WHATSAPP_TEMPLATE: "fictional_otp",
+  WHATSAPP_TEMPLATE: "bird_fictional_otp",
 }
 const CHANNELS_ENV = {
   WHATSAPP_PROVIDER: "bird-channels",
@@ -34,6 +34,8 @@ const CHANNELS_ENV = {
   WHATSAPP_TEMPLATE: "fictional-project:fictional-version",
 }
 const SENDER = "+447700900999"
+/** Un modèle PROPRE (hors du préfixe `bird_`) : Bird exige alors l'expéditeur. */
+const OWN_TEMPLATE = "fictional_own_otp"
 const MESSAGE: WhatsAppOtpMessage = { to: "+447700900123", code: "482913K", locale: "fr", ttlMinutes: 5 }
 
 function bird(env: Env = {}): BirdWhatsAppConfiguration {
@@ -73,7 +75,7 @@ describe("whatsappConfiguration — toutes les pièces, ou rien", () => {
       provider: "bird",
       endpoint: BIRD_ENV.WHATSAPP_ENDPOINT,
       apiKey: BIRD_ENV.WHATSAPP_API_KEY,
-      template: { slug: "fictional_otp" },
+      template: { slug: "bird_fictional_otp" },
     })
     expect(bird({ WHATSAPP_FROM: SENDER }).from).toBe(SENDER)
     expect(bird({ WHATSAPP_FROM: "" }).from).toBeUndefined()
@@ -102,6 +104,16 @@ describe("whatsappConfiguration — toutes les pièces, ou rien", () => {
     expect(channels({ WHATSAPP_FROM: "" }).from).toBeUndefined()
     // La variable des langues ne concerne que `bird` : elle n'est ni lue ni gardée ici.
     expect(channels({ WHATSAPP_TEMPLATE_LANGUAGES: "fr,,hors forme" })).not.toHaveProperty("languages")
+  })
+
+  it("bird : un modèle propre sans expéditeur n'est pas une configuration — la porte se dit indisponible, plutôt que des envois refusés un à un", () => {
+    expect(whatsappConfiguration({ ...BIRD_ENV, WHATSAPP_TEMPLATE: OWN_TEMPLATE })).toBeNull()
+    expect(whatsappConfiguration({ ...BIRD_ENV, WHATSAPP_TEMPLATE: OWN_TEMPLATE, WHATSAPP_FROM: "" })).toBeNull()
+    expect(bird({ WHATSAPP_TEMPLATE: OWN_TEMPLATE, WHATSAPP_FROM: SENDER })).toMatchObject({ template: { slug: OWN_TEMPLATE }, from: SENDER })
+    // Un modèle géré par Bird n'en a pas besoin (Bird choisit le numéro) : la fixture de base n'en pose pas.
+    expect(bird()).not.toHaveProperty("from")
+    // Le préfixe se lit tel quel : `Bird_…` n'est pas un modèle géré.
+    expect(whatsappConfiguration({ ...BIRD_ENV, WHATSAPP_TEMPLATE: "Bird_fictional_otp" })).toBeNull()
   })
 
   it("un fournisseur absent ou inconnu : aucune configuration", () => {
@@ -167,7 +179,7 @@ describe("whatsappConfiguration — toutes les pièces, ou rien", () => {
       { WHATSAPP_API_KEY: "fictional-key\r\nX-Injected: oui" },
       { WHATSAPP_TEMPLATE: undefined },
       // Un slug est celui de la plateforme actuelle : ce n'est pas un modèle `<projet>:<version>`.
-      { WHATSAPP_TEMPLATE: "fictional_otp" },
+      { WHATSAPP_TEMPLATE: "bird_fictional_otp" },
       { WHATSAPP_TEMPLATE: "fictional-project" },
       { WHATSAPP_TEMPLATE: "a:b:c" },
       { WHATSAPP_TEMPLATE: "fictional project:version" },
@@ -182,16 +194,18 @@ describe("birdTemplateMessage — le corps envoyé à la plateforme actuelle (bi
   it("un destinataire E.164, le slug du modèle et le code pour seule variable", () => {
     expect(birdTemplateMessage(MESSAGE, bird())).toEqual({
       to: "+447700900123",
-      template: { slug: "fictional_otp", parameters: { code: "482913K" } },
+      template: { slug: "bird_fictional_otp", parameters: { code: "482913K" } },
     })
   })
 
   it("l'expéditeur pour un modèle propre ; jamais pour un modèle géré par Bird (`bird_…`)", () => {
-    expect(birdTemplateMessage(MESSAGE, bird({ WHATSAPP_FROM: SENDER }))).toEqual({
+    expect(birdTemplateMessage(MESSAGE, bird({ WHATSAPP_TEMPLATE: OWN_TEMPLATE, WHATSAPP_FROM: SENDER }))).toEqual({
       to: "+447700900123",
       from: SENDER,
-      template: { slug: "fictional_otp", parameters: { code: "482913K" } },
+      template: { slug: OWN_TEMPLATE, parameters: { code: "482913K" } },
     })
+    // Le modèle géré de la fixture de base, expéditeur posé ou non : jamais d'expéditeur dans le corps.
+    expect(birdTemplateMessage(MESSAGE, bird({ WHATSAPP_FROM: SENDER }))).not.toHaveProperty("from")
     expect(birdTemplateMessage(MESSAGE, bird({ WHATSAPP_TEMPLATE: "bird_otp", WHATSAPP_FROM: SENDER }))).toEqual({
       to: "+447700900123",
       template: { slug: "bird_otp", parameters: { code: "482913K" } },
@@ -201,11 +215,11 @@ describe("birdTemplateMessage — le corps envoyé à la plateforme actuelle (bi
   it("la langue seulement si le modèle est publié sous elle : étiquette exacte, ou sous-étiquette principale, écrite comme configurée", () => {
     expect(birdTemplateMessage(MESSAGE, bird({ WHATSAPP_TEMPLATE_LANGUAGES: "en,fr" }))).toEqual({
       to: "+447700900123",
-      template: { slug: "fictional_otp", language: "fr", parameters: { code: "482913K" } },
+      template: { slug: "bird_fictional_otp", language: "fr", parameters: { code: "482913K" } },
     })
     expect(birdTemplateMessage(MESSAGE, bird({ WHATSAPP_TEMPLATE_LANGUAGES: "en-US,fr-FR" }))).toEqual({
       to: "+447700900123",
-      template: { slug: "fictional_otp", language: "fr-FR", parameters: { code: "482913K" } },
+      template: { slug: "bird_fictional_otp", language: "fr-FR", parameters: { code: "482913K" } },
     })
     expect(birdTemplateMessage({ ...MESSAGE, locale: "en" }, bird({ WHATSAPP_TEMPLATE_LANGUAGES: "fr-FR,en-GB,en-US" }))).toMatchObject({ template: { language: "en-GB" } })
     // L'étiquette exacte passe avant une sous-étiquette principale, quel que soit l'ordre.
@@ -215,7 +229,7 @@ describe("birdTemplateMessage — le corps envoyé à la plateforme actuelle (bi
   })
 
   it("aucune langue quand la liste manque ou ne la porte pas : la langue par défaut du modèle, jamais un envoi manqué", () => {
-    const withoutLanguage = { to: "+447700900123", template: { slug: "fictional_otp", parameters: { code: "482913K" } } }
+    const withoutLanguage = { to: "+447700900123", template: { slug: "bird_fictional_otp", parameters: { code: "482913K" } } }
     expect(birdTemplateMessage(MESSAGE, bird())).toEqual(withoutLanguage)
     expect(birdTemplateMessage(MESSAGE, bird({ WHATSAPP_TEMPLATE_LANGUAGES: "en,pt-BR" }))).toEqual(withoutLanguage)
     // Une langue qui commence par les mêmes lettres n'est pas la langue (`frr` n'est pas `fr`).
@@ -237,7 +251,7 @@ describe("birdChannelsTemplateMessage — le corps envoyé à l'ancienne API (bi
 describe("sendWhatsAppOtp — admis par le fournisseur, ou indisponible", () => {
   it("bird : 202 avec l'identifiant du message → accepté ; jeton porteur, corps exact, requête bornée", async () => {
     const fetchImpl = vi.fn<typeof fetch>(async () => new Response(JSON.stringify({ id: "wam_fictif", status: "accepted" }), { status: 202 }))
-    const config = bird({ WHATSAPP_FROM: SENDER, WHATSAPP_TEMPLATE_LANGUAGES: "en,fr-FR" })
+    const config = bird({ WHATSAPP_TEMPLATE: OWN_TEMPLATE, WHATSAPP_FROM: SENDER, WHATSAPP_TEMPLATE_LANGUAGES: "en,fr-FR" })
     await expect(sendWhatsAppOtp(MESSAGE, config, fetchImpl)).resolves.toEqual({ status: "accepted" })
     expect(fetchImpl).toHaveBeenCalledTimes(1)
     const [url, init] = fetchImpl.mock.calls[0]!
@@ -250,7 +264,7 @@ describe("sendWhatsAppOtp — admis par le fournisseur, ou indisponible", () => 
     expect(JSON.parse(String(init?.body))).toEqual({
       to: "+447700900123",
       from: SENDER,
-      template: { slug: "fictional_otp", language: "fr-FR", parameters: { code: "482913K" } },
+      template: { slug: OWN_TEMPLATE, language: "fr-FR", parameters: { code: "482913K" } },
     })
   })
 

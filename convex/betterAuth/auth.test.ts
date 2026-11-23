@@ -360,7 +360,7 @@ describe("CH-817 E5 — la porte des comptes de démonstration verrouille la CON
     WHATSAPP_PROVIDER: "bird",
     WHATSAPP_ENDPOINT: "https://whatsapp.example.test/messages",
     WHATSAPP_API_KEY: "fictional-access-key-0123456789",
-    WHATSAPP_TEMPLATE: "fictional_otp",
+    WHATSAPP_TEMPLATE: "bird_fictional_otp",
   }
   const GATE_PHONE = "+447700900123"
   const GATE_TOKEN = "fictional_session_token_0123456789abcdefABC"

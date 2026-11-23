@@ -37,7 +37,7 @@ const GATED_ENV: Record<string, string | undefined> = {
   WHATSAPP_PROVIDER: "bird",
   WHATSAPP_ENDPOINT: "https://whatsapp.example.test/messages",
   WHATSAPP_API_KEY: "fictional-access-key-0123456789",
-  WHATSAPP_TEMPLATE: "fictional_otp",
+  WHATSAPP_TEMPLATE: "bird_fictional_otp",
   WHATSAPP_FROM: undefined,
   WHATSAPP_TEMPLATE_LANGUAGES: undefined,
   TRUSTED_ORIGINS: undefined,

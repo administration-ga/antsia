@@ -203,7 +203,7 @@ fait avec l'accord écrit du propriétaire.
      | `WHATSAPP_ENDPOINT` | `<hôte régional>/v1/whatsapp/messages`, en HTTPS | l'adresse des messages du canal WhatsApp, en HTTPS |
      | `WHATSAPP_API_KEY` | clé d'espace de travail (`Authorization: Bearer`) | clé d'accès (`Authorization: AccessKey`) |
      | `WHATSAPP_TEMPLATE` | slug du modèle d'authentification (variable `code`) | `<projet>:<version>` du modèle (variable `code`) |
-     | `WHATSAPP_FROM` | numéro E.164 de l'espace de travail, exigé par Bird pour un modèle propre ; **jamais envoyé** pour un modèle géré par Bird (slug `bird_…`), que Bird refuserait | non lue à l'envoi |
+     | `WHATSAPP_FROM` | numéro E.164 de l'espace de travail : **obligatoire** pour un modèle propre (sans lui, la porte est « indisponible ») ; facultatif et **jamais envoyé** pour un modèle géré par Bird (slug `bird_…`), que Bird refuserait | non lue à l'envoi |
      | `WHATSAPP_TEMPLATE_LANGUAGES` | langues publiées du modèle (BCP-47, séparées par des virgules, seize au plus) ; la langue de l'interface n'est demandée que si elle y figure (`fr-FR` vaut pour `fr`), sinon la langue par défaut du modèle | non lue |
 
      Une réponse 202 avec l'identifiant du message veut dire « admis par Bird », jamais « reçu » ;
