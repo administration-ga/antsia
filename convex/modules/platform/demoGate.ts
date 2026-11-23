@@ -256,10 +256,29 @@ export const completeVerify = internalMutation({
 export type DemoGateSessionOptions = { env?: Env; now?: number }
 
 /**
+ * La session de porte que désigne cette EMPREINTE de jeton, pour cette portée : `{ expiresAt }`, ou
+ * `null` si l'empreinte est hors forme, inconnue, d'une autre portée, expirée, si son numéro a quitté
+ * la liste, ou si la session est ANTÉRIEURE à la (ré)inscription du numéro (constat 7 : réinscrire
+ * un numéro retiré ne ressuscite pas ses anciennes sessions). Lecture seule, deux lectures indexées.
+ * N'examine pas l'état de la porte : c'est l'affaire des appelants.
+ */
+export async function demoGateSessionByDigest(ctx: Pick<QueryCtx, "db">, args: { scope: DemoGateScope; tokenDigest: string }, now: number): Promise<{ expiresAt: number } | null> {
+  if (!isDigest(args.tokenDigest)) return null
+  const session = await ctx.db
+    .query("demoGateSessions")
+    .withIndex("by_tokenDigest", (q) => q.eq("tokenDigest", args.tokenDigest))
+    .first()
+  if (!session || session.scope !== args.scope || session.expiresAt <= now) return null
+  const entry = await ctx.db.get(session.allowlistId)
+  if (!entry || entry.scope !== args.scope || entry.revokedAt !== undefined) return null
+  if (session.createdAt < entry.addedAt) return null
+  return { expiresAt: session.expiresAt }
+}
+
+/**
  * La session de porte que désigne ce jeton, pour cette portée : `{ expiresAt }`, ou `null` si la
- * porte n'est pas `gated`, si le jeton est hors forme, inconnu, d'une autre portée, expiré, ou si
- * son numéro a quitté la liste. Lecture seule, deux lectures indexées ; le jeton ne quitte pas la
- * fonction (seule son empreinte est cherchée).
+ * porte n'est pas `gated`, si le jeton est hors forme, ou si `demoGateSessionByDigest` la refuse.
+ * Le jeton ne quitte pas la fonction (seule son empreinte est cherchée).
  */
 export async function demoGateSessionOf(ctx: Pick<QueryCtx, "db">, args: { scope: DemoGateScope; token: string | null | undefined }, options: DemoGateSessionOptions = {}): Promise<{ expiresAt: number } | null> {
   const env = options.env ?? process.env
@@ -267,16 +286,23 @@ export async function demoGateSessionOf(ctx: Pick<QueryCtx, "db">, args: { scope
   if (secret === null || demoGateState(env) !== "gated") return null
   if (typeof args.token !== "string" || !DEMO_GATE_TOKEN_PATTERN.test(args.token)) return null
   const tokenDigest = await demoGateDigest(secret, "demo-gate-session", args.token)
-  const session = await ctx.db
-    .query("demoGateSessions")
-    .withIndex("by_tokenDigest", (q) => q.eq("tokenDigest", tokenDigest))
-    .first()
-  const now = options.now ?? Date.now()
-  if (!session || session.scope !== args.scope || session.expiresAt <= now) return null
-  const entry = await ctx.db.get(session.allowlistId)
-  if (!entry || entry.scope !== args.scope || entry.revokedAt !== undefined) return null
-  return { expiresAt: session.expiresAt }
+  return await demoGateSessionByDigest(ctx, { scope: args.scope, tokenDigest }, options.now ?? Date.now())
 }
+
+/**
+ * CH-817 E5 — la garde de CONNEXION (crochet `before` de `betterAuth/auth.ts`) : cette empreinte de
+ * jeton ouvre-t-elle une session de porte valide pour la portée ? Le crochet tourne dans l'action
+ * HTTP de Better Auth, sans `db` : il calcule l'empreinte lui-même et ne passe jamais le jeton en
+ * clair. Fermé hors d'une porte `gated` (défense en profondeur : le crochet l'a déjà vérifié).
+ */
+export const sessionAdmits = internalQuery({
+  args: { scope: demoGateScopeValidator, tokenDigest: v.string() },
+  returns: v.boolean(),
+  handler: async (ctx, args) => {
+    if (demoGateState() !== "gated") return false
+    return (await demoGateSessionByDigest(ctx, args, Date.now())) !== null
+  },
+})
 
 /**
  * LA règle des lectures qui ouvrent les comptes de démonstration (lot E3 : `catalogue`, `latestOtp`) :

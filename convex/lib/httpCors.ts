@@ -6,6 +6,8 @@
  * du catalogue, ports locaux quand les outils de développement sont ouverts) reçoit des en-têtes ;
  * une origine inconnue n'en reçoit aucun.
  */
+import { DEMO_GATE_TOKEN_HEADER } from "@antsia/social-contracts/demoGate"
+
 import { trustedOrigins } from "../betterAuth/settings"
 
 /** En-têtes CORS pour une origine de confiance seulement ; une inconnue n'en reçoit aucun. */
@@ -28,8 +30,10 @@ export function buildPreflightHeaders(requestOrigin: string | null): Record<stri
   return {
     ...cors,
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    // `Better-Auth-Cookie` : envoyé par le client crossDomain sur CHAQUE requête.
-    "Access-Control-Allow-Headers": "Authorization, Content-Type, Better-Auth-Cookie",
+    // `Better-Auth-Cookie` : envoyé par le client crossDomain sur CHAQUE requête. L'en-tête du jeton
+    // de session de porte (CH-817 E5) : posé par le site sur l'envoi du code et la connexion d'un
+    // compte de démonstration gouverné par la porte.
+    "Access-Control-Allow-Headers": `Authorization, Content-Type, Better-Auth-Cookie, ${DEMO_GATE_TOKEN_HEADER}`,
     "Access-Control-Max-Age": "86400",
   }
 }

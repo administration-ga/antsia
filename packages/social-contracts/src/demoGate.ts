@@ -60,6 +60,16 @@ export const DEMO_GATE_CHALLENGE_ID_PATTERN = /^[A-Za-z0-9_-]{32}$/
 /** Le jeton d'une session : 32 octets aléatoires en base64url (43 caractères). */
 export const DEMO_GATE_TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/
 
+/**
+ * CH-817 E5 — l'en-tête qui porte le jeton de session de porte sur les DEUX requêtes de connexion
+ * d'un compte de démonstration gouverné par la porte : l'envoi du code
+ * (`/email-otp/send-verification-otp`) et la connexion (`/sign-in/email-otp`). Porte armée, le moteur
+ * refuse ces deux requêtes sans jeton valide, d'un refus indistinct (l'envoi répond comme un envoi
+ * réel, la connexion comme un code faux). Le site le pose par `fetchOptions.headers`, pour les seules
+ * adresses du catalogue de démonstration.
+ */
+export const DEMO_GATE_TOKEN_HEADER = "X-Demo-Gate-Token"
+
 /** Une saisie n'est lue que sur cette longueur, avant tout nettoyage. */
 const INPUT_MAX_LENGTH = 32
 /** Séparateurs admis dans une saisie : blancs (espaces insécables compris), points, tirets (et leurs variantes typographiques). */

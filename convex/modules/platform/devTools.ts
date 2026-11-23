@@ -6,33 +6,31 @@
  * déploiement de démonstration déclaré, seuls les codes des adresses réservées
  * aux comptes de démonstration s'enregistrent et se relisent (`demoCodeReadable`).
  *
- * CH-817 E3 — la porte des comptes de démonstration (`./demoGate.ts`) est le
- * verrou RÉEL de DIASPORA.GA : les adresses réservées ne reçoivent aucun courriel,
- * qui ne lit pas leur code n'entre pas. Porte armée, le code d'une adresse de la
- * famille `…@demo.diaspora-ga.test` ne se relit qu'avec un jeton de session de
- * porte valide (`gateToken`) ; toute autre adresse (celles de la racine, celles du
- * développement local) se lit comme avant. Porte non armée : rien ne change.
+ * CH-817 E3 — porte des comptes de démonstration (`./demoGate.ts`) armée, le code
+ * d'une adresse de la famille `…@demo.diaspora-ga.test` ne se relit qu'avec un jeton
+ * de session de porte valide (`gateToken`) ; toute autre adresse (celles de la racine,
+ * celles du développement local) se lit comme avant. Porte non armée : rien ne change.
+ *
+ * CH-817 E5 (relecture de sécurité, constat 1) : cette lecture n'est PLUS le verrou
+ * réel. Un anonyme pouvait demander un code pour une adresse réservée et l'essayer
+ * sans jamais le lire ; le verrou réel est désormais la CONNEXION elle-même (crochet
+ * de `betterAuth/auth.ts` : envoi et connexion d'une adresse de la famille refusés
+ * sans session de porte valide). `latestOtp` reste le SECOND verrou : sans jeton
+ * valide, le code ne s'affiche pas.
  */
 import type { DemoGateScope } from "@antsia/social-contracts/demoGate"
 import { v } from "convex/values"
 
 import { internalMutation, query, type QueryCtx } from "../../_generated/server"
-import { demoGateState } from "../../lib/demoGate"
-import { DIASPORA_GA_DEMO_EMAIL_DOMAIN, demoCodeReadable } from "../../lib/devTools"
+import { demoGateScopeOfEmail, demoGateState } from "../../lib/demoGate"
+import { demoCodeReadable } from "../../lib/devTools"
 import { demoGateSessionOf, type DemoGateSessionOptions } from "./demoGate"
+
+// CH-817 E5 : la règle vit dans `lib/demoGate.ts`, que lit aussi le crochet de connexion ; réexportée ici.
+export { demoGateScopeOfEmail }
 
 function normalizeEmail(email: string): string {
   return email.trim().toLowerCase()
-}
-
-/**
- * La portée de porte qui gouverne cette adresse, ou `null` : la famille réservée de
- * DIASPORA.GA seulement. La comparaison se fait sur l'adresse NORMALISÉE, celle sous
- * laquelle le code est enregistré et relu : une variante de casse ou d'espaces ne
- * contourne pas la porte.
- */
-export function demoGateScopeOfEmail(email: string): DemoGateScope | null {
-  return normalizeEmail(email).endsWith(`@${DIASPORA_GA_DEMO_EMAIL_DOMAIN}`) ? "diaspora-ga" : null
 }
 
 /**

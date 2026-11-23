@@ -3,8 +3,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { Resend } from "@convex-dev/resend"
 
+import { DEMO_GATE_TOKEN_HEADER } from "@antsia/social-contracts/demoGate"
+
 import catalog from "../../deploy/catalog.json"
 import { api, components, internal } from "../_generated/api"
+import { demoGateDigest } from "../lib/demoGate"
+import { allowPhonesImpl, DEMO_GATE_SESSION_TTL_MS, revokePhonesImpl } from "../modules/platform/demoGate"
 import { createTestSession, testConvex } from "../test.setup"
 import { OTP_TTL_SECONDS } from "./auth"
 import { otpPresentation } from "./delivery"
@@ -55,10 +59,10 @@ function textField(value: unknown, key: string): string {
   return field
 }
 
-async function request(t: T, path: string, { method = "POST", body, token, origin = PRIMARY_ORIGIN, acceptLanguage, browserCookie }: { method?: "GET" | "POST"; body?: Record<string, unknown>; token?: string; origin?: string; acceptLanguage?: string; browserCookie?: string } = {}) {
+async function request(t: T, path: string, { method = "POST", body, token, origin = PRIMARY_ORIGIN, acceptLanguage, browserCookie, extraHeaders }: { method?: "GET" | "POST"; body?: Record<string, unknown>; token?: string; origin?: string; acceptLanguage?: string; browserCookie?: string; extraHeaders?: Record<string, string> } = {}) {
   const response = await t.action(async (ctx) => {
     const { createAuth } = await import("./auth")
-    const headers = new Headers({ Origin: origin })
+    const headers = new Headers({ Origin: origin, ...extraHeaders })
     if (body) headers.set("Content-Type", "application/json")
     if (token) headers.set("Authorization", `Bearer ${token}`)
     if (acceptLanguage) headers.set("Accept-Language", acceptLanguage)
@@ -346,6 +350,195 @@ describe("déploiement de démonstration déclaré : les comptes réservés seul
     expect(refusal.status).toBe(503)
     expect(record(refusal.data).code).toBe("otpDeliveryUnavailable")
     expect(await t.query(api.modules.platform.devTools.latestOtp, { email: DEMO_EMAIL })).toBeNull()
+  })
+})
+
+describe("CH-817 E5 — la porte des comptes de démonstration verrouille la CONNEXION (constat 1)", () => {
+  // Valeurs FICTIVES : numéros de la plage réservée à la fiction (Ofcom, 07700 900xxx), domaine `.test`.
+  const GATE_SECRET = "fictional-demo-gate-secret-0123456789abcdef"
+  const GATE_WHATSAPP = {
+    WHATSAPP_PROVIDER: "bird",
+    WHATSAPP_ENDPOINT: "https://whatsapp.example.test/messages",
+    WHATSAPP_API_KEY: "fictional-access-key-0123456789",
+    WHATSAPP_TEMPLATE: "fictional-project:fictional-version",
+  }
+  const GATE_PHONE = "+447700900123"
+  const GATE_TOKEN = "fictional_session_token_0123456789abcdefABC"
+  const FAMILY = "moderateur@demo.diaspora-ga.test"
+  const ROOT_DEMO = "membre@demo.antsia.test"
+  const WITH_TOKEN = { [DEMO_GATE_TOKEN_HEADER]: GATE_TOKEN }
+
+  /** La porte ARMÉE et complète (`gated`), sur le développement local du `beforeEach`. */
+  function armGate() {
+    vi.stubEnv("ANTSIA_DEMO_GATE_SECRET", GATE_SECRET)
+    for (const [key, value] of Object.entries(GATE_WHATSAPP)) vi.stubEnv(key, value)
+  }
+
+  /**
+   * Une session de porte de jeton `token`, ouverte à l'instant `at` pour un numéro inscrit au même
+   * instant (lignes écrites comme `completeVerify` les écrit) ; vaut trente minutes.
+   */
+  async function gateSession(t: T, { at = Date.now(), token = GATE_TOKEN }: { at?: number; token?: string } = {}) {
+    await t.run((ctx) => allowPhonesImpl(ctx, { scope: "diaspora-ga", phones: [GATE_PHONE] }, at))
+    await t.run(async (ctx) => {
+      const phoneHash = await demoGateDigest(GATE_SECRET, "demo-gate-phone", GATE_PHONE)
+      const entry = await ctx.db.query("demoGateAllowlist").withIndex("by_scope_phoneHash", (q) => q.eq("scope", "diaspora-ga").eq("phoneHash", phoneHash)).first()
+      if (!entry) throw new Error("ligne de liste de recette absente")
+      const challengeId = await ctx.db.insert("demoGateChallenges", { scope: "diaspora-ga", challengeId: `auth-${at}`.padEnd(32, "x"), phoneHash, codeDigest: "c".repeat(64), status: "verified", attemptsUsed: 0, createdAt: at, expiresAt: at + 300_000, verifiedAt: at })
+      await ctx.db.insert("demoGateSessions", { scope: "diaspora-ga", tokenDigest: await demoGateDigest(GATE_SECRET, "demo-gate-session", token), allowlistId: entry._id, challengeId, createdAt: at, expiresAt: at + DEMO_GATE_SESSION_TTL_MS })
+    })
+  }
+
+  const send = (t: T, email: string, extraHeaders?: Record<string, string>) => request(t, "/email-otp/send-verification-otp", { body: { email, type: "sign-in" }, extraHeaders })
+  const signInWith = (t: T, email: string, otp: string, extraHeaders?: Record<string, string>) => request(t, "/sign-in/email-otp", { body: { email, otp }, extraHeaders })
+  const recordedCodes = (t: T) => t.run((ctx) => ctx.db.query("devOtpCodes").take(20))
+  const verificationOf = (t: T, email: string) => t.query(components.betterAuth.adapter.findOne, { model: "verification", where: [{ field: "identifier", value: `sign-in-otp-${email}` }] })
+
+  /** L'invité qui a passé la porte : envoi et lecture avec le jeton, rend le code. */
+  async function gatedCode(t: T, email = FAMILY): Promise<string> {
+    const sent = await send(t, email, WITH_TOKEN)
+    expect(sent.status).toBe(200)
+    const code = await t.query(api.modules.platform.devTools.latestOtp, { email, gateToken: GATE_TOKEN })
+    if (!code) throw new Error("code de recette absent")
+    return code.code
+  }
+
+  it("sans en-tête : l'envoi répond comme un envoi réel sans rien enregistrer, la connexion comme un code faux", async () => {
+    armGate()
+    const t = testConvex({ automaticSessions: false })
+    // La référence : une adresse ordinaire, envoi réel puis code faux.
+    const ordinarySend = await send(t, EMAIL)
+    const ordinaryWrong = await signInWith(t, EMAIL, "000000")
+    expect(ordinarySend.status).toBe(200)
+    expect(ordinaryWrong.status).toBe(400)
+
+    const refusedSend = await send(t, FAMILY)
+    expect(refusedSend.status).toBe(ordinarySend.status)
+    expect(refusedSend.data).toEqual(ordinarySend.data)
+    expect(refusedSend.data).toEqual({ success: true })
+    expect(refusedSend.tokenHeader).toBeNull()
+    expect((await recordedCodes(t)).map((row) => row.email)).toEqual([EMAIL])
+    expect(await verificationOf(t, FAMILY)).toBeNull()
+
+    const refusedSignIn = await signInWith(t, FAMILY, "000000")
+    expect(refusedSignIn.status).toBe(ordinaryWrong.status)
+    expect(refusedSignIn.data).toEqual(ordinaryWrong.data)
+    expect(refusedSignIn.tokenHeader).toBeNull()
+    expect(await t.run((ctx) => ctx.db.query("persons").first())).toBeNull()
+  })
+
+  it("les refus n'entament aucun seau : avec le jeton, l'envoi passe après quatre refus et la connexion après six", async () => {
+    armGate()
+    const t = testConvex({ automaticSessions: false })
+    await gateSession(t)
+    for (let attempt = 0; attempt < 4; attempt++) expect((await send(t, FAMILY)).status).toBe(200)
+    expect(await recordedCodes(t)).toEqual([])
+    const code = await gatedCode(t)
+    for (let attempt = 0; attempt < 6; attempt++) expect((await signInWith(t, FAMILY, code)).status).toBe(400)
+    const result = await signInWith(t, FAMILY, code, WITH_TOKEN)
+    expect(result.status).toBe(200)
+    expect(record(record(result.data).user).email).toBe(FAMILY)
+  })
+
+  it("jeton hors forme, inconnu, échu, numéro retiré, numéro réinscrit avec une ancienne session : refus", async () => {
+    armGate()
+    const now = Date.now()
+    const cases: { label: string; prepare: (t: T) => Promise<void>; header: Record<string, string> }[] = [
+      { label: "hors forme", prepare: (t) => gateSession(t), header: { [DEMO_GATE_TOKEN_HEADER]: `${GATE_TOKEN}x` } },
+      { label: "inconnu", prepare: (t) => gateSession(t), header: { [DEMO_GATE_TOKEN_HEADER]: "u".repeat(43) } },
+      { label: "échu", prepare: (t) => gateSession(t, { at: now - DEMO_GATE_SESSION_TTL_MS - 1_000 }), header: WITH_TOKEN },
+      {
+        label: "numéro retiré",
+        prepare: async (t) => { await gateSession(t, { at: now - 2_000 }); await t.run((ctx) => revokePhonesImpl(ctx, { scope: "diaspora-ga", phones: [GATE_PHONE] }, now - 1_000)) },
+        header: WITH_TOKEN,
+      },
+      {
+        label: "numéro réinscrit",
+        prepare: async (t) => {
+          await gateSession(t, { at: now - 3_000 })
+          await t.run((ctx) => revokePhonesImpl(ctx, { scope: "diaspora-ga", phones: [GATE_PHONE] }, now - 2_000))
+          await t.run((ctx) => allowPhonesImpl(ctx, { scope: "diaspora-ga", phones: [GATE_PHONE] }, now - 1_000))
+        },
+        header: WITH_TOKEN,
+      },
+    ]
+    for (const { label, prepare, header } of cases) {
+      const t = testConvex({ automaticSessions: false })
+      await prepare(t)
+      const refused = await send(t, FAMILY, header)
+      expect(refused.status, label).toBe(200)
+      expect(await recordedCodes(t), label).toEqual([])
+      expect(await verificationOf(t, FAMILY), label).toBeNull()
+      expect((await signInWith(t, FAMILY, "000000", header)).data, label).toEqual({ code: "INVALID_OTP", message: "Invalid OTP" })
+    }
+  })
+
+  it("porte indisponible (WhatsApp retiré) : refus même avec un jeton valide et le bon code", async () => {
+    armGate()
+    const t = testConvex({ automaticSessions: false })
+    await gateSession(t)
+    const code = await gatedCode(t)
+    vi.stubEnv("WHATSAPP_PROVIDER", undefined)
+    const refused = await signInWith(t, FAMILY, code, WITH_TOKEN)
+    expect(refused.status).toBe(400)
+    expect(refused.data).toEqual({ code: "INVALID_OTP", message: "Invalid OTP" })
+    await t.run(async (ctx) => { for (const row of await ctx.db.query("devOtpCodes").take(5)) await ctx.db.delete(row._id) })
+    expect((await send(t, FAMILY, WITH_TOKEN)).data).toEqual({ success: true })
+    expect(await recordedCodes(t)).toEqual([])
+    // Contrôle : la porte de nouveau complète, le même code (jamais consommé) ouvre la session.
+    vi.stubEnv("WHATSAPP_PROVIDER", "bird")
+    expect((await signInWith(t, FAMILY, code, WITH_TOKEN)).status).toBe(200)
+  })
+
+  it("variantes de casse et d'espaces de la famille : gardées comme l'adresse normalisée", async () => {
+    armGate()
+    const t = testConvex({ automaticSessions: false })
+    await gateSession(t)
+    const code = await gatedCode(t)
+    for (const variant of ["MODERATEUR@DEMO.DIASPORA-GA.TEST", "Moderateur@Demo.Diaspora-GA.test", ` ${FAMILY} `]) {
+      expect((await send(t, variant)).data, variant).toEqual({ success: true })
+      expect((await signInWith(t, variant, code)).data, variant).toEqual({ code: "INVALID_OTP", message: "Invalid OTP" })
+    }
+    // Un seul code enregistré : celui de l'envoi muni du jeton, jamais rejoué par une variante.
+    expect((await recordedCodes(t)).map((row) => row.code)).toEqual([code])
+    expect((await signInWith(t, FAMILY.toUpperCase(), code, WITH_TOKEN)).status).toBe(200)
+  })
+
+  it("porte armée : l'adresse de la racine et l'adresse ordinaire se connectent comme avant, sans en-tête", async () => {
+    armGate()
+    const t = testConvex({ automaticSessions: false })
+    for (const email of [ROOT_DEMO, EMAIL]) {
+      const code = await issueCode(t, "email", email)
+      const result = await signIn(t, "email", code.code, email)
+      expect(result.status, email).toBe(200)
+    }
+  })
+
+  it("porte non armée (variable absente) : la famille entre comme avant, sans en-tête ; un jeton présenté est sans effet", async () => {
+    const t = testConvex({ automaticSessions: false })
+    const code = await issueCode(t, "email", FAMILY)
+    expect((await signIn(t, "email", code.code, FAMILY)).status).toBe(200)
+    const again = await send(t, FAMILY, WITH_TOKEN)
+    expect(again.status).toBe(200)
+    expect(await t.query(api.modules.platform.devTools.latestOtp, { email: FAMILY })).not.toBeNull()
+  })
+
+  it("production (comptes de démonstration fermés), même avec le secret et WhatsApp : la garde ne s'applique pas", async () => {
+    armGate()
+    vi.stubEnv("CONVEX_CLOUD_URL", "https://production-antsia-456.convex.cloud")
+    vi.stubEnv("ANTSIA_DEV_TOOLS", undefined)
+    const t = testConvex({ automaticSessions: false })
+    // Le refus d'avant la porte (aucun transport), pas la réponse de la garde.
+    const refusal = await send(t, FAMILY)
+    expect(refusal.status).toBe(503)
+    expect(record(refusal.data).code).toBe("otpDeliveryUnavailable")
+  })
+
+  it("CORS : la pré-vérification des routes d'authentification admet l'en-tête du jeton", async () => {
+    const t = testConvex({ automaticSessions: false })
+    const preflight = await t.fetch("/api/auth/sign-in/email-otp", { method: "OPTIONS", headers: { Origin: PRIMARY_ORIGIN, "Access-Control-Request-Method": "POST", "Access-Control-Request-Headers": DEMO_GATE_TOKEN_HEADER } })
+    expect(preflight.status).toBe(204)
+    expect(preflight.headers.get("access-control-allow-headers")).toContain(DEMO_GATE_TOKEN_HEADER)
   })
 })
 

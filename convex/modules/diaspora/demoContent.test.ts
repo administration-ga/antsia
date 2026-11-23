@@ -59,7 +59,8 @@ function openDevTools() {
   vi.stubEnv("ANTSIA_DEV_TOOLS", "true")
   vi.stubEnv("CONVEX_CLOUD_URL", "http://127.0.0.1:3210")
   vi.stubEnv("ANTSIA_DEMO_DEPLOYMENT", "")
-  vi.stubEnv("ANTSIA_DEMO_GATE_SECRET", "")
+  // Porte non armée : la variable ABSENTE (CH-817 E5, constat 10 : vide, elle rendrait la porte indisponible).
+  vi.stubEnv("ANTSIA_DEMO_GATE_SECRET", undefined)
 }
 
 /** Les comptes de démonstration fermés (la production, ou un déploiement non déclaré). */

@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/betterAuth/auth.ts @ ad2e7fdc2 — adaptations : PA4, IDN avec PKCE et preuve serveur minimale, comptes légers par OTP e-mail/SMS, aucune route de mot de passe ; origines du catalogue et de l'environnement ; session sept jours et JWT trente minutes avec sessionId contrôlé côté serveur ; OTT trois minutes ; délivrance locale bornée ou transport configuré, erreurs et limitation de débit du moteur ; refus ou abandon chez IDN renvoyé à la porte de départ de confiance (issue #122) ; refus de débit porteur du délai restant, `retryAfterMs` et `Retry-After` (EA-08, issue #151) ; preuve de session IDN scellée avec l'application où la session est livrée, prise de l'état OAuth enregistré au départ (ADR-0042, CH-815) ; rappel IDN central web sans aucun cookie ni jeton porteur, la session ne passant que par le jeton à usage unique (revue CH-815 A1b, constat F1) ; routes `check-verification-otp` et `verify-email` du greffon e-mail fermées pour toutes les adresses (CH-817 E5, constat 1).
+// Dupliqué de socle/convex/betterAuth/auth.ts @ ad2e7fdc2 — adaptations : PA4, IDN avec PKCE et preuve serveur minimale, comptes légers par OTP e-mail/SMS, aucune route de mot de passe ; origines du catalogue et de l'environnement ; session sept jours et JWT trente minutes avec sessionId contrôlé côté serveur ; OTT trois minutes ; délivrance locale bornée ou transport configuré, erreurs et limitation de débit du moteur ; refus ou abandon chez IDN renvoyé à la porte de départ de confiance (issue #122) ; refus de débit porteur du délai restant, `retryAfterMs` et `Retry-After` (EA-08, issue #151) ; preuve de session IDN scellée avec l'application où la session est livrée, prise de l'état OAuth enregistré au départ (ADR-0042, CH-815) ; rappel IDN central web sans aucun cookie ni jeton porteur, la session ne passant que par le jeton à usage unique (revue CH-815 A1b, constat F1) ; routes `check-verification-otp` et `verify-email` du greffon e-mail fermées pour toutes les adresses, et garde de la porte des comptes de démonstration sur l'envoi du code et la connexion de sa famille d'adresses, avant les seaux (CH-817 E5, constat 1).
 /**
  * Better Auth du moteur — l'émetteur UNIQUE des jetons Convex (ADR-0002).
  *
@@ -16,10 +16,12 @@ import { bearer, emailOTP, genericOAuth, oneTimeToken, phoneNumber } from "bette
 import { idn } from "@idn-ga/better-auth"
 
 import { BRAND_NAME } from "@antsia/social-contracts/brand"
+import { DEMO_GATE_TOKEN_HEADER, DEMO_GATE_TOKEN_PATTERN, type DemoGateScope } from "@antsia/social-contracts/demoGate"
 
 import { components, internal } from "../_generated/api"
 import type { DataModel } from "../_generated/dataModel"
 import authConfig from "../auth.config"
+import { demoGateDigest, demoGateGoverns, demoGateSecret, demoGateState } from "../lib/demoGate"
 import { devToolsAllowed } from "../lib/devTools"
 import { deliverOtp, type OtpRequest } from "./delivery"
 import { idnRefusalReturn } from "./idnRefusalReturn"
@@ -67,6 +69,49 @@ type RunMutationCtx = { runMutation: (reference: never, args: never) => Promise<
 
 function canRunMutation(ctx: unknown): ctx is RunMutationCtx {
   return typeof ctx === "object" && ctx !== null && "runMutation" in ctx && typeof (ctx as RunMutationCtx).runMutation === "function"
+}
+
+type RunQueryCtx = { runQuery: (reference: never, args: never) => Promise<unknown> }
+
+function canRunQuery(ctx: unknown): ctx is RunQueryCtx {
+  return typeof ctx === "object" && ctx !== null && "runQuery" in ctx && typeof (ctx as RunQueryCtx).runQuery === "function"
+}
+
+// CH-817 E5 (relecture de sécurité, constat 1) — la porte des comptes de démonstration verrouillait
+// la LECTURE du code, pas la connexion : un anonyme demandait un code pour une adresse réservée et
+// l'essayait sans jamais le lire, et vidait au passage les seaux par adresse des invités. Porte
+// `gated` ou `unavailable`, l'envoi du code (tout type) et la connexion d'une adresse de la famille
+// de la portée exigent l'en-tête `DEMO_GATE_TOKEN_HEADER` d'une session de porte valide. Ni greffon,
+// ni route, ni table (ADR-0029) : la garde ne fait que refuser ; porte `closed` (production) ou
+// `open`, elle ne s'applique pas.
+const DEMO_GATED_AUTH_PATHS = new Set<string>(["/email-otp/send-verification-otp", "/sign-in/email-otp"])
+
+/** La portée de porte qui gouverne cette requête de connexion, ou `null` : la garde ne s'applique pas. */
+function demoGatedScopeOf(hookCtx: { path?: string; body?: unknown }): DemoGateScope | null {
+  if (!DEMO_GATED_AUTH_PATHS.has(hookCtx.path ?? "")) return null
+  const body = hookCtx.body
+  if (typeof body !== "object" || body === null || !("email" in body) || typeof body.email !== "string") return null
+  return demoGateGoverns(body.email)
+}
+
+/**
+ * Admise si et seulement si la porte est `gated`, l'en-tête a la forme d'un jeton et ce jeton ouvre
+ * une session de porte valide pour la portée (`platform/demoGate.sessionAdmits`). L'empreinte se
+ * calcule ICI : le jeton en clair ne passe jamais en argument. `unavailable`, contexte sans
+ * `runQuery`, ou toute erreur : refus.
+ */
+async function demoGateAdmitsSignIn(ctx: unknown, scope: DemoGateScope, headers: Headers | null | undefined): Promise<boolean> {
+  if (demoGateState() !== "gated") return false
+  const token = headers?.get(DEMO_GATE_TOKEN_HEADER) ?? null
+  if (token === null || !DEMO_GATE_TOKEN_PATTERN.test(token)) return false
+  const secret = demoGateSecret()
+  if (secret === null || !canRunQuery(ctx)) return false
+  try {
+    const tokenDigest = await demoGateDigest(secret, "demo-gate-session", token)
+    return (await ctx.runQuery(internal.modules.platform.demoGate.sessionAdmits as never, { scope, tokenDigest } as never)) === true
+  } catch {
+    return false
+  }
 }
 
 // Limitation de débit : avant l'envoi d'un code et avant une connexion. Clé =
@@ -142,6 +187,19 @@ const rateLimitPlugin = (ctx: GenericCtx<DataModel>): BetterAuthPlugin => ({
         matcher: (hookCtx) => DISABLED_OTP_PATHS.has(hookCtx.path ?? ""),
         handler: createAuthMiddleware(async () => {
           throw new APIError("NOT_FOUND", { message: "routeDisabled", code: "routeDisabled" })
+        }),
+      },
+      {
+        // Garde de la porte des comptes de démonstration (CH-817 E5) : après les routes fermées, AVANT
+        // la disponibilité de l'envoi et les seaux par adresse — un refus n'entame ni seau ni code.
+        matcher: (hookCtx) => demoGatedScopeOf(hookCtx) !== null,
+        handler: createAuthMiddleware(async (hookCtx) => {
+          const scope = demoGatedScopeOf(hookCtx)
+          if (scope !== null && await demoGateAdmitsSignIn(ctx, scope, hookCtx.headers)) return
+          // Refus INDISTINCT, sans seau ni écriture : l'envoi répond comme un envoi réel (aucun code
+          // ne part, aucun n'est enregistré), la connexion comme un code faux.
+          if (hookCtx.path === "/email-otp/send-verification-otp") return hookCtx.json({ success: true })
+          throw new APIError("BAD_REQUEST", { code: "INVALID_OTP", message: "Invalid OTP" })
         }),
       },
       {

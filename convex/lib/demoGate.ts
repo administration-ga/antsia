@@ -4,19 +4,25 @@
  * La porte est un verrou DE PLUS sous `demoAccountsAllowed` : elle resserre, elle n'ouvre rien
  * (ADR-0029, ADR-0038). Elle s'arme par la seule présence de `ANTSIA_DEMO_GATE_SECRET` :
  * - comptes de démonstration fermés ici (production comprise) → `closed` ;
- * - ouverts, secret absent → `open` (le comportement d'avant la porte) ;
- * - secret de moins de 32 caractères, ou envoi WhatsApp non configuré → `unavailable` (personne
- *   n'entre : toute pièce manquante ferme) ;
+ * - ouverts, variable ABSENTE → `open` (le comportement d'avant la porte) ;
+ * - variable posée mais vide, faite d'espaces ou de moins de 32 caractères, ou envoi WhatsApp non
+ *   configuré → `unavailable` (personne n'entre : toute pièce manquante ferme ; CH-817 E5, constat 10 :
+ *   un secret d'espaces n'est jamais pris pour une porte non armée) ;
  * - sinon → `gated`.
+ *
+ * CH-817 E5 — la porte ne gouverne QUE la famille d'adresses de sa portée (`demoGateScopeOfEmail` :
+ * `…@demo.diaspora-ga.test`) ; les comptes de démonstration de la racine (`…@demo.antsia.test`) ne
+ * passent pas par elle. Porte `gated` ou `unavailable`, la connexion d'une adresse de la famille
+ * exige une session de porte valide (`demoGateGoverns`, crochet de `betterAuth/auth.ts`).
  *
  * Empreintes : HMAC-SHA256 par Web Crypto (précédent : `modules/diaspora/attestation.ts`), clé =
  * le secret, message = `<usage>\0<valeur>`. Quatre usages, jamais mêlés : numéro, code (lié au défi
  * et à l'empreinte du numéro), session, adresse. Aucun numéro, code ni jeton n'est gardé en clair.
  * Changer le secret invalide la liste des numéros et les sessions : la liste se rejoue.
  */
-import type { DemoGateState } from "@antsia/social-contracts/demoGate"
+import type { DemoGateScope, DemoGateState } from "@antsia/social-contracts/demoGate"
 
-import { demoAccountsAllowed } from "./devTools"
+import { demoAccountsAllowed, DIASPORA_GA_DEMO_EMAIL_DOMAIN } from "./devTools"
 import { whatsappConfiguration } from "./whatsappDelivery"
 
 type Env = Record<string, string | undefined>
@@ -32,10 +38,31 @@ export function demoGateSecret(env: Env = process.env): string | null {
 /** L'état de la porte sur ce déploiement (voir l'en-tête). */
 export function demoGateState(env: Env = process.env): DemoGateState {
   if (!demoAccountsAllowed(env)) return "closed"
-  const raw = env.ANTSIA_DEMO_GATE_SECRET?.trim() ?? ""
-  if (raw === "") return "open"
+  // Constat 10 : seule l'ABSENCE de la variable laisse la porte non armée ; vide ou espaces → indisponible.
+  if (env.ANTSIA_DEMO_GATE_SECRET === undefined) return "open"
   if (demoGateSecret(env) === null || whatsappConfiguration(env) === null) return "unavailable"
   return "gated"
+}
+
+/**
+ * La portée de porte qui gouverne cette adresse, ou `null` : la famille réservée de DIASPORA.GA
+ * seulement (déplacée de `modules/platform/devTools.ts`, CH-817 E5). La comparaison se fait sur
+ * l'adresse NORMALISÉE (espaces retirés, minuscules), celle sous laquelle Better Auth et le code de
+ * développement l'enregistrent : une variante de casse ou d'espaces ne contourne pas la porte.
+ */
+export function demoGateScopeOfEmail(email: string): DemoGateScope | null {
+  return email.trim().toLowerCase().endsWith(`@${DIASPORA_GA_DEMO_EMAIL_DOMAIN}`) ? "diaspora-ga" : null
+}
+
+/**
+ * La portée dont la porte gouverne la CONNEXION de cette adresse, ou `null`. Porte `gated` ou
+ * `unavailable` : la famille de la portée (une session de porte valide est exigée, et `unavailable`
+ * refuse tout) ; `closed` (production comprise) et `open` : `null`, la connexion est inchangée.
+ */
+export function demoGateGoverns(email: string, env: Env = process.env): DemoGateScope | null {
+  const state = demoGateState(env)
+  if (state !== "gated" && state !== "unavailable") return null
+  return demoGateScopeOfEmail(email)
 }
 
 export const DEMO_GATE_DIGEST_PURPOSES = ["demo-gate-phone", "demo-gate-code", "demo-gate-session", "demo-gate-ip"] as const

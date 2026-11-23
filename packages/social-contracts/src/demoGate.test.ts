@@ -9,6 +9,7 @@ import {
   DEMO_GATE_PATHS,
   DEMO_GATE_SCOPES,
   DEMO_GATE_STATES,
+  DEMO_GATE_TOKEN_HEADER,
   DEMO_GATE_TOKEN_PATTERN,
   formatDemoGateCode,
   generateDemoGateCode,
@@ -146,5 +147,12 @@ describe("tirage — uniforme, par réjection, jamais biaisé", () => {
     expect("A".repeat(31)).not.toMatch(DEMO_GATE_CHALLENGE_ID_PATTERN)
     expect("a_b-".repeat(10) + "abc").toMatch(DEMO_GATE_TOKEN_PATTERN)
     expect("a+b/".repeat(10) + "abc").not.toMatch(DEMO_GATE_TOKEN_PATTERN)
+  })
+})
+
+describe("CH-817 E5 — l'en-tête du jeton de session de porte", () => {
+  it("un nom d'en-tête HTTP stable, que le site pose et que le moteur lit (insensible à la casse)", () => {
+    expect(DEMO_GATE_TOKEN_HEADER).toBe("X-Demo-Gate-Token")
+    expect(new Headers({ [DEMO_GATE_TOKEN_HEADER.toLowerCase()]: "x" }).get(DEMO_GATE_TOKEN_HEADER)).toBe("x")
   })
 })

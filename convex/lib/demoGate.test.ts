@@ -3,7 +3,7 @@ import { DEMO_GATE_CHALLENGE_ID_PATTERN, DEMO_GATE_PHONE_PATTERN, DEMO_GATE_TOKE
 import { describe, expect, it } from "vitest"
 
 import { isE164Phone } from "../betterAuth/settings"
-import { demoGateCodeMaterial, demoGateDigest, demoGateSecret, demoGateState, digestsEqual, randomOpaqueId } from "./demoGate"
+import { demoGateCodeMaterial, demoGateDigest, demoGateGoverns, demoGateScopeOfEmail, demoGateSecret, demoGateState, digestsEqual, randomOpaqueId } from "./demoGate"
 
 // Valeurs FICTIVES (nom de déploiement d'exemple, domaine réservé `.test`).
 const DEMO = { CONVEX_CLOUD_URL: "https://demo-antsia-123.convex.cloud", ANTSIA_DEMO_DEPLOYMENT: "demo-antsia-123" }
@@ -25,10 +25,17 @@ describe("demoGateState — quatre états, fermé par défaut", () => {
     expect(demoGateState({ ...PRODUCTION, ANTSIA_DEMO_DEPLOYMENT: "demo-antsia-123", ANTSIA_DEMO_GATE_SECRET: SECRET, ...WHATSAPP })).toBe("closed")
   })
 
-  it("open : comptes ouverts, secret absent — le comportement d'avant la porte", () => {
+  it("open : comptes ouverts, variable ABSENTE — le comportement d'avant la porte", () => {
     expect(demoGateState(DEMO)).toBe("open")
     expect(demoGateState(LOCAL)).toBe("open")
-    expect(demoGateState({ ...DEMO, ANTSIA_DEMO_GATE_SECRET: "   ", ...WHATSAPP })).toBe("open")
+    expect(demoGateState({ ...DEMO, ANTSIA_DEMO_GATE_SECRET: undefined, ...WHATSAPP })).toBe("open")
+  })
+
+  it("CH-817 E5, constat 10 : une variable posée mais vide ou faite d'espaces arme la porte, « indisponible »", () => {
+    for (const secret of ["", "   ", "\t\n"]) {
+      expect(demoGateState({ ...DEMO, ANTSIA_DEMO_GATE_SECRET: secret, ...WHATSAPP })).toBe("unavailable")
+      expect(demoGateState({ ...LOCAL, ANTSIA_DEMO_GATE_SECRET: secret })).toBe("unavailable")
+    }
   })
 
   it("unavailable : porte armée mais incomplète — secret trop court ou WhatsApp absent", () => {
@@ -48,6 +55,26 @@ describe("demoGateState — quatre états, fermé par défaut", () => {
     expect(demoGateSecret({ ANTSIA_DEMO_GATE_SECRET: ` ${SECRET} ` })).toBe(SECRET)
     expect(demoGateSecret({ ANTSIA_DEMO_GATE_SECRET: "x".repeat(31) })).toBeNull()
     expect(demoGateSecret({})).toBeNull()
+  })
+})
+
+describe("CH-817 E5 — la famille d'adresses gouvernée par la porte, et quand elle l'est", () => {
+  const GATED = { ...DEMO, ANTSIA_DEMO_GATE_SECRET: SECRET, ...WHATSAPP }
+
+  it("demoGateScopeOfEmail : la famille de DIASPORA.GA, sans casse ni espaces ; jamais la racine ni une sous-chaîne", () => {
+    for (const email of ["verifie@demo.diaspora-ga.test", " Verifie@DEMO.Diaspora-GA.test ", "libre@demo.diaspora-ga.test"]) expect(demoGateScopeOfEmail(email)).toBe("diaspora-ga")
+    for (const email of ["membre@demo.antsia.test", "alice@example.test", "verifie@xdemo.diaspora-ga.test", "verifie@demo.diaspora-ga.test.example.test", "demo.diaspora-ga.test@example.test"]) {
+      expect(demoGateScopeOfEmail(email)).toBeNull()
+    }
+  })
+
+  it("demoGateGoverns : la portée en `gated` et en `unavailable` seulement ; `open` et `closed` ne gouvernent rien", () => {
+    expect(demoGateGoverns("verifie@demo.diaspora-ga.test", GATED)).toBe("diaspora-ga")
+    expect(demoGateGoverns("verifie@demo.diaspora-ga.test", { ...GATED, WHATSAPP_PROVIDER: undefined })).toBe("diaspora-ga")
+    expect(demoGateGoverns("verifie@demo.diaspora-ga.test", { ...DEMO, ANTSIA_DEMO_GATE_SECRET: "   " })).toBe("diaspora-ga")
+    expect(demoGateGoverns("verifie@demo.diaspora-ga.test", DEMO)).toBeNull()
+    expect(demoGateGoverns("verifie@demo.diaspora-ga.test", { ...PRODUCTION, ANTSIA_DEMO_GATE_SECRET: SECRET, ...WHATSAPP })).toBeNull()
+    expect(demoGateGoverns("membre@demo.antsia.test", GATED)).toBeNull()
   })
 })
 

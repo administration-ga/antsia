@@ -16,6 +16,7 @@ import {
   DEMO_GATE_CHALLENGE_TTL_MS,
   DEMO_GATE_SESSION_TTL_MS,
   demoGateAdmits,
+  demoGateSessionByDigest,
   demoGateSessionOf,
   markDeliveryFailedImpl,
   revokePhonesImpl,
@@ -273,6 +274,56 @@ describe("session de porte — l'aide des lectures du moteur (lot E3)", () => {
     expect(await admits(GATED, TOKEN)).toBe(true)
     expect(await admits({ ...LOCAL, ANTSIA_DEMO_GATE_SECRET: SECRET }, TOKEN)).toBe(false)
     expect(await admits({ ...GATED, CONVEX_CLOUD_URL: "https://production-antsia-456.convex.cloud", ANTSIA_DEV_TOOLS: undefined }, TOKEN)).toBe(false)
+  })
+})
+
+describe("CH-817 E5 — `sessionAdmits`, la lecture de la garde de connexion", () => {
+  async function verifiedAt(t: T, now: number) {
+    await t.run((ctx) => allowPhonesImpl(ctx, { scope: SCOPE, phones: [PHONE] }, now, GATED))
+    const args = await open(t, `admits${now}`, now)
+    const result = await complete(t, args, true, now, await demoGateDigest(SECRET, "demo-gate-session", TOKEN))
+    if (!result.ok) throw new Error("session de test non ouverte")
+    return result.expiresAt
+  }
+  const tokenDigest = () => demoGateDigest(SECRET, "demo-gate-session", TOKEN)
+
+  it("vraie pour une session valide de la portée, porte `gated` ; fausse sinon (indisponible, non armée, inconnue, hors forme)", async () => {
+    const t = testConvex()
+    const now = Date.now()
+    await verifiedAt(t, now)
+    for (const [key, value] of Object.entries(GATED)) vi.stubEnv(key, value)
+    expect(await t.query(internal.modules.platform.demoGate.sessionAdmits, { scope: SCOPE, tokenDigest: await tokenDigest() })).toBe(true)
+    for (const digest of ["e".repeat(64), "pas-une-empreinte", ""]) {
+      expect(await t.query(internal.modules.platform.demoGate.sessionAdmits, { scope: SCOPE, tokenDigest: digest })).toBe(false)
+    }
+    // Porte indisponible (WhatsApp retiré), puis non armée : la même session n'admet plus rien.
+    vi.stubEnv("WHATSAPP_PROVIDER", undefined)
+    expect(await t.query(internal.modules.platform.demoGate.sessionAdmits, { scope: SCOPE, tokenDigest: await tokenDigest() })).toBe(false)
+    vi.stubEnv("WHATSAPP_PROVIDER", "bird")
+    vi.stubEnv("ANTSIA_DEMO_GATE_SECRET", undefined)
+    expect(await t.query(internal.modules.platform.demoGate.sessionAdmits, { scope: SCOPE, tokenDigest: await tokenDigest() })).toBe(false)
+  })
+
+  it("une autre portée, une session échue : refusées par `demoGateSessionByDigest`", async () => {
+    const t = testConvex()
+    const expiresAt = await verifiedAt(t, NOW)
+    const digest = await tokenDigest()
+    expect(await t.run((ctx) => demoGateSessionByDigest(ctx, { scope: SCOPE, tokenDigest: digest }, NOW + 1))).toEqual({ expiresAt })
+    // Une seule portée existe : une autre se simule, la garde doit la refuser quand même.
+    expect(await t.run((ctx) => demoGateSessionByDigest(ctx, { scope: "antsia" as never, tokenDigest: digest }, NOW + 1))).toBeNull()
+    expect(await t.run((ctx) => demoGateSessionByDigest(ctx, { scope: SCOPE, tokenDigest: digest }, expiresAt))).toBeNull()
+  })
+
+  it("constat 7 : réinscrire un numéro retiré ne ressuscite pas ses sessions de porte non échues", async () => {
+    const t = testConvex()
+    await verifiedAt(t, NOW)
+    expect(await t.run((ctx) => demoGateSessionOf(ctx, { scope: SCOPE, token: TOKEN }, { env: GATED, now: NOW + 1 }))).not.toBeNull()
+    await t.run((ctx) => revokePhonesImpl(ctx, { scope: SCOPE, phones: [PHONE] }, NOW + 2, GATED))
+    expect(await t.run((ctx) => allowPhonesImpl(ctx, { scope: SCOPE, phones: [PHONE] }, NOW + 4, GATED))).toEqual({ added: 1, alreadyAllowed: 0, active: 1 })
+    // La ligne est rouverte (même empreinte, `addedAt` neuf) : la session de NOW, non échue, est antérieure.
+    expect(await t.run(async (ctx) => (await ctx.db.query("demoGateAllowlist").first())?.addedAt)).toBe(NOW + 4)
+    expect(await t.run((ctx) => demoGateSessionOf(ctx, { scope: SCOPE, token: TOKEN }, { env: GATED, now: NOW + 5 }))).toBeNull()
+    expect(await t.run(async (ctx) => demoGateSessionByDigest(ctx, { scope: SCOPE, tokenDigest: await tokenDigest() }, NOW + 5))).toBeNull()
   })
 })
 

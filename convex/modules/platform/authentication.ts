@@ -23,7 +23,9 @@ export const configuration = query({
     /**
      * CH-817 : l'état de la porte des comptes de démonstration (`closed`, `open`, `unavailable`,
      * `gated` : `lib/demoGate.demoGateState`), sans le secret ni la liste. Facultatif : un écran qui
-     * ne le lit pas est inchangé, et un moteur d'avant la porte ne le publie pas.
+     * ne le lit pas est inchangé, et un moteur d'avant la porte ne le publie pas. CH-817 E5 (constat
+     * 10) : il ne gouverne QUE la portée `diaspora-ga` (adresses `…@demo.diaspora-ga.test`) ; les
+     * comptes de démonstration de la racine n'en dépendent pas, même `gated`.
      */
     demoGate: v.optional(literals(DEMO_GATE_STATES)),
   }),
