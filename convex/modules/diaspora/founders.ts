@@ -19,6 +19,19 @@
  * console ; la console appellera alors `admitFounder` / `withdrawFounder`. En
  * attendant, la ligne de décision elle-même porte qui, quand et pourquoi — elle
  * n'est jamais réécrite que pour son retrait.
+ *
+ * ADR-0042, lot A3 (CH-815) — l'ADMINISTRATION DU RÉSEAU décide aussi, depuis son
+ * application d'administration (`networkAdminQuery` / `networkAdminMutation` : adhésion,
+ * rôle relu, session IDN prouvée de l'application qui administre CE réseau, accès
+ * journalisé ; refus indistinct sinon) : `cohort` (le jumeau de `listFoundingAdmissions`,
+ * plus qui a admis et qui a retiré), `candidate`, `admit` et `withdraw` (les jumeaux des
+ * décisions d'exploitation, MÊME cœur `admitFounder` / `withdrawFounder`, mêmes refus du
+ * domaine). Chaque décision entre au journal (`diaspora.founder_admit`,
+ * `diaspora.founder_withdraw`) à titre de `network_admin`, dans la définition même de la
+ * mutation (cliquet `network-admin-audit`). La cause d'un retrait décidé reste `operator`
+ * (la liste fermée du domaine : une décision motivée, par opposition au départ) ; le
+ * journal dit à quel titre. Porte du propriétaire : l'accord écrit d'antsia#176 visait la
+ * console ; l'admission depuis l'application d'administration est « à confirmer » (fiche § 7).
  */
 import { assertDecisionReason } from "@antsia/social-domain/audit"
 import {
@@ -35,14 +48,19 @@ import type { Doc, Id } from "../../_generated/dataModel"
 import { internalMutation, type MutationCtx, type QueryCtx } from "../../_generated/server"
 import { getMembership } from "../../lib/access"
 import { checked, fail, failAppRule, notFound } from "../../lib/errors"
-import { operatorQuery } from "../../lib/functions"
+import { networkAdminMutation, networkAdminQuery, operatorQuery } from "../../lib/functions"
 import { enforceRateLimit } from "../../lib/rateLimit"
 import { literals, membershipStatusValidator } from "../../lib/validators"
-import { activeFoundingAdmissionOf, effectiveStatusIn, isDiasporaNetwork, rederiveMembership } from "./facts"
+import { findPublishedPersonByHandle } from "../people/miniProfile"
+import { appendAudit } from "../platform/audit"
+import { activeFoundingAdmissionOf, assertDiasporaNetwork, effectiveStatusIn, isDiasporaNetwork, rederiveMembership } from "./facts"
 import { personLabelValidator } from "./validators"
 
 /** Les admissions retirées que montre la console : les plus récentes. */
 export const FOUNDING_WITHDRAWN_LIST_MAX = 50
+
+/** Longueur au-delà de laquelle un identifiant saisi ne désigne personne. */
+const HANDLE_INPUT_MAX = 80
 
 /** Les admissions EN VIGUEUR du réseau, jusqu'au plafond (au-delà, le refus est acquis). */
 async function activeCohort(ctx: QueryCtx, networkId: Id<"networks">): Promise<Doc<"foundingAdmissions">[]> {
@@ -211,6 +229,16 @@ async function admissionView(ctx: QueryCtx, row: Doc<"foundingAdmissions">) {
   }
 }
 
+/** Les admissions retirées les plus récentes, puis les admissions EN VIGUEUR (le plafond les borne). */
+async function cohortRows(ctx: QueryCtx, networkId: Id<"networks">): Promise<{ active: Doc<"foundingAdmissions">[]; withdrawn: Doc<"foundingAdmissions">[] }> {
+  const withdrawn = await ctx.db
+    .query("foundingAdmissions")
+    .withIndex("by_network_and_withdrawnAt", (q) => q.eq("networkId", networkId).gt("withdrawnAt", 0))
+    .order("desc")
+    .take(FOUNDING_WITHDRAWN_LIST_MAX)
+  return { active: await activeCohort(ctx, networkId), withdrawn }
+}
+
 /**
  * Console : la cohorte fondatrice du réseau — le plafond, les admissions en vigueur
  * (toutes, le plafond les borne) et les dernières retirées, avec leurs motifs.
@@ -226,15 +254,135 @@ export const listFoundingAdmissions = operatorQuery({
   handler: async (ctx, { networkId }) => {
     const network = await ctx.db.get(networkId)
     if (!isDiasporaNetwork(network)) return notFound()
-    const withdrawn = await ctx.db
-      .query("foundingAdmissions")
-      .withIndex("by_network_and_withdrawnAt", (q) => q.eq("networkId", network._id).gt("withdrawnAt", 0))
-      .order("desc")
-      .take(FOUNDING_WITHDRAWN_LIST_MAX)
+    const rows = await cohortRows(ctx, network._id)
     const active = []
-    for (const row of await activeCohort(ctx, network._id)) active.push(await admissionView(ctx, row))
+    for (const row of rows.active) active.push(await admissionView(ctx, row))
     const past = []
-    for (const row of withdrawn) past.push(await admissionView(ctx, row))
+    for (const row of rows.withdrawn) past.push(await admissionView(ctx, row))
     return { cohortMax: FOUNDING_COHORT_MAX, active, withdrawn: past }
+  },
+})
+
+// ── ADR-0042, lot A3 : l'administration du réseau ─────────────────────────────
+
+/** Qui a décidé, cité comme la personne admise : identifiant et nom publiés, vides sinon. */
+const deciderValidator = v.union(v.object({ personId: v.id("persons"), ...personLabelValidator.fields }), v.null())
+
+/** Une admission telle que l'administration du réseau la voit : celle de la console, plus qui a admis et qui a retiré. */
+const networkAdminAdmissionValidator = v.object({
+  admissionId: v.id("foundingAdmissions"),
+  personId: v.id("persons"),
+  person: personLabelValidator,
+  reason: v.string(),
+  seniorityWaiver: v.boolean(),
+  admittedAt: v.number(),
+  /** Qui a admis : un opérateur (console, exploitation) ou l'administration du réseau ; `null` pour l'équipement de démonstration. */
+  admittedBy: deciderValidator,
+  withdrawnAt: v.union(v.number(), v.null()),
+  withdrawnBy: v.union(literals(FOUNDING_WITHDRAWAL_CAUSES), v.null()),
+  /** Qui a retiré la décision ; `null` pour un départ ou une admission en vigueur. */
+  withdrawnByPerson: deciderValidator,
+  withdrawalReason: v.union(v.string(), v.null()),
+})
+
+async function deciderOf(ctx: QueryCtx, personId: Id<"persons"> | undefined) {
+  return personId === undefined ? null : { personId, ...labelOf(await ctx.db.get(personId)) }
+}
+
+async function networkAdminAdmissionView(ctx: QueryCtx, row: Doc<"foundingAdmissions">) {
+  // `admittedBy` porte l'identifiant de qui a admis : le champ brut de la console n'est pas recopié.
+  const { admittedByPersonId: _admittedBy, ...view } = await admissionView(ctx, row)
+  return {
+    ...view,
+    admittedBy: await deciderOf(ctx, row.admittedByPersonId),
+    withdrawnByPerson: await deciderOf(ctx, row.withdrawnByPersonId),
+  }
+}
+
+/**
+ * Administration du réseau : la cohorte fondatrice — le plafond, le nombre d'admissions en vigueur,
+ * chacune (qui, par qui, pourquoi, dispense, date) et les dernières retirées, avec leur motif.
+ */
+export const cohort = networkAdminQuery({
+  args: {},
+  returns: v.object({
+    cohortMax: v.number(),
+    activeCount: v.number(),
+    active: v.array(networkAdminAdmissionValidator),
+    withdrawn: v.array(networkAdminAdmissionValidator),
+  }),
+  handler: async (ctx) => {
+    assertDiasporaNetwork(ctx.network)
+    const rows = await cohortRows(ctx, ctx.networkId)
+    const active = []
+    for (const row of rows.active) active.push(await networkAdminAdmissionView(ctx, row))
+    const withdrawn = []
+    for (const row of rows.withdrawn) withdrawn.push(await networkAdminAdmissionView(ctx, row))
+    return { cohortMax: FOUNDING_COHORT_MAX, activeCount: active.length, active, withdrawn }
+  },
+})
+
+/**
+ * Administration du réseau : le membre actif désigné par son identifiant public, pour l'admettre
+ * (patron de `moderationDesk.teamCandidate`) ; `null` sinon (inconnu, profil retiré, non-membre).
+ */
+export const candidate = networkAdminQuery({
+  args: { handle: v.string() },
+  returns: v.union(v.object({ personId: v.id("persons"), handle: v.string(), displayName: v.string() }), v.null()),
+  handler: async (ctx, { handle }) => {
+    assertDiasporaNetwork(ctx.network)
+    const raw = handle.trim().replace(/^@/, "")
+    if (raw.length === 0 || raw.length > HANDLE_INPUT_MAX) return null
+    const person = await findPublishedPersonByHandle(ctx, ctx.networkId, raw)
+    if (!person) return null
+    const published = person.handle ?? raw
+    return { personId: person._id, handle: published, displayName: person.displayName ?? published }
+  },
+})
+
+/**
+ * Administration du réseau : admettre dans la cohorte une personne DÉJÀ entrée dans le réseau (rien
+ * d'office), motif d'au moins dix caractères, avec ou sans dispense d'ancienneté pour parrainer.
+ * Refus du domaine : non-membre (`founding_target_not_member`), déjà admise, cohorte pleine
+ * (`founding_cohort_full`, plafond rendu).
+ */
+export const admit = networkAdminMutation({
+  args: { personId: v.id("persons"), reason: v.string(), seniorityWaiver: v.boolean() },
+  returns: v.object({ admissionId: v.id("foundingAdmissions"), status: membershipStatusValidator }),
+  handler: async (ctx, args) => {
+    const motive = checked(() => assertDecisionReason(args.reason, FOUNDING_REASON_MIN))
+    const now = Date.now()
+    const result = await admitFounder(ctx, ctx.network, { personId: args.personId, reason: motive, seniorityWaiver: args.seniorityWaiver, admittedByPersonId: ctx.person._id, now })
+    await appendAudit(ctx, {
+      action: "diaspora.founder_admit",
+      capacity: "network_admin",
+      actorPersonId: ctx.person._id,
+      networkId: ctx.networkId,
+      subject: { table: "persons", id: args.personId },
+      details: { reason: motive, seniorityWaiver: args.seniorityWaiver },
+      at: now,
+    })
+    return result
+  },
+})
+
+/** Administration du réseau : retirer l'admission fondatrice en vigueur, motif d'au moins dix caractères ; le statut retombe selon les faits. */
+export const withdraw = networkAdminMutation({
+  args: { personId: v.id("persons"), reason: v.string() },
+  returns: v.object({ status: v.union(membershipStatusValidator, v.null()) }),
+  handler: async (ctx, args) => {
+    const motive = checked(() => assertDecisionReason(args.reason, FOUNDING_REASON_MIN))
+    const now = Date.now()
+    const result = await withdrawFounder(ctx, ctx.network, { personId: args.personId, reason: motive, withdrawnByPersonId: ctx.person._id, now })
+    await appendAudit(ctx, {
+      action: "diaspora.founder_withdraw",
+      capacity: "network_admin",
+      actorPersonId: ctx.person._id,
+      networkId: ctx.networkId,
+      subject: { table: "persons", id: args.personId },
+      details: { reason: motive, cause: "operator" },
+      at: now,
+    })
+    return result
   },
 })

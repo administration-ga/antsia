@@ -128,6 +128,7 @@ import type * as modules_diaspora_moderationDesk from "../modules/diaspora/moder
 import type * as modules_diaspora_moderationTargets from "../modules/diaspora/moderationTargets.js";
 import type * as modules_diaspora_mutualAid from "../modules/diaspora/mutualAid.js";
 import type * as modules_diaspora_mutualAidTables from "../modules/diaspora/mutualAidTables.js";
+import type * as modules_diaspora_networkSettings from "../modules/diaspora/networkSettings.js";
 import type * as modules_diaspora_pilotMetrics from "../modules/diaspora/pilotMetrics.js";
 import type * as modules_diaspora_pilotMetricsTables from "../modules/diaspora/pilotMetricsTables.js";
 import type * as modules_diaspora_profile from "../modules/diaspora/profile.js";
@@ -633,6 +634,7 @@ declare const fullApi: ApiFromModules<{
   "modules/diaspora/moderationTargets": typeof modules_diaspora_moderationTargets;
   "modules/diaspora/mutualAid": typeof modules_diaspora_mutualAid;
   "modules/diaspora/mutualAidTables": typeof modules_diaspora_mutualAidTables;
+  "modules/diaspora/networkSettings": typeof modules_diaspora_networkSettings;
   "modules/diaspora/pilotMetrics": typeof modules_diaspora_pilotMetrics;
   "modules/diaspora/pilotMetricsTables": typeof modules_diaspora_pilotMetricsTables;
   "modules/diaspora/profile": typeof modules_diaspora_profile;

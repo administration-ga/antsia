@@ -24,10 +24,10 @@ import { NETWORK_FEATURES } from "@antsia/social-domain/networkFeatures"
 import { ConvexError } from "convex/values"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
-import { api, internal } from "../_generated/api"
-import type { Doc, Id } from "../_generated/dataModel"
-import { SEED_CONFIRMATION } from "../seeds/foundations"
-import { openNetworkFeatures, openTestNetworkAdminSession, testConvex } from "../test.setup"
+import { api, internal } from "../../_generated/api"
+import type { Doc, Id } from "../../_generated/dataModel"
+import { SEED_CONFIRMATION } from "../../seeds/foundations"
+import { openNetworkFeatures, openTestNetworkAdminSession, testConvex } from "../../test.setup"
 
 type T = ReturnType<typeof testConvex>
 type As = ReturnType<T["withIdentity"]>
