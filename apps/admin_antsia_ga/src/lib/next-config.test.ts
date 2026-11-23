@@ -51,9 +51,7 @@ describe("en-têtes de la console — aucun Referer", () => {
   })
 
   it("le reste de la configuration commune est inchangé", async () => {
-    const engine = createEngineNextConfig({ appDir: process.cwd() })
-    const { headers: _appHeaders, ...app } = await appConfig()
-    const { headers: _engineHeaders, ...rest } = engine
-    expect(app).toEqual(rest)
+    const withoutHeaders = (config: NextConfig) => Object.fromEntries(Object.entries(config).filter(([key]) => key !== "headers"))
+    expect(withoutHeaders(await appConfig())).toEqual(withoutHeaders(createEngineNextConfig({ appDir: process.cwd() })))
   })
 })
