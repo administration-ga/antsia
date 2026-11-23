@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/messagerie/MessagerieListPage.tsx @ ad2e7fdc2 — adaptations : barre basse réécrite dans la coque (`shell/mobile/IcomMobileTabBar`, mêmes props `active` et `badges`), toujours rendue sur cette page (seule la liste porte la barre : le garde `shouldShowTabBar` du chrome de l'espace agent, toujours vrai ici, est retiré) ; base de la messagerie INJECTÉE (`useRoutes().messages()`) ; pastille des Statuts sur `stories.stories.tray` du moteur (réseau courant, instant arrondi à la minute ; plus de « surface iCom ») ; titre de page traduit ; doc du chrome de l'espace agent retirée ; CC-5 : conversations contextuelles injectables (`contextual`) — liste « Mises en relation » transmise à la vue Conversations, lignes d'appel contextuel rouvertes par leur conversation. ; IC-02 : pastille des messages vocaux non écoutés sur iAppel (même lecture que le journal, `useVoicemailInbox`).
+// Dupliqué de socle/packages/agent-features/src/features/messagerie/MessagerieListPage.tsx @ ad2e7fdc2 — adaptations : barre basse réécrite dans la coque (`shell/mobile/IcomMobileTabBar`, mêmes props `active` et `badges`), toujours rendue sur cette page (seule la liste porte la barre : le garde `shouldShowTabBar` du chrome de l'espace agent, toujours vrai ici, est retiré) ; base de la messagerie INJECTÉE (`useRoutes().messages()`) ; pastille des Statuts sur `stories.stories.tray` du moteur (réseau courant, instant arrondi à la minute ; plus de « surface iCom ») ; titre de page traduit ; doc du chrome de l'espace agent retirée ; CC-5 : conversations contextuelles injectables (`contextual`) — liste « Mises en relation » transmise à la vue Conversations, lignes d'appel contextuel rouvertes par leur conversation. ; IC-02 : pastille des messages vocaux non écoutés sur iAppel (même lecture que le journal, `useVoicemailInbox`). ; CH-817 : application sans appels (`useCallsAvailable()`) — `?brique=iappel` retombe sur iChat, aucune lecture de la messagerie vocale pour une pastille que la barre ne montre pas.
 "use client"
 
 /**
@@ -44,7 +44,7 @@
 
 import { api } from "@antsia/api/engine"
 import { useAuthenticatedConvexQuery } from "@antsia/api/hooks"
-import { useNetwork, useRoutes } from "@antsia/api/network"
+import { useCallsAvailable, useNetwork, useRoutes } from "@antsia/api/network"
 import { usePathname, useRouter, useSearchParams } from "@antsia/api/routing"
 import { Suspense, useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
@@ -113,7 +113,9 @@ function MessagerieListPageInner({ contextual }: { contextual?: ContextualMessag
 	const { networkId } = useNetwork()
 	const liste = useRoutes().messages()
 	const now = useMinuteNow()
-	const brique = parseIcomBrique(searchParams.get(ICOM_BRIQUE_PARAM))
+	// CH-817 : sans appels proposés, un lien vers iAppel ouvre iChat (jamais une brique absente de la barre).
+	const callsAvailable = useCallsAvailable()
+	const brique = parseIcomBrique(searchParams.get(ICOM_BRIQUE_PARAM), callsAvailable)
 	const invitationBrute = searchParams.get(INVITATION_GROUPE_PARAM)
 	const invitationPresente = invitationBrute !== null
 	const invitationToken = lireJetonInvitationGroupe(searchParams.toString())
@@ -137,7 +139,7 @@ function MessagerieListPageInner({ contextual }: { contextual?: ContextualMessag
 	)
 	// IC-02 : la pastille d'iAppel — les messages vocaux non écoutés, troisième
 	// canal, jamais additionné aux deux autres.
-	const unheardVoicemails = useVoicemailInbox().unreadCount
+	const unheardVoicemails = useVoicemailInbox(callsAvailable).unreadCount
 
 	return (
 		<>

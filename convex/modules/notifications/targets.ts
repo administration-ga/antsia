@@ -18,7 +18,9 @@
  *  - `page_signatory_invite`, `page_claim_decided` (PG-01) : la page, lisible par le destinataire à
  *    l'instant (`pageGovernanceTarget`) ;
  *  - `thematic_group_invite` (NP-04, issue #149) : la fiche du groupe, servie au destinataire à
- *    l'instant par la garde même de la fiche (`servedThematicGroupOrNull`).
+ *    l'instant par la garde même de la fiche (`servedThematicGroupOrNull`) ;
+ *  - `personal_message` (IC-09) : la conversation à deux de la paire (destinataire, acteur), active
+ *    et sans blocage à l'instant (`personalMessageNoticeThread`) — l'avis n'a pas de sujet stocké.
  * Aucun autre genre n'a de destination typée : `null`, et l'écran garde la cible de son sujet commun.
  */
 import { isCommerceNotificationKind } from "@antsia/social-domain/commerceNotifications"
@@ -34,6 +36,7 @@ import { serviceNoticeView, type ServiceNoticeDto } from "../diaspora/serviceNot
 import { communityNoticeView, type CommunityNoticeDto } from "../diaspora/communityNotifications"
 import { contextualNotificationTarget } from "../contextualMessaging/access"
 import { owningPageOfReport } from "../moderation/policy"
+import { personalMessageNoticeThread } from "../messaging/threads"
 import { liveSignatoryRole } from "../pages/access"
 import { pageGovernanceTarget } from "../pages/governanceNoticeAccess"
 import { servedThematicGroupOrNull } from "../thematicGroups/access"
@@ -82,6 +85,8 @@ export const notificationOpenTargetValidator = v.union(
   v.object({ kind: v.literal("page"), pageId: v.string(), pageHandle: v.string() }),
   // NP-04 : la fiche du groupe d'une invitation, servie au destinataire à l'instant.
   v.object({ kind: v.literal("thematicGroup"), groupId: v.string() }),
+  // IC-09 : la conversation à deux d'un message, lisible par le destinataire à l'instant.
+  v.object({ kind: v.literal("personalThread"), threadId: v.string() }),
 )
 
 /**
@@ -142,6 +147,16 @@ async function thematicGroupInviteTarget(ctx: ReadCtx, row: Doc<"notifications">
   return group === null ? null : { kind: "thematicGroup", groupId: group._id }
 }
 
+/**
+ * IC-09 : un message à deux mène à SA conversation — celle de la paire (destinataire, expéditeur)
+ * dans le réseau de l'avis, active et sans blocage à l'instant ; `null` sinon (repli neutre).
+ */
+async function personalMessageTarget(ctx: ReadCtx, row: Doc<"notifications">): Promise<NotificationOpenTarget | null> {
+  if (row.actorPersonId === undefined) return null
+  const thread = await personalMessageNoticeThread(ctx, row.networkId, row.recipientPersonId, row.actorPersonId)
+  return thread === null ? null : { kind: "personalThread", threadId: thread._id }
+}
+
 /** La destination typée d'une ligne, relue MAINTENANT pour son destinataire ; `null` : aucune. */
 export async function notificationOpenTargetOf(ctx: ReadCtx, row: Doc<"notifications">): Promise<NotificationOpenTarget | null> {
   if (isCommerceNotificationKind(row.kind)) return (await commerceNoticeView(ctx, row))?.target ?? null
@@ -155,5 +170,6 @@ export async function notificationOpenTargetOf(ctx: ReadCtx, row: Doc<"notificat
   // PG-01 : invitation à signer, revendication tranchée — la page, relue avec les droits du lecteur.
   if (isPageGovernanceNoticeKind(row.kind)) return await pageGovernanceTarget(ctx, row)
   if (row.kind === "thematic_group_invite") return await thematicGroupInviteTarget(ctx, row)
+  if (row.kind === "personal_message") return await personalMessageTarget(ctx, row)
   return null
 }

@@ -70,6 +70,7 @@
       "fileWithheld": "An uploaded file was withheld by the security scan.",
       "callMissed": "{{actor}} tried to reach you.",
       "voicemailLeft": "{{actor}} left you a voice message.",
+      "personalMessage": "{{actor}} sent you a message.",
       "sponsorshipReceived": "{{actor}} is sponsoring you.",
       "sponsorshipWithdrawn": "{{actor}} withdrew their sponsorship.",
       "sponsorshipWithdrawnSystem": "Your sponsorship was withdrawn.",

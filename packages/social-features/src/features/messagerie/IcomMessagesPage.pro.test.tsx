@@ -3,7 +3,7 @@ import { cleanup, render, screen } from "@testing-library/react"
 import type { ReactNode } from "react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
-const state = vi.hoisted(() => ({ search: "", list: vi.fn(), push: vi.fn(), replace: vi.fn(), unheard: 0, voicemailsEnabled: [] as boolean[] }))
+const state = vi.hoisted(() => ({ search: "", list: vi.fn(), push: vi.fn(), replace: vi.fn(), unheard: 0, voicemailsEnabled: [] as boolean[], callsAvailable: true }))
 // IC-02 : la messagerie vocale reçue, lue par le crochet partagé (souscription et pastille de la vue Appels).
 vi.mock("../iappel/use-voicemail-inbox", () => ({
   useVoicemailInbox: (enabled = true) => {
@@ -12,6 +12,8 @@ vi.mock("../iappel/use-voicemail-inbox", () => ({
   },
 }))
 vi.mock("@antsia/api/network", () => ({
+  // CH-817 : la déclaration d'appels de l'application (vraie par défaut, comme antsia.ga).
+  useCallsAvailable: () => state.callsAvailable,
   useNetwork: () => ({ networkId: "network-a", personId: "person-a" }),
   useNetworkNavigationLayout: () => ({ adaptive: true, mobile: false }),
   useRoutes: () => ({ home: () => "/fil", messages: () => "/messages", me: () => "/moi" }),
@@ -45,7 +47,7 @@ const commercial = { renderList: () => <p>Boutiques</p>, renderConversation: (id
 const contextual = { renderList: () => <p>Mises en relation</p>, renderConversation: (id: string) => <p>Mise en relation {id}</p> }
 const pro: IcomProInjection = { renderConversations: (activity) => <p>Conversations pro {activity ?? "défaut"}</p>, renderContacts: () => <p>Contacts pro</p> }
 
-beforeEach(() => { state.search = ""; state.unheard = 0; state.voicemailsEnabled = []; vi.clearAllMocks(); __resetListStatesForTests(); activateListSession(JSON.stringify(["network-a", "person-a"])) })
+beforeEach(() => { state.search = ""; state.unheard = 0; state.voicemailsEnabled = []; state.callsAvailable = true; vi.clearAllMocks(); __resetListStatesForTests(); activateListSession(JSON.stringify(["network-a", "person-a"])) })
 afterEach(() => { cleanup(); __resetListStatesForTests() })
 
 describe("ADR-0036 — iCom et iCom Pro dans la page de messagerie", () => {
@@ -95,6 +97,17 @@ describe("ADR-0036 — iCom et iCom Pro dans la page de messagerie", () => {
     state.search = "espace=pro"
     render(<IcomMessagesPage isMobile={false} commercial={commercial} contextual={contextual} pro={pro} />)
     expect(screen.getByRole("link", { name: "messagerie:icomViews.calls" }).querySelector(".msg-badge")).toBeNull()
+    expect(state.voicemailsEnabled.at(-1)).toBe(false)
+  })
+  it("CH-817 : appels fermés par l'application, ni vue Appels ni lecture vocale ; un lien vers les Appels ouvre les Conversations", () => {
+    state.callsAvailable = false
+    state.unheard = 2
+    state.search = "brique=iappel"
+    render(<IcomMessagesPage isMobile={false} commercial={commercial} contextual={contextual} pro={pro} />)
+    expect(screen.queryByRole("link", { name: /^messagerie:icomViews\.calls/ })).toBeNull()
+    expect(screen.getByRole("link", { name: "messagerie:icomViews.conversations" }).getAttribute("aria-current")).toBe("page")
+    expect(screen.getByText("Liste personnelle")).toBeTruthy()
+    expect(screen.queryByText("Journal")).toBeNull()
     expect(state.voicemailsEnabled.at(-1)).toBe(false)
   })
   it("sans injection iCom Pro (DIASPORA.GA), la messagerie unique reste telle quelle", () => {

@@ -4,8 +4,10 @@
  * Destination Messages P05, réutilisant les vues et les droits du moteur.
  * ADR-0036 : avec l'injection `pro` (ANTSIA), deux espaces — iCom et iCom Pro — basculés par une
  * pilule ; les conversations de boutique et les mises en relation vivent dans iCom Pro.
+ * CH-817 : une application qui ne propose pas d'appel (`useCallsAvailable()`) ne sert pas la vue
+ * Appels ; `?brique=iappel` y retombe sur Conversations.
  */
-import { useNetwork, useNetworkNavigationLayout, useRoutes } from "@antsia/api/network"
+import { useCallsAvailable, useNetwork, useNetworkNavigationLayout, useRoutes } from "@antsia/api/network"
 import { Link, usePathname, useRouter, useSearchParams } from "@antsia/api/routing"
 import { useEffect, useMemo, useState, type ReactNode } from "react"
 import { useTranslation } from "react-i18next"
@@ -18,7 +20,7 @@ import { hrefSansInvitationGroupe, INVITATION_GROUPE_PARAM, lireJetonInvitationG
 import { IcomAppelJournal } from "./IcomAppelJournal"
 import { IcomRelationsPanel } from "./IcomRelationsPanel"
 import { ICOM_BRIQUE_PARAM, voicemailTabBadge } from "./icom-mobile-tabs"
-import { ICOM_VIEWS, icomViewFromBrique, icomViewHref } from "./icom-views"
+import { ICOM_VIEWS, icomViewFromBrique, icomViewHref, servedIcomView, servedIcomViews } from "./icom-views"
 import { ICOM_PRO_ACTIVITY_PARAM, ICOM_SPACE_PARAM, icomProActivityFrom, icomSpaceHref, icomSpaceOf, type IcomSpace } from "./icom-space"
 import { IcomSpaceHeading } from "./IcomSpaceSwitch"
 import { MessagerieComposeView } from "./MessagerieComposeView"
@@ -71,7 +73,8 @@ export function IcomMessagesPage({ conversationKey = null, compose, isMobile, co
 	const scope = messagerieListScope(String(networkId), String(personId), isMobile ? "phone" : "desktop")
 	const hasDetail = conversationKey !== null || compose !== undefined
 	const rawView = searchParams.get(ICOM_BRIQUE_PARAM)
-	const view = hasDetail && rawView === null ? readListState(scope).view : icomViewFromBrique(rawView)
+	const callsAvailable = useCallsAvailable()
+	const view = servedIcomView(hasDetail && rawView === null ? readListState(scope).view : icomViewFromBrique(rawView, callsAvailable), callsAvailable)
 	const base = routes.messages()
 	const commercialId = conversationKey ? parseCommercialKey(conversationKey) : null
 	const contextualId = conversationKey ? parseContextualConversationKey(conversationKey) : null
@@ -80,7 +83,8 @@ export function IcomMessagesPage({ conversationKey = null, compose, isMobile, co
 	const spaceTitle = space === "pro" ? t("icomSpace.pro") : t("icomViews.title")
 	// IC-02 : la vue Appels porte les messages vocaux non écoutés — dans iCom seulement, un
 	// message vocal est personnel (le journal d'iCom Pro n'en montre aucun).
-	const unheardVoicemails = useVoicemailInbox(space === "personnel").unreadCount
+	// CH-817 : sans appels proposés, aucune vue Appels — donc aucune lecture pour sa pastille.
+	const unheardVoicemails = useVoicemailInbox(space === "personnel" && callsAvailable).unreadCount
 	const voicemailBadge = voicemailTabBadge(unheardVoicemails, t)
 	useEffect(() => {
 		if (!hasDetail) writeListState(scope, { view })
@@ -127,7 +131,7 @@ export function IcomMessagesPage({ conversationKey = null, compose, isMobile, co
 			<div className="icom-page-columns">
 				<aside className="icom-page-list" aria-label={t("icomViews.navigation")}>
 					<nav className="icom-page-navigation" aria-label={t("icomViews.navigation")}>
-						{ICOM_VIEWS.map((item) => <Link key={item.id} href={pro === undefined ? icomViewHref(item.id, base) : icomSpaceHref(space, item.id, base)} aria-current={view === item.id ? "page" : undefined} onClick={() => writeListState(scope, { view: item.id })}>{t(item.labelKey)}{item.id === "appels" && voicemailBadge !== null ? <span className="msg-badge icom-view-badge"><span aria-hidden="true">{voicemailBadge.badge}</span><span className="sr-only">{voicemailBadge.label}</span></span> : null}</Link>)}
+						{servedIcomViews(callsAvailable).map((item) => <Link key={item.id} href={pro === undefined ? icomViewHref(item.id, base) : icomSpaceHref(space, item.id, base)} aria-current={view === item.id ? "page" : undefined} onClick={() => writeListState(scope, { view: item.id })}>{t(item.labelKey)}{item.id === "appels" && voicemailBadge !== null ? <span className="msg-badge icom-view-badge"><span aria-hidden="true">{voicemailBadge.badge}</span><span className="sr-only">{voicemailBadge.label}</span></span> : null}</Link>)}
 					</nav>
 					<div className="msg-panel" data-variant="page" data-open="true">
 						{invitation !== null ? <MessagerieGroupeInvite token={lireJetonInvitationGroupe(searchParams.toString())} onClose={() => router.replace(hrefSansInvitationGroupe(pathname, searchParams.toString()), { scroll: false })} onJoined={(threadId) => router.replace(conversationHref(groupeKey(threadId), base) ?? base)} />

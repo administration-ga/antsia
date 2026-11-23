@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/lib/notify.ts (avec socle/convex/modules/reseauPersonnel/notifications.ts, l. 128-253) @ ad2e7fdc2 — adaptations : la porte UNIQUE d'écriture de la cloche sociale du moteur (`notifyPerson`, `resolveNotifications`) ; personnes et réseaux ; aucun titre ni corps ni lien stocké (l'écran traduit le genre et route le sujet) ; deux gardes ajoutées à la porte : jamais un non-membre du réseau, jamais à travers un blocage ; acteur facultatif pour les avis du système ; sujet « session de direct » (`liveSession`) ajouté avec le module `live` (lot 16).
+// Dupliqué de socle/convex/lib/notify.ts (avec socle/convex/modules/reseauPersonnel/notifications.ts, l. 128-253) @ ad2e7fdc2 — adaptations : la porte UNIQUE d'écriture de la cloche sociale du moteur (`notifyPerson`, `resolveNotifications`) ; personnes et réseaux ; aucun titre ni corps ni lien stocké (l'écran traduit le genre et route le sujet) ; deux gardes ajoutées à la porte : jamais un non-membre du réseau, jamais à travers un blocage ; acteur facultatif pour les avis du système ; sujet « session de direct » (`liveSession`) ajouté avec le module `live` (lot 16) ; IC-09 : l'avis `personal_message` n'est admis qu'avec un acteur, sans sujet, et si le fil à deux de la paire se lit encore (`personalMessageNoticeThread`).
 /**
  * LA porte d'écriture de la cloche sociale.
  *
@@ -31,6 +31,7 @@ import { isBlockedBetween } from "../graph/graph"
 import { pageEventReminderVisible } from "../events/pageEventReminderAccess"
 import { isPageEventOutcomeNoticeKind, pageEventNoticeVisible } from "../events/pageEventNoticeAccess"
 import { pageGovernanceNoticeAdmitted } from "../pages/governanceNoticeAccess"
+import { personalMessageNoticeThread } from "../messaging/threads"
 import { serviceNoticeAdmission } from "../diaspora/serviceNotifications"
 import { communityNoticeAdmission } from "../diaspora/communityNotifications"
 import { commerceNoticeAdmission } from "./commerceAccess"
@@ -180,6 +181,9 @@ export async function notifyPerson(ctx: Pick<MutationCtx, "db"> & Partial<Pick<M
   // type, et seulement si la garde relue tient (invitation encore en attente ; revendication tranchée
   // de CE demandeur, dans ce réseau ; destinataire membre actif).
   if (isPageGovernanceNoticeKind(input.kind) && (input.actorPersonId !== undefined || !(await pageGovernanceNoticeAdmitted(ctx, input.networkId, input.recipientPersonId, input.kind, input.subject)))) return null
+  // IC-09 : un message à deux — l'expéditeur est l'acteur, aucun sujet (la paire désigne le fil),
+  // et le fil de la paire se lit encore pour le destinataire (actif, sans blocage).
+  if (input.kind === "personal_message" && (input.actorPersonId === undefined || input.subject !== undefined || (await personalMessageNoticeThread(ctx, input.networkId, input.recipientPersonId, input.actorPersonId)) === null)) return null
   const moderationNotice = input.kind === "moderation_decision"
   if (moderationNotice && (!input.subject || !("report" in input.subject) || input.actorPersonId !== undefined || !(await moderationNoticeRecipient(ctx, input.networkId, input.recipientPersonId, input.subject.report)))) return null
   // SU01d : l'accusé de réception et la décision vont au seul DÉCLARANT du dossier, sans acteur (le modérateur ne se nomme pas).

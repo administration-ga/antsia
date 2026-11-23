@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/betterAuth/auth.ts @ ad2e7fdc2 — adaptations : PA4, IDN avec PKCE et preuve serveur minimale, comptes légers par OTP e-mail/SMS, aucune route de mot de passe ; origines du catalogue et de l'environnement ; session sept jours et JWT trente minutes avec sessionId contrôlé côté serveur ; OTT trois minutes ; délivrance locale bornée ou transport configuré, erreurs et limitation de débit du moteur ; refus ou abandon chez IDN renvoyé à la porte de départ de confiance (issue #122) ; refus de débit porteur du délai restant, `retryAfterMs` et `Retry-After` (EA-08, issue #151) ; preuve de session IDN scellée avec l'application où la session est livrée, prise de l'état OAuth enregistré au départ (ADR-0042, CH-815) ; rappel IDN central web sans aucun cookie ni jeton porteur, la session ne passant que par le jeton à usage unique (revue CH-815 A1b, constat F1).
+// Dupliqué de socle/convex/betterAuth/auth.ts @ ad2e7fdc2 — adaptations : PA4, IDN avec PKCE et preuve serveur minimale, comptes légers par OTP e-mail/SMS, aucune route de mot de passe ; origines du catalogue et de l'environnement ; session sept jours et JWT trente minutes avec sessionId contrôlé côté serveur ; OTT trois minutes ; délivrance locale bornée ou transport configuré, erreurs et limitation de débit du moteur ; refus ou abandon chez IDN renvoyé à la porte de départ de confiance (issue #122) ; refus de débit porteur du délai restant, `retryAfterMs` et `Retry-After` (EA-08, issue #151) ; preuve de session IDN scellée avec l'application où la session est livrée, prise de l'état OAuth enregistré au départ (ADR-0042, CH-815) ; rappel IDN central web sans aucun cookie ni jeton porteur, la session ne passant que par le jeton à usage unique (revue CH-815 A1b, constat F1) ; routes `check-verification-otp` et `verify-email` du greffon e-mail fermées pour toutes les adresses, et garde de la porte des comptes de démonstration sur l'envoi du code et la connexion de sa famille d'adresses, avant les seaux (CH-817 E5, constat 1) ; surface des routes classée route par route (`AUTH_ROUTE_SURFACE`), figée par le cliquet `authSurface.test.ts` (CH-817 E5) ; routes du cœur `/sign-in/social` et `/callback/:id`, où `generic-oauth` inscrit IDN, fermées pour tous : IDN n'entre que par `/sign-in/oauth2` et son rappel central (CH-817 E5, écart du cliquet).
 /**
  * Better Auth du moteur — l'émetteur UNIQUE des jetons Convex (ADR-0002).
  *
@@ -16,10 +16,12 @@ import { bearer, emailOTP, genericOAuth, oneTimeToken, phoneNumber } from "bette
 import { idn } from "@idn-ga/better-auth"
 
 import { BRAND_NAME } from "@antsia/social-contracts/brand"
+import { DEMO_GATE_TOKEN_HEADER, DEMO_GATE_TOKEN_PATTERN, type DemoGateScope } from "@antsia/social-contracts/demoGate"
 
 import { components, internal } from "../_generated/api"
 import type { DataModel } from "../_generated/dataModel"
 import authConfig from "../auth.config"
+import { demoGateDigest, demoGateGoverns, demoGateSecret, demoGateState } from "../lib/demoGate"
 import { devToolsAllowed } from "../lib/devTools"
 import { deliverOtp, type OtpRequest } from "./delivery"
 import { idnRefusalReturn } from "./idnRefusalReturn"
@@ -69,23 +71,180 @@ function canRunMutation(ctx: unknown): ctx is RunMutationCtx {
   return typeof ctx === "object" && ctx !== null && "runMutation" in ctx && typeof (ctx as RunMutationCtx).runMutation === "function"
 }
 
+type RunQueryCtx = { runQuery: (reference: never, args: never) => Promise<unknown> }
+
+function canRunQuery(ctx: unknown): ctx is RunQueryCtx {
+  return typeof ctx === "object" && ctx !== null && "runQuery" in ctx && typeof (ctx as RunQueryCtx).runQuery === "function"
+}
+
+// CH-817 E5 (relecture de sécurité, constat 1) — la porte des comptes de démonstration verrouillait
+// la LECTURE du code, pas la connexion : un anonyme demandait un code pour une adresse réservée et
+// l'essayait sans jamais le lire, et vidait au passage les seaux par adresse des invités. Porte
+// `gated` ou `unavailable`, l'envoi du code (tout type) et la connexion d'une adresse de la famille
+// de la portée exigent l'en-tête `DEMO_GATE_TOKEN_HEADER` d'une session de porte valide. Ni greffon,
+// ni route, ni table (ADR-0029) : la garde ne fait que refuser ; porte `closed` (production) ou
+// `open`, elle ne s'applique pas.
+export const DEMO_GATED_AUTH_PATHS: ReadonlySet<string> = new Set<string>(["/email-otp/send-verification-otp", "/sign-in/email-otp"])
+
+/** La portée de porte qui gouverne cette requête de connexion, ou `null` : la garde ne s'applique pas. */
+function demoGatedScopeOf(hookCtx: { path?: string; body?: unknown }): DemoGateScope | null {
+  if (!DEMO_GATED_AUTH_PATHS.has(hookCtx.path ?? "")) return null
+  const body = hookCtx.body
+  if (typeof body !== "object" || body === null || !("email" in body) || typeof body.email !== "string") return null
+  return demoGateGoverns(body.email)
+}
+
+/**
+ * Admise si et seulement si la porte est `gated`, l'en-tête a la forme d'un jeton et ce jeton ouvre
+ * une session de porte valide pour la portée (`platform/demoGate.sessionAdmits`). L'empreinte se
+ * calcule ICI : le jeton en clair ne passe jamais en argument. `unavailable`, contexte sans
+ * `runQuery`, ou toute erreur : refus.
+ */
+async function demoGateAdmitsSignIn(ctx: unknown, scope: DemoGateScope, headers: Headers | null | undefined): Promise<boolean> {
+  if (demoGateState() !== "gated") return false
+  const token = headers?.get(DEMO_GATE_TOKEN_HEADER) ?? null
+  if (token === null || !DEMO_GATE_TOKEN_PATTERN.test(token)) return false
+  const secret = demoGateSecret()
+  if (secret === null || !canRunQuery(ctx)) return false
+  try {
+    const tokenDigest = await demoGateDigest(secret, "demo-gate-session", token)
+    return (await ctx.runQuery(internal.modules.platform.demoGate.sessionAdmits as never, { scope, tokenDigest } as never)) === true
+  } catch {
+    return false
+  }
+}
+
 // Limitation de débit : avant l'envoi d'un code et avant une connexion. Clé =
 // adresse normalisée ; au-delà du quota, 429 avec le code `rateLimited` et le délai restant.
-const RL_LOGIN_PATHS = new Set<string>(["/sign-in/email-otp", "/phone-number/verify"])
-const RL_OTP_SEND_PATHS = new Set<string>(["/email-otp/send-verification-otp", "/phone-number/send-otp"])
+export const RL_LOGIN_PATHS: ReadonlySet<string> = new Set<string>(["/sign-in/email-otp", "/phone-number/verify"])
+export const RL_OTP_SEND_PATHS: ReadonlySet<string> = new Set<string>(["/email-otp/send-verification-otp", "/phone-number/send-otp"])
 // Les plugins OTP exposent aussi des réinitialisations capables de créer un
 // compte `credential`, même si emailAndPassword.enabled est false.
-const PASSWORD_PATHS = new Set([
+export const PASSWORD_PATHS: ReadonlySet<string> = new Set([
   "/sign-in/email", "/sign-up/email", "/sign-in/phone-number",
   "/request-password-reset", "/reset-password", "/change-password", "/verify-password", "/set-password",
   "/email-otp/request-password-reset", "/email-otp/reset-password", "/forget-password/email-otp",
   "/phone-number/request-password-reset", "/phone-number/reset-password",
 ])
 
-function isPasswordRequest(hookCtx: { path?: string; body?: unknown }): boolean {
+// Routes sans appelant, fermées pour TOUS, production comprise (404 `routeDisabled`, avant tout seau) :
+// une route sans appelant se ferme, elle ne se limite pas. Restriction pure.
+// - CH-817 E5 (relecture de sécurité, constat 1) : deux routes du greffon e-mail qu'aucune application
+//   n'appelle (elles n'envoient que `sign-in`). `check-verification-otp` échappait au seau de connexion
+//   (trois essais par code, autant de codes qu'en permet l'envoi) ; `verify-email` consommait un code
+//   hors de toute connexion.
+// - CH-817 E5 (écart relevé par le cliquet `authSurface.test.ts`) : avec IDN, `generic-oauth` inscrit IDN
+//   parmi les fournisseurs sociaux du cœur. `/sign-in/social` partait chez IDN sans `prompt=login` ni
+//   crochet natif de départ ; `/callback/:id` pouvait ouvrir une session IDN hors des crochets du rappel
+//   central (sans cookie, retour natif lié à S256, retour de refus). Aucune application ne les appelle :
+//   toutes partent par `/sign-in/oauth2`, et le client IDN n'a pour retour que `/oauth2/callback/idn`.
+//   Le crochet voit le GABARIT de la route (`endpoint.path`, Better Auth 1.6) : une requête `/callback/idn`
+//   y arrive sous `/callback/:id` ; l'égalité exacte ne vise pas `/oauth2/callback/:providerId`.
+export const DISABLED_ROUTE_PATHS: ReadonlySet<string> = new Set<string>([
+  "/email-otp/check-verification-otp", "/email-otp/verify-email",
+  "/sign-in/social", "/callback/:id",
+])
+
+export function isPasswordRequest(hookCtx: { path?: string; body?: unknown }): boolean {
   const path = hookCtx.path ?? ""
   if (PASSWORD_PATHS.has(path) || path.startsWith("/reset-password/")) return true
   return path === "/email-otp/send-verification-otp" && typeof hookCtx.body === "object" && hookCtx.body !== null && "type" in hookCtx.body && hookCtx.body.type === "forget-password"
+}
+
+/** Un seau par adresse de `checkAuthRateLimit` (`modules/platform/authRateLimit`), choisi par le crochet des seaux. */
+export type AuthRateBucket = "auth.login" | "auth.otp.send"
+
+/**
+ * Le classement d'une route : `closed` (404 des crochets : `password` = `isPasswordRequest`,
+ * `routeDisabled` = `DISABLED_ROUTE_PATHS`), `demoGated` (garde de la porte puis seau), `rateLimited`
+ * (seau par adresse), `sessionRequired` (intergiciel de session de Better Auth, ou contrôle dans le
+ * gestionnaire), `serverOnly` (`metadata.SERVER_ONLY` : le routeur ne l'expose pas), `public`
+ * (justification écrite).
+ */
+export type AuthRouteClassification =
+  | { kind: "closed"; by: "password" | "routeDisabled"; reason: string }
+  | { kind: "demoGated"; bucket: AuthRateBucket; reason: string }
+  | { kind: "rateLimited"; bucket: AuthRateBucket; reason: string }
+  | { kind: "sessionRequired"; guard: "middleware" | "handler"; reason: string }
+  | { kind: "serverOnly"; reason: string }
+  | { kind: "public"; reason: string }
+
+/**
+ * CH-817 E5 — la surface d'authentification FIGÉE : chaque chemin de l'instance Better Auth (tous les
+ * greffons, IDN configuré), avec sa classe et sa raison. Les crochets n'en lisent rien : la garde, les
+ * fermetures et les seaux visent une liste fixe de chemins. Le cliquet `authSurface.test.ts` énumère
+ * les routes de l'instance RÉELLE et échoue si une route n'est pas classée ici, si une ligne n'a plus
+ * de route, ou si une classe ne correspond pas aux ensembles ci-dessus. Une mise à jour de Better Auth
+ * qui ajouterait une façon d'obtenir ou de vérifier un code, ou de se connecter, ne passe donc plus à
+ * côté de la porte : elle arrête le cliquet jusqu'à ce qu'on la classe.
+ */
+export const AUTH_ROUTE_SURFACE: Readonly<Record<string, AuthRouteClassification>> = {
+  // Cœur de Better Auth.
+  // `generic-oauth` inscrit IDN parmi les fournisseurs sociaux (seul fournisseur, vérifié par le cliquet) :
+  // ces deux routes du cœur atteignaient IDN hors des crochets liés à `/sign-in/oauth2` et
+  // `/oauth2/callback/...`. Les classer `public` était faux (le cliquet l'a montré) : fermées (CH-817 E5).
+  "/sign-in/social": { kind: "closed", by: "routeDisabled", reason: "Départ IDN du cœur (`provider: \"idn\"`) : partait SANS `prompt=login` ni crochet natif de départ ; aucune application ne l'appelle (toutes passent par `/sign-in/oauth2`)." },
+  "/callback/:id": { kind: "closed", by: "routeDisabled", reason: "Rappel du cœur (`id` « idn ») : ouvrait une session IDN hors des crochets du rappel central (sans cookie, retour natif, refus) ; IDN ne renvoie qu'à `/oauth2/callback/idn`." },
+  "/get-session": { kind: "public", reason: "Relit la session présentée ; sans session, rend null. N'émet ni code ni session." },
+  "/sign-out": { kind: "public", reason: "Ferme la session présentée ; sans session, sans effet." },
+  "/sign-up/email": { kind: "closed", by: "password", reason: "Inscription par mot de passe : aucune route de mot de passe dans le moteur." },
+  "/sign-in/email": { kind: "closed", by: "password", reason: "Connexion par mot de passe : aucune route de mot de passe dans le moteur." },
+  "/reset-password": { kind: "closed", by: "password", reason: "Réinitialisation de mot de passe : créerait un compte `credential`." },
+  "/verify-password": { kind: "closed", by: "password", reason: "Vérification de mot de passe : aucun mot de passe n'existe." },
+  "/verify-email": { kind: "public", reason: "Jeton JWT signé du secret, émis par le seul envoi de vérification (aucun expéditeur, vérifié) ; aucune connexion automatique (vérifié)." },
+  "/send-verification-email": { kind: "public", reason: "Aucun expéditeur `emailVerification.sendVerificationEmail` (vérifié par le cliquet) : la route refuse, rien ne part." },
+  "/change-email": { kind: "sessionRequired", guard: "middleware", reason: "Session sensible exigée ; `user.changeEmail` n'est pas activé (vérifié par le cliquet)." },
+  "/change-password": { kind: "closed", by: "password", reason: "Changement de mot de passe : aucun mot de passe n'existe." },
+  "/update-session": { kind: "sessionRequired", guard: "middleware", reason: "Met à jour les champs de la session présentée." },
+  "/update-user": { kind: "sessionRequired", guard: "middleware", reason: "Met à jour l'utilisateur de la session ; ni courriel ni mot de passe." },
+  "/delete-user": { kind: "sessionRequired", guard: "middleware", reason: "Session sensible exigée ; `user.deleteUser` n'est pas activé (vérifié par le cliquet)." },
+  "/request-password-reset": { kind: "closed", by: "password", reason: "Demande de réinitialisation de mot de passe." },
+  "/reset-password/:token": { kind: "closed", by: "password", reason: "Lien de réinitialisation de mot de passe (préfixe `/reset-password/`)." },
+  "/list-sessions": { kind: "sessionRequired", guard: "middleware", reason: "Liste les sessions de l'utilisateur présent." },
+  "/revoke-session": { kind: "sessionRequired", guard: "middleware", reason: "Révoque une session de l'utilisateur présent." },
+  "/revoke-sessions": { kind: "sessionRequired", guard: "middleware", reason: "Révoque toutes les sessions de l'utilisateur présent (se déconnecter partout)." },
+  "/revoke-other-sessions": { kind: "sessionRequired", guard: "middleware", reason: "Révoque les autres sessions de l'utilisateur présent." },
+  "/link-social": { kind: "sessionRequired", guard: "middleware", reason: "Lie un fournisseur social (IDN seul, inscrit par `generic-oauth`) au compte présent." },
+  "/list-accounts": { kind: "sessionRequired", guard: "middleware", reason: "Liste les comptes liés de l'utilisateur présent." },
+  "/delete-user/callback": { kind: "sessionRequired", guard: "handler", reason: "Suppression non activée (404) ; sinon session et jeton exigés par le gestionnaire." },
+  "/unlink-account": { kind: "sessionRequired", guard: "middleware", reason: "Délie un compte de l'utilisateur présent (session fraîche)." },
+  "/refresh-token": { kind: "sessionRequired", guard: "handler", reason: "Jeton du fournisseur : le gestionnaire refuse toute requête HTTP sans session (401)." },
+  "/get-access-token": { kind: "sessionRequired", guard: "handler", reason: "Jeton du fournisseur : le gestionnaire refuse toute requête HTTP sans session (401)." },
+  "/account-info": { kind: "sessionRequired", guard: "handler", reason: "Profil du fournisseur : le gestionnaire refuse toute requête HTTP sans session (401)." },
+  // Greffon `convex` : les JWT Convex.
+  "/convex/.well-known/openid-configuration": { kind: "public", reason: "Découverte OpenID des JWT Convex : métadonnées publiques, n'émet rien." },
+  "/convex/jwks": { kind: "public", reason: "Clés PUBLIQUES de vérification des JWT Convex." },
+  "/convex/latest-jwks": { kind: "serverOnly", reason: "Réservée au serveur (`SERVER_ONLY`) : le routeur ne l'expose pas (vérifié : 404)." },
+  "/convex/rotate-keys": { kind: "serverOnly", reason: "Réservée au serveur (`SERVER_ONLY`) : le routeur ne l'expose pas (vérifié : 404)." },
+  "/convex/token": { kind: "sessionRequired", guard: "middleware", reason: "Émet le JWT Convex de la session présentée (trente minutes)." },
+  // Greffons `oneTimeToken` et `crossDomain` (la vérification du second, même clé, est remplacée par celle du premier).
+  "/one-time-token/verify": { kind: "public", reason: "OUVRE UNE SESSION sans seau ni porte : jeton aléatoire de 32 caractères émis à une session, trois minutes, usage unique." },
+  "/one-time-token/generate": { kind: "sessionRequired", guard: "middleware", reason: "Émet le jeton de passage de la session présentée." },
+  // Greffon `engine-native-idn`.
+  "/native-idn/exchange": { kind: "public", reason: "OUVRE UNE SESSION sans seau : code de 43 caractères déposé par le rappel IDN, 90 s, usage unique, lié à un vérificateur S256." },
+  // Greffon `generic-oauth` (IDN seulement, quand il est configuré).
+  "/sign-in/oauth2": { kind: "public", reason: "Départ vers IDN : rend l'URL d'autorisation (état et PKCE enregistrés), aucune session ; la personne s'authentifie chez IDN." },
+  "/oauth2/callback/:providerId": { kind: "public", reason: "OUVRE UNE SESSION sans seau : état OAuth enregistré au départ (usage unique), code échangé chez IDN avec secret client et PKCE." },
+  "/oauth2/link": { kind: "sessionRequired", guard: "middleware", reason: "Lie IDN au compte présent (rattachement explicite)." },
+  // Greffon `email-otp`.
+  "/email-otp/send-verification-otp": { kind: "demoGated", bucket: "auth.otp.send", reason: "Envoi du code : garde de la porte, disponibilité, seau d'envoi ; le type `forget-password` est fermé (mot de passe)." },
+  "/email-otp/check-verification-otp": { kind: "closed", by: "routeDisabled", reason: "Échappait au seau de connexion (trois essais par code) ; aucune application ne l'appelle." },
+  "/email-otp/verify-email": { kind: "closed", by: "routeDisabled", reason: "Consommait un code hors de toute connexion ; aucune application ne l'appelle." },
+  "/sign-in/email-otp": { kind: "demoGated", bucket: "auth.login", reason: "Connexion par code e-mail : garde de la porte, puis seau de connexion par adresse." },
+  "/email-otp/request-password-reset": { kind: "closed", by: "password", reason: "Réinitialisation par code : créerait un compte `credential`." },
+  "/forget-password/email-otp": { kind: "closed", by: "password", reason: "Réinitialisation par code (ancien chemin) : créerait un compte `credential`." },
+  "/email-otp/reset-password": { kind: "closed", by: "password", reason: "Réinitialisation par code : créerait un compte `credential`." },
+  "/email-otp/request-email-change": { kind: "sessionRequired", guard: "middleware", reason: "Session sensible exigée ; `changeEmail` du greffon n'est pas activé (vérifié par le cliquet)." },
+  "/email-otp/change-email": { kind: "sessionRequired", guard: "middleware", reason: "Session sensible exigée ; `changeEmail` du greffon n'est pas activé (vérifié par le cliquet)." },
+  // Greffon `phone-number`.
+  "/sign-in/phone-number": { kind: "closed", by: "password", reason: "Connexion par téléphone et mot de passe : aucun mot de passe n'existe." },
+  "/phone-number/send-otp": { kind: "rateLimited", bucket: "auth.otp.send", reason: "Envoi du code SMS : disponibilité du relais, puis seau d'envoi par numéro." },
+  "/phone-number/verify": { kind: "rateLimited", bucket: "auth.login", reason: "Connexion ou inscription par code SMS : seau de connexion par numéro." },
+  "/phone-number/request-password-reset": { kind: "closed", by: "password", reason: "Réinitialisation par SMS : créerait un compte `credential`." },
+  "/phone-number/reset-password": { kind: "closed", by: "password", reason: "Réinitialisation par SMS : créerait un compte `credential`." },
+  // Routes de service.
+  "/ok": { kind: "public", reason: "Sonde de disponibilité : rend `{ ok: true }`." },
+  "/error": { kind: "public", reason: "Page d'erreur rendue au navigateur, sans donnée." },
 }
 
 /** L'origine et la langue de la requête qui demande un code ; l'origine de `createAuth` à défaut d'en-têtes. */
@@ -129,6 +288,26 @@ const rateLimitPlugin = (ctx: GenericCtx<DataModel>): BetterAuthPlugin => ({
         matcher: isPasswordRequest,
         handler: createAuthMiddleware(async () => {
           throw new APIError("NOT_FOUND", { message: "passwordSignInDisabled", code: "passwordSignInDisabled" })
+        }),
+      },
+      {
+        // Juste après les mots de passe, avant tout seau : la route n'existe pas, rien n'est compté.
+        matcher: (hookCtx) => DISABLED_ROUTE_PATHS.has(hookCtx.path ?? ""),
+        handler: createAuthMiddleware(async () => {
+          throw new APIError("NOT_FOUND", { message: "routeDisabled", code: "routeDisabled" })
+        }),
+      },
+      {
+        // Garde de la porte des comptes de démonstration (CH-817 E5) : après les routes fermées, AVANT
+        // la disponibilité de l'envoi et les seaux par adresse — un refus n'entame ni seau ni code.
+        matcher: (hookCtx) => demoGatedScopeOf(hookCtx) !== null,
+        handler: createAuthMiddleware(async (hookCtx) => {
+          const scope = demoGatedScopeOf(hookCtx)
+          if (scope !== null && await demoGateAdmitsSignIn(ctx, scope, hookCtx.headers)) return
+          // Refus INDISTINCT, sans seau ni écriture : l'envoi répond comme un envoi réel (aucun code
+          // ne part, aucun n'est enregistré), la connexion comme un code faux.
+          if (hookCtx.path === "/email-otp/send-verification-otp") return hookCtx.json({ success: true })
+          throw new APIError("BAD_REQUEST", { code: "INVALID_OTP", message: "Invalid OTP" })
         }),
       },
       {

@@ -76,3 +76,13 @@ describe("avis de gouvernance d'une page (PG-01)", () => {
     expect(notificationResolutionPrefix("page_signatory_invite", { kind: "page", id: "p1" })).toBe("page_signatory_invite|page:p1|")
   })
 })
+
+describe("message à deux (IC-09)", () => {
+  it("un genre du domaine commun, SANS sujet : la clé tient à l'expéditeur, donc au fil de la paire", () => {
+    expect((NOTIFICATION_KINDS as readonly string[]).includes("personal_message")).toBe(true)
+    expect(notificationDedupKey("personal_message", null, "awa")).toBe("personal_message|-|awa")
+    // Deux expéditeurs, deux fils, deux lignes ; le même expéditeur, une seule.
+    expect(notificationDedupKey("personal_message", null, "awa")).not.toBe(notificationDedupKey("personal_message", null, "bob"))
+    expect(notificationDedupKey("personal_message", null, "awa")).not.toBe(notificationDedupKey("group_message", null, "awa"))
+  })
+})

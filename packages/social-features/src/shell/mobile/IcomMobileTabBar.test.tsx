@@ -1,4 +1,4 @@
-// Réécrit d'après socle/packages/agent-features/src/features/messagerie/IcomMobileTabBar.test.tsx @ ad2e7fdc2 — le menu principal de l'espace agent n'existe plus : le premier emplacement est un LIEN fixe vers l'accueil du réseau (le cas « Menu fixe pendant que le niveau de droite bascule » devient « Menu fixe qui ramène à l'accueil, briques défilantes ») ; montage dans l'enveloppe du moteur (routeur, routes et i18n réels) au lieu de simuler le routage, `@antsia/ui` et le chrome de l'espace ; cas ajoutés — adresses injectées, pastilles et leur phrase, repères DOM et seuil mobile.
+// Réécrit d'après socle/packages/agent-features/src/features/messagerie/IcomMobileTabBar.test.tsx @ ad2e7fdc2 — le menu principal de l'espace agent n'existe plus : le premier emplacement est un LIEN fixe vers l'accueil du réseau (le cas « Menu fixe pendant que le niveau de droite bascule » devient « Menu fixe qui ramène à l'accueil, briques défilantes ») ; montage dans l'enveloppe du moteur (routeur, routes et i18n réels) au lieu de simuler le routage, `@antsia/ui` et le chrome de l'espace ; cas ajoutés — adresses injectées, pastilles et leur phrase, repères DOM et seuil mobile ; CH-817 — iAppel absent quand l'application ne propose pas d'appel.
 // @vitest-environment jsdom
 
 import { screen, within } from "@testing-library/react"
@@ -67,6 +67,24 @@ describe("IcomMobileTabBar", () => {
     const appels = screen.getByRole("link", { name: /iAppel.*3 messages vocaux non écoutés/ })
     expect(appels.querySelector(".rm-tab-badge")?.textContent).toBe("3")
     expect(screen.getByRole("link", { name: /iChat.*2 messages non lus/ })).toBeTruthy()
+  })
+
+  it("CH-817 : une application sans appels ne montre pas iAppel — les autres briques et leurs adresses restent", () => {
+    renderWithEngine(<IcomMobileTabBar active="ichat" badges={{ unheardVoicemails: 3 }} />, { callsAvailable: false })
+    const briques = within(screen.getByRole("group", { name: "Sous-menus iCom" }))
+    expect(briques.getAllByRole("link").map((lien) => lien.querySelector(".rm-tab-label")?.textContent)).toEqual(["iChat", "Statuts", "Relations"])
+    expect(briques.queryByRole("link", { name: /iAppel/ })).toBeNull()
+    // Aucune pastille d'une brique absente, et aucun lien vers elle.
+    expect(screen.queryByText(/messages vocaux non écoutés/)).toBeNull()
+    expect(document.querySelector('a[href="/messages?brique=iappel"]')).toBeNull()
+    expect(briques.getByRole("link", { name: /Relations/ }).getAttribute("href")).toBe("/messages?brique=icontact")
+  })
+
+  it("CH-817 : appels proposés (déclaration vraie), la barre est celle d'avant", () => {
+    renderWithEngine(<IcomMobileTabBar active="iappel" badges={{}} />, { callsAvailable: true })
+    const briques = within(screen.getByRole("group", { name: "Sous-menus iCom" }))
+    expect(briques.getAllByRole("link")).toHaveLength(4)
+    expect(briques.getByRole("link", { name: /iAppel/ }).getAttribute("aria-current")).toBe("page")
   })
 
   it("porte les repères mesurés par les surfaces flottantes et ne se montre qu'au téléphone", () => {

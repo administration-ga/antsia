@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/messagerie/icom-dock.test.ts @ ad2e7fdc2 — adaptations : les libellés sont des CLÉS — ils sont lus par l'instance i18n du moteur (français) avant d'être comparés ; un cas ajouté : chaque clé existe dans les deux langues ; le reste tel quel.
+// Dupliqué de socle/packages/agent-features/src/features/messagerie/icom-dock.test.ts @ ad2e7fdc2 — adaptations : les libellés sont des CLÉS — ils sont lus par l'instance i18n du moteur (français) avant d'être comparés ; un cas ajouté : chaque clé existe dans les deux langues ; le reste tel quel. ; CH-817 : onglets montrés et onglet servi selon les appels proposés (`visibleIcomDockTabs`, `servedIcomDockTab`).
 import { describe, expect, it } from "vitest"
 
 import { createAppI18n } from "../../i18n"
@@ -9,6 +9,8 @@ import {
   icomDockBody,
   icomTabsVisible,
   normalizeIcomDockTab,
+  servedIcomDockTab,
+  visibleIcomDockTabs,
 } from "./icom-dock"
 
 const fr = createAppI18n({ locale: "fr", appResources: { fr: {}, en: {} }, defaultNS: "messagerie" })
@@ -93,6 +95,27 @@ describe("icomDockBody — la vue prime sur l'onglet", () => {
     // dans les URLs et les préférences.
     const tab = ICOM_DOCK_TABS.find((t) => t.id === "icontact")
     expect(tab === undefined ? undefined : fr.t(tab.labelKey)).toBe("Relations")
+  })
+})
+
+describe("CH-817 — iAppel n'est un onglet que si l'application propose des appels", () => {
+  it("appels proposés (antsia.ga) : les quatre briques, inchangées", () => {
+    expect(visibleIcomDockTabs({ callsAvailable: true }).map((tab) => tab.id)).toEqual(["ichat", "actus", "iappel", "icontact"])
+    expect(servedIcomDockTab("iappel", true)).toBe("iappel")
+  })
+
+  it("appels fermés : iAppel quitte la barre, les autres gardent leur ordre", () => {
+    expect(visibleIcomDockTabs({ callsAvailable: false }).map((tab) => tab.id)).toEqual(["ichat", "actus", "icontact"])
+  })
+
+  it("sous destinations, Statuts reste retiré — avec ou sans appels", () => {
+    expect(visibleIcomDockTabs({ callsAvailable: true, destinations: true }).map((tab) => tab.id)).toEqual(["ichat", "iappel", "icontact"])
+    expect(visibleIcomDockTabs({ callsAvailable: false, destinations: true }).map((tab) => tab.id)).toEqual(["ichat", "icontact"])
+  })
+
+  it("un iAppel demandé, appels fermés, retombe sur iChat ; les autres briques ne bougent pas", () => {
+    expect(servedIcomDockTab("iappel", false)).toBe(ICOM_DOCK_TAB_DEFAULT)
+    for (const tab of ["ichat", "actus", "icontact"] as const) expect(servedIcomDockTab(tab, false)).toBe(tab)
   })
 })
 

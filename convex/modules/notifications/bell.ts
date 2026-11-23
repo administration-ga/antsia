@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/modules/reseauPersonnel/notifications.ts (l. 255-499) @ ad2e7fdc2 — adaptations : personnes et réseaux (la cloche d'un réseau) ; `myNotifications` à curseur temporel (qui LEVAIT à égalité de date, D18) non recopiée, la pagination native `paginateNotifications` la remplace ; `unreadCount` rend sa lacune (`capped`, D19) ; `markAllRead` lit l'index jusqu'à la date du clic au lieu d'un `.filter()` ; sujet rendu en `{ kind, id }` avec l'état VIVANT d'une demande de relation et d'une analyse de fichier ; acteur par le mini-profil publié (badges compris) ; la PAGE d'un `page_post` par sa carte publique relue (nom, badge calculé — lot F2) ; débit sur les marquages ; filtre « non lues » servi par l'index des non-lues (`unreadOnly`, NP-04, issue #149).
+// Dupliqué de socle/convex/modules/reseauPersonnel/notifications.ts (l. 255-499) @ ad2e7fdc2 — adaptations : personnes et réseaux (la cloche d'un réseau) ; `myNotifications` à curseur temporel (qui LEVAIT à égalité de date, D18) non recopiée, la pagination native `paginateNotifications` la remplace ; `unreadCount` rend sa lacune (`capped`, D19) ; `markAllRead` lit l'index jusqu'à la date du clic au lieu d'un `.filter()` ; sujet rendu en `{ kind, id }` avec l'état VIVANT d'une demande de relation et d'une analyse de fichier ; acteur par le mini-profil publié (badges compris) ; la PAGE d'un `page_post` par sa carte publique relue (nom, badge calculé — lot F2) ; débit sur les marquages ; filtre « non lues » servi par l'index des non-lues (`unreadOnly`, NP-04, issue #149) ; IC-09 : destination typée (`personalThread`) des avis `personal_message`, qui quittent la liste et le décompte quand leur fil ne se lit plus.
 /**
  * La cloche d'un réseau, côté lecteur : lister, compter, marquer lu.
  *
@@ -118,8 +118,8 @@ async function toDto(ctx: Pick<QueryCtx, "db" | "storage">, me: Id<"persons">, r
     ...(isDiasporaCommunityNotificationKind(row.kind) ? { communityNotice: await communityNoticeView(ctx, row) } : {}),
     // P14B : destination typée relue (avis commerce, décision de modération) ; SU01d : avis au déclarant ;
     // PG-01 : la page d'un avis de gouvernance (invitation à signer, revendication tranchée) ;
-    // NP-04 : la fiche du groupe d'une invitation.
-    ...(isCommerceNotificationKind(row.kind) || row.kind === "moderation_decision" || isReporterNoticeKind(row.kind) || isContextualNotificationKind(row.kind) || isPageGovernanceNoticeKind(row.kind) || row.kind === "thematic_group_invite" ? { target: await notificationOpenTargetOf(ctx, row) } : {}),
+    // NP-04 : la fiche du groupe d'une invitation ; IC-09 : la conversation à deux d'un message.
+    ...(isCommerceNotificationKind(row.kind) || row.kind === "moderation_decision" || isReporterNoticeKind(row.kind) || isContextualNotificationKind(row.kind) || isPageGovernanceNoticeKind(row.kind) || row.kind === "thematic_group_invite" || row.kind === "personal_message" ? { target: await notificationOpenTargetOf(ctx, row) } : {}),
   }
 }
 
@@ -150,6 +150,8 @@ export const paginateNotifications = networkQuery({
       if (isCommerceNotificationKind(row.kind) && !(await notificationStillVisible(ctx, row))) continue
       // CC-2b : un avis contextuel dont le fil ne se lit plus (rôle retiré, sortie, blocage, fil purgé) ne se présente plus.
       if (isContextualNotificationKind(row.kind) && !(await notificationStillVisible(ctx, row))) continue
+      // IC-09 : un message à deux dont le fil ne se lit plus (blocage, fil fermé, expéditeur effacé) ne se présente plus.
+      if (row.kind === "personal_message" && !(await notificationStillVisible(ctx, row))) continue
       // MD-07 : un avis de décision dont le dossier ne se montre plus à son auteur (classement annoncé avant le correctif) ne se présente plus.
       if (await moderationNoticeWithdrawn(ctx, row)) continue
       page.push(await toDto(ctx, ctx.person._id, row, caches))
@@ -180,6 +182,8 @@ export const unreadCount = networkQuery({
     for (const row of unread) if (isCommerceNotificationKind(row.kind) && !(await notificationStillVisible(ctx, row))) visible -= 1
     // CC-2b : de même pour les avis contextuels dont le fil ne se lit plus.
     for (const row of unread) if (isContextualNotificationKind(row.kind) && !(await notificationStillVisible(ctx, row))) visible -= 1
+    // IC-09 : de même pour les messages à deux dont le fil ne se lit plus.
+    for (const row of unread) if (row.kind === "personal_message" && !(await notificationStillVisible(ctx, row))) visible -= 1
     // MD-07 : de même pour un avis de décision dont le dossier ne se montre plus à son auteur.
     for (const row of unread) if (await moderationNoticeWithdrawn(ctx, row)) visible -= 1
     return { count: Math.min(visible, NOTIFICATION_UNREAD_CAP), capped: visible > NOTIFICATION_UNREAD_CAP,

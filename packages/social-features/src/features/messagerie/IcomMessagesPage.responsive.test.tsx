@@ -6,6 +6,8 @@ import type { MessagerieNav } from "./messagerie-views"
 
 const state = vi.hoisted(() => ({ adaptive: true, wide: false, mounts: 0, push: vi.fn(), replace: vi.fn(), register: vi.fn(() => vi.fn()) }))
 vi.mock("@antsia/api/network", () => ({
+  // CH-817 : la page lit la déclaration d'appels de l'application (proposés, comme antsia.ga).
+  useCallsAvailable: () => true,
   useNetwork: () => ({ networkId: "network-a", personId: "person-a" }),
   useNetworkNavigationLayout: () => ({ adaptive: state.adaptive, mobile: false }),
   useRoutes: () => ({ home: () => "/fil", messages: () => "/messages", me: () => "/moi" }),

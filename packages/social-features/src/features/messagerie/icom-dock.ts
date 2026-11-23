@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/messagerie/icom-dock.ts @ ad2e7fdc2 — adaptations : libellés des briques sortis du module — `IcomDockTab` porte des CLÉS qualifiées (`labelKey`, `descriptionKey`, espace `messagerie`) au lieu de phrases ; description des Statuts réécrite (le moteur n'a plus de « surface iCom » des stories) ; doc : renvois au hub `/icom` et à l'annuaire institutionnel de l'espace de poste retirés.
+// Dupliqué de socle/packages/agent-features/src/features/messagerie/icom-dock.ts @ ad2e7fdc2 — adaptations : libellés des briques sortis du module — `IcomDockTab` porte des CLÉS qualifiées (`labelKey`, `descriptionKey`, espace `messagerie`) au lieu de phrases ; description des Statuts réécrite (le moteur n'a plus de « surface iCom » des stories) ; doc : renvois au hub `/icom` et à l'annuaire institutionnel de l'espace de poste retirés. ; CH-817 (diverge du socle) : sans appels déclarés par l'application (`useCallsAvailable()`), iAppel n'est plus un onglet (`visibleIcomDockTabs`) et un onglet iAppel demandé retombe sur iChat (`servedIcomDockTab`).
 /**
  * iCom — quels onglets, et quand ils se montrent.
  *
@@ -71,6 +71,32 @@ export function normalizeIcomDockTab(value: string | null | undefined): IcomDock
   return (ICOM_DOCK_TAB_IDS as readonly string[]).includes(value ?? "")
     ? (value as IcomDockTabId)
     : ICOM_DOCK_TAB_DEFAULT
+}
+
+/** Ce que l'application déclare et qui décide des onglets montrés. */
+export interface IcomTabsOptions {
+  /**
+   * CH-817 : l'application propose-t-elle des appels (`useCallsAvailable()`) ? Non : iAppel
+   * n'est pas un onglet — un onglet qui ne mène qu'à des gestes retirés serait une porte vide.
+   */
+  callsAvailable: boolean
+  /** Navigation par destinations (ANTSIA) : les Statuts restent atteignables depuis le fil. */
+  destinations?: boolean
+}
+
+/** Les onglets MONTRÉS, dans l'ordre de `ICOM_DOCK_TABS` — jamais un onglet sans objet. */
+export function visibleIcomDockTabs(options: IcomTabsOptions): readonly IcomDockTab[] {
+  return ICOM_DOCK_TABS.filter(
+    (tab) => (options.callsAvailable || tab.id !== "iappel") && (options.destinations !== true || tab.id !== "actus"),
+  )
+}
+
+/**
+ * L'onglet réellement SERVI. CH-817 : appels fermés, un iAppel demandé (lien profond, état
+ * repris) retombe sur iChat — jamais une brique d'appels que la barre ne montre pas.
+ */
+export function servedIcomDockTab(tab: IcomDockTabId, callsAvailable: boolean): IcomDockTabId {
+  return tab === "iappel" && !callsAvailable ? ICOM_DOCK_TAB_DEFAULT : tab
 }
 
 /**
