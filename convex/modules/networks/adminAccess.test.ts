@@ -20,14 +20,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { api, components, internal } from "../../_generated/api"
 import type { Id } from "../../_generated/dataModel"
 import { SEED_CONFIRMATION } from "../../seeds/foundations"
-import { createTestSession, testConvex } from "../../test.setup"
-import { NETWORK_ADMIN_APPLICATION_KEY } from "../../tests/networkAdminCatalog.fixture"
-
-// L'application d'administration au catalogue (contrat CH-815) : posée tant que l'entrée réelle n'est pas fusionnée.
-vi.mock("../../../deploy/catalog.json", async (importOriginal) => {
-  const { withNetworkAdminApplication } = await import("../../tests/networkAdminCatalog.fixture")
-  return withNetworkAdminApplication(await importOriginal())
-})
+import { createTestSession, NETWORK_ADMIN_APPLICATION, testConvex } from "../../test.setup"
 
 type T = ReturnType<typeof testConvex>
 type As = ReturnType<T["withIdentity"]>
@@ -37,7 +30,7 @@ type Account = Session & { authUserId: string; personId: Id<"persons">; idnSubje
 const NOW = Date.UTC(2026, 10, 23, 10)
 const A = api.modules.networks.adminAccess
 const F = api.modules.networks.features
-const ADMIN_APP = NETWORK_ADMIN_APPLICATION_KEY
+const ADMIN_APP = NETWORK_ADMIN_APPLICATION
 const MEMBERS_APP = "diaspora_ga"
 const CONSOLE_APP = "admin_antsia_ga"
 const REASON = "Ouverture décidée pour le pilote du réseau."

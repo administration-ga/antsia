@@ -71,6 +71,12 @@ export async function createTestSession(t: BackendTest, userId: string, expiresA
 export const OPERATOR_CONSOLE_APPLICATION = "admin_antsia_ga"
 
 /**
+ * ADR-0042 (CH-815) — la clé, au catalogue réel (`deploy/catalog.json`), de l'application qui administre
+ * DIASPORA.GA (`administers_network: "diaspora-ga"`).
+ */
+export const NETWORK_ADMIN_APPLICATION = "admin_diaspora_ga"
+
+/**
  * Fixture explicite PA7 : vraie session, compte IDN, preuve interne et lien vivant. Revue CH-815 F3 :
  * la preuve est scellée pour la console (`application`, par défaut `OPERATOR_CONSOLE_APPLICATION`) ;
  * une autre application, ou `null` (preuve d'avant ADR-0042), n'ouvre pas la console : son accès
@@ -99,7 +105,7 @@ export async function createTestNetworkAdminProof(
   as: ReturnType<BackendTest["withIdentity"]>,
   personId: Id<"persons">,
   networkId: Id<"networks">,
-  { application = "admin_diaspora_ga", loa = 2, logged = true }: { application?: string; loa?: 1 | 2 | 3; logged?: boolean } = {},
+  { application = NETWORK_ADMIN_APPLICATION, loa = 2, logged = true }: { application?: string; loa?: 1 | 2 | 3; logged?: boolean } = {},
 ): Promise<void> {
   await sealTestIdnSession(t, as, personId, loa, application)
   if (logged) await as.mutation(api.modules.networks.adminAccess.recordAccess, { networkId })

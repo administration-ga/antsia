@@ -17,11 +17,7 @@ import { SEED_CONFIRMATION } from "../../seeds/foundations"
 import { createTestNetworkAdminProof, createTestOperatorProof, createTestSession, testConvex } from "../../test.setup"
 
 // ADR-0042 : l'administrateur du réseau règle ses fonctionnalités depuis l'application d'administration
-// (contrat CH-815) ; son entrée au catalogue est posée tant que l'entrée réelle n'est pas fusionnée.
-vi.mock("../../../deploy/catalog.json", async (importOriginal) => {
-  const { withNetworkAdminApplication } = await import("../../tests/networkAdminCatalog.fixture")
-  return withNetworkAdminApplication(await importOriginal())
-})
+// (contrat CH-815), que le catalogue réel déclare (`admin_diaspora_ga`).
 
 type T = ReturnType<typeof testConvex>
 type As = ReturnType<T["withIdentity"]>

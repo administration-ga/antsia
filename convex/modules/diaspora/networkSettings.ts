@@ -28,8 +28,8 @@
  *  fermer est toujours permis. L'écriture fige les réglages (`networks.recordHistory` : sans cette
  *  ligne, l'équipement de démonstration rouvrirait ses pays, `demoAccounts.openDemoCountries`), puis
  *  la ligne du journal `diaspora.country_set`. Sans changement : ni écriture ni ligne. La console
- *  (`networks.update`) reste le repli d'exploitation, sans cette règle. Le pays d'une équipe ne
- *  délimite encore aucune compétence : le routage des signalements reste par nature de contenu.
+ *  (`networks.update`) reste le repli d'exploitation, sans cette règle. Le pays d'une équipe délimite
+ *  sa compétence : le moteur lui adresse les dossiers des contenus de son pays (`moderation/routing`).
  *
  * Garde : `networkAdminQuery` / `networkAdminMutation` (adhésion, rôle relu, session IDN prouvée de
  * l'application qui administre CE réseau, accès journalisé ; refus indistinct sinon). Aucune réponse

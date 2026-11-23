@@ -22,14 +22,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { parseSetCookieHeader } from "better-auth/cookies"
 
 import { api } from "../_generated/api"
-import { OPERATOR_CONSOLE_APPLICATION, testConvex } from "../test.setup"
-import { NETWORK_ADMIN_APPLICATION_KEY } from "../tests/networkAdminCatalog.fixture"
-
-// L'application d'administration au catalogue (contrat CH-815) : posée tant que l'entrée réelle n'est pas fusionnée.
-vi.mock("../../deploy/catalog.json", async (importOriginal) => {
-  const { withNetworkAdminApplication } = await import("../tests/networkAdminCatalog.fixture")
-  return withNetworkAdminApplication(await importOriginal())
-})
+import { NETWORK_ADMIN_APPLICATION, OPERATOR_CONSOLE_APPLICATION, testConvex } from "../test.setup"
 
 type T = ReturnType<typeof testConvex>
 
@@ -178,7 +171,7 @@ describe("ADR-0042 — l'application de la session, prise de l'état OAuth enreg
     // Le jeton à usage unique de la session part vers l'adresse de retour enregistrée, et vers elle seule.
     expect(location.origin).toBe(ADMIN_ORIGIN)
     expect(location.searchParams.get("ott")).toBeTruthy()
-    expect(await proofs(t)).toEqual([{ application: NETWORK_ADMIN_APPLICATION_KEY, loa: 2 }])
+    expect(await proofs(t)).toEqual([{ application: NETWORK_ADMIN_APPLICATION, loa: 2 }])
   })
 
   it("des adresses de retour relatives sont rendues à l'origine de départ (`crossDomain`) : même application", async () => {
@@ -186,7 +179,7 @@ describe("ADR-0042 — l'application de la session, prise de l'état OAuth enreg
     stubIdn("idn-admin-relatif")
     const state = await startFrom(t, ADMIN_ORIGIN, returnURLs("/entrer"))
     expect((await returnFromIdn(t, state)).origin).toBe(ADMIN_ORIGIN)
-    expect(await proofs(t)).toEqual([{ application: NETWORK_ADMIN_APPLICATION_KEY, loa: 2 }])
+    expect(await proofs(t)).toEqual([{ application: NETWORK_ADMIN_APPLICATION, loa: 2 }])
   })
 
   it("un départ de l'application des membres scelle la session pour elle, même si le rappel porte l'origine de l'administration", async () => {
@@ -221,7 +214,7 @@ describe("ADR-0042 — l'application de la session, prise de l'état OAuth enreg
 describe("revue F1 — le rappel central ne pose aucun cookie de session sur l'origine de SITE_URL", () => {
   // SITE_URL de la recette est l'origine d'antsia.ga en développement (`PRIMARY_ORIGIN`, port 3030).
   it.each([
-    ["l'application d'administration", ADMIN_ORIGIN, "/entrer", NETWORK_ADMIN_APPLICATION_KEY],
+    ["l'application d'administration", ADMIN_ORIGIN, "/entrer", NETWORK_ADMIN_APPLICATION],
     ["l'application des membres", MEMBERS_ORIGIN, "/fil", "diaspora_ga"],
     ["l'application servie à SITE_URL elle-même", PRIMARY_ORIGIN, "/fil", "antsia_ga"],
     ["la console du moteur", CONSOLE_ORIGIN, "/entrer", OPERATOR_CONSOLE_APPLICATION],
@@ -272,7 +265,7 @@ describe("revue F2 — une application qui administre un réseau n'est scellée 
     const state = await startFrom(t, MEMBERS_ORIGIN, returnURLs(`${ADMIN_ORIGIN}/entrer`))
     const location = await returnFromIdn(t, state)
     expect(`${location.origin}${location.pathname}`).toBe(`${ADMIN_ORIGIN}/entrer`)
-    expect(await proofs(t)).toEqual([{ application: NETWORK_ADMIN_APPLICATION_KEY, loa: 2 }])
+    expect(await proofs(t)).toEqual([{ application: NETWORK_ADMIN_APPLICATION, loa: 2 }])
   })
 
   it.each([
@@ -335,7 +328,7 @@ describe("revue CH-815 F3 — la console n'est scellée qu'à son entrée exacte
   it.each([
     ["l'application des membres", MEMBERS_ORIGIN, { callbackURL: `${MEMBERS_ORIGIN}/fil` }, "diaspora_ga"],
     ["le site public", PRIMARY_ORIGIN, { callbackURL: `${PRIMARY_ORIGIN}/fil` }, "antsia_ga"],
-    ["l'administration de DIASPORA.GA", ADMIN_ORIGIN, returnURLs(`${ADMIN_ORIGIN}/entrer`), NETWORK_ADMIN_APPLICATION_KEY],
+    ["l'administration de DIASPORA.GA", ADMIN_ORIGIN, returnURLs(`${ADMIN_ORIGIN}/entrer`), NETWORK_ADMIN_APPLICATION],
   ] as const)("le même parcours depuis %s : la session est scellée pour elle et la console la refuse", async (_label, origin, urls, application) => {
     const t = testConvex({ automaticSessions: false })
     stubIdn(`idn-hors-console-${application}`)
@@ -402,14 +395,14 @@ describe("revue CH-815 A1b — une administration servie sur une origine de dém
 
   it("déclarée pour l'application d'administration et de confiance : scellée à son entrée exacte, et là seulement", async () => {
     vi.stubEnv("TRUSTED_ORIGINS", DEMO_ADMIN)
-    vi.stubEnv("APPLICATION_EXTRA_ORIGINS_JSON", JSON.stringify({ [NETWORK_ADMIN_APPLICATION_KEY]: [DEMO_ADMIN] }))
+    vi.stubEnv("APPLICATION_EXTRA_ORIGINS_JSON", JSON.stringify({ [NETWORK_ADMIN_APPLICATION]: [DEMO_ADMIN] }))
     const t = testConvex({ automaticSessions: false })
     stubIdn("idn-demo-declaree")
     const state = await startFrom(t, DEMO_ADMIN, returnURLs(`${DEMO_ADMIN}/entrer`))
     const callback = await callbackFromIdn(t, state)
     expect(callback.setCookies).toEqual([])
     expect(new URL(callback.location ?? "").origin).toBe(DEMO_ADMIN)
-    expect(await proofs(t)).toEqual([{ application: NETWORK_ADMIN_APPLICATION_KEY, loa: 2 }])
+    expect(await proofs(t)).toEqual([{ application: NETWORK_ADMIN_APPLICATION, loa: 2 }])
     stubIdn("idn-demo-autre-chemin")
     await returnFromIdn(t, await startFrom(t, DEMO_ADMIN, returnURLs(`${DEMO_ADMIN}/anything?x=`)))
     expect(await proofs(t)).toEqual(expect.arrayContaining([{ application: undefined, loa: 2 }]))
@@ -424,7 +417,7 @@ describe("revue CH-815 A1b — le rattachement d'un compte IDN (`/oauth2/link`) 
     const ott = (await returnFromIdn(t, state)).searchParams.get("ott")
     if (!ott) throw new Error("Jeton à usage unique absent")
     const stored = await adoptOneTimeToken(t, ADMIN_ORIGIN, ott)
-    expect(await proofs(t)).toEqual([{ application: NETWORK_ADMIN_APPLICATION_KEY, loa: 2 }])
+    expect(await proofs(t)).toEqual([{ application: NETWORK_ADMIN_APPLICATION, loa: 2 }])
 
     const linked = await authRequest(t, "/oauth2/link", { method: "POST", origin: ADMIN_ORIGIN, headers: { "Better-Auth-Cookie": stored }, body: { providerId: "idn", ...returnURLs(`${ADMIN_ORIGIN}/entrer`) } })
     expect(linked.status, linked.body).toBe(200)
@@ -437,6 +430,6 @@ describe("revue CH-815 A1b — le rattachement d'un compte IDN (`/oauth2/link`) 
     expect(destination.searchParams.get("error")).toBeNull()
     expect(destination.searchParams.get("ott")).toBeNull()
     expect(callback.setCookies).toEqual([])
-    expect(await proofs(t)).toEqual([{ application: NETWORK_ADMIN_APPLICATION_KEY, loa: 2 }])
+    expect(await proofs(t)).toEqual([{ application: NETWORK_ADMIN_APPLICATION, loa: 2 }])
   })
 })

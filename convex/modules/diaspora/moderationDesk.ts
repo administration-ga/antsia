@@ -1,23 +1,15 @@
 /**
  * Guichet de modération par pays de DIASPORA.GA (PD6 · G9) — LECTURES seules.
  *
- * - Le moteur ne range pas ses dossiers par pays : cette tranche relit la file
+ * - Le moteur n'indexe pas ses dossiers par pays : cette tranche relit la file
  *   du réseau `diaspora-ga` par fenêtres bornées (index du moteur, curseur opaque
  *   rendu tel quel, une fenêtre filtrée peut être vide et annoncer sa suite) et
- *   ne garde que les dossiers dont la CIBLE porte le pays demandé : publication
- *   (son pays, sinon celui de sa page), commentaire (celui de sa publication),
- *   page, évènement et direct d'une page (DL-03 : ses commentaires, le pays de
- *   la session), avis et réponse d'avis (zone de l'offre, sinon pays de la
- *   page). Vague H (G9) : question d'entraide et sa
- *   réponse (zone de la question), mission (zone de la mission, sinon pays de sa
- *   page), ressource du kit (son pays), offre d'emploi (zone de l'offre, sinon
- *   pays de la page) et candidature (pays de l'offre), profil de mentor ou de
- *   talent (le pays qu'il déclare), demande de mentorat (pays du profil du
- *   mentor). MC-01 : groupe thématique (son pays, sinon celui de sa page
- *   d'association). Les autres natures (compte, messages — message personnel
- *   compris —, statut, album, offre de boutique) ne portent aucun pays : « sans
- *   pays ». Le pays de résidence d'une personne (facette à visibilité choisie)
- *   n'est JAMAIS lu.
+ *   ne garde que les dossiers dont la CIBLE porte le pays demandé. Le pays d'une
+ *   cible se lit dans `diaspora/moderationCountry` (publication, commentaire,
+ *   page, évènement, direct, avis, contenus de la vague H, groupe thématique ;
+ *   les autres natures sont « sans pays ») — la MÊME définition que le routage
+ *   des dossiers du moteur (`moderation/routing`). Le pays de résidence d'une
+ *   personne (facette à visibilité choisie) n'est JAMAIS lu.
  * - Les gardes sont celles du moteur, importées et jamais recopiées :
  *   `teamCapacity` et `requireReportCapacity` (`moderation/cases`), `contentState`
  *   (`moderation/policy`), `livePageTeamRole` (`pages/access`, AS-10 : l'équipe
@@ -44,18 +36,20 @@
  * - Aucune table : depuis CH-815 A3 (ADR-0042), une équipe peut porter un pays
  *   (`moderationTeams.country`, posé par l'administration du réseau, rendu par
  *   `myDesk`) ; il conditionne l'ouverture d'un pays (`networkSettings.setOpenCountry`)
- *   mais ne délimite encore aucune compétence : `moderationTeams.scope` reste une
- *   NATURE de contenu, le pays de la cible filtre la file.
+ *   et, depuis le routage par pays (amendement « Routage des signalements par
+ *   pays »), il délimite la compétence : le moteur adresse le dossier d'un contenu
+ *   à l'équipe de SON pays, puis de sa nature (`moderation/routing`), et la file
+ *   d'une équipe ne porte que ses dossiers ; le filtre par pays reste un tri.
  * - AS-01 : les revendications de page en attente (« Pages à vérifier ») se
  *   relisent ici par fenêtres, filtrées par le pays de la PAGE, avec la garde du
- *   moteur (`pages/claims.pageClaimReviewCapacity` : rôle de réseau, ou membre de
- *   l'équipe de modération vivante compétente pour les pages) ;
+ *   moteur (`pages/claims.pageClaimReviewer` : rôle de réseau, ou membre de
+ *   l'équipe de modération vivante compétente pour la page, celle de son pays) ;
  *   la fiche, les pièces et la décision restent `pages/claims` (`getPageClaim`,
  *   `decidePageClaim`). `party` y dit le conflit d'intérêts : le demandeur, ou
  *   toute personne qui a une ligne de signataire sur la page, même invitée.
  */
 import type { ModerationSurface } from "@antsia/social-domain/moderationPolicy"
-import { isCountryCode, normalizeCountryCode } from "@diaspora-ga/domain"
+import { chooseModerationTeam } from "@antsia/social-domain/moderationRouting"
 import { paginationOptsValidator, type PaginationOptions } from "convex/server"
 import { v } from "convex/values"
 
@@ -68,13 +62,14 @@ import { requireReportCapacity, teamCapacity } from "../moderation/cases"
 import { contentState } from "../moderation/policy"
 import { moderationSurfaceValidator, moderationTargetValidator, sanctionKindValidator } from "../moderation/tables"
 import { livePageTeamRole, pageCardOf, signatoryRowOf } from "../pages/access"
-import { pageClaimReviewCapacity } from "../pages/claims"
+import { pageClaimReviewCapacityFor, pageClaimReviewer } from "../pages/claims"
 import { pageCardValidator } from "../pages/validators"
 import { findPublishedPersonByHandle, livePersonProfile } from "../people/miniProfile"
 import { canHoldNetworkRole, NETWORK_RESPONSIBLE_ROLES, NETWORK_ROLE_HOLDERS_MAX } from "../people/networkRoles"
 import { networkRoleCapacity } from "../platform/audit"
 import { liveThematicGroupMembership } from "../thematicGroups/access"
 import { assertDiasporaNetwork } from "./facts"
+import { moderationCountryCode, moderationTargetFacts, moderationTargetOf, type ModerationTargetFacts } from "./moderationCountry"
 
 type ReadCtx = Pick<QueryCtx, "db">
 /** Le contexte d'une lecture de guichet : celui de `networkQuery` (adhésion relue par le constructeur). */
@@ -87,7 +82,6 @@ type DeskCtx = ReadCtx & {
 }
 type Target = Doc<"reports">["target"]
 type Zone = { readonly kind: "all" } | { readonly kind: "none" } | { readonly kind: "country"; readonly country: string }
-type TargetFacts = { readonly country: string | null; readonly pageIds: readonly Id<"pages">[] }
 type Party = "author" | "reporter" | "page" | "decider" | "group"
 type SignatureCache = Map<string, boolean>
 type TeamNameCache = Map<string, string | null>
@@ -110,8 +104,6 @@ const ROSTER_SCAN = 200
 const HANDLE_INPUT_MAX = 80
 /** Sanctions relues par dossier : le moteur en admet cinq au plus. */
 const SANCTIONS_SCAN = 6
-
-const NO_FACTS: TargetFacts = { country: null, pageIds: [] }
 
 // ── Validateurs ────────────────────────────────────────────────────────────
 
@@ -229,16 +221,10 @@ type ClaimRow = typeof claimValidator.type
 
 // ── Règles de lecture ──────────────────────────────────────────────────────
 
-/** Un code ISO 3166-1 alpha-2 connu, ou `null` (absent ou illisible : « sans pays »). */
-function countryCode(raw: string | undefined): string | null {
-  if (raw === undefined) return null
-  const code = normalizeCountryCode(raw)
-  return isCountryCode(code) ? code : null
-}
 
 function zoneOf(zone: typeof zoneValidator.type): Zone {
   if (zone.kind !== "country") return zone
-  const country = countryCode(zone.country)
+  const country = moderationCountryCode(zone.country)
   return country === null ? fail("invalidArgument", { field: "country" }) : { kind: "country" as const, country }
 }
 
@@ -259,245 +245,6 @@ function boundedWindow(options: PaginationOptions, maximum: number): PaginationO
   }
 }
 
-async function pageFacts(ctx: ReadCtx, networkId: Id<"networks">, pageId: Id<"pages"> | undefined): Promise<TargetFacts> {
-  if (pageId === undefined) return NO_FACTS
-  const page = await ctx.db.get(pageId)
-  if (!page || page.networkId !== networkId) return NO_FACTS
-  return { country: countryCode(page.country), pageIds: [page._id] }
-}
-
-async function postFacts(ctx: ReadCtx, networkId: Id<"networks">, postId: Id<"posts">): Promise<TargetFacts> {
-  const post = await ctx.db.get(postId)
-  if (!post || post.networkId !== networkId) return NO_FACTS
-  const page = await pageFacts(ctx, networkId, post.pageId)
-  return { country: countryCode(post.country) ?? page.country, pageIds: page.pageIds }
-}
-
-async function offerFacts(ctx: ReadCtx, networkId: Id<"networks">, offerId: Id<"serviceOffers">, pageId: Id<"pages">): Promise<TargetFacts> {
-  const offer = await ctx.db.get(offerId)
-  const page = await pageFacts(ctx, networkId, pageId)
-  const zone = offer && offer.networkId === networkId ? countryCode(offer.country) : null
-  return { country: zone ?? page.country, pageIds: page.pageIds }
-}
-
-/** Le pays que porte la cible et les pages dont elle relève — jamais le pays d'une personne. */
-async function targetFacts(ctx: ReadCtx, networkId: Id<"networks">, target: Target): Promise<TargetFacts> {
-  switch (target.kind) {
-    case "post":
-      return await postFacts(ctx, networkId, target.id)
-    case "comment": {
-      const comment = await ctx.db.get(target.id)
-      return comment && comment.networkId === networkId ? await postFacts(ctx, networkId, comment.postId) : NO_FACTS
-    }
-    case "page":
-      return await pageFacts(ctx, networkId, target.id)
-    case "event": {
-      const event = await ctx.db.get(target.id)
-      return event && event.networkId === networkId ? await pageFacts(ctx, networkId, event.organizerPageId) : NO_FACTS
-    }
-    case "live": {
-      const session = await ctx.db.get(target.id)
-      return session && session.networkId === networkId ? await pageFacts(ctx, networkId, session.pageId) : NO_FACTS
-    }
-    // DL-03 : un commentaire de direct porte le pays et les pages de SA session, comme le direct lui-même.
-    case "liveComment": {
-      const comment = await ctx.db.get(target.id)
-      if (!comment || comment.networkId !== networkId) return NO_FACTS
-      const session = await ctx.db.get(comment.sessionId)
-      return session && session.networkId === networkId ? await pageFacts(ctx, networkId, session.pageId) : NO_FACTS
-    }
-    case "serviceReview": {
-      const review = await ctx.db.get(target.id)
-      return review && review.networkId === networkId ? await offerFacts(ctx, networkId, review.offerId, review.pageId) : NO_FACTS
-    }
-    case "serviceReviewReply": {
-      const reply = await ctx.db.get(target.id)
-      if (!reply || reply.networkId !== networkId) return NO_FACTS
-      const review = await ctx.db.get(reply.reviewId)
-      return review && review.networkId === networkId ? await offerFacts(ctx, networkId, review.offerId, reply.pageId) : NO_FACTS
-    }
-    // Vague H (G9) : la zone que porte le contenu, jamais le pays de résidence d'une personne.
-    case "diasporaAidQuestion": {
-      const question = await ctx.db.get(target.id)
-      return question && question.networkId === networkId ? { country: countryCode(question.country), pageIds: [] } : NO_FACTS
-    }
-    case "diasporaAidAnswer": {
-      const answer = await ctx.db.get(target.id)
-      const question = answer && answer.networkId === networkId ? await ctx.db.get(answer.questionId) : null
-      return question && question.networkId === networkId ? { country: countryCode(question.country), pageIds: [] } : NO_FACTS
-    }
-    case "diasporaAidMission": {
-      const mission = await ctx.db.get(target.id)
-      if (!mission || mission.networkId !== networkId) return NO_FACTS
-      const page = await pageFacts(ctx, networkId, mission.pageId)
-      return { country: countryCode(mission.country) ?? page.country, pageIds: page.pageIds }
-    }
-    case "diasporaMentorProfile": {
-      const profile = await ctx.db.get(target.id)
-      return profile && profile.networkId === networkId ? { country: countryCode(profile.country), pageIds: [] } : NO_FACTS
-    }
-    case "diasporaMentoringRequest": {
-      const request = await ctx.db.get(target.id)
-      const profile = request && request.networkId === networkId ? await ctx.db.get(request.mentorProfileId) : null
-      return profile && profile.networkId === networkId ? { country: countryCode(profile.country), pageIds: [] } : NO_FACTS
-    }
-    case "diasporaKitResource": {
-      const resource = await ctx.db.get(target.id)
-      if (!resource || resource.networkId !== networkId) return NO_FACTS
-      const page = await pageFacts(ctx, networkId, resource.pageId)
-      return { country: countryCode(resource.country) ?? page.country, pageIds: page.pageIds }
-    }
-    case "diasporaJobOffer": {
-      const offer = await ctx.db.get(target.id)
-      if (!offer || offer.networkId !== networkId) return NO_FACTS
-      const page = await pageFacts(ctx, networkId, offer.pageId)
-      return { country: countryCode(offer.country) ?? page.country, pageIds: page.pageIds }
-    }
-    case "diasporaTalentProfile": {
-      const profile = await ctx.db.get(target.id)
-      return profile && profile.networkId === networkId ? { country: countryCode(profile.country), pageIds: [] } : NO_FACTS
-    }
-    case "diasporaJobApplication": {
-      const application = await ctx.db.get(target.id)
-      if (!application || application.networkId !== networkId) return NO_FACTS
-      const offer = await ctx.db.get(application.offerId)
-      const page = await pageFacts(ctx, networkId, application.pageId)
-      const zone = offer && offer.networkId === networkId ? countryCode(offer.country) : null
-      return { country: zone ?? page.country, pageIds: page.pageIds }
-    }
-    // MC-01 : le pays du groupe, sinon celui de sa page d'association (groupe d'adhérents), dont les
-    // signataires parlent pour lui ; jamais le pays d'un membre ni celui de son propriétaire.
-    case "thematicGroup": {
-      const group = await ctx.db.get(target.id)
-      if (!group || group.networkId !== networkId) return NO_FACTS
-      const page = await pageFacts(ctx, networkId, group.associationPageId)
-      return { country: countryCode(group.country) ?? page.country, pageIds: page.pageIds }
-    }
-    // MC-01 : un fil 1:1 n'a ni lieu ni page, et le pays de ses deux parties n'est jamais lu : un message
-    // personnel est « sans pays », sans rien relire du message ni du fil.
-    case "personalMessage":
-      return NO_FACTS
-    // Compte, messages, statut, album, offres de boutique et d'emploi reflétées : aucun pays porté.
-    default:
-      return NO_FACTS
-  }
-}
-
-/** La cible typée d'un état de modération (identifiant relu dans SA table), ou `null`. */
-function typedTarget(ctx: ReadCtx, kind: ModerationSurface, id: string): Target | null {
-  switch (kind) {
-    case "post": {
-      const typed = ctx.db.normalizeId("posts", id)
-      return typed === null ? null : { kind: "post" as const, id: typed }
-    }
-    case "comment": {
-      const typed = ctx.db.normalizeId("postComments", id)
-      return typed === null ? null : { kind: "comment" as const, id: typed }
-    }
-    case "groupMessage": {
-      const typed = ctx.db.normalizeId("groupMessages", id)
-      return typed === null ? null : { kind: "groupMessage" as const, id: typed }
-    }
-    case "event": {
-      const typed = ctx.db.normalizeId("events", id)
-      return typed === null ? null : { kind: "event" as const, id: typed }
-    }
-    case "page": {
-      const typed = ctx.db.normalizeId("pages", id)
-      return typed === null ? null : { kind: "page" as const, id: typed }
-    }
-    case "person": {
-      const typed = ctx.db.normalizeId("persons", id)
-      return typed === null ? null : { kind: "person" as const, id: typed }
-    }
-    case "live": {
-      const typed = ctx.db.normalizeId("liveSessions", id)
-      return typed === null ? null : { kind: "live" as const, id: typed }
-    }
-    case "liveComment": {
-      const typed = ctx.db.normalizeId("liveComments", id)
-      return typed === null ? null : { kind: "liveComment" as const, id: typed }
-    }
-    case "story": {
-      const typed = ctx.db.normalizeId("stories", id)
-      return typed === null ? null : { kind: "story" as const, id: typed }
-    }
-    case "album": {
-      const typed = ctx.db.normalizeId("albums", id)
-      return typed === null ? null : { kind: "album" as const, id: typed }
-    }
-    case "serviceReview": {
-      const typed = ctx.db.normalizeId("serviceReviews", id)
-      return typed === null ? null : { kind: "serviceReview" as const, id: typed }
-    }
-    case "serviceReviewReply": {
-      const typed = ctx.db.normalizeId("serviceReviewReplies", id)
-      return typed === null ? null : { kind: "serviceReviewReply" as const, id: typed }
-    }
-    case "commerceOffer": {
-      const typed = ctx.db.normalizeId("commerceCatalogHeads", id)
-      return typed === null ? null : { kind: "commerceOffer" as const, id: typed }
-    }
-    case "commercialMessage": {
-      const typed = ctx.db.normalizeId("commercialMessages", id)
-      return typed === null ? null : { kind: "commercialMessage" as const, id: typed }
-    }
-    case "commerceJob": {
-      const typed = ctx.db.normalizeId("commerceJobHeads", id)
-      return typed === null ? null : { kind: "commerceJob" as const, id: typed }
-    }
-    // MC-01 : surfaces signalables seulement (aucune écriture n'y passe la relecture préalable),
-    // typées ici pour qu'un état de modération de ces natures ne reste jamais hors du guichet.
-    case "thematicGroup": {
-      const typed = ctx.db.normalizeId("thematicGroups", id)
-      return typed === null ? null : { kind: "thematicGroup" as const, id: typed }
-    }
-    case "personalMessage": {
-      const typed = ctx.db.normalizeId("personalMessages", id)
-      return typed === null ? null : { kind: "personalMessage" as const, id: typed }
-    }
-    // Vague H (G9) : chaque nature relue dans SA table.
-    case "diasporaAidQuestion": {
-      const typed = ctx.db.normalizeId("aidQuestions", id)
-      return typed === null ? null : { kind: "diasporaAidQuestion" as const, id: typed }
-    }
-    case "diasporaAidAnswer": {
-      const typed = ctx.db.normalizeId("aidAnswers", id)
-      return typed === null ? null : { kind: "diasporaAidAnswer" as const, id: typed }
-    }
-    case "diasporaAidMission": {
-      const typed = ctx.db.normalizeId("aidMissions", id)
-      return typed === null ? null : { kind: "diasporaAidMission" as const, id: typed }
-    }
-    case "diasporaMentorProfile": {
-      const typed = ctx.db.normalizeId("mentorProfiles", id)
-      return typed === null ? null : { kind: "diasporaMentorProfile" as const, id: typed }
-    }
-    case "diasporaMentoringRequest": {
-      const typed = ctx.db.normalizeId("mentoringRequests", id)
-      return typed === null ? null : { kind: "diasporaMentoringRequest" as const, id: typed }
-    }
-    case "diasporaKitResource": {
-      const typed = ctx.db.normalizeId("kitResources", id)
-      return typed === null ? null : { kind: "diasporaKitResource" as const, id: typed }
-    }
-    case "diasporaJobOffer": {
-      const typed = ctx.db.normalizeId("jobOffers", id)
-      return typed === null ? null : { kind: "diasporaJobOffer" as const, id: typed }
-    }
-    case "diasporaTalentProfile": {
-      const typed = ctx.db.normalizeId("talentProfiles", id)
-      return typed === null ? null : { kind: "diasporaTalentProfile" as const, id: typed }
-    }
-    case "diasporaJobApplication": {
-      const typed = ctx.db.normalizeId("jobApplications", id)
-      return typed === null ? null : { kind: "diasporaJobApplication" as const, id: typed }
-    }
-    // Une nature ajoutée au moteur sans cas ici reste hors du guichet, jamais mal typée.
-    default:
-      return null
-  }
-}
 
 /**
  * La personne est-elle dans l'équipe VIVANTE d'une de ces pages (règle du moteur) ? AS-10 : le
@@ -517,7 +264,7 @@ async function signsAnyPage(ctx: ReadCtx, personId: Id<"persons">, pageIds: read
 }
 
 /** Les pages dont relève la cible : celle de son état de modération (écriture collective), puis les siennes. */
-async function ownerPagesOf(ctx: ReadCtx, kind: ModerationSurface, id: string, facts: TargetFacts): Promise<readonly Id<"pages">[]> {
+async function ownerPagesOf(ctx: ReadCtx, kind: ModerationSurface, id: string, facts: ModerationTargetFacts): Promise<readonly Id<"pages">[]> {
   const state = await contentState(ctx, kind, id)
   const owner = state?.ownerPageId
   return owner !== undefined ? [owner, ...facts.pageIds] : facts.pageIds
@@ -534,7 +281,7 @@ async function runsTargetGroup(ctx: ReadCtx, target: Target, personId: Id<"perso
   return role === "owner" || role === "moderator"
 }
 
-async function caseParty(ctx: DeskCtx, row: Doc<"reports">, facts: TargetFacts, cache: SignatureCache): Promise<Party | null> {
+async function caseParty(ctx: DeskCtx, row: Doc<"reports">, facts: ModerationTargetFacts, cache: SignatureCache): Promise<Party | null> {
   if (row.ownerPersonId === ctx.person._id) return "author"
   if (row.reviewedByPersonId === ctx.person._id) return "decider"
   if (row.reporterPersonId === ctx.person._id) return "reporter"
@@ -542,7 +289,7 @@ async function caseParty(ctx: DeskCtx, row: Doc<"reports">, facts: TargetFacts, 
   return (await runsTargetGroup(ctx, row.target, ctx.person._id)) ? "group" : null
 }
 
-async function appealParty(ctx: DeskCtx, appeal: Doc<"appeals">, row: Doc<"reports">, facts: TargetFacts, cache: SignatureCache): Promise<Party | null> {
+async function appealParty(ctx: DeskCtx, appeal: Doc<"appeals">, row: Doc<"reports">, facts: ModerationTargetFacts, cache: SignatureCache): Promise<Party | null> {
   if (appeal.personId === ctx.person._id) return "author"
   return await caseParty(ctx, row, facts, cache)
 }
@@ -558,7 +305,7 @@ async function teamNameOf(ctx: ReadCtx, teamId: Id<"moderationTeams"> | undefine
 }
 
 /** Un dossier OUVERT tel que la file le montre ; un dossier tranché n'a pas de ligne. */
-async function caseRowOf(ctx: DeskCtx, row: Doc<"reports">, facts: TargetFacts, caches: { teams: TeamNameCache; signatures: SignatureCache }): Promise<CaseRow | null> {
+async function caseRowOf(ctx: DeskCtx, row: Doc<"reports">, facts: ModerationTargetFacts, caches: { teams: TeamNameCache; signatures: SignatureCache }): Promise<CaseRow | null> {
   if (row.status !== "open" && row.status !== "reviewing") return null
   return {
     reportId: row._id,
@@ -678,7 +425,7 @@ export const queue = networkQuery({
       if (row.networkId !== ctx.networkId) continue
       if (args.surface !== undefined && row.targetKind !== args.surface) continue
       if (!(await teamCapacity(ctx, ctx, row.targetKind, row.teamId))) continue
-      const facts = await targetFacts(ctx, ctx.networkId, row.target)
+      const facts = await moderationTargetFacts(ctx, ctx.networkId, row.target)
       if (!inZone(zone, facts.country)) continue
       const item = await caseRowOf(ctx, row, facts, caches)
       if (item) items.push(item)
@@ -700,7 +447,7 @@ export const caseDetail = networkQuery({
     guardDesk(ctx, expectedPersonId)
     const row = await ctx.db.get(reportId)
     if (!row || row.networkId !== ctx.networkId || !(await requireReportCapacity(ctx, ctx, row))) return notFound()
-    const facts = await targetFacts(ctx, ctx.networkId, row.target)
+    const facts = await moderationTargetFacts(ctx, ctx.networkId, row.target)
     const current = await caseRowOf(ctx, row, facts, { teams: new Map<string, string | null>(), signatures: new Map<string, boolean>() })
     if (!current) return notFound()
     const actioned = await ctx.db
@@ -769,12 +516,13 @@ export const pendingQueue = networkQuery({
     const items: PendingRow[] = []
     for (const row of result.page) {
       if (args.surface !== undefined && row.targetKind !== args.surface) continue
-      const team = teams.find((item) => item.scope === row.targetKind) ?? teams.find((item) => item.scope === undefined)
+      const target = moderationTargetOf(ctx, row.targetKind, row.targetId)
+      if (!target) continue
+      const facts = await moderationTargetFacts(ctx, ctx.networkId, target)
+      // CH-815 (ADR-0042) : l'équipe que choisit le moteur (`moderation/routing`), par le pays de la cible puis sa nature.
+      const team = chooseModerationTeam(teams, row.targetKind, facts.country)
       if (scoped && team?._id !== scoped._id) continue
       if (!(await teamCapacity(ctx, ctx, row.targetKind, team?._id))) continue
-      const target = typedTarget(ctx, row.targetKind, row.targetId)
-      if (!target) continue
-      const facts = await targetFacts(ctx, ctx.networkId, target)
       if (!inZone(zone, facts.country)) continue
       const owner = row.ownerPageId
       const pageIds = owner !== undefined ? [owner, ...facts.pageIds] : facts.pageIds
@@ -824,7 +572,7 @@ export const appealQueue = networkAdminQuery({
         .take(SANCTIONS_SCAN)
       if (sanctions.length > SANCTIONS_SCAN - 1) return fail("policyRefused")
       if (sanctions.some((sanction) => sanction.networkId !== ctx.networkId)) continue
-      const facts = await targetFacts(ctx, ctx.networkId, report.target)
+      const facts = await moderationTargetFacts(ctx, ctx.networkId, report.target)
       if (!inZone(zone, facts.country)) continue
       items.push({
         appealId: appeal._id,
@@ -939,9 +687,9 @@ export const teamCandidate = networkAdminQuery({
 /**
  * AS-01 — une fenêtre des revendications de page EN ATTENTE (« Pages à
  * vérifier »), filtrée par le pays de la page, la plus ancienne d'abord. La
- * garde est celle de `pages/claims.paginatePageClaims` (`pageClaimReviewCapacity` :
- * rôle de réseau, ou membre de l'équipe vivante compétente pour les pages ; sinon
- * le refus indistinct) ; aucune note, aucune pièce, aucun demandeur ici : la
+ * garde est celle de `pages/claims.paginatePageClaims` (`pageClaimReviewer` :
+ * rôle de réseau, ou membre de l'équipe vivante compétente pour la page — CH-815 :
+ * celle de son pays ; sinon le refus indistinct) ; aucune note, aucune pièce, aucun demandeur ici : la
  * fiche et la décision restent `pages/claims`. `party` dit le conflit
  * d'intérêts : le demandeur (`author`) ou toute personne qui a une ligne de
  * signataire sur la page, même invitée (`page`) ; l'écran n'offre alors pas le
@@ -954,7 +702,8 @@ export const pageClaimQueue = networkQuery({
   handler: async (ctx, args) => {
     guardDesk(ctx, args.expectedPersonId)
     // La règle du moteur, à l'identique : l'écran n'ouvre jamais une file que `pages/claims` refuserait.
-    if ((await pageClaimReviewCapacity(ctx, ctx)) === null) return notFound()
+    const reviewer = await pageClaimReviewer(ctx, ctx)
+    if (reviewer === null) return notFound()
     const zone = zoneOf(args.zone)
     const result = await ctx.db
       .query("pageClaims")
@@ -965,7 +714,9 @@ export const pageClaimQueue = networkQuery({
     for (const claim of result.page) {
       const page = await ctx.db.get(claim.pageId)
       if (!page || page.networkId !== ctx.networkId) continue
-      const country = countryCode(page.country)
+      // CH-815 : un membre d'équipe ne lit que les demandes des pages de son pays (`pages/claims`).
+      if ((await pageClaimReviewCapacityFor(ctx, reviewer, page)) === null) continue
+      const country = moderationCountryCode(page.country)
       if (!inZone(zone, country)) continue
       const party = claim.claimantPersonId === ctx.person._id
         ? ("author" as const)

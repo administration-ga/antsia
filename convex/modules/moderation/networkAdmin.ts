@@ -9,8 +9,9 @@
  * Une seule différence d'arguments, depuis l'amendement A3 (suite) : `createTeam` accepte en plus le
  * pays de l'équipe (`country?`, ISO alpha-2, jugé par sa forme), que l'original refuse. Et une porte
  * sans original : `setTeamCountry`, qui pose, change ou retire ce pays (`moderation.team_country_set`).
- * Le pays d'une équipe ne délimite encore aucune compétence : le routage des signalements reste par
- * nature de contenu (`cases.report`).
+ * Le pays d'une équipe délimite sa compétence (amendement « Routage des signalements par pays ») : un
+ * dossier va à l'équipe du pays du contenu, puis de sa nature (`moderation/routing`, appelé par
+ * `cases.report`) ; changer ce pays ne déplace pas les dossiers déjà adressés à l'équipe.
  * Ce qui change est la garde : `networkAdminQuery` / `networkAdminMutation` (adhésion, rôle relu,
  * session IDN prouvée de l'application qui administre CE réseau, accès journalisé ; refus
  * indistinct sinon), puis, pour écrire, la garde d'écriture, `social.write`, `network_admin.write`

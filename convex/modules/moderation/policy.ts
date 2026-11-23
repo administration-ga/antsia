@@ -1,10 +1,12 @@
 /** Garde PA5 partagée ; aucune fonction publique ni dépendance aux constructeurs. */
 import { authorDecisionOutcome } from "@antsia/social-domain/moderation"
 import { contentNeedsReview, effectiveModerationPolicy, isSanctionLive, MODERATION_SCAN_LIMIT, type ModerationSurface } from "@antsia/social-domain/moderationPolicy"
+import { isModerationTeamEligible } from "@antsia/social-domain/moderationRouting"
 
 import type { Doc, Id } from "../../_generated/dataModel"
 import type { MutationCtx, QueryCtx } from "../../_generated/server"
 import { fail } from "../../lib/errors"
+import { activeModerationTeams, MODERATION_TEAMS_MAX, routingCountryOf } from "./routing"
 
 type ReadCtx = Pick<QueryCtx, "db">
 
@@ -32,9 +34,14 @@ export async function canReadModeratedContent(ctx: ReadCtx, kind: ModerationSurf
     const membership = await ctx.db.query("networkMemberships").withIndex("by_network_and_person", (q) => q.eq("networkId", state.networkId).eq("personId", readerPersonId)).unique()
     if (!membership || (membership.status !== "declaree" && membership.status !== "verifiee") || await hasLiveGlobalSanction(ctx, readerPersonId)) return false
     if (membership.role !== "network_admin") {
-      const teams = await ctx.db.query("moderationTeams").withIndex("by_network_active", (q) => q.eq("networkId", state.networkId).eq("active", true)).take(101)
-      if (teams.length > 100) return false
-      const candidates = teams.filter((team) => team.scope === undefined || team.scope === kind)
+      const teams = await activeModerationTeams(ctx, state.networkId)
+      if (teams.length > MODERATION_TEAMS_MAX) return false
+      // CH-815 (ADR-0042) : toute équipe ÉLIGIBLE lit le contenu retenu — nature compatible, et pays égal à celui
+      // du contenu ou aucun (une équipe d'un pays ne lit pas ce qui revient à un autre) ; pays lu seulement si
+      // une de ces équipes en porte un.
+      const eligible = teams.filter((team) => team.scope === undefined || team.scope === kind)
+      const country = await routingCountryOf(ctx, state.networkId, kind, id, eligible)
+      const candidates = eligible.filter((team) => isModerationTeamEligible(team, kind, country))
       let authorized = candidates.length === 0 && membership.role === "network_moderator"
       for (const team of candidates) {
         const member = await ctx.db.query("moderationTeamMembers").withIndex("by_team_person", (q) => q.eq("teamId", team._id).eq("personId", readerPersonId)).unique()

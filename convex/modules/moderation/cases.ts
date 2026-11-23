@@ -26,6 +26,7 @@ import { acknowledgeReport, legalDeadlineColumns, notifyReporterOfDecision } fro
 import { refreshSuspension } from "./sanctions"
 import { contentReportStatusValidator, moderationSurfaceValidator, moderationTargetValidator, sanctionKindValidator } from "./tables"
 import { blockedTermsPage as readBlockedTermsPage, blockedTermsPageValidator, type ModerationPolicyInput, moderationSettings, moderationSettingsValidator, writeBlockedTerm, writeModerationPolicy } from "./settings"
+import { activeModerationTeams, MODERATION_TEAMS_MAX, routeModerationContent } from "./routing"
 import { removeTarget, resolveVisibleTarget, restoreTarget } from "./targets"
 
 type ReadCtx = Pick<QueryCtx, "db">
@@ -280,9 +281,10 @@ export const report = networkMutation({
     if (existing) return { reportId: existing._id, created: false, hidden: true }
     const target = await resolveVisibleTarget(ctx, ctx.network, ctx.person._id, args.target)
     if (target.ownerPersonId === ctx.person._id) return notFound()
-    const teams = await ctx.db.query("moderationTeams").withIndex("by_network_active", (q) => q.eq("networkId", target.networkId).eq("active", true)).take(101)
-    if (teams.length > 100) return fail("policyRefused")
-    const team = teams.find((row) => row.scope === args.target.kind) ?? teams.find((row) => row.scope === undefined)
+    const teams = await activeModerationTeams(ctx, target.networkId)
+    if (teams.length > MODERATION_TEAMS_MAX) return fail("policyRefused")
+    // CH-815 (ADR-0042) : l'équipe du pays du contenu, puis de sa nature (`moderation/routing`).
+    const team = await routeModerationContent(ctx, target.networkId, args.target.kind, args.target.id, teams)
     const now = Date.now()
     const reportId = await ctx.db.insert("reports", { ...target, targetKind: args.target.kind, targetId: args.target.id, reporterPersonId: ctx.person._id, reporterNetworkId: ctx.networkId, reason, ...legalDeadlineColumns(reason, now), ...(team ? { teamId: team._id } : {}), level: team ? "team" : "network", status: "open", createdAt: now, updatedAt: now })
     // SU01d (art. 24) : l'accusé de réception part avec la transmission.
@@ -655,8 +657,8 @@ export const reviewContent = networkMutation({
     if (!state || state.networkId !== ctx.networkId || state.status !== "pending_review") return notFound()
     if (state.ownerPersonId === ctx.person._id) return notFound()
     await assertNoPageDecisionConflict(ctx, ctx.person._id, args.target)
-    const teams = await ctx.db.query("moderationTeams").withIndex("by_network_active", (q) => q.eq("networkId", ctx.networkId).eq("active", true)).take(101)
-    const team = teams.find((row) => row.scope === args.target.kind) ?? teams.find((row) => row.scope === undefined)
+    // CH-815 (ADR-0042) : l'équipe qui reçoit ce contenu, par son pays puis sa nature, comme un signalement.
+    const team = await routeModerationContent(ctx, ctx.networkId, args.target.kind, args.target.id, await activeModerationTeams(ctx, ctx.networkId))
     const capacity = await teamCapacity(ctx, ctx, args.target.kind, team?._id)
     if (!capacity) return notFound()
     // Lecture dans la même transaction que l'approbation OU le refus : une livraison R+1
@@ -690,12 +692,13 @@ export const paginatePending = networkQuery({
       const team = await ctx.db.get(args.teamId)
       if (!team || !(await teamCapacity(ctx, ctx, team.scope ?? "", team._id))) return notFound()
     } else if (!networkRoleCapacity(ctx.membership.role)) return notFound()
-    const teams = await ctx.db.query("moderationTeams").withIndex("by_network_active", (q) => q.eq("networkId", ctx.networkId).eq("active", true)).take(101)
-    if (teams.length > 100) return notFound()
+    const teams = await activeModerationTeams(ctx, ctx.networkId)
+    if (teams.length > MODERATION_TEAMS_MAX) return notFound()
     const result = await ctx.db.query("moderationContentStates").withIndex("by_network_status_updatedAt", (q) => q.eq("networkId", ctx.networkId).eq("status", "pending_review")).paginate(pageOptions(args.paginationOpts))
     const page = []
     for (const row of result.page) {
-      const team = teams.find((item) => item.scope === row.targetKind) ?? teams.find((item) => item.scope === undefined)
+      // CH-815 (ADR-0042) : l'équipe du pays du contenu, puis de sa nature (`moderation/routing`).
+      const team = await routeModerationContent(ctx, ctx.networkId, row.targetKind, row.targetId, teams)
       if (args.teamId && team?._id !== args.teamId) continue
       if (await teamCapacity(ctx, ctx, row.targetKind, team?._id)) page.push({ stateId: row._id, targetKind: row.targetKind, targetId: row.targetId, updatedAt: row.updatedAt })
     }

@@ -130,6 +130,7 @@ import type * as modules_diaspora_membership from "../modules/diaspora/membershi
 import type * as modules_diaspora_mentoring from "../modules/diaspora/mentoring.js";
 import type * as modules_diaspora_mentoringTables from "../modules/diaspora/mentoringTables.js";
 import type * as modules_diaspora_moderationContent from "../modules/diaspora/moderationContent.js";
+import type * as modules_diaspora_moderationCountry from "../modules/diaspora/moderationCountry.js";
 import type * as modules_diaspora_moderationDesk from "../modules/diaspora/moderationDesk.js";
 import type * as modules_diaspora_moderationTargets from "../modules/diaspora/moderationTargets.js";
 import type * as modules_diaspora_mutualAid from "../modules/diaspora/mutualAid.js";
@@ -296,6 +297,7 @@ import type * as modules_moderation_policy from "../modules/moderation/policy.js
 import type * as modules_moderation_professionalReviewSource from "../modules/moderation/professionalReviewSource.js";
 import type * as modules_moderation_reporterNotices from "../modules/moderation/reporterNotices.js";
 import type * as modules_moderation_reviewProjection from "../modules/moderation/reviewProjection.js";
+import type * as modules_moderation_routing from "../modules/moderation/routing.js";
 import type * as modules_moderation_sanctions from "../modules/moderation/sanctions.js";
 import type * as modules_moderation_settings from "../modules/moderation/settings.js";
 import type * as modules_moderation_tables from "../modules/moderation/tables.js";
@@ -644,6 +646,7 @@ declare const fullApi: ApiFromModules<{
   "modules/diaspora/mentoring": typeof modules_diaspora_mentoring;
   "modules/diaspora/mentoringTables": typeof modules_diaspora_mentoringTables;
   "modules/diaspora/moderationContent": typeof modules_diaspora_moderationContent;
+  "modules/diaspora/moderationCountry": typeof modules_diaspora_moderationCountry;
   "modules/diaspora/moderationDesk": typeof modules_diaspora_moderationDesk;
   "modules/diaspora/moderationTargets": typeof modules_diaspora_moderationTargets;
   "modules/diaspora/mutualAid": typeof modules_diaspora_mutualAid;
@@ -810,6 +813,7 @@ declare const fullApi: ApiFromModules<{
   "modules/moderation/professionalReviewSource": typeof modules_moderation_professionalReviewSource;
   "modules/moderation/reporterNotices": typeof modules_moderation_reporterNotices;
   "modules/moderation/reviewProjection": typeof modules_moderation_reviewProjection;
+  "modules/moderation/routing": typeof modules_moderation_routing;
   "modules/moderation/sanctions": typeof modules_moderation_sanctions;
   "modules/moderation/settings": typeof modules_moderation_settings;
   "modules/moderation/tables": typeof modules_moderation_tables;

@@ -138,6 +138,7 @@ export const DIASPORA_SLICE_MANIFEST = {
     "mentoring.ts": "mentoring",
     "mentoringTables.ts": "mentoring",
     "moderationContent.ts": "core",
+    "moderationCountry.ts": "core",
     "moderationDesk.ts": "core",
     "moderationTargets.ts": "core",
     "mutualAid.ts": "mutualAid",
