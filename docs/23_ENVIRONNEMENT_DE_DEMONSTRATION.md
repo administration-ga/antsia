@@ -194,7 +194,20 @@ fait avec l'accord écrit du propriétaire.
    `Fiche_porte_compte_demo_DIASPORA_GA_2026-11-23.md`, § 7) :
    - variables du déploiement de démonstration, noms seuls dans `.env.example` :
      `ANTSIA_DEMO_GATE_SECRET`, `WHATSAPP_PROVIDER`, `WHATSAPP_ENDPOINT`, `WHATSAPP_API_KEY`,
-     `WHATSAPP_TEMPLATE`, `WHATSAPP_FROM` (facultative) ;
+     `WHATSAPP_TEMPLATE`, `WHATSAPP_FROM` (facultative), `WHATSAPP_TEMPLATE_LANGUAGES` (facultative) ;
+   - deux fournisseurs WhatsApp, au choix de `WHATSAPP_PROVIDER` ; toute autre valeur, ou une seule
+     pièce manquante ou hors forme, rend la porte « indisponible » :
+
+     | Variable | `bird` (plateforme actuelle de Bird) | `bird-channels` (ancienne API « Channels ») |
+     |---|---|---|
+     | `WHATSAPP_ENDPOINT` | `<hôte régional>/v1/whatsapp/messages`, en HTTPS | l'adresse des messages du canal WhatsApp, en HTTPS |
+     | `WHATSAPP_API_KEY` | clé d'espace de travail (`Authorization: Bearer`) | clé d'accès (`Authorization: AccessKey`) |
+     | `WHATSAPP_TEMPLATE` | slug du modèle d'authentification (variable `code`) | `<projet>:<version>` du modèle (variable `code`) |
+     | `WHATSAPP_FROM` | numéro E.164 de l'espace de travail, exigé par Bird pour un modèle propre ; **jamais envoyé** pour un modèle géré par Bird (slug `bird_…`), que Bird refuserait | non lue à l'envoi |
+     | `WHATSAPP_TEMPLATE_LANGUAGES` | langues publiées du modèle (BCP-47, séparées par des virgules, seize au plus) ; la langue de l'interface n'est demandée que si elle y figure (`fr-FR` vaut pour `fr`), sinon la langue par défaut du modèle | non lue |
+
+     Une réponse 202 avec l'identifiant du message veut dire « admis par Bird », jamais « reçu » ;
+     tout le reste est un envoi manqué (le défi est invalidé, rien n'est journalisé que la raison) ;
    - armée, la connexion d'une adresse `…@demo.diaspora-ga.test` exige le jeton de session de porte
      (en-tête `X-Demo-Gate-Token`) : n'armer qu'APRÈS la publication du moteur et du site qui le
      posent ; avant d'armer, constater en recette `X-Forwarded-For`, la latence de l'envoi WhatsApp

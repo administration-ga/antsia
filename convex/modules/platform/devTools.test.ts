@@ -19,7 +19,7 @@ const WHATSAPP = {
   WHATSAPP_PROVIDER: "bird",
   WHATSAPP_ENDPOINT: "https://whatsapp.example.test/messages",
   WHATSAPP_API_KEY: "fictional-access-key-0123456789",
-  WHATSAPP_TEMPLATE: "fictional-project:fictional-version",
+  WHATSAPP_TEMPLATE: "fictional_otp",
 }
 const DEMO = { CONVEX_CLOUD_URL: "https://demo-antsia-123.convex.cloud", ANTSIA_DEMO_DEPLOYMENT: "demo-antsia-123" }
 const LOCAL = { CONVEX_CLOUD_URL: "http://127.0.0.1:3210", ANTSIA_DEV_TOOLS: "true" }
@@ -36,7 +36,7 @@ const ORDINARY_EMAIL = "alice@example.test"
 type T = ReturnType<typeof testConvex>
 type Env = Record<string, string | undefined>
 
-const ENV_KEYS = ["CONVEX_CLOUD_URL", "ANTSIA_DEV_TOOLS", "ANTIA_DEV_TOOLS", "ANTSIA_DEMO_DEPLOYMENT", "ANTSIA_DEMO_GATE_SECRET", ...Object.keys(WHATSAPP), "WHATSAPP_FROM"]
+const ENV_KEYS = ["CONVEX_CLOUD_URL", "ANTSIA_DEV_TOOLS", "ANTIA_DEV_TOOLS", "ANTSIA_DEMO_DEPLOYMENT", "ANTSIA_DEMO_GATE_SECRET", ...Object.keys(WHATSAPP), "WHATSAPP_FROM", "WHATSAPP_TEMPLATE_LANGUAGES"]
 
 /** L'environnement du déploiement, ENTIER : une variable absente d'ici est absente, quoi qu'ait posé le shell qui lance les tests. */
 function useEnv(env: Env) {

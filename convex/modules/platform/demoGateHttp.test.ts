@@ -37,8 +37,9 @@ const GATED_ENV: Record<string, string | undefined> = {
   WHATSAPP_PROVIDER: "bird",
   WHATSAPP_ENDPOINT: "https://whatsapp.example.test/messages",
   WHATSAPP_API_KEY: "fictional-access-key-0123456789",
-  WHATSAPP_TEMPLATE: "fictional-project:fictional-version",
+  WHATSAPP_TEMPLATE: "fictional_otp",
   WHATSAPP_FROM: undefined,
+  WHATSAPP_TEMPLATE_LANGUAGES: undefined,
   TRUSTED_ORIGINS: undefined,
   ANTSIA_DEMO_DEPLOYMENT: undefined,
 }
@@ -53,8 +54,9 @@ beforeEach(() => {
   sent = []
   providerStatus = 202
   provider = vi.fn<typeof fetch>(async (_url, init) => {
-    const body = JSON.parse(String(init?.body)) as { receiver: { contacts: { identifierValue: string }[] }; template: { parameters: { value: string }[] } }
-    sent.push({ to: body.receiver.contacts[0]!.identifierValue, code: body.template.parameters[0]!.value })
+    // Corps de la plateforme actuelle de Bird (`WHATSAPP_PROVIDER=bird`) : `{ to, template: { slug, parameters: { code } } }`.
+    const body = JSON.parse(String(init?.body)) as { to: string; template: { parameters: { code: string } } }
+    sent.push({ to: body.to, code: body.template.parameters.code })
     return new Response(JSON.stringify({ id: "message-fictif", status: "accepted" }), { status: providerStatus })
   })
   vi.stubGlobal("fetch", provider)

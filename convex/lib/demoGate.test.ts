@@ -14,7 +14,7 @@ const WHATSAPP = {
   WHATSAPP_PROVIDER: "bird",
   WHATSAPP_ENDPOINT: "https://whatsapp.example.test/messages",
   WHATSAPP_API_KEY: "fictional-access-key-0123456789",
-  WHATSAPP_TEMPLATE: "fictional-project:fictional-version",
+  WHATSAPP_TEMPLATE: "fictional_otp",
 }
 
 describe("demoGateState — quatre états, fermé par défaut", () => {
@@ -43,11 +43,14 @@ describe("demoGateState — quatre états, fermé par défaut", () => {
     expect(demoGateState({ ...DEMO, ANTSIA_DEMO_GATE_SECRET: SECRET })).toBe("unavailable")
     expect(demoGateState({ ...DEMO, ANTSIA_DEMO_GATE_SECRET: SECRET, ...WHATSAPP, WHATSAPP_PROVIDER: "meta" })).toBe("unavailable")
     expect(demoGateState({ ...DEMO, ANTSIA_DEMO_GATE_SECRET: SECRET, ...WHATSAPP, WHATSAPP_ENDPOINT: "http://whatsapp.example.test/messages" })).toBe("unavailable")
+    // Un modèle de l'ancienne API (`<projet>:<version>`) sous `bird` n'est pas un slug : rien n'est deviné.
+    expect(demoGateState({ ...DEMO, ANTSIA_DEMO_GATE_SECRET: SECRET, ...WHATSAPP, WHATSAPP_TEMPLATE: "fictional-project:fictional-version" })).toBe("unavailable")
   })
 
-  it("gated : porte armée et complète", () => {
+  it("gated : porte armée et complète, pour chacun des deux fournisseurs", () => {
     expect(demoGateState({ ...DEMO, ANTSIA_DEMO_GATE_SECRET: SECRET, ...WHATSAPP })).toBe("gated")
     expect(demoGateState({ ...LOCAL, ANTSIA_DEMO_GATE_SECRET: SECRET, ...WHATSAPP })).toBe("gated")
+    expect(demoGateState({ ...DEMO, ANTSIA_DEMO_GATE_SECRET: SECRET, ...WHATSAPP, WHATSAPP_PROVIDER: "bird-channels", WHATSAPP_TEMPLATE: "fictional-project:fictional-version" })).toBe("gated")
   })
 
   it("le secret n'est utilisable qu'à 32 caractères au moins", () => {
