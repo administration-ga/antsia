@@ -41,9 +41,25 @@ export const ICOM_VIEWS: readonly IcomView[] = Object.freeze([
 	{ id: "contacts" as const, brique: "icontact" as const, labelKey: "messagerie:icomViews.contacts" },
 ])
 
-/** La vue qu'adresse un `?brique=` — Conversations par défaut, et pour `actus`. */
-export function icomViewFromBrique(raw: string | null | undefined): IcomViewId {
-	if (raw === "iappel") return "appels"
+/**
+ * CH-817 : les vues SERVIES — sans Appels quand l'application ne propose pas
+ * d'appel (`useCallsAvailable()`), comme la carte et la barre du téléphone.
+ */
+export function servedIcomViews(callsAvailable: boolean): readonly IcomView[] {
+	return callsAvailable ? ICOM_VIEWS : ICOM_VIEWS.filter((view) => view.id !== "appels")
+}
+
+/** CH-817 : la vue réellement servie — Appels demandée sans appels retombe sur Conversations. */
+export function servedIcomView(view: IcomViewId, callsAvailable: boolean): IcomViewId {
+	return view === "appels" && !callsAvailable ? "conversations" : view
+}
+
+/**
+ * La vue qu'adresse un `?brique=` — Conversations par défaut, et pour `actus`.
+ * CH-817 : `callsAvailable = false`, `?brique=iappel` retombe sur Conversations.
+ */
+export function icomViewFromBrique(raw: string | null | undefined, callsAvailable = true): IcomViewId {
+	if (raw === "iappel") return servedIcomView("appels", callsAvailable)
 	if (raw === "icontact") return "contacts"
 	return "conversations"
 }

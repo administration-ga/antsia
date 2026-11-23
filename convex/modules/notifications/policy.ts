@@ -15,6 +15,7 @@ import { pageEventReminderVisible } from "../events/pageEventReminderAccess"
 import { isPageEventOutcomeNoticeKind, pageEventNoticeVisible } from "../events/pageEventNoticeAccess"
 import { isBlockedBetween } from "../graph/graph"
 import { liveMembershipOrNull } from "../groups/access"
+import { personalMessageNoticeThread } from "../messaging/threads"
 import { directReplayAccessDecision, directSessionAccessDecision } from "../live/access"
 import { canSeePostDoc } from "../posts/access"
 import { authorSeesCase, owningPageOfReport } from "../moderation/policy"
@@ -100,6 +101,9 @@ export async function notificationStillVisible(ctx: ReadCtx, row: Doc<"notificat
   const person = await ctx.db.get(row.recipientPersonId)
   if (!person || person.deletionRequestedAt !== undefined) return false
   if (row.actorPersonId && await isBlockedBetween(ctx, row.actorPersonId, row.recipientPersonId)) return false
+  // IC-09 : un message à deux se relit dans SON fil — celui de la paire (destinataire, acteur), actif ;
+  // un fil fermé, un blocage ou un expéditeur effacé (référence anonymisée) retire l'avis de partout.
+  if (row.kind === "personal_message") return row.actorPersonId !== undefined && (await personalMessageNoticeThread(ctx, row.networkId, row.recipientPersonId, row.actorPersonId)) !== null
   if (row.subjectCallId) {
     // CC-4 : l'avis d'un appel CONTEXTUEL (refus automatique) suit la lecture du fil ; un ancien
     // participant ne garde rien (§4.3). Les avis d'appel personnels et P10 restent inchangés.

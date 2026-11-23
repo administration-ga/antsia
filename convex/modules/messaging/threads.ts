@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/modules/messagerieScope/threads.ts @ ad2e7fdc2 — adaptations : fils PERSONNELS par réseau seulement (postes, fils institutionnels et standard retirés : `findPosteThread`, `findInstitutionalThread`, `listPosteThreadsFor`, branches ancrées) ; `openOrContinuePersonalThread(ctx, { network, initiatorPersonId, targetPersonId, … })` au lieu d'`openOrContinueThread` ; pièces par la garde du moteur (`verifyDeclaredAttachments`) ; contenu jugé par le contrat (`assertMessageContent`) ; aperçu en NATURE ; pastille de non-lus par (réseau, personne) — `isUnreadFor`, `recomputePersonalUnreadTotal` gardés, la réconciliation écarte les fils d'un correspondant BLOQUÉ (le blocage met le compteur à jour à l'écriture, D38) ; push reporté (PA5) ; refus à code.
+// Dupliqué de socle/convex/modules/messagerieScope/threads.ts @ ad2e7fdc2 — adaptations : fils PERSONNELS par réseau seulement (postes, fils institutionnels et standard retirés : `findPosteThread`, `findInstitutionalThread`, `listPosteThreadsFor`, branches ancrées) ; `openOrContinuePersonalThread(ctx, { network, initiatorPersonId, targetPersonId, … })` au lieu d'`openOrContinueThread` ; pièces par la garde du moteur (`verifyDeclaredAttachments`) ; contenu jugé par le contrat (`assertMessageContent`) ; aperçu en NATURE ; pastille de non-lus par (réseau, personne) — `isUnreadFor`, `recomputePersonalUnreadTotal` gardés, la réconciliation écarte les fils d'un correspondant BLOQUÉ (le blocage met le compteur à jour à l'écriture, D38) ; push reporté (PA5) ; refus à code. ; IC-09 (diverge du socle) : chaque message déposé (`appendPersonalMessage`) émet la cloche neutre `personal_message` du destinataire par la porte unique (`notifyPerson`), une ligne par fil ; `personalMessageNoticeThread` relit le fil qu'un tel avis désigne.
 /**
  * Trouver et OUVRIR un fil personnel, et tenir sa pastille de non-lus.
  *
@@ -15,6 +15,7 @@ import type { Doc, Id } from "../../_generated/dataModel"
 import type { MutationCtx, QueryCtx } from "../../_generated/server"
 import { checked, fail, failRule, notFound } from "../../lib/errors"
 import { isBlockedBetween } from "../graph/graph"
+import { notifyPerson } from "../notifications/notify"
 import { type DeclaredAttachment, type StoredAttachment, verifyDeclaredAttachments } from "./attachmentStorage"
 import type { ForwardedFrom } from "./forwardedFrom"
 
@@ -33,6 +34,25 @@ export async function findPersonalThread(ctx: ReadCtx, networkId: Id<"networks">
     .query("personalThreads")
     .withIndex("by_network_pair", (q) => q.eq("networkId", networkId).eq("personLow", personLow).eq("personHigh", personHigh))
     .first()
+}
+
+/**
+ * IC-09 — le fil à deux que désigne un avis `personal_message`, relu MAINTENANT pour son
+ * destinataire : celui de la paire (destinataire, expéditeur) dans ce réseau, ACTIF, sans
+ * blocage entre eux. `null` sinon (fil fermé, blocage, expéditeur effacé donc anonymisé) :
+ * l'avis n'est alors ni écrit, ni montré, ni transporté, ni ouvert.
+ */
+export async function personalMessageNoticeThread(
+  ctx: ReadCtx,
+  networkId: Id<"networks">,
+  recipientPersonId: Id<"persons">,
+  senderPersonId: Id<"persons">,
+): Promise<Doc<"personalThreads"> | null> {
+  if (recipientPersonId === senderPersonId) return null
+  const thread = await findPersonalThread(ctx, networkId, recipientPersonId, senderPersonId)
+  if (thread === null || thread.status !== "active") return null
+  if (await isBlockedBetween(ctx, recipientPersonId, senderPersonId)) return null
+  return thread
 }
 
 /** L'autre participant, vu de moi — `null` si je ne suis pas partie au fil. */
@@ -281,6 +301,11 @@ export async function appendPersonalMessage(ctx: MutationCtx, thread: Doc<"perso
   })
   await ctx.db.patch(thread._id, { ...previewColumns(input.content, input.attachmentFiles ?? []), lastMessageAt: now, lastMessageByPersonId: input.senderPersonId })
   await adjustPersonalUnreadTotal(ctx, thread.networkId, recipient, 1)
+  // IC-09 : la cloche NEUTRE du destinataire, par la porte unique — aucun sujet, aucun contenu :
+  // la paire désigne le fil. Une ligne par fil (clé `genre|-|expéditeur`), rafraîchie à chaque
+  // message ; seul le premier geste admet un push (règle de la porte). La porte refuse soi-même,
+  // le blocage et le non-membre ; elle relit le fil (`personalMessageNoticeThread`).
+  await notifyPerson(ctx, { networkId: thread.networkId, recipientPersonId: recipient, actorPersonId: input.senderPersonId, kind: "personal_message" })
   return messageId
 }
 

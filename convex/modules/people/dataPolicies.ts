@@ -23,6 +23,11 @@ export const DATA_TABLE_POLICIES: Record<string, { shared?: boolean; owners?: re
   publicSnapshots: {shared: true},
   publicAggregateJobs: {shared: true},
   devOtpCodes: {},
+  // CH-817 : porte des comptes de démonstration — empreintes HMAC seulement (numéro, code, jeton),
+  // aucune référence de personne ni contenu : rien à exporter, rien à rattacher à une personne.
+  demoGateAllowlist: {shared: true},
+  demoGateChallenges: {shared: true},
+  demoGateSessions: {shared: true},
   engineAudit: {shared: true},
   posts: {owners: ["authorPersonId"]},
   // Le lecteur possède sa projection ; l'auteur conserve la propriété du post.

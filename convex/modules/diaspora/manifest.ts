@@ -122,6 +122,8 @@ export const DIASPORA_SLICE_MANIFEST = {
     "conversationContexts.ts": "core",
     "conversationSync.ts": "core",
     "demoAccounts.ts": "core",
+    // CH-817 E4 : les publications d'exemple des comptes de démonstration (mutation interne, aucune fonction de réseau).
+    "demoContent.ts": "core",
     "directory.ts": "core",
     "facet.ts": "core",
     "facts.ts": "core",

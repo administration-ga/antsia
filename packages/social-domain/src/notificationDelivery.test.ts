@@ -10,6 +10,8 @@ describe("livraison neutre", () => {
     expect(notificationCategory("report_decided")).toBe("moderation")
     expect(notificationCategory("call_incoming")).toBe("calls")
     expect(notificationCategory("group_message")).toBe("messages")
+    // IC-09 : le message à deux suit la catégorie « messages », comme le groupe.
+    expect(notificationCategory("personal_message")).toBe("messages")
     expect(notificationCategory("post_comment")).toBe("social")
     // PG-01 : la décision sur une revendication est une issue de vérification ; l'invitation à signer, un geste social.
     expect(notificationCategory("page_claim_decided")).toBe("network")

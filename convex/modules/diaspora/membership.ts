@@ -41,6 +41,8 @@ import { v } from "convex/values"
 import type { Doc, Id } from "../../_generated/dataModel"
 import { query, type QueryCtx } from "../../_generated/server"
 import { getCurrentPerson, getMembership, getRootNetwork } from "../../lib/access"
+import { demoGateState } from "../../lib/demoGate"
+import { isDemoEmail } from "../../lib/devTools"
 import { checked, fail, failAppRule, notFound } from "../../lib/errors"
 import { networkAdminMutation, networkMutation, networkQuery, personMutation } from "../../lib/functions"
 import { enforceRateLimit } from "../../lib/rateLimit"
@@ -49,6 +51,7 @@ import { isBlockedBetween } from "../graph/graph"
 import { admitToNetwork, setMembershipStatus, writeNetworkFacet } from "../people/admission"
 import { notifyPerson } from "../notifications/notify"
 import { appendAudit, networkRoleCapacity } from "../platform/audit"
+import { accountEmailOf, isDeclaredDiasporaGaDemoEmail } from "./demoAccounts"
 import { findPublishedPersonByHandle } from "../people/miniProfile"
 import { assertLeaveKeepsNetworkAdmin, networkRoleAuditEntry, setMembershipRole } from "../people/networkRoles"
 import { hasStrongIdentityFor, liveIdentityLinks } from "../people/persons"
@@ -103,6 +106,11 @@ function labelOf(person: Doc<"persons"> | null): { handle: string; displayName: 
  * le gouverne : son statut se dérive de SES faits (IDN et sa garantie, parrainage,
  * attestation consulaire) ; sa facette suit les règles du domaine (pays hors
  * Gabon, ville, année d'arrivée) et le poste consulaire n'est jamais saisi.
+ * CH-817 E5 (relecture de sécurité, constat 4) : porte des comptes de démonstration
+ * `gated` ou `unavailable`, un compte dont l'adresse est réservée à la démonstration
+ * (famille de la racine, ou adresse libre de celle de DIASPORA.GA) sans être celle
+ * d'un acteur déclaré de DIASPORA.GA n'entre pas (`notFound`, le refus de tout réseau
+ * introuvable). Porte `open` ou `closed` : aucune lecture de plus.
  */
 export const joinDiasporaGa = personMutation({
   args: {
@@ -117,6 +125,11 @@ export const joinDiasporaGa = personMutation({
     if (!isDiasporaNetwork(network)) return notFound()
     const root = await getRootNetwork(ctx)
     if (!root) return notFound()
+    const gate = demoGateState()
+    if (gate === "gated" || gate === "unavailable") {
+      const email = await accountEmailOf(ctx, ctx.person.authUserId)
+      if (email !== null && isDemoEmail(email) && !isDeclaredDiasporaGaDemoEmail(email)) return notFound()
+    }
     if (!ctx.person.handle || !ctx.person.displayName || ctx.person.publishedAt === undefined) return fail("profileRequired")
     // borné : un consentement par finalité et par réseau.
     const consents = await ctx.db

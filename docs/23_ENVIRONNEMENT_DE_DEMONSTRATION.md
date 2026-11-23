@@ -172,3 +172,24 @@ fait avec l'accord écrit du propriétaire.
    Patrice publie, Sandrine signale pour harcèlement, puis Ruth tranche dans `/moderation`, où le
    dossier s'affiche sous « Délais légaux ».
 4. **Production** : rien ne change ; `modules/diaspora/demoAccounts:catalogue` y rend `[]`.
+5. **Porte des comptes de démonstration** (CH-817, facultative ; fiche
+   `Fiche_porte_compte_demo_DIASPORA_GA_2026-11-23.md`, § 7) :
+   - variables du déploiement de démonstration, noms seuls dans `.env.example` :
+     `ANTSIA_DEMO_GATE_SECRET`, `WHATSAPP_PROVIDER`, `WHATSAPP_ENDPOINT`, `WHATSAPP_API_KEY`,
+     `WHATSAPP_TEMPLATE`, `WHATSAPP_FROM` (facultative) ;
+   - armée, la connexion d'une adresse `…@demo.diaspora-ga.test` exige le jeton de session de porte
+     (en-tête `X-Demo-Gate-Token`) : n'armer qu'APRÈS la publication du moteur et du site qui le
+     posent ; avant d'armer, constater en recette `X-Forwarded-For`, la latence de l'envoi WhatsApp
+     et le code avec lettre ;
+   - la liste des numéros, par la seule voie documentée (numéros sur l'entrée standard, un par
+     ligne, jamais dans un dépôt ni tapés dans une commande ; aucun `convex run` à la main) :
+
+     ```bash
+     CONVEX_DEPLOY_KEY='<même clé>' bun scripts/demo-gate-list.mjs reset
+     CONVEX_DEPLOY_KEY='<même clé>' bun scripts/demo-gate-list.mjs allow < numeros.txt
+     CONVEX_DEPLOY_KEY='<même clé>' bun scripts/demo-gate-list.mjs revoke < numeros-a-retirer.txt
+     ```
+
+     `reset` à l'armement et à chaque changement du secret, AVANT `allow` : il retire toute la liste
+     et ferme les sessions des comptes de démonstration déclarés ; `revoke` les ferme aussi.
+     `--dry-run` compte les numéros sans rien envoyer.

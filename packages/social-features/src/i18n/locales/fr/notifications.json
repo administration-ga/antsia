@@ -70,6 +70,7 @@
       "fileWithheld": "Un fichier déposé a été retenu par l'analyse de sécurité.",
       "callMissed": "{{actor}} a cherché à vous joindre.",
       "voicemailLeft": "{{actor}} vous a laissé un message vocal.",
+      "personalMessage": "{{actor}} vous a écrit.",
       "sponsorshipReceived": "{{actor}} vous parraine.",
       "sponsorshipWithdrawn": "{{actor}} a retiré son parrainage.",
       "sponsorshipWithdrawnSystem": "Votre parrainage a été retiré.",
