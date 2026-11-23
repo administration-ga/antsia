@@ -5,6 +5,7 @@
  * aux membres `declaree` sans badge fort (comptes légers), en plus du seau
  * ordinaire (PA5 les étend à toutes les mutations ; cliquet `rate-limited-writes`).
  */
+import { engineErrorCode } from "@antsia/social-contracts/errors"
 import { computePersonBadges } from "@antsia/social-domain/badges"
 import { effectiveAccessStatus } from "@antsia/social-domain/membership"
 import type { RestrictableFeature } from "@antsia/social-domain/judicialMeasures"
@@ -438,4 +439,31 @@ export async function enforceRateLimit(ctx: MutationCtx & NetworkRateContext, bu
   }
   const result = await rateLimiter.limit(ctx, bucket, { key })
   if (!result.ok) fail("rateLimited", { retryAfterMs: result.retryAfter })
+}
+
+/** Les seaux d'un BATTEMENT : la présence des appels, le bail des spectateurs et celui de l'hôte du direct. */
+export type BeatBucket = "presence.heartbeat" | "live.presence" | "live.hostPresence"
+
+/**
+ * Le seau d'un BATTEMENT, consommé SANS lever : `false` au-delà du seuil (le
+ * battement est alors refusé comme les autres, sans écrire), `true` sinon.
+ * Toute autre erreur remonte telle quelle.
+ *
+ * ⚠️ `enforceRateLimit` LÈVE (`rateLimited`), et un battement du socle ne
+ * levait jamais : c'est ici, et nulle part ailleurs, que ce refus devient une
+ * valeur. Un battement est un bruit de fond : le client Convex inscrit en
+ * console TOUT refus d'une mutation, même avalé par l'écran, et plusieurs
+ * onglets ouverts sur le même compte, ou des pages rechargées coup sur coup,
+ * vident le seau sans faute de personne (constaté le 24/11/2026 sur la
+ * présence des appels). Les refus du CONSTRUCTEUR (sans session, hors du
+ * réseau, suspendu) lèvent toujours, comme partout dans le moteur.
+ */
+export async function beatWithinRateLimit(ctx: MutationCtx & NetworkRateContext, bucket: BeatBucket, personId: Id<"persons">): Promise<boolean> {
+  try {
+    await enforceRateLimit(ctx, bucket, personId)
+    return true
+  } catch (error) {
+    if (engineErrorCode(error) === "rateLimited") return false
+    throw error
+  }
 }

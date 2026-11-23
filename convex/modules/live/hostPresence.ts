@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/modules/direct/hostPresence.ts @ ad2e7fdc2 — adaptations : constructeurs `networkMutation` / `networkQuery` — les refus du CONSTRUCTEUR (non-membre, suspendu) lèvent comme partout dans le moteur, le battement garde son silence uniforme au-delà ; session lue DANS le réseau de l'appel (inconnue, d'un autre réseau : le même `{ accepted: false }`, sans écriture) ; table `liveHostPresence` (avec `networkId`, copié de la session), personne (`hostPersonId`) au lieu de l'utilisateur ; débit `live.hostPresence` (D14) consommé juste AVANT l'écriture, son refus ATTRAPÉ et rendu comme les autres refus (`beatWithinRateLimit`, `presence.ts`) ; `presence` reçoit l'instant de l'ÉCRAN (`now`, D16 : plus de `Date.now()` dans une query — l'écran l'arrondit à la seconde et re-dérive de toute façon à sa montre) et voit par le lecteur du réseau (`assertVisibleDirectSession(ctx, directCaller(ctx), …)`, refus indistinct `notFound`) ; `loadHostLease` / `leaseFacts` désormais AUSSI lus par la récolte (la raison du socle pour s'en passer — des tests du client qui importaient `reap` — n'existe pas dans le moteur) ; commentaires rapportés au moteur.
+// Dupliqué de socle/convex/modules/direct/hostPresence.ts @ ad2e7fdc2 — adaptations : constructeurs `networkMutation` / `networkQuery` — les refus du CONSTRUCTEUR (non-membre, suspendu) lèvent comme partout dans le moteur, le battement garde son silence uniforme au-delà ; session lue DANS le réseau de l'appel (inconnue, d'un autre réseau : le même `{ accepted: false }`, sans écriture) ; table `liveHostPresence` (avec `networkId`, copié de la session), personne (`hostPersonId`) au lieu de l'utilisateur ; débit `live.hostPresence` (D14) consommé juste AVANT l'écriture, son refus ATTRAPÉ et rendu comme les autres refus (`beatWithinRateLimit`, `lib/rateLimit.ts`) ; `presence` reçoit l'instant de l'ÉCRAN (`now`, D16 : plus de `Date.now()` dans une query — l'écran l'arrondit à la seconde et re-dérive de toute façon à sa montre) et voit par le lecteur du réseau (`assertVisibleDirectSession(ctx, directCaller(ctx), …)`, refus indistinct `notFound`) ; `loadHostLease` / `leaseFacts` désormais AUSSI lus par la récolte (la raison du socle pour s'en passer — des tests du client qui importaient `reap` — n'existe pas dans le moteur) ; commentaires rapportés au moteur.
 /**
  * Le BAIL DE PRÉSENCE DE L'HÔTE — D-14.
  * API publique : `api.modules.live.hostPresence.*`
@@ -43,9 +43,9 @@ import { v } from "convex/values"
 import type { Doc, Id } from "../../_generated/dataModel"
 import type { QueryCtx } from "../../_generated/server"
 import { networkMutation, networkQuery } from "../../lib/functions"
+import { beatWithinRateLimit } from "../../lib/rateLimit"
 import { assertVisibleDirectSession, directCaller } from "./access"
 import { DIRECT_HOST_LEASE_MS, deriveDirectHostState, type DirectHostLease, type DirectHostPresenceView } from "./domain"
-import { beatWithinRateLimit } from "./presence"
 import { directHostHeartbeatStateValidator } from "./validators"
 
 /**
