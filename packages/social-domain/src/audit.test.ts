@@ -69,6 +69,13 @@ describe("journal des décisions — détail et motif", () => {
     expect(auditDetailsProblems({ pageId: "pages_1", groupId: "thematicGroups_1", role: "owner" })).toEqual([])
   })
 
+  it("CH-817 : la porte des comptes de démonstration journalise inscription, retrait et accès, sur la ligne de la liste, au détail réduit à la portée", () => {
+    expect(AUDIT_ACTIONS).toEqual(expect.arrayContaining(["demo.gate_allow", "demo.gate_revoke", "demo.gate_access"]))
+    expect(AUDIT_SUBJECT_TABLES).toContain("demoGateAllowlist")
+    expect(auditDetailsProblems({ scope: "diaspora-ga" })).toEqual([])
+    expect(isSystemCapacity("system")).toBe(true)
+  })
+
   it("seul le système agit sans acteur", () => {
     expect(isSystemCapacity("system")).toBe(true)
     expect(isSystemCapacity("network_moderator")).toBe(false)

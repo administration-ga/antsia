@@ -15,6 +15,10 @@ const SYSTEM_HTTP_ADMISSIONS = new Map([
   ["convex/modules/federation/http.ts#inbox", "modules.federation.inbox.admit"],
   // PA9C : transfert de consentement d'agent signé ; `redeem` consomme `federation.receive` avant tout effet.
   ["convex/modules/federation/agentConsentTransfer.ts#transfer", "modules.federation.agentConsentTransfer.redeem"],
+  // CH-817 : porte des comptes de démonstration, sans session ; chaque route consomme ses seaux
+  // (adresse, commun, liste, numéro) dans sa mutation d'admission avant tout autre effet.
+  ["convex/modules/platform/demoGateHttp.ts#requestCode", "modules.platform.demoGate.admitRequest"],
+  ["convex/modules/platform/demoGateHttp.ts#verifyCode", "modules.platform.demoGate.admitVerify"],
 ])
 /**
  * P16 : portes HTTP de LECTURE seule, nominatives et vérifiées sans effet (ni écriture, ni
@@ -321,6 +325,22 @@ describe("rate-limited-writes — admission obligatoire de toute entrée publiqu
       return exportedCalls(parsed).filter(({ call }) => property(call.arguments[0], "readOnly")?.kind === ts.SyntaxKind.TrueKeyword).map(({ name }) => `${file}#${name}`)
     })
     expect(declared.sort()).toEqual([...READ_ONLY_ACTIONS].sort())
+  })
+
+  it("CH-817 : les deux routes de la porte des comptes de démonstration attendent leur admission avant tout effet", () => {
+    const file = "convex/modules/platform/demoGateHttp.ts"
+    const text = readRepoFile(file)
+    expect(detectUnmeteredWrites(file, text)).toEqual([])
+    // Une écriture avant l'admission de la demande, ou une vérification admise par une autre mutation : refusées.
+    const early = text.replace("const accepted: DemoGateRequestAccepted", "await ctx.runMutation(internal.modules.platform.demoGate.markDeliveryFailed, { challengeId }); const accepted: DemoGateRequestAccepted")
+    expect(early).not.toBe(text)
+    expect(detectUnmeteredWrites(file, early)).toHaveLength(1)
+    const other = text.replace("demoGate.admitVerify, {", "demoGate.completeVerify, {")
+    expect(other).not.toBe(text)
+    expect(detectUnmeteredWrites(file, other)).toHaveLength(1)
+    // Les mutations d'admission consomment leurs seaux nommés.
+    const store = readRepoFile("convex/modules/platform/demoGate.ts")
+    for (const bucket of ["demoGate.request.ip", "demoGate.request.global", "demoGate.request.phone", "demoGate.request.phone.daily", "demoGate.verify.ip", "demoGate.verify.global"]) expect(store).toContain(`"${bucket}"`)
   })
 
   it("l'inbox système consomme son budget avant les effets et sa porte HTTP attend l'admission", () => {

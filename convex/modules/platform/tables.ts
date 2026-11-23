@@ -5,6 +5,7 @@
  * (IDN `loa ≥ 2` obligatoire, double validation des actes irréversibles)
  * arrive au prompt PA7 ; son journal est la lecture de `engineAudit`.
  */
+import { DEMO_GATE_SCOPES } from "@antsia/social-contracts/demoGate"
 import { AUDIT_ACTIONS, AUDIT_CAPACITIES, AUDIT_SUBJECT_TABLES } from "@antsia/social-domain/audit"
 import { defineTable } from "convex/server"
 import { v } from "convex/values"
@@ -16,6 +17,17 @@ export const auditCapacityValidator = literals(AUDIT_CAPACITIES)
 export const auditSubjectTableValidator = literals(AUDIT_SUBJECT_TABLES)
 /** Le détail d'une ligne : plat, des scalaires (bornes : `auditDetailsProblems`). */
 export const auditDetailsValidator = v.record(v.string(), v.union(v.string(), v.number(), v.boolean(), v.null()))
+
+/** La portée d'une ligne de la porte des comptes de démonstration (CH-817) : le site servi. */
+export const demoGateScopeValidator = literals(DEMO_GATE_SCOPES)
+export const demoGateChallengeStatusValidator = v.union(
+  v.literal("active"),
+  v.literal("superseded"),
+  v.literal("verified"),
+  v.literal("exhausted"),
+  v.literal("expired"),
+  v.literal("delivery_failed"),
+)
 
 export const platformTables = {
   /**
@@ -63,6 +75,59 @@ export const platformTables = {
     expiresAt: v.number(),
     createdAt: v.number(),
   }).index("by_email", ["email"]),
+
+  /**
+   * Porte des comptes de démonstration (CH-817, `./demoGate.ts`). AUCUN numéro, code ni jeton en
+   * clair : des empreintes HMAC-SHA256 liées au secret du déploiement (`ANTSIA_DEMO_GATE_SECRET`).
+   * Changer le secret rend la liste et les sessions inopérantes : la liste se rejoue.
+   *
+   * La LISTE des numéros autorisés d'une portée (20 actifs au plus), alimentée par les fonctions
+   * internes `allowPhones` / `revokePhones` que lance le propriétaire. Un retrait garde la ligne
+   * (sujet du journal) ; une réinscription la rouvre.
+   */
+  demoGateAllowlist: defineTable({
+    scope: demoGateScopeValidator,
+    phoneHash: v.string(),
+    addedAt: v.number(),
+    revokedAt: v.optional(v.number()),
+  }).index("by_scope_phoneHash", ["scope", "phoneHash"]),
+
+  /**
+   * Les DÉFIS : un par demande admise d'un numéro de la liste, le nouveau remplace l'ancien.
+   * `codeDigest` lie le code au défi et à l'empreinte du numéro. Cinq essais, cinq minutes ;
+   * un envoi WhatsApp échoué invalide le défi (`delivery_failed`). Purgés 24 h après expiration.
+   */
+  demoGateChallenges: defineTable({
+    scope: demoGateScopeValidator,
+    challengeId: v.string(),
+    phoneHash: v.string(),
+    codeDigest: v.string(),
+    status: demoGateChallengeStatusValidator,
+    attemptsUsed: v.number(),
+    createdAt: v.number(),
+    expiresAt: v.number(),
+    invalidatedAt: v.optional(v.number()),
+    verifiedAt: v.optional(v.number()),
+  })
+    .index("by_challengeId", ["challengeId"])
+    .index("by_scope_phoneHash_status", ["scope", "phoneHash", "status"])
+    .index("by_expiresAt", ["expiresAt"]),
+
+  /**
+   * Les SESSIONS de porte : trente minutes, non renouvelables, issues d'un défi consommé une fois.
+   * Seule l'empreinte du jeton est indexée ; le jeton en clair ne vit que chez le navigateur
+   * (`sessionStorage`). Une session ne vaut que tant que sa ligne de liste est active.
+   */
+  demoGateSessions: defineTable({
+    scope: demoGateScopeValidator,
+    tokenDigest: v.string(),
+    allowlistId: v.id("demoGateAllowlist"),
+    challengeId: v.id("demoGateChallenges"),
+    createdAt: v.number(),
+    expiresAt: v.number(),
+  })
+    .index("by_tokenDigest", ["tokenDigest"])
+    .index("by_expiresAt", ["expiresAt"]),
 
   /**
    * Le journal des décisions du moteur (E9) : une ligne par décision de
