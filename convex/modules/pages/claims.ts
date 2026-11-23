@@ -15,9 +15,9 @@
  *    aussitôt ; celles d'une demande TRANCHÉE sont purgées au terme de
  *    `PAGE_CLAIM_EVIDENCE_RETENTION_DAYS` (PG-01, valeur à valider), échéance
  *    rendue par les lectures (`evidencePurgeAt`, AS-01) ;
- *  · la modération qui INSTRUIT (`pageClaimReviewCapacity`, AS-01) : un rôle de
+ *  · la modération qui INSTRUIT (`pageClaimReviewer`, AS-01) : un rôle de
  *    réseau, ou le membre actif de l'équipe de modération vivante compétente
- *    pour les pages (règle de `teamCapacity`) ;
+ *    pour la page (CH-815 : celle de son pays, règle de `moderation/routing`) ;
  *  · trancher est une DÉCISION : motivée, tracée (`page.claim_decide`, qualité
  *    du décideur). Validée, elle fait du demandeur un administrateur et de la
  *    page `community` une page `verified`. Le demandeur et tout signataire de la
@@ -26,6 +26,7 @@
  */
 import { assertDecisionReason, type AuditCapacity } from "@antsia/social-domain/audit"
 import type { ModerationSurface } from "@antsia/social-domain/moderationPolicy"
+import { chooseModerationTeam } from "@antsia/social-domain/moderationRouting"
 import { pageTrustRank, assertPageClaimable, assertPageClaimEvidenceCount, isPageClaimOpen, normalizePageClaimNote, PAGE_CLAIM_EVIDENCE_RETENTION_MS, pageSleepState } from "@antsia/social-domain/pages"
 import { makeFunctionReference, paginationOptsValidator, type PaginationResult } from "convex/server"
 import { type Infer, v } from "convex/values"
@@ -42,6 +43,7 @@ import { admitStoredUpload, assertFreshUpload, findScanByStorageId } from "../fi
 import { purgeStoredFile } from "../files/purge"
 import { resolveFileDelivery, withheldCodeOf, withheldCodeValidator } from "../files/storageGuard"
 import { teamCapacity } from "../moderation/cases"
+import { activeModerationTeams, MODERATION_TEAMS_MAX, routeModerationContent } from "../moderation/routing"
 import { notifyPerson } from "../notifications/notify"
 import { miniProfileCache } from "../people/miniProfile"
 import { appendAudit, networkRoleCapacity } from "../platform/audit"
@@ -107,31 +109,51 @@ const PAGE_SURFACE: ModerationSurface = "page"
 /** Le lecteur d'une fonction de réseau : son réseau, sa personne, son adhésion relue par le constructeur. */
 type ClaimActor = { networkId: Id<"networks">; person: Doc<"persons">; membership: Doc<"networkMemberships"> }
 
-/** À quel titre une personne instruit les revendications de son réseau ; `teamId` : par quelle équipe (sinon `null`). */
+/** À quel titre une personne instruit UNE revendication ; `teamId` : par quelle équipe (sinon `null`). */
 export type PageClaimReviewCapacity = { capacity: AuditCapacity; teamId: Id<"moderationTeams"> | null }
 
 /**
- * AS-01 — qui INSTRUIT les revendications d'un réseau (file, fiche et pièces, décision) :
- *  · un rôle de réseau (`network_admin`, `network_moderator`), comme avant ;
- *  · sinon le membre actif de l'équipe de modération vivante COMPÉTENTE pour les pages, selon la
- *    règle de `teamCapacity` : l'équipe à qui le moteur adresse un signalement de page
- *    (`cases.report`), soit l'équipe vivante de nature `page`, à défaut l'équipe vivante sans
- *    nature. Une équipe d'une autre nature ne gagne rien ; une équipe sans nature non plus dès
- *    qu'une équipe `page` existe (elle ne reçoit alors aucun signalement de page). Qualité au
- *    journal : `moderation_team_member`, avec l'équipe ;
+ * AS-01, CH-815 (ADR-0042, amendement « Routage des signalements par pays ») — qui INSTRUIT les
+ * revendications d'un réseau (file, fiche et pièces, décision), relu une fois par appel :
+ *  · un rôle de réseau (`network_admin`, `network_moderator`) : toutes les pages, comme avant ;
+ *  · sinon le membre actif d'une équipe de modération vivante qui REÇOIT des revendications : pour une page,
+ *    l'équipe à qui le moteur adresse un signalement de cette page (`moderation/routing`, comme
+ *    `cases.report`) — l'équipe du pays de la page, de nature `page` puis généraliste, à défaut l'équipe
+ *    sans pays de nature `page` puis l'équipe sans pays ni nature. Une équipe d'une autre nature ne gagne
+ *    rien ; une équipe sans nature non plus dès qu'une équipe `page` la précède ; une équipe d'un pays
+ *    n'instruit que les pages de son pays, jamais une page sans pays. Qualité au journal :
+ *    `moderation_team_member`, avec l'équipe ;
  *  · `null` pour tout autre lecteur : l'appelant rend le refus indistinct.
- * Le conflit d'intérêts (`hasClaimConflict`) se juge à part, revendication par revendication. Les
- * équipes ne portent pas de pays : la compétence d'une équipe couvre tout son réseau.
+ * La page elle-même se juge par `pageClaimReviewCapacityFor`. Le conflit d'intérêts (`hasClaimConflict`)
+ * se juge à part, revendication par revendication.
  */
-export async function pageClaimReviewCapacity(ctx: Pick<QueryCtx, "db">, actor: ClaimActor): Promise<PageClaimReviewCapacity | null> {
+export type PageClaimReviewer =
+  | { readonly kind: "network"; readonly capacity: AuditCapacity }
+  | { readonly kind: "teams"; readonly teams: readonly Doc<"moderationTeams">[]; readonly mine: ReadonlySet<Id<"moderationTeams">> }
+
+export async function pageClaimReviewer(ctx: Pick<QueryCtx, "db">, actor: ClaimActor): Promise<PageClaimReviewer | null> {
   const role = networkRoleCapacity(actor.membership.role)
-  if (role !== null) return { capacity: role, teamId: null }
+  if (role !== null) return { kind: "network", capacity: role }
   // borné : 100 équipes vivantes au plus par réseau (`cases.createTeam`) ; au-delà, aucune compétence d'équipe.
-  const teams = await ctx.db.query("moderationTeams").withIndex("by_network_active", (q) => q.eq("networkId", actor.networkId).eq("active", true)).take(101)
-  if (teams.length > 100) return null
-  const team = teams.find((row) => row.scope === PAGE_SURFACE) ?? teams.find((row) => row.scope === undefined)
-  if (!team || (await teamCapacity(ctx, actor, PAGE_SURFACE, team._id)) === null) return null
-  return { capacity: "moderation_team_member", teamId: team._id }
+  const teams = await activeModerationTeams(ctx, actor.networkId)
+  if (teams.length > MODERATION_TEAMS_MAX) return null
+  // Les équipes qui reçoivent une revendication pour AU MOINS un pays : celle d'une page sans pays (que reçoit
+  // aussi tout pays sans équipe), et celle de chaque pays porté par une équipe.
+  const countries = new Set<string | null>([null])
+  for (const team of teams) if (team.country !== undefined) countries.add(team.country)
+  const mine = new Set<Id<"moderationTeams">>()
+  for (const country of countries) {
+    const team = chooseModerationTeam(teams, PAGE_SURFACE, country)
+    if (team && !mine.has(team._id) && (await teamCapacity(ctx, actor, PAGE_SURFACE, team._id)) !== null) mine.add(team._id)
+  }
+  return mine.size === 0 ? null : { kind: "teams", teams, mine }
+}
+
+/** À quel titre ce lecteur instruit la revendication de CETTE page, ou `null` (elle revient à une autre équipe). */
+export async function pageClaimReviewCapacityFor(ctx: Pick<QueryCtx, "db">, reviewer: PageClaimReviewer, page: Doc<"pages">): Promise<PageClaimReviewCapacity | null> {
+  if (reviewer.kind === "network") return { capacity: reviewer.capacity, teamId: null }
+  const team = await routeModerationContent(ctx, page.networkId, PAGE_SURFACE, page._id, reviewer.teams)
+  return team !== undefined && reviewer.mine.has(team._id) ? { capacity: "moderation_team_member", teamId: team._id } : null
 }
 
 /** Purger les pièces d'une revendication — seulement celles que le registre dit admises pour elle. */
@@ -247,7 +269,8 @@ export const paginateMyPageClaims = networkQuery({
 })
 
 /**
- * AS-01 — le lecteur instruit-il les revendications de ce réseau (`pageClaimReviewCapacity`) ?
+ * AS-01 — le lecteur instruit-il des revendications de ce réseau (`pageClaimReviewer`) ? CH-815 : un membre
+ * d'équipe n'en instruit que celles des pages de son pays ; la file les trie.
  * Il ne parle que de lui-même : `false` n'est pas un refus, et rien n'est dit des équipes ni de
  * leurs membres. `/moderation` d'antsia.ga en tire l'onglet « Pages à vérifier ». Même statut
  * minimal que `cases.myCapacity`, que cet écran lit à côté.
@@ -257,12 +280,12 @@ export const myPageClaimReview = networkQuery({
   minStatus: "declaree",
   args: {},
   returns: v.object({ canReview: v.boolean() }),
-  handler: async (ctx) => ({ canReview: (await pageClaimReviewCapacity(ctx, ctx)) !== null }),
+  handler: async (ctx) => ({ canReview: (await pageClaimReviewer(ctx, ctx)) !== null }),
 })
 
 /**
  * La FILE des revendications d'un réseau (« pages à vérifier ») — sa modération
- * seule (rôle de réseau, ou membre de l'équipe compétente : `pageClaimReviewCapacity`) ;
+ * seule (rôle de réseau, ou membre de l'équipe compétente pour la page : `pageClaimReviewer`) ;
  * tout autre lecteur reçoit le refus indistinct. Les plus anciennes d'abord : une
  * file se vide par le bas.
  */
@@ -270,7 +293,8 @@ export const paginatePageClaims = networkQuery({
   feature: "pages",
   args: { status: v.optional(pageClaimStatusValidator), paginationOpts: paginationOptsValidator },
   handler: async (ctx, args): Promise<PaginationResult<ClaimDto>> => {
-    if ((await pageClaimReviewCapacity(ctx, ctx)) === null) return notFound()
+    const reviewer = await pageClaimReviewer(ctx, ctx)
+    if (reviewer === null) return notFound()
     const status = args.status ?? "pending"
     const result = await ctx.db
       .query("pageClaims")
@@ -280,6 +304,9 @@ export const paginatePageClaims = networkQuery({
     const profileOf = miniProfileCache(ctx)
     const page: ClaimDto[] = []
     for (const claim of result.page) {
+      // CH-815 : un membre d'équipe ne lit que les revendications des pages de son pays.
+      const target = await ctx.db.get(claim.pageId)
+      if (!target || (await pageClaimReviewCapacityFor(ctx, reviewer, target)) === null) continue
       const dto = await toClaimDto(ctx, claim, profileOf)
       if (dto) page.push(dto)
     }
@@ -289,7 +316,7 @@ export const paginatePageClaims = networkQuery({
 
 /**
  * UNE revendication, ses pièces comprises — la modération du réseau
- * (`pageClaimReviewCapacity`), ou son demandeur. Chaque pièce est servie par la
+ * compétente pour la page (`pageClaimReviewer`), ou son demandeur. Chaque pièce est servie par la
  * garde des fichiers (`null` avec la retenue tant que l'analyse n'a pas parlé, ou
  * si elle a bloqué) ; l'échéance de leur suppression est `evidencePurgeAt`.
  */
@@ -305,7 +332,9 @@ export const getPageClaim = networkQuery({
   handler: async (ctx, args) => {
     const claim = await ctx.db.get(args.claimId)
     if (!claim || claim.networkId !== ctx.networkId) return notFound()
-    const reviewer = (await pageClaimReviewCapacity(ctx, ctx)) !== null
+    const page = await ctx.db.get(claim.pageId)
+    const instructor = await pageClaimReviewer(ctx, ctx)
+    const reviewer = page !== null && instructor !== null && (await pageClaimReviewCapacityFor(ctx, instructor, page)) !== null
     if (claim.claimantPersonId !== ctx.person._id && !reviewer) return notFound()
     const dto = await toClaimDto(ctx, claim, miniProfileCache(ctx))
     if (!dto) return notFound()
@@ -320,8 +349,8 @@ export const getPageClaim = networkQuery({
 })
 
 /**
- * TRANCHER une revendication — la modération du réseau (`pageClaimReviewCapacity` :
- * rôle de réseau, ou membre de l'équipe compétente, AS-01). Motivée (motif borné),
+ * TRANCHER une revendication — la modération du réseau (`pageClaimReviewer` :
+ * rôle de réseau, ou membre de l'équipe compétente pour la page, AS-01 et CH-815). Motivée (motif borné),
  * tracée (`page.claim_decide`, à la qualité du décideur, avec son équipe s'il
  * tranche par elle). Validée : le demandeur, encore membre actif du
  * réseau, devient administrateur (habilitation acceptée, c'est sa demande) et
@@ -337,15 +366,18 @@ export const decidePageClaim = networkMutation({
   returns: v.object({ status: pageClaimStatusValidator }),
   handler: async (ctx, args) => {
     await enforceRateLimit(ctx, "moderation.decide", ctx.person._id)
-    const reviewer = await pageClaimReviewCapacity(ctx, ctx)
-    if (reviewer === null) return notFound()
+    const instructor = await pageClaimReviewer(ctx, ctx)
+    if (instructor === null) return notFound()
     const claim = await ctx.db.get(args.claimId)
     if (!claim || claim.networkId !== ctx.networkId) return notFound()
+    const page = await ctx.db.get(claim.pageId)
+    if (!page) return notFound()
+    // CH-815 : l'équipe du pays de la page, relue à l'acte ; une autre équipe reçoit le refus indistinct.
+    const reviewer = await pageClaimReviewCapacityFor(ctx, instructor, page)
+    if (reviewer === null) return notFound()
     if (await hasClaimConflict(ctx, claim, ctx.person._id)) return notFound()
     if (!isPageClaimOpen(claim.status)) return fail("conflict")
     const decisionReason = checked(() => assertDecisionReason(args.reason, 3))
-    const page = await ctx.db.get(claim.pageId)
-    if (!page) return notFound()
     const now = Date.now()
     let trust = page.trust
     if (args.decision === "approved") {

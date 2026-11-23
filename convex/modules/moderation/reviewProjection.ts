@@ -19,6 +19,7 @@ import { contextualKindValidator } from "../contextualMessaging/tables"
 import { requireReportCapacity, teamCapacity } from "./cases"
 import { contentState } from "./policy"
 import { professionalReviewSource } from "./professionalReviewSource"
+import { activeModerationTeams, MODERATION_TEAMS_MAX, routeModerationContent } from "./routing"
 import { editorialMediaReviewSource, editorialReviewSource } from "./editorialReviewSource"
 import { moderationSurfaceValidator, moderationTargetValidator } from "./tables"
 import { commerceOfferModerationText } from "./commerceOfferText"
@@ -217,9 +218,10 @@ export const preview = networkQuery({
     if (!target) return notFound()
     const state = await contentState(ctx, target.kind, target.id)
     if (!state || state.networkId !== ctx.networkId || state.status !== "pending_review") return notFound()
-    const teams = await ctx.db.query("moderationTeams").withIndex("by_network_active", (q) => q.eq("networkId", ctx.networkId).eq("active", true)).take(101)
-    if (teams.length > 100) return notFound()
-    const team = teams.find((row) => row.scope === target.kind) ?? teams.find((row) => row.scope === undefined)
+    const teams = await activeModerationTeams(ctx, ctx.networkId)
+    if (teams.length > MODERATION_TEAMS_MAX) return notFound()
+    // CH-815 (ADR-0042) : l'équipe qui reçoit ce contenu, par son pays puis sa nature (`moderation/routing`).
+    const team = await routeModerationContent(ctx, ctx.networkId, target.kind, target.id, teams)
     if (!await teamCapacity(ctx, ctx, target.kind, team?._id)) return notFound()
     return await targetPreview(ctx, ctx.networkId, target, ctx.person._id, false)
   },

@@ -89,8 +89,8 @@ export const moderationTables = {
   moderationTeams: defineTable({
     networkId: v.id("networks"), name: v.string(), scope: v.optional(moderationSurfaceValidator),
     // CH-815 A3 (ADR-0042) : le pays de l'équipe (ISO 3166-1 alpha-2), facultatif, posé par l'administration du
-    // réseau. Il ne délimite encore aucune compétence (le routage reste par `scope`) ; aucun index : 100 équipes
-    // actives au plus, relues par `by_network_active`.
+    // réseau. Il délimite la compétence : un dossier va à l'équipe du pays du contenu, puis de sa nature
+    // (`moderation/routing`) ; aucun index : 100 équipes actives au plus, relues par `by_network_active`.
     country: v.optional(v.string()),
     active: v.boolean(), createdAt: v.number(),
   }).index("by_network_active", ["networkId", "active"]),

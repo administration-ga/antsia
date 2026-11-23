@@ -26,6 +26,7 @@ import { markCommentRemoved, markPostRemoved } from "../posts/contentRemoval"
 import { requireReportCapacity } from "./cases"
 import { contentState } from "./policy"
 import { acknowledgeReport, legalDeadlineColumns, notifyReporterOfDecision } from "./reporterNotices"
+import { activeModerationTeams, MODERATION_TEAMS_MAX, routeModerationContent } from "./routing"
 import { contentReportReasonValidator, contentReportStatusValidator } from "./tables"
 import { speaksForPage } from "./targets"
 
@@ -65,9 +66,10 @@ async function fileReport(
   const now = Date.now()
   const comment = target.commentId ? await ctx.db.get(target.commentId) : null
   const polymorphicTarget = target.kind === "post" ? { kind: "post" as const, id: target.post._id } : { kind: "comment" as const, id: target.commentId! }
-  const teams = await ctx.db.query("moderationTeams").withIndex("by_network_active", (q) => q.eq("networkId", target.post.networkId).eq("active", true)).take(101)
-  if (teams.length > 100) return fail("policyRefused")
-  const team = teams.find((row) => row.scope === target.kind) ?? teams.find((row) => row.scope === undefined)
+  const teams = await activeModerationTeams(ctx, target.post.networkId)
+  if (teams.length > MODERATION_TEAMS_MAX) return fail("policyRefused")
+  // CH-815 (ADR-0042) : la même règle que `cases.report`, pays du contenu puis nature (`moderation/routing`).
+  const team = await routeModerationContent(ctx, target.post.networkId, polymorphicTarget.kind, polymorphicTarget.id, teams)
   const polymorphicId = await ctx.db.insert("reports", { networkId: target.post.networkId, target: polymorphicTarget, targetKind: target.kind, targetId: polymorphicTarget.id, ownerPersonId: comment?.authorPersonId ?? target.post.authorPersonId, reporterPersonId: ctx.person._id, reporterNetworkId: ctx.networkId, reason, ...legalDeadlineColumns(reason, now), ...(team ? { teamId: team._id } : {}), level: team ? "team" : "network", status: "open", createdAt: now, updatedAt: now })
   const reportId = await ctx.db.insert("contentReports", {
     networkId: target.post.networkId,
