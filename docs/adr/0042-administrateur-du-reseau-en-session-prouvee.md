@@ -137,7 +137,9 @@ indistinct, même celle de l'administrateur.
   a son application d'administration au catalogue (`isAdministeredNetwork`) ; pour la racine et
   tout autre réseau, ils ne changent pas.
 - **Journal** : `platform/audit.paginateNetworkAdminAudit`, la lecture du journal du réseau par
-  son administration, filtrable par action (même projection que la console, plus le motif).
+  son administration, filtrable par action (même projection que la console, plus le motif) ; et
+  `networks/features.lastDecisions`, la dernière décision de chaque module pour ses cartes (lue au
+  journal au même instant que la ligne du module, sans nouvel index).
 - **Restent au bureau des membres** : le travail quotidien des modérateurs (`myDesk`, `queue`,
   `caseDetail`, `pendingQueue`, `pageClaimQueue`, `cases.deadlineQueue`, `cases.decide`,
   `cases.reviewContent`, l'aperçu borné, les revendications de page).
