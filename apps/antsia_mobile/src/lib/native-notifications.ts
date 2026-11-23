@@ -25,6 +25,8 @@ const engineKeys: Readonly<Record<EngineOnlyKind, { actor: string | null; system
   file_withheld: { actor: null, system: "fileWithheld" },
   call_missed: { actor: "callMissed", system: null },
   voicemail_left: { actor: "voicemailLeft", system: null },
+  // IC-09 : l'expéditeur est nommé (profil publié), jamais le message.
+  personal_message: { actor: "personalMessage", system: null },
   sponsorship_received: { actor: "sponsorshipReceived", system: null },
   sponsorship_withdrawn: { actor: "sponsorshipWithdrawn", system: "sponsorshipWithdrawnSystem" },
   attestation_verified: { actor: null, system: "attestationVerified" },

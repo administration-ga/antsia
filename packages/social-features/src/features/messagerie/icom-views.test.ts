@@ -1,5 +1,19 @@
 import { describe, expect, it } from "vitest"
-import { conversationFilterCount, filtrerConversations, ICOM_VIEWS, icomViewFromBrique, icomViewHref, parseConversationFilter, servedConversationFilters } from "./icom-views"
+import { conversationFilterCount, filtrerConversations, ICOM_VIEWS, icomViewFromBrique, icomViewHref, parseConversationFilter, servedConversationFilters, servedIcomView, servedIcomViews } from "./icom-views"
+
+describe("CH-817 — la vue Appels n'est servie que si l'application propose des appels", () => {
+	it("appels proposés : trois vues, `?brique=iappel` mène aux Appels (inchangé)", () => {
+		expect(servedIcomViews(true).map((view) => view.id)).toEqual(["conversations", "appels", "contacts"])
+		expect(icomViewFromBrique("iappel", true)).toBe("appels")
+		expect(icomViewFromBrique("iappel")).toBe("appels")
+	})
+	it("appels fermés : deux vues, et un lien vers les Appels ouvre les Conversations", () => {
+		expect(servedIcomViews(false).map((view) => view.id)).toEqual(["conversations", "contacts"])
+		expect(icomViewFromBrique("iappel", false)).toBe("conversations")
+		expect(servedIcomView("appels", false)).toBe("conversations")
+		expect(servedIcomView("contacts", false)).toBe("contacts")
+	})
+})
 
 describe("vues P05 et filtres réellement servis", () => {
 	it("offre trois vues et conserve les adresses historiques des appels et contacts", () => {

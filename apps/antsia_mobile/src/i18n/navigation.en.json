@@ -56,6 +56,7 @@
   "mobile.notificationUi.notificationTargets.sentence.fileWithheld": "An uploaded file was withheld by the security scan.",
   "mobile.notificationUi.notificationTargets.sentence.callMissed": "{{actor}} tried to reach you.",
   "mobile.notificationUi.notificationTargets.sentence.voicemailLeft": "{{actor}} left you a voice message.",
+  "mobile.notificationUi.notificationTargets.sentence.personalMessage": "{{actor}} sent you a message.",
   "mobile.notificationUi.notificationTargets.sentence.sponsorshipReceived": "{{actor}} is sponsoring you.",
   "mobile.notificationUi.notificationTargets.sentence.sponsorshipWithdrawn": "{{actor}} withdrew their sponsorship.",
   "mobile.notificationUi.notificationTargets.sentence.sponsorshipWithdrawnSystem": "Your sponsorship was withdrawn.",

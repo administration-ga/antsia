@@ -56,6 +56,7 @@
   "mobile.notificationUi.notificationTargets.sentence.fileWithheld": "Un fichier déposé a été retenu par l'analyse de sécurité.",
   "mobile.notificationUi.notificationTargets.sentence.callMissed": "{{actor}} a cherché à vous joindre.",
   "mobile.notificationUi.notificationTargets.sentence.voicemailLeft": "{{actor}} vous a laissé un message vocal.",
+  "mobile.notificationUi.notificationTargets.sentence.personalMessage": "{{actor}} vous a écrit.",
   "mobile.notificationUi.notificationTargets.sentence.sponsorshipReceived": "{{actor}} vous parraine.",
   "mobile.notificationUi.notificationTargets.sentence.sponsorshipWithdrawn": "{{actor}} a retiré son parrainage.",
   "mobile.notificationUi.notificationTargets.sentence.sponsorshipWithdrawnSystem": "Votre parrainage a été retiré.",

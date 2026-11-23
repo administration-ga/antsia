@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/notifications/notification-targets.test.ts @ ad2e7fdc2 — adaptations : adresses attendues composées sur des adresses INJECTÉES de test (accueil, messagerie, profil, conférence) et non plus sur la base de l'espace agent ; sujet du moteur `{ kind, id }` au lieu des colonnes `subject…Id` ; libellés et phrases lus dans l'i18n du moteur (`t` en dernier paramètre) ; retirés : les deux cas « publication masquée sans base iRéseau » et « barre finale de la base » (la page réseau du moteur est toujours l'accueil, `reseauBaseHref` n'existe plus) ; les cibles de DIRECT portées sur le sujet `liveSession` du moteur et l'adresse injectée `conference(sessionId)` (rétablies au lot `live` : « enregistrement publié » et son rappel `onOpenDirect`, invitation à un direct expirée qui garde son ouverture — le cas « autres genres résolus » garde en plus l'évènement annulé) ; tous les autres cas portés (matrice de l'invitation tranchée comprise) ; ajoutés : base portant déjà une query ou une ancre, album d'un profil, journal iAppel (appel manqué, message vocal), fichier retenu sans cible, nature de sujet inconnue, profil du parrain, rappel jamais offert pour un album ou le journal, phrases de TOUS les genres du moteur (acteur, nom neutre, avis du système, page nommée par le serveur, retrait de parrainage, genre inconnu, anglais) et ligne de résultat (invitation, fichier libéré ou de nouveau analysé).
+// Dupliqué de socle/packages/agent-features/src/features/notifications/notification-targets.test.ts @ ad2e7fdc2 — adaptations : adresses attendues composées sur des adresses INJECTÉES de test (accueil, messagerie, profil, conférence) et non plus sur la base de l'espace agent ; sujet du moteur `{ kind, id }` au lieu des colonnes `subject…Id` ; libellés et phrases lus dans l'i18n du moteur (`t` en dernier paramètre) ; retirés : les deux cas « publication masquée sans base iRéseau » et « barre finale de la base » (la page réseau du moteur est toujours l'accueil, `reseauBaseHref` n'existe plus) ; les cibles de DIRECT portées sur le sujet `liveSession` du moteur et l'adresse injectée `conference(sessionId)` (rétablies au lot `live` : « enregistrement publié » et son rappel `onOpenDirect`, invitation à un direct expirée qui garde son ouverture — le cas « autres genres résolus » garde en plus l'évènement annulé) ; tous les autres cas portés (matrice de l'invitation tranchée comprise) ; ajoutés : base portant déjà une query ou une ancre, album d'un profil, journal iAppel (appel manqué, message vocal), fichier retenu sans cible, nature de sujet inconnue, profil du parrain, rappel jamais offert pour un album ou le journal, phrases de TOUS les genres du moteur (acteur, nom neutre, avis du système, page nommée par le serveur, retrait de parrainage, genre inconnu, anglais) et ligne de résultat (invitation, fichier libéré ou de nouveau analysé) ; IC-09 : message à deux (phrase, cible `personalThread`).
 import type {
 	NotificationKind,
 	NotificationSubject,
@@ -74,6 +74,19 @@ describe("notificationTarget — une adresse par nature de sujet", () => {
 		// Un moteur antérieur, sans destination : le sujet commun reste servi tel quel.
 		expect(notificationTarget(invite, ROUTES, t)).toMatchObject({ kind: "group", href: `${HOME}?tab=groupes&groupe=grp-1` })
 		expect(notificationTarget({ ...invite, target: { kind: "thematicGroup", groupId: " " } }, ROUTES, t)).toBeNull()
+	})
+	it("IC-09 : un message à deux mène à SA conversation relue par le serveur, nomme l'expéditeur et ne dit jamais le message", () => {
+		const notice = item({ kind: "personal_message", actor: { handle: "awa" }, subject: null, target: { kind: "personalThread", threadId: "fil-1" } })
+		expect(notificationRowAction(notice, ROUTES, {}, t)).toEqual({ mode: "link", kind: "personalThread", href: `${MESSAGES}/chat/fil-1`, label: "Ouvrir" })
+		// Aucun rappel de l'hôte pour une conversation à deux : toujours l'adresse de la messagerie injectée.
+		expect(targetCallback("personalThread", { onOpenGroupThread: vi.fn(), onOpenProfile: vi.fn() })).toBeUndefined()
+		// Le fil ne se lit plus (blocage, fil fermé) : aucune adresse inventée, ni depuis l'acteur.
+		expect(notificationTarget({ ...notice, target: null }, ROUTES, t)).toBeNull()
+		expect(notificationTarget({ ...notice, target: { kind: "personalThread", threadId: " " } }, ROUTES, t)).toBeNull()
+		expect(notificationRowSentence({ kind: "personal_message", actor: { displayName: "Awa" } }, t)).toBe("Awa vous a écrit.")
+		expect(notificationRowSentence({ kind: "personal_message", actor: { displayName: "Awa" } }, tEn)).toBe("Awa sent you a message.")
+		// Profil non publié : le nom neutre, jamais une devinette.
+		expect(notificationRowSentence({ kind: "personal_message", actor: { displayName: null } }, t)).not.toContain("null")
 	})
 	it("phrase l'invitation à signer et la revendication tranchée sans acteur ni contenu, en français et en anglais ; l'invitation dit sa résolution", () => {
 		const actor = { displayName: "Personne sans rapport" }
