@@ -29,7 +29,7 @@ const WHATSAPP = {
   WHATSAPP_PROVIDER: "bird",
   WHATSAPP_ENDPOINT: "https://whatsapp.example.test/messages",
   WHATSAPP_API_KEY: "fictional-access-key-0123456789",
-  WHATSAPP_TEMPLATE: "fictional-project:fictional-version",
+  WHATSAPP_TEMPLATE: "bird_fictional_otp",
 }
 const LOCAL = { CONVEX_CLOUD_URL: "http://127.0.0.1:3210", ANTSIA_DEV_TOOLS: "true" }
 const GATED = { ...LOCAL, ANTSIA_DEMO_GATE_SECRET: SECRET, ...WHATSAPP }
