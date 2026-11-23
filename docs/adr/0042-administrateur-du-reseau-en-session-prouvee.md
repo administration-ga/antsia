@@ -146,3 +146,27 @@ indistinct, même celle de l'administrateur.
 
 Recettes : `convex/tests/network-admin-decisions.test.ts` ; cliquets `network-admin-audit` et
 `network-feature-gates` (constructeurs de l'administrateur lus dans la tranche).
+
+## Amendement du 2026-11-23 (CH-815, lot A2) — les pages officielles du réseau
+
+Statut « Proposé ». Fiche, § 3 (décision du propriétaire du 22/11 : les pages officielles sont créées par
+le super admin) et § 4.2 (« Institutions et pages officielles »).
+
+- **Jumeaux bornés au réseau** (`pages/networkAdmin`, clé `pages`) : `officialPages`, `signatoryCandidate`,
+  `createOfficialPage`, `designateSignatory`, `sleepOfficialPage`, `wakeOfficialPage`. Un seul chemin métier
+  avec la console et l'équipe de la page : `pages/admin` (`insertInstitutionPage`, `grantInstitutionAdmin`,
+  `revokeInstitutionTeamMember`, `institutionSignatoryOf`), `pages/sleep` (`applyPageSleep`, `applyPageWake`),
+  `pages/signatories` (`removePageTeamRow`).
+- **« Officiel » dans son réseau seulement.** Le badge a trois sources : la console (`createInstitutionPage`,
+  qui peut poser la règle `root`, et `setPageTrust`), et la fédération (`federation/reseauPublic`, contrat
+  signé). Le jumeau impose la visibilité `network` et refuse toute référence d'import : la page ne se lit
+  pas depuis la racine, n'entre dans aucune projection publique ni autorité fédérée (qui exigent
+  `visibility: "root"` et `onRoot`). Aucun chemin ne change la visibilité d'une page après sa naissance.
+- **Signataire** : membre actif du réseau, identité forte (`PAGE_SIGNATORY_IDENTITY_REQUIRED`, la règle
+  de la console) ; le remplacement retire l'ancien dans la même décision, la page peut attendre
+  l'acceptation sans administrateur vivant.
+- **Sommeil** : aucun état nouveau ; l'administration du réseau est la décision humaine qui lève aussi un
+  sommeil échu ; une page retirée par la plateforme ou le juge ne se réveille pas d'ici.
+- **Reste à la plateforme** : le retrait du badge (`setPageTrust`), le retrait et l'adresse d'une page.
+
+Recette : `convex/tests/network-admin-official-pages.test.ts`.
