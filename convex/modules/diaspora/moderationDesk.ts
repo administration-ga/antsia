@@ -41,9 +41,11 @@
  *   une page, une publication de page, un évènement, un avis ou un groupe
  *   d'association). Les deux parties d'un fil 1:1 sont l'auteur du message
  *   signalé et son déclarant : seule une partie au fil peut le signaler.
- * - Aucune table : le moteur ne rattache pas encore une équipe à un pays
- *   (`moderationTeams.scope` est une NATURE de contenu) ; le pays filtre la file,
- *   il ne délimite aucune compétence.
+ * - Aucune table : depuis CH-815 A3 (ADR-0042), une équipe peut porter un pays
+ *   (`moderationTeams.country`, posé par l'administration du réseau, rendu par
+ *   `myDesk`) ; il conditionne l'ouverture d'un pays (`networkSettings.setOpenCountry`)
+ *   mais ne délimite encore aucune compétence : `moderationTeams.scope` reste une
+ *   NATURE de contenu, le pays de la cible filtre la file.
  * - AS-01 : les revendications de page en attente (« Pages à vérifier ») se
  *   relisent ici par fenêtres, filtrées par le pays de la PAGE, avec la garde du
  *   moteur (`pages/claims.pageClaimReviewCapacity` : rôle de réseau, ou membre de
@@ -128,6 +130,8 @@ const deskTeamValidator = v.object({
   teamId: v.id("moderationTeams"),
   name: v.string(),
   scope: v.union(moderationSurfaceValidator, v.null()),
+  /** CH-815 A3 : le pays de l'équipe (ISO alpha-2), `null` sans pays. */
+  country: v.union(v.string(), v.null()),
   isMember: v.boolean(),
 })
 type DeskTeamRow = typeof deskTeamValidator.type
@@ -622,7 +626,7 @@ export const myDesk = networkQuery({
         .withIndex("by_team_person", (q) => q.eq("teamId", team._id).eq("personId", ctx.person._id))
         .unique()
       const isMember = member?.active === true
-      if (admin || isMember) teams.push({ teamId: team._id, name: team.name, scope: team.scope ?? null, isMember })
+      if (admin || isMember) teams.push({ teamId: team._id, name: team.name, scope: team.scope ?? null, country: team.country ?? null, isMember })
     }
     if (!networkWide && teams.length === 0) return null
     return {

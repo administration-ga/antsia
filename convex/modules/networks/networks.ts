@@ -78,7 +78,12 @@ export const getBySlug = query({
   },
 })
 
-async function recordHistory(
+/**
+ * Fige les réglages d'un réseau dans `networkSettingsHistory`. Partagé avec la tranche qui règle un
+ * réseau depuis son administration (CH-815 A3 : `diaspora/networkSettings.setOpenCountry`) : une
+ * décision sans cette ligne passerait, pour l'équipement de démonstration, pour « personne n'a décidé ».
+ */
+export async function recordHistory(
   ctx: MutationCtx,
   network: Doc<"networks">,
   kind: "created" | "updated" | "archived",
