@@ -54,6 +54,69 @@ export function trustedOrigins(env: Env = process.env): string[] {
   return [...new Set(origins)]
 }
 
+/** La clé est-elle celle d'une application WEB du catalogue ? */
+export function isWebApplicationKey(key: string): key is ApplicationKey {
+  return webApplications.some((app) => app.key === key)
+}
+
+/** Ce que le catalogue dit d'une application pour l'administration d'un réseau. */
+type CatalogApplication = { readonly platform: string; readonly administers_network?: string }
+
+/**
+ * ADR-0042 — le réseau (son identifiant d'adresse, `slug`) qu'ADMINISTRE une application web du
+ * catalogue, déclaré par son champ `administers_network` ; `null` pour toute autre clé (application
+ * des membres, console, natif, clé inconnue ou absente). Le catalogue est la seule source : aucune
+ * ligne en base, aucun argument d'un client ne fait d'une application une porte d'administration.
+ */
+export function networkAdministeredBy(application: string | null | undefined, applications: Readonly<Record<string, CatalogApplication>> = catalog.applications): string | null {
+  if (!application || !Object.prototype.hasOwnProperty.call(applications, application)) return null
+  const app = applications[application]
+  return app?.platform === "web" && typeof app.administers_network === "string" && app.administers_network.length > 0 ? app.administers_network : null
+}
+
+const MAX_RETURN_URL_LENGTH = 2_048
+
+/** L'application d'une adresse ABSOLUE de retour : http(s), sans identifiants, d'une origine de confiance au catalogue ; `null` sinon. */
+function applicationOfReturnURL(value: unknown, env: Env): ApplicationKey | null {
+  if (typeof value !== "string" || value.length > MAX_RETURN_URL_LENGTH) return null
+  let url: URL
+  try { url = new URL(value) } catch { return null }
+  if ((url.protocol !== "https:" && url.protocol !== "http:") || url.username || url.password) return null
+  if (!trustedOrigins(env).includes(url.origin)) return null
+  return applicationOfOrigin(url.origin, env)
+}
+
+/**
+ * ADR-0042 — l'application du catalogue où un retour IDN LIVRE la nouvelle session, ou `null`.
+ *
+ * Établi par la lecture du parcours (Better Auth 1.6, greffon `crossDomain`) et par la recette
+ * `idnApplication.test.ts` :
+ * - le rappel IDN est une navigation GET du navigateur vers le rappel CENTRAL du moteur
+ *   (`redirectURI` : `${SITE_URL}/api/auth/oauth2/callback/idn`). Un navigateur ne met pas d'en-tête
+ *   `Origin` sur une navigation GET ; s'il y en avait un, ce serait celui d'IDN ou du site principal,
+ *   jamais l'application de départ. L'origine passée à `createAuth` au rappel ne dit donc RIEN de
+ *   l'application : elle n'est jamais lue ici ;
+ * - l'état OAuth, lui, est enregistré EN BASE par le moteur au départ (`storeStateStrategy:
+ *   "database"`), relu et consommé au rappel, jamais pris du navigateur. Son `callbackURL` a été
+ *   contrôlé au départ contre les origines de confiance (`originCheck` de Better Auth), rendu absolu
+ *   à l'origine de la requête de départ par `crossDomain`, et c'est LUI qui reçoit le jeton à usage
+ *   unique de la session (le seul moyen, pour une application web, de la récupérer) : la session
+ *   n'existe que dans l'application de cette adresse.
+ * D'où la règle : l'application de l'origine EXACTE de `callbackURL` (absolue, http(s), sans
+ * identifiants, de confiance, au catalogue) ; une adresse de nouvel utilisateur (`newUserURL`), si
+ * elle est donnée, doit mener à la MÊME application (Better Auth y redirige un compte neuf) ; un
+ * parcours natif (`antsiaNative`) n'en a aucune. Tout le reste rend `null` : la preuve ne vaut alors
+ * pour aucune administration de réseau (fermé par défaut).
+ */
+export function applicationOfOAuthState(state: unknown, env: Env = process.env): ApplicationKey | null {
+  if (!state || typeof state !== "object" || Object.prototype.hasOwnProperty.call(state, "antsiaNative")) return null
+  const { callbackURL, newUserURL } = state as { callbackURL?: unknown; newUserURL?: unknown }
+  const application = applicationOfReturnURL(callbackURL, env)
+  if (application === null) return null
+  if (newUserURL !== undefined && newUserURL !== "" && applicationOfReturnURL(newUserURL, env) !== application) return null
+  return application
+}
+
 function secureEndpoint(value: string | undefined): string | undefined {
   if (!value) return undefined
   try {

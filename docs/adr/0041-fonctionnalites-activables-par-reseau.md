@@ -92,3 +92,17 @@ Contredit la demande du propriétaire (« pour l'instant, je veux juste … post
 - Code : `packages/social-domain/src/networkFeatures.ts`, `convex/lib/networkFeatures.ts`,
   `convex/lib/functions.ts`, `convex/modules/networks/features.ts`,
   `convex/modules/diaspora/manifest.ts`, `tests/ratchets/network-feature-gates.test.ts`.
+
+## Amendement du 2026-11-23 (ADR-0042, CH-815) — statut « Proposé »
+
+- **La bascule quitte le bureau de l'application des membres.** `settings` et `setFeature` passent sous les
+  constructeurs `networkAdminQuery` et `networkAdminMutation` (ADR-0042) : l'administrateur du réseau, en
+  session d'identité numérique prouvée de l'application d'administration du réseau (`admin.diaspora.ga`
+  pour DIASPORA.GA), accès journalisé. Mêmes noms, mêmes arguments ; l'onglet « Réglages » du bureau de
+  diaspora.ga reçoit le refus indistinct jusqu'à son retrait (lot A5). Le secours de la console
+  (`operatorSettings`, `operatorSetFeature`) ne change pas.
+- **Le menu reste du code ; les fonctionnalités sont le seul levier.** Aucun menu n'est stocké en données :
+  l'application calcule ses entrées des clés ouvertes, et l'aperçu du menu de l'application
+  d'administration lit la même fonction que l'application des membres.
+- **Les huit clés ne changent pas.** La clé `classifieds` (petites annonces) naîtra avec son module,
+  pas avant.

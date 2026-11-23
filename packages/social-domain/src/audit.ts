@@ -26,6 +26,13 @@ export const AUDIT_ACTIONS = [
    * (`networks`). Détail : `reason`, le motif nettoyé, `feature`, la clé, `enabled`, l'état posé.
    */
   "network.feature_set",
+  /**
+   * ADR-0042 : l'administrateur d'un réseau entre dans l'application d'administration de ce réseau,
+   * en session d'identité numérique prouvée ; une ligne par session et par réseau, avant tout
+   * affichage (le pendant de `console.access`). Sujet : le réseau (`networks`). Qualité :
+   * `network_admin`. Aucun détail.
+   */
+  "network.admin_access",
   "console.access", "console.incident_open", "console.incident_resolve", "console.metrics_refresh",
   // Console : adhésions (suspension à la racine, qui vaut partout)
   "membership.suspend_everywhere",

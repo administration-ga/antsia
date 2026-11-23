@@ -18,11 +18,28 @@ export const auditSubjectTableValidator = literals(AUDIT_SUBJECT_TABLES)
 export const auditDetailsValidator = v.record(v.string(), v.union(v.string(), v.number(), v.boolean(), v.null()))
 
 export const platformTables = {
+  /**
+   * La preuve d'une session ouverte par le retour IDN (PA7), une par session Better Auth, scellée
+   * par le serveur seul (`operatorAccess.recordIdnSession`). Elle sert la console du moteur
+   * (`accessLoggedAt`) et, depuis ADR-0042, l'administration d'un réseau (`networkAdminAccess`) :
+   * deux journalisations DISTINCTES, pour qu'une session ne vaille jamais pour l'autre porte.
+   */
   operatorSessionProofs: defineTable({
     sessionId: v.string(), authUserId: v.string(), idnSubject: v.string(),
     loa: v.union(v.literal(1), v.literal(2), v.literal(3)),
     personId: v.optional(v.id("persons")), observedAt: v.number(), expiresAt: v.number(),
     accessLoggedAt: v.optional(v.number()),
+    /**
+     * ADR-0042 — la clé, au catalogue (`deploy/catalog.json`), de l'application web où le retour IDN
+     * a LIVRÉ la session, établie par le serveur à partir de l'état OAuth qu'il avait lui-même
+     * enregistré (`betterAuth/settings.applicationOfOAuthState`). Absente : preuve d'avant ADR-0042,
+     * parcours natif, ou retour sans application de confiance — l'administration d'un réseau la
+     * refuse. Une chaîne et non une liste fermée : retirer une application du catalogue ne doit pas
+     * rendre invalides, au déploiement, des preuves qui expirent d'elles-mêmes en sept jours.
+     */
+    application: v.optional(v.string()),
+    /** ADR-0042 — l'accès d'administration du réseau journalisé pour cette session (`network.admin_access`). */
+    networkAdminAccess: v.optional(v.object({ networkId: v.id("networks"), loggedAt: v.number() })),
   }).index("by_session", ["sessionId"]).index("by_person", ["personId"]).index("by_expiry", ["expiresAt"]),
 
   operators: defineTable({

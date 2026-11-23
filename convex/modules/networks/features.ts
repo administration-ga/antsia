@@ -8,8 +8,10 @@
  * constructeur et rendent le refus indistinct tant qu'elles le sont.
  *
  *   open                 un membre : les clés OUVERTES de son réseau (rien d'autre) ;
- *   settings, setFeature l'administrateur du réseau (bureau, onglet « Réglages ») :
- *                        l'état des clés, la bascule motivée ;
+ *   settings, setFeature l'administrateur du réseau, en session prouvée de l'application
+ *                        qui administre ce réseau, accès journalisé (ADR-0042,
+ *                        `networkAdminQuery` / `networkAdminMutation`) : l'état des
+ *                        clés, la bascule motivée ;
  *   operatorSettings,    l'opérateur de la plateforme, en secours (console) :
  *   operatorSetFeature   les mêmes, par réseau, administrateur de plateforme.
  *
@@ -33,7 +35,7 @@ import { v } from "convex/values"
 import type { Doc, Id } from "../../_generated/dataModel"
 import type { MutationCtx, QueryCtx } from "../../_generated/server"
 import { checked, notFound } from "../../lib/errors"
-import { networkMutation, networkQuery, operatorMutation, operatorQuery } from "../../lib/functions"
+import { networkAdminMutation, networkAdminQuery, networkQuery, operatorMutation, operatorQuery } from "../../lib/functions"
 import { networkFeatureRow, openFeaturesOf } from "../../lib/networkFeatures"
 import { requirePlatformAdmin } from "../../lib/operatorIdentity"
 import { enforceRateLimit } from "../../lib/rateLimit"
@@ -101,22 +103,22 @@ export const open = networkQuery({
   handler: async (ctx) => await openFeaturesOf(ctx, ctx.network),
 })
 
-/** L'administrateur du réseau : l'état de chaque fonctionnalité. Tout autre membre : le refus indistinct. */
-export const settings = networkQuery({
+/**
+ * L'administrateur du réseau : l'état de chaque fonctionnalité. Tout autre membre, et l'administrateur
+ * hors d'une session prouvée et journalisée de l'application d'administration : le refus indistinct
+ * (garde du constructeur, ADR-0042).
+ */
+export const settings = networkAdminQuery({
   args: {},
   returns: v.array(featureStateValidator),
-  handler: async (ctx) => {
-    if (ctx.membership.role !== "network_admin") return notFound()
-    return await featureStates(ctx, ctx.network)
-  },
+  handler: async (ctx) => await featureStates(ctx, ctx.network),
 })
 
 /** L'administrateur du réseau ouvre ou ferme une fonctionnalité : motif, règle de dépendance, journal. */
-export const setFeature = networkMutation({
+export const setFeature = networkAdminMutation({
   args: { feature: networkFeatureValidator, enabled: v.boolean(), reason: v.string() },
   returns: setResultValidator,
   handler: async (ctx, args) => {
-    if (ctx.membership.role !== "network_admin") return notFound()
     await enforceRateLimit(ctx, "moderation.decide", ctx.person._id)
     const reason = checked(() => assertDecisionReason(args.reason, NETWORK_FEATURE_REASON_MIN))
     const { changed, at } = await writeNetworkFeature(ctx, { network: ctx.network, feature: args.feature, enabled: args.enabled, updatedByPersonId: ctx.person._id })

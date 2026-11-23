@@ -25,6 +25,9 @@ const RATE_LIMITS = {
   "social.write.reinforced": { kind: "token bucket", rate: 300, period: MINUTE, capacity: 150 },
   "person.write": { kind: "token bucket", rate: 1200, period: HOUR, capacity: 300 },
   "operator.write": { kind: "token bucket", rate: 6000, period: HOUR, capacity: 1500 },
+  // ADR-0042 : porte obligatoire de `networkAdminMutation` (administrateur du réseau, depuis son
+  // application d'administration), en plus de « social.write ». Valeur de départ.
+  "network_admin.write": { kind: "token bucket", rate: 600, period: HOUR, capacity: 120 },
   "action.write": { kind: "token bucket", rate: 120, period: MINUTE, capacity: 30 },
   // Systèmes fédérés : clé issue du registre serveur émetteur/environnement,
   // distincte des budgets humains et impossible à recréer par le payload.

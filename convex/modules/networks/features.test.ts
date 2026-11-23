@@ -2,7 +2,8 @@
 /**
  * ADR-0041 — les fonctionnalités d'un réseau gouverné par une tranche : fermées sans
  * ligne (lecture et écriture, refus indistinct, les huit clés), ouvertes par
- * l'administrateur du réseau avec motif et ligne de journal, refusées à tout autre
+ * l'administrateur du réseau (en session prouvée de l'application d'administration,
+ * ADR-0042) avec motif et ligne de journal, refusées à tout autre
  * membre, tenues par la règle de dépendance, sans effet sur la racine ; fermer ne
  * supprime rien, rouvrir rend tout ; une bascule déjà en place n'écrit rien.
  */
@@ -13,7 +14,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { api, internal } from "../../_generated/api"
 import type { Id } from "../../_generated/dataModel"
 import { SEED_CONFIRMATION } from "../../seeds/foundations"
-import { createTestOperatorProof, testConvex } from "../../test.setup"
+import { createTestNetworkAdminProof, createTestOperatorProof, testConvex } from "../../test.setup"
+
+// ADR-0042 : l'administrateur du réseau règle ses fonctionnalités depuis l'application d'administration
+// (contrat CH-815) ; son entrée au catalogue est posée tant que l'entrée réelle n'est pas fusionnée.
+vi.mock("../../../deploy/catalog.json", async (importOriginal) => {
+  const { withNetworkAdminApplication } = await import("../../tests/networkAdminCatalog.fixture")
+  return withNetworkAdminApplication(await importOriginal())
+})
 
 type T = ReturnType<typeof testConvex>
 type As = ReturnType<T["withIdentity"]>
@@ -72,6 +80,8 @@ async function fixture() {
   const reader = await member(t, network, "lectrice.reseau")
   const moderator = await member(t, network, "moderatrice.reseau", "network_moderator")
   const admin = await member(t, network, "admin.reseau", "network_admin")
+  // ADR-0042 : sa session est prouvée pour l'application d'administration, accès journalisé.
+  await createTestNetworkAdminProof(t, admin.as, admin.personId, network)
   const pageId = await t.run(async (ctx) =>
     ctx.db.insert("pages", {
       networkId: network,
@@ -280,7 +290,8 @@ describe("ADR-0041 — fonctionnalités d'un réseau gouverné", () => {
       const row = await ctx.db.query("networkMemberships").withIndex("by_network_and_person", (q) => q.eq("networkId", f.root).eq("personId", f.admin.personId)).unique()
       if (row) await ctx.db.patch(row._id, { role: "network_admin" })
     })
-    expect(await f.admin.as.query(F.settings, { networkId: f.root })).toEqual([])
+    // ADR-0042 : aucune application n'administre la racine — même un administrateur de la racine y reçoit le refus indistinct.
+    expect(await codeOf(f.admin.as.query(F.settings, { networkId: f.root }))).toBe("notFound")
     expect(await codeOf(f.admin.as.mutation(F.setFeature, { networkId: f.root, feature: "pages", enabled: true, reason: REASON }))).toBe("notFound")
   })
 

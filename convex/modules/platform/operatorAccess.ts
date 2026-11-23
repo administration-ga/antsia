@@ -3,23 +3,32 @@ import { v } from "convex/values"
 
 import { components, internal } from "../../_generated/api"
 import { internalMutation } from "../../_generated/server"
+import { isWebApplicationKey } from "../../betterAuth/settings"
 import { fail } from "../../lib/errors"
 import { operatorMutation, operatorQuery } from "../../lib/functions"
 import { requireOperatorSession } from "../../lib/operatorIdentity"
 import { appendAudit, operatorCapacity } from "./audit"
 
+/**
+ * Scelle la session ouverte par un retour IDN. Appelée par le seul greffon `engine-idn-session-proof`
+ * (`betterAuth/auth.ts`), jamais par un client. ADR-0042 : `application`, la clé de l'application web
+ * où la session est livrée, établie par le serveur depuis l'état OAuth qu'il a enregistré
+ * (`applicationOfOAuthState`) ; une clé hors du catalogue est refusée, une clé absente laisse une
+ * preuve qui ne vaut pour aucune administration de réseau.
+ */
 export const recordIdnSession = internalMutation({
-  args: { sessionId: v.string(), authUserId: v.string(), idnSubject: v.string(), loa: v.union(v.literal(1), v.literal(2), v.literal(3)) },
+  args: { sessionId: v.string(), authUserId: v.string(), idnSubject: v.string(), loa: v.union(v.literal(1), v.literal(2), v.literal(3)), application: v.optional(v.string()) },
   returns: v.null(),
   handler: async (ctx, args): Promise<null> => {
     const now = Date.now()
+    if (args.application !== undefined && !isWebApplicationKey(args.application)) return fail("operatorRequired")
     const session = await ctx.runQuery(components.betterAuth.adapter.findOne, { model: "session", where: [{ field: "_id", value: args.sessionId }] })
     const accounts = await ctx.runQuery(components.betterAuth.adapter.findMany, { model: "account", where: [{ field: "userId", value: args.authUserId }, { field: "providerId", value: "idn" }], paginationOpts: { cursor: null, numItems: 2 } })
     const proof = await ctx.db.query("idnProofs").withIndex("by_subject", (q) => q.eq("subject", args.idnSubject)).unique()
     if (!session || session.userId !== args.authUserId || session.expiresAt <= now || !accounts.isDone || accounts.page.length !== 1 || accounts.page[0]?.accountId !== args.idnSubject || !proof || proof.loa !== args.loa || Math.abs(now - proof.observedAt) > 60_000) return fail("operatorRequired")
     const existing = await ctx.db.query("operatorSessionProofs").withIndex("by_session", (q) => q.eq("sessionId", args.sessionId)).unique()
     if (existing) {
-      if (existing.authUserId !== args.authUserId || existing.idnSubject !== args.idnSubject || existing.loa !== args.loa) return fail("operatorRequired")
+      if (existing.authUserId !== args.authUserId || existing.idnSubject !== args.idnSubject || existing.loa !== args.loa || existing.application !== args.application) return fail("operatorRequired")
       return null
     }
     const person = await ctx.db.query("persons").withIndex("by_authUserId", (q) => q.eq("authUserId", args.authUserId)).unique()

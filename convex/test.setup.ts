@@ -66,8 +66,32 @@ export async function createTestSession(t: BackendTest, userId: string, expiresA
 
 /** Fixture explicite PA7 : vraie session, compte IDN, preuve interne et lien vivant. */
 export async function createTestOperatorProof(t: BackendTest, as: ReturnType<BackendTest["withIdentity"]>, personId: Id<"persons">, loa: 1 | 2 | 3 = 2): Promise<void> {
+  await sealTestIdnSession(t, as, personId, loa)
+  if (loa >= 2) await as.mutation(api.modules.platform.operatorAccess.recordAccess, {})
+}
+
+/**
+ * ADR-0042 — fixture explicite de l'administrateur d'un réseau : vraie session, compte IDN, preuve
+ * interne SCELLÉE pour l'application qui administre le réseau (`administers_network` au catalogue ;
+ * par défaut celle de DIASPORA.GA), lien vivant, puis l'accès d'administration journalisé
+ * (`networks.adminAccess.recordAccess`), sauf `logged: false`. Le rôle `network_admin` est posé
+ * par l'appelant : la fixture ne donne aucun droit, elle ne prouve que la session.
+ */
+export async function createTestNetworkAdminProof(
+  t: BackendTest,
+  as: ReturnType<BackendTest["withIdentity"]>,
+  personId: Id<"persons">,
+  networkId: Id<"networks">,
+  { application = "admin_diaspora_ga", loa = 2, logged = true }: { application?: string; loa?: 1 | 2 | 3; logged?: boolean } = {},
+): Promise<void> {
+  await sealTestIdnSession(t, as, personId, loa, application)
+  if (logged) await as.mutation(api.modules.networks.adminAccess.recordAccess, { networkId })
+}
+
+/** Le retour IDN de la session de `as` : compte IDN, preuve du sujet, lien vivant, preuve de session (pour `application`, si elle est donnée). */
+async function sealTestIdnSession(t: BackendTest, as: ReturnType<BackendTest["withIdentity"]>, personId: Id<"persons">, loa: 1 | 2 | 3, application?: string): Promise<void> {
   const identity = await as.run(async (ctx) => ctx.auth.getUserIdentity())
-  if (!identity || typeof identity.sessionId !== "string") throw new Error("Session de fixture opérateur absente")
+  if (!identity || typeof identity.sessionId !== "string") throw new Error("Session de fixture IDN absente")
   const idnSubject = "idn-operator-fixture-" + personId
   const now = Date.now()
   const accounts = await t.query(components.betterAuth.adapter.findMany, { model: "account", where: [{ field: "userId", value: identity.subject }, { field: "providerId", value: "idn" }], paginationOpts: { cursor: null, numItems: 2 } })
@@ -79,8 +103,7 @@ export async function createTestOperatorProof(t: BackendTest, as: ReturnType<Bac
     if (existing) await ctx.db.patch(existing._id, { subject, loa, revokedAt: undefined, linkedAt: now })
     else await ctx.db.insert("identityLinks", { personId, provider: "idn", subject, loa, linkedAt: now })
   })
-  await t.mutation(internal.modules.platform.operatorAccess.recordIdnSession, { sessionId: identity.sessionId, authUserId: identity.subject, idnSubject: subject, loa })
-  if (loa >= 2) await as.mutation(api.modules.platform.operatorAccess.recordAccess, {})
+  await t.mutation(internal.modules.platform.operatorAccess.recordIdnSession, { sessionId: identity.sessionId, authUserId: identity.subject, idnSubject: subject, loa, ...(application ? { application } : {}) })
 }
 
 /**

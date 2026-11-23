@@ -1,12 +1,16 @@
 /**
  * PA7 : l'autorité de console appartient à une session IDN, pas à un ancien lien de profil.
  * ADR-0039 : le niveau de garantie exigé est `CONSOLE_MIN_LOA` (1), non plus 2.
+ * ADR-0042 : la vivacité d'une preuve de session (`isLiveIdnSession`, `liveIdnSessionProofOrNull`)
+ * est COMMUNE à la console et à l'administration d'un réseau (`lib/networkAdminIdentity.ts`) ; une
+ * preuve scellée pour une application qui administre un réseau n'ouvre jamais la console.
  */
 import { CONSOLE_MIN_LOA } from "@antsia/social-domain/badges"
 
 import { components } from "../_generated/api"
 import type { Doc } from "../_generated/dataModel"
 import type { MutationCtx, QueryCtx } from "../_generated/server"
+import { networkAdministeredBy } from "../betterAuth/settings"
 import { fail } from "./errors"
 import { getActiveIdentity } from "./session"
 
@@ -23,7 +27,12 @@ export async function hasCurrentIdnLink(ctx: Pick<QueryCtx, "db">, person: Doc<"
   return Boolean(link && link.revokedAt === undefined && link.subject === subject && (link.loa ?? 0) >= CONSOLE_MIN_LOA && (proof?.loa ?? 0) >= CONSOLE_MIN_LOA)
 }
 
-export async function isLiveOperatorSession(ctx: IdentityCtx, person: Doc<"persons">, proof: Doc<"operatorSessionProofs"> | null): Promise<boolean> {
+/**
+ * La preuve est-elle VIVANTE pour cette personne : même utilisateur, garantie au seuil de la console,
+ * non expirée, lien IDN courant au même sujet, aucune suspension à la racine, session Better Auth
+ * vivante ? Ni la console, ni l'administration d'un réseau : la seule vivacité, que chacune complète.
+ */
+export async function isLiveIdnSession(ctx: IdentityCtx, person: Doc<"persons">, proof: Doc<"operatorSessionProofs"> | null): Promise<boolean> {
   if (!proof || proof.authUserId !== person.authUserId || proof.loa < CONSOLE_MIN_LOA || proof.expiresAt <= Date.now() || !await hasCurrentIdnLink(ctx, person, proof.idnSubject)) return false
   const root = await ctx.db.query("networks").withIndex("by_kind_and_status", (q) => q.eq("kind", "root").eq("status", "active")).unique()
   const membership = root ? await ctx.db.query("networkMemberships").withIndex("by_network_and_person", (q) => q.eq("networkId", root._id).eq("personId", person._id)).unique() : null
@@ -32,12 +41,31 @@ export async function isLiveOperatorSession(ctx: IdentityCtx, person: Doc<"perso
   return Boolean(session && session._id === proof.sessionId && session.userId === person.authUserId && session.expiresAt > Date.now())
 }
 
-/** La preuve de session d'opérateur VIVANTE de la session appelante (scellée par le retour IDN), ou `null` — sans lever. */
-export async function liveOperatorSessionOrNull(ctx: QueryCtx | MutationCtx, person: Doc<"persons">): Promise<Doc<"operatorSessionProofs"> | null> {
+/**
+ * ADR-0042 : la preuve a-t-elle été scellée pour une application qui ADMINISTRE un réseau
+ * (`administers_network` au catalogue) ? Une telle session n'est jamais une session de console.
+ */
+export function sealedForNetworkAdministration(proof: Doc<"operatorSessionProofs">): boolean {
+  return networkAdministeredBy(proof.application) !== null
+}
+
+/** Une preuve de CONSOLE vivante : vivante, et jamais scellée pour l'administration d'un réseau. */
+export async function isLiveOperatorSession(ctx: IdentityCtx, person: Doc<"persons">, proof: Doc<"operatorSessionProofs"> | null): Promise<boolean> {
+  return proof !== null && !sealedForNetworkAdministration(proof) && await isLiveIdnSession(ctx, person, proof)
+}
+
+/** La preuve VIVANTE de la session appelante (scellée par le retour IDN), quelle que soit son application, ou `null` — sans lever. */
+export async function liveIdnSessionProofOrNull(ctx: QueryCtx | MutationCtx, person: Doc<"persons">): Promise<Doc<"operatorSessionProofs"> | null> {
   const identity = await getActiveIdentity(ctx)
   if (!identity || typeof identity.sessionId !== "string") return null
   const proof = await ctx.db.query("operatorSessionProofs").withIndex("by_session", (q) => q.eq("sessionId", identity.sessionId as string)).unique()
-  return proof && await isLiveOperatorSession(ctx, person, proof) ? proof : null
+  return proof && await isLiveIdnSession(ctx, person, proof) ? proof : null
+}
+
+/** La preuve de session d'opérateur VIVANTE de la session appelante (scellée par le retour IDN), ou `null` — sans lever. */
+export async function liveOperatorSessionOrNull(ctx: QueryCtx | MutationCtx, person: Doc<"persons">): Promise<Doc<"operatorSessionProofs"> | null> {
+  const proof = await liveIdnSessionProofOrNull(ctx, person)
+  return proof && !sealedForNetworkAdministration(proof) ? proof : null
 }
 
 export async function requireOperatorSession(ctx: QueryCtx | MutationCtx, person: Doc<"persons">): Promise<Doc<"operatorSessionProofs">> {

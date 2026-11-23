@@ -244,9 +244,11 @@ export function detectHardcodedUrls(file: string, text: string, options: { route
 
 /**
  * Constructeurs qui portent EUX-MÊMES leur garde : `networkId` consommé et
- * `requireMembership` (réseau), ou opérateur de plateforme vivant (console).
+ * `requireMembership` (réseau), opérateur de plateforme vivant (console), ou
+ * administrateur du réseau en session prouvée (ADR-0042 : `networkId` consommé,
+ * `requireMembership`, rôle, preuve et accès journalisé).
  */
-export const NETWORK_SCOPED_BUILDERS = new Set(["networkQuery", "networkMutation", "networkAction", "operatorQuery", "operatorMutation"])
+export const NETWORK_SCOPED_BUILDERS = new Set(["networkQuery", "networkMutation", "networkAction", "operatorQuery", "operatorMutation", "networkAdminQuery", "networkAdminMutation"])
 /** Constructeurs PUBLICS qu'une fonction sociale doit borner elle-même ou justifier. */
 export const PUBLIC_BUILDERS = new Set([
   "query",

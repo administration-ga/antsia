@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/betterAuth/auth.ts @ ad2e7fdc2 — adaptations : PA4, IDN avec PKCE et preuve serveur minimale, comptes légers par OTP e-mail/SMS, aucune route de mot de passe ; origines du catalogue et de l'environnement ; session sept jours et JWT trente minutes avec sessionId contrôlé côté serveur ; OTT trois minutes ; délivrance locale bornée ou transport configuré, erreurs et limitation de débit du moteur ; refus ou abandon chez IDN renvoyé à la porte de départ de confiance (issue #122) ; refus de débit porteur du délai restant, `retryAfterMs` et `Retry-After` (EA-08, issue #151).
+// Dupliqué de socle/convex/betterAuth/auth.ts @ ad2e7fdc2 — adaptations : PA4, IDN avec PKCE et preuve serveur minimale, comptes légers par OTP e-mail/SMS, aucune route de mot de passe ; origines du catalogue et de l'environnement ; session sept jours et JWT trente minutes avec sessionId contrôlé côté serveur ; OTT trois minutes ; délivrance locale bornée ou transport configuré, erreurs et limitation de débit du moteur ; refus ou abandon chez IDN renvoyé à la porte de départ de confiance (issue #122) ; refus de débit porteur du délai restant, `retryAfterMs` et `Retry-After` (EA-08, issue #151) ; preuve de session IDN scellée avec l'application où la session est livrée, prise de l'état OAuth enregistré au départ (ADR-0042, CH-815).
 /**
  * Better Auth du moteur — l'émetteur UNIQUE des jetons Convex (ADR-0002).
  *
@@ -10,7 +10,7 @@
 import { createClient, type GenericCtx } from "@convex-dev/better-auth"
 import { convex, crossDomain } from "@convex-dev/better-auth/plugins"
 import type { BetterAuthPlugin } from "better-auth"
-import { APIError, createAuthMiddleware } from "better-auth/api"
+import { APIError, createAuthMiddleware, getOAuthState } from "better-auth/api"
 import { betterAuth } from "better-auth/minimal"
 import { bearer, emailOTP, genericOAuth, oneTimeToken, phoneNumber } from "better-auth/plugins"
 import { idn } from "@idn-ga/better-auth"
@@ -24,7 +24,7 @@ import { devToolsAllowed } from "../lib/devTools"
 import { deliverOtp, type OtpRequest } from "./delivery"
 import { idnRefusalReturn } from "./idnRefusalReturn"
 import { isNativeIdnOAuth, nativeIdn } from "./nativeIdn"
-import { authenticationConfiguration, idnConfiguration, idnProfileProof, isE164Phone, OTP_TTL_SECONDS, trustedOrigins } from "./settings"
+import { applicationOfOAuthState, authenticationConfiguration, idnConfiguration, idnProfileProof, isE164Phone, OTP_TTL_SECONDS, trustedOrigins } from "./settings"
 
 // Durée de vie d'un code à usage unique : la constante vit dans `settings.ts`, que lit aussi la configuration publique (EA-08).
 export { OTP_TTL_SECONDS, parseOriginList, trustedOrigins } from "./settings"
@@ -168,6 +168,19 @@ const rateLimitPlugin = (ctx: GenericCtx<DataModel>): BetterAuthPlugin => ({
   },
 })
 
+/**
+ * L'état OAuth du rappel EN COURS, tel que Better Auth l'a relu en base et consommé (`parseState`),
+ * ou `null`. Hors d'une requête Better Auth (crochet appelé directement), il n'y a pas d'état : la
+ * preuve est alors scellée sans application, donc sans valeur pour l'administration d'un réseau.
+ */
+async function currentOAuthState(): Promise<unknown> {
+  try {
+    return await getOAuthState()
+  } catch {
+    return null
+  }
+}
+
 /** Retire le champ `mode` des clauses `where`, que l'adaptateur Convex refuse (contournement repris du socle). */
 function stripModeClauses<T>(args: T): T {
   const strip = (clause: unknown) => {
@@ -282,8 +295,13 @@ export const createAuth = (ctx: GenericCtx<DataModel>, requestOrigin?: string | 
             const session = hookCtx.context.newSession?.session
             if (!proof || proof.loa === undefined || !session) return
             if (!canRunMutation(ctx)) throw new APIError("SERVICE_UNAVAILABLE", { message: "idnUnavailable", code: "idnUnavailable" })
+            // ADR-0042 : l'application où la session est LIVRÉE, prise de l'état OAuth que le moteur a
+            // enregistré au départ — jamais de l'origine de ce rappel, ni d'un argument du client
+            // (raisons et règle : `applicationOfOAuthState`, `settings.ts`).
+            const application = applicationOfOAuthState(await currentOAuthState())
             await ctx.runMutation(internal.modules.platform.operatorAccess.recordIdnSession as never, {
               sessionId: session.id, authUserId: session.userId, idnSubject: proof.subject, loa: proof.loa,
+              ...(application ? { application } : {}),
             } as never)
           }),
         }] },

@@ -33,6 +33,12 @@ describe("journal des décisions — détail et motif", () => {
     expect(auditDetailsProblems({ reason: assertDecisionReason("Ouverture des pages pour le pilote.", 10), feature: "pages", enabled: true })).toEqual([])
   })
 
+  it("ADR-0042 : l'accès de l'administrateur du réseau à son application d'administration est une action du journal, sur le réseau", () => {
+    expect(AUDIT_ACTIONS).toContain("network.admin_access")
+    expect(AUDIT_SUBJECT_TABLES).toContain("networks")
+    expect(isSystemCapacity("network_admin")).toBe(false)
+  })
+
   it("tranche diaspora : l'admission fondatrice et son retrait sont des actions du journal, sur la personne, au détail plat", () => {
     expect(AUDIT_ACTIONS).toEqual(expect.arrayContaining(["diaspora.founder_admit", "diaspora.founder_withdraw"]))
     expect(AUDIT_SUBJECT_TABLES).toContain("persons")
