@@ -23,6 +23,8 @@ import type { PageOwnerKind } from "@antsia/social-domain/badges"
 import { MEMBER_PAGE_OWNER_KINDS, PAGE_SIGNATORIES_MAX, PAGE_SLEEP_DAYS, PAGE_SLEEP_MS, pageSleepState, type PageTeamRole } from "@antsia/social-domain/pages"
 import { type Infer, v } from "convex/values"
 
+import type { Doc } from "../../_generated/dataModel"
+import type { MutationCtx } from "../../_generated/server"
 import { fail, failRule, notFound } from "../../lib/errors"
 import { networkMutation, networkQuery } from "../../lib/functions"
 import { enforceRateLimit } from "../../lib/rateLimit"
@@ -49,6 +51,29 @@ function isMemberCreatable(kind: PageOwnerKind): boolean {
 }
 
 /**
+ * LE geste du sommeil, partagé par l'équipe de la page (`putPageToSleep`) et par l'administration du
+ * réseau pour une page d'institution (CH-815 A2, `pages/networkAdmin.sleepOfficialPage`) : l'écrivain
+ * partagé ferme la page et ses directs, et efface toute échéance ; l'échéance se pose APRÈS, à trente
+ * jours. Aucun état nouveau : `inactive` plus l'échéance. L'appelant a vérifié la page et journalise.
+ */
+export async function applyPageSleep(ctx: MutationCtx, page: Doc<"pages">, now: number): Promise<number> {
+  const sleepEndsAt = now + PAGE_SLEEP_MS
+  await applyPageStatus(ctx, page, "inactive", now)
+  await ctx.db.patch(page._id, { sleepEndsAt })
+  return sleepEndsAt
+}
+
+/**
+ * LE réveil d'une page en sommeil, partagé par l'équipe (`wakePage`) et par l'administration du réseau
+ * (CH-815 A2) : tenue par une mesure du juge, `conflict` ; sinon tout revient d'un coup. L'appelant a
+ * constaté le sommeil (`pageSleepState`) et décidé de l'échéance ; il journalise.
+ */
+export async function applyPageWake(ctx: MutationCtx, page: Doc<"pages">, now: number): Promise<void> {
+  if (await hasJudicialPageHold(ctx, page._id)) return fail("conflict")
+  await applyPageStatus(ctx, page, "active", now)
+}
+
+/**
  * Mettre MA page en sommeil — administrateur VIVANT d'une page native, active, de ce réseau, de
  * nature créable par un membre. Page inconnue, retirée, d'ailleurs ou reflétée : refus indistinct ;
  * éditeur, modérateur ou page d'institution : `pageRoleRequired`. La page se ferme comme un retrait
@@ -64,10 +89,7 @@ export const putPageToSleep = networkMutation({
     const { page } = await requireManagedPage(ctx, { networkId: ctx.networkId, personId: ctx.person._id }, args.pageId, "admin")
     if (!isMemberCreatable(page.ownerKind)) return fail("pageRoleRequired")
     const now = Date.now()
-    const sleepEndsAt = now + PAGE_SLEEP_MS
-    // L'écrivain partagé ferme la page et ses directs, et efface toute échéance ; l'échéance se pose APRÈS.
-    await applyPageStatus(ctx, page, "inactive", now)
-    await ctx.db.patch(page._id, { sleepEndsAt })
+    const sleepEndsAt = await applyPageSleep(ctx, page, now)
     await appendAudit(ctx, {
       action: "page.sleep",
       capacity: "page_admin",
@@ -104,8 +126,7 @@ export const wakePage = networkMutation({
     if (role === null) return notFound()
     if (role !== "admin") return fail("pageRoleRequired")
     if (state === "expired") return failRule("PAGE_SLEEP_EXPIRED", { days: PAGE_SLEEP_DAYS })
-    if (await hasJudicialPageHold(ctx, page._id)) return fail("conflict")
-    await applyPageStatus(ctx, page, "active", now)
+    await applyPageWake(ctx, page, now)
     await appendAudit(ctx, {
       action: "page.wake",
       capacity: "page_admin",

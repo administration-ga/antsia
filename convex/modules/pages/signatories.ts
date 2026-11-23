@@ -70,6 +70,19 @@ export async function applyTeamRoleTransition(
   }
 }
 
+/**
+ * Le RETRAIT d'une ligne d'équipe, par quelque porte qu'il passe (le membre lui-même, un
+ * administrateur de la page, l'administration du réseau pour une page d'institution — CH-815 A2) :
+ * la ligne s'efface ; une invitation retirée avant réponse résout sa cloche (« annulée ») ; la
+ * personne sort du cercle de la page : sa connexion DÉJÀ ouverte à un direct réservé aux abonnés est
+ * coupée, sauf s'il en reste abonné (la décision d'accès juge). L'appelant journalise son geste.
+ */
+export async function removePageTeamRow(ctx: MutationCtx, page: Doc<"pages">, row: Doc<"pageSignatories">): Promise<void> {
+  await ctx.db.delete(row._id)
+  if (row.acceptedAt === undefined) await resolveNotifications(ctx, { networkId: page.networkId, recipientPersonId: row.personId, kind: "page_signatory_invite", subject: { page: page._id }, resolution: "cancelled" })
+  await ctx.scheduler.runAfter(0, internal.modules.live.revocation.kickUserFromPageDirects, { personId: row.personId, pageId: page._id, cursor: null })
+}
+
 const signatoryDtoValidator = v.object({
   personId: v.id("persons"),
   handle: v.union(v.string(), v.null()),
@@ -190,12 +203,7 @@ export const revokePageRole = networkMutation({
       const adminCount = await countLiveAdmins(ctx, page)
       checked(() => assertNotLastAdmin({ role: "admin", nextRole: null, adminCount }))
     }
-    await ctx.db.delete(row._id)
-    // PG-01 : une invitation retirée avant réponse résout sa cloche (« annulée »).
-    if (row.acceptedAt === undefined) await resolveNotifications(ctx, { networkId: page.networkId, recipientPersonId: args.personId, kind: "page_signatory_invite", subject: { page: page._id }, resolution: "cancelled" })
-    // Un signataire retiré sort du cercle de la page : sa connexion DÉJÀ ouverte à un direct
-    // réservé aux abonnés est coupée, sauf s'il en reste abonné (la décision d'accès juge).
-    await ctx.scheduler.runAfter(0, internal.modules.live.revocation.kickUserFromPageDirects, { personId: args.personId, pageId: page._id, cursor: null })
+    await removePageTeamRow(ctx, page, row)
     if (self) {
       // Le départ volontaire : l'acteur est la personne qui part ; le détail ne dit que le rôle quitté.
       await appendAudit(ctx, {
