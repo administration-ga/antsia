@@ -142,7 +142,8 @@ export const peopleTables = {
    * adhésion ACTIVE, et n'est `listed` que pour un profil publié, non privé, sans
    * suspension à la racine : la recherche ne rend jamais un non-membre ni une
    * personne qui ne veut pas être trouvée (`filterFields`). Écrite par
-   * `syncPersonDirectory` seulement.
+   * `syncPersonDirectory` seulement — sauf le LIEU (`country`, `cityKey`), que
+   * seule la tranche d'un réseau gouverné pose (voir ces champs).
    */
   peopleDirectory: defineTable({
     networkId: v.id("networks"),
@@ -150,12 +151,26 @@ export const peopleTables = {
     /** Nom affiché et identifiant, avec leur repli sans accents (`buildSearchableText`). */
     searchName: v.string(),
     listed: v.boolean(),
+    /**
+     * CH-816 P3 — le pays de résidence (ISO alpha-2) du membre, pour PARCOURIR
+     * l'annuaire d'un réseau gouverné par pays. Posé par la TRANCHE seulement
+     * (`diaspora/facts.ts`, `syncDirectoryPlace`), et seulement quand la personne
+     * a choisi d'y paraître ; absent ailleurs. Un pré-filtre, jamais un droit :
+     * le parcours rejuge chaque candidat par la règle de la tranche.
+     */
+    country: v.optional(v.string()),
+    /** La ville de la facette, repliée par la même tranche (`directoryCityKey`) ; absente sans ville. */
+    cityKey: v.optional(v.string()),
     updatedAt: v.number(),
   })
     .index("by_network_and_person", ["networkId", "personId"])
     .index("by_person", ["personId"])
     // Suggestions d'abonnement : les membres découvrables, les plus récents d'abord.
     .index("by_network_listed", ["networkId", "listed"])
+    // Parcours d'un annuaire gouverné (CH-816 P3), des plus récents d'abord : par pays seul — l'ordre
+    // n'y suit jamais la ville, qui trahirait une ville masquée —, ou par pays et ville saisie.
+    .index("by_network_listed_country", ["networkId", "listed", "country"])
+    .index("by_network_listed_country_city", ["networkId", "listed", "country", "cityKey"])
     .searchIndex("search_name", { searchField: "searchName", filterFields: ["networkId", "listed"] }),
 
   handleHistory: defineTable({

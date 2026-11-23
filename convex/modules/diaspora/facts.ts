@@ -17,6 +17,7 @@ import {
   DEFAULT_FACET_VISIBILITY,
   deriveMembershipStatus,
   DIASPORA_GA_SLICE,
+  directoryCityKey,
   type DiasporaFacet,
   type DirectoryVisibility,
   engineVerificationSource,
@@ -251,13 +252,70 @@ export async function effectiveStatusIn(
  * Pose le pré-filtre de l'annuaire du moteur (`directoryListed`) selon LA règle
  * de la tranche : listé si la personne a choisi un niveau visible ET que son
  * consentement `directory` est en vigueur. La recherche rejuge chaque candidat
- * (`directory.searchMembers`) : ce drapeau n'ouvre rien à lui seul. À appeler
- * après tout réglage du niveau ou du consentement d'annuaire.
+ * (`directory.searchMembers`, `directory.browseMembers`) : ce drapeau n'ouvre
+ * rien à lui seul. À appeler après tout réglage du niveau ou du consentement
+ * d'annuaire ; le lieu du parcours suit (`syncDirectoryPlace`).
  */
 export async function syncDirectoryListing(ctx: MutationCtx, networkId: Id<"networks">, personId: Id<"persons">): Promise<void> {
+  await setDirectoryListed(ctx, networkId, personId, await choseDirectory(ctx, networkId, personId))
+  await syncDirectoryPlace(ctx, networkId, personId)
+}
+
+/** LA règle du choix d'annuaire : un niveau visible ET le consentement `directory` en vigueur. */
+async function choseDirectory(ctx: QueryCtx, networkId: Id<"networks">, personId: Id<"persons">): Promise<boolean> {
   const privacy = await privacyOf(ctx, networkId, personId)
-  const visible = privacy !== null && privacy.directoryVisibility !== "hidden"
-  await setDirectoryListed(ctx, networkId, personId, visible && (await consentInForce(ctx, networkId, personId, "directory")))
+  return privacy !== null && privacy.directoryVisibility !== "hidden" && (await consentInForce(ctx, networkId, personId, "directory"))
+}
+
+/** Le lieu d'un membre sur sa ligne d'annuaire : pays de résidence et ville repliée, chacun absent s'il n'y a rien à poser. */
+export interface DirectoryPlace {
+  readonly country: string | undefined
+  readonly cityKey: string | undefined
+}
+
+/**
+ * CH-816 P3 — le LIEU que l'annuaire du moteur doit porter pour un membre : sa
+ * facette (pays, ville repliée par `directoryCityKey`) quand il a CHOISI d'y
+ * paraître (`choseDirectory`) ; rien sinon — un membre masqué ne laisse pas son
+ * pays dans l'index du parcours.
+ */
+export async function directoryPlaceOf(ctx: QueryCtx, networkId: Id<"networks">, personId: Id<"persons">): Promise<DirectoryPlace> {
+  if (!(await choseDirectory(ctx, networkId, personId))) return { country: undefined, cityKey: undefined }
+  const facet = await facetOf(ctx, networkId, personId)
+  if (!facet) return { country: undefined, cityKey: undefined }
+  return { country: facet.countryOfResidence, cityKey: directoryCityKey(facet.city) ?? undefined }
+}
+
+/**
+ * Le correctif du lieu d'une ligne d'annuaire, ou `undefined` si elle est juste
+ * (idempotent) — ou si son réseau n'est pas celui que la tranche gouverne : la
+ * ligne d'un autre réseau n'est jamais touchée. Partagé par la synchronisation
+ * (`syncDirectoryPlace`) et par le rattrapage des lignes d'avant le champ
+ * (`migrations.backfillDirectoryPlaces`).
+ */
+export async function directoryPlacePatch(ctx: QueryCtx, row: Doc<"peopleDirectory">): Promise<DirectoryPlace | undefined> {
+  if (!isDiasporaNetwork(await ctx.db.get(row.networkId))) return undefined
+  const place = await directoryPlaceOf(ctx, row.networkId, row.personId)
+  return row.country === place.country && row.cityKey === place.cityKey ? undefined : place
+}
+
+/**
+ * Pose le lieu sur la ligne d'annuaire du moteur (`peopleDirectory`), pour le
+ * parcours par pays et par ville (`directory.browseMembers`). À appeler après
+ * tout réglage du choix d'annuaire (`syncDirectoryListing`) et toute saisie de
+ * la facette (`facet.updateMyFacet`). L'attestation consulaire ne déplace pas un
+ * membre listé : elle garde le pays déjà déclaré, et une facette qu'elle crée
+ * naît masquée. Sans ligne (adhésion close), rien : la ligne renaîtra au retour,
+ * avec un choix d'annuaire à refaire.
+ */
+export async function syncDirectoryPlace(ctx: MutationCtx, networkId: Id<"networks">, personId: Id<"persons">): Promise<void> {
+  const row = await ctx.db
+    .query("peopleDirectory")
+    .withIndex("by_network_and_person", (q) => q.eq("networkId", networkId).eq("personId", personId))
+    .unique()
+  if (!row) return
+  const patch = await directoryPlacePatch(ctx, row)
+  if (patch) await ctx.db.patch(row._id, patch)
 }
 
 /**

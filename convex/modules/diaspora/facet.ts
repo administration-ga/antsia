@@ -7,7 +7,8 @@
  * saisi (il vient de l'attestation), et chaque champ garde son niveau FIN de
  * visibilité. L'annuaire est opt-in : un niveau autre que « personne » exige le
  * consentement `directory` en vigueur, et le pré-filtre de l'annuaire du moteur
- * suit le choix (`syncDirectoryListing`).
+ * suit le choix (`syncDirectoryListing`) ; le lieu du parcours (pays, ville)
+ * suit la facette (`syncDirectoryPlace`, CH-816 P3).
  */
 import { parseFacetInput, toEngineFacet } from "@diaspora-ga/domain"
 import { v } from "convex/values"
@@ -16,7 +17,7 @@ import { failAppRule } from "../../lib/errors"
 import { networkMutation } from "../../lib/functions"
 import { enforceRateLimit } from "../../lib/rateLimit"
 import { writeNetworkFacet } from "../people/admission"
-import { assertDiasporaNetwork, consentInForce, facetOf, syncDirectoryListing, writePrivacy } from "./facts"
+import { assertDiasporaNetwork, consentInForce, facetOf, syncDirectoryListing, syncDirectoryPlace, writePrivacy } from "./facts"
 import { directoryVisibilityValidator, facetInputValidator } from "./validators"
 
 /** La personne règle SA facette (membre, même en attente : elle complète son entrée). */
@@ -31,6 +32,8 @@ export const updateMyFacet = networkMutation({
     if (!facet.ok) return failAppRule(facet.code, {}, "invalidArgument")
     await writeNetworkFacet(ctx, ctx.network, ctx.person._id, toEngineFacet(facet.value))
     await writePrivacy(ctx, ctx.networkId, ctx.person._id, { facetLevels: facet.value.visibility })
+    // Un déménagement déplace le membre dans le parcours : pays et ville suivent la facette.
+    await syncDirectoryPlace(ctx, ctx.networkId, ctx.person._id)
     return null
   },
 })
