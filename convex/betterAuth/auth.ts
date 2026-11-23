@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/betterAuth/auth.ts @ ad2e7fdc2 — adaptations : PA4, IDN avec PKCE et preuve serveur minimale, comptes légers par OTP e-mail/SMS, aucune route de mot de passe ; origines du catalogue et de l'environnement ; session sept jours et JWT trente minutes avec sessionId contrôlé côté serveur ; OTT trois minutes ; délivrance locale bornée ou transport configuré, erreurs et limitation de débit du moteur ; refus ou abandon chez IDN renvoyé à la porte de départ de confiance (issue #122) ; refus de débit porteur du délai restant, `retryAfterMs` et `Retry-After` (EA-08, issue #151) ; preuve de session IDN scellée avec l'application où la session est livrée, prise de l'état OAuth enregistré au départ (ADR-0042, CH-815) ; rappel IDN central web sans aucun cookie ni jeton porteur, la session ne passant que par le jeton à usage unique (revue CH-815 A1b, constat F1).
+// Dupliqué de socle/convex/betterAuth/auth.ts @ ad2e7fdc2 — adaptations : PA4, IDN avec PKCE et preuve serveur minimale, comptes légers par OTP e-mail/SMS, aucune route de mot de passe ; origines du catalogue et de l'environnement ; session sept jours et JWT trente minutes avec sessionId contrôlé côté serveur ; OTT trois minutes ; délivrance locale bornée ou transport configuré, erreurs et limitation de débit du moteur ; refus ou abandon chez IDN renvoyé à la porte de départ de confiance (issue #122) ; refus de débit porteur du délai restant, `retryAfterMs` et `Retry-After` (EA-08, issue #151) ; preuve de session IDN scellée avec l'application où la session est livrée, prise de l'état OAuth enregistré au départ (ADR-0042, CH-815) ; rappel IDN central web sans aucun cookie ni jeton porteur, la session ne passant que par le jeton à usage unique (revue CH-815 A1b, constat F1) ; routes `check-verification-otp` et `verify-email` du greffon e-mail fermées pour toutes les adresses (CH-817 E5, constat 1).
 /**
  * Better Auth du moteur — l'émetteur UNIQUE des jetons Convex (ADR-0002).
  *
@@ -82,6 +82,12 @@ const PASSWORD_PATHS = new Set([
   "/phone-number/request-password-reset", "/phone-number/reset-password",
 ])
 
+// CH-817 E5 (relecture de sécurité, constat 1) : deux routes du greffon e-mail qu'aucune application
+// n'appelle (elles n'envoient que `sign-in`). `check-verification-otp` échappait au seau de connexion
+// (trois essais par code, autant de codes qu'en permet l'envoi) ; `verify-email` consommait un code
+// hors de toute connexion. Fermées pour TOUTES les adresses, production comprise : restriction pure.
+const DISABLED_OTP_PATHS = new Set<string>(["/email-otp/check-verification-otp", "/email-otp/verify-email"])
+
 function isPasswordRequest(hookCtx: { path?: string; body?: unknown }): boolean {
   const path = hookCtx.path ?? ""
   if (PASSWORD_PATHS.has(path) || path.startsWith("/reset-password/")) return true
@@ -129,6 +135,13 @@ const rateLimitPlugin = (ctx: GenericCtx<DataModel>): BetterAuthPlugin => ({
         matcher: isPasswordRequest,
         handler: createAuthMiddleware(async () => {
           throw new APIError("NOT_FOUND", { message: "passwordSignInDisabled", code: "passwordSignInDisabled" })
+        }),
+      },
+      {
+        // Juste après les mots de passe, avant tout seau : la route n'existe pas, rien n'est compté.
+        matcher: (hookCtx) => DISABLED_OTP_PATHS.has(hookCtx.path ?? ""),
+        handler: createAuthMiddleware(async () => {
+          throw new APIError("NOT_FOUND", { message: "routeDisabled", code: "routeDisabled" })
         }),
       },
       {

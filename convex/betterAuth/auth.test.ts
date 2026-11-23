@@ -563,6 +563,27 @@ describe("composition du fournisseur d'identité", () => {
     expect(await t.query(components.betterAuth.adapter.findOne, { model: "account", where: [{ field: "userId", value: userId }, { field: "providerId", value: "credential" }] })).toBeNull()
   })
 
+  // CH-817 E5 (relecture de sécurité, constat 1) : `check-verification-otp` échappait au seau de
+  // connexion (trois essais par code, sans fin de codes) et aucune application n'appelle ces deux
+  // routes. Fermées pour TOUTES les adresses, avant tout seau : un code qu'elles auraient lu ou
+  // consommé reste entier, et le seau de connexion n'est pas entamé.
+  it.each([
+    { path: "/email-otp/check-verification-otp", body: (otp: string) => ({ email: EMAIL, type: "sign-in", otp }) },
+    { path: "/email-otp/verify-email", body: (otp: string) => ({ email: EMAIL, otp }) },
+  ])("ferme $path : 404 `routeDisabled`, sans seau, sans toucher au code", async ({ path, body }) => {
+    const t = testConvex({ automaticSessions: false })
+    const code = await issueCode(t, "email")
+    // Six appels avec le BON code : au-delà des trois essais du code et des cinq du seau de connexion.
+    for (let attempt = 0; attempt < 6; attempt++) {
+      const refusal = await request(t, path, { body: body(code.code) })
+      expect(refusal.status).toBe(404)
+      expect(record(refusal.data)).toEqual({ code: "routeDisabled", message: "routeDisabled" })
+      expect(refusal.tokenHeader).toBeNull()
+    }
+    const result = await signIn(t, "email", code.code)
+    expect(result.status).toBe(200)
+  })
+
   it("un lien de réinitialisation valide ne peut activer le callback de mot de passe", async () => {
     const t = testConvex({ automaticSessions: false })
     const { token, userId } = await loggedIn(t)
