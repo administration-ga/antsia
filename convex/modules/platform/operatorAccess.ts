@@ -14,7 +14,8 @@ import { appendAudit, operatorCapacity } from "./audit"
  * (`betterAuth/auth.ts`), jamais par un client. ADR-0042 : `application`, la clé de l'application web
  * où la session est livrée, établie par le serveur depuis l'état OAuth qu'il a enregistré
  * (`applicationOfOAuthState`) ; une clé hors du catalogue est refusée, une clé absente laisse une
- * preuve qui ne vaut pour aucune administration de réseau.
+ * preuve qui ne vaut ni pour l'administration d'un réseau, ni pour la console (revue CH-815 F3 : seule
+ * une preuve scellée pour l'application de la console ouvre `myOperator`, `recordAccess` et la console).
  */
 export const recordIdnSession = internalMutation({
   args: { sessionId: v.string(), authUserId: v.string(), idnSubject: v.string(), loa: v.union(v.literal(1), v.literal(2), v.literal(3)), application: v.optional(v.string()) },

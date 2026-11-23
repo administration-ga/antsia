@@ -2,15 +2,19 @@
  * PA7 : l'autorité de console appartient à une session IDN, pas à un ancien lien de profil.
  * ADR-0039 : le niveau de garantie exigé est `CONSOLE_MIN_LOA` (1), non plus 2.
  * ADR-0042 : la vivacité d'une preuve de session (`isLiveIdnSession`, `liveIdnSessionProofOrNull`)
- * est COMMUNE à la console et à l'administration d'un réseau (`lib/networkAdminIdentity.ts`) ; une
- * preuve scellée pour une application qui administre un réseau n'ouvre jamais la console.
+ * est COMMUNE à la console et à l'administration d'un réseau (`lib/networkAdminIdentity.ts`).
+ * Revue CH-815, constat F3 : la console est LIÉE à son application. Une preuve n'ouvre la console que
+ * si elle a été scellée pour l'application que le catalogue déclare console (`operator_console`,
+ * `betterAuth/settings.isOperatorConsoleApplication`) ; une preuve d'une application des membres, du
+ * site public, de l'administration d'un réseau, du natif ou d'avant ADR-0042 (sans application) ne
+ * l'ouvre jamais, même si son accès avait été journalisé.
  */
 import { CONSOLE_MIN_LOA } from "@antsia/social-domain/badges"
 
 import { components } from "../_generated/api"
 import type { Doc } from "../_generated/dataModel"
 import type { MutationCtx, QueryCtx } from "../_generated/server"
-import { networkAdministeredBy } from "../betterAuth/settings"
+import { isOperatorConsoleApplication } from "../betterAuth/settings"
 import { fail } from "./errors"
 import { getActiveIdentity } from "./session"
 
@@ -42,16 +46,17 @@ export async function isLiveIdnSession(ctx: IdentityCtx, person: Doc<"persons">,
 }
 
 /**
- * ADR-0042 : la preuve a-t-elle été scellée pour une application qui ADMINISTRE un réseau
- * (`administers_network` au catalogue) ? Une telle session n'est jamais une session de console.
+ * Revue CH-815, constat F3 : la preuve a-t-elle été scellée pour la console du moteur ? Le sceau
+ * vient de l'état OAuth que le serveur a enregistré au départ, épinglé à l'entrée exacte de la console
+ * (`betterAuth/settings.applicationOfOAuthState`), jamais d'un argument du client.
  */
-export function sealedForNetworkAdministration(proof: Doc<"operatorSessionProofs">): boolean {
-  return networkAdministeredBy(proof.application) !== null
+export function sealedForOperatorConsole(proof: Doc<"operatorSessionProofs">): boolean {
+  return isOperatorConsoleApplication(proof.application)
 }
 
-/** Une preuve de CONSOLE vivante : vivante, et jamais scellée pour l'administration d'un réseau. */
+/** Une preuve de CONSOLE vivante : scellée pour la console, et vivante. */
 export async function isLiveOperatorSession(ctx: IdentityCtx, person: Doc<"persons">, proof: Doc<"operatorSessionProofs"> | null): Promise<boolean> {
-  return proof !== null && !sealedForNetworkAdministration(proof) && await isLiveIdnSession(ctx, person, proof)
+  return proof !== null && sealedForOperatorConsole(proof) && await isLiveIdnSession(ctx, person, proof)
 }
 
 /** La preuve VIVANTE de la session appelante (scellée par le retour IDN), quelle que soit son application, ou `null` — sans lever. */
@@ -62,10 +67,10 @@ export async function liveIdnSessionProofOrNull(ctx: QueryCtx | MutationCtx, per
   return proof && await isLiveIdnSession(ctx, person, proof) ? proof : null
 }
 
-/** La preuve de session d'opérateur VIVANTE de la session appelante (scellée par le retour IDN), ou `null` — sans lever. */
+/** La preuve de session de CONSOLE vivante de la session appelante (scellée pour la console par le retour IDN), ou `null` — sans lever. */
 export async function liveOperatorSessionOrNull(ctx: QueryCtx | MutationCtx, person: Doc<"persons">): Promise<Doc<"operatorSessionProofs"> | null> {
   const proof = await liveIdnSessionProofOrNull(ctx, person)
-  return proof && !sealedForNetworkAdministration(proof) ? proof : null
+  return proof && sealedForOperatorConsole(proof) ? proof : null
 }
 
 export async function requireOperatorSession(ctx: QueryCtx | MutationCtx, person: Doc<"persons">): Promise<Doc<"operatorSessionProofs">> {

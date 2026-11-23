@@ -4,7 +4,8 @@
  *
  * Deux qualités, et deux seulement :
  *   - l'opérateur de plateforme, avec la MÊME preuve que la console : session
- *     scellée par le retour IDN, accès journalisé (`liveOperatorOrNull`) ;
+ *     scellée par le retour IDN pour l'application de la console (revue CH-815
+ *     F3), accès journalisé (`liveOperatorOrNull`) ;
  *   - le modérateur ou l'administrateur du réseau du fichier, au statut d'accès
  *     EFFECTIF de ce réseau : adhésion propre, adhésion racine (une suspension à
  *     la racine vaut partout), sanction globale vivante, réseau actif

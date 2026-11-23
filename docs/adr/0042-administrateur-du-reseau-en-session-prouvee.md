@@ -244,3 +244,36 @@ Statut « Proposé ». Remplace le point « Pays ouverts : en attente » de l'am
 - Le pays d'une équipe ne délimite encore aucune compétence : le routage des signalements reste par nature de
   contenu. Le routage par pays est un lot à part, requis avant l'ouverture d'un deuxième pays.
 - Rejetées : table de tranche équipe–pays (deux sources, routage générique impossible) ; ouverture sans équipe.
+
+## Amendement du 2026-11-23 (CH-815, constat F3) — la console liée à son application
+
+Statut « Proposé ». Remplace le point « Non traité, décision du propriétaire (F3) » de l'amendement A1b : le
+propriétaire a demandé de le traiter. Détail et conséquences pour les opérateurs : amendement F3 de
+l'[ADR-0039](0039-console-idn-niveau-1.md).
+
+- **De l'exclusion à la liaison.** Le point 5 de la décision (« la console refuse toute preuve scellée pour
+  une application qui administre un réseau ») devient une règle positive : la console n'admet QUE les
+  preuves scellées pour l'application que le catalogue déclare console (`operator_console: true`,
+  `admin_antsia_ga`, `betterAuth/settings.isOperatorConsoleApplication`). Une preuve de l'application des
+  membres, du site public, d'une administration de réseau, du natif ou sans application est refusée
+  (`operatorRequired`), même si son accès à la console avait été journalisé auparavant. Les deux autorités
+  restent disjointes : une console n'administre aucun réseau (vérifié par le code et par le cliquet).
+- **Le catalogue, seule source, pour les deux autorités.** `administers_network` dit qui administre un
+  réseau, `operator_console` qui est la console. `entry_path` est requis pour ces applications, et pour
+  elles seules (cliquet `deploy-catalog` : `admin_antsia_ga` et `admin_diaspora_ga`, `/entrer` chacune ;
+  la console n'est déclarée qu'une fois).
+- **Le sceau.** `applicationOfOAuthState` épingle la console à son entrée exacte, par le même mécanisme
+  que le F2 (`exactEntryMatches`, trois adresses égales à `origin + entry_path`, sans requête ni fragment).
+  Une autre origine de confiance qui donne l'entrée relative garde sa session ; l'entrée exacte donnée par
+  une autre origine scelle la console, car le jeton à usage unique n'est livré qu'à cette page, où seule
+  la console l'échange (même règle que l'administration d'un réseau).
+- **Appelants** : `requireOperator` (`operatorQuery`, `operatorMutation`, `myOperator`, `recordAccess`),
+  `liveOperatorOrNull` (fichiers retenus : un opérateur n'y est reconnu qu'en session de console ; depuis
+  l'application des membres, il garde la seule qualité de modérateur du réseau, s'il l'a), `networks.archive`
+  (la preuve du demandeur, relue à l'approbation, doit être de console) et `networks.requestArchive`.
+  Aucune application des membres n'appelle une fonction de console, ni ces portes de fichiers.
+  L'administration d'un réseau ne change pas.
+
+Recettes : `convex/modules/platform/consoleApplication.test.ts`, `convex/betterAuth/idnApplication.test.ts`
+(vrai parcours jusqu'à `myOperator`), `convex/betterAuth/settings.test.ts`,
+`convex/modules/networks/adminAccess.test.ts`, cliquet `deploy-catalog`.

@@ -144,12 +144,15 @@ describe("deploy-catalog — chaque application servie est au catalogue (câblag
     expect(Object.fromEntries(withEntry.map(([key, app]) => [key, (app as WebApplication).entry_path]))).toEqual({ admin_antsia_ga: "/entrer", admin_diaspora_ga: "/entrer" })
   })
 
-  it("revue CH-815 F3 : le chemin d'entrée de la console est une page réelle de la console", () => {
+  it("revue CH-815 F3 : le chemin d'entrée de la console est sa page de connexion réelle", () => {
     const consoleApp = catalog.applications.admin_antsia_ga as WebApplication | undefined
     const entryPath = consoleApp?.entry_path ?? ""
     expect(ENTRY_PATH.test(entryPath), `chemin d'entrée de la console : « ${entryPath} »`).toBe(true)
     // `src/app/<chemin>/page.tsx` : l'adresse où le moteur livre la session est servie par l'application.
     expect(existsSync(join(REPO_ROOT, consoleApp?.path ?? "", "src/app", entryPath.slice(1), "page.tsx")), entryPath).toBe(true)
+    // Et c'est l'adresse que la console donne à IDN (`routes.signIn`, d'où `idnReturnURLs`) : sinon plus aucun sceau.
+    const routesSource = readFileSync(join(REPO_ROOT, consoleApp?.path ?? "", "src/lib/routes.ts"), "utf8")
+    expect(routesSource).toContain(`signIn: () => "${entryPath}",`)
   })
 
   it("test du test : la forme du chemin d'entrée refuse requête, fragment, barre finale et segment vide", () => {

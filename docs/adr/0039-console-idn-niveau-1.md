@@ -65,3 +65,43 @@ sécurité réel. Non retenue.
 - [ADR-0011](0011-console-idn-et-archivage-a-deux-personnes.md).
 - `convex/lib/operatorIdentity.ts`, `packages/social-domain/src/badges.ts`.
 - Registre de publication du 22/10/2026 : [docs/35](../35_PUBLICATION_DONNEES_DEMO_2026-10-22.md).
+
+## Amendement du 2026-11-23 (revue de sécurité CH-815, constat F3) — la console liée à son application
+
+Statut « Proposé » (demande explicite du propriétaire de traiter F3). Le seuil `CONSOLE_MIN_LOA` ne change
+pas ; une garde s'ajoute à celles de la décision.
+
+- **Le constat.** Depuis l'ADR-0042, la preuve de session porte l'application où le retour IDN livre la
+  session, mais la console n'était bornée que par exclusion : toute preuve vivante l'ouvrait, sauf une
+  preuve scellée pour une application qui administre un réseau. Une session IDN ouverte par un opérateur
+  sur une application des membres (diaspora.ga, antsia.ga) ouvrait donc aussi la console : un script de ces
+  sites pouvait agir en opérateur.
+- **La décision.** Une session n'est une session de console que si sa preuve a été scellée pour
+  l'application que le catalogue déclare console : `operator_console: true` sur `admin_antsia_ga`
+  (`deploy/catalog.json`), lu par `betterAuth/settings.isOperatorConsoleApplication`, seule source (aucune
+  ligne en base, aucun argument d'un client). Une console est web, n'administre aucun réseau, et le cliquet
+  `deploy-catalog` n'en admet qu'une. Garde : `lib/operatorIdentity.isLiveOperatorSession` et
+  `liveOperatorSessionOrNull`, donc `operatorQuery`, `operatorMutation`, `myOperator`, `recordAccess`.
+- **L'entrée exacte.** La console déclare son chemin d'entrée (`entry_path: "/entrer"`, sa page de
+  connexion). Comme une administration de réseau (ADR-0042, amendement A1b, F2), elle n'est scellée que si
+  les trois adresses de retour (`callbackURL`, nouvel utilisateur, erreur) valent exactement son origine
+  suivie de `/entrer`, sans requête ni fragment. L'application envoie ces trois adresses ; une fois la
+  session échangée, l'entrée mène à l'accueil si le serveur la reconnaît (`myOperator`), sinon elle le dit et
+  laisse relancer IDN. Aucune continuation ne voyage avec le jeton à usage unique.
+- **Refus inchangé.** Tout refus reste `operatorRequired`, celui d'aujourd'hui ; les portes de personne qui
+  reconnaissent aussi l'opérateur (fichiers retenus : `files.releaseScan`, rapport `files.getScan`)
+  rendent leur refus indistinct.
+- **Côté application** : relais d'authentification sans cookie du navigateur
+  (`createAuthProxyHandlers({ browserCookies: "drop" })`) et `Referrer-Policy: no-referrer` (en-tête et
+  balise), en gardant les autres en-têtes de sécurité et la CSP.
+
+Conséquences : les preuves sans application (d'avant l'ADR-0042), celles d'une autre application et celles
+ouvertes par l'ancien départ de la console (retour sur l'accueil) n'ouvrent plus la console, même
+journalisées : **chaque opérateur se reconnecte une fois sur la console après la publication**. Une console
+servie ailleurs qu'à son adresse du catalogue n'est scellée que si le déploiement déclare cette origine
+(`APPLICATION_EXTRA_ORIGINS_JSON`, `{"admin_antsia_ga": ["<origine>"]}`, origine aussi dans
+`TRUSTED_ORIGINS`) ; sans elle, aucun opérateur n'y entre.
+
+Recettes : `convex/modules/platform/consoleApplication.test.ts`, `convex/betterAuth/idnApplication.test.ts`,
+`convex/betterAuth/settings.test.ts`, cliquet `deploy-catalog`, `apps/admin_antsia_ga` (écran d'entrée,
+relais, en-têtes, gabarit).

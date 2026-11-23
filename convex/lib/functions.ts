@@ -124,7 +124,10 @@ export const personMutation = customMutation(mutation, {
   },
 })
 
-/** L'opérateur de plateforme vivant lié à la session ; `operatorRequired` sinon. */
+/**
+ * L'opérateur de plateforme vivant lié à la session, en session de CONSOLE (preuve scellée pour
+ * l'application de la console, revue CH-815 F3) ; `operatorRequired` sinon.
+ */
 export async function requireOperator(ctx: QueryCtx): Promise<{ person: Doc<"persons">; operator: Doc<"operators">; operatorSessionProof: Doc<"operatorSessionProofs"> }> {
   const person = await requirePerson(ctx)
   const operator = await ctx.db
@@ -138,9 +141,10 @@ export async function requireOperator(ctx: QueryCtx): Promise<{ person: Doc<"per
 
 /**
  * La MÊME preuve que la console (`operatorQuery`, `operatorMutation`) — opérateur
- * vivant, session scellée par le retour IDN, accès journalisé —, SANS lever :
- * pour une porte de personne qui reconnaît aussi l'opérateur. `null` sinon ;
- * l'appelant rend alors son refus indistinct.
+ * vivant, session scellée par le retour IDN POUR LA CONSOLE (revue CH-815 F3),
+ * accès journalisé —, SANS lever : pour une porte de personne qui reconnaît aussi
+ * l'opérateur. Une session de l'application des membres n'y vaut jamais opérateur.
+ * `null` sinon ; l'appelant rend alors son refus indistinct.
  */
 export async function liveOperatorOrNull(ctx: QueryCtx, person: Doc<"persons">): Promise<Doc<"operators"> | null> {
   const operator = await ctx.db
