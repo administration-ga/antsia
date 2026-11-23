@@ -1,9 +1,12 @@
 // @vitest-environment jsdom
 import { createAppI18n } from "@antsia/social-features/i18n"
-import { act, cleanup, render, screen } from "@testing-library/react"
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { I18nextProvider } from "react-i18next"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+
+import { getFunctionName, type FunctionReference } from "convex/server"
+import { ConvexError } from "convex/values"
 
 import { appResources } from "@/i18n/resources"
 
@@ -11,19 +14,28 @@ const mocks = vi.hoisted(() => ({
   signIn: vi.fn(),
   auth: { isAuthenticated: false, isLoading: false },
   configuration: { idn: true, emailOtp: true, smsOtp: true, localCodes: true },
+  // `myOperator` : l'opérateur reconnu par le serveur pour CETTE session, ou son refus.
+  operator: undefined as unknown,
+  operatorFailure: null as unknown,
+  replace: vi.fn(),
   signOut: vi.fn(),
 }))
 vi.mock("@/components/providers", () => ({ CONVEX_URL: "configured" }))
 vi.mock("@/lib/auth-client", () => ({ authClient: { signIn: { oauth2: mocks.signIn } } }))
 vi.mock("@/lib/sign-out", () => ({ signOutAndRedirect: mocks.signOut }))
 vi.mock("./console-operations", () => ({ OperationsPanel: () => null }))
+vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: mocks.replace }) }))
 vi.mock("convex/react", () => ({
   useConvexAuth: () => mocks.auth,
-  useQuery: () => mocks.configuration,
+  useQuery: (reference: FunctionReference<"query">) => {
+    if (getFunctionName(reference) !== "modules/platform/operatorAccess:myOperator") return mocks.configuration
+    if (mocks.operatorFailure) throw mocks.operatorFailure
+    return mocks.operator
+  },
   useMutation: () => vi.fn(),
 }))
 
-import { ConsoleSignInScreen, IdnConsoleEntry } from "./sign-in-screen"
+import { ConsoleSignInScreen, IdnConsoleEntry, idnReturnURLs } from "./sign-in-screen"
 
 function mount(element = <IdnConsoleEntry configuration={mocks.configuration} />) {
   const i18n = createAppI18n({ locale: "fr", appResources, defaultNS: "admin" })
@@ -34,10 +46,12 @@ beforeEach(() => {
   vi.clearAllMocks()
   mocks.auth = { isAuthenticated: false, isLoading: false }
   mocks.configuration = { idn: true, emailOtp: true, smsOtp: true, localCodes: true }
+  mocks.operator = undefined
+  mocks.operatorFailure = null
   mocks.signIn.mockResolvedValue({ data: { url: "https://identity.example/authorize", redirect: true }, error: null })
   window.history.replaceState({}, "", "/entrer")
 })
-afterEach(cleanup)
+afterEach(() => { cleanup(); vi.restoreAllMocks() })
 
 describe("console PA7 — IDN seule", () => {
   it("n'expose ni OTP, ni SMS, ni code de développement même si le moteur les permet", () => {
@@ -62,7 +76,7 @@ describe("console PA7 — IDN seule", () => {
     expect(screen.getByText(/Vérification de la disponibilité/)).toBeDefined()
     expect(screen.getByRole("button").hasAttribute("disabled")).toBe(true)
   })
-  it("soumet uniquement le provider IDN avec un callback console et protège le double clic", async () => {
+  it("soumet uniquement le provider IDN avec les trois adresses de l'entrée exacte de la console et protège le double clic", async () => {
     let resolve: (value: unknown) => void = () => undefined
     mocks.signIn.mockImplementation(() => new Promise((done) => { resolve = done }))
     mount()
@@ -71,7 +85,9 @@ describe("console PA7 — IDN seule", () => {
     expect(pending.hasAttribute("disabled")).toBe(true)
     await userEvent.click(pending)
     expect(mocks.signIn).toHaveBeenCalledTimes(1)
-    expect(mocks.signIn).toHaveBeenCalledWith({ providerId: "idn", callbackURL: "/", errorCallbackURL: "/entrer", fetchOptions: { throw: false, signal: expect.any(AbortSignal) } })
+    // Revue CH-815 F3 : `/entrer` ABSOLU de cette origine, sans requête ni fragment, pour le succès, le compte neuf et l'échec.
+    const entry = `${window.location.origin}/entrer`
+    expect(mocks.signIn).toHaveBeenCalledWith({ providerId: "idn", callbackURL: entry, newUserCallbackURL: entry, errorCallbackURL: entry, fetchOptions: { throw: false, signal: expect.any(AbortSignal) } })
     await act(async () => resolve({ data: { url: "https://identity.example/authorize", redirect: true }, error: null }))
   })
   it("traduit une erreur du fournisseur sans exposer ses détails, puis permet un nouvel essai", async () => {
@@ -89,11 +105,52 @@ describe("console PA7 — IDN seule", () => {
     await userEvent.click(screen.getByRole("button", { name: "Me connecter avec IDN" }))
     expect(screen.getByRole("alert")).toBeDefined()
   })
-  it("une session faible peut relancer IDN au lieu d'être redirigée vers le refus", () => {
+  it("une session faible peut relancer IDN au lieu d'être redirigée vers le refus", async () => {
+    mocks.auth.isAuthenticated = true
+    mocks.operatorFailure = new ConvexError({ code: "operatorRequired" })
+    vi.spyOn(console, "error").mockImplementation(() => undefined)
+    mount(<ConsoleSignInScreen />)
+    expect(await screen.findByRole("button", { name: "Me connecter avec IDN" })).toBeDefined()
+    expect(screen.queryByText("Vérification de la session…")).toBeNull()
+    // Le serveur ne reconnaît pas cette session à la console : dit sans détour, avec la porte pour la relancer.
+    expect(screen.getByText("L’accès à la console n’est pas autorisé pour cette session.")).toBeDefined()
+    expect(mocks.replace).not.toHaveBeenCalled()
+  })
+})
+
+describe("revue CH-815 F3 — l'entrée exacte de la console", () => {
+  it("les trois adresses de retour d'IDN sont `/entrer` absolu de l'origine, sans requête ni fragment", () => {
+    const entry = "https://console.exemple.test/entrer"
+    expect(idnReturnURLs("https://console.exemple.test")).toEqual({ callbackURL: entry, newUserCallbackURL: entry, errorCallbackURL: entry })
+    // Une origine passée avec un chemin, une requête ou un fragment n'en laisse rien passer.
+    expect(idnReturnURLs("https://console.exemple.test/?section=files#x")).toEqual({ callbackURL: entry, newUserCallbackURL: entry, errorCallbackURL: entry })
+  })
+
+  it("au retour d'IDN, une session que le serveur reconnaît à la console passe l'entrée vers l'accueil, une seule fois", async () => {
+    mocks.auth.isAuthenticated = true
+    mocks.operator = { admissionId: "preuve", personId: "personne", displayName: null, role: "platform_admin" }
+    mount(<ConsoleSignInScreen />)
+    await waitFor(() => expect(mocks.replace).toHaveBeenCalledWith("/"))
+    expect(mocks.replace).toHaveBeenCalledTimes(1)
+    expect(screen.queryByRole("button", { name: "Me connecter avec IDN" })).toBeNull()
+    expect(screen.getByRole("status").textContent).toBe("Vérification de la session…")
+  })
+
+  it("tant que le serveur n'a pas répondu, l'entrée attend sans naviguer ni offrir une autre porte", () => {
     mocks.auth.isAuthenticated = true
     mount(<ConsoleSignInScreen />)
-    expect(screen.getByRole("button", { name: "Me connecter avec IDN" })).toBeDefined()
-    expect(screen.queryByText("Vérification de la session…")).toBeNull()
+    expect(screen.getByRole("status").textContent).toBe("Vérification de la session…")
+    expect(screen.queryByRole("button", { name: "Me connecter avec IDN" })).toBeNull()
+    expect(mocks.replace).not.toHaveBeenCalled()
+  })
+
+  it("une sortie incomplète avec une session encore vivante se refait d'abord : aucune navigation", async () => {
+    window.history.replaceState({}, "", "/entrer?deconnexion=incomplete")
+    mocks.auth.isAuthenticated = true
+    mocks.operator = { admissionId: "preuve", personId: "personne", displayName: null, role: "platform_admin" }
+    mount(<ConsoleSignInScreen />)
+    expect(await screen.findByRole("button", { name: "Me déconnecter partout" })).toBeDefined()
+    expect(mocks.replace).not.toHaveBeenCalled()
   })
 })
 

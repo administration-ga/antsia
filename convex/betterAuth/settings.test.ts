@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import catalog from "../../deploy/catalog.json"
-import { applicationOfOAuthState, applicationOfOrigin, authenticationConfiguration, entryPathOf, extraApplicationOrigins, idnConfiguration, idnProfileProof, isE164Phone, isWebApplicationKey, networkAdministeredBy, parseOriginList, smsConfiguration, trustedOrigins } from "./settings"
+import { applicationOfOAuthState, applicationOfOrigin, authenticationConfiguration, entryPathOf, extraApplicationOrigins, idnConfiguration, idnProfileProof, isE164Phone, isOperatorConsoleApplication, isWebApplicationKey, networkAdministeredBy, parseOriginList, smsConfiguration, trustedOrigins } from "./settings"
 
 // L'inventaire reste exhaustif ; seules les entrées web déclarent une origine HTTP.
 const webApplications = Object.entries(catalog.applications).flatMap(([key, app]) =>
@@ -204,6 +204,59 @@ describe("ADR-0042 — application où un retour IDN livre la session", () => {
     for (const key of ["membres", "natif", "vide", "inconnue", "toString", "", null, undefined]) expect(networkAdministeredBy(key, applications)).toBeNull()
     // Le catalogue réel : ni le site public, ni la console, ni l'application des membres n'administrent un réseau.
     for (const key of ["antsia_ga", "admin_antsia_ga", "diaspora_ga", "antsia_mobile"]) expect(networkAdministeredBy(key)).toBeNull()
+  })
+})
+
+describe("revue CH-815 F3 — la console du moteur, liée à son application", () => {
+  it("la console est déclarée au catalogue (`operator_console`), et elle seule", () => {
+    expect(isOperatorConsoleApplication("admin_antsia_ga")).toBe(true)
+    for (const key of ["antsia_ga", "diaspora_ga", "admin_diaspora_ga", "antsia_mobile", "inconnue", "toString", "", null, undefined]) expect(isOperatorConsoleApplication(key), String(key)).toBe(false)
+  })
+
+  it("une console est une application web, déclarée par la valeur `true`, qui n'administre aucun réseau", () => {
+    const applications = {
+      console: { platform: "web", operator_console: true },
+      membres: { platform: "web" },
+      refusee: { platform: "web", operator_console: false },
+      natif: { platform: "expo-native", operator_console: true },
+      // Une console qui administrerait aussi un réseau confondrait les deux autorités : fermé.
+      double: { platform: "web", operator_console: true, administers_network: "reseau-fictif" },
+    }
+    expect(isOperatorConsoleApplication("console", applications)).toBe(true)
+    for (const key of ["membres", "refusee", "natif", "double", "inconnue", "__proto__"]) expect(isOperatorConsoleApplication(key, applications), key).toBe(false)
+  })
+
+  it("la console n'est scellée qu'à son entrée exacte (`entry_path`), comme une administration de réseau", () => {
+    const consoleApp = webApplications.find((app) => app.key === "admin_antsia_ga")
+    if (!consoleApp || !("entry_path" in consoleApp)) throw new Error("Entrée de la console attendue au catalogue, avec son chemin d'entrée")
+    const origin = new URL(consoleApp.site_url).origin
+    const entry = `${origin}${consoleApp.entry_path}`
+    expect(consoleApp.entry_path).toBe("/entrer")
+    expect(entryPathOf("admin_antsia_ga")).toBe("/entrer")
+    expect(applicationOfOAuthState({ callbackURL: entry, newUserURL: entry, errorURL: entry }, {})).toBe("admin_antsia_ga")
+    for (const [label, state] of [
+      // Le départ de la console d'avant ce durcissement : l'accueil, sans adresse de nouvel utilisateur.
+      ["l'ancien départ de la console", { callbackURL: `${origin}/`, errorURL: entry }],
+      ["l'accueil", { callbackURL: `${origin}/`, newUserURL: `${origin}/`, errorURL: `${origin}/` }],
+      ["un état de console", { callbackURL: `${origin}/?section=files`, newUserURL: entry, errorURL: entry }],
+      ["une requête", { callbackURL: `${entry}?retour=/`, newUserURL: entry, errorURL: entry }],
+      ["un fragment", { callbackURL: `${entry}#suite`, newUserURL: entry, errorURL: entry }],
+      ["une barre finale", { callbackURL: `${entry}/`, newUserURL: entry, errorURL: entry }],
+      ["nouvel utilisateur absent", { callbackURL: entry, errorURL: entry }],
+      ["nouvel utilisateur ailleurs", { callbackURL: entry, newUserURL: `${origin}/`, errorURL: entry }],
+      ["erreur absente", { callbackURL: entry, newUserURL: entry }],
+      ["erreur ailleurs", { callbackURL: entry, newUserURL: entry, errorURL: `${origin}/erreur` }],
+    ] as const) expect(applicationOfOAuthState(state, {}), label).toBeNull()
+  })
+
+  it("une console servie sur une origine déclarée par le déploiement y est scellée à son entrée exacte, et là seulement", () => {
+    const DEMO_CONSOLE = "https://console.demo.example.test"
+    const entry = `${DEMO_CONSOLE}/entrer`
+    const env = { APPLICATION_EXTRA_ORIGINS_JSON: JSON.stringify({ admin_antsia_ga: [DEMO_CONSOLE] }), TRUSTED_ORIGINS: DEMO_CONSOLE }
+    expect(applicationOfOAuthState({ callbackURL: entry, newUserURL: entry, errorURL: entry }, env)).toBe("admin_antsia_ga")
+    expect(applicationOfOAuthState({ callbackURL: `${DEMO_CONSOLE}/`, newUserURL: entry, errorURL: entry }, env)).toBeNull()
+    // Sans déclaration, la console servie ailleurs qu'à son adresse du catalogue n'est jamais scellée.
+    expect(applicationOfOAuthState({ callbackURL: entry, newUserURL: entry, errorURL: entry }, { TRUSTED_ORIGINS: DEMO_CONSOLE })).toBeNull()
   })
 })
 

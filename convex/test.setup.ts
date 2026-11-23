@@ -64,10 +64,27 @@ export async function createTestSession(t: BackendTest, userId: string, expiresA
   return session._id
 }
 
-/** Fixture explicite PA7 : vraie session, compte IDN, preuve interne et lien vivant. */
-export async function createTestOperatorProof(t: BackendTest, as: ReturnType<BackendTest["withIdentity"]>, personId: Id<"persons">, loa: 1 | 2 | 3 = 2): Promise<void> {
-  await sealTestIdnSession(t, as, personId, loa)
-  if (loa >= 2) await as.mutation(api.modules.platform.operatorAccess.recordAccess, {})
+/**
+ * Revue CH-815 F3 — la clé, au catalogue, de la console du moteur (`operator_console`) : la seule
+ * application dont une session IDN ouvre la console.
+ */
+export const OPERATOR_CONSOLE_APPLICATION = "admin_antsia_ga"
+
+/**
+ * Fixture explicite PA7 : vraie session, compte IDN, preuve interne et lien vivant. Revue CH-815 F3 :
+ * la preuve est scellée pour la console (`application`, par défaut `OPERATOR_CONSOLE_APPLICATION`) ;
+ * une autre application, ou `null` (preuve d'avant ADR-0042), n'ouvre pas la console : son accès
+ * n'est alors pas journalisé.
+ */
+export async function createTestOperatorProof(
+  t: BackendTest,
+  as: ReturnType<BackendTest["withIdentity"]>,
+  personId: Id<"persons">,
+  loa: 1 | 2 | 3 = 2,
+  { application = OPERATOR_CONSOLE_APPLICATION }: { application?: string | null } = {},
+): Promise<void> {
+  await sealTestIdnSession(t, as, personId, loa, application ?? undefined)
+  if (loa >= 2 && application === OPERATOR_CONSOLE_APPLICATION) await as.mutation(api.modules.platform.operatorAccess.recordAccess, {})
 }
 
 /**

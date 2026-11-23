@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { api, components, internal } from "../../_generated/api"
 import type { Id } from "../../_generated/dataModel"
 import { SEED_CONFIRMATION } from "../../seeds/foundations"
-import { createTestSession, testConvex } from "../../test.setup"
+import { createTestSession, OPERATOR_CONSOLE_APPLICATION, testConvex } from "../../test.setup"
 
 type T = ReturnType<typeof testConvex>
 const SETTINGS = { name: "Réseau de recette", membershipPolicy: "open" as const, defaultVisibility: "network" as const, reachValues: [], theme: "antsia" }
@@ -19,7 +19,7 @@ function idOf(row: unknown): string {
   return row._id
 }
 
-async function actor(t: T, { loa = 2, sealed = true, logged = true, role = "platform_admin" }: { loa?: 1 | 2 | 3; sealed?: boolean; logged?: boolean; role?: "platform_admin" | "platform_operator" | null } = {}) {
+async function actor(t: T, { loa = 2, sealed = true, logged = true, role = "platform_admin", application = OPERATOR_CONSOLE_APPLICATION }: { loa?: 1 | 2 | 3; sealed?: boolean; logged?: boolean; role?: "platform_admin" | "platform_operator" | null; application?: string } = {}) {
   const now = Date.now(), tag = crypto.randomUUID()
   const authUserId = idOf(await t.mutation(components.betterAuth.adapter.create, { input: { model: "user", data: { name: "État civil non recopié", email: tag + "@example.test", emailVerified: true, createdAt: now, updatedAt: now } } }))
   const idnSubject = "idn-" + tag
@@ -29,7 +29,8 @@ async function actor(t: T, { loa = 2, sealed = true, logged = true, role = "plat
   const as = t.withIdentity({ subject: authUserId, sessionId })
   const personId = await as.mutation(api.modules.people.persons.ensureMyPerson, {})
   const operatorId = role ? await t.run(async (ctx) => await ctx.db.insert("operators", { personId, role, grantedAt: now })) : null
-  if (sealed) await t.mutation(internal.modules.platform.operatorAccess.recordIdnSession, { sessionId, authUserId, idnSubject, loa })
+  // Revue CH-815 F3 : la session est scellée pour la console, seule application qui l'ouvre.
+  if (sealed) await t.mutation(internal.modules.platform.operatorAccess.recordIdnSession, { sessionId, authUserId, idnSubject, loa, application })
   if (logged && sealed && role && loa >= CONSOLE_MIN_LOA) await as.mutation(api.modules.platform.operatorAccess.recordAccess, {})
   return { as, personId, authUserId, idnSubject, sessionId, operatorId }
 }
@@ -173,7 +174,7 @@ describe("réseaux : demande et double validation transactionnelle", () => {
     const sessionId = await createTestSession(f.t, f.first.authUserId)
     const reconnected = f.t.withIdentity({ subject: f.first.authUserId, sessionId })
     await f.t.mutation(internal.modules.people.identity.recordIdnProof, { subject: f.first.idnSubject, loa: 2 })
-    await f.t.mutation(internal.modules.platform.operatorAccess.recordIdnSession, { sessionId, authUserId: f.first.authUserId, idnSubject: f.first.idnSubject, loa: 2 })
+    await f.t.mutation(internal.modules.platform.operatorAccess.recordIdnSession, { sessionId, authUserId: f.first.authUserId, idnSubject: f.first.idnSubject, loa: 2, application: OPERATOR_CONSOLE_APPLICATION })
     await reconnected.mutation(api.modules.platform.operatorAccess.recordAccess, {})
     const current = await reconnected.mutation(api.modules.networks.networks.requestArchive, { networkId: f.networkId, reason: REASON })
     expect(current.archiveRequestId).not.toBe(previous.archiveRequestId)

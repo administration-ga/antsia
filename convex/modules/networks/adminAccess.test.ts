@@ -307,13 +307,17 @@ describe("ADR-0042 — console et administration du réseau ne se valent jamais 
   it("une session de console journalisée n'ouvre jamais l'administration du réseau", async () => {
     const f = await fixture()
     await f.t.run(async (ctx) => { await ctx.db.insert("operators", { personId: f.admin.personId, role: "platform_admin", grantedAt: NOW }) })
-    for (const application of [CONSOLE_APP, undefined]) {
-      const session = await idnSession(f.t, f.admin, application)
-      await session.as.mutation(api.modules.platform.operatorAccess.recordAccess, {})
-      expect((await session.as.query(api.modules.platform.operatorAccess.myOperator, {})).role).toBe("platform_admin")
-      await expectAllRefused(f, session.as, f.network, `console (${application ?? "preuve sans application"})`)
-      expect((await proofOf(f.t, session.sessionId))?.networkAdminAccess).toBeUndefined()
-    }
+    const session = await idnSession(f.t, f.admin, CONSOLE_APP)
+    await session.as.mutation(api.modules.platform.operatorAccess.recordAccess, {})
+    expect((await session.as.query(api.modules.platform.operatorAccess.myOperator, {})).role).toBe("platform_admin")
+    await expectAllRefused(f, session.as, f.network, "console")
+    expect((await proofOf(f.t, session.sessionId))?.networkAdminAccess).toBeUndefined()
+    // Revue CH-815 F3 : une preuve sans application (d'avant ADR-0042) n'ouvre plus la console, ni l'administration.
+    const unsealed = await idnSession(f.t, f.admin, undefined)
+    const operatorRequired = { code: "operatorRequired" }
+    expect(await refusalOf(unsealed.as.mutation(api.modules.platform.operatorAccess.recordAccess, {}))).toEqual(operatorRequired)
+    expect(await refusalOf(unsealed.as.query(api.modules.platform.operatorAccess.myOperator, {}))).toEqual(operatorRequired)
+    await expectAllRefused(f, unsealed.as, f.network, "preuve sans application")
   })
 })
 
