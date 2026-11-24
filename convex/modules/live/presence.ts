@@ -69,33 +69,12 @@
  * d'être connecté, donc de battre, et sa place revient au TTL. Il ne peut de
  * toute façon plus obtenir de jeton.
  */
-import { engineErrorCode } from "@antsia/social-contracts/errors"
 import { v } from "convex/values"
 
-import type { Id } from "../../_generated/dataModel"
-import type { MutationCtx } from "../../_generated/server"
 import { networkMutation } from "../../lib/functions"
-import { enforceRateLimit } from "../../lib/rateLimit"
+// Le seau d'un battement, consommé sans lever : un seul endroit, partagé avec la présence des appels.
+import { beatWithinRateLimit } from "../../lib/rateLimit"
 import { DIRECT_PRESENCE_TTL_MS } from "./domain"
-
-/**
- * Le seau d'un BATTEMENT, consommé SANS lever : `false` au-delà du seuil (le
- * battement est alors refusé comme les autres, sans écrire), `true` sinon.
- * Toute autre erreur remonte telle quelle.
- *
- * ⚠️ `enforceRateLimit` LÈVE (`rateLimited`), et un battement du socle ne
- * levait jamais : c'est ici, et nulle part ailleurs, que ce refus devient une
- * valeur. Partagé par le bail des spectateurs et celui de l'hôte.
- */
-export async function beatWithinRateLimit(ctx: MutationCtx, bucket: "live.presence" | "live.hostPresence", personId: Id<"persons">): Promise<boolean> {
-  try {
-    await enforceRateLimit(ctx, bucket, personId)
-    return true
-  } catch (error) {
-    if (engineErrorCode(error) === "rateLimited") return false
-    throw error
-  }
-}
 
 /**
  * BATTRE. Le spectateur admis, sur une session EN DIRECT de ce réseau.

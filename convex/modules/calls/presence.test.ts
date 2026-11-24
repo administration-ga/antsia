@@ -146,10 +146,38 @@ describe("heartbeat / setOffline — la présence d'un écran ouvert", () => {
     expect((await presenceRow(t, root, me))?.status).toBe("offline")
   })
 
-  it("le battement est borné en débit", async () => {
-    const { root, me } = await world()
+  // Constaté le 24/11/2026 sur la démonstration : un même compte ouvert dans plusieurs onglets, ou
+  // des pages rechargées coup sur coup (chaque chargement coûte un « hors ligne » et un battement),
+  // vide le seau de huit par minute ; le client Convex inscrit alors chaque refus en console
+  // (« Server Error »), même avalé par l'écran. Le battement de trop doit se taire, sans rien écrire.
+  it("le battement de trop se tait : aucune exception, aucune écriture, le seau reste la borne", async () => {
+    const { t, root, me } = await world()
     for (let index = 0; index < 8; index += 1) await me.as.mutation(C.presence.heartbeat, { networkId: root })
-    expect(await codeOf(me.as.mutation(C.presence.heartbeat, { networkId: root }))).toBe("rateLimited")
+    tick(1_000)
+    await expect(me.as.mutation(C.presence.heartbeat, { networkId: root })).resolves.toBeNull()
+    expect(await presenceRow(t, root, me)).toMatchObject({ status: "online", lastHeartbeat: T0 })
+    // « Hors ligne » partage le seau : de trop, il se tait de même, et la ligne reste « en ligne »
+    // jusqu'au nettoyage serveur (une présence qui ne bat plus s'éteint d'elle-même).
+    await expect(me.as.mutation(C.presence.setOffline, { networkId: root })).resolves.toBeNull()
+    expect((await presenceRow(t, root, me))?.status).toBe("online")
+  })
+
+  it("le seau rempli, le battement d'un membre connecté écrit de nouveau", async () => {
+    const { t, root, me } = await world()
+    for (let index = 0; index < 9; index += 1) await me.as.mutation(C.presence.heartbeat, { networkId: root })
+    tick(60_000)
+    await me.as.mutation(C.presence.heartbeat, { networkId: root })
+    expect(await presenceRow(t, root, me)).toMatchObject({ status: "online", lastHeartbeat: T0 + 60_000 })
+    await me.as.mutation(C.presence.setOffline, { networkId: root })
+    expect((await presenceRow(t, root, me))?.status).toBe("offline")
+  })
+
+  it("les refus du constructeur lèvent toujours : sans session, hors du réseau", async () => {
+    const { t, root, testClosed, me } = await world()
+    expect(await codeOf(t.mutation(C.presence.heartbeat, { networkId: root }))).toBe("unauthenticated")
+    expect(await codeOf(t.mutation(C.presence.setOffline, { networkId: root }))).toBe("unauthenticated")
+    expect(await codeOf(me.as.mutation(C.presence.heartbeat, { networkId: testClosed }))).toBe("notFound")
+    expect(await presenceRow(t, testClosed, me)).toBeNull()
   })
 })
 

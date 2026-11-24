@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/modules/iappel/presence.ts (avec socle/convex/functions/agentPresence.ts, l. 10-140 et 204-249) @ ad2e7fdc2 — adaptations : présence PAR PERSONNE dans un réseau (verrous V18 à V20 levés : ni organisation, ni appels déclarés par l'écran, ni pointage, ni planning — `presenceTransitions` exclu) ; `heartbeat` et `setOffline` bornés par le réseau et par le débit ; `forMyConnections` sur les relations ACCEPTÉES du réseau lues par le graphe (bornées, lacune dite — le socle listait toutes les connexions puis tronquait la sortie, D19), « ne pas déranger » lu sans portée, « en appel » lu sur les lignes vivantes de participation du RÉSEAU (groupe compris), instant fourni par l'écran (D16) ; `offlineHints` sur la présence du réseau ; `forOrgContacts`, `forOrgMembers`, `listOnlineAgents`, `countAvailableAgents` (lectures SANS garde, D26), `getMine`, `setDnd`, `isAvailable` et le rattrapage multi-appels exclus ; nettoyage indexé par `lastHeartbeat` et poursuivi par chaîne (le socle balayait 500 lignes de toute la table, D26).
+// Dupliqué de socle/convex/modules/iappel/presence.ts (avec socle/convex/functions/agentPresence.ts, l. 10-140 et 204-249) @ ad2e7fdc2 — adaptations : présence PAR PERSONNE dans un réseau (verrous V18 à V20 levés : ni organisation, ni appels déclarés par l'écran, ni pointage, ni planning — `presenceTransitions` exclu) ; `heartbeat` et `setOffline` bornés par le réseau et par le débit, le battement de trop SE TAIT (`beatWithinRateLimit`, comme les baux du direct : rien d'écrit, aucune exception ; les refus du constructeur lèvent toujours) ; `forMyConnections` sur les relations ACCEPTÉES du réseau lues par le graphe (bornées, lacune dite — le socle listait toutes les connexions puis tronquait la sortie, D19), « ne pas déranger » lu sans portée, « en appel » lu sur les lignes vivantes de participation du RÉSEAU (groupe compris), instant fourni par l'écran (D16) ; `offlineHints` sur la présence du réseau ; `forOrgContacts`, `forOrgMembers`, `listOnlineAgents`, `countAvailableAgents` (lectures SANS garde, D26), `getMine`, `setDnd`, `isAvailable` et le rattrapage multi-appels exclus ; nettoyage indexé par `lastHeartbeat` et poursuivi par chaîne (le socle balayait 500 lignes de toute la table, D26).
 /**
  * Appels — la PRÉSENCE : ce que mes relations voient de moi, et ce qui prouve
  * que je suis hors ligne.
@@ -19,7 +19,7 @@ import { internal } from "../../_generated/api"
 import type { Id } from "../../_generated/dataModel"
 import { internalMutation, type QueryCtx } from "../../_generated/server"
 import { networkMutation, networkQuery } from "../../lib/functions"
-import { enforceRateLimit } from "../../lib/rateLimit"
+import { beatWithinRateLimit } from "../../lib/rateLimit"
 import { acceptedCounterpartIds } from "../graph/graph"
 import { countLiveCalls } from "./evaluate"
 
@@ -47,14 +47,22 @@ async function sharesPresence(ctx: Pick<QueryCtx, "db">, personId: Id<"persons">
   return { shares: prefs?.sharePresence !== false, dndUntil: prefs?.dnd?.until ?? null }
 }
 
-/** Un écran ouvert du réseau signale qu'il est là — toutes les 30 secondes. */
+/**
+ * Un écran ouvert du réseau signale qu'il est là — toutes les 30 secondes.
+ *
+ * Le battement de TROP (seau `presence.heartbeat`, partagé avec `setOffline`)
+ * se tait : `null`, sans écrire. Plusieurs onglets du même compte, ou des pages
+ * rechargées coup sur coup, vident le seau sans faute de personne, et le client
+ * Convex inscrirait chaque refus en console (« Server Error »). La présence n'y
+ * perd rien : le battement précédent est encore frais, le suivant passera.
+ */
 export const heartbeat = networkMutation({
   minStatus: "en_attente",
   args: {},
   returns: v.null(),
   handler: async (ctx) => {
     const me = ctx.person._id
-    await enforceRateLimit(ctx, "presence.heartbeat", me)
+    if (!(await beatWithinRateLimit(ctx, "presence.heartbeat", me))) return null
     const now = Date.now()
     const existing = await ctx.db
       .query("personPresence")
@@ -66,14 +74,17 @@ export const heartbeat = networkMutation({
   },
 })
 
-/** L'écran se ferme : « hors ligne » tout de suite, sans attendre que le battement se taise. */
+/**
+ * L'écran se ferme : « hors ligne » tout de suite, sans attendre que le battement se taise.
+ * De trop, il se tait comme le battement : la ligne reste « en ligne » jusqu'au nettoyage.
+ */
 export const setOffline = networkMutation({
   minStatus: "en_attente",
   args: {},
   returns: v.null(),
   handler: async (ctx) => {
     const me = ctx.person._id
-    await enforceRateLimit(ctx, "presence.heartbeat", me)
+    if (!(await beatWithinRateLimit(ctx, "presence.heartbeat", me))) return null
     const existing = await ctx.db
       .query("personPresence")
       .withIndex("by_network_person", (q) => q.eq("networkId", ctx.networkId).eq("personId", me))
