@@ -85,6 +85,29 @@ export const peopleTables = {
     observedAt: v.number(),
   }).index("by_subject", ["subject"]),
 
+  /**
+   * ADR-0044 (lot M1) : pré-remplissage ÉPHÉMÈRE de l'accueil, écrit par le seul rappel OIDC (greffon
+   * `engine-idn-session-proof`, une fois la session ouverte), gardé 24 h, purgé chaque jour. Ni preuve
+   * (`idnProofs` ne reçoit toujours aucun nom civil), ni profil : rien n'en naît sans le geste de la
+   * personne. Jamais NIP, naissance, genre, lieu de naissance, photo ni sujet IDN. La part d'identité
+   * n'est pas écrite pour un profil déjà publié et s'efface à la publication (`publishMyProfile`).
+   */
+  idnPrefills: defineTable({
+    /** Utilisateur Better Auth de la session ouverte par IDN : la clé que porte `persons.authUserId`. */
+    authUserId: v.string(),
+    /** Prénom(s) reçus d'IDN (`given_name`), espaces normalisés. */
+    givenNames: v.optional(v.string()),
+    /** Nom(s) de famille reçus d'IDN (`family_name`), espaces normalisés. */
+    familyName: v.optional(v.string()),
+    /** Identifiant IDN : partie locale de l'adresse `@idn.ga` (`moussavounze.awa`). */
+    idnIdentifier: v.optional(v.string()),
+    observedAt: v.number(),
+    /** Échéance (24 h) : la lecture la refuse aussitôt, la purge quotidienne retire la ligne. */
+    expiresAt: v.number(),
+  })
+    .index("by_authUserId", ["authUserId"])
+    .index("by_expiry", ["expiresAt"]),
+
   networkMemberships: defineTable({
     networkId: v.id("networks"),
     personId: v.id("persons"),

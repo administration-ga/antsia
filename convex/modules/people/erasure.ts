@@ -13,6 +13,7 @@ import { unrecordPageEventParticipation } from "../events/pageEventRegistrations
 import { removeDiasporaCounters } from "../diaspora/contentCounters"
 import { DATA_TABLE_POLICIES } from "./dataPolicies"
 import { accessGaps, carrierRelations, childRelations, dependentRelations, ERASURE_EXCLUDED_TABLES, exportPlans, isResidualScanTable, isShortLivedTable, matchesPlan, ownerPlans, parseUnitCursor, readUnits, referencePlans, relationsFor, type IndexPlan, type ReadBudget, type UnitCursor } from "./dataAccess"
+import { eraseIdnPrefill, idnPrefillExportRecord } from "./idnPrefill"
 import { revokeAdministrationForPerson } from "../federation/agentLifecycle"
 import { revokeCommercialCrmForPerson } from "../commercialMessaging/crm"
 import { revokeCrmPersonRef } from "../commercialMessaging/crmPrivacy"
@@ -167,6 +168,16 @@ export async function exportTablePage(db: QueryCtx["db"], input: { personId: Id<
     if (input.cursor !== null) return fail("invalidArgument", { field: "cursor" })
     const own = await db.get(personId)
     return page(own ? [own as unknown as DataRecord] : [], null)
+  }
+  // ADR-0044 : le pré-remplissage IDN de l'accueil est rangé sous la clé de compte de la personne, jamais sous une référence.
+  if (table === "idnPrefills") {
+    if (input.cursor !== null) return fail("invalidArgument", { field: "cursor" })
+    const own = await db.get(personId)
+    const prefill = own ? await db.query("idnPrefills").withIndex("by_authUserId", (q) => q.eq("authUserId", own.authUserId)).unique() : null
+    // Hors de `exportableRecord`, qui n'ouvre une ligne que par une référence de personne : projection fermée de la tranche.
+    const records = prefill && prefill._creationTime <= input.requestedAt ? [idnPrefillExportRecord(prefill)] : []
+    const nextTableIndex = input.tableIndex + 1
+    return { table, json: JSON.stringify(records), nextTableIndex, cursor: null, done: nextTableIndex === names.length }
   }
   // Signaux de quelques secondes, purgés chaque minute (`SHORT_LIVED_TABLES`) : rien à lire.
   if (isShortLivedTable(table)) return page([], null)
@@ -573,6 +584,8 @@ export const continueErasure = internalMutation({
           const proof = await ctx.db.query("idnProofs").withIndex("by_subject", (q) => q.eq("subject", subject)).unique()
           if (proof) await ctx.db.delete(proof._id)
         }
+        // ADR-0044 : le pré-remplissage IDN de l'accueil part avec le compte, quoi qu'il porte.
+        await eraseIdnPrefill(ctx, job.authUserId)
         for (const contact of job.contacts) {
           const code = await ctx.db.query("devOtpCodes").withIndex("by_email", (q) => q.eq("email", contact)).unique()
           if (code) await ctx.db.delete(code._id)

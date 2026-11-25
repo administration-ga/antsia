@@ -11,6 +11,8 @@ import {
   handleLadder,
   handleNameComponents,
   handleToken,
+  IDN_HANDLE_LADDER_MAX,
+  idnHandleLadder,
   isCandidateHandle,
   pickFreeHandle,
   provisionalHandleBase,
@@ -177,6 +179,73 @@ describe("isCandidateHandle — le miroir exact d'assertHandle", () => {
   it("refuse ce qu'assertHandle refuse", () => {
     for (const ko of ["ab", "a".repeat(31), ".paul", "paul.", "Paul", "nzé"]) {
       expect(isCandidateHandle(ko)).toBe(false)
+    }
+  })
+})
+
+describe("idnHandleLadder — l'échelle de l'accueil, faite des seuls éléments d'IDN (ADR-0044)", () => {
+  const awa = { givenNames: "Gaëlle Awa", familyName: "MOUSSAVOU-NZÉ", idnIdentifier: "moussavounze.awa" }
+
+  it("ordre : le prénom qui figure dans l'identifiant IDN, l'identifiant entier, les autres prénoms, puis l'échelle", () => {
+    expect(idnHandleLadder(awa)).toEqual([
+      "awa",
+      "moussavounze.awa",
+      "gaelle",
+      "gaelle.moussavounze",
+      "moussavounze.gaelle",
+      "gaelleawa.moussavounze",
+    ])
+  })
+
+  it("six propositions au plus, sans doublon", () => {
+    expect(IDN_HANDLE_LADDER_MAX).toBe(6)
+    const ladder = idnHandleLadder({ givenNames: "Lynda Estelle Marie", familyName: "Onanga Issambo", idnIdentifier: "onanga.lynda" })
+    expect(ladder.length).toBeLessThanOrEqual(6)
+    expect(new Set(ladder).size).toBe(ladder.length)
+    // L'identifiant IDN qui vaut une forme de l'échelle n'y paraît qu'une fois, à son rang d'identifiant.
+    expect(ladder.slice(0, 2)).toEqual(["lynda", "onanga.lynda"])
+  })
+
+  it("le prénom se compare aux segments de l'identifiant, accents retirés, pas à une sous-chaîne", () => {
+    expect(idnHandleLadder({ givenNames: "Éloïse Jean-Rémy", familyName: "Ndong Mba", idnIdentifier: "ndongmba.jeanremy" }).slice(0, 3)).toEqual(["jeanremy", "ndongmba.jeanremy", "eloise"])
+    // « lou » est dans « mbalouise », mais n'en est pas un segment : l'identifiant passe devant.
+    expect(idnHandleLadder({ givenNames: "Lou", familyName: "Mba", idnIdentifier: "mbalouise" })[0]).toBe("mbalouise")
+  })
+
+  it("sans identifiant IDN : les prénoms, puis l'échelle", () => {
+    expect(idnHandleLadder({ givenNames: "Paul", familyName: "Ndong" })).toEqual(["paul", "paul.ndong", "ndong.paul"])
+  })
+
+  it("un identifiant hors forme est ignoré, sans être réécrit", () => {
+    for (const idnIdentifier of ["Moussavou Nze", "nzé.paul", ".paul", "a".repeat(31), "ab", ""]) {
+      const ladder = idnHandleLadder({ givenNames: "Paul", familyName: "Ndong", idnIdentifier })
+      expect(ladder).toEqual(["paul", "paul.ndong", "ndong.paul"])
+    }
+    // Majuscules et espaces de bord : la forme canonique d'IDN est en minuscules.
+    expect(idnHandleLadder({ givenNames: "Paul", idnIdentifier: "  Ndong.Paul " }).slice(0, 2)).toEqual(["paul", "ndong.paul"])
+  })
+
+  it("écarte les prénoms trop courts et rend vide quand rien n'est dérivable", () => {
+    // « jo » et « li » seuls sont trop courts ; l'échelle existante garde leur forme collée.
+    expect(idnHandleLadder({ givenNames: "Jo Li" })).toEqual(["joli"])
+    expect(idnHandleLadder({})).toEqual([])
+    expect(idnHandleLadder({ givenNames: null, familyName: null, idnIdentifier: null })).toEqual([])
+  })
+
+  it("TOUT candidat produit passe assertHandle", () => {
+    const sources = [
+      awa,
+      { givenNames: "Aïcha Ngoné", familyName: "MBOUMBA", idnIdentifier: "mboumba.aicha" },
+      { givenNames: "Marie Christine Bernadette", familyName: "Nzengue Moussavou Ondo", idnIdentifier: "nzengue-moussavou_ondo.mariechristine" },
+      { familyName: "O'Brien", idnIdentifier: "obrien" },
+    ]
+    for (const source of sources) {
+      const ladder = idnHandleLadder(source)
+      expect(ladder.length).toBeLessThanOrEqual(6)
+      for (const candidate of ladder) {
+        expect(isCandidateHandle(candidate)).toBe(true)
+        expect(() => assertHandle(candidate)).not.toThrow()
+      }
     }
   })
 })

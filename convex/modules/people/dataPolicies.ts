@@ -7,6 +7,9 @@ export const DATA_TABLE_POLICIES: Record<string, { shared?: boolean; owners?: re
   persons: {},
   identityLinks: {},
   idnProofs: {},
+  // ADR-0044 : pré-remplissage éphémère de l'accueil (24 h), rangé sous l'utilisateur Better Auth ; aucune
+  // référence de personne : exporté et effacé par `erasure.ts` (hors du parcours générique, comme `idnProofs`).
+  idnPrefills: {},
   networkMemberships: {},
   personFacets: {},
   consents: {},

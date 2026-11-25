@@ -291,3 +291,62 @@ export function idnProfileProof(profile: Record<string, unknown>) {
     ...(profileType !== undefined ? { profileType } : {}),
   }
 }
+
+/** ADR-0044 : ce que l'accueil peut pré-remplir depuis IDN — nom civil et identifiant, rien d'autre. */
+export type IdnEntryPrefill = {
+  /** Prénom(s) reçus (`given_name`), espaces normalisés, casse d'origine. */
+  givenNames?: string
+  /** Nom(s) de famille reçus (`family_name`), espaces normalisés, casse d'origine. */
+  familyName?: string
+  /** Identifiant IDN : partie locale, en minuscules, d'une adresse vérifiée `@idn.ga`. */
+  idnIdentifier?: string
+}
+
+/** Domaine des adresses IDN : `<identifiant>@idn.ga`, par construction chez identite.ga. */
+const IDN_EMAIL_DOMAIN = "idn.ga"
+/** Forme et bornes qu'identite.ga impose à un identifiant à sa création. */
+const IDN_IDENTIFIER_FORM = /^[a-z0-9]+(?:[._-][a-z0-9]+)*$/
+const IDN_IDENTIFIER_LENGTH = { min: 3, max: 32 } as const
+/** Borne d'un champ civil reçu : au-delà, ce n'est plus un nom, c'est une charge. */
+const CIVIL_NAME_CLAIM_MAX_LENGTH = 100
+
+/** Un nom reçu d'IDN, espaces normalisés ; `undefined` s'il n'en est pas un (jamais d'exception). */
+export function civilNameClaim(value: unknown): string | undefined {
+  if (typeof value !== "string" || /\p{Cc}/u.test(value)) return undefined
+  const name = value.normalize("NFC").trim().replace(/\s+/gu, " ")
+  return name.length > 0 && name.length <= CIVIL_NAME_CLAIM_MAX_LENGTH && /\p{L}/u.test(name) ? name : undefined
+}
+
+/** Un identifiant IDN a-t-il la forme et les bornes qu'identite.ga impose (minuscules, 3 à 32) ? */
+export function isIdnIdentifier(value: string): boolean {
+  return value.length >= IDN_IDENTIFIER_LENGTH.min && value.length <= IDN_IDENTIFIER_LENGTH.max && IDN_IDENTIFIER_FORM.test(value)
+}
+
+/** L'identifiant IDN d'une adresse VÉRIFIÉE du seul domaine `idn.ga` ; `undefined` sinon. */
+function idnIdentifierClaim(email: unknown, verified: unknown): string | undefined {
+  if (typeof email !== "string" || verified !== true) return undefined
+  const address = email.trim().toLowerCase()
+  const at = address.lastIndexOf("@")
+  if (at < 0 || address.slice(at + 1) !== IDN_EMAIL_DOMAIN) return undefined
+  const local = address.slice(0, at)
+  return isIdnIdentifier(local) ? local : undefined
+}
+
+/**
+ * ADR-0044 (lot M1) : extrait de `/userinfo` ce que l'accueil propose AVANT le geste — prénoms, nom
+ * de famille, identifiant IDN. Jamais `nip`, `birthdate`, `gender`, `birth_place`, `picture`,
+ * `nationality` ni le sujet : la preuve (`idnProfileProof`, inchangée) et Better Auth ne reçoivent
+ * toujours aucun nom civil. Une valeur invalide est ignorée ; la fonction ne lève jamais, pour que la
+ * connexion ne casse pas à cause d'elle. `null` quand rien n'est utilisable.
+ */
+export function idnEntryPrefill(profile: Record<string, unknown>): IdnEntryPrefill | null {
+  const givenNames = civilNameClaim(profile.given_name)
+  const familyName = civilNameClaim(profile.family_name)
+  const idnIdentifier = idnIdentifierClaim(profile.email, profile.email_verified)
+  if (givenNames === undefined && familyName === undefined && idnIdentifier === undefined) return null
+  return {
+    ...(givenNames !== undefined ? { givenNames } : {}),
+    ...(familyName !== undefined ? { familyName } : {}),
+    ...(idnIdentifier !== undefined ? { idnIdentifier } : {}),
+  }
+}

@@ -28,7 +28,7 @@ export function shapeFor(table: string): ValidatorJSON {
 
 export function directlyOwned(table: string, row: DataRecord, personId: string): boolean {
   const policy = DATA_TABLE_POLICIES[table]
-  if (!policy || policy.shared || ["persons", "idnProofs", "devOtpCodes"].includes(table)) return false
+  if (!policy || policy.shared || ["persons", "idnProofs", "idnPrefills", "devOtpCodes"].includes(table)) return false
   if (policy.owners) return policy.owners.some((field) => row[field] === personId)
   return referencesIn(row, shapeFor(table)).some((ref) => ref.table === "persons" && ref.id === personId)
 }

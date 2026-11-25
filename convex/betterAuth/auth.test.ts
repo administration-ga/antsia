@@ -2,6 +2,7 @@
 /** Recette du vrai gestionnaire Better Auth et de ses composants, sans service externe. */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { Resend } from "@convex-dev/resend"
+import { getFunctionName } from "convex/server"
 
 import { DEMO_GATE_TOKEN_HEADER } from "@antsia/social-contracts/demoGate"
 
@@ -986,5 +987,77 @@ describe("PA7 / preuve de session IDN : callbacks réels invoqués directement, 
       expect(await t.run(async (ctx) => await ctx.db.query("operatorSessionProofs").withIndex("by_session", (q) => q.eq("sessionId", fixture.sessionId)).unique())).toBeNull()
       expect(await t.run(async (ctx) => await ctx.db.query("persons").first())).toBeNull()
     }
+  })
+})
+
+describe("ADR-0044 / pré-remplissage de l'accueil : déposé par le seul rappel IDN, une fois la session ouverte", () => {
+  const idnProfile = (subject: string) => ({
+    sub: subject, email: "moussavounze.awa@idn.ga", email_verified: true, loa: 2,
+    name: "Gaëlle Awa MOUSSAVOU-NZÉ", given_name: "Gaëlle Awa", family_name: "MOUSSAVOU-NZÉ",
+    nip: "fictional-nip-0000", birthdate: "1990-01-01", gender: "M", birth_place: "Libreville", picture: "https://images.example.test/photo",
+  })
+  const prefillOf = (t: T, authUserId: string) => t.run(async (ctx) => await ctx.db.query("idnPrefills").withIndex("by_authUserId", (q) => q.eq("authUserId", authUserId)).unique())
+
+  it("range nom civil et identifiant IDN sous l'utilisateur de la session, jamais dans Better Auth, la preuve ni la personne", async () => {
+    configureIdnFixture()
+    const t = testConvex({ automaticSessions: false })
+    const fixture = await callbackSessionFixture(t)
+    const mapped = await t.action(async (ctx) => {
+      const { createAuth } = await import("./auth")
+      const hooks = idnCallbackHooks(createAuth(ctx))
+      const user = await hooks.mapProfile(idnProfile(fixture.subject))
+      await hooks.runAfter({ path: "/oauth2/callback/idn", context: { newSession: { session: fixture.session } } })
+      return user
+    })
+    expect(record(mapped).name).not.toContain("MOUSSAVOU")
+    const prefill = await prefillOf(t, fixture.userId)
+    expect(prefill).toMatchObject({ authUserId: fixture.userId, givenNames: "Gaëlle Awa", familyName: "MOUSSAVOU-NZÉ", idnIdentifier: "moussavounze.awa" })
+    expect(prefill!.expiresAt - prefill!.observedAt).toBe(24 * 60 * 60 * 1000)
+    for (const forbidden of ["fictional-nip-0000", "1990-01-01", "Libreville", "images.example.test", fixture.subject]) expect(JSON.stringify(prefill)).not.toContain(forbidden)
+    const proof = await t.run(async (ctx) => await ctx.db.query("idnProofs").withIndex("by_subject", (q) => q.eq("subject", fixture.subject)).unique())
+    expect(JSON.stringify(proof)).not.toContain("MOUSSAVOU")
+    const as = t.withIdentity({ subject: fixture.userId, sessionId: fixture.sessionId })
+    const personId = await as.mutation(api.modules.people.persons.ensureMyPerson, {})
+    expect((await t.run(async (ctx) => await ctx.db.get(personId)))?.displayName).toBeUndefined()
+    const entry = await as.query(api.modules.people.idnPrefill.myEntryPrefill, {})
+    expect(entry?.displayName).toBe("MOUSSAVOU-NZÉ Gaëlle Awa")
+    expect(entry?.handles.slice(0, 2)).toEqual([{ handle: "awa", available: true }, { handle: "moussavounze.awa", available: true }])
+  })
+
+  it("sans session ouverte (connexion refusée, rattachement), rien n'est déposé ; une requête neuve ne reprend rien", async () => {
+    configureIdnFixture()
+    const t = testConvex({ automaticSessions: false })
+    const fixture = await callbackSessionFixture(t)
+    await t.action(async (ctx) => {
+      const { createAuth } = await import("./auth")
+      const hooks = idnCallbackHooks(createAuth(ctx))
+      await hooks.mapProfile(idnProfile(fixture.subject))
+      await hooks.runAfter({ path: "/oauth2/callback/idn", context: {} })
+      const nextRequest = idnCallbackHooks(createAuth(ctx))
+      expect(nextRequest.matches({ path: "/oauth2/callback/idn" })).toBe(false)
+      await nextRequest.runAfter({ path: "/oauth2/callback/idn", context: { newSession: { session: fixture.session } } })
+    })
+    expect(await t.run(async (ctx) => await ctx.db.query("idnPrefills").first())).toBeNull()
+  })
+
+  it("une panne du pré-remplissage ne casse jamais la connexion : la preuve de session est scellée quand même", async () => {
+    configureIdnFixture()
+    const t = testConvex({ automaticSessions: false })
+    const fixture = await callbackSessionFixture(t)
+    await t.action(async (ctx) => {
+      const { createAuth } = await import("./auth")
+      const failing = {
+        ...ctx,
+        runMutation: async (reference: Parameters<typeof ctx.runMutation>[0], args: Record<string, unknown>) => {
+          if (getFunctionName(reference) === "modules/people/idnPrefill:recordIdnPrefill") throw new Error("panne fictive du pré-remplissage")
+          return await ctx.runMutation(reference, args as never)
+        },
+      } as typeof ctx
+      const hooks = idnCallbackHooks(createAuth(failing))
+      await hooks.mapProfile(idnProfile(fixture.subject))
+      await expect(hooks.runAfter({ path: "/oauth2/callback/idn", context: { newSession: { session: fixture.session } } })).resolves.not.toThrow()
+    })
+    expect(await t.run(async (ctx) => await ctx.db.query("operatorSessionProofs").withIndex("by_session", (q) => q.eq("sessionId", fixture.sessionId)).unique())).toMatchObject({ authUserId: fixture.userId, loa: 2 })
+    expect(await prefillOf(t, fixture.userId)).toBeNull()
   })
 })
