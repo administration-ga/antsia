@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import catalog from "../../deploy/catalog.json"
-import { applicationOfOAuthState, applicationOfOrigin, authenticationConfiguration, entryPathOf, extraApplicationOrigins, idnConfiguration, idnProfileProof, isE164Phone, isOperatorConsoleApplication, isWebApplicationKey, networkAdministeredBy, parseOriginList, smsConfiguration, trustedOrigins } from "./settings"
+import { applicationOfOAuthState, applicationOfOrigin, authenticationConfiguration, entryPathOf, extraApplicationOrigins, idnConfiguration, idnEntryPrefill, idnProfileProof, isE164Phone, isOperatorConsoleApplication, isWebApplicationKey, networkAdministeredBy, parseOriginList, smsConfiguration, trustedOrigins } from "./settings"
 
 // L'inventaire reste exhaustif ; seules les entrées web déclarent une origine HTTP.
 const webApplications = Object.entries(catalog.applications).flatMap(([key, app]) =>
@@ -353,5 +353,52 @@ describe("preuve IDN minimale provenant de userinfo", () => {
     { loa: "2" }, { loa: 0 }, { loa: 4 }, { profile_type: "unknown" },
   ])("refuse une preuve IDN invalide %#", (invalid) => {
     expect(() => idnProfileProof({ ...profile, ...invalid })).toThrow("idnInvalidProfile")
+  })
+})
+
+describe("pré-remplissage de l'accueil depuis userinfo (ADR-0044)", () => {
+  const full = {
+    sub: "idn-sub-fixture", email: "moussavounze.awa@idn.ga", email_verified: true, loa: 2, profile_type: "citizen",
+    name: "Gaëlle Awa MOUSSAVOU-NZÉ", given_name: "Gaëlle Awa", family_name: "MOUSSAVOU-NZÉ",
+    nationality: "GA", nip: "fictional-nip-0000", birthdate: "1990-01-01", gender: "M", birth_place: "Libreville",
+    picture: "https://images.example.test/photo", access_token: "fictional-token",
+  }
+
+  it("ne retient que prénoms, nom de famille et identifiant IDN : jamais NIP, naissance, genre, lieu ni photo", () => {
+    const prefill = idnEntryPrefill(full)
+    expect(prefill).toEqual({ givenNames: "Gaëlle Awa", familyName: "MOUSSAVOU-NZÉ", idnIdentifier: "moussavounze.awa" })
+    const serialized = JSON.stringify(prefill)
+    for (const forbidden of ["fictional-nip-0000", "1990-01-01", "Libreville", "images.example.test", "fictional-token", "idn-sub-fixture", "citizen"]) expect(serialized).not.toContain(forbidden)
+  })
+
+  it("la preuve IDN reste inchangée : aucun nom civil n'y entre", () => {
+    expect(idnProfileProof(full)).toEqual({ subject: "idn-sub-fixture", loa: 2, nationality: "GA", profileType: "citizen" })
+  })
+
+  it("l'identifiant IDN est la partie locale d'une adresse vérifiée du seul domaine idn.ga", () => {
+    expect(idnEntryPrefill({ email: " Ndong.Paul@IDN.GA ", email_verified: true })).toEqual({ idnIdentifier: "ndong.paul" })
+    for (const email of ["paul@example.test", "paul@idn.ga.example.test", "paul@sub.idn.ga", "paul@idn.gab", "@idn.ga", "pa@idn.ga", `${"a".repeat(33)}@idn.ga`, "nzé.paul@idn.ga", ".paul@idn.ga", "paul..ndong@idn.ga", "paul ndong@idn.ga"]) {
+      expect(idnEntryPrefill({ email, email_verified: true })).toBeNull()
+    }
+    expect(idnEntryPrefill({ email: "paul@idn.ga", email_verified: false })).toBeNull()
+    expect(idnEntryPrefill({ email: "paul@idn.ga", email_verified: "true" })).toBeNull()
+  })
+
+  it("normalise les espaces des noms reçus, sans en changer la casse (le nom affiché se compose au serveur)", () => {
+    expect(idnEntryPrefill({ given_name: "  Jean-Rémy   Éloïse ", family_name: " ndong  mba " })).toEqual({ givenNames: "Jean-Rémy Éloïse", familyName: "ndong mba" })
+  })
+
+  it.each([
+    ["nombre", 42], ["objet", { first: "Paul" }], ["vide", "   "], ["sans lettre", "1234"], ["trop long", "A".repeat(101)],
+    ["caractère de contrôle", "Paul\u0000"], ["saut de ligne", "Paul\nNdong"],
+  ])("ignore un nom invalide (%s) sans rien lever", (_label, value) => {
+    expect(() => idnEntryPrefill({ given_name: value, family_name: value })).not.toThrow()
+    expect(idnEntryPrefill({ given_name: value, family_name: value })).toBeNull()
+    expect(idnEntryPrefill({ given_name: value, family_name: "NDONG" })).toEqual({ familyName: "NDONG" })
+  })
+
+  it("rend null quand IDN ne donne rien d'utilisable, sans jamais lever", () => {
+    expect(idnEntryPrefill({})).toBeNull()
+    expect(idnEntryPrefill({ sub: "idn-sub-fixture", email: "alice@example.test", email_verified: true, name: "Alice Nom" })).toBeNull()
   })
 })
