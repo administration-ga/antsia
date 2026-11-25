@@ -311,10 +311,15 @@ const IDN_IDENTIFIER_LENGTH = { min: 3, max: 32 } as const
 const CIVIL_NAME_CLAIM_MAX_LENGTH = 100
 
 /** Un nom reçu d'IDN, espaces normalisés ; `undefined` s'il n'en est pas un (jamais d'exception). */
-function civilNameClaim(value: unknown): string | undefined {
+export function civilNameClaim(value: unknown): string | undefined {
   if (typeof value !== "string" || /\p{Cc}/u.test(value)) return undefined
   const name = value.normalize("NFC").trim().replace(/\s+/gu, " ")
   return name.length > 0 && name.length <= CIVIL_NAME_CLAIM_MAX_LENGTH && /\p{L}/u.test(name) ? name : undefined
+}
+
+/** Un identifiant IDN a-t-il la forme et les bornes qu'identite.ga impose (minuscules, 3 à 32) ? */
+export function isIdnIdentifier(value: string): boolean {
+  return value.length >= IDN_IDENTIFIER_LENGTH.min && value.length <= IDN_IDENTIFIER_LENGTH.max && IDN_IDENTIFIER_FORM.test(value)
 }
 
 /** L'identifiant IDN d'une adresse VÉRIFIÉE du seul domaine `idn.ga` ; `undefined` sinon. */
@@ -324,7 +329,7 @@ function idnIdentifierClaim(email: unknown, verified: unknown): string | undefin
   const at = address.lastIndexOf("@")
   if (at < 0 || address.slice(at + 1) !== IDN_EMAIL_DOMAIN) return undefined
   const local = address.slice(0, at)
-  return local.length >= IDN_IDENTIFIER_LENGTH.min && local.length <= IDN_IDENTIFIER_LENGTH.max && IDN_IDENTIFIER_FORM.test(local) ? local : undefined
+  return isIdnIdentifier(local) ? local : undefined
 }
 
 /**

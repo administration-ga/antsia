@@ -37,7 +37,8 @@ export type IndexPlan = {
 export type ChildRelation = { parents: readonly string[] | "*"; plan: IndexPlan }
 
 /** Tables traitées hors du parcours générique (personne, preuves, travail d'effacement lui-même). */
-export const ERASURE_EXCLUDED_TABLES: ReadonlySet<string> = new Set(["persons", "idnProofs", "devOtpCodes", "dataErasureJobs", "dataErasureTargets", "dataErasureReceipts"])
+/** `idnPrefills` (ADR-0044) : rangé sous `authUserId`, lu et effacé par la clé de compte de la personne. */
+export const ERASURE_EXCLUDED_TABLES: ReadonlySet<string> = new Set(["persons", "idnProofs", "idnPrefills", "devOtpCodes", "dataErasureJobs", "dataErasureTargets", "dataErasureReceipts"])
 
 /** Références de personne portées par une chaîne, qualifiées par un champ constant. */
 export const STRING_PERSON_REFERENCES: ReadonlyArray<{ table: string; field: string; prefix: ReadonlyArray<readonly [string, string]> }> = [

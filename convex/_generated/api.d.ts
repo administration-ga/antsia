@@ -353,7 +353,9 @@ import type * as modules_people_dataTables from "../modules/people/dataTables.js
 import type * as modules_people_directory from "../modules/people/directory.js";
 import type * as modules_people_erasure from "../modules/people/erasure.js";
 import type * as modules_people_facets from "../modules/people/facets.js";
+import type * as modules_people_handleAvailability from "../modules/people/handleAvailability.js";
 import type * as modules_people_identity from "../modules/people/identity.js";
+import type * as modules_people_idnPrefill from "../modules/people/idnPrefill.js";
 import type * as modules_people_memberships from "../modules/people/memberships.js";
 import type * as modules_people_miniProfile from "../modules/people/miniProfile.js";
 import type * as modules_people_networkRoles from "../modules/people/networkRoles.js";
@@ -870,7 +872,9 @@ declare const fullApi: ApiFromModules<{
   "modules/people/directory": typeof modules_people_directory;
   "modules/people/erasure": typeof modules_people_erasure;
   "modules/people/facets": typeof modules_people_facets;
+  "modules/people/handleAvailability": typeof modules_people_handleAvailability;
   "modules/people/identity": typeof modules_people_identity;
+  "modules/people/idnPrefill": typeof modules_people_idnPrefill;
   "modules/people/memberships": typeof modules_people_memberships;
   "modules/people/miniProfile": typeof modules_people_miniProfile;
   "modules/people/networkRoles": typeof modules_people_networkRoles;

@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/modules/reseauPersonnel/people.ts (l. 230-330, 440-575, 650-866) @ ad2e7fdc2 — adaptations : la paire `users` + `reseauPersonnel_profiles` devient `persons` ; propositions dérivées du nom que la personne SAISIT (jamais d'état civil recopié) ; un identifiant abandonné reste réservé à son ancien titulaire (`handleHistory`) ; bornes par les règles du domaine (`checked`) ; limitation de débit ; refus à code sans phrase ; publication d'office (`ensurePublishedProfile`) et identifiant provisoire RETIRÉS (invariant 7) ; images de profil par la garde des fichiers (fraîcheur, politique `avatar`/`cover`, délivrance retenue tant que l'analyse n'a pas conclu) ; fiche publique lue DANS un réseau (membre seulement), sans fonction ni administration ; annuaire du réseau tenu à jour.
+// Dupliqué de socle/convex/modules/reseauPersonnel/people.ts (l. 230-330, 440-575, 650-866) @ ad2e7fdc2 — adaptations : la paire `users` + `reseauPersonnel_profiles` devient `persons` ; propositions dérivées du nom que la personne SAISIT (jamais d'état civil recopié) ; un identifiant abandonné reste réservé à son ancien titulaire (`handleHistory`) ; bornes par les règles du domaine (`checked`) ; limitation de débit ; refus à code sans phrase ; publication d'office (`ensurePublishedProfile`) et identifiant provisoire RETIRÉS (invariant 7) ; images de profil par la garde des fichiers (fraîcheur, politique `avatar`/`cover`, délivrance retenue tant que l'analyse n'a pas conclu) ; fiche publique lue DANS un réseau (membre seulement), sans fonction ni administration ; annuaire du réseau tenu à jour ; la publication efface la part d'identité du pré-remplissage IDN de l'accueil, et la disponibilité d'un identifiant vit dans `handleAvailability.ts` (ADR-0044).
 /**
  * Le profil social d'une personne : son identifiant public (`@handle`), son nom
  * affiché, son accroche. Rien n'est publié d'office (invariant 7) : c'est la
@@ -11,7 +11,7 @@ import { v } from "convex/values"
 
 import { canReadModeratedContent, moderateContentWrite } from "../moderation/policy"
 import type { Doc, Id } from "../../_generated/dataModel"
-import type { MutationCtx, QueryCtx } from "../../_generated/server"
+import type { MutationCtx } from "../../_generated/server"
 import { getRootNetwork } from "../../lib/access"
 import { checked, fail, notFound } from "../../lib/errors"
 import { networkQuery, personMutation, personQuery } from "../../lib/functions"
@@ -23,28 +23,11 @@ import { purgeStoredFile } from "../files/purge"
 import { resolveFileDelivery, withheldCodeOf, withheldCodeValidator } from "../files/storageGuard"
 import { isBlockedBetween } from "../graph/graph"
 import { syncPersonDirectory } from "./directory"
+import { isHandleFreeFor } from "./handleAvailability"
+import { clearIdnPrefillIdentity } from "./idnPrefill"
 import { revokeAdministrationForPerson } from "../federation/agentLifecycle"
 import { findPublishedPersonByHandle, isPublishedPerson } from "./miniProfile"
 import { badgesOf } from "./persons"
-
-/**
- * Un identifiant est-il libre POUR cette personne ? Pris par une autre
- * personne, ou porté naguère par une autre (un identifiant est une ADRESSE : le
- * recycler ferait suivre les liens anciens vers quelqu'un d'autre) : non.
- */
-async function isHandleFreeFor(ctx: QueryCtx, handle: string, personId: Id<"persons">): Promise<boolean> {
-  const holder = await ctx.db
-    .query("persons")
-    .withIndex("by_handle", (q) => q.eq("handle", handle))
-    .unique()
-  if (holder && holder._id !== personId) return false
-  // borné : un identifiant n'a qu'une poignée de titulaires successifs.
-  const past = await ctx.db
-    .query("handleHistory")
-    .withIndex("by_handle", (q) => q.eq("handle", handle))
-    .take(20)
-  return past.every((row) => row.personId === personId)
-}
 
 /**
  * @selfScoped La personne de la session reçoit les identifiants proposés à
@@ -116,6 +99,8 @@ export const publishMyProfile = personMutation({
     if (!root) return notFound()
     await moderateContentWrite(ctx, { networkId: root._id, ownerPersonId: ctx.person._id, kind: "person", id: ctx.person._id, text: `${displayName} ${headline ?? ""}` })
     await syncPersonDirectory(ctx, ctx.person._id)
+    // ADR-0044 : le profil est né du geste ; le nom civil et l'identifiant reçus d'IDN n'ont plus d'objet.
+    await clearIdnPrefillIdentity(ctx, ctx.person.authUserId)
     return { handle }
   },
 })

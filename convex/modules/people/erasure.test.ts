@@ -5,7 +5,7 @@ import type { Id } from "../../_generated/dataModel"
 import type { ValidatorJSON } from "convex/values"
 import { testConvex } from "../../test.setup"
 import { diasporaTables } from "../diaspora/tables"
-import { accessGaps, collectionPersonPaths, COLLECTION_REFERENCE_EXCEPTIONS, COLLECTION_REFERENCES_BY_PARENT, indexPlan, ownerFields, RESIDUAL_SCAN_TABLES, scalarPersonPaths, SHORT_LIVED_TABLES } from "./dataAccess"
+import { accessGaps, collectionPersonPaths, COLLECTION_REFERENCE_EXCEPTIONS, COLLECTION_REFERENCES_BY_PARENT, ERASURE_EXCLUDED_TABLES, indexPlan, ownerFields, RESIDUAL_SCAN_TABLES, scalarPersonPaths, SHORT_LIVED_TABLES } from "./dataAccess"
 import { dataTableNames, directlyOwned, exportableRecord, exportKeyFields, referencesIn, shapeFor, unclassifiedDataTables } from "./dataInventory"
 import { DATA_TABLE_POLICIES } from "./dataPolicies"
 import { ERASURE_GRACE_MS } from "./erasure"
@@ -60,6 +60,11 @@ describe("PA5 — inventaire des données", () => {
     expect(unclassifiedDataTables()).toEqual([])
     expect(dataTableNames()).toContain("idnProofs")
     expect(dataTableNames()).toContain("consularAttestations")
+  })
+  it("ADR-0044 : le pré-remplissage IDN de l'accueil est classé, hors du parcours générique, jamais « possédé » par une référence", () => {
+    expect(DATA_TABLE_POLICIES).toHaveProperty("idnPrefills")
+    expect(ERASURE_EXCLUDED_TABLES.has("idnPrefills")).toBe(true)
+    expect(directlyOwned("idnPrefills", { _id: "row", _creationTime: 1, authUserId: "person" }, "person")).toBe(false)
   })
   it("dérive les références obligatoires, facultatives et imbriquées", () => {
     const row = { authorPersonId: "person", media: [{ storageId: "blob" }], mentionedPersonIds: ["other"] }
@@ -172,6 +177,22 @@ describe("PA5 — droits personnels", () => {
     await expect(t.withIdentity({ subject: "other-fixture" }).query(api.modules.people.erasure.exportMyDataPage, { exportId: result.exportId, tableIndex: index, cursor: null })).rejects.toThrow()
     expect(await t.run((ctx) => ctx.db.get(other))).not.toBeNull()
   })
+  it("ADR-0044 : l'export rend le pré-remplissage IDN de la personne, sans clé de compte ni ligne d'autrui", async () => {
+    const { t, as, personId, now } = await fixture()
+    const authUserId = (await t.run((ctx) => ctx.db.get(personId)))!.authUserId
+    await t.run(async (ctx) => {
+      await ctx.db.insert("idnPrefills", { authUserId, givenNames: "Recette", familyName: "NDONG", idnIdentifier: "ndong.recette", observedAt: now, expiresAt: now + 60_000 })
+      await ctx.db.insert("idnPrefills", { authUserId: "other-fixture", givenNames: "Autrui", observedAt: now, expiresAt: now + 60_000 })
+    })
+    // Horloge figée : l'export ne rend que des lignes nées avant sa demande.
+    vi.setSystemTime(now + 1_000)
+    const result = await as.mutation(api.modules.people.erasure.exportMyData, {})
+    const page = await as.query(api.modules.people.erasure.exportMyDataPage, { exportId: result.exportId, tableIndex: dataTableNames().indexOf("idnPrefills"), cursor: null })
+    expect(JSON.parse(page.json)).toEqual([expect.objectContaining({ givenNames: "Recette", familyName: "NDONG", idnIdentifier: "ndong.recette", expiresAt: now + 60_000 })])
+    expect(page.json).not.toContain("authUserId")
+    expect(page.json).not.toContain("Autrui")
+    expect(page.cursor).toBeNull()
+  })
   it("R9 purge contenus, blobs, copies, preuves, relations et sessions, avec références anonymes préservées", async () => {
     const { t, as, personId, other, networkId, now } = await fixture()
     await as.query(api.modules.people.persons.getMyPerson, {})
@@ -193,6 +214,10 @@ describe("PA5 — droits personnels", () => {
       await ctx.db.patch(personId, { avatarStorageId: blob })
       await ctx.db.insert("identityLinks", { personId, provider: "idn", subject: "fictional-idn-sub", loa: 2, linkedAt: now })
       await ctx.db.insert("idnProofs", { subject: "fictional-idn-sub", loa: 2, observedAt: now })
+      // ADR-0044 : le pré-remplissage de l'accueil, rangé sous l'utilisateur Better Auth, part avec la personne.
+      const authUserId = (await ctx.db.get(personId))!.authUserId
+      await ctx.db.insert("idnPrefills", { authUserId, givenNames: "Recette", idnIdentifier: "erasure.recette", observedAt: now, expiresAt: now + ERASURE_GRACE_MS * 2 })
+      await ctx.db.insert("idnPrefills", { authUserId: "other-fixture", givenNames: "Autrui", observedAt: now, expiresAt: now + ERASURE_GRACE_MS * 2 })
       const thread = await ctx.db.insert("personalThreads", { networkId, personLow: personId, personHigh: other, initiatedByPersonId: personId, status: "active", lastMessageAt: now, createdAt: now })
       threadId = thread
       original = await ctx.db.insert("personalMessages", { networkId, threadId: thread, senderPersonId: personId, content: "Copied private data", createdAt: now })
@@ -224,6 +249,7 @@ describe("PA5 — droits personnels", () => {
     expect(await t.run((ctx) => ctx.db.get(voicemail))).toBeNull()
     expect(await t.run((ctx) => ctx.db.system.get("_storage", voicemailBlob))).toBeNull()
     expect(await t.run((ctx) => ctx.db.query("idnProofs").first())).toBeNull()
+    expect((await t.run((ctx) => ctx.db.query("idnPrefills").take(5))).map((row) => row.authUserId)).toEqual(["other-fixture"])
     expect((await t.query(components.betterAuth.adapter.findMany, { model: "verification", where: [{ field: "identifier", value: "sign-in-otp-erasure-recette@example.test" }], paginationOpts: { cursor: null, numItems: 20 } })).page).toEqual([])
     expect((await t.query(components.betterAuth.adapter.findMany, { model: "verification", where: [{ field: "identifier", value: "one-time-token:fictional" }], paginationOpts: { cursor: null, numItems: 20 } })).page).toEqual([])
     expect((await t.query(components.betterAuth.adapter.findMany, { model: "verification", paginationOpts: { cursor: null, numItems: 30 } })).page).toHaveLength(25)
