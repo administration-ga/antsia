@@ -238,6 +238,7 @@ function StoryCreateForm({
 				{
 					fileName: chosen.name,
 					mimeType: chosen.type,
+					sizeBytes: chosen.size,
 					probe,
 					containerCodecs,
 					recorderTargets: VIDEO_TRANSCODE_TARGETS.filter(

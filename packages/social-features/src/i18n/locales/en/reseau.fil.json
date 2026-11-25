@@ -186,13 +186,18 @@
       "notDecodable": "This browser cannot play “{{name}}”. Choose it from Safari (iPhone, iPad or Mac), which converts it, or save it as MP4 first, then try again.",
       "tooLong": "“{{name}}” is too long. A video lasts at most {{duration}}.",
       "tooLongToConvert": "“{{name}}” must be converted to play everywhere, and the conversion happens here, in real time: beyond {{duration}}, it takes too long to wait for. Save it as MP4: it will then be sent without conversion.",
-      "noEncoder": "This browser cannot convert “{{name}}”. Choose it from Safari, or save it as MP4 before posting it."
+      "noEncoder": "This browser cannot convert “{{name}}”. Choose it from Safari, or save it as MP4 before posting it.",
+      "tooHeavyToCompress": "“{{name}}” is larger than {{size}}: it must be compressed here, in real time, and beyond {{duration}} that takes too long to wait for. Shorten it, or film in 1080p, then try again.",
+      "noEncoderToCompress": "“{{name}}” is larger than {{size}} and this browser cannot compress it. Choose it from another browser, or shorten it, then try again.",
+      "tooLargeToConvert": "“{{name}}” is too large to be converted in this browser ({{size}} at most). Shorten it, or film in 1080p, then try again."
     },
     "units": {
       "minutes_one": "{{count}} minute",
       "minutes_other": "{{count}} minutes",
       "seconds_one": "{{count}} second",
-      "seconds_other": "{{count}} seconds"
+      "seconds_other": "{{count}} seconds",
+      "megabytes": "{{count}} MB",
+      "gigabytes": "{{count}} GB"
     }
   },
   "reportContentDialog": {

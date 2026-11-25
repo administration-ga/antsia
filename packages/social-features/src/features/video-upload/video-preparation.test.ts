@@ -15,12 +15,19 @@ import {
 	type VideoRuntime,
 } from "./video-preparation"
 import { TRANSCODE_ABORTED, type TranscodeOptions } from "./video-upload-probe"
-import { POST_VIDEO_UPLOAD_LIMITS, VIDEO_PREPARATION_REFUSALS, VIDEO_TRANSCODE_MAX_DURATION_MS, type VideoPreparationRefusal } from "./video-upload-policy"
+import { POST_VIDEO_UPLOAD_LIMITS, VIDEO_PREPARATION_REFUSALS, VIDEO_TRANSCODE_MAX_DURATION_MS, VIDEO_TRANSCODE_MAX_SOURCE_BYTES, type VideoPreparationRefusal } from "./video-upload-policy"
 
 const t = createAppI18n({ locale: "fr", appResources: { fr: {}, en: {} }, defaultNS: "reseau" }).getFixedT("fr")
 
 function video(name: string, type: string, size = 2_048): File {
 	return new File([new Uint8Array(size)], name, { type })
+}
+
+/** Une vidéo LOURDE sans allouer ses octets : seul le poids annoncé compte pour la politique. */
+function heavy(name: string, type: string, size: number): File {
+	const file = video(name, type)
+	Object.defineProperty(file, "size", { value: size })
+	return file
 }
 
 /** Un navigateur simulé : ce qu'il sait lire, encoder, et ce que rend sa conversion. */
@@ -161,6 +168,29 @@ describe("prepareVideoForUpload — ce qui part, et ce qui ne part pas", () => {
 	})
 })
 
+describe("M2 — un MP4 trop lourd mais convertible est compressé, jamais envoyé tel quel", () => {
+	it("150 Mo de MP4 H.264 : la préparation le convertit sous la borne, avec le poids de la SOURCE donné à la politique", async () => {
+		const env = runtime({ codecs: ["avc1"], durationMs: 45_000 })
+		const source = heavy("anniversaire.mp4", "video/mp4", 150 * 1024 * 1024)
+		const result = await prepareVideoForUpload(source, { limits: POST_VIDEO_UPLOAD_LIMITS, t }, env.value)
+		expect(result.status).toBe("ready")
+		if (result.status !== "ready") return
+		expect(result.converted).toBe(true)
+		expect(result.file).not.toBe(source)
+		expect(result.file.name).toBe("anniversaire.mp4")
+		expect(env.transcodeCalls).toHaveLength(1)
+		expect(env.transcodeCalls[0]?.videoBitsPerSecond).toBeLessThanOrEqual(2_500_000)
+	})
+
+	it("le même MP4 sous la borne part tel quel, sans conversion", async () => {
+		const env = runtime({ codecs: ["avc1"], durationMs: 45_000 })
+		const source = heavy("anniversaire.mp4", "video/mp4", 59 * 1024 * 1024)
+		const result = await prepareVideoForUpload(source, { limits: POST_VIDEO_UPLOAD_LIMITS, t }, env.value)
+		expect(result).toEqual({ status: "ready", file: source, durationMs: 45_000, converted: false })
+		expect(env.transcodeCalls).toHaveLength(0)
+	})
+})
+
 describe("issue antsia#142 — chaque refus rend un code à liste fermée, à côté de la phrase", () => {
 	/**
 	 * Un scénario RÉEL par refus du module : la vidéo choisie et le navigateur simulé. Le
@@ -173,6 +203,7 @@ describe("issue antsia#142 — chaque refus rend un code à liste fermée, à c�
 		"too-long-to-convert": { file: () => video("souvenir.mov", "video/quicktime"), env: { durationMs: VIDEO_TRANSCODE_MAX_DURATION_MS + 1 } },
 		"no-encoder": { file: () => video("souvenir.mov", "video/quicktime"), env: { targets: [] } },
 		"conversion-failed": { file: () => video("souvenir.mov", "video/quicktime"), env: { transcode: async () => { throw new Error("transcode:recorder") } } },
+		"too-large-to-convert": { file: () => heavy("anniversaire.mp4", "video/mp4", VIDEO_TRANSCODE_MAX_SOURCE_BYTES + 1), env: { codecs: ["avc1"] } },
 	}
 
 	it("la liste est fermée et sans doublon", () => {

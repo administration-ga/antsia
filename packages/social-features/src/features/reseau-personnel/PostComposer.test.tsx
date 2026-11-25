@@ -767,15 +767,27 @@ describe("SD-03 — une vidéo de publication se lit partout, bornée, et part a
     expect(fetch).not.toHaveBeenCalled()
   })
 
-  it("un MP4 de plus de 60 Mo est refusé AVANT la sonde ; une vidéo à côté d'une photo aussi", async () => {
+  it("M2 — un MP4 de plus de 60 Mo n'est plus refusé : il est compressé, puis part converti", async () => {
+    render(<PostComposer prepareImage={prepare} prepareVideo={browser({ decodable: true, durationMs: 45_000 })} />)
+    choisirMedias([mp4("lourde.mp4", 150 * 1024 * 1024)])
+    await waitFor(() => expect(screen.getByRole("button", { name: "Retirer lourde.mp4" })).toBeTruthy())
+    expect(screen.queryByText("« lourde.mp4 » dépasse 60 Mo.")).toBeNull()
+    fireEvent.click(screen.getByRole("button", { name: "Publier" }))
+    await waitFor(() => expect(mocks.publish).toHaveBeenCalledTimes(1))
+    const [, init] = vi.mocked(fetch).mock.calls[0] as unknown as [string, RequestInit]
+    // Le fichier envoyé est le converti (2 Kio), jamais la source de 150 Mo.
+    expect((init.body as File).size).toBe(2_048)
+  })
+
+  it("une vidéo à côté d'une photo est refusée AVANT la sonde, quel que soit son conteneur", async () => {
     const spy = vi.fn(readyAsChosen)
     render(<PostComposer prepareImage={prepare} prepareVideo={spy} />)
-    choisirMedias([mp4("lourde.mp4", 61 * 1024 * 1024)])
-    expect(await screen.findByText("« lourde.mp4 » dépasse 60 Mo.")).toBeTruthy()
     choisirMedias([image("a.png")])
     await waitFor(() => expect(screen.getByRole("button", { name: "Retirer a.png" })).toBeTruthy())
-    choisirMedias([mov()])
-    expect(await screen.findByText("Une vidéo est seule dans sa publication.")).toBeTruthy()
+    for (const chosen of [mov(), mp4("lourde.mp4", 150 * 1024 * 1024), mp4()]) {
+      choisirMedias([chosen])
+      expect(await screen.findByText("Une vidéo est seule dans sa publication.")).toBeTruthy()
+    }
     expect(spy).not.toHaveBeenCalled()
   })
 
