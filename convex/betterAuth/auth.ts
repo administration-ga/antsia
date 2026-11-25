@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/betterAuth/auth.ts @ ad2e7fdc2 — adaptations : PA4, IDN avec PKCE et preuve serveur minimale, comptes légers par OTP e-mail/SMS, aucune route de mot de passe ; origines du catalogue et de l'environnement ; session sept jours et JWT trente minutes avec sessionId contrôlé côté serveur ; OTT trois minutes ; délivrance locale bornée ou transport configuré, erreurs et limitation de débit du moteur ; refus ou abandon chez IDN renvoyé à la porte de départ de confiance (issue #122) ; refus de débit porteur du délai restant, `retryAfterMs` et `Retry-After` (EA-08, issue #151) ; preuve de session IDN scellée avec l'application où la session est livrée, prise de l'état OAuth enregistré au départ (ADR-0042, CH-815) ; rappel IDN central web sans aucun cookie ni jeton porteur, la session ne passant que par le jeton à usage unique (revue CH-815 A1b, constat F1) ; routes `check-verification-otp` et `verify-email` du greffon e-mail fermées pour toutes les adresses, et garde de la porte des comptes de démonstration sur l'envoi du code et la connexion de sa famille d'adresses, avant les seaux (CH-817 E5, constat 1) ; surface des routes classée route par route (`AUTH_ROUTE_SURFACE`), figée par le cliquet `authSurface.test.ts` (CH-817 E5) ; routes du cœur `/sign-in/social` et `/callback/:id`, où `generic-oauth` inscrit IDN, fermées pour tous : IDN n'entre que par `/sign-in/oauth2` et son rappel central (CH-817 E5, écart du cliquet).
+// Dupliqué de socle/convex/betterAuth/auth.ts @ ad2e7fdc2 — adaptations : PA4, IDN avec PKCE et preuve serveur minimale, comptes légers par OTP e-mail/SMS, aucune route de mot de passe ; origines du catalogue et de l'environnement ; session sept jours et JWT trente minutes avec sessionId contrôlé côté serveur ; OTT trois minutes ; délivrance locale bornée ou transport configuré, erreurs et limitation de débit du moteur ; refus ou abandon chez IDN renvoyé à la porte de départ de confiance (issue #122) ; refus de débit porteur du délai restant, `retryAfterMs` et `Retry-After` (EA-08, issue #151) ; preuve de session IDN scellée avec l'application où la session est livrée, prise de l'état OAuth enregistré au départ (ADR-0042, CH-815) ; rappel IDN central web sans aucun cookie ni jeton porteur, la session ne passant que par le jeton à usage unique (revue CH-815 A1b, constat F1) ; routes `check-verification-otp` et `verify-email` du greffon e-mail fermées pour toutes les adresses, et garde de la porte des comptes de démonstration sur l'envoi du code et la connexion de sa famille d'adresses, avant les seaux (CH-817 E5, constat 1) ; surface des routes classée route par route (`AUTH_ROUTE_SURFACE`), figée par le cliquet `authSurface.test.ts` (CH-817 E5) ; routes du cœur `/sign-in/social` et `/callback/:id`, où `generic-oauth` inscrit IDN, fermées pour tous : IDN n'entre que par `/sign-in/oauth2` et son rappel central (CH-817 E5, écart du cliquet). Pré-remplissage éphémère de l'accueil (nom civil, identifiant IDN) extrait au mapping et déposé par le greffon de preuve une fois la session ouverte, jamais dans Better Auth ni dans la preuve, sans jamais faire échouer la connexion (ADR-0044, lot M1).
 /**
  * Better Auth du moteur — l'émetteur UNIQUE des jetons Convex (ADR-0002).
  *
@@ -27,7 +27,7 @@ import { deliverOtp, type OtpRequest } from "./delivery"
 import { idnRefusalReturn } from "./idnRefusalReturn"
 import { idnWebCallbackWithoutCookies } from "./idnWebCallback"
 import { isNativeIdnOAuth, nativeIdn } from "./nativeIdn"
-import { applicationOfOAuthState, authenticationConfiguration, idnConfiguration, idnProfileProof, isE164Phone, OTP_TTL_SECONDS, trustedOrigins } from "./settings"
+import { applicationOfOAuthState, authenticationConfiguration, idnConfiguration, idnEntryPrefill, idnProfileProof, isE164Phone, OTP_TTL_SECONDS, trustedOrigins, type IdnEntryPrefill } from "./settings"
 
 // Durée de vie d'un code à usage unique : la constante vit dans `settings.ts`, que lit aussi la configuration publique (EA-08).
 export { OTP_TTL_SECONDS, parseOriginList, trustedOrigins } from "./settings"
@@ -419,6 +419,19 @@ export const createAuth = (ctx: GenericCtx<DataModel>, requestOrigin?: string | 
   // Propre à CETTE requête : seul le profil du callback OIDC peut sceller
   // la nouvelle session. Un lien de compte ou un OTP ne le peuvent pas.
   let idnLoginProof: ReturnType<typeof idnProfileProof> | null = null
+  // ADR-0044 : ce que l'accueil propose avant le geste (nom civil, identifiant IDN), tenu pour CETTE
+  // requête seulement et déposé une fois la session ouverte — jamais dans la preuve ni dans Better Auth.
+  let idnEntry: IdnEntryPrefill | null = null
+  /** Dépose le pré-remplissage de l'accueil ; ne lève jamais : la connexion ne casse pas à cause de lui. */
+  const recordEntryPrefill = async (authUserId: string) => {
+    const prefill = idnEntry
+    if (!prefill || !canRunMutation(ctx)) return
+    try {
+      await ctx.runMutation(internal.modules.people.idnPrefill.recordIdnPrefill as never, { authUserId, ...prefill } as never)
+    } catch {
+      // Sans pré-remplissage, l'accueil retombe sur la saisie (ADR-0044) ; rien d'autre n'en dépend.
+    }
+  }
   type OAuthConfig = Parameters<typeof genericOAuth>[0]["config"][number]
   const idnProvider: OAuthConfig[] = idnOptions ? [{
     ...idn({ ...idnOptions, scopes: ["openid", "profile", "email"] }),
@@ -431,7 +444,10 @@ export const createAuth = (ctx: GenericCtx<DataModel>, requestOrigin?: string | 
       const proof = idnProfileProof(profile)
       await ctx.runMutation(internal.modules.people.identity.recordIdnProof as never, proof as never)
       idnLoginProof = proof
-      // Le nom social est choisi à l'accueil ; aucun état civil n'est recopié.
+      // ADR-0044 : extraction pure, qui ne lève jamais ; le dépôt attend la session (greffon ci-dessous).
+      idnEntry = idnEntryPrefill(profile)
+      // Le nom social est choisi à l'accueil ; aucun état civil n'est recopié dans Better Auth ni dans
+      // la preuve. L'accueil le PROPOSE, avant le geste, par le pré-remplissage éphémère (ADR-0044).
       return { email: String(profile.email).trim().toLowerCase(), emailVerified: true, name: BRAND_NAME }
     },
   } as OAuthConfig] : []
@@ -473,16 +489,21 @@ export const createAuth = (ctx: GenericCtx<DataModel>, requestOrigin?: string | 
           handler: createAuthMiddleware(async (hookCtx) => {
             const proof = idnLoginProof
             const session = hookCtx.context.newSession?.session
-            if (!proof || proof.loa === undefined || !session) return
-            if (!canRunMutation(ctx)) throw new APIError("SERVICE_UNAVAILABLE", { message: "idnUnavailable", code: "idnUnavailable" })
-            // ADR-0042 : l'application où la session est LIVRÉE, prise de l'état OAuth que le moteur a
-            // enregistré au départ — jamais de l'origine de ce rappel, ni d'un argument du client
-            // (raisons et règle : `applicationOfOAuthState`, `settings.ts`).
-            const application = applicationOfOAuthState(await currentOAuthState())
-            await ctx.runMutation(internal.modules.platform.operatorAccess.recordIdnSession as never, {
-              sessionId: session.id, authUserId: session.userId, idnSubject: proof.subject, loa: proof.loa,
-              ...(application ? { application } : {}),
-            } as never)
+            if (!proof || !session) return
+            if (proof.loa !== undefined) {
+              if (!canRunMutation(ctx)) throw new APIError("SERVICE_UNAVAILABLE", { message: "idnUnavailable", code: "idnUnavailable" })
+              // ADR-0042 : l'application où la session est LIVRÉE, prise de l'état OAuth que le moteur a
+              // enregistré au départ — jamais de l'origine de ce rappel, ni d'un argument du client
+              // (raisons et règle : `applicationOfOAuthState`, `settings.ts`).
+              const application = applicationOfOAuthState(await currentOAuthState())
+              await ctx.runMutation(internal.modules.platform.operatorAccess.recordIdnSession as never, {
+                sessionId: session.id, authUserId: session.userId, idnSubject: proof.subject, loa: proof.loa,
+                ...(application ? { application } : {}),
+              } as never)
+            }
+            // ADR-0044 : la personne n'existe pas encore (elle naît par `ensureMyPerson`) ; l'utilisateur de
+            // la session, si. Ici seulement, une fois la session ouverte : ni connexion refusée, ni rattachement.
+            await recordEntryPrefill(session.userId)
           }),
         }] },
       },
