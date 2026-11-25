@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/modules/fileGuard/avProviders.ts @ ad2e7fdc2 — adaptations : FAIL-CLOSED — fournisseur absent, inconnu ou incomplet → fournisseur INDISPONIBLE (verdict `error`, fichier retenu) hors déploiement local, au lieu d'un repli silencieux sur le mock ; le mock n'est admis qu'en développement local ; commentaire « documents de l'État » ramené au moteur ; exemple d'adresse du service antivirus remplacé par son rôle (dépôt public, EX-20).
+// Dupliqué de socle/convex/modules/fileGuard/avProviders.ts @ ad2e7fdc2 — adaptations : FAIL-CLOSED — fournisseur absent, inconnu ou incomplet → fournisseur INDISPONIBLE (verdict `error`, fichier retenu) hors déploiement local, au lieu d'un repli silencieux sur le mock ; le mock n'est admis qu'en développement local ; commentaire « documents de l'État » ramené au moteur ; exemple d'adresse du service antivirus remplacé par son rôle (dépôt public, EX-20) ; M1 (25/11/2026) : transport, délai, HTTP 5xx, 429 et file pleine de la façade marqués INDISPONIBLES (`unavailable`, pas un verdict), avec le code d'erreur court de la façade dans le détail.
 /**
  * Sentinelle fichiers — adaptateurs ANTIVIRUS (ADR-0160, D4b).
  *
@@ -24,6 +24,13 @@
  *
  * ⚠️ Le verdict d'un fournisseur en ERREUR n'est pas « sain » : il devient
  * `error` dans `decideVerdict` (fail-closed), retenté par le sweeper.
+ *
+ * M1 : un fournisseur INDISPONIBLE — coupure du transport, délai dépassé,
+ * HTTP 5xx ou 429, file pleine de la façade (`queue_full`) — n'a rien jugé :
+ * son résultat est marqué `unavailable`, et l'analyse est reprise plus tard
+ * sans entamer les tentatives de verdict (`mutations.ts`, `settleUnavailable`).
+ * Un refus 4xx (jeton, format, taille) ou une erreur de clamd restent des
+ * verdicts d'erreur, comptés comme avant.
  */
 import { isLocalDeployment } from "../../lib/devTools"
 import { FILE_GUARD_MAX_INSPECT_BYTES } from "./policy"
@@ -148,6 +155,25 @@ function findVerdict(
   return null
 }
 
+/** Code d'erreur court rendu par la façade (`{"error":"queue_full"}`), jamais un texte libre. */
+function facadeErrorCode(body: string): string | null {
+  try {
+    const parsed: unknown = JSON.parse(body)
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      const code = (parsed as Record<string, unknown>).error
+      if (typeof code === "string" && /^[a-z][a-z0-9_]{0,31}$/.test(code)) return code
+    }
+  } catch {
+    // Réponse non JSON (proxy, page d'erreur) : pas de code.
+  }
+  return null
+}
+
+/** Le fournisseur n'a pas pu juger : surcharge, panne, limitation de débit, file pleine. */
+function isUnavailableResponse(status: number, code: string | null): boolean {
+  return status >= 500 || status === 429 || code === "queue_full" || code === "queue_timeout"
+}
+
 export class ClamAvRestProvider implements FileScanProvider {
   readonly id = "clamav-rest"
   constructor(private readonly options: ClamAvRestOptions) {}
@@ -182,11 +208,13 @@ export class ClamAvRestProvider implements FileScanProvider {
       })
       const body = await response.text()
       if (!response.ok) {
+        const code = facadeErrorCode(body)
         return {
           provider: this.id,
           verdict: "error",
-          detail: `HTTP ${response.status}`,
+          detail: code ? `HTTP ${response.status} ${code}` : `HTTP ${response.status}`,
           durationMs: Date.now() - startedAt,
+          ...(isUnavailableResponse(response.status, code) ? { unavailable: true } : {}),
         }
       }
       const parsed = parseClamAvResponse(body)
@@ -198,11 +226,13 @@ export class ClamAvRestProvider implements FileScanProvider {
         durationMs: Date.now() - startedAt,
       }
     } catch (err) {
+      // Transport coupé ou délai dépassé : le fournisseur n'a rien jugé.
       return {
         provider: this.id,
         verdict: "error",
-        detail: err instanceof Error ? err.message.slice(0, 160) : String(err),
+        detail: controller.signal.aborted ? "timeout" : err instanceof Error ? err.message.slice(0, 160) : String(err).slice(0, 160),
         durationMs: Date.now() - startedAt,
+        unavailable: true,
       }
     } finally {
       clearTimeout(timer)

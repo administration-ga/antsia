@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/modules/fileGuard/admission.ts @ ad2e7fdc2 — adaptations : personnes et réseaux (`uploadedByPersonId`, `networkId`) ; registres métier du socle retirés, copies fédérées réservées et assets catalogue protégés avant admission ; coupe-circuit FAIL-CLOSED (la ligne naît `pending` sans analyse, retenue jusqu'à la levée) ; refus à code du moteur (`notFound` indistinct, `conflict` pour un fichier déjà joint par soi) ; sujet iDocument retiré ; EX-17 (décision du 9/11/2026) : aucune inscription à l'analyse au-delà du plafond d'analyse (`UPLOAD_SIZE_OUT_OF_RANGE`), poids lu dans le stockage.
+// Dupliqué de socle/convex/modules/fileGuard/admission.ts @ ad2e7fdc2 — adaptations : personnes et réseaux (`uploadedByPersonId`, `networkId`) ; registres métier du socle retirés, copies fédérées réservées et assets catalogue protégés avant admission ; coupe-circuit FAIL-CLOSED (la ligne naît `pending` sans analyse, retenue jusqu'à la levée) ; refus à code du moteur (`notFound` indistinct, `conflict` pour un fichier déjà joint par soi) ; sujet iDocument retiré ; EX-17 (décision du 9/11/2026) : aucune inscription à l'analyse au-delà du plafond d'analyse (`UPLOAD_SIZE_OUT_OF_RANGE`), poids lu dans le stockage ; M1 (25/11/2026) : une ligne `error` reprise à la réadmission repart avec une série d'indisponibilités neuve.
 /**
  * Garde des fichiers — l'ADMISSION, temps unique d'entrée d'un fichier.
  *
@@ -148,7 +148,9 @@ export async function enqueueScan(
     const stale = (existing.status === "pending" || existing.status === "running") && now - existing.updatedAt > FILE_GUARD_RUNNING_STALE_MS
     const retryable = existing.status === "error" && existing.attempts < FILE_GUARD_MAX_ATTEMPTS
     if ((stale || retryable) && !killSwitched) {
-      await ctx.db.patch(existing._id, { ...patch, status: "pending", updatedAt: now })
+      // Une ligne figée `error` repart avec une série d'indisponibilités neuve (M1).
+      const freshSeries = retryable ? { providerUnavailableSince: undefined, providerUnavailableRetries: undefined } : {}
+      await ctx.db.patch(existing._id, { ...patch, ...freshSeries, status: "pending", updatedAt: now })
       await scheduleScan(ctx, existing._id)
       return { scanId: existing._id, status: "pending", created: false, scheduled: true }
     }

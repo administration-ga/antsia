@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/modules/fileGuard/tables.ts @ ad2e7fdc2 — adaptations : table `fileScans` du moteur ; `networkId` (réseau où le fichier entre, absent pour un fichier de profil) et `uploadedByPersonId` indexés ; `orgId`, `subjectDocumentId`, `quarantineDocumentId`, `previousFolderId` (coffre iDocument) et `triage` (IA, V2) retirés ; validateurs dérivés des constantes du domaine ; index `by_sha256` non recopié (jamais lu, D35) ; index de purge par `blobPurgedAt` (D31).
+// Dupliqué de socle/convex/modules/fileGuard/tables.ts @ ad2e7fdc2 — adaptations : table `fileScans` du moteur ; `networkId` (réseau où le fichier entre, absent pour un fichier de profil) et `uploadedByPersonId` indexés ; `orgId`, `subjectDocumentId`, `quarantineDocumentId`, `previousFolderId` (coffre iDocument) et `triage` (IA, V2) retirés ; validateurs dérivés des constantes du domaine ; index `by_sha256` non recopié (jamais lu, D35) ; index de purge par `blobPurgedAt` (D31) ; M1 (25/11/2026) : série d'indisponibilités de l'antivirus (`providerUnavailableSince`, `providerUnavailableRetries`), optionnelle, sans migration.
 /**
  * Garde des fichiers — la table de la tranche.
  *
@@ -58,7 +58,17 @@ export const filesTables = {
     av: v.optional(fileScanAvValidator),
     verdictReason: v.optional(v.string()),
     skipReason: v.optional(v.string()),
+    /** Tentatives de VERDICT ; une indisponibilité du fournisseur n'en consomme pas (M1). */
     attempts: v.number(),
+    /**
+     * M1 — série en cours d'indisponibilités de l'antivirus (transport, 5xx, 429,
+     * file pleine) : depuis quand, et combien de reprises. Bornée à 24 h depuis
+     * `providerUnavailableSince` ; effacée par un verdict ou une relance. Pendant
+     * l'attente d'une reprise, `updatedAt` porte l'échéance de la reprise : le
+     * balayeur ne juge la ligne perdue que cinq minutes après elle.
+     */
+    providerUnavailableSince: v.optional(v.number()),
+    providerUnavailableRetries: v.optional(v.number()),
     /** Libération par un modérateur ou un opérateur : qui, pourquoi — un acte tracé. */
     releasedByPersonId: v.optional(v.id("persons")),
     releasedAt: v.optional(v.number()),
