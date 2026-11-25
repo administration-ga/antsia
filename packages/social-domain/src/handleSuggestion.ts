@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/modules/reseauPersonnel/handleSuggestion.ts @ ad2e7fdc2 — adaptations : import des bornes du handle depuis ./content (le domaine du socle est scindé) ; commentaires d'origine conservés (ils décrivent le socle : dans le moteur, aucun profil n'est publié d'office, ces fonctions servent les propositions d'identifiant).
+// Dupliqué de socle/convex/modules/reseauPersonnel/handleSuggestion.ts @ ad2e7fdc2 — adaptations : import des bornes du handle depuis ./content (le domaine du socle est scindé) ; commentaires d'origine conservés (ils décrivent le socle : dans le moteur, aucun profil n'est publié d'office, ces fonctions servent les propositions d'identifiant) ; ajout propre au moteur : `idnHandleLadder`, l'échelle ORDONNÉE de l'accueil pré-rempli par IDN (ADR-0044, en fin de fichier).
 /**
  * Propositions d'identifiant public (`@handle`) dérivées de l'état civil.
  *
@@ -16,6 +16,11 @@
  * Décision utilisateur : la plateforme ne décide pas entre `prenom.nom` et
  * `nom.prenom`. L'échelle alterne donc les deux ordres à chaque palier, et
  * l'interface les présente SANS pré-sélection.
+ *
+ * Exception du moteur (ADR-0044) : à l'accueil pré-rempli par IDN,
+ * `idnHandleLadder` met d'abord ce que la personne a déjà choisi chez IDN
+ * (son prénom d'usage dans son identifiant, puis l'identifiant lui-même), et
+ * l'écran présélectionne le premier libre ; les deux ordres suivent, inchangés.
  *
  * Une seule exception, assumée et bornée : le handle PROVISOIRE posé par la
  * publication d'office doit bien être une chaîne. Il suit alors l'ordre déjà
@@ -215,4 +220,61 @@ export function pickFreeHandle(
     if (!taken.has(candidate)) return candidate
   }
   return null
+}
+
+// ── Accueil pré-rempli par IDN (ADR-0044 du moteur) ────────────────────────
+
+/** Nombre de propositions au plus que l'accueil présente (ADR-0044). */
+export const IDN_HANDLE_LADDER_MAX = 6
+
+/** Forme d'un identifiant IDN (`<identifiant>@idn.ga`) : celle qu'identite.ga impose à sa création. */
+const IDN_IDENTIFIER_FORM = /^[a-z0-9]+(?:[._-][a-z0-9]+)*$/
+const IDN_IDENTIFIER_MAX_LENGTH = 32
+
+/** Ce qu'IDN fournit à l'accueil — rien d'autre n'entre dans l'échelle. */
+export interface IdnHandleSource {
+  /** Prénom(s), tels qu'IDN les envoie (`given_name`). */
+  givenNames?: string | null
+  /** Nom(s) de famille (`family_name`). */
+  familyName?: string | null
+  /** Identifiant IDN : la partie locale de l'adresse `@idn.ga` (`moussavounze.awa`). */
+  idnIdentifier?: string | null
+}
+
+/** L'identifiant IDN en minuscules, ou `null` s'il n'a pas la forme qu'IDN impose (jamais réécrit). */
+function idnIdentifierOf(raw: string | null | undefined): string | null {
+  if (!raw) return null
+  const value = raw.trim().toLowerCase()
+  return value.length >= HANDLE_MIN_LENGTH && value.length <= IDN_IDENTIFIER_MAX_LENGTH && IDN_IDENTIFIER_FORM.test(value) ? value : null
+}
+
+/**
+ * L'échelle de l'accueil pré-rempli par IDN, faite des SEULS éléments d'IDN, dans cet ordre :
+ *
+ *   1. le(s) prénom(s) qui figure(nt) dans l'identifiant IDN (`awa`) ;
+ *   2. l'identifiant IDN entier (`moussavounze.awa`) ;
+ *   3. les autres prénoms ;
+ *   4. l'échelle existante (`handleLadder`), prénoms et noms de famille.
+ *
+ * Un prénom « figure » dans l'identifiant quand il en vaut un SEGMENT (séparateurs `.`, `_`, `-`),
+ * accents retirés par `handleToken` — jamais une simple sous-chaîne. Un identifiant hors de la forme
+ * d'IDN est ignoré, jamais réécrit. Tout candidat passe `isCandidateHandle` ; six au plus, sans
+ * doublon. Module pur : c'est l'appelant qui dit lesquels sont libres, pour SES seuls candidats.
+ */
+export function idnHandleLadder(source: IdnHandleSource): string[] {
+  const given = handleNameComponents(source.givenNames)
+  const identifier = idnIdentifierOf(source.idnIdentifier)
+  const segments = identifier ? identifier.split(/[._-]+/).map(handleToken) : []
+  const candidates: string[] = []
+  const push = (value: string) => {
+    if (candidates.length < IDN_HANDLE_LADDER_MAX && isCandidateHandle(value) && !candidates.includes(value)) candidates.push(value)
+  }
+
+  const inIdentifier = given.filter((name) => segments.includes(name))
+  for (const name of inIdentifier) push(name)
+  if (identifier) push(identifier)
+  for (const name of given) if (!inIdentifier.includes(name)) push(name)
+  for (const candidate of handleLadder({ firstName: source.givenNames, lastName: source.familyName })) push(candidate)
+
+  return candidates
 }
