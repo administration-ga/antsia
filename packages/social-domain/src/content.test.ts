@@ -37,6 +37,7 @@ import {
   PERSONAL_REACH_AUDIENCES,
   PERSONAL_REACTION_KINDS,
   POST_IMAGE_MAX_BYTES,
+  POST_MEDIA_MAX_COUNT,
   POST_VIDEO_MAX_BYTES,
   POST_VIDEO_MAX_DURATION_MS,
   POST_VIDEO_MIME_TYPES,
@@ -217,9 +218,22 @@ describe("médias", () => {
   const image = { kind: "image" as const, mimeType: "image/png", sizeBytes: 1000 }
   const video = { kind: "video" as const, mimeType: "video/mp4", sizeBytes: 1000 }
 
-  it("accepte jusqu'à quatre images", () => {
-    expect(() => assertPostMedia([image, image, image, image])).not.toThrow()
-    expect(() => assertPostMedia([image, image, image, image, image])).toThrow(DomainViolation)
+  it("M3 — accepte jusqu'à dix images ; la onzième est refusée et le plafond est dit", () => {
+    expect(POST_MEDIA_MAX_COUNT).toBe(10)
+    expect(() => assertPostMedia(Array.from({ length: 10 }, () => image))).not.toThrow()
+    let refusal: unknown = null
+    try {
+      assertPostMedia(Array.from({ length: 11 }, () => image))
+    } catch (error) {
+      refusal = error
+    }
+    expect(refusal).toBeInstanceOf(DomainViolation)
+    expect(refusal).toMatchObject({ code: "POST_MEDIA_TOO_MANY", params: { max: 10 } })
+  })
+
+  it("M3 — une vidéo reste seule, même quand dix images sont admises", () => {
+    expect(() => assertPostMedia([video, ...Array.from({ length: 9 }, () => image)])).toThrow(DomainViolation)
+    expect(() => assertPostMedia([...Array.from({ length: 9 }, () => image), video])).toThrow(DomainViolation)
   })
 
   it("une vidéo est SEULE dans sa publication", () => {

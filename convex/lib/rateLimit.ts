@@ -84,7 +84,8 @@ const RATE_LIMITS = {
   "album.publish.reinforced": { kind: "token bucket", rate: 10, period: DAY, capacity: 3 },
   "page.publish.reinforced": { kind: "token bucket", rate: 10, period: DAY, capacity: 3 },
   "comment.create.reinforced": { kind: "token bucket", rate: 20, period: HOUR, capacity: 5 },
-  "upload.url.reinforced": { kind: "token bucket", rate: 20, period: HOUR, capacity: 6 },
+  // M3 (25/11/2026) : une publication porte jusqu'à dix photos, une URL de dépôt chacune — la rafale renforcée en couvre une pleine, plus deux essais.
+  "upload.url.reinforced": { kind: "token bucket", rate: 20, period: HOUR, capacity: 12 },
   "message.send.reinforced": { kind: "token bucket", rate: 15, period: MINUTE, capacity: 8 },
   "connection.request.reinforced": { kind: "token bucket", rate: 10, period: HOUR, capacity: 3 },
   "group.invite.reinforced": { kind: "token bucket", rate: 20, period: HOUR, capacity: 6 },

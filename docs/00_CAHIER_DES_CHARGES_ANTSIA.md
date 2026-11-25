@@ -290,9 +290,9 @@ Identifiants `EXF-AN-NN` (fonctionnel) et `EXT-AN-NN` (technique). **Partie A** 
 
 #### M-A3 — Publications et fil (hérité, étendu)
 
-- **EXF-AN-10** Publications héritées (texte 2 000 caractères, 4 images ou 1 vidéo avec texte
-  alternatif, partage cité, hashtags, mentions, audience, idempotence, édition, retrait,
-  épinglage) + `networkId`, `visibility ∈ {network, root}`, `country?`, `reach?`.
+- **EXF-AN-10** Publications héritées (texte 2 000 caractères, 10 images — 4 avant le lot M3 du
+  25/11/2026 — ou 1 vidéo seule, avec texte alternatif, partage cité, hashtags, mentions,
+  audience, idempotence, édition, retrait, épinglage) + `networkId`, `visibility ∈ {network, root}`, `country?`, `reach?`.
 - **EXF-AN-11** Réactions (4 genres), commentaires à un niveau de réponse (paginés — le socle
   rend les 100 plus anciens sans pagination : à corriger), relais, signets, masquage,
   sourdine, signalement (6 motifs puis extensibles).

@@ -520,7 +520,7 @@ describe("médias", () => {
     expect(JSON.stringify(item)).not.toContain(storageId)
   })
 
-  it("un blob déguisé est refusé sur son poids RÉEL ; une vidéo est seule, cinq images ne passent pas", async () => {
+  it("un blob déguisé est refusé sur son poids RÉEL ; une vidéo est seule, onze images ne passent pas (M3 : dix au plus)", async () => {
     const t = testConvex()
     const { root } = await seed(t)
     const alice = await enter(t, root, "alice")
@@ -542,9 +542,24 @@ describe("médias", () => {
         }),
       ),
     ).toBe("POST_VIDEO_MUST_BE_ALONE")
-    const five = []
-    for (let i = 0; i < 5; i += 1) five.push({ storageId: await storeBlob(t, PNG, "image/png"), kind: "image" as const, mimeType: "image/png", sizeBytes: PNG.length })
-    expect(await ruleOf(alice.as.mutation(api.modules.posts.posts.publish, { networkId: root, body: "Cinq", media: five }))).toBe("POST_MEDIA_TOO_MANY")
+    const eleven = []
+    for (let i = 0; i < 11; i += 1) eleven.push({ storageId: await storeBlob(t, PNG, "image/png"), kind: "image" as const, mimeType: "image/png", sizeBytes: PNG.length })
+    expect(await ruleOf(alice.as.mutation(api.modules.posts.posts.publish, { networkId: root, body: "Onze", media: eleven }))).toBe("POST_MEDIA_TOO_MANY")
+  })
+
+  it("M3 — dix photos dans une publication : toutes rendues, dans l'ordre, chacune sous la garde", async () => {
+    const t = testConvex()
+    const { root } = await seed(t)
+    const alice = await enter(t, root, "alice")
+    const ten = []
+    for (let i = 0; i < 10; i += 1) ten.push({ storageId: await storeBlob(t, PNG, "image/png"), kind: "image" as const, mimeType: "image/png", sizeBytes: PNG.length, altText: `Photo ${i + 1}` })
+    const { postId } = await alice.as.mutation(api.modules.posts.posts.publish, { networkId: root, body: "Dix photos", media: ten })
+    const item = await getPost(alice, root, postId)
+    expect(item.media.map((media) => media.altText)).toEqual(ten.map((media) => media.altText))
+    expect(item.media.every((media) => media.url === null && media.withheld === "fileScanPending")).toBe(true)
+    // Chaque photo a sa propre analyse : aucune n'est servie sans la sienne.
+    const scans = await t.run(async (ctx) => ctx.db.query("fileScans").take(20))
+    expect(scans).toHaveLength(10)
   })
 })
 

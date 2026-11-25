@@ -7,7 +7,7 @@
  *
  * Extrait du composeur DÉLIBÉRÉMENT : ce qui reste dans le corps d'un
  * composant n'est vérifiable qu'à l'œil. Ce hook n'expose que des transitions
- * d'état ; les règles de fond (4 images OU 1 vidéo, poids, types) restent au
+ * d'état ; les règles de fond (10 images OU 1 vidéo, poids, types) restent au
  * SERVEUR, qui les relit sur les métadonnées réelles du stockage.
  *
  * L'aperçu utilise `URL.createObjectURL` sur le fichier LOCAL : on ne demande
@@ -111,11 +111,11 @@ export const IMAGE_ONLY_ACCEPT = POST_IMAGE_MIME_TYPES.join(",")
 
 /**
  * Ce qui change d'un composeur à l'autre. Deux réglages, et deux seulement :
- * la publication porte 4 médias dont au plus une vidéo, l'album en porte 60 et
+ * la publication porte 10 médias dont au plus une vidéo, l'album en porte 60 et
  * n'accepte que des images. Le reste — poids, types, refus — est commun.
  */
 export interface MediaDraftLimits {
-  /** Plafond de médias. Défaut : `POST_MEDIA_MAX_COUNT` (4). */
+  /** Plafond de médias. Défaut : `POST_MEDIA_MAX_COUNT` (10 depuis M3). */
   maxCount?: number
   /** Refuser toute vidéo, y compris seule. Défaut : `false`. */
   imagesOnly?: boolean

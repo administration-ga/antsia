@@ -125,6 +125,38 @@ describe("Médias P03", () => {
   })
 })
 
+describe("M3 — dix photos dans une publication", () => {
+  const ten: PostMediaDto[] = Array.from({ length: 10 }, (_, index) => ({ ...first, url: `https://media.example/${index + 1}.jpg`, altText: `Vue fictive ${index + 1}` }))
+
+  it.each(["classic", "media"] as const)("la galerie %s parcourt les dix photos : une place et un point par photo, la dernière atteinte", (presentation) => {
+    renderMedia(ten, presentation)
+    const track = screen.getByRole("region", { name: "Photos de la publication, 10 images" })
+    Object.defineProperty(track, "clientWidth", { configurable: true, value: 320 })
+    Object.defineProperty(track, "scrollTo", { configurable: true, value: vi.fn(({ left }: ScrollToOptions) => { track.scrollLeft = left ?? 0 }) })
+    for (let position = 1; position <= 10; position += 1) expect(screen.getByRole("button", { name: `Afficher l'image ${position} sur 10` })).toBeInTheDocument()
+    fireEvent.keyDown(track, { key: "End" })
+    expect(track.scrollLeft).toBe(9 * 320)
+    expect(screen.getByRole("button", { name: "Afficher l'image 10 sur 10" })).toHaveAttribute("aria-current", "true")
+  })
+
+  it("les points du carrousel classique se partagent la largeur du cadre (24 px au moins), sans le déborder ni masquer la photo", () => {
+    renderMedia(ten)
+    const sheet = Array.from(document.querySelectorAll("style")).map((style) => style.textContent ?? "").find((css) => css.includes(".rpm-carousel-dots"))
+    expect(sheet).toBeDefined()
+    const rule = (selector: string) => new RegExp(`\\${selector}\\s*\\{([^}]*)\\}`).exec(sheet ?? "")?.[1] ?? ""
+    const dots = rule(".rpm-carousel-dots")
+    expect(dots).toMatch(/left:\s*0/)
+    expect(dots).toMatch(/right:\s*0/)
+    expect(dots).toMatch(/justify-content:\s*center/)
+    expect(dots).toMatch(/pointer-events:\s*none/)
+    expect(dots).not.toMatch(/transform/)
+    const dot = rule(".rpm-carousel-dot")
+    expect(dot).toMatch(/flex:\s*0 1 44px/)
+    expect(dot).toMatch(/min-width:\s*24px/)
+    expect(dot).toMatch(/pointer-events:\s*auto/)
+  })
+})
+
 describe("FP-01 — la première image du fil part tout de suite, les autres attendent", () => {
   function renderLead(media: readonly PostMediaDto[], lead: boolean | undefined, primary = true) {
     const i18n = createAppI18n({ locale: "fr", appResources: { fr: {}, en: {} }, defaultNS: "social" })

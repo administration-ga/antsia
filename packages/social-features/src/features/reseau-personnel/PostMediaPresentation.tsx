@@ -485,7 +485,7 @@ function MediaSingleImage({ item, placement, lead }: { item: PostMediaDto; place
   )
 }
 
-/** Deux à quatre photos : une à la fois, index, flèches, points, clavier, visionneuse. */
+/** De deux à dix photos (M3) : une à la fois, index, flèches, points, clavier, visionneuse. */
 function MediaGallery({ images, placement, lead }: { images: readonly PostMediaDto[]; placement: MediaPlacement; lead: boolean }) {
   const { bleed } = placement
   const { t } = useTranslation("reseau")
