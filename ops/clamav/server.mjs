@@ -1,4 +1,4 @@
-// Dupliqué de socle/ops/clamav/server.mjs @ 4e1b625040c5f962f166ed74a691f5cee0126e27 — adaptations : jeton obligatoire et comparaison constante, fichier unique borné, délais absolus, santé sans détail interne, concurrence unique, HTTP/2 h2c pour Cloud Run, import sans écoute pour les tests.
+// Dupliqué de socle/ops/clamav/server.mjs @ 4e1b625040c5f962f166ed74a691f5cee0126e27 — adaptations : jeton obligatoire et comparaison constante, fichier unique borné, délais absolus, santé sans détail interne, une seule analyse dans clamd avec file d'attente FIFO bornée devant elle (au lieu du 503 « busy »), HTTP/2 h2c pour Cloud Run, import sans écoute pour les tests.
 import { createHash, timingSafeEqual } from "node:crypto"
 import http from "node:http"
 import http2 from "node:http2"
@@ -8,6 +8,8 @@ import { fileURLToPath } from "node:url"
 
 export const MAX_FILE_BYTES = 60 * 1024 * 1024
 const MULTIPART_OVERHEAD_BYTES = 1024 * 1024
+const DEFAULT_QUEUE_DEPTH = 8
+const MAX_QUEUE_DEPTH = 32
 
 class RequestError extends Error {
   constructor(status, code) { super(code); this.status = status }
@@ -29,6 +31,77 @@ export function scannerOptions(env = process.env) {
     scanTimeoutMs: positiveInteger(env.SCAN_TIMEOUT_MS, 45_000, 45_000),
     healthTimeoutMs: positiveInteger(env.HEALTH_TIMEOUT_MS, 5_000, 5_000),
     bodyTimeoutMs: positiveInteger(env.BODY_TIMEOUT_MS, 15_000, 15_000),
+    // File d'attente devant clamd : 8 places par défaut (un fil de 4 à 10 photos y tient), 32 au plus.
+    // Chaque place retient au plus un corps de MAX_BYTES + 1 Mio : la mémoire reste bornée.
+    queueDepth: positiveInteger(env.QUEUE_DEPTH, DEFAULT_QUEUE_DEPTH, MAX_QUEUE_DEPTH),
+    // Attente d'un tour, bornée : attente (40 s au plus) + analyse (45 s) restent sous le délai de socket de 90 s.
+    queueWaitMs: positiveInteger(env.QUEUE_WAIT_MS, 30_000, 40_000),
+  }
+}
+
+/**
+ * File d'attente FIFO bornée devant clamd : UNE analyse à la fois dans le daemon
+ * (sa borne mémoire), au plus `depth` autres requêtes admises derrière elle.
+ *
+ * - `admit()` prend une place ou lève 503 `queue_full`, avant toute lecture du corps ;
+ * - `turn(waitMs)` attend le tour de clamd dans l'ordre des demandes, ou lève
+ *   503 `queue_timeout` au-delà de `waitMs` ;
+ * - `leave()` rend la place (et clamd s'il l'avait) ; idempotent. Appelé pendant
+ *   l'attente (client parti), il annule le tour : le fichier n'est jamais analysé.
+ */
+export function createScanQueue({ depth }) {
+  const capacity = positiveInteger(depth, DEFAULT_QUEUE_DEPTH, MAX_QUEUE_DEPTH) + 1
+  let admitted = 0
+  let scanning = false
+  const waiting = []
+  const grantNext = () => {
+    if (scanning) return
+    const next = waiting.shift()
+    if (!next) return
+    scanning = true
+    next.grant()
+  }
+  return {
+    admitted: () => admitted,
+    admit() {
+      if (admitted >= capacity) throw new RequestError(503, "queue_full")
+      admitted += 1
+      let state = "admitted"
+      let entry = null
+      return {
+        turn(waitMs) {
+          if (state !== "admitted") return Promise.reject(new RequestError(503, "client_gone"))
+          return new Promise((resolveTurn, rejectTurn) => {
+            entry = {
+              grant: () => {
+                clearTimeout(entry.timer)
+                state = "scanning"
+                resolveTurn()
+              },
+              cancel: (code) => {
+                clearTimeout(entry.timer)
+                const index = waiting.indexOf(entry)
+                if (index !== -1) waiting.splice(index, 1)
+                state = "admitted"
+                rejectTurn(new RequestError(503, code))
+              },
+              timer: setTimeout(() => entry.cancel("queue_timeout"), waitMs),
+            }
+            state = "waiting"
+            waiting.push(entry)
+            grantNext()
+          })
+        },
+        leave() {
+          if (state === "done") return
+          if (state === "waiting") entry.cancel("client_gone")
+          if (state === "scanning") scanning = false
+          state = "done"
+          admitted -= 1
+          grantNext()
+        },
+      }
+    },
   }
 }
 
@@ -97,10 +170,13 @@ export function createScannerServer(options) {
   if (!/^[A-Za-z0-9_-]{32,512}$/.test(options.token ?? "")) throw new Error("CLAMAV_TOKEN must contain 32 to 512 URL-safe characters")
   const maxBytes = positiveInteger(options.maxBytes, MAX_FILE_BYTES, MAX_FILE_BYTES)
   const authorizationDigest = createHash("sha256").update(`Bearer ${options.token}`).digest()
-  let scanning = false
+  const queue = createScanQueue({ depth: options.queueDepth ?? DEFAULT_QUEUE_DEPTH })
+  const queueWaitMs = positiveInteger(options.queueWaitMs, 30_000, 40_000)
   const createServer = options.http2 ? http2.createServer : http.createServer
   const server = createServer(async (req, res) => {
     const send = (status, body) => {
+      // Client parti (attente abandonnée) : plus personne à qui répondre.
+      if (res.writableEnded || res.destroyed) return
       const headers = { "Content-Type": "application/json", "Cache-Control": "no-store" }
       if (req.httpVersionMajor !== 2) headers.Connection = "close"
       res.writeHead(status, headers)
@@ -115,15 +191,27 @@ export function createScannerServer(options) {
     if (options.healthOnly || req.method !== "POST" || req.url !== "/scan") return send(404, { error: "not_found" })
     const receivedDigest = createHash("sha256").update(req.headers.authorization ?? "").digest()
     if (!timingSafeEqual(authorizationDigest, receivedDigest)) return send(401, { error: "unauthorized" })
-    if (scanning) return send(503, { error: "busy" })
-    scanning = true
+    let ticket = null
     try {
       const contentType = req.headers["content-type"] ?? ""
       if (!/^multipart\/form-data\s*;/i.test(contentType)) throw new RequestError(400, "invalid_multipart")
       const bodyLimit = maxBytes + MULTIPART_OVERHEAD_BYTES
       const contentLength = Number(req.headers["content-length"])
       if (Number.isFinite(contentLength) && contentLength > bodyLimit) throw new RequestError(413, "too_large")
+      try {
+        ticket = queue.admit()
+      } catch (error) {
+        // File pleine : le corps est vidé sans être gardé, pour que le refus arrive entier.
+        req.resume()
+        throw error
+      }
+      // Client parti en cours de route : sa place et son tour sont rendus, rien n'est analysé.
+      const admitted = ticket
+      res.on("close", () => admitted.leave())
+      // Le corps est lu dès l'admission (délai de réception inchangé), puis la requête attend
+      // son tour : une seule analyse à la fois dans clamd, dans l'ordre des demandes.
       const body = await readBody(req, bodyLimit, options.bodyTimeoutMs)
+      await ticket.turn(queueWaitMs)
       let form
       try {
         form = await new Request("http://localhost/scan", { method: "POST", headers: { "Content-Type": contentType }, body }).formData()
@@ -142,7 +230,7 @@ export function createScannerServer(options) {
       return send(200, [result])
     } catch (error) {
       return send(error instanceof RequestError ? error.status : 503, { error: error instanceof RequestError ? error.message : "scan_unavailable" })
-    } finally { scanning = false }
+    } finally { ticket?.leave() }
   })
   server.headersTimeout = 10_000
   server.requestTimeout = options.bodyTimeoutMs

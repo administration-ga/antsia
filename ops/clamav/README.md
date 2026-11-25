@@ -42,7 +42,16 @@ recréer les ressources ou le secret sur cette installation existante.
 - Aucun fichier n'est écrit sur disque ni journalisé par la façade. Le fichier est
   transmis à clamd par INSTREAM. Le corps multipart est borné à 60 MiB + 1 MiB.
 - Délais absolus : réception 15 s, scan 45 s, santé 5 s ; requête Cloud Run 90 s.
-  Une seule analyse en vol ; les autres appels authentifiés reçoivent 503.
+- Une seule analyse à la fois dans clamd (sa borne mémoire). Depuis le 25/11/2026, les
+  autres appels authentifiés attendent leur tour dans une **file FIFO bornée** au lieu de
+  recevoir 503 « busy » : `QUEUE_DEPTH` places (8 par défaut, 32 au plus), chacune
+  attendant au plus `QUEUE_WAIT_MS` (30 s par défaut, 40 s au plus : attente et analyse
+  restent sous le délai de socket de 90 s). File pleine : 503 `{"error":"queue_full"}`
+  sans lire ni transmettre le fichier ; attente dépassée : 503 `{"error":"queue_timeout"}`.
+  Un client parti pendant l'attente rend sa place, et son fichier n'est jamais analysé.
+  Chaque place retient au plus un corps (60 MiB + 1 MiB) : 8 places, environ 0,5 Gio au pire.
+  Le moteur traite ces 503 comme une indisponibilité, pas comme un verdict
+  (`convex/modules/files/avProviders.ts`) : il reprend plus tard, sans entamer ses tentatives.
 - Cloud Run : **1 CPU, 4 GiB, concurrence 1, minimum 0, maximum 1 instance**,
   facturation à la requête. Ce sont des limites de ressources, pas un plafond
   monétaire. Les minimum et maximum sont configurés au niveau du service et de
@@ -93,7 +102,7 @@ node ops/clamav/source-tag.mjs
 
 Les tests utilisent la vraie façade HTTP/1 et h2c, et un daemon TCP INSTREAM **synthétique**
 sur loopback. Ils vérifient authentification, disponibilité, octets binaires,
-limites, erreurs, concurrence et délais. Ils ne prouvent ni la détection du vrai
+limites, erreurs, file d'attente (ordre, file pleine, attente bornée, client parti) et délais. Ils ne prouvent ni la détection du vrai
 moteur, ni le démarrage du conteneur, ni ses besoins mémoire réels.
 
 ## Publication — seulement après décision du propriétaire
