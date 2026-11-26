@@ -46,6 +46,12 @@ async function authUserOf(ctx: QueryCtx, authUserId: string): Promise<AuthUser |
   }
 }
 
+/** Indicateur vérifié sur le compte de la session ; aucun numéro ne sort de cette lecture. */
+export async function hasVerifiedPhone(ctx: QueryCtx, authUserId: string): Promise<boolean> {
+  const user = await authUserOf(ctx, authUserId)
+  return user?._id === authUserId && user.phoneNumberVerified === true && /^\+[1-9]\d{6,14}$/u.test(user.phoneNumber ?? "")
+}
+
 /** Le sujet opaque IDN : aucune normalisation susceptible de changer son identité. */
 function assertSubject(subject: string): void {
   if (subject.length === 0 || subject.length > 512 || subject.trim() !== subject || /[\u0000-\u001f\u007f]/u.test(subject)) fail("invalidArgument", { field: "subject" })
@@ -94,7 +100,7 @@ async function ownLink(ctx: QueryCtx, personId: Id<"persons">, provider: LinkInp
 }
 
 /** Sujet IDN confirmé côté serveur : compte, lien vivant et preuve doivent encore concorder. */
-export async function currentVerifiedIdnSubjectOf(ctx: QueryCtx | MutationCtx, person: Doc<"persons">): Promise<string | null> {
+export async function currentVerifiedIdnSubjectOf(ctx: QueryCtx | MutationCtx, person: Doc<"persons">, minimumLoa: 1 | 2 = 2): Promise<string | null> {
   if (person.erasedAt !== undefined || person.deletionRequestedAt !== undefined) return null
   const user = await authUserOf(ctx, person.authUserId)
   if (!user || user._id !== person.authUserId) return null
@@ -102,7 +108,7 @@ export async function currentVerifiedIdnSubjectOf(ctx: QueryCtx | MutationCtx, p
   if (!account) return null
   const link = await ownLink(ctx, person._id, "idn")
   const proof = await ctx.db.query("idnProofs").withIndex("by_subject", (q) => q.eq("subject", account.accountId)).unique()
-  if (!link || link.revokedAt !== undefined || link.subject !== account.accountId || (link.loa ?? 0) < 2 || !proof || (proof.loa ?? 0) < 2) return null
+  if (!link || link.revokedAt !== undefined || link.subject !== account.accountId || (link.loa ?? 1) < minimumLoa || !proof || (proof.loa ?? 1) < minimumLoa) return null
   assertSubject(account.accountId)
   return account.accountId
 }

@@ -23,8 +23,9 @@ import { components, internal } from "../_generated/api"
 import type { DataModel } from "../_generated/dataModel"
 import authConfig from "../auth.config"
 import { demoGateDigest, demoGateGoverns, demoGateSecret, demoGateState } from "../lib/demoGate"
-import { devToolsAllowed } from "../lib/devTools"
-import { deliverOtp, type OtpRequest } from "./delivery"
+import { whatsappConfiguration } from "../lib/whatsappDelivery"
+import { demoAccountsAllowed, devToolsAllowed, isDemoEmail } from "../lib/devTools"
+import { deliverOtp, isDiasporaEntry, type OtpRequest } from "./delivery"
 import { idnRefusalReturn } from "./idnRefusalReturn"
 import { idnWebCallbackWithoutCookies } from "./idnWebCallback"
 import { isNativeIdnOAuth, nativeIdn } from "./nativeIdn"
@@ -240,8 +241,8 @@ export const AUTH_ROUTE_SURFACE: Readonly<Record<string, AuthRouteClassification
   "/email-otp/change-email": { kind: "sessionRequired", guard: "middleware", reason: "Session sensible exigée ; `changeEmail` du greffon n'est pas activé (vérifié par le cliquet)." },
   // Greffon `phone-number`.
   "/sign-in/phone-number": { kind: "closed", by: "password", reason: "Connexion par téléphone et mot de passe : aucun mot de passe n'existe." },
-  "/phone-number/send-otp": { kind: "rateLimited", bucket: "auth.otp.send", reason: "Envoi du code SMS : disponibilité du relais, puis seau d'envoi par numéro." },
-  "/phone-number/verify": { kind: "rateLimited", bucket: "auth.login", reason: "Connexion ou inscription par code SMS : seau de connexion par numéro." },
+  "/phone-number/send-otp": { kind: "rateLimited", bucket: "auth.otp.send", reason: "Envoi du code téléphonique : disponibilité du transport, puis seau d'envoi par numéro." },
+  "/phone-number/verify": { kind: "rateLimited", bucket: "auth.login", reason: "Connexion ou inscription par code téléphonique : seau de connexion par numéro." },
   "/phone-number/request-password-reset": { kind: "closed", by: "password", reason: "Réinitialisation par SMS : créerait un compte `credential`." },
   "/phone-number/reset-password": { kind: "closed", by: "password", reason: "Réinitialisation par SMS : créerait un compte `credential`." },
   // Routes de service.
@@ -275,7 +276,7 @@ function deliveryState(context: unknown): DeliveryState | null {
   return state && typeof state === "object" && "attempted" in state && "delivered" in state && typeof state.attempted === "boolean" && typeof state.delivered === "boolean" ? state as DeliveryState : null
 }
 
-const rateLimitPlugin = (ctx: GenericCtx<DataModel>): BetterAuthPlugin => ({
+const rateLimitPlugin = (ctx: GenericCtx<DataModel>, requestOrigin?: string | null): BetterAuthPlugin => ({
   id: "engine-auth-rate-limit",
   hooks: {
     before: [
@@ -316,7 +317,8 @@ const rateLimitPlugin = (ctx: GenericCtx<DataModel>): BetterAuthPlugin => ({
         matcher: (hookCtx) => RL_OTP_SEND_PATHS.has(hookCtx.path ?? ""),
         handler: createAuthMiddleware(async (hookCtx) => {
           const available = authenticationConfiguration()
-          if (hookCtx.path === "/phone-number/send-otp" ? !available.smsOtp : !available.emailOtp) throw new APIError("SERVICE_UNAVAILABLE", { message: "otpDeliveryUnavailable", code: "otpDeliveryUnavailable" })
+          const phoneAvailable = isDiasporaEntry(otpRequestOf(hookCtx, requestOrigin).origin) ? whatsappConfiguration() !== null : available.smsOtp
+          if (hookCtx.path === "/phone-number/send-otp" ? !phoneAvailable : !available.emailOtp) throw new APIError("SERVICE_UNAVAILABLE", { message: "otpDeliveryUnavailable", code: "otpDeliveryUnavailable" })
           // Le dispatcher fusionne ce retour dans le contexte de l'endpoint :
           // les données partagées avec le callback vivent dans .context.
           return { context: { context: { engineOtpDelivery: { attempted: false, delivered: false } satisfies DeliveryState } } }
@@ -335,6 +337,22 @@ const rateLimitPlugin = (ctx: GenericCtx<DataModel>): BetterAuthPlugin => ({
             { bucket, key } as never,
           )) as { ok: boolean; retryAfterMs: number }
           if (!result.ok) throw rateLimitedRefusal(result.retryAfterMs)
+        }),
+      },
+      {
+        // L’e-mail reste une connexion pour les anciens membres. Les adresses fictives de
+        // démonstration gardent leur parcours après la garde dédiée ci-dessus.
+        matcher: (hookCtx) => DEMO_GATED_AUTH_PATHS.has(hookCtx.path ?? "") && isDiasporaEntry(otpRequestOf(hookCtx, requestOrigin).origin),
+        handler: createAuthMiddleware(async (hookCtx) => {
+          const email = hookCtx.body?.email
+          if (typeof email !== "string" || (isDemoEmail(email) && demoAccountsAllowed())) return
+          const account = await hookCtx.context.internalAdapter.findUserByEmail(email.trim().toLowerCase())
+          if (account && canRunQuery(ctx) && await ctx.runQuery(
+            internal.modules.diaspora.membership.hasLegacyDiasporaMembership as never,
+            { authUserId: account.user.id } as never,
+          )) return
+          if (hookCtx.path === "/email-otp/send-verification-otp") return hookCtx.json({ success: true })
+          throw new APIError("BAD_REQUEST", { code: "INVALID_OTP", message: "Invalid OTP" })
         }),
       },
     ],
@@ -551,12 +569,20 @@ export const createAuth = (ctx: GenericCtx<DataModel>, requestOrigin?: string | 
       consulatePass(async authUserId => {
         if (!canRunMutation(ctx)) throw new Error("Contexte de passerelle indisponible")
         await ctx.runMutation(internal.modules.diaspora.membership.refreshAfterConsulatePass as never, { authUserId } as never)
+      }, async (authUserId, sessionId, idn) => {
+        if (!canRunQuery(ctx)) throw new Error("Contexte de passerelle indisponible")
+        return await ctx.runQuery(internal.modules.diaspora.membership.consulateEntryState as never, {
+          authUserId, ...(sessionId ? { sessionId } : {}), ...(idn ? { idn } : {}),
+        } as never) as import("./consulatePass").PassEntryState
+      }, async (authUserId, subject, idn) => {
+        if (!canRunMutation(ctx)) throw new Error("Contexte de passerelle indisponible")
+        return await ctx.runMutation(internal.modules.diaspora.membership.linkConsulatePass as never, { authUserId, subject, idn } as never) as boolean
       }),
       nativeIdn({ redirectUri: process.env.NATIVE_AUTH_REDIRECT_URI, siteUrl }),
       oneTimeToken({ expiresIn: 3, storeToken: "plain" }),
       bearer(),
       ...(idnProvider.length ? [genericOAuth({ config: idnProvider })] : []),
-      rateLimitPlugin(ctx),
+      rateLimitPlugin(ctx, requestOrigin),
       // Après `crossDomain` et la garde d'origine : un départ dont l'intention d'entrée n'est pas admise est refusé avant IDN (ADR-0045).
       ...(idnProvider.length ? [idnEntryIntentGuard()] : []),
       // Après la garde d'origine, avant le rappel générique : un refus chez IDN revient à la porte de départ de confiance.
@@ -583,7 +609,22 @@ export const createAuth = (ctx: GenericCtx<DataModel>, requestOrigin?: string | 
         allowedAttempts: 3,
         requireVerification: true,
         phoneNumberValidator: isE164Phone,
-        sendOTP: async ({ phoneNumber: phone, code }, endpoint) => deliverOtp(ctx, "phone", phone, code, otpRequestOf(endpoint, requestOrigin)),
+        async sendOTP({ phoneNumber: phone, code }, endpoint) {
+          const request = otpRequestOf(endpoint, requestOrigin)
+          try {
+            await deliverOtp(ctx, "phone", phone, code, request)
+          } catch (error) {
+            // Better Auth crée le défi avant l’envoi. Retirer seulement le code refusé,
+            // même si une autre demande pour ce numéro a abouti entre-temps.
+            if (endpoint && isDiasporaEntry(request.origin)) {
+              await endpoint.context.adapter.deleteMany({
+                model: "verification",
+                where: [{ field: "identifier", value: phone }, { field: "value", operator: "starts_with", value: `${code}:` }],
+              })
+            }
+            throw error
+          }
+        },
         signUpOnVerification: {
           getTempEmail: (phone) => `${phone.replace(/\D/g, "")}@phone.antsia.invalid`,
           getTempName: () => BRAND_NAME,

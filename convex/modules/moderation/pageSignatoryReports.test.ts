@@ -13,7 +13,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { api, internal } from "../../_generated/api"
 import type { Id } from "../../_generated/dataModel"
 import { SEED_CONFIRMATION } from "../../seeds/foundations"
-import { openNetworkFeatures, testConvex } from "../../test.setup"
+import { joinDeclaredDiasporaFixture, openNetworkFeatures, testConvex } from "../../test.setup"
 
 type T = ReturnType<typeof testConvex>
 type Person = { as: ReturnType<T["withIdentity"]>; personId: Id<"persons"> }
@@ -149,7 +149,7 @@ describe("#114, point 2 — un signataire ne signale pas un évènement de sa pa
     await openNetworkFeatures(t, networkId)
     const join = async (as: Person["as"], personId: Id<"persons">) => {
       await t.run((ctx) => ctx.db.insert("identityLinks", { personId, provider: "idn", subject: `md02-idn-${personId}`, loa: 2, nationality: "GA", linkedAt: NOW }))
-      await as.mutation(api.modules.diaspora.membership.joinDiasporaGa, { networkId, facet: { countryOfResidence: "FR", city: "Lyon" } })
+      await joinDeclaredDiasporaFixture(as, { networkId, facet: { countryOfResidence: "FR", city: "Lyon" } })
     }
     const f = await team(t, networkId, join, "diaspora", "association")
     const start = NOW + 2 * HOUR

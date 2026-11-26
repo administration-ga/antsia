@@ -7,7 +7,7 @@ import { api, internal } from "../../_generated/api"
 import type { Id } from "../../_generated/dataModel"
 import type { MutationCtx } from "../../_generated/server"
 import { SEED_CONFIRMATION } from "../../seeds/foundations"
-import { openNetworkFeatures, testConvex } from "../../test.setup"
+import { joinDeclaredDiasporaFixture, openNetworkFeatures, testConvex } from "../../test.setup"
 import { admitStoredUpload } from "../files/admission"
 import { exportableRecord, type DataRecord } from "../people/dataInventory"
 
@@ -708,7 +708,7 @@ async function associationGroupFixture(t: T) {
     await t.run(async (ctx) => {
       await ctx.db.insert("identityLinks", { personId, provider: "idn", subject: `idn-${handle}`, loa: 2, nationality: "GA", linkedAt: ASSOCIATION_NOW })
     })
-    await as.mutation(api.modules.diaspora.membership.joinDiasporaGa, { networkId, facet: { countryOfResidence: "FR", city: "Lyon" } })
+    await joinDeclaredDiasporaFixture(as, { networkId, facet: { countryOfResidence: "FR", city: "Lyon" } })
     return { as, personId, handle }
   }
   const alice = await member("alice")

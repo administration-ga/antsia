@@ -14,7 +14,7 @@ import { api, components, internal } from "../../_generated/api"
 import type { Id } from "../../_generated/dataModel"
 import schema from "../../schema"
 import { SEED_CONFIRMATION } from "../../seeds/foundations"
-import { createTestSession, openNetworkFeatures, testConvex } from "../../test.setup"
+import { joinDeclaredDiasporaFixture, createTestSession, openNetworkFeatures, testConvex } from "../../test.setup"
 import { sha256Hex, signAttestation } from "./attestation"
 import { applyDerivedStatus, membershipGrounds } from "./facts"
 import { DIASPORA_SLICE_MANIFEST } from "./manifest"
@@ -80,7 +80,7 @@ async function membership(t: T, networkId: Id<"networks">, personId: Id<"persons
 async function verifiedSponsor(t: T, diasporaGa: Id<"networks">, subject: string, handle: string, verifiedDaysAgo = 31) {
   const sponsor = await person(t, subject, handle)
   await linkConsularAttestation(t, sponsor.personId)
-  expect(await sponsor.as.mutation(api.modules.diaspora.membership.joinDiasporaGa, { networkId: diasporaGa, facet: FRANCE })).toMatchObject({
+  expect(await joinDeclaredDiasporaFixture(sponsor.as, { networkId: diasporaGa, facet: FRANCE })).toMatchObject({
     status: "verifiee",
   })
   const row = await membership(t, diasporaGa, sponsor.personId)
@@ -186,7 +186,7 @@ async function refusal(promise: Promise<unknown>) {
 }
 
 async function join(as: As, networkId: Id<"networks">, facet: Record<string, unknown> = FRANCE, directoryVisibility?: "hidden" | "country" | "network") {
-  return await as.mutation(api.modules.diaspora.membership.joinDiasporaGa, {
+  return await joinDeclaredDiasporaFixture(as, {
     networkId,
     facet: facet as { countryOfResidence: string },
     ...(directoryVisibility ? { directoryVisibility } : {}),
@@ -260,8 +260,10 @@ describe("réseau gouverné : les chemins génériques refusent", () => {
     await linkIdn(t, ada.personId, 3, "FR")
     // Une identité IDN étrangère de garantie 3 entrerait « déclarée » par le chemin générique.
     expect((await refusal(ada.as.mutation(api.modules.people.memberships.joinNetwork, { networkId: diasporaGa }))).code).toBe("policyRefused")
-    expect(await join(ada.as, diasporaGa)).toEqual({ status: "en_attente", rootStatus: "verifiee" })
-    const generic = ada.as.mutation(api.modules.people.facets.setMyFacet, {
+    expect((await refusal(join(ada.as, diasporaGa))).app?.appRule).toBe("gabonese_nationality_required")
+    const local = await person(t, "auth-local", "membre.local")
+    await join(local.as, diasporaGa)
+    const generic = local.as.mutation(api.modules.people.facets.setMyFacet, {
       networkId: diasporaGa,
       values: { countryOfResidence: "FR", postSlug: "consulat-general-paris" },
       visibilities: {},
@@ -295,7 +297,7 @@ describe("entrer dans DIASPORA.GA (R1, R3)", () => {
     const cases: [string, (personId: Id<"persons">) => Promise<void>, string][] = [
       ["idn.ga", (id) => linkIdn(t, id, 1, "GA"), "declaree"],
       ["idn.inconnue", (id) => linkIdn(t, id, 2), "declaree"],
-      ["idn.etrangere", (id) => linkIdn(t, id, 3, "SN"), "en_attente"],
+
       ["atteste", (id) => linkConsularAttestation(t, id), "verifiee"],
     ]
     for (const [handle, link, expected] of cases) {
@@ -791,10 +793,10 @@ describe("ce que la personne lit d'elle-même pour DIASPORA.GA", () => {
     const t = testConvex()
     await seedAll(t)
     const ada = await person(t, "auth-ada", "ada")
-    expect(await ada.as.query(api.modules.diaspora.membership.myIdentity, {})).toEqual({ idn: null, consularAttestation: false })
+    expect(await ada.as.query(api.modules.diaspora.membership.myIdentity, {})).toEqual({ idn: null, consularAttestation: false, phoneVerified: false })
     await linkIdn(t, ada.personId, 2, "GA")
     await linkConsularAttestation(t, ada.personId)
-    expect(await ada.as.query(api.modules.diaspora.membership.myIdentity, {})).toEqual({ idn: { loa: 2 }, consularAttestation: true })
+    expect(await ada.as.query(api.modules.diaspora.membership.myIdentity, {})).toEqual({ idn: { loa: 2, gaboneseNationality: true }, consularAttestation: true, phoneVerified: false })
     expect(await t.query(api.modules.diaspora.membership.myIdentity, {})).toBeNull()
   })
 })

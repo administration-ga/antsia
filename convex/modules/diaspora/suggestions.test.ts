@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { api, components, internal } from "../../_generated/api"
 import type { Id } from "../../_generated/dataModel"
 import { SEED_CONFIRMATION } from "../../seeds/foundations"
-import { createTestSession, openNetworkFeatures, testConvex } from "../../test.setup"
+import { joinDeclaredDiasporaFixture, createTestSession, openNetworkFeatures, testConvex } from "../../test.setup"
 
 type T = ReturnType<typeof testConvex>
 const NOW = Date.UTC(2026, 9, 17, 8)
@@ -43,7 +43,7 @@ async function member(t: T, networkId: Id<"networks">, handle: string, options: 
     await ctx.db.insert("identityLinks", { personId, provider: "idn", subject: `idn-${personId}`, loa: 1, nationality: "GA", linkedAt: NOW })
   })
   if (options.listed) await as.mutation(api.modules.people.consents.recordConsent, { purpose: "directory", origin: "onboarding", networkId })
-  await as.mutation(api.modules.diaspora.membership.joinDiasporaGa, {
+  await joinDeclaredDiasporaFixture(as, {
     networkId,
     facet: { countryOfResidence: "FR", city: "Lyon" },
     ...(options.listed ? { directoryVisibility: "network" as const } : {}),

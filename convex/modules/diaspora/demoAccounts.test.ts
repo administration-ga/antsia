@@ -20,7 +20,7 @@ import type { Id } from "../../_generated/dataModel"
 import { demoGateDigest } from "../../lib/demoGate"
 import { DIASPORA_GA_DEMO_EMAIL_DOMAIN } from "../../lib/devTools"
 import { SEED_CONFIRMATION } from "../../seeds/foundations"
-import { createTestSession, openNetworkFeatures, openTestNetworkAdminSession, testConvex } from "../../test.setup"
+import { joinDeclaredDiasporaFixture, createTestSession, openNetworkFeatures, openTestNetworkAdminSession, testConvex } from "../../test.setup"
 import { liveSignatoryRole } from "../pages/access"
 import { admitRequestImpl, allowPhonesImpl, completeVerifyImpl, DEMO_GATE_SESSION_TTL_MS, revokePhonesImpl } from "../platform/demoGate"
 
@@ -168,7 +168,7 @@ async function welcomed(t: T, options: { email: string; handle: string; displayN
 /** L'accueil puis l'entrée réelle dans diaspora-ga (annuaire masqué : aucun consentement d'annuaire à rejouer). */
 async function joinedAs(t: T, diasporaGa: Id<"networks">, options: { email: string; handle: string; displayName: string; country: string; emailVerified?: boolean }) {
   const user = await welcomed(t, options)
-  await user.as.mutation(api.modules.diaspora.membership.joinDiasporaGa, {
+  await joinDeclaredDiasporaFixture(user.as, {
     networkId: diasporaGa,
     facet: { countryOfResidence: options.country },
     directoryVisibility: "hidden",
@@ -949,7 +949,7 @@ describe("comptes de démonstration DIASPORA.GA — membre bloqué", () => {
     await equip(blocked.as, "bloque")
     expect(await blocksAgainst(t, blocked.personId)).toEqual([])
     // Contrôle : de retour dans le réseau, le même bloqueur pose le blocage au prochain équipement.
-    await blocker.as.mutation(api.modules.diaspora.membership.joinDiasporaGa, { networkId: diasporaGa, facet: { countryOfResidence: "FR" }, directoryVisibility: "hidden" })
+    await joinDeclaredDiasporaFixture(blocker.as, { networkId: diasporaGa, facet: { countryOfResidence: "FR" }, directoryVisibility: "hidden" })
     await equip(blocked.as, "bloque")
     expect((await blocksAgainst(t, blocked.personId)).map((row) => row.blockerPersonId)).toEqual([blocker.personId])
   })
@@ -1035,7 +1035,7 @@ describe("comptes de démonstration DIASPORA.GA — extérieur au réseau", () =
     const memberships = await t.run(async (ctx) => await ctx.db.query("networkMemberships").withIndex("by_person_and_status", (q) => q.eq("personId", outsider.personId)).take(10))
     expect(memberships.map((row) => row.networkId)).toEqual([root])
     // Entré de lui-même dans DIASPORA.GA : l'équipement rend son statut et n'y pose rien.
-    await outsider.as.mutation(api.modules.diaspora.membership.joinDiasporaGa, { networkId: diasporaGa, facet: { countryOfResidence: "FR" }, directoryVisibility: "hidden" })
+    await joinDeclaredDiasporaFixture(outsider.as, { networkId: diasporaGa, facet: { countryOfResidence: "FR" }, directoryVisibility: "hidden" })
     expect(await equip(outsider.as, "exterieur")).toEqual({ actor: "exterieur", status: "en_attente", role: "member", pageId: null, pageCreated: false })
     expect(await footprintOf(t, diasporaGa, outsider.personId)).toEqual(UNTOUCHED)
   })
@@ -1126,7 +1126,7 @@ describe("comptes de démonstration DIASPORA.GA — pays ouverts", () => {
     await t.run(async (ctx) => {
       await ctx.db.insert("identityLinks", { personId: admin.personId, provider: "idn", subject: `idn-${admin.personId}`, loa: 2, nationality: "GA", linkedAt: Date.now() })
     })
-    await admin.as.mutation(api.modules.diaspora.membership.joinDiasporaGa, { networkId: diasporaGa, facet: { countryOfResidence: "FR" }, directoryVisibility: "hidden" })
+    await joinDeclaredDiasporaFixture(admin.as, { networkId: diasporaGa, facet: { countryOfResidence: "FR" }, directoryVisibility: "hidden" })
     await t.run(async (ctx) => {
       const row = await ctx.db.query("networkMemberships").withIndex("by_network_and_person", (q) => q.eq("networkId", diasporaGa).eq("personId", admin.personId)).unique()
       await ctx.db.patch(present(row, "adhésion")._id, { role: "network_admin" })
@@ -1360,7 +1360,7 @@ describe("CH-817 E5 — porte armée : l'entrée dans le réseau et la fermeture
 
   async function tryJoin(t: T, diasporaGa: Id<"networks">, options: { email: string; handle: string; displayName: string; country: string; emailVerified?: boolean }) {
     const user = await welcomed(t, options)
-    const refusal = await code(user.as.mutation(api.modules.diaspora.membership.joinDiasporaGa, { networkId: diasporaGa, facet: { countryOfResidence: options.country }, directoryVisibility: "hidden" }))
+    const refusal = await code(joinDeclaredDiasporaFixture(user.as, { networkId: diasporaGa, facet: { countryOfResidence: options.country }, directoryVisibility: "hidden" }))
     const membership = await t.run(async (ctx) => await ctx.db.query("networkMemberships").withIndex("by_network_and_person", (q) => q.eq("networkId", diasporaGa).eq("personId", user.personId)).unique())
     return { refusal, membership }
   }

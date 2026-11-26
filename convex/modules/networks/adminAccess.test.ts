@@ -21,7 +21,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { api, components, internal } from "../../_generated/api"
 import type { Id } from "../../_generated/dataModel"
 import { SEED_CONFIRMATION } from "../../seeds/foundations"
-import { createTestSession, NETWORK_ADMIN_APPLICATION, testConvex } from "../../test.setup"
+import { joinDeclaredDiasporaFixture, createTestSession, NETWORK_ADMIN_APPLICATION, testConvex } from "../../test.setup"
 
 type T = ReturnType<typeof testConvex>
 type As = ReturnType<T["withIdentity"]>
@@ -85,7 +85,7 @@ async function account(t: T, network: Id<"networks">, handle: string, role?: "ne
   await session.as.mutation(api.modules.people.consents.recordConsent, { purpose: "social_profile", origin: "onboarding" })
   await session.as.mutation(api.modules.people.profile.publishMyProfile, { handle, displayName: handle })
   await linkIdn(t, personId, idnSubject)
-  await session.as.mutation(api.modules.diaspora.membership.joinDiasporaGa, { networkId: network, facet: { countryOfResidence: "FR", city: "Paris" } })
+  await joinDeclaredDiasporaFixture(session.as, { networkId: network, facet: { countryOfResidence: "FR", city: "Paris" } })
   if (role) await setRole(t, network, personId, role)
   return { ...session, authUserId, personId, idnSubject }
 }

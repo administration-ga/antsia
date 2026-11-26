@@ -10,6 +10,7 @@ import catalog from "../../deploy/catalog.json"
 import { api, components, internal } from "../_generated/api"
 import { demoGateDigest } from "../lib/demoGate"
 import { allowPhonesImpl, DEMO_GATE_SESSION_TTL_MS, revokePhonesImpl } from "../modules/platform/demoGate"
+import { SEED_CONFIRMATION } from "../seeds/foundations"
 import { createTestSession, testConvex } from "../test.setup"
 import { OTP_TTL_SECONDS } from "./auth"
 import { otpPresentation } from "./delivery"
@@ -143,6 +144,116 @@ async function callbackSessionFixture(t: T) {
   await t.mutation(components.betterAuth.adapter.create, { input: { model: "account", data: { userId, providerId: "idn", accountId: subject, createdAt: now, updatedAt: now } } })
   return { userId, sessionId, subject, session: { ...record(session), id: sessionId, userId } }
 }
+
+async function addHistoricalMembership(t: T, userId: string) {
+  await t.mutation(internal.seeds.foundations.run, { confirmNonProduction: SEED_CONFIRMATION })
+  const { network } = await t.mutation(internal.modules.diaspora.seed.run, { confirmNonProduction: SEED_CONFIRMATION })
+  await t.run(async ctx => {
+    const now = Date.now()
+    const person = await ctx.db.insert("persons", { authUserId: userId, createdAt: now, updatedAt: now })
+    await ctx.db.insert("networkMemberships", {
+      networkId: network, personId: person, role: "member", status: "declaree", joinedAt: now, statusChangedAt: now,
+    })
+  })
+}
+
+describe("connexion téléphone et anciens comptes de DIASPORA.GA", () => {
+  const origin = catalog.applications.diaspora_ga.site_url
+  const endpoint = "https://bird.example.test/messages"
+
+  function configureWhatsApp() {
+    vi.stubEnv("WHATSAPP_PROVIDER", "bird")
+    vi.stubEnv("WHATSAPP_ENDPOINT", endpoint)
+    vi.stubEnv("WHATSAPP_API_KEY", "fictional-workspace-key-0123456789")
+    vi.stubEnv("WHATSAPP_TEMPLATE", "bird_fictional_otp")
+  }
+
+  it("envoie six chiffres au téléphone par WhatsApp et ouvre une seule session avec ce code", async () => {
+    const t = testConvex({ automaticSessions: false })
+    configureWhatsApp()
+    const send = vi.fn(async () => Response.json({ id: "wam_fictional", status: "accepted" }, { status: 202 }))
+    vi.stubGlobal("fetch", send)
+    expect((await t.query(api.modules.platform.authentication.configuration, {})).whatsappOtp).toBe(true)
+    const body = { phoneNumber: PHONE }
+    expect((await request(t, "/phone-number/send-otp", { origin, body })).status).toBe(200)
+    expect(send).toHaveBeenCalledOnce()
+    const [destination, init] = vi.mocked(fetch).mock.calls[0]!
+    expect(destination).toBe(endpoint)
+    const message = JSON.parse(String(init?.body))
+    expect(message.to).toBe(PHONE)
+    const code = message.template.parameters.code
+    expect(code).toMatch(/^\d{6}$/)
+    expect(await t.query(api.modules.platform.devTools.latestOtp, { email: PHONE })).toBeNull()
+    const verification = { ...body, code, disableSession: false }
+    const signedIn = await request(t, "/phone-number/verify", { origin, body: verification, browserCookie: "" })
+    expect(signedIn.status).toBe(200)
+    expect(signedIn.hasBrowserCookie).toBe(true)
+    expect(record(record(signedIn.data).user).phoneNumberVerified).toBe(true)
+    expect((await request(t, "/phone-number/verify", { origin, body: verification })).status).toBe(400)
+  })
+
+  it("rattache la session au compte qui possède déjà ce téléphone vérifié, sans créer de compte ni de niveau 2", async () => {
+    const t = testConvex({ automaticSessions: false })
+    const now = Date.now()
+    const existing = await t.mutation(components.betterAuth.adapter.create, {
+      input: { model: "user", data: { email: EMAIL, emailVerified: true, phoneNumber: PHONE, phoneNumberVerified: true, name: "Ancien compte", createdAt: now, updatedAt: now } },
+    })
+    const existingId = textField(existing, "_id")
+    configureWhatsApp()
+    const send = vi.fn(async () => Response.json({ id: "wam_migration", status: "accepted" }, { status: 202 }))
+    vi.stubGlobal("fetch", send)
+    await request(t, "/phone-number/send-otp", { origin, body: { phoneNumber: PHONE } })
+    const requestBody = JSON.parse(String(vi.mocked(fetch).mock.calls[0]![1]?.body))
+    const signedIn = await request(t, "/phone-number/verify", { origin, body: { phoneNumber: PHONE, code: requestBody.template.parameters.code } })
+    expect(signedIn.status).toBe(200)
+    expect(record(record(signedIn.data).user)).toMatchObject({ id: existingId, email: EMAIL })
+    const users = await t.query(components.betterAuth.adapter.findMany, {
+      model: "user", where: [{ field: "phoneNumber", value: PHONE }], paginationOpts: { cursor: null, numItems: 10 },
+    })
+    expect(users.page).toHaveLength(1)
+    expect(await t.run(ctx => ctx.db.query("consularAttestations").first())).toBeNull()
+    expect(await t.run(ctx => ctx.db.query("networkMemberships").first())).toBeNull()
+  })
+
+  it("ferme la porte si WhatsApp est absent ou refuse le message, sans repli sur le SMS", async () => {
+    const t = testConvex({ automaticSessions: false })
+    vi.stubEnv("WHATSAPP_PROVIDER", undefined)
+    const body = { phoneNumber: PHONE }
+    expect((await t.query(api.modules.platform.authentication.configuration, {})).whatsappOtp).toBe(false)
+    const unavailable = await request(t, "/phone-number/send-otp", { origin, body })
+    expect(unavailable.status).toBe(503)
+    configureWhatsApp()
+    const send = vi.fn(async () => new Response(null, { status: 401 }))
+    vi.stubGlobal("fetch", send)
+    expect((await request(t, "/phone-number/send-otp", { origin, body })).status).toBe(503)
+    expect(send).toHaveBeenCalledOnce()
+    expect(await t.query(components.betterAuth.adapter.findOne, {
+      model: "verification", where: [{ field: "identifier", value: PHONE }],
+    })).toBeNull()
+  })
+
+  it("réserve l’e-mail à la connexion des comptes existants", async () => {
+    const t = testConvex({ automaticSessions: false })
+    const body = { email: EMAIL, type: "sign-in" }
+    expect((await request(t, "/email-otp/send-verification-otp", { origin, body })).status).toBe(200)
+    expect(await t.query(api.modules.platform.devTools.latestOtp, { email: EMAIL })).toBeNull()
+    expect((await request(t, "/sign-in/email-otp", { origin, body: { email: EMAIL, otp: "123456" } })).status).toBe(400)
+  })
+
+  it("un compte ANTSIA ne se connecte par e-mail à Diaspora qu’après une adhésion existante", async () => {
+    const t = testConvex({ automaticSessions: false })
+    const body = { email: EMAIL, type: "sign-in" }
+    const existing = await loggedIn(t, "email")
+    const codeForRootAccount = await issueCode(t, "email")
+    expect((await request(t, "/sign-in/email-otp", { origin, body: { email: EMAIL, otp: codeForRootAccount.code } })).status).toBe(400)
+    await addHistoricalMembership(t, existing.userId)
+    expect((await request(t, "/email-otp/send-verification-otp", { origin, body })).status).toBe(200)
+    const sent = await t.query(api.modules.platform.devTools.latestOtp, { email: EMAIL })
+    const signedIn = await request(t, "/sign-in/email-otp", { origin, body: { email: EMAIL, otp: sent!.code } })
+    expect(signedIn.status).toBe(200)
+    expect(record(record(signedIn.data).user).id).toBe(existing.userId)
+  })
+})
 
 describe("connexion légère e-mail et SMS réelle dans Better Auth", () => {
   it.each(["email", "phone"] as const)("le code %s crée un utilisateur et une session de sept jours sans publier de profil", async (channel) => {
@@ -558,7 +669,15 @@ describe("langue de la personne et marque du réseau dans le code de connexion",
   }
 
   async function sendEmailCode(t: T, options: { origin: string; acceptLanguage?: string; email?: string }) {
-    const response = await request(t, "/email-otp/send-verification-otp", { origin: options.origin, acceptLanguage: options.acceptLanguage, body: { email: options.email ?? EMAIL, type: "sign-in" } })
+    const email = options.email ?? EMAIL
+    if (options.origin === DIASPORA_GA_ORIGIN) {
+      const now = Date.now()
+      const user = await t.mutation(components.betterAuth.adapter.create, {
+        input: { model: "user", data: { email, emailVerified: true, name: "Membre existant", createdAt: now, updatedAt: now } },
+      })
+      await addHistoricalMembership(t, textField(user, "_id"))
+    }
+    const response = await request(t, "/email-otp/send-verification-otp", { origin: options.origin, acceptLanguage: options.acceptLanguage, body: { email, type: "sign-in" } })
     expect(response.status).toBe(200)
   }
 
@@ -608,7 +727,7 @@ describe("langue de la personne et marque du réseau dans le code de connexion",
     expect(lastEmail(send).subject).toBe("Votre code de connexion ANTSIA")
   })
 
-  it("le SMS demandé en anglais sur diaspora.ga part en anglais, à la marque DIASPORA.GA", async () => {
+  it("le réseau ANTSIA conserve son relais SMS et la langue demandée", async () => {
     vi.stubEnv("CONVEX_CLOUD_URL", "https://backend.example.test")
     vi.stubEnv("SMS_PROVIDER", "webhook")
     vi.stubEnv("SMS_ENDPOINT", "https://sms.example.test/send")
@@ -616,14 +735,14 @@ describe("langue de la personne et marque du réseau dans le code de connexion",
     const relay = vi.fn(async (_url: string | URL | Request, _init?: RequestInit) => new Response(null, { status: 202 }))
     vi.stubGlobal("fetch", relay)
     const t = testConvex({ automaticSessions: false })
-    const response = await request(t, "/phone-number/send-otp", { origin: DIASPORA_GA_ORIGIN, acceptLanguage: "en-GB,en;q=0.9", body: { phoneNumber: PHONE } })
+    const response = await request(t, "/phone-number/send-otp", { origin: ANTSIA_ORIGIN, acceptLanguage: "en-GB,en;q=0.9", body: { phoneNumber: PHONE } })
     expect(response.status).toBe(200)
     expect(relay).toHaveBeenCalledOnce()
     const [url, init] = relay.mock.calls[0] ?? []
     expect(url).toBe("https://sms.example.test/send")
     const body = record(JSON.parse(String(init?.body)))
     expect(body).toMatchObject({ to: PHONE, type: "otp", ttlSeconds: 300 })
-    expect(textField(body, "text")).toMatch(ENGLISH_DIASPORA_GA)
+    expect(textField(body, "text")).toMatch(/^Your ANTSIA code: \d{6}\. It expires in five minutes\.$/)
   })
 
   it("la marque vient de l'origine vérifiée, en production comme en local ; la langue, de la requête puis du déploiement", () => {

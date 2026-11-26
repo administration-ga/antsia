@@ -130,6 +130,10 @@ export const diasporaTables = {
   }).index("by_network_and_importRef", ["networkId", "importRef"]),
 
   memberPrivacy: defineTable({
+    /** Seule l'empreinte du sujet vérifié est conservée. Une panne ne révoque pas une preuve acquise. */
+    consulateLookup: v.optional(v.object({ subjectDigest: v.string(), confirmed: v.boolean(), retryAt: v.number(), requestId: v.optional(v.string()) })),
+    /** Déclaration fournie à l'adhésion par WhatsApp, privée comme les réglages du membre. */
+    phoneRegistration: v.optional(v.object({ firstName: v.string(), lastName: v.string(), nationality: v.literal("GA"), declaredAt: v.number() })),
     networkId: v.id("networks"),
     personId: v.id("persons"),
     facetLevels: facetLevelsValidator,

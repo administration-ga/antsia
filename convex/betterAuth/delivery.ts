@@ -1,4 +1,4 @@
-/** PA4 — courriels via Resend et SMS via relais HTTP authentifié configuré par le propriétaire. */
+/** Livraison des codes de connexion : e-mail par Resend, téléphone par WhatsApp sur Diaspora et par SMS sur le réseau racine. */
 import { otpLocale, type OtpLocale, otpMessage } from "@antsia/social-contracts/authentication"
 import { BRAND_NAME } from "@antsia/social-contracts/brand"
 import { Resend } from "@convex-dev/resend"
@@ -7,6 +7,7 @@ import type { GenericCtx } from "@convex-dev/better-auth"
 
 import { components, internal } from "../_generated/api"
 import type { DataModel } from "../_generated/dataModel"
+import { sendWhatsAppOtp, whatsappConfiguration } from "../lib/whatsappDelivery"
 import { demoCodeReadable } from "../lib/devTools"
 import { DIASPORA_SLICE_MANIFEST } from "../modules/diaspora/manifest"
 import { type ApplicationKey, applicationOfOrigin, OTP_TTL_SECONDS, smsConfiguration } from "./settings"
@@ -36,12 +37,22 @@ export function otpPresentation(request: OtpRequest, env: Record<string, string 
   }
 }
 
+export function isDiasporaEntry(origin: string | null | undefined): boolean {
+  return applicationOfOrigin(origin) === DIASPORA_SLICE_MANIFEST.application
+}
+
 function unavailable(): never {
   throw new APIError("SERVICE_UNAVAILABLE", { message: "otpDeliveryUnavailable", code: "otpDeliveryUnavailable" })
 }
 
 export async function deliverOtp(ctx: GenericCtx<DataModel>, channel: "email" | "phone", identifier: string, code: string, request: OtpRequest): Promise<void> {
   if (!("runMutation" in ctx)) return unavailable()
+  if (channel === "phone" && isDiasporaEntry(request.origin)) {
+    const { locale } = otpPresentation(request)
+    const delivered = await sendWhatsAppOtp({ to: identifier, code, locale, ttlMinutes: OTP_TTL_SECONDS / 60 }, whatsappConfiguration())
+    if (delivered.status !== "accepted") return unavailable()
+    return
+  }
   // Développement local : tout code s'affiche à l'écran. Démonstration déclarée :
   // seuls ceux des adresses réservées (jamais routables), les autres partent normalement.
   if (demoCodeReadable(identifier)) {

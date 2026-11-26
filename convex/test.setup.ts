@@ -218,3 +218,5 @@ export function testConvex({ automaticSessions = true }: { automaticSessions?: b
     },
   })
 }
+
+export { joinDeclaredDiasporaFixture } from "./modules/diaspora/tests/registrationFixture.setup"

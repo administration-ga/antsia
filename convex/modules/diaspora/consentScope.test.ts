@@ -15,7 +15,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { api, internal } from "../../_generated/api"
 import type { Id } from "../../_generated/dataModel"
 import { SEED_CONFIRMATION } from "../../seeds/foundations"
-import { openNetworkFeatures, testConvex } from "../../test.setup"
+import { joinDeclaredDiasporaFixture, openNetworkFeatures, testConvex } from "../../test.setup"
 import { notificationConsent } from "../notifications/consent"
 import { consentInForce } from "./facts"
 
@@ -45,7 +45,7 @@ async function member(t: T, diasporaGa: Id<"networks">, handle = "ada") {
   await t.run(async (ctx) => {
     await ctx.db.insert("identityLinks", { personId, provider: "idn", subject: `idn-${personId}`, loa: 1, nationality: "GA", linkedAt: Date.now() })
   })
-  expect(await as.mutation(api.modules.diaspora.membership.joinDiasporaGa, { networkId: diasporaGa, facet: { countryOfResidence: "FR", city: "Lyon" } })).toMatchObject({ status: "declaree" })
+  expect(await joinDeclaredDiasporaFixture(as, { networkId: diasporaGa, facet: { countryOfResidence: "FR", city: "Lyon" } })).toMatchObject({ status: "declaree" })
   return { as, personId }
 }
 

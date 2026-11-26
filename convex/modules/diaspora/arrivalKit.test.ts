@@ -14,7 +14,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { api, internal } from "../../_generated/api"
 import type { Doc, Id } from "../../_generated/dataModel"
 import { SEED_CONFIRMATION } from "../../seeds/foundations"
-import { openNetworkFeatures, testConvex } from "../../test.setup"
+import { joinDeclaredDiasporaFixture, openNetworkFeatures, testConvex } from "../../test.setup"
 
 type T = ReturnType<typeof testConvex>
 type Member = Awaited<ReturnType<typeof member>>
@@ -66,7 +66,7 @@ async function member(t: T, networkId: Id<"networks">, handle: string, options: 
       })
     }
   })
-  await as.mutation(api.modules.diaspora.membership.joinDiasporaGa, { networkId, facet: { countryOfResidence: "FR", city: "Paris" } })
+  await joinDeclaredDiasporaFixture(as, { networkId, facet: { countryOfResidence: "FR", city: "Paris" } })
   return { as, personId, handle }
 }
 
