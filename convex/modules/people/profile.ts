@@ -26,8 +26,7 @@ import { syncPersonDirectory } from "./directory"
 import { isHandleFreeFor } from "./handleAvailability"
 import { clearIdnPrefillIdentity } from "./idnPrefill"
 import { revokeAdministrationForPerson } from "../federation/agentLifecycle"
-import { findPublishedPersonByHandle, isPublishedPerson } from "./miniProfile"
-import { badgesOf } from "./persons"
+import { findPublishedPersonByHandle, isPublishedPerson, publishedProfileBadges } from "./miniProfile"
 
 /**
  * @selfScoped La personne de la session reçoit les identifiants proposés à
@@ -292,7 +291,7 @@ export const getPublicProfile = networkQuery({
       headline: person.headline ?? null,
       avatar: await image(person.avatarStorageId),
       cover: await image(person.coverStorageId),
-      badges: await badgesOf(ctx, person._id),
+      badges: await publishedProfileBadges(ctx, person._id),
       isMe: person._id === ctx.person._id,
     }
   },

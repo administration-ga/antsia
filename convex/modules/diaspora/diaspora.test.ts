@@ -90,6 +90,87 @@ async function verifiedSponsor(t: T, diasporaGa: Id<"networks">, subject: string
   return sponsor
 }
 
+describe("Adhésion vérifiée par CONSULAT.GA et code de parrainage", () => {
+  const member = api.modules.diaspora.membership
+
+  async function linkConsulateAccount(t: T, userId: string) {
+    await t.mutation(components.betterAuth.adapter.create, { input: { model: "account", data: {
+      accountId: await sha256Hex(userId), providerId: "consulat", userId, createdAt: Date.now(), updatedAt: Date.now(),
+    } } })
+  }
+
+  it("vérifie à l'entrée, réserve la preuve à DIASPORA.GA et consomme chaque code une seule fois", async () => {
+    const t = testConvex()
+    const { diasporaGa, root } = await seedAll(t)
+    const sponsor = await person(t, "user-consulat", "membre.consulat")
+    await linkConsulateAccount(t, "user-consulat")
+    expect(await join(sponsor.as, diasporaGa)).toMatchObject({ status: "verifiee", rootStatus: "declaree" })
+    const args = { networkId: diasporaGa }
+    const view = await sponsor.as.query(member.myMembership, args)
+    expect(view).toMatchObject({ status: "verifiee", role: "member", badges: ["verified"], statusOutdated: false, attestation: { outcome: "none" } })
+    expect(view?.capabilities).toContain("sponsor")
+    const profile = api.modules.people.profile.getPublicProfile
+    expect(await sponsor.as.query(profile, { networkId: diasporaGa, handle: "membre.consulat" })).toMatchObject({ badges: ["verified"] })
+    expect(await sponsor.as.query(profile, { networkId: root, handle: "membre.consulat" })).toMatchObject({ badges: ["community"] })
+    const dashboard = await sponsor.as.query(member.sponsorDashboard, args)
+    expect(dashboard).toMatchObject({ eligible: true, remaining: 10, code: expect.stringMatching(/^[0-9A-F]{16}$/) })
+    const code = dashboard.code!
+    const newcomer = await person(t, "user-nouveau", "membre.nouveau")
+    await join(newcomer.as, diasporaGa)
+    expect((await newcomer.as.query(member.sponsorDashboard, args)).code).toBeNull()
+    expect((await refusal(sponsor.as.mutation(member.redeemSponsorCode, { ...args, code }))).app?.appRule).toBe("target_not_eligible")
+    expect((await refusal(newcomer.as.mutation(member.redeemSponsorCode, { networkId: root, code }))).code).toBe("notFound")
+    await newcomer.as.mutation(member.redeemSponsorCode, { ...args, code: code.toLowerCase() })
+    expect(await newcomer.as.query(member.myMembership, args)).toMatchObject({ status: "declaree", sponsoredBy: { handle: "membre.consulat" } })
+    const next = await sponsor.as.query(member.sponsorDashboard, args)
+    expect(next.remaining).toBe(9)
+    expect(next.code).toBeTruthy()
+    expect(next.code).not.toBe(code)
+    const other = await person(t, "user-autre", "membre.autre")
+    await join(other.as, diasporaGa)
+    expect((await refusal(other.as.mutation(member.redeemSponsorCode, { ...args, code }))).app?.appRule).toBe("target_not_eligible")
+    const sponsorRoot = await membership(t, root, sponsor.personId)
+    await t.run(ctx => ctx.db.patch(sponsorRoot!._id, { status: "suspendue", statusBeforeSuspension: "declaree" }))
+    expect((await refusal(other.as.mutation(member.redeemSponsorCode, { ...args, code: next.code! }))).app?.appRule).toBe("target_not_eligible")
+  })
+
+  it("attribue un code aux adhésions vérifiées d'avant les codes, sans modifier leur ancienneté", async () => {
+    const t = testConvex()
+    const { diasporaGa } = await seedAll(t)
+    const args = { networkId: diasporaGa }
+    const citizen = await verifiedSponsor(t, diasporaGa, "user-historique", "membre.historique")
+    const previous = await membership(t, diasporaGa, citizen.personId)
+    await t.run(async ctx => {
+      const code = await ctx.db.query("sponsorshipCodes").withIndex("by_network_and_person", q => q.eq("networkId", diasporaGa).eq("personId", citizen.personId)).unique()
+      await ctx.db.delete(code!._id)
+    })
+    expect(await citizen.as.query(member.myMembership, args)).toMatchObject({ statusOutdated: true })
+    await citizen.as.mutation(member.refreshMyMembership, args)
+    expect(await citizen.as.query(member.sponsorDashboard, args)).toMatchObject({ eligible: true, code: expect.any(String) })
+    expect((await membership(t, diasporaGa, citizen.personId))?.statusChangedAt).toBe(previous?.statusChangedAt)
+  })
+
+  it("rattrape un membre déjà entré lors du rattachement consulaire et conserve son code à la reconnexion", async () => {
+    const t = testConvex()
+    const { diasporaGa } = await seedAll(t)
+    const args = { networkId: diasporaGa }
+    const citizen = await person(t, "user-existant", "membre.existant")
+    expect(await join(citizen.as, diasporaGa)).toMatchObject({ status: "en_attente" })
+    await linkConsulateAccount(t, "user-existant")
+    expect(await citizen.as.query(member.myMembership, args)).toMatchObject({ statusOutdated: true })
+    await t.mutation(internal.modules.diaspora.membership.refreshAfterConsulatePass, { authUserId: "user-existant" })
+    expect(await citizen.as.query(member.myMembership, args)).toMatchObject({ status: "verifiee", statusOutdated: false })
+    const before = await citizen.as.query(member.sponsorDashboard, args)
+    expect(before.code).toBeTruthy()
+    await citizen.as.mutation(member.refreshMyMembership, args)
+    expect(await citizen.as.query(member.sponsorDashboard, args)).toEqual(before)
+    await citizen.as.mutation(member.leaveDiasporaGa, args)
+    expect(await citizen.as.query(member.myMembership, args)).toMatchObject({ status: "partie", statusOutdated: false })
+    await join(citizen.as, diasporaGa)
+    expect((await citizen.as.query(member.sponsorDashboard, args)).code).not.toBe(before.code)
+  })
+})
+
 async function caught(promise: Promise<unknown>): Promise<unknown> {
   try {
     await promise
@@ -404,7 +485,12 @@ describe("parrainage (EXF-DG-04, arbitrage A3)", () => {
     expect((await refusal(declared.as.mutation(api.modules.diaspora.membership.sponsor, { networkId: diasporaGa, handle: "compte.leger" }))).app?.appRule).toBe(
       "sponsor_not_verified",
     )
-    const recent = await verifiedSponsor(t, diasporaGa, "auth-recent", "recent", 2)
+    // Vérifié par IDN et parrainage, sans preuve consulaire : l'ancienneté ordinaire reste requise.
+    const recent = await person(t, "auth-recent", "recent")
+    await linkIdn(t, recent.personId, 2, "GA")
+    await join(recent.as, diasporaGa)
+    const priorSponsor = await verifiedSponsor(t, diasporaGa, "auth-anterieur", "anterieur")
+    await priorSponsor.as.mutation(api.modules.diaspora.membership.sponsor, { networkId: diasporaGa, handle: "recent" })
     const tooRecent = await refusal(recent.as.mutation(api.modules.diaspora.membership.sponsor, { networkId: diasporaGa, handle: "compte.leger" }))
     expect(tooRecent.app?.appRule).toBe("sponsor_too_recent")
     expect(tooRecent.app?.appParams.availableAt).toBeGreaterThan(Date.now())

@@ -18,6 +18,7 @@ import {
   checkSponsorship,
   CONSENT_PURPOSES as DIASPORA_GA_CONSENT_PURPOSES,
   checkSponsorshipRevocation,
+  DIASPORA_GA_NETWORK,
   DEFAULT_DIRECTORY_VISIBILITY,
   deriveMembershipStatus,
   type DiasporaFacet,
@@ -29,17 +30,19 @@ import {
   type SponsorFacts,
   type SponsorshipRefusal,
   sponsorSeniorityReachedAt,
+  sponsorSeniorityWaived,
   SPONSORSHIP_WINDOW_DAYS,
   sponsorshipWindowStart,
   SPONSORSHIPS_PER_WINDOW,
   sponsorStanding,
+  normalizeSponsorCode,
   toEngineFacet,
   writeRateTier,
 } from "@diaspora-ga/domain"
 import { v } from "convex/values"
 
 import type { Doc, Id } from "../../_generated/dataModel"
-import { query, type QueryCtx } from "../../_generated/server"
+import { internalMutation, query, type MutationCtx, type QueryCtx } from "../../_generated/server"
 import { getCurrentPerson, getMembership, getRootNetwork } from "../../lib/access"
 import { demoGateState } from "../../lib/demoGate"
 import { isDemoEmail } from "../../lib/devTools"
@@ -47,6 +50,7 @@ import { checked, fail, failAppRule, notFound } from "../../lib/errors"
 import { networkAdminMutation, networkMutation, networkQuery, personMutation } from "../../lib/functions"
 import { enforceRateLimit } from "../../lib/rateLimit"
 import { membershipRoleValidator, membershipStatusValidator } from "../../lib/validators"
+import { assertSocialWriteAllowed } from "../moderation/policy"
 import { isBlockedBetween } from "../graph/graph"
 import { admitToNetwork, setMembershipStatus, writeNetworkFacet } from "../people/admission"
 import { notifyPerson } from "../notifications/notify"
@@ -67,6 +71,10 @@ import {
   endSponsorshipOnDeparture,
   facetOf,
   groundsFrom,
+  hasConsulateAccount,
+  ensureSponsorCode,
+  newSponsorCode,
+  sponsorCodeOf,
   isDiasporaNetwork,
   membershipGrounds,
   privacyOf,
@@ -178,6 +186,7 @@ export const joinDiasporaGa = personMutation({
         ? await applyDerivedStatus(ctx, existing, grounds, sponsorship?.sponsorPersonId ?? null, now)
         : admitted.status
 
+    if (status === "verifiee" && (!existing || existing.status === "partie")) await ensureSponsorCode(ctx, network._id, ctx.person._id)
     await writeNetworkFacet(ctx, network, ctx.person._id, toEngineFacet(facet.value))
     await writePrivacy(ctx, network._id, ctx.person._id, { facetLevels: facet.value.visibility, directoryVisibility })
     // Annuaire opt-in : masqué par défaut, listé au seul choix d'un niveau visible.
@@ -191,22 +200,23 @@ export const joinDiasporaGa = personMutation({
  * dispense, accordée avec une admission fondatrice en vigueur, EA-01), son quota glissant.
  */
 async function sponsorFactsOf(
-  ctx: QueryCtx & { networkId: Id<"networks">; person: Doc<"persons">; membership: Doc<"networkMemberships"> },
+  ctx: QueryCtx,
+  membership: Doc<"networkMemberships">,
   now: number,
 ): Promise<SponsorFacts> {
   // borné : au-delà du quota, le refus est acquis ; inutile de compter plus loin.
   const recent = await ctx.db
     .query("sponsorships")
     .withIndex("by_network_and_sponsor_and_createdAt", (q) =>
-      q.eq("networkId", ctx.networkId).eq("sponsorPersonId", ctx.person._id).gt("createdAt", sponsorshipWindowStart(now)),
+      q.eq("networkId", membership.networkId).eq("sponsorPersonId", membership.personId).gt("createdAt", sponsorshipWindowStart(now)),
     )
     .take(SPONSORSHIPS_PER_WINDOW)
-  const status = ctx.membership.status
-  const founding = status === "verifiee" ? await activeFoundingAdmissionOf(ctx, ctx.networkId, ctx.person._id) : null
+  const grounds = membership.status === "verifiee" ? await membershipGrounds(ctx, membership.networkId, membership.personId, membership) : null
+  const status = grounds ? deriveMembershipStatus(grounds, now) : membership.status
   return {
     status,
-    ...(status === "verifiee" ? { verifiedSince: ctx.membership.statusChangedAt } : {}),
-    ...(founding?.seniorityWaiver === true ? { seniorityWaived: true } : {}),
+    ...(status === "verifiee" ? { verifiedSince: membership.statusChangedAt } : {}),
+    ...(grounds && sponsorSeniorityWaived(grounds) ? { seniorityWaived: true } : {}),
     sponsorshipsInWindow: recent.length,
   }
 }
@@ -234,7 +244,7 @@ export const sponsor = networkMutation({
     assertDiasporaNetwork(ctx.network)
     await enforceRateLimit(ctx, "diaspora.sponsor", ctx.person._id)
     const now = Date.now()
-    const facts = await sponsorFactsOf(ctx, now)
+    const facts = await sponsorFactsOf(ctx, ctx.membership, now)
     // Une personne joignable (profil publié, membre active du réseau), et sans blocage
     // dans la paire, dans un sens ou dans l'autre : sinon, le même refus indistinct.
     const target = await findPublishedPersonByHandle(ctx, ctx.networkId, handle.trim().replace(/^@/, ""))
@@ -253,17 +263,48 @@ export const sponsor = networkMutation({
     // Inatteignable : la règle a déjà refusé une cible absente ou non membre.
     if (!target || blocked || !targetAccess?.membership) return notFound()
 
-    const sponsorshipId = await ctx.db.insert("sponsorships", {
-      networkId: ctx.networkId,
-      sponsorPersonId: ctx.person._id,
-      sponsoredPersonId: target._id,
-      createdAt: now,
-    })
-    const grounds = await membershipGrounds(ctx, ctx.networkId, target._id, targetAccess.membership)
-    await applyDerivedStatus(ctx, targetAccess.membership, grounds, ctx.person._id, now)
-    // La cloche de la personne parrainée : qui l'a admise (mini-profil publié du parrain).
-    await notifyPerson(ctx, { networkId: ctx.networkId, recipientPersonId: target._id, actorPersonId: ctx.person._id, kind: "sponsorship_received" })
-    return { sponsorshipId }
+    return await recordSponsorship(ctx, ctx.person._id, targetAccess.membership, now)
+  },
+})
+
+async function recordSponsorship(ctx: MutationCtx, sponsorPersonId: Id<"persons">, target: Doc<"networkMemberships">, now: number) {
+  const { networkId, personId } = target
+  const sponsorshipId = await ctx.db.insert("sponsorships", { networkId, sponsorPersonId, sponsoredPersonId: personId, createdAt: now })
+  const grounds = await membershipGrounds(ctx, networkId, personId, target)
+  await applyDerivedStatus(ctx, target, grounds, sponsorPersonId, now)
+  await notifyPerson(ctx, { networkId, recipientPersonId: personId, actorPersonId: sponsorPersonId, kind: "sponsorship_received" })
+  return { sponsorshipId }
+}
+
+/** Le code confié par le parrain autorise un parrainage. Sa consommation et son remplacement sont atomiques. */
+export const redeemSponsorCode = networkMutation({
+  minStatus: "en_attente",
+  writeBucket: "diaspora.sponsor",
+  args: { code: v.string() },
+  returns: v.object({ sponsorshipId: v.id("sponsorships") }),
+  handler: async (ctx, { code }) => {
+    assertDiasporaNetwork(ctx.network)
+    const token = normalizeSponsorCode(code)
+    const refuseCode = () => failAppRule("target_not_eligible")
+    if (!token) return refuseCode()
+    const invitation = await ctx.db.query("sponsorshipCodes").withIndex("by_network_and_token", q => q.eq("networkId", ctx.networkId).eq("token", token)).unique()
+    if (!invitation || invitation.personId === ctx.person._id) return refuseCode()
+    const sponsor = await effectiveStatusIn(ctx, ctx.network, invitation.personId)
+    const person = await ctx.db.get(invitation.personId)
+    if (!sponsor.membership || sponsor.status !== "verifiee" || !person?.handle || !ctx.person.handle) return refuseCode()
+    if (!await findPublishedPersonByHandle(ctx, ctx.networkId, person.handle) ||
+        !await findPublishedPersonByHandle(ctx, ctx.networkId, ctx.person.handle) ||
+        await isBlockedBetween(ctx, invitation.personId, ctx.person._id)) return refuseCode()
+    await assertSocialWriteAllowed(ctx, ctx.networkId, invitation.personId)
+    const now = Date.now()
+    const standing = await sponsorFactsOf(ctx, sponsor.membership, now)
+    const check = checkSponsorship(standing, {
+      isSelf: false, status: ctx.membership.status,
+      alreadySponsored: (await activeSponsorshipOf(ctx, ctx.networkId, ctx.person._id)) !== null,
+    }, now)
+    if (!check.ok) return refuseCode()
+    await ctx.db.patch(invitation._id, { token: newSponsorCode() })
+    return await recordSponsorship(ctx, invitation.personId, ctx.membership, now)
   },
 })
 
@@ -378,9 +419,28 @@ export const leaveDiasporaGa = networkMutation({
     await assertLeaveKeepsNetworkAdmin(ctx, ctx.networkId, ctx.person._id)
     await enforceRateLimit(ctx, "network.leave", ctx.person._id)
     const now = Date.now()
+    const code = await sponsorCodeOf(ctx, ctx.networkId, ctx.person._id)
+    if (code) await ctx.db.delete(code._id)
     await endSponsorshipOnDeparture(ctx, ctx.networkId, ctx.person._id, now)
     await endFoundingAdmissionOnDeparture(ctx, ctx.networkId, ctx.person._id, now)
     await setMembershipStatus(ctx, ctx.membership, "partie", { leftAt: now, sponsorPersonId: undefined })
+    return null
+  },
+})
+
+/** À l'échange réussi, les droits du membre existant sont prêts avant sa redirection. */
+export const refreshAfterConsulatePass = internalMutation({
+  args: { authUserId: v.string() },
+  returns: v.null(),
+  handler: async (ctx, { authUserId }) => {
+    const person = await ctx.db.query("persons").withIndex("by_authUserId", q => q.eq("authUserId", authUserId)).unique()
+    if (!person || !await hasConsulateAccount(ctx, person)) return null
+    const network = await ctx.db.query("networks").withIndex("by_slug", q => q.eq("slug", DIASPORA_GA_NETWORK.slug)).unique()
+    if (!isDiasporaNetwork(network)) return null
+    const access = await effectiveStatusIn(ctx, network, person._id)
+    if (access.membership && access.status !== null && isActiveStatus(access.status)) {
+      await rederiveMembership(ctx, access.membership, Date.now())
+    }
     return null
   },
 })
@@ -404,7 +464,10 @@ export const refreshMyMembership = personMutation({
     const before = access.membership.status
     const now = Date.now()
     const grounds = await membershipGrounds(ctx, network._id, ctx.person._id, access.membership)
-    if (membershipStatusDrift(before, grounds, now) === null) return { status: before, changed: false }
+    if (membershipStatusDrift(before, grounds, now) === null) {
+      if (before === "verifiee") await ensureSponsorCode(ctx, networkId, ctx.person._id)
+      return { status: before, changed: false }
+    }
     const status = await rederiveMembership(ctx, access.membership, now)
     return { status, changed: status !== before }
   },
@@ -463,8 +526,9 @@ export const myMembership = query({
     })
     const sponsorship = await activeSponsorshipOf(ctx, network._id, person._id)
     // EA-03 : les mêmes faits que l'acte (`groundsFrom`), relus contre le statut enregistré.
-    const grounds = groundsFrom({ links, sponsorship, foundingAdmission: await activeFoundingAdmissionOf(ctx, network._id, person._id), membership })
-    const statusOutdated = isActiveStatus(status) && membershipStatusDrift(membership.status, grounds, Date.now()) !== null
+    const grounds = groundsFrom({ consulateAccount: await hasConsulateAccount(ctx, person), links, sponsorship, foundingAdmission: await activeFoundingAdmissionOf(ctx, network._id, person._id), membership })
+    const statusOutdated = isActiveStatus(status) && (membershipStatusDrift(membership.status, grounds, Date.now()) !== null ||
+      (status === "verifiee" && !await sponsorCodeOf(ctx, networkId, person._id)))
     // borné : une demande d'attestation par 24 h ; les dix dernières suffisent à trouver celle du réseau.
     const requests = await ctx.db
       .query("consularAttestations")
@@ -505,6 +569,7 @@ export const sponsorDashboard = networkQuery({
   args: {},
   returns: v.object({
     eligible: v.boolean(),
+    code: v.union(v.string(), v.null()),
     refusal: v.union(sponsorshipRefusalValidator, v.null()),
     remaining: v.number(),
     windowDays: v.number(),
@@ -521,7 +586,7 @@ export const sponsorDashboard = networkQuery({
   handler: async (ctx) => {
     assertDiasporaNetwork(ctx.network)
     const now = Date.now()
-    const standing = sponsorStanding(await sponsorFactsOf(ctx, now), now)
+    const standing = sponsorStanding(await sponsorFactsOf(ctx, ctx.membership, now), now)
     const rows = await ctx.db
       .query("sponsorships")
       .withIndex("by_network_and_sponsor_and_createdAt", (q) => q.eq("networkId", ctx.networkId).eq("sponsorPersonId", ctx.person._id))
@@ -536,7 +601,8 @@ export const sponsorDashboard = networkQuery({
         revokedAt: row.revokedAt ?? null,
       })
     }
-    return { ...standing, given }
+    const code = standing.eligible ? (await sponsorCodeOf(ctx, ctx.networkId, ctx.person._id))?.token ?? null : null
+    return { ...standing, code, given }
   },
 })
 

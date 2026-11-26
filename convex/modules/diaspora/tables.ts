@@ -62,6 +62,13 @@ export const COMMUNITY_IMPORT_KINDS = ["consular_posts", "associations", "compan
 export const COMMUNITY_IMPORT_STATUSES = ["pending", "applied", "rejected"] as const
 
 export const diasporaTables = {
+  sponsorshipCodes: defineTable({
+    networkId: v.id("networks"),
+    personId: v.id("persons"),
+    token: v.string(),
+  }).index("by_network_and_person", ["networkId", "personId"])
+    .index("by_network_and_token", ["networkId", "token"]),
+
   countryHubs: defineTable({
     networkId: v.id("networks"),
     /** ISO 3166-1 alpha-2, jamais le Gabon. */
