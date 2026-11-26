@@ -87,7 +87,14 @@ export const AVATAR_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"] as co
 export const POST_IMAGE_MAX_BYTES = 20 * 1024 * 1024
 /** Décision du propriétaire du 9/11/2026 (EX-17) : 60 Mio, le plafond d'analyse de la garde des fichiers — jamais au-delà. */
 export const POST_VIDEO_MAX_BYTES = 60 * 1024 * 1024
-export const POST_MEDIA_MAX_COUNT = 4
+/**
+ * Médias d'une publication : jusqu'à DIX photos, ou une vidéo SEULE
+ * (`assertPostMedia`). Décision du 25/11/2026 (lot M3, accord écrit du
+ * propriétaire) : 4 → 10, comme sur les réseaux sociaux, l'écran affichant une
+ * grille intelligente et un défilement horizontal. Le contrat signé des reflets
+ * fédérés garde sa propre borne (`RESEAU_PUBLIC_MEDIA_MAX_COUNT`).
+ */
+export const POST_MEDIA_MAX_COUNT = 10
 export const POST_MEDIA_ALT_MAX_LENGTH = 300
 export const POST_IMAGE_MIME_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"] as const
 /**
@@ -148,10 +155,10 @@ export function assertAvatarUpload(input: { mimeType: string; sizeBytes: number 
 /**
  * Les médias d'une publication, ENSEMBLE.
  *
- * Une VIDÉO est toujours SEULE dans sa publication — pas de mixage avec des
- * images, pas de deux vidéos : une grille qui mélange une vidéo et trois images
- * ne sait plus dire ce qu'on regarde, et deux vidéos feraient d'un fil un
- * téléchargement.
+ * Jusqu'à `POST_MEDIA_MAX_COUNT` (dix) photos. Une VIDÉO est toujours SEULE
+ * dans sa publication — pas de mixage avec des images, pas de deux vidéos : une
+ * grille qui mélange une vidéo et trois images ne sait plus dire ce qu'on
+ * regarde, et deux vidéos feraient d'un fil un téléchargement.
  */
 export function assertPostMedia(media: readonly PostMediaInput[]): void {
   if (media.length === 0) return

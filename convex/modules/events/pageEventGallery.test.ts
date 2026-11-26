@@ -179,7 +179,8 @@ describe("galerie collective après un événement", () => {
     const media = await image(f), other = await image(f), video = await image(f, "video")
     vi.setSystemTime(END)
     expect(await refusal(publish(f, eventId, []))).toBe("association_event_gallery_media_required")
-    const tooMany = await caught(publish(f, eventId, [media, media, media, media, media]))
+    // M3 : dix photos au plus, comme toute publication ; la onzième est refusée.
+    const tooMany = await caught(publish(f, eventId, Array.from({ length: 11 }, () => media)))
     expect(engineErrorRule(tooMany)?.rule).toBe("POST_MEDIA_TOO_MANY")
     expect(engineErrorRule(await caught(publish(f, eventId, [video, media])))?.rule).toBe("POST_VIDEO_MUST_BE_ALONE")
     expect(await refusal(publish(f, eventId, [media, { ...other, sizeBytes: 65 }]))).not.toBeNull()
@@ -187,10 +188,10 @@ describe("galerie collective après un événement", () => {
     expect((await list(f, eventId)).items).toEqual([])
     await publish(f, eventId, [media], "", "image")
     // Le même fichier déjà admis ne masque pas un refus de forme déterministe.
-    expect(engineErrorRule(await caught(publish(f, eventId, [media, other, other, other, other], "", "invalid-shape")))?.rule).toBe("POST_MEDIA_TOO_MANY")
+    expect(engineErrorRule(await caught(publish(f, eventId, [media, ...Array.from({ length: 10 }, () => other)], "", "invalid-shape")))?.rule).toBe("POST_MEDIA_TOO_MANY")
     await publish(f, eventId, [video], "", "video")
-    const four = await Promise.all([image(f), image(f), image(f), image(f)])
-    await publish(f, eventId, four, "", "four-images")
+    const ten = await Promise.all(Array.from({ length: 10 }, () => image(f)))
+    await publish(f, eventId, ten, "", "ten-images")
     expect((await list(f, eventId)).items).toHaveLength(3)
   })
 

@@ -1,10 +1,10 @@
-// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/PostMedia.tsx @ ad2e7fdc2 — adaptations : type `PostMediaDto` du contrat `@antsia/social-contracts/media` ; un média RETENU par la garde des fichiers (`url` nulle, `withheld` : analyse en cours ou bloqué) garde sa place et dit pourquoi (textes du code, espace `errors`) au lieu d'un lien mort — image, vidéo et carrousel ; libellés et annonces par l'i18n (clés `reseau:postMedia.*`) ; surface plein écran de `@antsia/ui/overlay` (charte de l'application) ; cadre, carrousel et gestes inchangés ; feuille de style sortie du JSX dans une constante de module (`POST_MEDIA_CSS`) — un littéral enfant de `<style>` passerait pour une chaîne d'interface — règles inchangées ; P03 (étude social-commerce) : présentation « media » déclarée par l'application (`presentation`, sinon `useOptionalNetwork().postPresentation`), rendue par `PostMediaPresentation` — ratio réel borné, galerie et visionneuse —, la présentation historique restant le défaut, à l'identique ; ADR-0028 : présentation « charte » — les mêmes cadre, galerie et visionneuse que « media », POSÉS dans la carte à l'angle des photos (`inset`), la publication elle-même désignée par `primary` (coordination vidéo, mémoire de galerie).
+// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/PostMedia.tsx @ ad2e7fdc2 — adaptations : type `PostMediaDto` du contrat `@antsia/social-contracts/media` ; un média RETENU par la garde des fichiers (`url` nulle, `withheld` : analyse en cours ou bloqué) garde sa place et dit pourquoi (textes du code, espace `errors`) au lieu d'un lien mort — image, vidéo et carrousel ; libellés et annonces par l'i18n (clés `reseau:postMedia.*`) ; surface plein écran de `@antsia/ui/overlay` (charte de l'application) ; cadre, carrousel et gestes inchangés ; feuille de style sortie du JSX dans une constante de module (`POST_MEDIA_CSS`) — un littéral enfant de `<style>` passerait pour une chaîne d'interface — règles inchangées ; P03 (étude social-commerce) : présentation « media » déclarée par l'application (`presentation`, sinon `useOptionalNetwork().postPresentation`), rendue par `PostMediaPresentation` — ratio réel borné, galerie et visionneuse —, la présentation historique restant le défaut, à l'identique ; ADR-0028 : présentation « charte » — les mêmes cadre, galerie et visionneuse que « media », POSÉS dans la carte à l'angle des photos (`inset`), la publication elle-même désignée par `primary` (coordination vidéo, mémoire de galerie) ; M3 (25/11/2026) : jusqu'à dix photos — les points du carrousel se partagent la largeur du cadre (24 px au moins chacun) au lieu de le déborder, et n'interceptent plus le geste sur la photo.
 "use client"
 
 /**
  * Les médias d'une publication.
  *
- * Une image reste pleine largeur ; de deux à quatre images, le fil devient un
+ * Une image reste pleine largeur ; de deux à dix images (M3), le fil devient un
  * carrousel à défilement natif. Une vidéo est toujours seule (règle du
  * domaine) — elle occupe le CADRE STANDARD du fil, jamais plus (cf.
  * `STANDARD_RATIO`).
@@ -545,20 +545,24 @@ const POST_MEDIA_CSS = `
       }
       .rpm-carousel-dots {
         position: absolute;
-        right: 50%;
+        left: 0;
+        right: 0;
         bottom: 0;
         display: flex;
-        transform: translateX(50%);
+        justify-content: center;
+        pointer-events: none;
       }
       .rpm-carousel-dot {
         display: grid;
+        flex: 0 1 44px;
         place-items: center;
-        width: 44px;
+        min-width: 24px;
         height: 44px;
         padding: 0;
         border: 0;
         background: transparent;
         cursor: pointer;
+        pointer-events: auto;
       }
       .rpm-carousel-dot-mark {
         width: 7px;

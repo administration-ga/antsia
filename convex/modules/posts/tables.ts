@@ -31,7 +31,7 @@ export const postsTables = {
     onRoot: v.optional(v.boolean()),
     status: postStatusValidator,
     /**
-     * Médias EMBARQUÉS — au plus 4 images OU 1 vidéo seule (`assertPostMedia`).
+     * Médias EMBARQUÉS — au plus 10 images OU 1 vidéo seule (`assertPostMedia`, M3).
      * Type et poids RÉELS lus du stockage à la publication ; aucun identifiant
      * de stockage ne sort d'un DTO (URL résolue par la garde des fichiers).
      */

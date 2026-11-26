@@ -2,6 +2,7 @@
 import type { PostMediaDto } from "@antsia/social-contracts/media"
 import { parseCommercePublicBody } from "@antsia/social-domain/commerce/projection"
 import { COMMERCE_STOREFRONT_TERMS_MAX_BYTES } from "@antsia/social-domain/commerce/storefrontTerms"
+import { POST_MEDIA_MAX_COUNT } from "@antsia/social-domain/content"
 import type { ContextualKind } from "@antsia/social-domain/contextualMessaging"
 import { v } from "convex/values"
 
@@ -59,7 +60,7 @@ async function targetPreview(ctx: QueryCtx, networkId: Id<"networks">, target: M
     case "post": {
       const row = await ctx.db.get(target.id)
       if (!row || row.networkId !== networkId) return empty
-      return { ...empty, available: true, body: excerpt(row.body), media: await resolvePostMediaDtos(ctx, row.media?.slice(0, 4)) }
+      return { ...empty, available: true, body: excerpt(row.body), media: await resolvePostMediaDtos(ctx, row.media?.slice(0, POST_MEDIA_MAX_COUNT)) }
     }
     case "comment": {
       const row = await ctx.db.get(target.id)

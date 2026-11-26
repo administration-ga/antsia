@@ -1,6 +1,6 @@
 /** PA9A/PA9B/PA9C — contrat pur des reflets fédérés, sans effet sur les personnes ni médias. */
 import { CONSENT_TEXT_VERSIONS } from "./consent"
-import { assertPostContent, assertPostMedia, POST_MEDIA_ALT_MAX_LENGTH, POST_MEDIA_MAX_COUNT } from "./content"
+import { assertPostContent, assertPostMedia, POST_MEDIA_ALT_MAX_LENGTH } from "./content"
 import { FEDERATION_MAX_SKEW_MS, validFederationReference } from "./federationProtocol"
 import { PAGE_DESCRIPTION_MAX_LENGTH, PAGE_NAME_MAX_LENGTH, PAGE_SHORT_NAME_MAX_LENGTH } from "./pages"
 import { UPLOAD_USAGES } from "./uploadPolicy"
@@ -95,6 +95,13 @@ const PERSON_OPT_OUT_FIELDS = ["type", "agentRef", "revision", "idnSub", "consen
 const MEDIA_FIELDS = new Set(["url", "kind", "mimeType", "sizeBytes", "sha256", "width", "height", "durationMs", "altText"])
 const REQUIRED_MEDIA_FIELDS = ["url", "kind", "mimeType", "sizeBytes", "sha256"] as const
 const REMOTE_MEDIA_MAX_BYTES = 50 * 1024 * 1024
+/**
+ * Images d'une publication reflétée : la borne du CONTRAT signé `RESEAU-PUBLIC-V1`
+ * (quatre images ou une vidéo seule), fixée avec l'émetteur. Elle ne suit pas la
+ * borne des publications des membres (`POST_MEDIA_MAX_COUNT`, dix depuis M3) :
+ * l'élargir est une évolution du contrat, à décider avec l'émetteur.
+ */
+export const RESEAU_PUBLIC_MEDIA_MAX_COUNT = 4
 const REMOTE_MEDIA_DIMENSION_MAX = 32_768
 const REMOTE_MEDIA_DURATION_MAX_MS = 24 * 60 * 60 * 1000
 
@@ -254,7 +261,7 @@ export function parseReseauPublicEvent(payload: unknown, objectRef: string, nowM
   if (!exactFields(row, row.type === "post.published" ? POST_PUBLISHED_FIELDS : POST_REMOVED_FIELDS)
     || typeof row.postRef !== "string" || !validFederationReference(row.postRef) || row.postRef !== objectRef || !positiveInteger(row.revision)) return { ok: false, reason: "invalid_payload" }
   if (row.type === "post.removed") return { ok: true, event: { type: "post.removed", postRef: row.postRef, revision: row.revision } }
-  if (typeof row.pageRef !== "string" || !validFederationReference(row.pageRef) || row.audience !== "public" || row.publishToAntsia !== true || !Array.isArray(row.media) || row.media.length > POST_MEDIA_MAX_COUNT || !positiveInteger(row.publishedAt, nowMs + FEDERATION_MAX_SKEW_MS) || typeof row.body !== "string" || hasControlCharacter(row.body, true)) return { ok: false, reason: "invalid_payload" }
+  if (typeof row.pageRef !== "string" || !validFederationReference(row.pageRef) || row.audience !== "public" || row.publishToAntsia !== true || !Array.isArray(row.media) || row.media.length > RESEAU_PUBLIC_MEDIA_MAX_COUNT || !positiveInteger(row.publishedAt, nowMs + FEDERATION_MAX_SKEW_MS) || typeof row.body !== "string" || hasControlCharacter(row.body, true)) return { ok: false, reason: "invalid_payload" }
   const media: ReseauPublicMedia[] = []
   for (const value of row.media) {
     const item = parseMedia(value)

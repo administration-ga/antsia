@@ -11,6 +11,7 @@
  * Testing Library) : reprise du brouillon, téléversement non redoublé,
  * clé d'idempotence conservée sur échec.
  */
+import { POST_MEDIA_MAX_COUNT } from "@antsia/social-domain/content"
 import { describe, expect, it } from "vitest"
 
 import { createAppI18n } from "../../i18n"
@@ -65,10 +66,12 @@ describe("refus au moment de choisir", () => {
     expect(rejectionFor(file("video/mp4"), [], undefined, t)).toBeNull()
   })
 
-  it("plafonne à quatre médias", () => {
-    const four = [draft("image"), draft("image"), draft("image"), draft("image")]
-    expect(rejectionFor(file("image/png"), four, undefined, t)).toContain("au plus 4")
-    expect(rejectionFor(file("image/png"), four.slice(0, 3), undefined, t)).toBeNull()
+  it("M3 — plafonne à dix médias, la borne du domaine", () => {
+    expect(POST_MEDIA_MAX_COUNT).toBe(10)
+    const ten = Array.from({ length: 10 }, () => draft("image"))
+    expect(rejectionFor(file("image/png"), ten, undefined, t)).toContain("au plus 10")
+    expect(rejectionFor(file("image/png"), ten.slice(0, 9), undefined, t)).toBeNull()
+    expect(rejectionFor(file("image/png"), ten.slice(0, 4), undefined, t)).toBeNull()
   })
 
   it("écarte ce qui dépasse le poids, en le NOMMANT", () => {

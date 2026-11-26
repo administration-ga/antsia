@@ -116,7 +116,7 @@ describe("PA5 — budgets réels par personne et par type d'écriture", () => {
   })
 
   it.each([
-    ["comment.create", 5], ["upload.url", 6], ["message.send", 8],
+    ["comment.create", 5], ["upload.url", 12], ["message.send", 8],
   ] as const)("le type %s possède son propre budget renforcé", async (bucket, capacity) => {
     const f = await fixture()
     await consume(f.t, f.root, f.personId, bucket, capacity)

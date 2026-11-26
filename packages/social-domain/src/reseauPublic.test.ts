@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest"
 
-import { PERSONAL_POST_MAX_LENGTH, POST_IMAGE_MAX_BYTES, POST_MEDIA_ALT_MAX_LENGTH } from "./content"
+import { PERSONAL_POST_MAX_LENGTH, POST_IMAGE_MAX_BYTES, POST_MEDIA_ALT_MAX_LENGTH, POST_MEDIA_MAX_COUNT } from "./content"
 import { FEDERATION_MAX_SKEW_MS } from "./federationProtocol"
-import { parseReseauPublicEvent, parseReseauPublicPage } from "./reseauPublic"
+import { parseReseauPublicEvent, parseReseauPublicPage, RESEAU_PUBLIC_MEDIA_MAX_COUNT } from "./reseauPublic"
 import { UPLOAD_USAGES } from "./uploadPolicy"
 
 const NOW = 1_792_281_600_000
@@ -73,6 +73,12 @@ describe("RESEAU-PUBLIC-V1 — publications publiques PA9B", () => {
     expect(parsePost({ ...post, media: Array.from({ length: 4 }, (_, index) => ({ ...image, url: `https://cdn.example.org/${index}.png` })) }).ok).toBe(true)
     expect(parsePost({ ...post, media: [video] }).ok).toBe(true)
     for (const media of [[image, video], [video, video], Array(5).fill(image)]) expect(parsePost({ ...post, media })).toEqual(INVALID)
+  })
+  it("M3 — le contrat signé garde sa borne de quatre images, même quand un membre en publie dix", () => {
+    expect(RESEAU_PUBLIC_MEDIA_MAX_COUNT).toBe(4)
+    expect(POST_MEDIA_MAX_COUNT).toBeGreaterThan(RESEAU_PUBLIC_MEDIA_MAX_COUNT)
+    const five = Array.from({ length: 5 }, (_, index) => ({ ...image, url: `https://cdn.example.org/${index}.png` }))
+    expect(parsePost({ ...post, media: five })).toEqual(INVALID)
   })
   it("normalise l'ordre des clés sans interpréter les mentions", () => {
     const payload = { ...post, media: [{ ...image, altText: "  Une image publique  ", width: 640, height: 480 }] }
