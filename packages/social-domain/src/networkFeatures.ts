@@ -9,14 +9,26 @@
  * l'absence de ligne vaut « fermé ». Fermer ne supprime rien.
  *
  * Les clés sont GELÉES une fois livrées : elles nomment des lignes en base et des
- * gardes dans le code. Ajouter une clé est un changement du moteur ; en retirer
- * une, une migration.
+ * gardes dans le code. Ajouter une clé est un changement du moteur (elle se pose à
+ * la FIN de la liste : l'ordre des clés livrées ne bouge pas) ; en retirer une, une
+ * migration.
+ *
+ * Deux natures de clés :
+ *  · un module du moteur : ses fonctions portent l'option `feature` de leur
+ *    constructeur et rendent le refus indistinct tant qu'il est fermé ;
+ *  · un module d'AFFICHAGE (`consulateGateway`, CH-863) : il ne garde AUCUNE fonction
+ *    du moteur. Il règle une entrée que l'application du réseau monte ou retire — ici
+ *    le lien sortant « consulat.ga » du menu des membres de DIASPORA.GA, une navigation
+ *    vers une autre application à qui rien n'est transmis. Même ligne, même bascule
+ *    motivée et journalisée (`network.feature_set`), même lecture par les membres
+ *    (`features.open`) ; le cliquet `network-feature-gates` tient la liste fermée de
+ *    ces clés sans garde.
  */
 import type { NetworkSlice } from "./network"
 import { DomainViolation } from "./violation"
 
-/** Les huit fonctionnalités activables, dans l'ordre où la console et le bureau les présentent. */
-export const NETWORK_FEATURES = ["pages", "groupsAndEvents", "services", "jobs", "mutualAid", "mentoring", "arrivalKit", "pilotMetrics"] as const
+/** Les neuf fonctionnalités activables, dans l'ordre où la console et l'administration du réseau les présentent. */
+export const NETWORK_FEATURES = ["pages", "groupsAndEvents", "services", "jobs", "mutualAid", "mentoring", "arrivalKit", "pilotMetrics", "consulateGateway"] as const
 export type NetworkFeature = (typeof NETWORK_FEATURES)[number]
 
 /**
@@ -33,6 +45,7 @@ export const NETWORK_FEATURE_PARENTS: Readonly<Record<NetworkFeature, NetworkFea
   mentoring: null,
   arrivalKit: null,
   pilotMetrics: null,
+  consulateGateway: null,
 }
 
 /** Les fonctionnalités que chaque tranche gouverne (`NETWORK_SLICES`) : une tranche sans fonctionnalité a une liste vide. */
