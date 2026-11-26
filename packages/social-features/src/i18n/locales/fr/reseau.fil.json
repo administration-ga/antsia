@@ -186,13 +186,18 @@
       "notDecodable": "« {{name}} » ne peut pas être lue par ce navigateur. Choisissez-la depuis Safari (iPhone, iPad ou Mac), qui la convertit, ou enregistrez-la d'abord au format MP4, puis réessayez.",
       "tooLong": "« {{name}} » est trop longue. Une vidéo dure au plus {{duration}}.",
       "tooLongToConvert": "« {{name}} » doit être convertie pour être lisible partout, et la conversion se fait ici, en temps réel : au-delà de {{duration}}, elle est trop longue à attendre. Enregistrez-la au format MP4 : elle partira alors sans conversion.",
-      "noEncoder": "Ce navigateur ne sait pas convertir « {{name}} ». Choisissez-la depuis Safari, ou enregistrez-la au format MP4 avant de la publier."
+      "noEncoder": "Ce navigateur ne sait pas convertir « {{name}} ». Choisissez-la depuis Safari, ou enregistrez-la au format MP4 avant de la publier.",
+      "tooHeavyToCompress": "« {{name}} » pèse plus de {{size}} : elle doit être compressée ici, en temps réel, et au-delà de {{duration}} c'est trop long à attendre. Raccourcissez-la, ou filmez en 1080p, puis réessayez.",
+      "noEncoderToCompress": "« {{name}} » pèse plus de {{size}} et ce navigateur ne sait pas la compresser. Choisissez-la depuis un autre navigateur, ou raccourcissez-la, puis réessayez.",
+      "tooLargeToConvert": "« {{name}} » est trop lourde pour être convertie dans ce navigateur ({{size}} au plus). Raccourcissez-la, ou filmez en 1080p, puis réessayez."
     },
     "units": {
       "minutes_one": "{{count}} minute",
       "minutes_other": "{{count}} minutes",
       "seconds_one": "{{count}} seconde",
-      "seconds_other": "{{count}} secondes"
+      "seconds_other": "{{count}} secondes",
+      "megabytes": "{{count}} Mo",
+      "gigabytes": "{{count}} Go"
     }
   },
   "reportContentDialog": {

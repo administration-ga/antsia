@@ -154,6 +154,8 @@ export async function prepareVideoForUpload(
 			{
 				fileName: file.name,
 				mimeType: file.type,
+				// M2 : le poids de la SOURCE — un MP4 trop lourd se compresse au lieu d'être refusé.
+				sizeBytes: file.size,
 				probe,
 				containerCodecs,
 				recorderTargets: runtime.recorderTargets(),

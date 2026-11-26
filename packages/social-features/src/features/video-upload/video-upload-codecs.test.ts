@@ -193,6 +193,7 @@ describe("videoUploadPlan — le MP4 HEVC route vers la conversion", () => {
 	it("MP4 H.264 prouvé → départ tel quel", () => {
 		const plan = videoUploadPlan({
 			limits: STORY_VIDEO_UPLOAD_LIMITS,
+			sizeBytes: 8 * 1024 * 1024,
 			fileName: "visite.mp4",
 			mimeType: "video/mp4",
 			probe: PROBE,
@@ -205,6 +206,7 @@ describe("videoUploadPlan — le MP4 HEVC route vers la conversion", () => {
 	it("MP4 HEVC prouvé → conversion, comme un .mov", () => {
 		const plan = videoUploadPlan({
 			limits: STORY_VIDEO_UPLOAD_LIMITS,
+			sizeBytes: 8 * 1024 * 1024,
 			fileName: "iphone-hevc.mp4",
 			mimeType: "video/mp4",
 			probe: PROBE,
@@ -217,6 +219,7 @@ describe("videoUploadPlan — le MP4 HEVC route vers la conversion", () => {
 	it("MP4 aux codecs illisibles → fail-open, départ tel quel", () => {
 		const plan = videoUploadPlan({
 			limits: STORY_VIDEO_UPLOAD_LIMITS,
+			sizeBytes: 8 * 1024 * 1024,
 			fileName: "exotique.mp4",
 			mimeType: "video/mp4",
 			probe: PROBE,
@@ -229,6 +232,7 @@ describe("videoUploadPlan — le MP4 HEVC route vers la conversion", () => {
 	it("le WebM ignore les codecs — décision au mime, comme avant", () => {
 		const plan = videoUploadPlan({
 			limits: STORY_VIDEO_UPLOAD_LIMITS,
+			sizeBytes: 8 * 1024 * 1024,
 			fileName: "clip.webm",
 			mimeType: "video/webm",
 			probe: PROBE,
@@ -241,6 +245,7 @@ describe("videoUploadPlan — le MP4 HEVC route vers la conversion", () => {
 	it("HEVC trop long à convertir → refus qui dit quoi faire", () => {
 		const plan = videoUploadPlan({
 			limits: STORY_VIDEO_UPLOAD_LIMITS,
+			sizeBytes: 8 * 1024 * 1024,
 			fileName: "long-hevc.mp4",
 			mimeType: "video/mp4",
 			probe: { decodable: true, durationMs: 4 * 60_000 },

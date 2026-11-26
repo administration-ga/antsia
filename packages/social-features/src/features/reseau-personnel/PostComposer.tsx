@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/PostComposer.tsx @ ad2e7fdc2 — adaptations : publication par `posts.posts.publish` du moteur et, au nom d'une PAGE du moteur (signataire vivant), par `pages.pages.publishAsPage` (identifiant `Id<"pages">`, audiences `public` / `followers` au lieu de la note de service `organisation`) ; groupe thématique `Id<"thematicGroups">` ; médias déposés par la garde des fichiers (`media.media.generateUploadUrl`, usage `media_social`) et déclarés avec leur identifiant de stockage TYPÉ ; réseau courant sur chaque appel (`useNetwork().networkId`) ; l'auteur du brouillon est la personne du moteur (`useNetwork().personId`) au lieu du handle lu par `getMyProfile`, et le magasin est configuré avec le préfixe du réseau (`configurePostDraftStorage(storagePrefix)`) ; libellés, compteur, alertes et toasts par l'i18n (clés `reseau:postComposer.*`, accords au nombre ; audiences et règles de `shared.ts` et `post-composer-target.ts` avec `t`) ; refus du moteur dit par son code (`postEngineErrorText`) ; borne du texte alternatif lue dans le domaine ; feuille de style sortie du JSX dans une constante de module (`COMPOSER_CSS`) — un littéral enfant de `<style>` passerait pour une chaîne d'interface — règles inchangées ; FP-01 : chaque photo choisie passe par le module de préparation (`features/media-upload` : ré-encodée, 2 048 px au plus, sans métadonnées, échec fermé) AVANT d'entrer au brouillon, le poids envoyé est annoncé, un refus est dit ; préparation injectable (`prepareImage`) ; SD-03 : chaque vidéo choisie, quel qu'en soit le conteneur, passe par la préparation vidéo (`features/video-upload`, bornes d'une publication) — MP4/WebM lisibles tels quels, .mov converti quand ce navigateur sait le lire (progression, onglet visible, annulation), refus guidé sinon — et part avec sa durée mesurée ; sélecteur ouvert à toute vidéo ; préparation injectable (`prepareVideo`) ; FD-04 : le toast dit l'état rendu par le moteur (`moderation`) — retenue en relecture, la publication n'est pas annoncée « en ligne ».
+// Dupliqué de socle/packages/agent-features/src/features/reseau-personnel/PostComposer.tsx @ ad2e7fdc2 — adaptations : publication par `posts.posts.publish` du moteur et, au nom d'une PAGE du moteur (signataire vivant), par `pages.pages.publishAsPage` (identifiant `Id<"pages">`, audiences `public` / `followers` au lieu de la note de service `organisation`) ; groupe thématique `Id<"thematicGroups">` ; médias déposés par la garde des fichiers (`media.media.generateUploadUrl`, usage `media_social`) et déclarés avec leur identifiant de stockage TYPÉ ; réseau courant sur chaque appel (`useNetwork().networkId`) ; l'auteur du brouillon est la personne du moteur (`useNetwork().personId`) au lieu du handle lu par `getMyProfile`, et le magasin est configuré avec le préfixe du réseau (`configurePostDraftStorage(storagePrefix)`) ; libellés, compteur, alertes et toasts par l'i18n (clés `reseau:postComposer.*`, accords au nombre ; audiences et règles de `shared.ts` et `post-composer-target.ts` avec `t`) ; refus du moteur dit par son code (`postEngineErrorText`) ; borne du texte alternatif lue dans le domaine ; feuille de style sortie du JSX dans une constante de module (`COMPOSER_CSS`) — un littéral enfant de `<style>` passerait pour une chaîne d'interface — règles inchangées ; FP-01 : chaque photo choisie passe par le module de préparation (`features/media-upload` : ré-encodée, 2 048 px au plus, sans métadonnées, échec fermé) AVANT d'entrer au brouillon, le poids envoyé est annoncé, un refus est dit ; préparation injectable (`prepareImage`) ; SD-03 : chaque vidéo choisie, quel qu'en soit le conteneur, passe par la préparation vidéo (`features/video-upload`, bornes d'une publication) — MP4/WebM lisibles tels quels, .mov converti quand ce navigateur sait le lire (progression, onglet visible, annulation), refus guidé sinon — et part avec sa durée mesurée ; sélecteur ouvert à toute vidéo ; préparation injectable (`prepareVideo`) ; FD-04 : le toast dit l'état rendu par le moteur (`moderation`) — retenue en relecture, la publication n'est pas annoncée « en ligne » ; M2 (25/11/2026) : avant la sonde, une vidéo ne se juge plus que sur sa place (seule) — un MP4/WebM trop lourd mais convertible est compressé par la préparation, et seul le fichier rendu est pesé.
 "use client"
 
 /**
@@ -99,7 +99,6 @@ import {
   type PrepareImage,
 } from "../media-upload"
 import {
-  isDirectUploadVideoType,
   isVideoCandidateType,
   POST_VIDEO_UPLOAD_LIMITS,
   VIDEO_UPLOAD_ACCEPT,
@@ -336,13 +335,11 @@ export function PostComposer({
     file: File,
     kinds: readonly { kind: DraftMediaKind }[],
   ): Promise<{ file: File } | { refusal: string } | null> => {
-    // Ce qui ne dépend pas du conteneur se juge AVANT la sonde : une vidéo est
-    // seule dans sa publication, et un MP4/WebM trop lourd ne partira pas.
-    const placement = isDirectUploadVideoType(file.type)
-      ? rejectionFor(file, kinds, undefined, t)
-      : kinds.length > 0
-        ? t("reseau:useMediaDraft.rejection.videoAlone")
-        : null
+    // Ce qui ne dépend ni du conteneur ni du poids se juge AVANT la sonde : une
+    // vidéo est seule dans sa publication. M2 : le poids ne se juge plus sur la
+    // source — un MP4/WebM trop lourd mais convertible est compressé par la
+    // préparation ; le fichier RENDU est pesé ci-dessous, comme un converti.
+    const placement = kinds.length > 0 ? t("reseau:useMediaDraft.rejection.videoAlone") : null
     if (placement !== null) return { refusal: placement }
     const controller = new AbortController()
     conversionAbort.current = controller

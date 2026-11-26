@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/stories/story-video-policy.ts @ ad2e7fdc2 — adaptations : destinations `reseau`/`icom` (ADR-0079 du socle) retirées avec le moteur, paramètre `surfaces` supprimé ; refus traduits par i18n (`t` en dernier paramètre) au lieu des phrases du domaine du socle ; SD-03 : module renommé `video-upload-policy` et sorti des Stories (`features/video-upload`) pour servir aussi le composeur de publication — les BORNES deviennent un paramètre (`limits` : `STORY_VIDEO_UPLOAD_LIMITS` ou `POST_VIDEO_UPLOAD_LIMITS`, lues dans le domaine), identifiants neutres (`videoUploadPlan`, `VideoUploadProbe`, `VIDEO_TRANSCODE_*`), refus lus dans `reseau:videoPreparation.refusal.*` et durées dites par `videoDurationLabel` ; issue antsia#142 : chaque refus porte À CÔTÉ de sa phrase un code à liste fermée (`refusal`, `VIDEO_PREPARATION_REFUSALS`).
+// Dupliqué de socle/packages/agent-features/src/features/stories/story-video-policy.ts @ ad2e7fdc2 — adaptations : destinations `reseau`/`icom` (ADR-0079 du socle) retirées avec le moteur, paramètre `surfaces` supprimé ; refus traduits par i18n (`t` en dernier paramètre) au lieu des phrases du domaine du socle ; SD-03 : module renommé `video-upload-policy` et sorti des Stories (`features/video-upload`) pour servir aussi le composeur de publication — les BORNES deviennent un paramètre (`limits` : `STORY_VIDEO_UPLOAD_LIMITS` ou `POST_VIDEO_UPLOAD_LIMITS`, lues dans le domaine), identifiants neutres (`videoUploadPlan`, `VideoUploadProbe`, `VIDEO_TRANSCODE_*`), refus lus dans `reseau:videoPreparation.refusal.*` et durées dites par `videoDurationLabel` ; issue antsia#142 : chaque refus porte À CÔTÉ de sa phrase un code à liste fermée (`refusal`, `VIDEO_PREPARATION_REFUSALS`) ; M2 (25/11/2026) : le plan reçoit le POIDS de la source (`sizeBytes`) — un MP4 ou un WebM plus lourd que la borne d'envoi passe par la conversion existante (2,5 Mbit/s au plus) au lieu d'être refusé, et toute conversion est bornée par le poids de la source (`VIDEO_TRANSCODE_MAX_SOURCE_BYTES`, nouveau code `too-large-to-convert`).
 /**
  * video-upload-policy — ce qu'on FAIT d'une vidéo choisie pour une Story ou
  * pour une publication.
@@ -14,12 +14,15 @@
  *
  * Ce module DÉCIDE (pur, testé) ; `video-upload-probe.ts` exécute (DOM) et
  * `video-preparation.ts` enchaîne les deux. Trois issues :
- *   - `upload`    — le fichier est déjà MP4/WebM décodable : tel quel ;
- *   - `transcode` — autre conteneur, mais CE navigateur sait le décoder :
- *     conversion locale vers la première cible que `MediaRecorder` sait
- *     produire ici, à un débit calculé pour tenir dans le budget d'octets ;
+ *   - `upload`    — le fichier est déjà MP4/WebM décodable, et sous la borne
+ *     d'octets : tel quel ;
+ *   - `transcode` — autre conteneur, ou MP4/WebM trop LOURD (M2 : la vidéo
+ *     d'un téléphone), mais CE navigateur sait le décoder : conversion locale
+ *     vers la première cible que `MediaRecorder` sait produire ici, à un débit
+ *     calculé pour tenir dans le budget d'octets ;
  *   - `refuse`    — indécodable ici (on ne convertit pas ce qu'on ne sait pas
- *     lire), trop long, trop long À CONVERTIR, ou aucun encodeur disponible.
+ *     lire), trop long, trop long ou trop lourd À CONVERTIR, ou aucun encodeur
+ *     disponible.
  *     Message dans la langue de l'écran, qui nomme la borne et dit quoi faire,
  *     et son code à liste fermée (`VIDEO_PREPARATION_REFUSALS`, issue antsia#142).
  *
@@ -112,6 +115,26 @@ export const VIDEO_TRANSCODE_TARGETS = [
  */
 export const VIDEO_TRANSCODE_MAX_DURATION_MS = 3 * 60 * 1000
 
+/**
+ * M2 (25/11/2026) — LA SOURCE LA PLUS LOURDE qu'on accepte de convertir : un
+ * gigaoctet (1 Gio), pour toute conversion (.mov, MP4 en HEVC, MP4 trop lourd).
+ *
+ * Pourquoi ce chiffre :
+ * - la conversion est bornée à trois minutes (`VIDEO_TRANSCODE_MAX_DURATION_MS`).
+ *   Trois minutes filmées par un téléphone pèsent environ 0,4 Go en 1080p à
+ *   30 images/s (H.264, ~17 Mbit/s) et de 0,5 à 1,1 Go en 4K à 30 images/s
+ *   (HEVC ou H.264) : le gigaoctet laisse passer tout ce qu'un téléphone filme
+ *   par défaut dans la durée convertible ;
+ * - la mémoire ne croît pas avec la source : elle est LUE EN FLUX (objectURL
+ *   adossé au fichier, sonde et sniff par tranches) et la sortie est bornée au
+ *   budget d'octets de la surface (60 Mo). Ce qui croît, c'est la charge de
+ *   DÉCODAGE en temps réel : au-delà d'un gigaoctet pour trois minutes au plus,
+ *   il s'agit d'un 4K à 60 images/s ou d'un fichier anormal, que le téléphone
+ *   moyen décode en saccades — la conversion produirait une image hachée, ou
+ *   échouerait, APRÈS l'attente. Mieux vaut le dire tout de suite.
+ */
+export const VIDEO_TRANSCODE_MAX_SOURCE_BYTES = 1024 * 1024 * 1024
+
 /** L'audio du converti, à retrancher du budget avant d'en tirer la vidéo. */
 const TRANSCODE_AUDIO_BPS = 128_000
 
@@ -151,6 +174,8 @@ export const VIDEO_PREPARATION_REFUSALS = [
 	"no-encoder",
 	/** La conversion a échoué — dit par `prepareVideoForUpload`, jamais par le plan. */
 	"conversion-failed",
+	/** M2 : il faut la convertir, et la source dépasse le poids qu'un navigateur convertit (`VIDEO_TRANSCODE_MAX_SOURCE_BYTES`). */
+	"too-large-to-convert",
 ] as const
 
 export type VideoPreparationRefusal = (typeof VIDEO_PREPARATION_REFUSALS)[number]
@@ -185,6 +210,13 @@ const DIRECT_UPLOAD_MIMES: readonly string[] = ["video/mp4", "video/webm"]
 /** Ce conteneur part-il tel quel (MP4, WebM), sans conversion de conteneur ? */
 export function isDirectUploadVideoType(mimeType: string): boolean {
 	return DIRECT_UPLOAD_MIMES.includes(baseMime(mimeType))
+}
+
+/** « 60 Mo », « 1 Go » — un poids de borne, dans la langue de l'écran. */
+export function videoBytesLabel(bytes: number, t: TFunction): string {
+	const gigabytes = bytes / (1024 * 1024 * 1024)
+	if (gigabytes >= 1 && Number.isInteger(gigabytes)) return t("reseau:videoPreparation.units.gigabytes", { count: gigabytes })
+	return t("reseau:videoPreparation.units.megabytes", { count: Math.round(bytes / (1024 * 1024)) })
 }
 
 /** « 5 minutes », « 1 minute », « 45 secondes » — dans la langue de l'écran. */
@@ -258,6 +290,12 @@ export function videoUploadPlan(
 	input: {
 		fileName: string
 		mimeType: string
+		/**
+		 * M2 : le POIDS de la source, en octets (`File.size`). Un MP4 ou un WebM
+		 * au-delà de `limits.maxBytes` se compresse au lieu d'être refusé ; toute
+		 * conversion s'arrête au plafond `VIDEO_TRANSCODE_MAX_SOURCE_BYTES`.
+		 */
+		sizeBytes: number
 		probe: VideoUploadProbe
 		/** Sous-ensemble de `VIDEO_TRANSCODE_TARGETS` supporté par CE navigateur. */
 		recorderTargets: readonly string[]
@@ -306,30 +344,48 @@ export function videoUploadPlan(
 	// flotte. Codec universel prouvé, ou codecs inconnus (fail-open) → tel
 	// quel ; codec non universel PROUVÉ → la conversion, comme un .mov.
 	const container = baseMime(input.mimeType)
-	if (
+	const directContainer =
 		DIRECT_UPLOAD_MIMES.includes(container) &&
 		!(
 			container === "video/mp4" &&
 			mp4CodecsRequireTranscode(input.containerCodecs)
 		)
-	) {
+	// M2 : un MP4 ou un WebM lisible partout, mais plus lourd que la borne
+	// d'envoi (la vidéo d'un téléphone, 1080p de 45 s ≈ 100 Mo), n'est plus
+	// refusé : il passe par la même conversion, qui le recompresse au débit
+	// du budget d'octets.
+	const tooHeavyToSend = directContainer && input.sizeBytes > limits.maxBytes
+	if (directContainer && !tooHeavyToSend) {
 		return { action: "upload", durationMs }
 	}
 
 	// À partir d'ici il FAUT convertir. Le budget de conversion est propre au
-	// composeur : il ne dit rien de ce qu'une vidéo a le droit de durer, il dit
-	// ce que le navigateur a le droit de faire attendre.
+	// composeur : il ne dit rien de ce qu'une vidéo a le droit de durer ou de
+	// peser, il dit ce que le navigateur a le droit de faire attendre — et ce
+	// qu'il peut décoder en temps réel (le poids de la source).
+	if (input.sizeBytes > VIDEO_TRANSCODE_MAX_SOURCE_BYTES) {
+		return {
+			action: "refuse",
+			refusal: "too-large-to-convert",
+			error: t("reseau:videoPreparation.refusal.tooLargeToConvert", {
+				name: fileName,
+				size: videoBytesLabel(VIDEO_TRANSCODE_MAX_SOURCE_BYTES, t),
+			}),
+		}
+	}
+
 	if (
 		probe.durationMs !== null &&
 		probe.durationMs > VIDEO_TRANSCODE_MAX_DURATION_MS
 	) {
+		const duration = videoDurationLabel(VIDEO_TRANSCODE_MAX_DURATION_MS, t)
 		return {
 			action: "refuse",
 			refusal: "too-long-to-convert",
-			error: t("reseau:videoPreparation.refusal.tooLongToConvert", {
-				name: fileName,
-				duration: videoDurationLabel(VIDEO_TRANSCODE_MAX_DURATION_MS, t),
-			}),
+			// Un MP4 trop lourd EST déjà un MP4 : le conseil du .mov ne vaut pas pour lui.
+			error: tooHeavyToSend
+				? t("reseau:videoPreparation.refusal.tooHeavyToCompress", { name: fileName, size: videoBytesLabel(limits.maxBytes, t), duration })
+				: t("reseau:videoPreparation.refusal.tooLongToConvert", { name: fileName, duration }),
 		}
 	}
 
@@ -338,7 +394,9 @@ export function videoUploadPlan(
 		return {
 			action: "refuse",
 			refusal: "no-encoder",
-			error: t("reseau:videoPreparation.refusal.noEncoder", { name: fileName }),
+			error: tooHeavyToSend
+				? t("reseau:videoPreparation.refusal.noEncoderToCompress", { name: fileName, size: videoBytesLabel(limits.maxBytes, t) })
+				: t("reseau:videoPreparation.refusal.noEncoder", { name: fileName }),
 		}
 	}
 	// La ceinture ne laissera pas dépasser le budget de CONVERSION : le débit

@@ -1,4 +1,4 @@
-// Dupliqué de socle/packages/agent-features/src/features/stories/story-video-policy.test.ts @ ad2e7fdc2 — adaptations : borne unique du moteur pour une Story (`STORY_VIDEO_LIMITS`, cinq minutes et cinquante mégaoctets) au lieu des bornes par destination — cas « neuf minutes sur iRéseau », « au-delà de dix minutes », « huit minutes sans conversion » ramenés à cette borne, cas « sans destination connue » retiré ; refus lus par l'i18n du moteur (`t` français, mêmes fragments attendus) ; cas ajouté : refus en anglais ; SD-03 : module renommé `video-upload-policy`, bornes en paramètre (`STORY_VIDEO_UPLOAD_LIMITS`), cas ajoutés pour les bornes d'une PUBLICATION (`POST_VIDEO_UPLOAD_LIMITS` : soixante mégaoctets, cinq minutes), le refus guidé du .mov qu'un navigateur ne lit pas, le tri des fichiers proposés ; issue antsia#142 : chaque plan refusé porte son code à liste fermée (`refusal`).
+// Dupliqué de socle/packages/agent-features/src/features/stories/story-video-policy.test.ts @ ad2e7fdc2 — adaptations : borne unique du moteur pour une Story (`STORY_VIDEO_LIMITS`, cinq minutes et cinquante mégaoctets) au lieu des bornes par destination — cas « neuf minutes sur iRéseau », « au-delà de dix minutes », « huit minutes sans conversion » ramenés à cette borne, cas « sans destination connue » retiré ; refus lus par l'i18n du moteur (`t` français, mêmes fragments attendus) ; cas ajouté : refus en anglais ; SD-03 : module renommé `video-upload-policy`, bornes en paramètre (`STORY_VIDEO_UPLOAD_LIMITS`), cas ajoutés pour les bornes d'une PUBLICATION (`POST_VIDEO_UPLOAD_LIMITS` : soixante mégaoctets, cinq minutes), le refus guidé du .mov qu'un navigateur ne lit pas, le tri des fichiers proposés ; issue antsia#142 : chaque plan refusé porte son code à liste fermée (`refusal`) ; M2 (25/11/2026) : le plan reçoit le POIDS de la source (`sizeBytes`) — cas d'un MP4 trop lourd mais convertible, compressé au lieu d'être refusé, et du plafond de la source à convertir.
 import { describe, expect, it } from "vitest"
 
 import { POST_VIDEO_MAX_BYTES, POST_VIDEO_MAX_DURATION_MS } from "@antsia/social-domain/content"
@@ -11,6 +11,7 @@ import {
 	POST_VIDEO_UPLOAD_LIMITS,
 	STORY_VIDEO_UPLOAD_LIMITS,
 	VIDEO_TRANSCODE_MAX_DURATION_MS,
+	VIDEO_TRANSCODE_MAX_SOURCE_BYTES,
 	VIDEO_TRANSCODE_TARGETS,
 	VIDEO_UPLOAD_ACCEPT,
 	videoDurationLabel,
@@ -25,13 +26,16 @@ const t = i18n.getFixedT("fr")
 const tEn = i18n.getFixedT("en")
 
 const NOM = "instant.mov"
+const MB = 1024 * 1024
+/** Le poids d'une vidéo ordinaire, sous toutes les bornes d'envoi. */
+const LIGHT = 8 * MB
 
 /** Un plan sous les bornes d'une Story, comme le composeur de Story le demande. */
 function storyPlan(
-	input: { fileName: string; mimeType: string; probe: VideoUploadProbe; recorderTargets: readonly string[] },
+	input: { fileName: string; mimeType: string; probe: VideoUploadProbe; recorderTargets: readonly string[]; sizeBytes?: number },
 	translate = t,
 ) {
-	return videoUploadPlan({ ...input, limits: STORY_VIDEO_UPLOAD_LIMITS }, translate)
+	return videoUploadPlan({ sizeBytes: LIGHT, ...input, limits: STORY_VIDEO_UPLOAD_LIMITS }, translate)
 }
 
 describe("videoUploadPlan — upload, conversion ou refus", () => {
@@ -162,11 +166,11 @@ describe("la borne de durée d'une Story est celle du moteur — cinq minutes", 
 
 describe("SD-03 — les bornes d'une PUBLICATION", () => {
 	const postPlan = (
-		input: { fileName: string; mimeType: string; probe: VideoUploadProbe; recorderTargets?: readonly string[] },
+		input: { fileName: string; mimeType: string; probe: VideoUploadProbe; recorderTargets?: readonly string[]; sizeBytes?: number },
 		translate = t,
 	) =>
 		videoUploadPlan(
-			{ recorderTargets: [...VIDEO_TRANSCODE_TARGETS], ...input, limits: POST_VIDEO_UPLOAD_LIMITS },
+			{ recorderTargets: [...VIDEO_TRANSCODE_TARGETS], sizeBytes: LIGHT, ...input, limits: POST_VIDEO_UPLOAD_LIMITS },
 			translate,
 		)
 
@@ -223,8 +227,103 @@ describe("SD-03 — les bornes d'une PUBLICATION", () => {
 
 	it("des bornes plus courtes que la conversion bornent aussi la ceinture", () => {
 		const short: VideoUploadLimits = { maxBytes: POST_VIDEO_MAX_BYTES, maxDurationMs: 60_000 }
-		const plan = videoUploadPlan({ fileName: NOM, mimeType: "video/quicktime", probe: { decodable: true, durationMs: null }, recorderTargets: ["video/mp4"], limits: short }, t)
+		const plan = videoUploadPlan({ fileName: NOM, mimeType: "video/quicktime", sizeBytes: LIGHT, probe: { decodable: true, durationMs: null }, recorderTargets: ["video/mp4"], limits: short }, t)
 		expect(plan.action === "transcode" && plan.hardStopMs).toBe(60_000 + 1_500)
+	})
+})
+
+describe("M2 — une vidéo de téléphone trop lourde est compressée au lieu d'être refusée", () => {
+	const postPlan = (input: { fileName?: string; mimeType?: string; sizeBytes: number; durationMs: number | null; recorderTargets?: readonly string[] }, translate = t) =>
+		videoUploadPlan(
+			{
+				fileName: input.fileName ?? "anniversaire.mp4",
+				mimeType: input.mimeType ?? "video/mp4",
+				sizeBytes: input.sizeBytes,
+				probe: { decodable: true, durationMs: input.durationMs },
+				recorderTargets: input.recorderTargets ?? [...VIDEO_TRANSCODE_TARGETS],
+				containerCodecs: ["avc1"],
+				limits: POST_VIDEO_UPLOAD_LIMITS,
+			},
+			translate,
+		)
+
+	it("un MP4 H.264 jusqu'à la borne d'envoi part tel quel, comme avant", () => {
+		expect(postPlan({ sizeBytes: POST_VIDEO_UPLOAD_LIMITS.maxBytes, durationMs: 45_000 })).toEqual({ action: "upload", durationMs: 45_000 })
+	})
+
+	it("un MP4 H.264 de 150 Mo et 45 s (1080p d'Android) passe par la conversion, à 2,5 Mbit/s au plus, sous la borne", () => {
+		const plan = postPlan({ sizeBytes: 150 * MB, durationMs: 45_000 })
+		expect(plan.action).toBe("transcode")
+		if (plan.action !== "transcode") return
+		expect(plan.targetMime).toBe("video/mp4")
+		expect(plan.durationMs).toBe(45_000)
+		expect(plan.videoBitsPerSecond).toBe(2_500_000)
+		const projectedBytes = ((plan.videoBitsPerSecond + 128_000) * (45_000 + 1_500)) / 1_000 / 8
+		expect(projectedBytes).toBeLessThan(POST_VIDEO_UPLOAD_LIMITS.maxBytes)
+	})
+
+	it("un WebM trop lourd se compresse aussi ; la cible est la première que ce navigateur sait produire", () => {
+		const plan = postPlan({ fileName: "clip.webm", mimeType: "video/webm", sizeBytes: 90 * MB, durationMs: 30_000, recorderTargets: ["video/webm;codecs=vp9"] })
+		expect(plan.action === "transcode" && plan.targetMime).toBe("video/webm;codecs=vp9")
+	})
+
+	it("trois minutes au plus à compresser : le débit se calcule pour tenir les soixante mégaoctets", () => {
+		const plan = postPlan({ sizeBytes: 400 * MB, durationMs: VIDEO_TRANSCODE_MAX_DURATION_MS })
+		expect(plan.action).toBe("transcode")
+		if (plan.action !== "transcode") return
+		expect(plan.videoBitsPerSecond).toBeLessThanOrEqual(2_500_000)
+		const projectedBytes = ((plan.videoBitsPerSecond + 128_000) * plan.hardStopMs) / 1_000 / 8
+		expect(projectedBytes).toBeLessThan(POST_VIDEO_UPLOAD_LIMITS.maxBytes)
+		expect(plan.hardStopMs).toBe(VIDEO_TRANSCODE_MAX_DURATION_MS + 1_500)
+	})
+
+	it("trop lourde ET plus de trois minutes : refus qui dit quoi faire, sans conseiller le MP4 qu'elle est déjà", () => {
+		const plan = postPlan({ sizeBytes: 300 * MB, durationMs: 4 * 60_000 })
+		expect(plan).toEqual({
+			action: "refuse",
+			refusal: "too-long-to-convert",
+			error: "« anniversaire.mp4 » pèse plus de 60 Mo : elle doit être compressée ici, en temps réel, et au-delà de 3 minutes c'est trop long à attendre. Raccourcissez-la, ou filmez en 1080p, puis réessayez.",
+		})
+	})
+
+	it("trop lourde et aucun encodeur dans ce navigateur : refus nommé, jamais un envoi voué au refus du serveur", () => {
+		const plan = postPlan({ sizeBytes: 120 * MB, durationMs: 30_000, recorderTargets: [] })
+		expect(plan).toEqual({
+			action: "refuse",
+			refusal: "no-encoder",
+			error: "« anniversaire.mp4 » pèse plus de 60 Mo et ce navigateur ne sait pas la compresser. Choisissez-la depuis un autre navigateur, ou raccourcissez-la, puis réessayez.",
+		})
+	})
+
+	it("le plafond de la source protège le navigateur : un gigaoctet au plus à convertir, borne comprise", () => {
+		expect(VIDEO_TRANSCODE_MAX_SOURCE_BYTES).toBe(1024 * MB)
+		expect(postPlan({ sizeBytes: VIDEO_TRANSCODE_MAX_SOURCE_BYTES, durationMs: 60_000 }).action).toBe("transcode")
+		const fr = postPlan({ sizeBytes: VIDEO_TRANSCODE_MAX_SOURCE_BYTES + 1, durationMs: 60_000 })
+		expect(fr).toEqual({
+			action: "refuse",
+			refusal: "too-large-to-convert",
+			error: "« anniversaire.mp4 » est trop lourde pour être convertie dans ce navigateur (1 Go au plus). Raccourcissez-la, ou filmez en 1080p, puis réessayez.",
+		})
+		expect(postPlan({ sizeBytes: VIDEO_TRANSCODE_MAX_SOURCE_BYTES + 1, durationMs: 60_000 }, tEn)).toMatchObject({
+			refusal: "too-large-to-convert",
+			error: "“anniversaire.mp4” is too large to be converted in this browser (1 GB at most). Shorten it, or film in 1080p, then try again.",
+		})
+	})
+
+	it("le plafond vaut pour toute conversion : un .mov de plus d'un gigaoctet est refusé avant d'être joué", () => {
+		const plan = videoUploadPlan({ fileName: "IMG_0412.MOV", mimeType: "video/quicktime", sizeBytes: 2 * 1024 * MB, probe: { decodable: true, durationMs: 90_000 }, recorderTargets: ["video/mp4"], limits: POST_VIDEO_UPLOAD_LIMITS }, t)
+		expect(plan.action === "refuse" && plan.refusal).toBe("too-large-to-convert")
+		// Le .mov ordinaire d'un iPhone (80 Mo) se convertit comme avant.
+		expect(videoUploadPlan({ fileName: "IMG_0412.MOV", mimeType: "video/quicktime", sizeBytes: 80 * MB, probe: { decodable: true, durationMs: 90_000 }, recorderTargets: ["video/mp4"], limits: POST_VIDEO_UPLOAD_LIMITS }, t).action).toBe("transcode")
+	})
+
+	it("une vidéo plus longue que la borne produit reste refusée « trop longue », quel que soit son poids", () => {
+		expect(postPlan({ sizeBytes: 300 * MB, durationMs: 6 * 60_000 })).toMatchObject({ action: "refuse", refusal: "too-long" })
+	})
+
+	it("une Story suit la même règle sous ses cinquante mégaoctets", () => {
+		const plan = videoUploadPlan({ fileName: "actu.mp4", mimeType: "video/mp4", sizeBytes: 55 * MB, probe: { decodable: true, durationMs: 20_000 }, recorderTargets: ["video/mp4"], containerCodecs: ["avc1"], limits: STORY_VIDEO_UPLOAD_LIMITS }, t)
+		expect(plan.action).toBe("transcode")
 	})
 })
 
