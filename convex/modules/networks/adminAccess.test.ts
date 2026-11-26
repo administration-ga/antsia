@@ -14,6 +14,7 @@
  * l'administration du réseau.
  */
 import { CONSOLE_MIN_LOA } from "@antsia/social-domain/badges"
+import { NETWORK_FEATURES } from "@antsia/social-domain/networkFeatures"
 import { ConvexError } from "convex/values"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
@@ -36,6 +37,8 @@ const CONSOLE_APP = "admin_antsia_ga"
 const REASON = "Ouverture décidée pour le pilote du réseau."
 /** Le refus du non-membre : celui que reçoit TOUT appel refusé du lot. */
 const REFUSAL = { code: "notFound" }
+/** Les réglages servis : une ligne par module que la tranche du réseau gouverne (tous, pour `diaspora`). */
+const MODULES = NETWORK_FEATURES.length
 
 beforeEach(() => {
   vi.stubEnv("CONVEX_CLOUD_URL", "http://127.0.0.1:3210")
@@ -227,7 +230,7 @@ describe("ADR-0042 — l'administrateur du réseau, en session prouvée de l'app
   it("le rôle retiré (redevenu membre) est refusé dès l'appel suivant, sur une session déjà journalisée", async () => {
     const f = await fixture()
     const session = await adminSession(f.t, f.admin, f.network)
-    expect(await doors(session.as, f.network).settings()).toHaveLength(8)
+    expect(await doors(session.as, f.network).settings()).toHaveLength(MODULES)
     await setRole(f.t, f.network, f.admin.personId, "member")
     for (const [door, call] of Object.entries(doors(session.as, f.network))) expect(await refusalOf(call()), door).toEqual(REFUSAL)
   })
@@ -253,13 +256,13 @@ describe("ADR-0042 — l'administrateur du réseau, en session prouvée de l'app
     expect(CONSOLE_MIN_LOA).toBe(1)
     const f = await fixture()
     const session = await adminSession(f.t, f.admin, f.network)
-    expect(await doors(session.as, f.network).settings()).toHaveLength(8)
+    expect(await doors(session.as, f.network).settings()).toHaveLength(MODULES)
     // IDN observe de nouveau le sujet, SANS niveau de garantie : sous le seuil de la console.
     await f.t.mutation(internal.modules.people.identity.recordIdnProof, { subject: f.admin.idnSubject })
     for (const [door, call] of Object.entries(doors(session.as, f.network))) expect(await refusalOf(call()), `garantie tombée — ${door}`).toEqual(REFUSAL)
 
     const fresh = await adminSession(f.t, f.admin, f.network)
-    expect(await doors(fresh.as, f.network).settings()).toHaveLength(8)
+    expect(await doors(fresh.as, f.network).settings()).toHaveLength(MODULES)
     // La session Better Auth vit encore (rafraîchie), la preuve scellée au retour IDN a expiré.
     await f.t.run(async (ctx) => {
       const proof = await ctx.db.query("operatorSessionProofs").withIndex("by_session", (q) => q.eq("sessionId", fresh.sessionId)).unique()
@@ -339,14 +342,14 @@ describe("revue CH-815 A1b — les admissions et les refus que la recette d'A1 n
     })
     const session = await adminSession(f.t, f.admin, f.network, { loa: 1 })
     expect((await proofOf(f.t, session.sessionId))?.loa).toBe(1)
-    expect(await doors(session.as, f.network).settings()).toHaveLength(8)
+    expect(await doors(session.as, f.network).settings()).toHaveLength(MODULES)
     expect(await doors(session.as, f.network).setFeature()).toEqual({ changed: true })
   })
 
   it("un lien IDN révoqué est refusé, sur une session déjà journalisée", async () => {
     const f = await fixture()
     const session = await adminSession(f.t, f.admin, f.network)
-    expect(await doors(session.as, f.network).settings()).toHaveLength(8)
+    expect(await doors(session.as, f.network).settings()).toHaveLength(MODULES)
     await f.t.run(async (ctx) => {
       const link = await ctx.db.query("identityLinks").withIndex("by_person_and_provider", (q) => q.eq("personId", f.admin.personId).eq("provider", "idn")).unique()
       if (link) await ctx.db.patch(link._id, { revokedAt: NOW })
@@ -357,7 +360,7 @@ describe("revue CH-815 A1b — les admissions et les refus que la recette d'A1 n
   it("une session supprimée par « Se déconnecter partout » est refusée comme une personne sans session", async () => {
     const f = await fixture()
     const session = await adminSession(f.t, f.admin, f.network)
-    expect(await doors(session.as, f.network).settings()).toHaveLength(8)
+    expect(await doors(session.as, f.network).settings()).toHaveLength(MODULES)
     // La porte partagée révoque TOUTES les sessions Better Auth de la personne.
     for (const sessionId of [session.sessionId, f.admin.sessionId]) {
       await f.t.mutation(components.betterAuth.adapter.deleteOne, { input: { model: "session", where: [{ field: "_id", value: sessionId }] } })
@@ -418,7 +421,7 @@ describe("revue CH-815 A1b — les admissions et les refus que la recette d'A1 n
       await ctx.db.insert("sanctions", { networkId: f.network, reportId, personId: f.admin.personId, kind: "mute", status: "active", reason: "Recette de garde", target, createdAt: NOW, updatedAt: NOW })
     })
     const before = await writes(f)
-    expect(await doors(session.as, f.network).settings()).toHaveLength(8)
+    expect(await doors(session.as, f.network).settings()).toHaveLength(MODULES)
     expect(await refusalOf(doors(session.as, f.network).setFeature())).toEqual({ code: "policyRefused" })
     expect(await writes(f)).toEqual(before)
   })

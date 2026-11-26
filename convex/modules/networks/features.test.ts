@@ -1,11 +1,15 @@
 // @vitest-environment edge-runtime
 /**
  * ADR-0041 — les fonctionnalités d'un réseau gouverné par une tranche : fermées sans
- * ligne (lecture et écriture, refus indistinct, les huit clés), ouvertes par
- * l'administrateur du réseau (en session prouvée de l'application d'administration,
- * ADR-0042) avec motif et ligne de journal, refusées à tout autre
+ * ligne (lecture et écriture, refus indistinct, chaque clé qui garde des fonctions),
+ * ouvertes par l'administrateur du réseau (en session prouvée de l'application
+ * d'administration, ADR-0042) avec motif et ligne de journal, refusées à tout autre
  * membre, tenues par la règle de dépendance, sans effet sur la racine ; fermer ne
  * supprime rien, rouvrir rend tout ; une bascule déjà en place n'écrit rien.
+ *
+ * CH-863 — `consulateGateway` est un module d'AFFICHAGE : même ligne, même bascule,
+ * même journal, même lecture par les membres, mais AUCUNE fonction du moteur à
+ * garder (il n'a ni lecture ni écriture témoin : `GATED_FEATURES` l'écarte).
  */
 import { engineErrorCode, engineErrorRule } from "@antsia/social-contracts/errors"
 import { NETWORK_FEATURES, type NetworkFeature } from "@antsia/social-domain/networkFeatures"
@@ -100,8 +104,14 @@ async function fixture() {
 
 type Fixture = Awaited<ReturnType<typeof fixture>>
 
+/** CH-863 : les modules d'affichage, qui ne gardent aucune fonction du moteur (liste fermée du cliquet `network-feature-gates`). */
+const DISPLAY_FEATURES = ["consulateGateway"] as const satisfies readonly NetworkFeature[]
+type GatedFeature = Exclude<NetworkFeature, (typeof DISPLAY_FEATURES)[number]>
+/** Les fonctionnalités dont le moteur sert des fonctions, dans l'ordre des clés. */
+const GATED_FEATURES = NETWORK_FEATURES.filter((feature): feature is GatedFeature => !(DISPLAY_FEATURES as readonly NetworkFeature[]).includes(feature))
+
 /** Une lecture témoin par fonctionnalité, prise dans les fichiers que la fonctionnalité gouverne. */
-function readOf(f: Fixture, feature: NetworkFeature, as: As): Promise<unknown> {
+function readOf(f: Fixture, feature: GatedFeature, as: As): Promise<unknown> {
   const networkId = f.network
   switch (feature) {
     case "pages": return as.query(api.modules.pages.pages.myPages, { networkId })
@@ -127,7 +137,7 @@ const TALENT = {
 }
 
 /** Une écriture témoin par fonctionnalité (la mesure du pilote n'en a pas : lecture seule). */
-function writeOf(f: Fixture, feature: Exclude<NetworkFeature, "pilotMetrics">, as: As): Promise<unknown> {
+function writeOf(f: Fixture, feature: Exclude<GatedFeature, "pilotMetrics">, as: As): Promise<unknown> {
   const networkId = f.network
   switch (feature) {
     case "pages": return as.mutation(api.modules.pages.pages.follow, { networkId, handle: "association-fictive-reseau" })
@@ -178,12 +188,13 @@ async function featureAudit(f: Fixture) {
 }
 
 describe("ADR-0041 — fonctionnalités d'un réseau gouverné", () => {
-  it("sans ligne, les huit fonctionnalités sont fermées en lecture comme en écriture ; le socle reste servi", async () => {
+  it("sans ligne, toutes les fonctionnalités sont fermées, en lecture comme en écriture pour celles qui gardent des fonctions ; le socle reste servi", async () => {
     const f = await fixture()
     // La graine du réseau n'ouvre rien : aucune ligne.
     expect(await f.t.run(async (ctx) => await ctx.db.query("networkFeatures").take(10))).toEqual([])
     expect(await f.reader.as.query(F.open, { networkId: f.network })).toEqual([])
-    for (const feature of NETWORK_FEATURES) {
+    expect(GATED_FEATURES).toEqual(["pages", "groupsAndEvents", "services", "jobs", "mutualAid", "mentoring", "arrivalKit", "pilotMetrics"])
+    for (const feature of GATED_FEATURES) {
       expect(await codeOf(readOf(f, feature, f.reader.as)), `lecture ${feature}`).toBe("notFound")
       if (feature !== "pilotMetrics") expect(await codeOf(writeOf(f, feature, f.reader.as)), `écriture ${feature}`).toBe("notFound")
     }
@@ -239,7 +250,44 @@ describe("ADR-0041 — fonctionnalités d'un réseau gouverné", () => {
     const f = await fixture()
     for (const feature of NETWORK_FEATURES) await open(f, feature)
     expect(await f.reader.as.query(F.open, { networkId: f.network })).toEqual([...NETWORK_FEATURES])
-    for (const feature of NETWORK_FEATURES) expect(await codeOf(readOf(f, feature, f.reader.as)), `lecture ${feature}`).toBeNull()
+    for (const feature of GATED_FEATURES) expect(await codeOf(readOf(f, feature, f.reader.as)), `lecture ${feature}`).toBeNull()
+  })
+
+  it("CH-863 — la passerelle consulat.ga, module d'affichage : fermée sans ligne, ouverte et refermée par l'administrateur du réseau avec motif et journal ; elle ne garde aucune fonction du moteur", async () => {
+    const f = await fixture()
+    const key = "consulateGateway" as const
+    // Fermée sans ligne : les membres ne la lisent pas, l'administration la voit fermée, sans dépendance, en dernière carte.
+    expect(await f.reader.as.query(F.open, { networkId: f.network })).toEqual([])
+    expect((await f.admin.as.query(F.settings, { networkId: f.network })).at(-1)).toEqual({ feature: key, enabled: false, open: false, requires: null, updatedAt: null })
+    // Ni un membre ni un modérateur ne la basculent ; le motif est exigé comme pour tout module.
+    for (const who of [f.reader, f.moderator]) {
+      expect(await codeOf(who.as.mutation(F.setFeature, { networkId: f.network, feature: key, enabled: true, reason: REASON }))).toBe("notFound")
+    }
+    expect(engineErrorRule(await caught(f.admin.as.mutation(F.setFeature, { networkId: f.network, feature: key, enabled: true, reason: "court" })))?.rule).toBe("DECISION_REASON_LENGTH")
+    expect(await f.t.run(async (ctx) => await ctx.db.query("networkFeatures").take(10))).toEqual([])
+
+    // Ouverte seule, sans exiger aucun module : les membres la lisent ; rien d'autre ne s'ouvre, le socle reste servi.
+    expect(await open(f, key)).toEqual({ changed: true })
+    expect(await f.reader.as.query(F.open, { networkId: f.network })).toEqual([key])
+    for (const feature of GATED_FEATURES) expect(await codeOf(readOf(f, feature, f.reader.as)), `lecture ${feature}`).toBe("notFound")
+    expect(await codeOf(f.reader.as.mutation(api.modules.posts.posts.publish, { networkId: f.network, body: "Bonjour à toute la communauté." }))).toBeNull()
+    expect(await open(f, key)).toEqual({ changed: false })
+
+    // Refermée : elle quitte la lecture des membres ; les deux décisions sont au journal, la dernière sur sa carte.
+    vi.setSystemTime(NOW + 1_000)
+    const closing = "Fermeture de la passerelle, le temps d'une vérification."
+    expect(await f.admin.as.mutation(F.setFeature, { networkId: f.network, feature: key, enabled: false, reason: closing })).toEqual({ changed: true })
+    expect(await f.reader.as.query(F.open, { networkId: f.network })).toEqual([])
+    expect(await featureAudit(f)).toEqual([
+      { capacity: "network_admin", actorPersonId: f.admin.personId, subjectTable: "networks", details: { reason: REASON, feature: key, enabled: true } },
+      { capacity: "network_admin", actorPersonId: f.admin.personId, subjectTable: "networks", details: { reason: closing, feature: key, enabled: false } },
+    ])
+    expect(await f.admin.as.query(F.lastDecisions, { networkId: f.network })).toEqual([
+      { feature: key, enabled: false, at: NOW + 1_000, reason: closing, capacity: "network_admin", actor: { personId: f.admin.personId, displayName: "admin.reseau", handle: "admin.reseau" } },
+    ])
+    // La racine, sans tranche, ne la connaît pas : rien à y ouvrir.
+    expect(await f.reader.as.query(F.open, { networkId: f.root })).toEqual([])
+    expect(await codeOf(f.admin.as.mutation(F.setFeature, { networkId: f.root, feature: key, enabled: true, reason: REASON }))).toBe("notFound")
   })
 
   it("tout autre membre que l'administrateur du réseau reçoit le refus indistinct, en lecture comme en bascule", async () => {

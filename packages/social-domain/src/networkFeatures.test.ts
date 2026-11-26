@@ -16,8 +16,8 @@ import {
 import { DomainViolation } from "./violation"
 
 describe("fonctionnalités d'un réseau gouverné — règles pures (ADR-0041)", () => {
-  it("huit clés gelées, dans l'ordre de la console", () => {
-    expect(NETWORK_FEATURES).toEqual(["pages", "groupsAndEvents", "services", "jobs", "mutualAid", "mentoring", "arrivalKit", "pilotMetrics"])
+  it("neuf clés gelées, dans l'ordre de la console ; une clé nouvelle se pose à la fin (CH-863)", () => {
+    expect(NETWORK_FEATURES).toEqual(["pages", "groupsAndEvents", "services", "jobs", "mutualAid", "mentoring", "arrivalKit", "pilotMetrics", "consulateGateway"])
     expect(NETWORK_FEATURE_REASON_MIN).toBe(10)
   })
 
@@ -38,9 +38,25 @@ describe("fonctionnalités d'un réseau gouverné — règles pures (ADR-0041)",
       mentoring: null,
       arrivalKit: null,
       pilotMetrics: null,
+      consulateGateway: null,
     })
     expect(networkFeatureChildren("pages")).toEqual(["groupsAndEvents", "services", "jobs"])
     expect(networkFeatureChildren("jobs")).toEqual([])
+  })
+
+  it("la passerelle consulat.ga (CH-863) : un module d'affichage de la tranche diaspora, fermé sans ligne, sans parent ni enfant", () => {
+    expect(isNetworkFeature("consulateGateway")).toBe(true)
+    expect(sliceGovernsFeature("diaspora", "consulateGateway")).toBe(true)
+    expect(sliceGovernsFeature(undefined, "consulateGateway")).toBe(false)
+    expect(networkFeatureChildren("consulateGateway")).toEqual([])
+    // Fermée sans ligne ; ouverte, elle ne dépend d'aucun autre module et aucun ne dépend d'elle.
+    expect(openNetworkFeatures([{ feature: "pages", enabled: true }])).toEqual(["pages"])
+    expect(openNetworkFeatures([{ feature: "consulateGateway", enabled: false }])).toEqual([])
+    expect(openNetworkFeatures([{ feature: "consulateGateway", enabled: true }])).toEqual(["consulateGateway"])
+    expect(openNetworkFeatures([{ feature: "consulateGateway", enabled: true }, { feature: "pages", enabled: true }])).toEqual(["pages", "consulateGateway"])
+    expect(networkFeatureToggleRefusal({ feature: "consulateGateway", enabled: true, open: [] })).toBeNull()
+    expect(networkFeatureToggleRefusal({ feature: "consulateGateway", enabled: false, open: ["pages", "jobs", "consulateGateway"] })).toBeNull()
+    expect(networkFeatureToggleRefusal({ feature: "pages", enabled: false, open: ["pages", "consulateGateway"] })).toBeNull()
   })
 
   it("chaque tranche déclare ses fonctionnalités ; la tranche diaspora les gouverne toutes", () => {

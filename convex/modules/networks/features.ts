@@ -5,7 +5,10 @@
  * notifications, réglages, modération). Les fonctionnalités de la liste fermée
  * (`@antsia/social-domain/networkFeatures`) restent dans le code mais FERMÉES sans
  * ligne ; les fonctions qui les servent portent l'option `feature` de leur
- * constructeur et rendent le refus indistinct tant qu'elles le sont.
+ * constructeur et rendent le refus indistinct tant qu'elles le sont. Un module
+ * d'AFFICHAGE (`consulateGateway`, CH-863) ne garde aucune fonction : seules sa
+ * ligne, sa bascule et son journal vivent ici ; l'application du réseau le lit
+ * par `open` et monte, ou non, l'entrée qu'il règle.
  *
  *   open                 un membre : les clés OUVERTES de son réseau (rien d'autre) ;
  *   settings, setFeature l'administrateur du réseau, en session prouvée de l'application

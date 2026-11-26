@@ -10,7 +10,13 @@
  *   · les modules du moteur qu'une fonctionnalité gouverne tout entiers (`FEATURE_MODULES`) :
  *     chacune de leurs fonctions de réseau porte la clé du module ;
  *   · chaque clé garde au moins une fonction : une fonctionnalité sans garde serait un
- *     interrupteur qui ne coupe rien.
+ *     interrupteur qui ne coupe rien. SEULE exception, les modules d'AFFICHAGE
+ *     (`DISPLAY_ONLY_FEATURES`, CH-863) : une clé qui règle une entrée de l'application du
+ *     réseau et ne sert aucune fonction du moteur. Leur liste est FERMÉE et épinglée ici, chaque
+ *     clé avec sa raison ; une clé exemptée qui garderait une fonction, classerait un fichier
+ *     ou gouvernerait un module du moteur est une exemption fausse, et le cliquet échoue. Le
+ *     serveur (`convex/`, hors tests) ne la nomme même jamais en chaîne : ni option `feature`,
+ *     ni garde directe (`requireNetworkFeature`), ni classement.
  *   · ADR-0042 (CH-815 A6) : dans la tranche, les constructeurs de l'administrateur du réseau
  *     (`networkAdminQuery`, `networkAdminMutation`) se lisent comme ceux du membre — la mesure du
  *     pilote, lue par l'application d'administration, reste gardée par sa clé. Les modules du
@@ -35,6 +41,36 @@ export const FEATURE_MODULES: Readonly<Record<string, NetworkFeature>> = {
   "convex/modules/pages": "pages",
   "convex/modules/events": "groupsAndEvents",
   "convex/modules/thematicGroups": "groupsAndEvents",
+}
+
+/**
+ * Les modules d'AFFICHAGE (CH-863) : les clés de `NETWORK_FEATURES` qui ne gardent AUCUNE fonction
+ * du moteur, chacune avec sa raison. Une telle clé règle ce que l'application du réseau monte ou
+ * retire ; le moteur tient sa ligne, sa bascule motivée et son journal (`modules/networks/features.ts`),
+ * mais n'a rien à refuser puisqu'il ne sert rien pour elle. Liste FERMÉE : une clé n'y entre que par
+ * une décision relue (un test l'épingle en toutes lettres), jamais pour faire taire le cliquet
+ * d'un module qui sert des fonctions.
+ */
+export const DISPLAY_ONLY_FEATURES: Readonly<Partial<Record<NetworkFeature, string>>> = {
+  consulateGateway: "module d'affichage : un lien sortant de l'application (l'entrée « consulat.ga » du menu des membres de DIASPORA.GA), aucune fonction du moteur",
+}
+
+/** Les clés sans garde qui ne sont pas des modules d'affichage déclarés : des interrupteurs qui ne coupent rien. */
+export function ungatedFeatures(features: readonly string[], gated: ReadonlySet<string>, displayOnly: readonly string[]): string[] {
+  return features.filter((feature) => !gated.has(feature) && !displayOnly.includes(feature))
+}
+
+/**
+ * Les exemptions FAUSSES : une clé inconnue, ou une clé déclarée « d'affichage » qui garde pourtant
+ * une fonction, classe un fichier de la tranche ou gouverne un module du moteur.
+ */
+export function falseDisplayOnly(displayOnly: readonly string[], features: readonly string[], gated: ReadonlySet<string>, classified: ReadonlySet<string>): string[] {
+  return displayOnly.filter((feature) => !features.includes(feature) || gated.has(feature) || classified.has(feature))
+}
+
+/** Le texte nomme-t-il la clé en chaîne littérale (`"clé"` ou `'clé'`) ? Une mention entre accents graves, dans un commentaire, n'en est pas une. */
+export function namesFeatureLiteral(text: string, feature: string): boolean {
+  return text.includes(`"${feature}"`) || text.includes(`'${feature}'`)
 }
 
 const NETWORK_BUILDERS: ReadonlySet<string> = new Set(["networkQuery", "networkMutation", "networkAction"])
@@ -105,6 +141,18 @@ export function detectFeatureGateGaps(file: string, text: string, expected: Clas
 const sliceFiles = () => listFiles([SLICE_DIRECTORY], [".ts"]).filter((file) => !isTestFile(file))
 const isClassification = (value: string): value is Classification => value === "core" || (NETWORK_FEATURES as readonly string[]).includes(value)
 
+/** Les clés qu'au moins une fonction du dépôt porte : la tranche (membre et administrateur du réseau) et les modules gouvernés. */
+function gatedFeatures(): Set<string> {
+  const gated = new Set<string>()
+  for (const file of sliceFiles()) {
+    for (const fn of networkFunctionFeatures(file, readRepoFile(file), SLICE_BUILDERS)) if (fn.feature !== null) gated.add(fn.feature)
+  }
+  for (const file of listFiles(Object.keys(FEATURE_MODULES), [".ts"]).filter((path) => !isTestFile(path))) {
+    for (const fn of networkFunctionFeatures(file, readRepoFile(file))) if (fn.feature !== null) gated.add(fn.feature)
+  }
+  return gated
+}
+
 describe("network-feature-gates — chaque fonctionnalité activable est gardée (ADR-0041)", () => {
   it("chaque fichier de la tranche est classé dans le manifeste, ni plus ni moins, sous une clé connue ou « core »", () => {
     const map = manifestFeatureFiles(readRepoFile(SLICE_MANIFEST))
@@ -128,15 +176,37 @@ describe("network-feature-gates — chaque fonctionnalité activable est gardée
     expect(findings, formatFindings(findings)).toEqual([])
   })
 
-  it("chaque clé garde au moins une fonction", () => {
-    const gated = new Set<string>()
-    for (const file of sliceFiles()) {
-      for (const fn of networkFunctionFeatures(file, readRepoFile(file), SLICE_BUILDERS)) if (fn.feature !== null) gated.add(fn.feature)
+  it("chaque clé garde au moins une fonction, hors les modules d'affichage déclarés", () => {
+    expect(ungatedFeatures(NETWORK_FEATURES, gatedFeatures(), Object.keys(DISPLAY_ONLY_FEATURES))).toEqual([])
+  })
+
+  it("modules d'affichage (CH-863) : une liste fermée, épinglée et motivée, dont aucune clé ne garde une fonction, ne classe un fichier ni ne gouverne un module", () => {
+    // Épinglée en toutes lettres : y ajouter une clé oblige à venir l'écrire ici, avec sa raison.
+    expect(Object.keys(DISPLAY_ONLY_FEATURES)).toEqual(["consulateGateway"])
+    for (const [feature, reason] of Object.entries(DISPLAY_ONLY_FEATURES)) expect(reason.trim().length, `raison de ${feature}`).toBeGreaterThanOrEqual(40)
+    const classified = new Set<string>([...manifestFeatureFiles(readRepoFile(SLICE_MANIFEST)).values(), ...Object.values(FEATURE_MODULES)])
+    expect(falseDisplayOnly(Object.keys(DISPLAY_ONLY_FEATURES), NETWORK_FEATURES, gatedFeatures(), classified), "exemptions fausses").toEqual([])
+    // Le serveur ne la nomme jamais : une garde directe (`requireNetworkFeature(ctx, network, "clé")`) échapperait à la lecture des options.
+    const server = listFiles(["convex"], [".ts"]).filter((file) => !isTestFile(file))
+    for (const feature of Object.keys(DISPLAY_ONLY_FEATURES)) {
+      expect(server.filter((file) => namesFeatureLiteral(readRepoFile(file), feature)), `fichiers du serveur qui nomment « ${feature} »`).toEqual([])
     }
-    for (const file of listFiles(Object.keys(FEATURE_MODULES), [".ts"]).filter((path) => !isTestFile(path))) {
-      for (const fn of networkFunctionFeatures(file, readRepoFile(file))) if (fn.feature !== null) gated.add(fn.feature)
-    }
-    expect(NETWORK_FEATURES.filter((feature) => !gated.has(feature))).toEqual([])
+  })
+
+  it("test du test : une clé sans garde hors liste est vue ; une exemption inconnue, gardée ou classée est fausse", () => {
+    const features = ["pages", "jobs", "gateway"]
+    expect(ungatedFeatures(features, new Set(["pages", "jobs"]), ["gateway"])).toEqual([])
+    expect(ungatedFeatures(features, new Set(["pages"]), ["gateway"])).toEqual(["jobs"])
+    expect(ungatedFeatures(features, new Set(["pages", "jobs"]), [])).toEqual(["gateway"])
+    expect(falseDisplayOnly(["gateway"], features, new Set(["pages", "jobs"]), new Set(["pages", "jobs", "core"]))).toEqual([])
+    expect(falseDisplayOnly(["ghost"], features, new Set(), new Set())).toEqual(["ghost"])
+    expect(falseDisplayOnly(["gateway"], features, new Set(["gateway"]), new Set())).toEqual(["gateway"])
+    expect(falseDisplayOnly(["gateway"], features, new Set(), new Set(["gateway"]))).toEqual(["gateway"])
+    // Une garde directe ou une option nomment la clé en chaîne ; un commentaire qui la cite entre accents graves, non.
+    expect(namesFeatureLiteral('await requireNetworkFeature(ctx, ctx.network, "gateway")', "gateway")).toBe(true)
+    expect(namesFeatureLiteral("export const f = networkQuery({ feature: 'gateway', args: {} })", "gateway")).toBe(true)
+    expect(namesFeatureLiteral(" * Un module d'affichage (`gateway`) ne garde aucune fonction.", "gateway")).toBe(false)
+    expect(namesFeatureLiteral('feature: "gatewayPlus"', "gateway")).toBe(false)
   })
 
   it("test du test : clé absente, clé fausse, clé dans le socle, clé non littérale ; les autres constructeurs ignorés", () => {

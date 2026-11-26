@@ -106,3 +106,29 @@ Contredit la demande du propriétaire (« pour l'instant, je veux juste … post
   d'administration lit la même fonction que l'application des membres.
 - **Les huit clés ne changent pas.** La clé `classifieds` (petites annonces) naîtra avec son module,
   pas avant.
+
+## Amendement du 2026-11-26 (CH-863) — statut « Proposé »
+
+- **Une neuvième clé, `consulateGateway`, posée à la fin de la liste.** Sans parent ni enfant, gouvernée par
+  la tranche `diaspora`, fermée sans ligne comme les autres. Elle règle l'entrée « consulat.ga — Démarches
+  administratives » du menu des membres de DIASPORA.GA (contrat `DIASPORA-PASSERELLE-V1`, dans le dépôt de
+  l'application) : l'administrateur du réseau l'ouvre et la ferme dans admin.diaspora.ga, avec le même motif
+  et la même ligne `network.feature_set` ; elle ne dépend d'aucun module et aucun ne dépend d'elle. Les huit
+  premières clés ne bougent pas : ni leur ordre, ni leur sens.
+- **Un module d'affichage : la clé ne garde aucune fonction du moteur.** La passerelle est un lien sortant,
+  une navigation dans le même onglet vers une autre application à qui rien n'est transmis ; le moteur ne sert
+  rien pour elle, il n'a donc rien à refuser. Les points 2 et 6 de la décision (garde dans le constructeur,
+  classement des fichiers) ne la concernent pas. Sa fermeture est tenue par l'application, qui ne monte
+  l'entrée que si la clé figure dans `features.open` (point 7, inchangé). Ce que le moteur garantit : la
+  ligne, la bascule réservée à l'administrateur du réseau en session prouvée (ADR-0042), le motif, le journal.
+- **Le cliquet `network-feature-gates` tient la liste fermée de ces clés** (`DISPLAY_ONLY_FEATURES` : une
+  clé aujourd'hui, avec sa raison, épinglée par un test). Il échoue si une clé exemptée garde une fonction,
+  classe un fichier de la tranche, gouverne un module du moteur, ou si un fichier du serveur la nomme en
+  chaîne (une garde directe par `requireNetworkFeature`). Toute autre clé doit toujours garder au moins une
+  fonction.
+- **Rien n'est ajouté sous `convex/`** : ni table, ni index, ni fonction, ni fichier. Le validateur
+  `networkFeatureValidator`, dérivé de la liste, admet une valeur de plus (un élargissement, sans
+  migration) ; l'API générée ne change pas.
+- **Pourquoi pas un interrupteur de code** (premier jet du lot D1 de CH-863) : le propriétaire veut régler
+  cette entrée depuis l'administration du réseau, comme l'onglet « Diaspora » de consulat.ga se règle depuis
+  admin.consulat.ga. Un interrupteur de code demande un redéploiement et ne laisse aucune trace au journal.
