@@ -467,7 +467,9 @@ export const createAuth = (ctx: GenericCtx<DataModel>, requestOrigin?: string | 
     // `prompt` ni `max_age` pour la seule intention fermée `antsiaEntry: "sso"` d'une application des
     // membres ; refus sinon. Le lien de compte ne lit jamais l'intention. `idn()` ne pose de paramètres
     // d'autorisation qu'avec `acrValues`, que le moteur ne passe pas.
-    authorizationUrlParams: (endpointCtx: { path?: string; body?: unknown }) => {
+    // Paramètre typé par le contexte (`GenericEndpointContext` de Better Auth, via `as OAuthConfig`) :
+    // annoté à la main, l'objet ne se convertit plus en configuration (`idn()` rend un enregistrement).
+    authorizationUrlParams: (endpointCtx) => {
       const params = idnSignInStartParams(endpointCtx.path === "/sign-in/oauth2" ? endpointCtx.body : undefined)
       if (params === null) throw idnEntryRefusal()
       return params
