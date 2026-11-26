@@ -61,16 +61,6 @@
       "public_env": [],
       "config_env": []
     },
-    "diaspora_ga_mobile": {
-      "platform": "expo-native",
-      "package": "diaspora-ga-mobile",
-      "path": "../DIASPORA_GA/apps/diaspora_ga_mobile",
-      "platforms": ["ios", "android"],
-      "config": "app.json",
-      "entry": "index.ts",
-      "public_env": [],
-      "config_env": []
-    },
     "antsia_mobile": {
       "platform": "expo-native",
       "package": "antsia-mobile",
