@@ -800,9 +800,23 @@ describe("composition du fournisseur d'identité", () => {
       const options = record(plugin.options)
       if (!Array.isArray(options.config) || options.config.length !== 1) throw new Error("Fournisseur IDN absent")
       const provider = record(options.config[0])
-      return { providerId: provider.providerId, pkce: provider.pkce, scopes: provider.scopes, redirectURI: provider.redirectURI, prompt: provider.prompt }
+      // CH-863 M1 (ADR-0045) : plus de `prompt` statique, qui vaudrait pour tout départ ; les paramètres
+      // d'autorisation sont une fonction de la requête, `prompt=login` par défaut, sur chaque route qui les lit.
+      const params = provider.authorizationUrlParams
+      if (typeof params !== "function") throw new Error("Paramètres d'autorisation IDN attendus en fonction de la requête")
+      const paramsOf = params as (ctx: { path?: string; body?: unknown }) => unknown
+      return {
+        providerId: provider.providerId, pkce: provider.pkce, scopes: provider.scopes, redirectURI: provider.redirectURI, prompt: provider.prompt,
+        signIn: paramsOf({ path: "/sign-in/oauth2", body: { providerId: "idn", callbackURL: `${PEER_ORIGIN}/bienvenue` } }),
+        link: paramsOf({ path: "/oauth2/link", body: { providerId: "idn", callbackURL: `${PEER_ORIGIN}/compte` } }),
+        // Le lien de compte ne lit jamais l'intention, même glissée dans son corps.
+        linkWithIntent: paramsOf({ path: "/oauth2/link", body: { providerId: "idn", callbackURL: `${PEER_ORIGIN}/compte`, additionalData: { antsiaEntry: "sso" } } }),
+      }
     })
-    expect(config).toEqual({ providerId: "idn", pkce: true, scopes: ["openid", "profile", "email"], redirectURI: `${PRIMARY_ORIGIN}/api/auth/oauth2/callback/idn`, prompt: "login" })
+    expect(config).toEqual({
+      providerId: "idn", pkce: true, scopes: ["openid", "profile", "email"], redirectURI: `${PRIMARY_ORIGIN}/api/auth/oauth2/callback/idn`, prompt: undefined,
+      signIn: { prompt: "login" }, link: { prompt: "login" }, linkWithIntent: { prompt: "login" },
+    })
   })
 
   it.each([
@@ -820,7 +834,8 @@ describe("composition du fournisseur d'identité", () => {
     expect(result.status).toBe(200)
     const url = new URL(textField(result.data, "url"))
     expect(url.origin).toBe(issuer)
-    expect(url.searchParams.get("prompt")).toBe("login")
+    expect(url.searchParams.getAll("prompt")).toEqual(["login"])
+    expect(url.searchParams.has("max_age")).toBe(false)
     expect(url.searchParams.get("client_id")).toBe("sandbox-client-fixture")
     expect(url.searchParams.get("redirect_uri")).toBe(`${PRIMARY_ORIGIN}/api/auth/oauth2/callback/idn`)
     expect(url.searchParams.get("code_challenge_method")).toBe("S256")
@@ -916,6 +931,183 @@ describe("routes du cœur où `generic-oauth` inscrit IDN : fermées (CH-817 E5)
     expect(calls).toContain("/token")
     expect(await stateRowOf(t, state)).toBeNull()
     expect(await rowsOf(t, "session")).toHaveLength(1)
+  })
+})
+
+// CH-863 M1 (ADR-0045) — la porte d'arrivée (venue de consulat.ga) demande l'entrée IDN sans
+// ressaisie par l'intention FERMÉE `additionalData: { antsiaEntry: "sso" }` : l'adresse d'autorisation
+// ne porte alors ni `prompt` ni `max_age`, et identite.ga accepte sa session tant qu'elle vit. Sans
+// intention, rien ne change : `prompt=login`. Toute autre valeur, forme ou clé, un autre fournisseur,
+// l'administration d'un réseau, la console ou le parcours natif : refus fermé `idnEntryInvalid`,
+// AVANT tout appel à IDN et toute écriture d'état.
+describe("CH-863 M1 — entrée IDN sans ressaisie sur la porte d'arrivée (intention fermée `antsiaEntry`)", () => {
+  const IDN_ISSUER = "https://idn.example.test"
+  const SSO = { antsiaEntry: "sso" }
+  const localOrigin = (key: "antsia_ga" | "diaspora_ga" | "admin_diaspora_ga" | "admin_antsia_ga") => `http://localhost:${catalog.applications[key].dev_port}`
+  const MEMBERS_ORIGIN = localOrigin("diaspora_ga")
+  const ADMIN_ENTRY = `${localOrigin("admin_diaspora_ga")}/entrer`
+  const CONSOLE_ENTRY = `${localOrigin("admin_antsia_ga")}/entrer`
+  const REFUSED = { code: "idnEntryInvalid", message: "idnEntryInvalid" }
+  const verificationRows = async (t: T) => ((await t.query(components.betterAuth.adapter.findMany, { model: "verification", paginationOpts: { cursor: null, numItems: 50 } })) as { page: unknown[] }).page
+
+  /** Le transport IDN simulé (découverte, jeton, profil) ; chaque chemin appelé est noté. */
+  function stubIdnTransport(): string[] {
+    const calls: string[] = []
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = new URL(input instanceof Request ? input.url : String(input))
+      calls.push(url.pathname)
+      const json = (value: unknown) => new Response(JSON.stringify(value), { headers: { "Content-Type": "application/json" } })
+      if (url.pathname.endsWith("/.well-known/openid-configuration")) return json({ issuer: IDN_ISSUER, authorization_endpoint: `${IDN_ISSUER}/authorize`, token_endpoint: `${IDN_ISSUER}/token`, userinfo_endpoint: `${IDN_ISSUER}/userinfo` })
+      if (url.pathname === "/token") return json({ access_token: "fixture-access-sso", token_type: "Bearer", expires_in: 3600 })
+      if (url.pathname === "/userinfo") return json({ sub: "fixture-idn-sso", email: "idn-sso@example.test", email_verified: true, loa: 2 })
+      throw new Error("Transport externe inattendu dans la recette IDN")
+    }))
+    return calls
+  }
+
+  /** Un départ des membres vers `/bienvenue`, échec vers `/entrer`, comme la porte de DIASPORA.GA. */
+  const membersStart = (origin: string, additionalData?: Record<string, unknown>) => ({
+    providerId: "idn", callbackURL: `${origin}/bienvenue`, errorCallbackURL: `${origin}/entrer`, ...(additionalData ? { additionalData } : {}),
+  })
+
+  it.each([
+    { label: "sans données", additionalData: undefined },
+    { label: "avec des données sans l'intention", additionalData: { autre: "valeur" } },
+  ])("par défaut ($label) : la porte ordinaire, `prompt=login`, sans `max_age`", async ({ additionalData }) => {
+    configureIdnFixture()
+    stubIdnTransport()
+    const t = testConvex({ automaticSessions: false })
+    for (const origin of [PRIMARY_ORIGIN, MEMBERS_ORIGIN]) {
+      const start = await request(t, "/sign-in/oauth2", { body: membersStart(origin, additionalData), origin })
+      expect(start.status, origin).toBe(200)
+      const authorization = new URL(textField(start.data, "url"))
+      expect(authorization.searchParams.getAll("prompt"), origin).toEqual(["login"])
+      expect(authorization.searchParams.has("max_age"), origin).toBe(false)
+    }
+  })
+
+  it("avec `sso`, depuis une application des membres : ni `prompt` ni `max_age`, le reste du départ intact", async () => {
+    configureIdnFixture()
+    stubIdnTransport()
+    const t = testConvex({ automaticSessions: false })
+    for (const origin of [PRIMARY_ORIGIN, MEMBERS_ORIGIN]) {
+      const start = await request(t, "/sign-in/oauth2", { body: membersStart(origin, SSO), origin })
+      expect(start.status, origin).toBe(200)
+      const authorization = new URL(textField(start.data, "url"))
+      expect(`${authorization.origin}${authorization.pathname}`).toBe(`${IDN_ISSUER}/authorize`)
+      expect(authorization.searchParams.has("prompt"), origin).toBe(false)
+      expect(authorization.searchParams.has("max_age"), origin).toBe(false)
+      expect(authorization.searchParams.get("client_id")).toBe("sandbox-client-fixture")
+      expect(authorization.searchParams.get("redirect_uri")).toBe(`${PRIMARY_ORIGIN}/api/auth/oauth2/callback/idn`)
+      expect(authorization.searchParams.get("scope")).toBe("openid profile email")
+      expect(authorization.searchParams.get("code_challenge_method")).toBe("S256")
+      expect(authorization.searchParams.get("code_challenge")).toBeTruthy()
+      expect(authorization.searchParams.get("state")).toBeTruthy()
+      expect(record(start.data).redirect).toBe(true)
+    }
+  })
+
+  it("le rappel central accepte l'état d'un départ `sso` et livre la session à l'application de départ, par le seul jeton à usage unique", async () => {
+    configureIdnFixture()
+    const calls = stubIdnTransport()
+    const t = testConvex({ automaticSessions: false })
+    const start = await request(t, "/sign-in/oauth2", { body: membersStart(MEMBERS_ORIGIN, SSO), origin: MEMBERS_ORIGIN })
+    expect(start.status).toBe(200)
+    const state = new URL(textField(start.data, "url")).searchParams.get("state") ?? ""
+    expect(state).not.toBe("")
+    const callback = await request(t, `/oauth2/callback/idn?code=fixture-code&state=${encodeURIComponent(state)}&iss=${encodeURIComponent(IDN_ISSUER)}`, { method: "GET" })
+    expect(callback.status).toBe(302)
+    const destination = new URL(callback.location ?? "")
+    expect(`${destination.origin}${destination.pathname}`).toBe(`${MEMBERS_ORIGIN}/bienvenue`)
+    expect(destination.searchParams.get("ott")).toBeTruthy()
+    expect(callback.setCookie).toBeNull()
+    expect(calls).toContain("/token")
+    expect(await t.query(components.betterAuth.adapter.findOne, { model: "verification", where: [{ field: "identifier", value: state }] })).toBeNull()
+  })
+
+  it.each([
+    { label: "une casse différente", origin: MEMBERS_ORIGIN, body: membersStart(MEMBERS_ORIGIN, { antsiaEntry: "SSO" }) },
+    { label: "une autre valeur", origin: MEMBERS_ORIGIN, body: membersStart(MEMBERS_ORIGIN, { antsiaEntry: "login" }) },
+    { label: "une liste", origin: MEMBERS_ORIGIN, body: membersStart(MEMBERS_ORIGIN, { antsiaEntry: ["sso"] }) },
+    { label: "un objet", origin: MEMBERS_ORIGIN, body: membersStart(MEMBERS_ORIGIN, { antsiaEntry: { mode: "sso" } }) },
+    { label: "null", origin: MEMBERS_ORIGIN, body: membersStart(MEMBERS_ORIGIN, { antsiaEntry: null }) },
+    { label: "une clé de plus", origin: MEMBERS_ORIGIN, body: membersStart(MEMBERS_ORIGIN, { antsiaEntry: "sso", max_age: "0" }) },
+    { label: "un autre fournisseur", origin: MEMBERS_ORIGIN, body: { ...membersStart(MEMBERS_ORIGIN, SSO), providerId: "autre" } },
+    { label: "l'administration d'un réseau", origin: localOrigin("admin_diaspora_ga"), body: { providerId: "idn", callbackURL: ADMIN_ENTRY, newUserCallbackURL: ADMIN_ENTRY, errorCallbackURL: ADMIN_ENTRY, additionalData: SSO } },
+    { label: "la console", origin: localOrigin("admin_antsia_ga"), body: { providerId: "idn", callbackURL: CONSOLE_ENTRY, newUserCallbackURL: CONSOLE_ENTRY, errorCallbackURL: CONSOLE_ENTRY, additionalData: SSO } },
+    { label: "un nouvel utilisateur envoyé à l'administration", origin: MEMBERS_ORIGIN, body: { ...membersStart(MEMBERS_ORIGIN, SSO), newUserCallbackURL: ADMIN_ENTRY } },
+  ])("refuse $label : 400 `idnEntryInvalid`, sans appel à IDN ni état enregistré", async ({ origin, body }) => {
+    configureIdnFixture()
+    const calls = stubIdnTransport()
+    const t = testConvex({ automaticSessions: false })
+    const refusal = await request(t, "/sign-in/oauth2", { body, origin })
+    expect(refusal.status).toBe(400)
+    expect(record(refusal.data)).toEqual(REFUSED)
+    expect(refusal.location).toBeNull()
+    expect(calls).toEqual([])
+    expect(await verificationRows(t)).toEqual([])
+  })
+
+  it("refuse une origine de confiance qui ne nomme aucune application du catalogue (fermé par défaut)", async () => {
+    configureIdnFixture()
+    const calls = stubIdnTransport()
+    const foreign = "https://porte.example.test"
+    vi.stubEnv("TRUSTED_ORIGINS", foreign)
+    const t = testConvex({ automaticSessions: false })
+    const refusal = await request(t, "/sign-in/oauth2", { body: membersStart(foreign, SSO), origin: foreign })
+    expect(refusal.status).toBe(400)
+    expect(record(refusal.data)).toEqual(REFUSED)
+    expect(calls).toEqual([])
+    // La même origine garde la porte ordinaire, sans intention.
+    const ordinary = await request(t, "/sign-in/oauth2", { body: membersStart(foreign), origin: foreign })
+    expect(ordinary.status).toBe(200)
+    expect(new URL(textField(ordinary.data, "url")).searchParams.get("prompt")).toBe("login")
+  })
+
+  it("refuse l'intention à côté du parcours natif, que le crochet natif admet seul", async () => {
+    configureIdnFixture()
+    const calls = stubIdnTransport()
+    const redirectUri = "antsia-fixture://auth/idn"
+    vi.stubEnv("NATIVE_AUTH_REDIRECT_URI", redirectUri)
+    const callbackURL = `${PRIMARY_ORIGIN}/api/auth/native/return`
+    const native = { providerId: "idn", callbackURL, newUserCallbackURL: callbackURL, errorCallbackURL: callbackURL, additionalData: { antsiaNative: { challenge: "c".repeat(43), state: "s".repeat(43), redirectUri } } }
+    const t = testConvex({ automaticSessions: false })
+    const refusal = await request(t, "/sign-in/oauth2", { body: { ...native, additionalData: { ...native.additionalData, ...SSO } } })
+    expect(refusal.status).toBe(400)
+    expect(record(refusal.data)).toEqual(REFUSED)
+    expect(calls).toEqual([])
+    expect(await verificationRows(t)).toEqual([])
+    // Le même départ natif, sans l'intention, passe : le refus vient bien de l'intention.
+    const nativeStart = await request(t, "/sign-in/oauth2", { body: native })
+    expect(nativeStart.status).toBe(200)
+    expect(new URL(textField(nativeStart.data, "url")).searchParams.get("prompt")).toBe("login")
+  })
+
+  it("la fonction des paramètres refuse aussi d'elle-même : un départ qui contournerait le crochet n'obtient jamais la session vivante", async () => {
+    configureIdnFixture()
+    const t = testConvex({ automaticSessions: false })
+    const outcomes = await t.action(async (ctx) => {
+      const { createAuth } = await import("./auth")
+      const plugin = createAuth(ctx, MEMBERS_ORIGIN).options.plugins?.find((item) => item.id === "generic-oauth")
+      if (!plugin || !("options" in plugin)) throw new Error("Réglage du fournisseur IDN absent")
+      const options = record(plugin.options)
+      if (!Array.isArray(options.config) || options.config.length !== 1) throw new Error("Fournisseur IDN absent")
+      const params = record(options.config[0]).authorizationUrlParams
+      if (typeof params !== "function") throw new Error("Paramètres d'autorisation IDN absents")
+      const outcome = (body: Record<string, unknown>) => {
+        try {
+          return { params: (params as (ctx: { path?: string; body?: unknown }) => unknown)({ path: "/sign-in/oauth2", body }) }
+        } catch (error) {
+          return { refused: record(record(error).body).code }
+        }
+      }
+      return {
+        sso: outcome(membersStart(MEMBERS_ORIGIN, SSO)),
+        unknown: outcome(membersStart(MEMBERS_ORIGIN, { antsiaEntry: "toujours" })),
+        admin: outcome({ providerId: "idn", callbackURL: ADMIN_ENTRY, newUserCallbackURL: ADMIN_ENTRY, errorCallbackURL: ADMIN_ENTRY, additionalData: SSO }),
+      }
+    })
+    expect(outcomes).toEqual({ sso: { params: {} }, unknown: { refused: "idnEntryInvalid" }, admin: { refused: "idnEntryInvalid" } })
   })
 })
 

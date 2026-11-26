@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import catalog from "../../deploy/catalog.json"
-import { applicationOfOAuthState, applicationOfOrigin, authenticationConfiguration, entryPathOf, extraApplicationOrigins, idnConfiguration, idnEntryPrefill, idnProfileProof, isE164Phone, isOperatorConsoleApplication, isWebApplicationKey, networkAdministeredBy, parseOriginList, smsConfiguration, trustedOrigins } from "./settings"
+import { applicationOfOAuthState, applicationOfOrigin, applicationOfSignInStart, authenticationConfiguration, entryPathOf, extraApplicationOrigins, IDN_ENTRY_SSO, idnAuthorizationParams, idnConfiguration, idnEntryIntentOf, idnEntryPrefill, idnProfileProof, idnSignInStartParams, isE164Phone, isOperatorConsoleApplication, isWebApplicationKey, networkAdministeredBy, parseOriginList, smsConfiguration, trustedOrigins } from "./settings"
 
 // L'inventaire reste exhaustif ; seules les entrées web déclarent une origine HTTP.
 const webApplications = Object.entries(catalog.applications).flatMap(([key, app]) =>
@@ -322,6 +322,115 @@ describe("revue CH-815 A1b — origines supplémentaires d'une application, déc
     expect(extraApplicationOrigins(refused).size).toBe(0)
     expect(applicationOfOrigin(DEMO_ADMIN, refused)).toBeNull()
     expect(applicationOfOrigin(DEMO_MEMBERS, refused)).toBeNull()
+  })
+})
+
+// CH-863 M1 (ADR-0045) — sur la porte d'arrivée, et là seulement, l'entrée IDN accepte la session
+// identite.ga tant qu'elle vit : ni `prompt`, ni `max_age`. Partout ailleurs, `prompt=login`.
+describe("CH-863 M1 — paramètres d'autorisation IDN et intention fermée d'entrée sans ressaisie", () => {
+  const origin = (key: string) => {
+    const app = webApplications.find((item) => item.key === key)
+    if (!app) throw new Error(`Application ${key} attendue au catalogue`)
+    return new URL(app.site_url).origin
+  }
+  const members = origin("diaspora_ga")
+  const publicSite = origin("antsia_ga")
+  const adminEntry = `${origin("admin_diaspora_ga")}/entrer`
+  const consoleEntry = `${origin("admin_antsia_ga")}/entrer`
+  const nativePayload = { challenge: "c".repeat(43), state: "s".repeat(43), redirectUri: "antsia-fixture://auth/idn" }
+
+  it("l'intention se lit d'un schéma strict : absente, elle ne change rien ; présente, elle vaut le seul littéral `sso`", () => {
+    for (const absent of [undefined, null, {}, { autre: "valeur" }, "sso", ["sso"], 42]) expect(idnEntryIntentOf(absent), JSON.stringify(absent) ?? "undefined").toEqual({ valid: true, intent: null })
+    expect(IDN_ENTRY_SSO).toBe("sso")
+    expect(idnEntryIntentOf({ antsiaEntry: "sso" })).toEqual({ valid: true, intent: "sso" })
+  })
+
+  it.each([
+    ["une casse différente", { antsiaEntry: "SSO" }],
+    ["une autre valeur", { antsiaEntry: "login" }],
+    ["une chaîne vide", { antsiaEntry: "" }],
+    ["un espace", { antsiaEntry: " sso" }],
+    ["un booléen", { antsiaEntry: true }],
+    ["null", { antsiaEntry: null }],
+    ["undefined", { antsiaEntry: undefined }],
+    ["une liste", { antsiaEntry: ["sso"] }],
+    ["un objet", { antsiaEntry: { mode: "sso" } }],
+    ["une clé de plus", { antsiaEntry: "sso", maxAge: 0 }],
+    ["un prompt glissé à côté", { antsiaEntry: "sso", prompt: "none" }],
+    ["le parcours natif à côté", { antsiaEntry: "sso", antsiaNative: nativePayload }],
+  ])("refuse l'intention mal formée (%s), jamais ignorée en silence", (_label, additionalData) => {
+    expect(idnEntryIntentOf(additionalData)).toEqual({ valid: false })
+  })
+
+  it("règle pure : sans intention, `prompt=login` pour toute application, connue ou non", () => {
+    for (const application of [null, "antsia_ga", "diaspora_ga", "admin_diaspora_ga", "admin_antsia_ga", "antsia_mobile", "inconnue"]) {
+      expect(idnAuthorizationParams({ intent: null, application }), String(application)).toEqual({ prompt: "login" })
+    }
+  })
+
+  it("règle pure : avec `sso`, ni `prompt` ni `max_age` pour une application des membres du catalogue", () => {
+    for (const application of ["antsia_ga", "diaspora_ga"]) {
+      const params = idnAuthorizationParams({ intent: "sso", application })
+      expect(params, application).toEqual({})
+      expect(Object.keys(params ?? { absent: true }), application).toEqual([])
+    }
+  })
+
+  it("règle pure : avec `sso`, refus pour l'administration d'un réseau, la console, le natif, une clé inconnue ou aucune application", () => {
+    for (const application of ["admin_diaspora_ga", "admin_antsia_ga", "antsia_mobile", "inconnue", "toString", "__proto__", "", null]) {
+      expect(idnAuthorizationParams({ intent: "sso", application }), String(application)).toBeNull()
+    }
+  })
+
+  it("chaque décision rend un objet neuf : le modifier ne change pas la suivante", () => {
+    const first = idnAuthorizationParams({ intent: null, application: null })
+    if (!first) throw new Error("Paramètres par défaut attendus")
+    first.prompt = "none"
+    expect(idnAuthorizationParams({ intent: null, application: null })).toEqual({ prompt: "login" })
+  })
+
+  it("l'application du départ : celle de l'adresse de retour, toutes les adresses données menant à la même", () => {
+    expect(applicationOfSignInStart({ callbackURL: `${members}/bienvenue`, errorCallbackURL: `${members}/entrer` }, {})).toBe("diaspora_ga")
+    expect(applicationOfSignInStart({ callbackURL: `${members}/bienvenue`, newUserCallbackURL: `${members}/bienvenue`, errorCallbackURL: "" }, {})).toBe("diaspora_ga")
+    expect(applicationOfSignInStart({ callbackURL: publicSite }, {})).toBe("antsia_ga")
+    // Les applications d'autorité restent NOMMÉES : c'est la règle qui les refuse, pas la lecture.
+    expect(applicationOfSignInStart({ callbackURL: adminEntry, newUserCallbackURL: adminEntry, errorCallbackURL: adminEntry }, {})).toBe("admin_diaspora_ga")
+    expect(applicationOfSignInStart({ callbackURL: consoleEntry, newUserCallbackURL: consoleEntry, errorCallbackURL: consoleEntry }, {})).toBe("admin_antsia_ga")
+    for (const [label, body] of [
+      ["aucun corps", undefined],
+      ["une adresse absente", {}],
+      ["une adresse relative", { callbackURL: "/bienvenue" }],
+      ["une adresse hors des origines de confiance", { callbackURL: "https://foreign.example.test/bienvenue" }],
+      ["une adresse de nouvel utilisateur vers l'administration", { callbackURL: `${members}/bienvenue`, newUserCallbackURL: adminEntry }],
+      ["une adresse d'erreur vers la console", { callbackURL: `${members}/bienvenue`, errorCallbackURL: consoleEntry }],
+      ["une adresse d'erreur illisible", { callbackURL: `${members}/bienvenue`, errorCallbackURL: 42 }],
+    ] as const) expect(applicationOfSignInStart(body, {}), label).toBeNull()
+  })
+
+  it("le départ complet : intention lue, fournisseur `idn` seul, application des membres seule", () => {
+    const start = (body: Record<string, unknown>) => idnSignInStartParams(body, {})
+    const sso = { antsiaEntry: "sso" }
+    expect(start({ providerId: "idn", callbackURL: `${members}/bienvenue` })).toEqual({ prompt: "login" })
+    expect(start({ providerId: "idn", callbackURL: `${members}/bienvenue`, additionalData: { autre: "valeur" } })).toEqual({ prompt: "login" })
+    expect(start({ providerId: "idn", callbackURL: `${members}/bienvenue`, errorCallbackURL: `${members}/entrer`, additionalData: sso })).toEqual({})
+    for (const [label, body] of [
+      ["un autre fournisseur", { providerId: "autre", callbackURL: `${members}/bienvenue`, additionalData: sso }],
+      ["aucun fournisseur", { callbackURL: `${members}/bienvenue`, additionalData: sso }],
+      ["l'administration d'un réseau", { providerId: "idn", callbackURL: adminEntry, newUserCallbackURL: adminEntry, errorCallbackURL: adminEntry, additionalData: sso }],
+      ["la console", { providerId: "idn", callbackURL: consoleEntry, newUserCallbackURL: consoleEntry, errorCallbackURL: consoleEntry, additionalData: sso }],
+      ["une application inconnue", { providerId: "idn", callbackURL: "https://foreign.example.test/bienvenue", additionalData: sso }],
+      ["une valeur inconnue", { providerId: "idn", callbackURL: `${members}/bienvenue`, additionalData: { antsiaEntry: "toujours" } }],
+      ["le parcours natif à côté", { providerId: "idn", callbackURL: `${members}/bienvenue`, additionalData: { ...sso, antsiaNative: nativePayload } }],
+    ] as const) expect(start(body), label).toBeNull()
+  })
+
+  it("une origine de démonstration DÉCLARÉE pour l'application des membres est admise ; non déclarée, refusée (fermé par défaut)", () => {
+    const demo = "https://membres.demo.example.test"
+    const body = { providerId: "idn", callbackURL: `${demo}/bienvenue`, errorCallbackURL: `${demo}/entrer`, additionalData: { antsiaEntry: "sso" } }
+    expect(idnSignInStartParams(body, { APPLICATION_EXTRA_ORIGINS_JSON: JSON.stringify({ diaspora_ga: [demo] }), TRUSTED_ORIGINS: demo })).toEqual({})
+    expect(idnSignInStartParams(body, { TRUSTED_ORIGINS: demo })).toBeNull()
+    // Sans intention, la même origine non déclarée garde la porte ordinaire.
+    expect(idnSignInStartParams({ ...body, additionalData: undefined }, { TRUSTED_ORIGINS: demo })).toEqual({ prompt: "login" })
   })
 })
 

@@ -241,6 +241,12 @@ describe("cliquet de la surface d'authentification (CH-817 E5)", () => {
     }
   })
 
+  it("CH-863 M1 : la raison du départ IDN dit la porte ordinaire (`prompt=login`) et la seule intention fermée qui l'ouvre sans ressaisie", () => {
+    const entry = AUTH_ROUTE_SURFACE["/sign-in/oauth2"]
+    expect(entry?.kind).toBe("public")
+    for (const mention of ["prompt=login", "antsiaEntry", "\"sso\"", "ADR-0045", "idnEntryInvalid"]) expect(entry?.reason, mention).toContain(mention)
+  })
+
   it("les routes réservées au serveur ne sont pas routées : 404 en HTTP", async () => {
     configureIdnFixture()
     const t = testConvex({ automaticSessions: false })

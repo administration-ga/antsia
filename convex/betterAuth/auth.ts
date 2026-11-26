@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/betterAuth/auth.ts @ ad2e7fdc2 — adaptations : PA4, IDN avec PKCE et preuve serveur minimale, comptes légers par OTP e-mail/SMS, aucune route de mot de passe ; origines du catalogue et de l'environnement ; session sept jours et JWT trente minutes avec sessionId contrôlé côté serveur ; OTT trois minutes ; délivrance locale bornée ou transport configuré, erreurs et limitation de débit du moteur ; refus ou abandon chez IDN renvoyé à la porte de départ de confiance (issue #122) ; refus de débit porteur du délai restant, `retryAfterMs` et `Retry-After` (EA-08, issue #151) ; preuve de session IDN scellée avec l'application où la session est livrée, prise de l'état OAuth enregistré au départ (ADR-0042, CH-815) ; rappel IDN central web sans aucun cookie ni jeton porteur, la session ne passant que par le jeton à usage unique (revue CH-815 A1b, constat F1) ; routes `check-verification-otp` et `verify-email` du greffon e-mail fermées pour toutes les adresses, et garde de la porte des comptes de démonstration sur l'envoi du code et la connexion de sa famille d'adresses, avant les seaux (CH-817 E5, constat 1) ; surface des routes classée route par route (`AUTH_ROUTE_SURFACE`), figée par le cliquet `authSurface.test.ts` (CH-817 E5) ; routes du cœur `/sign-in/social` et `/callback/:id`, où `generic-oauth` inscrit IDN, fermées pour tous : IDN n'entre que par `/sign-in/oauth2` et son rappel central (CH-817 E5, écart du cliquet). Pré-remplissage éphémère de l'accueil (nom civil, identifiant IDN) extrait au mapping et déposé par le greffon de preuve une fois la session ouverte, jamais dans Better Auth ni dans la preuve, sans jamais faire échouer la connexion (ADR-0044, lot M1).
+// Dupliqué de socle/convex/betterAuth/auth.ts @ ad2e7fdc2 — adaptations : PA4, IDN avec PKCE et preuve serveur minimale, comptes légers par OTP e-mail/SMS, aucune route de mot de passe ; origines du catalogue et de l'environnement ; session sept jours et JWT trente minutes avec sessionId contrôlé côté serveur ; OTT trois minutes ; délivrance locale bornée ou transport configuré, erreurs et limitation de débit du moteur ; refus ou abandon chez IDN renvoyé à la porte de départ de confiance (issue #122) ; refus de débit porteur du délai restant, `retryAfterMs` et `Retry-After` (EA-08, issue #151) ; preuve de session IDN scellée avec l'application où la session est livrée, prise de l'état OAuth enregistré au départ (ADR-0042, CH-815) ; rappel IDN central web sans aucun cookie ni jeton porteur, la session ne passant que par le jeton à usage unique (revue CH-815 A1b, constat F1) ; routes `check-verification-otp` et `verify-email` du greffon e-mail fermées pour toutes les adresses, et garde de la porte des comptes de démonstration sur l'envoi du code et la connexion de sa famille d'adresses, avant les seaux (CH-817 E5, constat 1) ; surface des routes classée route par route (`AUTH_ROUTE_SURFACE`), figée par le cliquet `authSurface.test.ts` (CH-817 E5) ; routes du cœur `/sign-in/social` et `/callback/:id`, où `generic-oauth` inscrit IDN, fermées pour tous : IDN n'entre que par `/sign-in/oauth2` et son rappel central (CH-817 E5, écart du cliquet). Pré-remplissage éphémère de l'accueil (nom civil, identifiant IDN) extrait au mapping et déposé par le greffon de preuve une fois la session ouverte, jamais dans Better Auth ni dans la preuve, sans jamais faire échouer la connexion (ADR-0044, lot M1). Départ IDN sans `prompt` statique : paramètres d'autorisation fonction de la requête, `prompt=login` par défaut, sans `prompt` ni `max_age` pour la seule intention fermée `antsiaEntry: "sso"` d'une application des membres, refus fermé `idnEntryInvalid` sinon, par le crochet de départ et par la fonction elle-même (ADR-0045, CH-863 M1).
 /**
  * Better Auth du moteur — l'émetteur UNIQUE des jetons Convex (ADR-0002).
  *
@@ -27,7 +27,7 @@ import { deliverOtp, type OtpRequest } from "./delivery"
 import { idnRefusalReturn } from "./idnRefusalReturn"
 import { idnWebCallbackWithoutCookies } from "./idnWebCallback"
 import { isNativeIdnOAuth, nativeIdn } from "./nativeIdn"
-import { applicationOfOAuthState, authenticationConfiguration, idnConfiguration, idnEntryPrefill, idnProfileProof, isE164Phone, OTP_TTL_SECONDS, trustedOrigins, type IdnEntryPrefill } from "./settings"
+import { applicationOfOAuthState, authenticationConfiguration, idnConfiguration, idnEntryPrefill, idnProfileProof, idnSignInStartParams, isE164Phone, OTP_TTL_SECONDS, trustedOrigins, type IdnEntryPrefill } from "./settings"
 
 // Durée de vie d'un code à usage unique : la constante vit dans `settings.ts`, que lit aussi la configuration publique (EA-08).
 export { OTP_TTL_SECONDS, parseOriginList, trustedOrigins } from "./settings"
@@ -223,7 +223,7 @@ export const AUTH_ROUTE_SURFACE: Readonly<Record<string, AuthRouteClassification
   // Greffon `engine-native-idn`.
   "/native-idn/exchange": { kind: "public", reason: "OUVRE UNE SESSION sans seau : code de 43 caractères déposé par le rappel IDN, 90 s, usage unique, lié à un vérificateur S256." },
   // Greffon `generic-oauth` (IDN seulement, quand il est configuré).
-  "/sign-in/oauth2": { kind: "public", reason: "Départ vers IDN : rend l'URL d'autorisation (état et PKCE enregistrés), aucune session ; la personne s'authentifie chez IDN." },
+  "/sign-in/oauth2": { kind: "public", reason: "Départ vers IDN : rend l'URL d'autorisation (état et PKCE enregistrés), aucune session ; la personne s'authentifie chez IDN. `prompt=login` par défaut ; la seule intention fermée `additionalData: { antsiaEntry: \"sso\" }` (porte d'arrivée d'une application des membres, fournisseur `idn`) l'ôte, sans `max_age` ; toute autre valeur, forme ou clé, l'administration d'un réseau, la console ou le parcours natif : refus `idnEntryInvalid` avant tout appel à IDN (ADR-0045)." },
   "/oauth2/callback/:providerId": { kind: "public", reason: "OUVRE UNE SESSION sans seau : état OAuth enregistré au départ (usage unique), code échangé chez IDN avec secret client et PKCE." },
   "/oauth2/link": { kind: "sessionRequired", guard: "middleware", reason: "Lie IDN au compte présent (rattachement explicite)." },
   // Greffon `email-otp`.
@@ -348,6 +348,30 @@ const rateLimitPlugin = (ctx: GenericCtx<DataModel>): BetterAuthPlugin => ({
   },
 })
 
+/** CH-863 M1 (ADR-0045) — le refus FERMÉ d'un départ IDN que la règle n'admet pas : un code, aucun détail. */
+function idnEntryRefusal(): APIError {
+  return new APIError("BAD_REQUEST", { message: "idnEntryInvalid", code: "idnEntryInvalid" })
+}
+
+/**
+ * CH-863 M1 (ADR-0045) — le crochet de départ de l'intention d'entrée, sur le modèle du crochet natif
+ * (`nativeIdn.ts`) : sur `/sign-in/oauth2`, il refuse tout départ que la règle refuse
+ * (`idnSignInStartParams`), AVANT la découverte d'IDN et l'enregistrement de l'état. Placé après
+ * `crossDomain` (adresses de retour déjà absolues) et après la garde d'origine. La fonction
+ * `authorizationUrlParams` du fournisseur applique la MÊME règle : ce crochet ne fait que refuser plus tôt.
+ */
+const idnEntryIntentGuard = (): BetterAuthPlugin => ({
+  id: "engine-idn-entry-intent",
+  hooks: {
+    before: [{
+      matcher: (hookCtx) => hookCtx.path === "/sign-in/oauth2",
+      handler: createAuthMiddleware(async (hookCtx) => {
+        if (idnSignInStartParams(hookCtx.body) === null) throw idnEntryRefusal()
+      }),
+    }],
+  },
+})
+
 /**
  * L'état OAuth du rappel EN COURS, tel que Better Auth l'a relu en base et consommé (`parseState`),
  * ou `null`. Hors d'une requête Better Auth (crochet appelé directement), il n'y a pas d'état : la
@@ -435,8 +459,21 @@ export const createAuth = (ctx: GenericCtx<DataModel>, requestOrigin?: string | 
   type OAuthConfig = Parameters<typeof genericOAuth>[0]["config"][number]
   const idnProvider: OAuthConfig[] = idnOptions ? [{
     ...idn({ ...idnOptions, scopes: ["openid", "profile", "email"] }),
-    // Une nouvelle entrée doit permettre une autre identité, même si IDN garde son SSO.
-    prompt: "login",
+    // CH-863 M1 (ADR-0045) — plus de `prompt` statique, qui vaudrait pour tout départ. Better Auth 1.6
+    // (`generic-oauth/routes`) appelle cette fonction avec le contexte de la route, corps VALIDÉ, avant
+    // d'enregistrer l'état, sur `/sign-in/oauth2` et sur `/oauth2/link`, puis pose son résultat en dernier
+    // sur l'adresse d'autorisation. Règle : `idnSignInStartParams` (`settings.ts`) — `prompt=login` par
+    // défaut (une nouvelle entrée doit permettre une autre identité, même si IDN garde son SSO) ; ni
+    // `prompt` ni `max_age` pour la seule intention fermée `antsiaEntry: "sso"` d'une application des
+    // membres ; refus sinon. Le lien de compte ne lit jamais l'intention. `idn()` ne pose de paramètres
+    // d'autorisation qu'avec `acrValues`, que le moteur ne passe pas.
+    // Paramètre typé par le contexte (`GenericEndpointContext` de Better Auth, via `as OAuthConfig`) :
+    // annoté à la main, l'objet ne se convertit plus en configuration (`idn()` rend un enregistrement).
+    authorizationUrlParams: (endpointCtx) => {
+      const params = idnSignInStartParams(endpointCtx.path === "/sign-in/oauth2" ? endpointCtx.body : undefined)
+      if (params === null) throw idnEntryRefusal()
+      return params
+    },
     // Callback central stable, aussi pendant l'échange sans en-tête Origin.
     redirectURI: `${siteUrl}/api/auth/oauth2/callback/idn`,
     mapProfileToUser: async (profile: Record<string, unknown>) => {
@@ -514,6 +551,8 @@ export const createAuth = (ctx: GenericCtx<DataModel>, requestOrigin?: string | 
       bearer(),
       ...(idnProvider.length ? [genericOAuth({ config: idnProvider })] : []),
       rateLimitPlugin(ctx),
+      // Après `crossDomain` et la garde d'origine : un départ dont l'intention d'entrée n'est pas admise est refusé avant IDN (ADR-0045).
+      ...(idnProvider.length ? [idnEntryIntentGuard()] : []),
       // Après la garde d'origine, avant le rappel générique : un refus chez IDN revient à la porte de départ de confiance.
       ...(idnProvider.length ? [idnRefusalReturn()] : []),
       emailOTP({
