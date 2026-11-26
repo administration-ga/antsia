@@ -539,10 +539,10 @@ describe("comptes de démonstration DIASPORA.GA — statut dérivé des faits fi
     expect(await equip(as, "belgique")).toMatchObject({ status: "verifiee" })
     expect(await linkOf(t, personId, "consular_attestation")).toMatchObject({ country: "BE" })
     expect((await attestationRowsOf(t, personId))[0]).toMatchObject({ country: "BE", result: "verified" })
-    // Seul l'acteur « verifie » est antidaté : un autre membre vérifié ne peut pas encore parrainer.
+    // La preuve consulaire suffit dès aujourd'hui, même quand la graine n'antidate pas le statut.
     expect(DIASPORA_GA_DEMO_ACTOR_SPECS.belgique.canSponsor).toBe(false)
     expect(Date.now() - (await membershipOf(t, diasporaGa, personId)).statusChangedAt).toBeLessThan(DAY_MS)
-    expect(await as.query(api.modules.diaspora.membership.sponsorDashboard, { networkId: diasporaGa })).toMatchObject({ eligible: false, refusal: "sponsor_too_recent" })
+    expect(await as.query(api.modules.diaspora.membership.sponsorDashboard, { networkId: diasporaGa })).toMatchObject({ eligible: true, refusal: null, code: expect.any(String) })
   })
 
   it("fondateur (EA-01) : vérifiée par la seule décision du réseau, elle parraine aussitôt, sans antidate ; rejouer ne double rien", async () => {
