@@ -1,24 +1,34 @@
-// Dupliqué de socle/convex/modules/fileGuard/mutations.ts @ ad2e7fdc2 — adaptations : table `fileScans` ; quarantaine iDocument et triage IA retirés (le statut bloquant EST la retenue ; l'avis part par la cloche sociale, `notify.ts`) ; libération par un MODÉRATEUR du réseau du fichier ou un opérateur (au lieu de `settings.manage` d'une administration), relance par un opérateur (au lieu du superadmin) ; `logAudit` (journal de l'archive iDocument) remplacé par le journal du moteur (`appendAudit` : libération, relance, purge, avec la qualité de l'acteur) ; débit sur les gestes humains ; coupe-circuit respecté par l'analyse et le balayeur (fail-closed) ; purge indexée sur `blobPurgedAt` (D31 : une ligne purgée ne bloque plus la file) ; `_ageScanForTests` non recopiée (les tests vieillissent la ligne eux-mêmes) ; refus à code du moteur. ; `_markRunning` rend la taille STOCKÉE (`sizeBytes`, table `_storage`) pour que l'analyse écarte un fichier trop gros AVANT de le télécharger (lot 16) ; lots pleins poursuivis par chaîne pour la relance et la purge (lot 17) ; EX-17 : relance MOTIVÉE depuis la console (motif obligatoire, écrit au journal) et refusée (`conflict`) pour un fichier plus lourd que le plafond d'analyse — l'analyse le sauterait, et un enregistrement produit par la plateforme y perdrait sa servabilité. ; AZ-F1 : libération réservée à l'opérateur dans sa session de console scellée par IDN et journalisée, ou au modérateur du réseau du fichier au statut d'accès effectif (suspension racine et sanction globale comprises), par `fileDecisionCapacity`.
+// Dupliqué de socle/convex/modules/fileGuard/mutations.ts @ ad2e7fdc2 — adaptations : table `fileScans` ; quarantaine iDocument et triage IA retirés (le statut bloquant EST la retenue ; l'avis part par la cloche sociale, `notify.ts`) ; libération par un MODÉRATEUR du réseau du fichier ou un opérateur (au lieu de `settings.manage` d'une administration), relance par un opérateur (au lieu du superadmin) ; `logAudit` (journal de l'archive iDocument) remplacé par le journal du moteur (`appendAudit` : libération, relance, purge, avec la qualité de l'acteur) ; débit sur les gestes humains ; coupe-circuit respecté par l'analyse et le balayeur (fail-closed) ; purge indexée sur `blobPurgedAt` (D31 : une ligne purgée ne bloque plus la file) ; `_ageScanForTests` non recopiée (les tests vieillissent la ligne eux-mêmes) ; refus à code du moteur. ; `_markRunning` rend la taille STOCKÉE (`sizeBytes`, table `_storage`) pour que l'analyse écarte un fichier trop gros AVANT de le télécharger (lot 16) ; lots pleins poursuivis par chaîne pour la relance et la purge (lot 17) ; EX-17 : relance MOTIVÉE depuis la console (motif obligatoire, écrit au journal) et refusée (`conflict`) pour un fichier plus lourd que le plafond d'analyse — l'analyse le sauterait, et un enregistrement produit par la plateforme y perdrait sa servabilité. ; AZ-F1 : libération réservée à l'opérateur dans sa session de console scellée par IDN et journalisée, ou au modérateur du réseau du fichier au statut d'accès effectif (suspension racine et sanction globale comprises), par `fileDecisionCapacity`. ; M1 (25/11/2026) : un antivirus INDISPONIBLE (transport, 5xx, 429, file pleine) n'est pas un verdict — reprise lente à gigue sur 24 h sans entamer les tentatives (`settleUnavailable`, échéance portée par `updatedAt`), puis `error` motivé `AV_UNAVAILABLE:` ; réparation interne bornée et journalisée d'après panne (`requeueProviderOutageScans`) et liste de ses candidats (`listProviderOutageScans`).
 /**
  * Garde des fichiers — MUTATIONS.
  *
  * Machine d'états d'une analyse :
  *
  *   pending ─▶ running ─▶ clean | suspicious | infected | skipped
- *                  └─▶ error ─(attempts < max)─▶ pending (nouvelle tentative)
+ *                  ├─▶ error ─(attempts < max)─▶ pending (nouvelle tentative)
+ *                  └─▶ antivirus indisponible ─(< 24 h)─▶ pending (reprise lente, M1)
+ *                                              └(≥ 24 h)─▶ error `AV_UNAVAILABLE:…`
  *   suspicious | error ─(libération par un modérateur)─▶ clean
  *   infected            ─(relance par un opérateur)───▶ pending
+ *   error de panne      ─(réparation d'après panne)───▶ pending
  *
  * `_markRunning` et `_record` sont les DEUX seules écritures de l'action
  * d'analyse ; tout échec après `_markRunning` finit dans `_record`. Le balayeur
  * `retryStale` rattrape le crash pur du runtime.
+ *
+ * Une indisponibilité de l'antivirus (M1) rend sa tentative : elle ne compte
+ * pas parmi les `FILE_GUARD_MAX_ATTEMPTS`. Pendant l'attente de la reprise, la
+ * ligne est `pending` et son `updatedAt` porte l'ÉCHÉANCE de la reprise : le
+ * balayeur ne la juge perdue que cinq minutes après cette échéance, sans
+ * qu'aucune ligne en attente n'occupe la tête de sa file.
  */
 import { assertDecisionReason } from "@antsia/social-domain/audit"
+import { paginationOptsValidator } from "convex/server"
 import { v } from "convex/values"
 
 import { internal } from "../../_generated/api"
 import type { Doc, Id } from "../../_generated/dataModel"
-import { internalMutation, type MutationCtx } from "../../_generated/server"
+import { internalMutation, internalQuery, type MutationCtx } from "../../_generated/server"
 import { checked, fail, notFound } from "../../lib/errors"
 import { operatorMutation, personMutation } from "../../lib/functions"
 import { enforceRateLimit } from "../../lib/rateLimit"
@@ -31,11 +41,18 @@ import {
   FILE_GUARD_RUNNING_STALE_MS,
   isKillSwitched,
   isReleasableStatus,
+  providerUnavailableRetryDelayMs,
   quarantineRetentionDays,
 } from "./policy"
 import { fileScanAvValidator, fileScanFindingValidator, fileScanStatusValidator } from "./tables"
+import { isProviderOutageReason } from "./verdict"
 
 const RETRY_BACKOFF_MS = 30_000
+/** Réparation d'après panne : un lot de 25 au plus, analyses étalées de 2 s pour une façade qui sort de panne. */
+const OUTAGE_REQUEUE_MAX = 25
+const OUTAGE_REQUEUE_SPACING_MS = 2_000
+/** Liste des candidats à la réparation : 100 lignes `error` lues au plus par page. */
+const OUTAGE_LIST_MAX = 100
 const SWEEP_TAKE = 50
 const PURGE_TAKE = 50
 const MIN_RELEASE_REASON_CHARS = 3
@@ -91,8 +108,13 @@ export const scanOutcomeValidator = v.union(
     sizeBytes: v.optional(v.number()),
   }),
   v.object({ kind: v.literal("error"), reason: v.string() }),
+  /** M1 : l'antivirus n'a pas pu juger (transport, 5xx, 429, file pleine) — reprise lente, pas un verdict. */
+  v.object({ kind: v.literal("unavailable"), reason: v.string() }),
   v.object({ kind: v.literal("skipped"), reason: v.string(), sizeBytes: v.optional(v.number()) }),
 )
+
+/** Un verdict ou une relance clôt la série d'indisponibilités en cours. */
+const CLOSED_UNAVAILABLE_SERIES = { providerUnavailableSince: undefined, providerUnavailableRetries: undefined } as const
 
 async function settleError(ctx: MutationCtx, scan: Doc<"fileScans">, reason: string): Promise<void> {
   const now = Date.now()
@@ -104,6 +126,31 @@ async function settleError(ctx: MutationCtx, scan: Doc<"fileScans">, reason: str
   await ctx.db.patch(scan._id, { status: "error", verdictReason: reason, completedAt: now, updatedAt: now })
   const settled = await ctx.db.get(scan._id)
   if (settled) await deliverVerdictNotice(ctx, settled)
+}
+
+/**
+ * M1 — l'antivirus n'a pas pu juger. La tentative est RENDUE (`attempts` - 1) :
+ * seul un verdict en consomme une. Reprise après un délai exponentiel à gigue
+ * (`providerUnavailableRetryDelayMs`), tant que la série a moins de 24 h ; la
+ * ligne attend `pending` (retenue, « analyse en cours ») et `updatedAt` porte
+ * l'échéance, pour que le balayeur ne la replanifie pas avant. Au-delà, figée
+ * `error` avec le motif `AV_UNAVAILABLE:…`, et l'avis part comme pour une erreur.
+ */
+async function settleUnavailable(ctx: MutationCtx, scan: Doc<"fileScans">, reason: string): Promise<void> {
+  const now = Date.now()
+  const since = scan.providerUnavailableSince ?? now
+  const retries = (scan.providerUnavailableRetries ?? 0) + 1
+  const attempts = Math.max(0, scan.attempts - 1)
+  const delay = providerUnavailableRetryDelayMs({ retry: retries, elapsedMs: now - since, random: Math.random() })
+  const series = { providerUnavailableSince: since, providerUnavailableRetries: retries }
+  if (delay === null) {
+    await ctx.db.patch(scan._id, { status: "error", verdictReason: reason, attempts, ...series, completedAt: now, updatedAt: now })
+    const settled = await ctx.db.get(scan._id)
+    if (settled) await deliverVerdictNotice(ctx, settled)
+    return
+  }
+  await ctx.db.patch(scan._id, { status: "pending", verdictReason: reason, attempts, ...series, updatedAt: now + delay })
+  await ctx.scheduler.runAfter(delay, internal.modules.files.scan.runScan, { scanId: scan._id })
 }
 
 /** Écrit le résultat de l'analyse. Un verdict bloquant EST la retenue : il est signalé, rien n'est déplacé. */
@@ -118,6 +165,11 @@ export const _record = internalMutation({
     const now = Date.now()
     const { outcome } = args
 
+    if (outcome.kind === "unavailable") {
+      await settleUnavailable(ctx, scan, outcome.reason)
+      return null
+    }
+
     if (scan.requiresFullScan && (outcome.kind === "skipped" || (outcome.kind === "verdict" && outcome.status === "clean" && outcome.av?.verdict !== "clean"))) {
       await settleError(ctx, scan, "FEDERATED_FULL_SCAN_REQUIRED")
       return null
@@ -128,6 +180,7 @@ export const _record = internalMutation({
         status: "skipped",
         skipReason: outcome.reason,
         ...(outcome.sizeBytes !== undefined ? { sizeBytes: outcome.sizeBytes } : {}),
+        ...CLOSED_UNAVAILABLE_SERIES,
         completedAt: now,
         updatedAt: now,
       })
@@ -146,6 +199,7 @@ export const _record = internalMutation({
       findings: outcome.findings,
       ...(outcome.av ? { av: outcome.av } : {}),
       ...(outcome.sizeBytes !== undefined ? { sizeBytes: outcome.sizeBytes } : {}),
+      ...CLOSED_UNAVAILABLE_SERIES,
       completedAt: now,
       updatedAt: now,
     })
@@ -197,7 +251,7 @@ export const releaseScan = personMutation({
   },
 })
 
-async function requeueForAnalysis(ctx: MutationCtx, scan: Doc<"fileScans">, now: number): Promise<void> {
+async function requeueForAnalysis(ctx: MutationCtx, scan: Doc<"fileScans">, now: number, delayMs = 0): Promise<void> {
   await ctx.db.patch(scan._id, {
     status: "pending",
     attempts: 0,
@@ -205,10 +259,19 @@ async function requeueForAnalysis(ctx: MutationCtx, scan: Doc<"fileScans">, now:
     av: undefined,
     verdictReason: undefined,
     skipReason: undefined,
+    ...CLOSED_UNAVAILABLE_SERIES,
     completedAt: undefined,
     updatedAt: now,
   })
-  if (!isKillSwitched(process.env)) await ctx.scheduler.runAfter(0, internal.modules.files.scan.runScan, { scanId: scan._id })
+  if (!isKillSwitched(process.env)) await ctx.scheduler.runAfter(delayMs, internal.modules.files.scan.runScan, { scanId: scan._id })
+}
+
+/** Le fournisseur réel est raccordé (et la garde active) : sinon une relance serait vaine. */
+function isScanProviderConfigured(): boolean {
+  return !isKillSwitched(process.env)
+    && process.env.FILE_SCAN_PROVIDER?.trim().toLowerCase() === "clamav-rest"
+    && Boolean(process.env.FILE_SCAN_CLAMAV_URL?.trim())
+    && Boolean(process.env.FILE_SCAN_CLAMAV_TOKEN?.trim())
 }
 
 /**
@@ -256,10 +319,7 @@ export const requeueUnconfiguredScans = internalMutation({
   returns: v.object({ requeued: v.number(), scanIds: v.array(v.id("fileScans")) }),
   handler: async (ctx, args): Promise<{ requeued: number; scanIds: Id<"fileScans">[] }> => {
     if (args.scanIds.length < 1 || args.scanIds.length > 2 || new Set(args.scanIds).size !== args.scanIds.length) return fail("invalidArgument", { field: "scanIds" })
-    if (isKillSwitched(process.env)
-      || process.env.FILE_SCAN_PROVIDER?.trim().toLowerCase() !== "clamav-rest"
-      || !process.env.FILE_SCAN_CLAMAV_URL?.trim()
-      || !process.env.FILE_SCAN_CLAMAV_TOKEN?.trim()) return fail("conflict")
+    if (!isScanProviderConfigured()) return fail("conflict")
 
     // Tout le lot est validé AVANT la moindre écriture ou planification.
     const scans: Doc<"fileScans">[] = []
@@ -282,6 +342,78 @@ export const requeueUnconfiguredScans = internalMutation({
       })
     }
     return { requeued: scans.length, scanIds: scans.map((scan) => scan._id) }
+  },
+})
+
+/**
+ * M1 — réparation administrative bornée d'après PANNE de l'antivirus, sans
+ * identité humaine (calquée sur `requeueUnconfiguredScans`). Ne relance que des
+ * analyses figées `error` par une panne du fournisseur (`isProviderOutageReason` :
+ * `AV_UNAVAILABLE:…`, ou, d'avant M1, `AV_ERROR:HTTP 5xx | 429` et coupures du
+ * transport), jamais un verdict. Lot de 1 à 25 identifiants distincts, validé
+ * en entier avant la moindre écriture ; analyses étalées de 2 s ; un acte
+ * système au journal par fichier, sans nom de fichier.
+ */
+export const requeueProviderOutageScans = internalMutation({
+  args: {
+    scanIds: v.array(v.id("fileScans")),
+    confirm: v.literal("ANTSIA_REQUEUE_PROVIDER_OUTAGE"),
+  },
+  returns: v.object({ requeued: v.number(), scanIds: v.array(v.id("fileScans")) }),
+  handler: async (ctx, args): Promise<{ requeued: number; scanIds: Id<"fileScans">[] }> => {
+    if (args.scanIds.length < 1 || args.scanIds.length > OUTAGE_REQUEUE_MAX || new Set(args.scanIds).size !== args.scanIds.length) return fail("invalidArgument", { field: "scanIds" })
+    if (!isScanProviderConfigured()) return fail("conflict")
+
+    // Tout le lot est validé AVANT la moindre écriture ou planification.
+    const scans: Doc<"fileScans">[] = []
+    for (const scanId of args.scanIds) {
+      const scan = await ctx.db.get(scanId)
+      if (!scan) return notFound()
+      if (scan.status !== "error" || !isProviderOutageReason(scan.verdictReason) || scan.blobPurgedAt !== undefined) return fail("conflict")
+      scans.push(scan)
+    }
+    const now = Date.now()
+    for (const [index, scan] of scans.entries()) {
+      await requeueForAnalysis(ctx, scan, now, index * OUTAGE_REQUEUE_SPACING_MS)
+      await appendAudit(ctx, {
+        action: "file.requeue",
+        capacity: "system",
+        ...(scan.networkId ? { networkId: scan.networkId } : {}),
+        subject: { table: "fileScans", id: scan._id },
+        details: { reason: "provider_outage_recovered", from: "error", previousReason: (scan.verdictReason ?? "").slice(0, 200) },
+        at: now,
+      })
+    }
+    return { requeued: scans.length, scanIds: scans.map((scan) => scan._id) }
+  },
+})
+
+/**
+ * M1 — les candidats à la réparation d'après panne, des plus récents aux plus
+ * anciens : l'identifiant, le motif et la date, jamais le nom du fichier ni le
+ * déposant. Une page lit au plus 100 lignes `error` ; une page peut rendre
+ * moins de candidats qu'elle n'a lu de lignes (les autres causes sont écartées).
+ */
+export const listProviderOutageScans = internalQuery({
+  args: { paginationOpts: paginationOptsValidator },
+  returns: v.object({
+    page: v.array(v.object({ scanId: v.id("fileScans"), verdictReason: v.string(), updatedAt: v.number() })),
+    isDone: v.boolean(),
+    continueCursor: v.string(),
+  }),
+  handler: async (ctx, args) => {
+    const page = await ctx.db
+      .query("fileScans")
+      .withIndex("by_status_updatedAt", (q) => q.eq("status", "error"))
+      .order("desc")
+      .paginate({ ...args.paginationOpts, numItems: Math.min(Math.max(1, Math.floor(args.paginationOpts.numItems)), OUTAGE_LIST_MAX) })
+    return {
+      page: page.page
+        .filter((scan) => scan.blobPurgedAt === undefined && isProviderOutageReason(scan.verdictReason))
+        .map((scan) => ({ scanId: scan._id, verdictReason: scan.verdictReason ?? "", updatedAt: scan.updatedAt })),
+      isDone: page.isDone,
+      continueCursor: page.continueCursor,
+    }
   },
 })
 

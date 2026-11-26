@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/modules/fileGuard/scan.ts @ ad2e7fdc2 — adaptations : références internes du module `files` du moteur ; le reste tel quel (runtime Node, `jszip`, règles pures, fournisseur, une seule écriture de vérité) ; taille STOCKÉE jugée avant le téléchargement (un fichier au-delà du plafond n'est jamais chargé en mémoire, lot 16).
+// Dupliqué de socle/convex/modules/fileGuard/scan.ts @ ad2e7fdc2 — adaptations : références internes du module `files` du moteur ; le reste tel quel (runtime Node, `jszip`, règles pures, fournisseur, une seule écriture de vérité) ; taille STOCKÉE jugée avant le téléchargement (un fichier au-delà du plafond n'est jamais chargé en mémoire, lot 16) ; M1 (25/11/2026) : un antivirus indisponible sans autre signal est confié à `_record` comme `unavailable` (reprise lente), pas comme un verdict.
 "use node"
 /**
  * Garde des fichiers — l'ACTION D'ANALYSE.
@@ -80,6 +80,7 @@ export const runScan = internalAction({
             sizeBytes?: number
           }
         | { kind: "error"; reason: string }
+        | { kind: "unavailable"; reason: string }
         | { kind: "skipped"; reason: string; sizeBytes?: number }
     ): Promise<void> {
       await ctx.runMutation(internal.modules.files.mutations._record, {
@@ -127,6 +128,11 @@ export const runScan = internalAction({
       })
 
       const verdict = decideVerdict({ findings: report.findings, av })
+      if (verdict.providerUnavailable) {
+        // L'antivirus n'a rien jugé et l'inspection n'a rien levé : reprise plus tard, fichier retenu.
+        await record({ kind: "unavailable", reason: verdict.reason.slice(0, 200) })
+        return null
+      }
       await record({
         kind: "verdict",
         status: verdict.status,

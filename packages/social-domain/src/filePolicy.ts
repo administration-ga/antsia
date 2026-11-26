@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/modules/fileGuard/policy.ts @ ad2e7fdc2 — adaptations : FAIL-CLOSED (aucune ligne d'analyse = fichier RETENU, jamais « antériorité servable », owner map §1.4 et D06) ; sources sociales du moteur au lieu des surfaces administratives ; libellés et phrases d'écran retirés (l'écran traduit le statut) ; interrupteurs d'environnement déplacés côté backend (`convex/modules/files/policy.ts`) ; triage IA retiré (option V2) ; EX-17 (décision du 9/11/2026) : aucun dépôt de membre au-delà du plafond d'analyse, et un `skipped` ne sert que s'il est produit par la plateforme (`isUnanalyzedUpload`).
+// Dupliqué de socle/convex/modules/fileGuard/policy.ts @ ad2e7fdc2 — adaptations : FAIL-CLOSED (aucune ligne d'analyse = fichier RETENU, jamais « antériorité servable », owner map §1.4 et D06) ; sources sociales du moteur au lieu des surfaces administratives ; libellés et phrases d'écran retirés (l'écran traduit le statut) ; interrupteurs d'environnement déplacés côté backend (`convex/modules/files/policy.ts`) ; triage IA retiré (option V2) ; EX-17 (décision du 9/11/2026) : aucun dépôt de membre au-delà du plafond d'analyse, et un `skipped` ne sert que s'il est produit par la plateforme (`isUnanalyzedUpload`) ; M1 (25/11/2026) : un antivirus INDISPONIBLE (transport, 5xx, 429, file pleine) n'est pas un verdict — reprises lentes à gigue sur 24 h (`providerUnavailableRetryDelayMs`), sans entamer les tentatives.
 /**
  * Garde des fichiers — règles PURES, partagées par le serveur et les écrans.
  *
@@ -88,8 +88,44 @@ export const FILE_GUARD_MAX_INSPECT_BYTES = 60 * 1024 * 1024
 /** Une ligne `pending`/`running` plus vieille que ça est un job perdu. */
 export const FILE_GUARD_RUNNING_STALE_MS = 5 * 60_000
 
-/** Tentatives d'analyse avant de figer une ligne en `error`. */
+/** Tentatives d'analyse avant de figer une ligne en `error`. Seul un VERDICT en compte une. */
 export const FILE_GUARD_MAX_ATTEMPTS = 3
+
+/**
+ * Antivirus INDISPONIBLE (transport, HTTP 5xx ou 429, file pleine de la façade) :
+ * ce n'est pas un verdict sur le fichier. L'analyse est reprise plus tard, sans
+ * entamer `FILE_GUARD_MAX_ATTEMPTS`, avec un délai exponentiel à gigue — de
+ * 30 s à une heure entre deux reprises — pendant 24 h depuis la première
+ * indisponibilité ; au-delà, la ligne est figée `error` (`AV_UNAVAILABLE:…`),
+ * relançable par la réparation journalisée d'après panne. Le fichier reste
+ * retenu pendant tout ce temps (fail-closed), « analyse en cours » à l'écran.
+ */
+export const FILE_GUARD_UNAVAILABLE_WINDOW_MS = 24 * 60 * 60_000
+export const FILE_GUARD_UNAVAILABLE_BASE_DELAY_MS = 30_000
+export const FILE_GUARD_UNAVAILABLE_MAX_DELAY_MS = 60 * 60_000
+
+/** Préfixe du motif d'une analyse que l'antivirus n'a pas pu rendre, distinct d'un `AV_ERROR:` de verdict. */
+export const AV_UNAVAILABLE_REASON_PREFIX = "AV_UNAVAILABLE:"
+
+/**
+ * Délai avant la reprise n° `retry` (1 pour la première) d'une analyse dont
+ * l'antivirus était indisponible, ou `null` quand la fenêtre de 24 h est
+ * épuisée (la ligne se fige alors en `error`).
+ *
+ * Gigue « égale » : la moitié du plafond exponentiel, plus une part tirée au
+ * hasard de l'autre moitié (`random` dans [0, 1)) — des analyses parties
+ * ensemble ne reviennent pas ensemble sur une façade qui sort de panne. La
+ * dernière reprise est ramenée à l'échéance de la fenêtre, jamais au-delà.
+ */
+export function providerUnavailableRetryDelayMs(input: { retry: number; elapsedMs: number; random: number }): number | null {
+  const remaining = FILE_GUARD_UNAVAILABLE_WINDOW_MS - Math.max(0, input.elapsedMs)
+  if (remaining <= 0) return null
+  const exponent = Math.min(Math.max(Math.floor(input.retry), 1) - 1, 20)
+  const ceiling = Math.min(FILE_GUARD_UNAVAILABLE_MAX_DELAY_MS, FILE_GUARD_UNAVAILABLE_BASE_DELAY_MS * 2 ** exponent)
+  const random = Number.isFinite(input.random) ? Math.min(Math.max(input.random, 0), 1) : 0.5
+  const delay = Math.round(ceiling / 2 + (random * ceiling) / 2)
+  return Math.max(1, Math.min(delay, remaining))
+}
 
 /** Rétention d'un fichier infecté avant purge, en jours. */
 export const FILE_GUARD_QUARANTINE_RETENTION_DAYS_DEFAULT = 90

@@ -1,4 +1,4 @@
-// Dupliqué de socle/convex/modules/fileGuard/avProviders.test.ts @ ad2e7fdc2 — adaptations : sélection FAIL-CLOSED (fournisseur absent, inconnu, incomplet ou mock hors développement local → fournisseur indisponible, verdict `error`) ; le reste tel quel.
+// Dupliqué de socle/convex/modules/fileGuard/avProviders.test.ts @ ad2e7fdc2 — adaptations : sélection FAIL-CLOSED (fournisseur absent, inconnu, incomplet ou mock hors développement local → fournisseur indisponible, verdict `error`) ; M1 : transport, HTTP 5xx, 429 et file pleine marqués INDISPONIBLES (pas un verdict) ; le reste tel quel.
 import { describe, expect, it, vi } from "vitest"
 
 import {
@@ -64,6 +64,45 @@ describe("files/avProviders — adaptateur REST", () => {
       }) as unknown as typeof fetch,
     })
     expect(await throwing.scan(request)).toMatchObject({ verdict: "error", detail: "ECONNREFUSED" })
+  })
+
+  it("M1 — transport, HTTP 5xx, 429 et file pleine : indisponible, jamais un verdict ni `clean`", async () => {
+    const respond = (status: number, body: string) => new ClamAvRestProvider({ url: "https://av.local/scan", timeoutMs: 1000, maxBytes: 1024, fetchImpl: (async () => new Response(body, { status })) as unknown as typeof fetch })
+    expect(await respond(503, '{"error":"queue_full"}').scan(request)).toMatchObject({ verdict: "error", detail: "HTTP 503 queue_full", unavailable: true })
+    expect(await respond(503, '{"error":"queue_timeout"}').scan(request)).toMatchObject({ verdict: "error", detail: "HTTP 503 queue_timeout", unavailable: true })
+    expect(await respond(503, '{"error":"busy"}').scan(request)).toMatchObject({ verdict: "error", detail: "HTTP 503 busy", unavailable: true })
+    expect(await respond(502, "<html>Bad Gateway</html>").scan(request)).toMatchObject({ verdict: "error", detail: "HTTP 502", unavailable: true })
+    expect(await respond(500, "").scan(request)).toMatchObject({ verdict: "error", detail: "HTTP 500", unavailable: true })
+    expect(await respond(429, '{"error":"rate_limited"}').scan(request)).toMatchObject({ verdict: "error", detail: "HTTP 429 rate_limited", unavailable: true })
+    const offline = new ClamAvRestProvider({ url: "https://av.local/scan", timeoutMs: 1000, maxBytes: 1024, fetchImpl: (async () => { throw new TypeError("fetch failed") }) as unknown as typeof fetch })
+    expect(await offline.scan(request)).toMatchObject({ verdict: "error", detail: "fetch failed", unavailable: true })
+  })
+
+  it("M1 — un délai dépassé est une indisponibilité nommée `timeout`", async () => {
+    const hanging = new ClamAvRestProvider({
+      url: "https://av.local/scan",
+      timeoutMs: 5,
+      maxBytes: 1024,
+      fetchImpl: ((_url: string, init?: RequestInit) => new Promise((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => reject(new DOMException("This operation was aborted", "AbortError")))
+      })) as unknown as typeof fetch,
+    })
+    expect(await hanging.scan(request)).toMatchObject({ verdict: "error", detail: "timeout", unavailable: true })
+  })
+
+  it("M1 — un refus du fournisseur (4xx) ou une erreur de clamd reste un verdict d'erreur, qui entame les tentatives", async () => {
+    for (const status of [400, 401, 403, 404, 413]) {
+      const refused = new ClamAvRestProvider({ url: "https://av.local/scan", timeoutMs: 1000, maxBytes: 1024, fetchImpl: (async () => new Response('{"error":"x"}', { status })) as unknown as typeof fetch })
+      const out = await refused.scan(request)
+      expect(out.verdict).toBe("error")
+      expect(out.unavailable).toBeUndefined()
+    }
+    const clamdError = new ClamAvRestProvider({ url: "https://av.local/scan", timeoutMs: 1000, maxBytes: 1024, fetchImpl: (async () => new Response('[{"Status":"ERROR","Description":"clamd_error"}]', { status: 200 })) as unknown as typeof fetch })
+    const out = await clamdError.scan(request)
+    expect(out.verdict).toBe("error")
+    expect(out.unavailable).toBeUndefined()
+    // Le fournisseur non configuré garde son chemin propre (réparation `requeueUnconfiguredScans`).
+    expect((await new UnavailableFileScanProvider("provider_unconfigured").scan()).unavailable).toBeUndefined()
   })
 
   it("au-delà du plafond, l'antivirus est sauté (le reste de l'inspection tient)", async () => {

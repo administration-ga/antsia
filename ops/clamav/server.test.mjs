@@ -6,15 +6,19 @@ import http2 from "node:http2"
 import net from "node:net"
 import { test } from "node:test"
 
-import { createScannerServer, MAX_FILE_BYTES, scannerOptions } from "./server.mjs"
+import { createScanQueue, createScannerServer, MAX_FILE_BYTES, scannerOptions } from "./server.mjs"
 
 const TEST_TOKEN = "synthetic_test_token_32_characters_only"
 
-async function fixture(t, { scanReply = "stream: OK\0", healthReply = "PONG\0", hold = false, useHttp2 = false } = {}) {
+async function fixture(t, { scanReply = "stream: OK\0", healthReply = "PONG\0", hold = false, useHttp2 = false, queueDepth, queueWaitMs } = {}) {
   const scanned = []
   const pending = []
   const sockets = new Set()
   let pingCount = 0
+  // Analyses INSTREAM ouvertes en même temps dans le daemon : la façade n'en confie qu'une à la fois.
+  let inFlight = 0
+  let maxInFlight = 0
+  const scanWaiters = []
   let notifyScan
   const scanStarted = new Promise((resolveScan) => { notifyScan = resolveScan })
   const daemon = net.createServer((socket) => {
@@ -39,8 +43,12 @@ async function fixture(t, { scanReply = "stream: OK\0", healthReply = "PONG\0", 
         offset += 4
         if (size === 0) {
           handled = true
+          inFlight++
+          maxInFlight = Math.max(maxInFlight, inFlight)
+          socket.on("close", () => { inFlight-- })
           scanned.push(Buffer.concat(pieces))
           notifyScan()
+          for (const waiter of scanWaiters.splice(0)) waiter()
           if (hold) pending.push(socket)
           else socket.end(scanReply)
           return
@@ -53,7 +61,7 @@ async function fixture(t, { scanReply = "stream: OK\0", healthReply = "PONG\0", 
   })
   daemon.listen(0, "127.0.0.1")
   await once(daemon, "listening")
-  const options = { ...scannerOptions({ CLAMAV_TOKEN: TEST_TOKEN }), http2: useHttp2, clamdPort: daemon.address().port, maxBytes: 64, scanTimeoutMs: 500, healthTimeoutMs: 100, bodyTimeoutMs: 1000 }
+  const options = { ...scannerOptions({ CLAMAV_TOKEN: TEST_TOKEN }), http2: useHttp2, clamdPort: daemon.address().port, maxBytes: 64, scanTimeoutMs: 500, healthTimeoutMs: 100, bodyTimeoutMs: 1000, ...(queueDepth === undefined ? {} : { queueDepth }), ...(queueWaitMs === undefined ? {} : { queueWaitMs }) }
   const server = createScannerServer(options)
   server.listen(0, "127.0.0.1")
   await once(server, "listening")
@@ -80,7 +88,15 @@ async function fixture(t, { scanReply = "stream: OK\0", healthReply = "PONG\0", 
     scanned,
     scanStarted,
     pingCount: () => pingCount,
-    release: () => { for (const socket of pending) socket.end(scanReply) },
+    maxInFlight: () => maxInFlight,
+    /** Rend la main quand le daemon a reçu `count` fichiers au total. */
+    scansReceived: (count) => new Promise((resolveCount) => {
+      const check = () => (scanned.length >= count ? resolveCount() : scanWaiters.push(check))
+      check()
+    }),
+    release: () => { for (const socket of pending.splice(0)) socket.end(scanReply) },
+    /** Termine l'analyse la plus ancienne encore retenue par le daemon. */
+    releaseNext: () => pending.shift()?.end(scanReply),
   }
 }
 
@@ -186,19 +202,128 @@ test("un corps chunked au-delà de la borne reçoit 413 sans rupture opaque", as
   assert.equal(f.scanned.length, 0)
 })
 
-test("la concurrence est fermée et un timeout reste une indisponibilité", async (t) => {
+test("la file d'attente : défauts bornés, profondeur et attente refusées hors contrat", () => {
+  const defaults = scannerOptions({})
+  assert.equal(defaults.queueDepth, 8)
+  assert.equal(defaults.queueWaitMs, 30_000)
+  assert.equal(scannerOptions({ QUEUE_DEPTH: "32", QUEUE_WAIT_MS: "40000" }).queueDepth, 32)
+  for (const env of [{ QUEUE_DEPTH: "0" }, { QUEUE_DEPTH: "33" }, { QUEUE_WAIT_MS: "40001" }, { QUEUE_WAIT_MS: "-1" }]) assert.throws(() => scannerOptions(env), /Invalid scanner limit/)
+})
+
+test("la file rend le tour de clamd dans l'ordre d'arrivée, un seul à la fois", async () => {
+  const queue = createScanQueue({ depth: 3 })
+  const order = []
+  const tickets = [queue.admit(), queue.admit(), queue.admit(), queue.admit()]
+  assert.throws(() => queue.admit(), (error) => error.status === 503 && error.message === "queue_full")
+  const turns = tickets.map((ticket, index) => ticket.turn(1000).then(() => order.push(index)))
+  await turns[0]
+  await new Promise((resolveTick) => setImmediate(resolveTick))
+  assert.deepEqual(order, [0])
+  for (const index of [0, 1, 2]) {
+    tickets[index].leave()
+    await turns[index + 1]
+  }
+  assert.deepEqual(order, [0, 1, 2, 3])
+  tickets[3].leave()
+  tickets[3].leave()
+  assert.equal(queue.admitted(), 0)
+  // La place rendue se reprend : la file n'a rien perdu en route.
+  const again = queue.admit()
+  await again.turn(1000)
+  again.leave()
+})
+
+test("une attente trop longue ou un client parti rend sa place sans jamais obtenir clamd", async () => {
+  const queue = createScanQueue({ depth: 2 })
+  const holder = queue.admit()
+  await holder.turn(1000)
+  const late = queue.admit()
+  await assert.rejects(late.turn(20), (error) => error.status === 503 && error.message === "queue_timeout")
+  late.leave()
+  const gone = queue.admit()
+  const pendingTurn = gone.turn(1000)
+  gone.leave()
+  await assert.rejects(pendingTurn, (error) => error.status === 503)
+  const next = queue.admit()
+  const nextTurn = next.turn(1000)
+  holder.leave()
+  await nextTurn
+  next.leave()
+  assert.equal(queue.admitted(), 0)
+})
+
+test("quatre analyses simultanées attendent leur tour et finissent toutes saines, une seule à la fois dans clamd", async (t) => {
   const f = await fixture(t, { hold: true })
+  const bodies = [0, 1, 2, 3].map((index) => Buffer.from(`synthetic file ${index}`))
+  const requests = bodies.map((bytes) => scan(f.url, multipart(bytes)))
+  for (let received = 1; received <= bodies.length; received++) {
+    await f.scansReceived(received)
+    // Le daemon ne voit jamais deux fichiers à la fois : le suivant attend la fin du précédent.
+    await new Promise((resolveTick) => setTimeout(resolveTick, 20))
+    assert.equal(f.scanned.length, received)
+    f.releaseNext()
+  }
+  const responses = await Promise.all(requests)
+  for (const response of responses) {
+    assert.equal(response.status, 200)
+    assert.deepEqual(await response.json(), [{ Status: "OK", Description: "", FileName: "synthetic.bin" }])
+  }
+  assert.equal(f.maxInFlight(), 1)
+  assert.deepEqual([...f.scanned].sort(Buffer.compare), [...bodies].sort(Buffer.compare))
+})
+
+test("une file pleine répond 503 queue_full sans transmettre le fichier au daemon", async (t) => {
+  const f = await fixture(t, { hold: true, queueDepth: 1 })
+  const first = scan(f.url, multipart(Buffer.from("first")))
+  await f.scanStarted
+  const second = scan(f.url, multipart(Buffer.from("second")))
+  await new Promise((resolveTick) => setTimeout(resolveTick, 20))
+  const full = await scan(f.url, multipart(Buffer.from("third")))
+  assert.equal(full.status, 503)
+  assert.deepEqual(await full.json(), { error: "queue_full" })
+  f.releaseNext()
+  await f.scansReceived(2)
+  f.releaseNext()
+  assert.equal((await first).status, 200)
+  assert.equal((await second).status, 200)
+  assert.deepEqual(f.scanned.map(String), ["first", "second"])
+})
+
+test("l'attente en file est bornée et un timeout de clamd reste une indisponibilité", async (t) => {
+  const f = await fixture(t, { hold: true, queueWaitMs: 50 })
   const first = scan(f.url, multipart())
   await f.scanStarted
-  const busy = await scan(f.url, multipart())
-  assert.equal(busy.status, 503)
-  assert.deepEqual(await busy.json(), { error: "busy" })
+  const waited = await scan(f.url, multipart())
+  assert.equal(waited.status, 503)
+  assert.deepEqual(await waited.json(), { error: "queue_timeout" })
+  assert.equal(f.scanned.length, 1)
   f.release()
   assert.equal((await first).status, 200)
   const timeout = await fixture(t, { hold: true })
   const failed = await scan(timeout.url, multipart())
   assert.equal(failed.status, 503)
   assert.deepEqual(await failed.json(), { error: "scan_unavailable" })
+})
+
+test("un client parti pendant l'attente libère sa place : son fichier n'est jamais analysé", async (t) => {
+  const f = await fixture(t, { hold: true, queueDepth: 1 })
+  const first = scan(f.url, multipart(Buffer.from("first")))
+  await f.scanStarted
+  const controller = new AbortController()
+  const abandoned = fetch(`${f.url}/scan`, { method: "POST", headers: { Authorization: `Bearer ${TEST_TOKEN}` }, body: multipart(Buffer.from("abandoned")), signal: controller.signal })
+  await new Promise((resolveTick) => setTimeout(resolveTick, 20))
+  controller.abort()
+  await assert.rejects(abandoned)
+  await new Promise((resolveTick) => setTimeout(resolveTick, 20))
+  // La place rendue accueille un nouvel appel, même avec une file d'une seule place.
+  const next = scan(f.url, multipart(Buffer.from("next")))
+  await new Promise((resolveTick) => setTimeout(resolveTick, 20))
+  f.releaseNext()
+  await f.scansReceived(2)
+  f.releaseNext()
+  assert.equal((await first).status, 200)
+  assert.equal((await next).status, 200)
+  assert.deepEqual(f.scanned.map(String), ["first", "next"])
 })
 
 test("h2c conserve authentification, binaire et limites avec une sonde HTTP/1 distincte", async (t) => {

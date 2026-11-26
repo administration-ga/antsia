@@ -42,7 +42,16 @@ recréer les ressources ou le secret sur cette installation existante.
 - Aucun fichier n'est écrit sur disque ni journalisé par la façade. Le fichier est
   transmis à clamd par INSTREAM. Le corps multipart est borné à 60 MiB + 1 MiB.
 - Délais absolus : réception 15 s, scan 45 s, santé 5 s ; requête Cloud Run 90 s.
-  Une seule analyse en vol ; les autres appels authentifiés reçoivent 503.
+- Une seule analyse à la fois dans clamd (sa borne mémoire). Depuis le 25/11/2026, les
+  autres appels authentifiés attendent leur tour dans une **file FIFO bornée** au lieu de
+  recevoir 503 « busy » : `QUEUE_DEPTH` places (8 par défaut, 32 au plus), chacune
+  attendant au plus `QUEUE_WAIT_MS` (30 s par défaut, 40 s au plus : attente et analyse
+  restent sous le délai de socket de 90 s). File pleine : 503 `{"error":"queue_full"}`
+  sans lire ni transmettre le fichier ; attente dépassée : 503 `{"error":"queue_timeout"}`.
+  Un client parti pendant l'attente rend sa place, et son fichier n'est jamais analysé.
+  Chaque place retient au plus un corps (60 MiB + 1 MiB) : 8 places, environ 0,5 Gio au pire.
+  Le moteur traite ces 503 comme une indisponibilité, pas comme un verdict
+  (`convex/modules/files/avProviders.ts`) : il reprend plus tard, sans entamer ses tentatives.
 - Cloud Run : **1 CPU, 4 GiB, concurrence 1, minimum 0, maximum 1 instance**,
   facturation à la requête. Ce sont des limites de ressources, pas un plafond
   monétaire. Les minimum et maximum sont configurés au niveau du service et de
@@ -93,7 +102,7 @@ node ops/clamav/source-tag.mjs
 
 Les tests utilisent la vraie façade HTTP/1 et h2c, et un daemon TCP INSTREAM **synthétique**
 sur loopback. Ils vérifient authentification, disponibilité, octets binaires,
-limites, erreurs, concurrence et délais. Ils ne prouvent ni la détection du vrai
+limites, erreurs, file d'attente (ordre, file pleine, attente bornée, client parti) et délais. Ils ne prouvent ni la détection du vrai
 moteur, ni le démarrage du conteneur, ni ses besoins mémoire réels.
 
 ## Publication — seulement après décision du propriétaire
@@ -186,3 +195,34 @@ Ne modifier aucun `.env*`. Aucun changement du schéma ou du code applicatif n'e
 nécessaire pour le contrat existant. La délivrance reste fermée tant que le scan
 réel n'a pas donné de verdict autorisé ; contrôler ensuite un média synthétique
 depuis son admission jusqu'à sa délivrance.
+
+## Indisponibilité et reprise après une panne (M1, 25/11/2026)
+
+Le moteur distingue une **indisponibilité** du fournisseur d'un **verdict** :
+
+- Coupure du transport, délai dépassé, HTTP 5xx ou 429, `queue_full` ou `queue_timeout` de la
+  façade : ce n'est pas un jugement du fichier. Le fichier reste retenu (« analyse en cours »),
+  l'analyse est reprise après un délai exponentiel à gigue (de 30 s à une heure entre deux
+  reprises), sans entamer les trois tentatives de verdict. La série dure 24 h au plus depuis la
+  première indisponibilité ; au-delà, la ligne est figée `error` avec le motif `AV_UNAVAILABLE:…`
+  et l'avis de retenue part au déposant et aux modérateurs.
+- Un vrai verdict (`OK`, `FOUND`, erreur de clamd) et un refus 4xx se comptent comme avant :
+  un `FOUND` retient le fichier au premier verdict.
+
+Une panne de moins de 24 h se rattrape donc d'elle-même. Pour les fichiers figés **avant** M1
+(`AV_ERROR:HTTP 503`, `AV_ERROR:HTTP 500`, coupure réseau) ou au terme des 24 h
+(`AV_UNAVAILABLE:…`), une réparation **interne**, bornée et journalisée, les remet en analyse une
+fois le fournisseur revenu. Elle exige la configuration complète (`FILE_SCAN_PROVIDER=clamav-rest`,
+URL et jeton présents, garde active), un lot de 1 à 25 identifiants distincts tous figés par une
+panne, et la confirmation littérale. Les analyses sont étalées de 2 s ; chaque relance laisse une
+entrée `file.requeue` de capacité `system` au journal, sans nom de fichier. Depuis la racine ANTSIA,
+sur le déploiement visé et seulement sur décision de l'exploitant :
+
+```bash
+node scripts/convex-dev.mjs run modules/files/mutations:listProviderOutageScans '{"paginationOpts":{"numItems":100,"cursor":null}}'
+node scripts/convex-dev.mjs run modules/files/mutations:requeueProviderOutageScans '{"scanIds":["<id>","<id>"],"confirm":"ANTSIA_REQUEUE_PROVIDER_OUTAGE"}'
+```
+
+La liste ne rend que l'identifiant, le motif et la date des candidats ; une page lit au plus
+100 lignes `error`. Un fichier non configuré (`AV_ERROR:provider_unconfigured`) garde sa propre
+réparation, `requeueUnconfiguredScans`.
