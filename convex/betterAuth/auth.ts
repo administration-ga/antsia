@@ -1,3 +1,4 @@
+import { consulatePass } from "./consulatePass"
 // Dupliqué de socle/convex/betterAuth/auth.ts @ ad2e7fdc2 — adaptations : PA4, IDN avec PKCE et preuve serveur minimale, comptes légers par OTP e-mail/SMS, aucune route de mot de passe ; origines du catalogue et de l'environnement ; session sept jours et JWT trente minutes avec sessionId contrôlé côté serveur ; OTT trois minutes ; délivrance locale bornée ou transport configuré, erreurs et limitation de débit du moteur ; refus ou abandon chez IDN renvoyé à la porte de départ de confiance (issue #122) ; refus de débit porteur du délai restant, `retryAfterMs` et `Retry-After` (EA-08, issue #151) ; preuve de session IDN scellée avec l'application où la session est livrée, prise de l'état OAuth enregistré au départ (ADR-0042, CH-815) ; rappel IDN central web sans aucun cookie ni jeton porteur, la session ne passant que par le jeton à usage unique (revue CH-815 A1b, constat F1) ; routes `check-verification-otp` et `verify-email` du greffon e-mail fermées pour toutes les adresses, et garde de la porte des comptes de démonstration sur l'envoi du code et la connexion de sa famille d'adresses, avant les seaux (CH-817 E5, constat 1) ; surface des routes classée route par route (`AUTH_ROUTE_SURFACE`), figée par le cliquet `authSurface.test.ts` (CH-817 E5) ; routes du cœur `/sign-in/social` et `/callback/:id`, où `generic-oauth` inscrit IDN, fermées pour tous : IDN n'entre que par `/sign-in/oauth2` et son rappel central (CH-817 E5, écart du cliquet). Pré-remplissage éphémère de l'accueil (nom civil, identifiant IDN) extrait au mapping et déposé par le greffon de preuve une fois la session ouverte, jamais dans Better Auth ni dans la preuve, sans jamais faire échouer la connexion (ADR-0044, lot M1). Départ IDN sans `prompt` statique : paramètres d'autorisation fonction de la requête, `prompt=login` par défaut, sans `prompt` ni `max_age` pour la seule intention fermée `antsiaEntry: "sso"` d'une application des membres, refus fermé `idnEntryInvalid` sinon, par le crochet de départ et par la fonction elle-même (ADR-0045, CH-863 M1).
 /**
  * Better Auth du moteur — l'émetteur UNIQUE des jetons Convex (ADR-0002).
@@ -179,6 +180,7 @@ export type AuthRouteClassification =
  * côté de la porte : elle arrête le cliquet jusqu'à ce qu'on la classe.
  */
 export const AUTH_ROUTE_SURFACE: Readonly<Record<string, AuthRouteClassification>> = {
+  "/sign-in/consulate-pass": { kind: "public", reason: "Code consulaire aléatoire à usage unique, session source active, vérificateur S256 et échange serveur authentifié." },
   // Cœur de Better Auth.
   // `generic-oauth` inscrit IDN parmi les fournisseurs sociaux (seul fournisseur, vérifié par le cliquet) :
   // ces deux routes du cœur atteignaient IDN hors des crochets liés à `/sign-in/oauth2` et
@@ -546,6 +548,10 @@ export const createAuth = (ctx: GenericCtx<DataModel>, requestOrigin?: string | 
       },
       convex({ authConfig, jwt: { expirationSeconds: 60 * 30 } }) as unknown as BetterAuthPlugin,
       browserSession,
+      consulatePass(async authUserId => {
+        if (!canRunMutation(ctx)) throw new Error("Contexte de passerelle indisponible")
+        await ctx.runMutation(internal.modules.diaspora.membership.refreshAfterConsulatePass as never, { authUserId } as never)
+      }),
       nativeIdn({ redirectUri: process.env.NATIVE_AUTH_REDIRECT_URI, siteUrl }),
       oneTimeToken({ expiresIn: 3, storeToken: "plain" }),
       bearer(),
