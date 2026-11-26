@@ -1,4 +1,6 @@
 /** PA4 — configuration publique des portes, secrets lus uniquement par le serveur. */
+import { z } from "zod/v4"
+
 import catalog from "../../deploy/catalog.json"
 import { demoAccountsAllowed, devToolsAllowed } from "../lib/devTools"
 
@@ -232,6 +234,87 @@ function exactEntryMatches(application: ApplicationKey, callbackURL: string, new
   if (entryPath === null) return false
   const entry = `${new URL(callbackURL).origin}${entryPath}`
   return callbackURL === entry && newUserURL === entry && errorURL === entry
+}
+
+/**
+ * CH-863 M1 (ADR-0045) — l'application où un DÉPART IDN (`/sign-in/oauth2`) livrerait la session : celle
+ * de l'adresse de retour (`callbackURL`, rendue absolue par `crossDomain` avant les crochets suivants),
+ * toutes les autres adresses données (`newUserCallbackURL`, `errorCallbackURL`) menant à la MÊME
+ * application ; `null` sinon (adresse absente, relative, illisible, hors confiance ou hors catalogue,
+ * adresses qui divergent). Même lecture que `applicationOfOAuthState`, prise au départ, plus stricte :
+ * l'adresse d'erreur compte aussi. Une application d'autorité reste NOMMÉE : c'est la règle
+ * (`idnAuthorizationParams`) qui la refuse.
+ */
+export function applicationOfSignInStart(body: unknown, env: Env = process.env): ApplicationKey | null {
+  if (!body || typeof body !== "object") return null
+  const { callbackURL, newUserCallbackURL, errorCallbackURL } = body as { callbackURL?: unknown; newUserCallbackURL?: unknown; errorCallbackURL?: unknown }
+  const application = applicationOfReturnURL(callbackURL, env)
+  if (application === null) return null
+  for (const address of [newUserCallbackURL, errorCallbackURL]) {
+    if (address !== undefined && address !== "" && applicationOfReturnURL(address, env) !== application) return null
+  }
+  return application
+}
+
+/**
+ * CH-863 M1 (ADR-0045) — la seule intention d'entrée admise au départ IDN : sur la porte d'arrivée (venue
+ * de consulat.ga), accepter la session identite.ga TANT QU'ELLE VIT (décision du propriétaire du 26/11/2026,
+ * « toute la session »). Portée par `additionalData: { antsiaEntry: "sso" }` de `/sign-in/oauth2`.
+ */
+export const IDN_ENTRY_SSO = "sso"
+export type IdnEntryIntent = typeof IDN_ENTRY_SSO
+
+/** La clé de `additionalData` qui porte l'intention d'entrée. */
+const IDN_ENTRY_INTENT_KEY = "antsiaEntry"
+
+// Le seul `additionalData` qui porte l'intention : la clé, le littéral, rien d'autre (ni valeur voisine,
+// ni clé de plus, ni parcours natif `antsiaNative` à côté). Modèle : la lecture stricte de `nativeIdn.ts`.
+const idnEntryIntentSchema = z.object({ [IDN_ENTRY_INTENT_KEY]: z.literal(IDN_ENTRY_SSO) }).strict()
+
+/** La lecture de l'intention : valide (intention ou aucune), ou invalide — jamais ignorée en silence. */
+export type IdnEntryIntentReading = { readonly valid: true; readonly intent: IdnEntryIntent | null } | { readonly valid: false }
+
+/**
+ * L'intention d'entrée d'un `additionalData` de départ IDN. Sans la clé `antsiaEntry` (ou sans objet),
+ * aucune intention : la porte ordinaire, comme avant (les autres clés relèvent du parcours natif ou d'un
+ * lot suivant). Avec la clé, l'objet ENTIER doit valoir `{ antsiaEntry: "sso" }` ; tout le reste est
+ * invalide et le départ est refusé.
+ */
+export function idnEntryIntentOf(additionalData: unknown): IdnEntryIntentReading {
+  if (!additionalData || typeof additionalData !== "object" || Array.isArray(additionalData)) return { valid: true, intent: null }
+  if (!Object.prototype.hasOwnProperty.call(additionalData, IDN_ENTRY_INTENT_KEY)) return { valid: true, intent: null }
+  return idnEntryIntentSchema.safeParse(additionalData).success ? { valid: true, intent: IDN_ENTRY_SSO } : { valid: false }
+}
+
+/**
+ * CH-863 M1 (ADR-0045) — LA règle des paramètres d'autorisation IDN, pure : `null` = départ refusé.
+ * - Sans intention : `prompt=login`, pour toute application. Une nouvelle entrée doit permettre une autre
+ *   identité, même si IDN garde son SSO ; après « Me déconnecter partout », aucune reprise silencieuse.
+ * - Avec `sso` : ni `prompt` ni `max_age` (identite.ga accepte sa session tant qu'elle vit, sans fenêtre),
+ *   pour une application WEB des membres du catalogue seulement. Refusée pour toute application dont la
+ *   session ouvre une autorité (administration d'un réseau, console : `requiresExactEntry`), pour une clé
+ *   inconnue ou native, et quand aucune application n'est nommée (fermé par défaut).
+ * Chaque appel rend un objet neuf. Aucun effet sur les scopes.
+ */
+export function idnAuthorizationParams({ intent, application }: { intent: IdnEntryIntent | null; application: string | null }): Record<string, string> | null {
+  if (intent === null) return { prompt: "login" }
+  if (application === null || !isWebApplicationKey(application) || requiresExactEntry(application)) return null
+  return {}
+}
+
+/**
+ * Les paramètres d'autorisation d'un départ `/sign-in/oauth2`, lus de son corps : intention (schéma
+ * strict), fournisseur `idn` seul pour l'intention, application du départ, puis la règle. `null` = refus.
+ * Lus par le crochet de départ (refus avant tout appel à IDN) ET par la fonction `authorizationUrlParams`
+ * du fournisseur (qui décide des paramètres) : une seule règle, deux points d'application.
+ */
+export function idnSignInStartParams(body: unknown, env: Env = process.env): Record<string, string> | null {
+  const fields = (body && typeof body === "object" ? body : {}) as { additionalData?: unknown; providerId?: unknown }
+  const reading = idnEntryIntentOf(fields.additionalData)
+  if (!reading.valid) return null
+  if (reading.intent === null) return idnAuthorizationParams({ intent: null, application: null })
+  if (fields.providerId !== "idn") return null
+  return idnAuthorizationParams({ intent: reading.intent, application: applicationOfSignInStart(body, env) })
 }
 
 function secureEndpoint(value: string | undefined): string | undefined {
