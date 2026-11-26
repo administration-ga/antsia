@@ -26,6 +26,7 @@ export const DIASPORA_SLICE_MANIFEST = {
   tables: [
     "countryHubs",
     "sponsorships",
+    "sponsorshipCodes",
     "consularAttestations",
     "communityImports",
     "memberPrivacy",

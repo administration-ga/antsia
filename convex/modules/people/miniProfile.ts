@@ -13,11 +13,11 @@ import { extractMentionHandles } from "@antsia/social-domain/richText"
 import { canReadModeratedContent } from "../moderation/policy"
 import type { Doc, Id } from "../../_generated/dataModel"
 import type { QueryCtx } from "../../_generated/server"
-import { isActiveMember } from "../../lib/access"
+import { getMembership, isActiveMember } from "../../lib/access"
 import { servableUrl } from "../files/storageGuard"
 import { badgesOf } from "./persons"
 
-type ReadCtx = Pick<QueryCtx, "db" | "storage">
+type ReadCtx = Pick<QueryCtx, "db" | "storage"> & { network?: Doc<"networks"> }
 
 export type PersonMiniProfile = {
   personId: Id<"persons">
@@ -80,6 +80,15 @@ export async function findPublishedPersonByHandle(
   return person
 }
 
+/** Sur une fiche ou une publication du réseau, une adhésion consulaire vérifiée porte son badge local. */
+export async function publishedProfileBadges(ctx: ReadCtx, personId: Id<"persons">): Promise<Badge[]> {
+  const badges = await badgesOf(ctx, personId)
+  if (ctx.network?.managedBy !== "diaspora" || badges.includes("verified")) return badges
+  const membership = await getMembership(ctx, ctx.network._id, personId)
+  if (membership?.verifiedBy !== "consulat" || membership.status !== "verifiee" || !await isActiveMember(ctx, ctx.network._id, personId)) return badges
+  return ["verified", ...badges.filter(badge => badge !== "community")]
+}
+
 /** Le mini-profil allowlisté d'une personne, lu depuis son profil PUBLIÉ. */
 export async function publishedMiniProfile(ctx: ReadCtx, personId: Id<"persons">): Promise<PersonMiniProfile> {
   const person = await livePersonProfile(ctx, personId)
@@ -93,7 +102,7 @@ export async function publishedMiniProfile(ctx: ReadCtx, personId: Id<"persons">
     handle: person.handle ?? null,
     headline: person.headline ?? null,
     avatarUrl: person.avatarStorageId ? await servableUrl(ctx, person.avatarStorageId) : null,
-    badges: await badgesOf(ctx, personId),
+    badges: await publishedProfileBadges(ctx, personId),
     hasPublishedProfile: true,
   }
 }

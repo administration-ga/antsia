@@ -15,7 +15,7 @@ export async function sameVerifiedMailbox(user: { email: string; emailVerified: 
 }
 
 /** Le lien fournisseur prouve l'inscription sur CONSULAT.GA lors de l'adhésion à DIASPORA.GA. */
-export function consulatePass(): BetterAuthPlugin {
+export function consulatePass(refreshMembership: (userId: string) => Promise<void>): BetterAuthPlugin {
   return {
     id: "consulate-pass",
     rateLimit: [{ pathMatcher: path => path === "/sign-in/consulate-pass", window: 60, max: 15 }],
@@ -55,6 +55,7 @@ export function consulatePass(): BetterAuthPlugin {
           const user = await adapter.findUserById(userId)
           if (!user) throw refused()
           if (!known) await adapter.linkAccount({ providerId: "consulat", accountId: subject, userId: user.id })
+          await refreshMembership(user.id)
           await setSessionCookie(ctx, { user, session: await adapter.createSession(user.id) })
         } else {
           const result = await handleOAuthUserInfo(ctx, {

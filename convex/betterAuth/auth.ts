@@ -548,7 +548,10 @@ export const createAuth = (ctx: GenericCtx<DataModel>, requestOrigin?: string | 
       },
       convex({ authConfig, jwt: { expirationSeconds: 60 * 30 } }) as unknown as BetterAuthPlugin,
       browserSession,
-      consulatePass(),
+      consulatePass(async authUserId => {
+        if (!canRunMutation(ctx)) throw new Error("Contexte de passerelle indisponible")
+        await ctx.runMutation(internal.modules.diaspora.membership.refreshAfterConsulatePass as never, { authUserId } as never)
+      }),
       nativeIdn({ redirectUri: process.env.NATIVE_AUTH_REDIRECT_URI, siteUrl }),
       oneTimeToken({ expiresIn: 3, storeToken: "plain" }),
       bearer(),
