@@ -193,6 +193,7 @@ export const DATA_TABLE_POLICIES: Record<string, { shared?: boolean; owners?: re
   consularAttestations: {},
   communityImports: {shared: true},
   memberPrivacy: {},
+  sponsorshipCodes: {owners: ["personId"]},
   // Admissions fondatrices de DIASPORA.GA (EA-01) : la ligne appartient à la personne admise ; l'opérateur n'y est qu'une référence.
   foundingAdmissions: {owners: ["personId"]},
   // Catalogue des services DIASPORA.GA : contenu d'une PAGE, aucune référence personnelle stockée.

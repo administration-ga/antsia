@@ -18,7 +18,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { api, internal } from "../../_generated/api"
 import type { Id } from "../../_generated/dataModel"
 import { SEED_CONFIRMATION } from "../../seeds/foundations"
-import { openNetworkFeatures, testConvex } from "../../test.setup"
+import { joinDeclaredDiasporaFixture, openNetworkFeatures, testConvex } from "../../test.setup"
 
 type T = ReturnType<typeof testConvex>
 type Member = { as: ReturnType<T["withIdentity"]>; personId: Id<"persons">; handle: string }
@@ -115,7 +115,7 @@ async function member(t: T, networkId: Id<"networks">, handle: string, options: 
       await ctx.db.insert("identityLinks", { personId, provider: "consular_attestation", subject: `page-sleep-attestation-${personId}`, country: "FR", postSlug: "consulat-general-paris", linkedAt: NOW })
     }
   })
-  await as.mutation(api.modules.diaspora.membership.joinDiasporaGa, { networkId, facet: { countryOfResidence: "FR", city: "Lyon" } })
+  await joinDeclaredDiasporaFixture(as, { networkId, facet: { countryOfResidence: "FR", city: "Lyon" } })
   return { as, personId, handle }
 }
 

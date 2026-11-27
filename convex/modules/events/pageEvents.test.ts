@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { api, internal } from "../../_generated/api"
 import type { Id } from "../../_generated/dataModel"
 import { SEED_CONFIRMATION } from "../../seeds/foundations"
-import { openNetworkFeatures, testConvex } from "../../test.setup"
+import { joinDeclaredDiasporaFixture, openNetworkFeatures, testConvex } from "../../test.setup"
 import { eventCardOf } from "./card"
 import { requireEventAccess } from "./events"
 
@@ -31,7 +31,7 @@ async function member(t: T, networkId: Id<"networks">, handle: string, displayNa
   await as.mutation(api.modules.people.consents.recordConsent, { purpose: "social_profile", origin: "onboarding" })
   await as.mutation(api.modules.people.profile.publishMyProfile, { handle, displayName })
   await t.run((ctx) => ctx.db.insert("identityLinks", { personId, provider: "idn", subject: `page-event-idn-${personId}`, loa: 1, nationality: "GA", linkedAt: NOW }))
-  await as.mutation(api.modules.diaspora.membership.joinDiasporaGa, { networkId, facet: { countryOfResidence: "FR", city: "Lyon" } })
+  await joinDeclaredDiasporaFixture(as, { networkId, facet: { countryOfResidence: "FR", city: "Lyon" } })
   return { as, personId }
 }
 

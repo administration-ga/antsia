@@ -17,7 +17,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { api, internal } from "../../_generated/api"
 import type { Doc, Id } from "../../_generated/dataModel"
 import { SEED_CONFIRMATION } from "../../seeds/foundations"
-import { createTestOperatorProof, createTestSession, openNetworkFeatures, openTestNetworkAdminSession, testConvex } from "../../test.setup"
+import { joinDeclaredDiasporaFixture, createTestOperatorProof, createTestSession, openNetworkFeatures, openTestNetworkAdminSession, testConvex } from "../../test.setup"
 
 type T = ReturnType<typeof testConvex>
 type Member = { readonly as: ReturnType<T["withIdentity"]>; readonly personId: Id<"persons"> }
@@ -65,7 +65,7 @@ async function member(t: T, networkId: Id<"networks">, handle: string, displayNa
   await as.mutation(api.modules.people.consents.recordConsent, { purpose: "social_profile", origin: "onboarding" })
   await as.mutation(api.modules.people.profile.publishMyProfile, { handle, displayName })
   await t.run(async (ctx) => { await ctx.db.insert("identityLinks", { personId, provider: "idn", subject: `pilote-idn-${personId}`, loa: 2, nationality: "GA", linkedAt: Date.now() }) })
-  await as.mutation(api.modules.diaspora.membership.joinDiasporaGa, { networkId, facet: { countryOfResidence: "FR", city: "Paris" } })
+  await joinDeclaredDiasporaFixture(as, { networkId, facet: { countryOfResidence: "FR", city: "Paris" } })
   return { as, personId }
 }
 

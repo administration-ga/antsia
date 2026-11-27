@@ -24,9 +24,11 @@ import {
   type FacetVisibility,
   facetFromEngine,
   idnGroundFromLink,
+  sponsorCodeFromUuid,
   type MembershipGrounds,
 } from "@diaspora-ga/domain"
 
+import { components } from "../../_generated/api"
 import type { Doc, Id } from "../../_generated/dataModel"
 import type { MutationCtx, QueryCtx } from "../../_generated/server"
 import { getMembership } from "../../lib/access"
@@ -35,6 +37,7 @@ import { isBlockedBetween } from "../graph/graph"
 import { liveSignatoryRole, signatoryRowsOf } from "../pages/access"
 import { promoteDerivedRootMembership, setDirectoryListed, setMembershipStatus } from "../people/admission"
 import { liveIdentityLinks } from "../people/persons"
+import { currentVerifiedIdnSubjectOf } from "../people/identity"
 
 /** Le réseau est-il celui que la tranche gouverne, et actif ? */
 export function isDiasporaNetwork(network: Doc<"networks"> | null): network is Doc<"networks"> {
@@ -144,6 +147,7 @@ export async function endFoundingAdmissionOnDeparture(
  * deux chemins ne divergent jamais.
  */
 export function groundsFrom(input: {
+  consulateAccount: boolean
   links: readonly Doc<"identityLinks">[]
   sponsorship: Doc<"sponsorships"> | null
   foundingAdmission: Doc<"foundingAdmissions"> | null
@@ -152,6 +156,7 @@ export function groundsFrom(input: {
   const idn = input.links.find((link) => link.provider === "idn")
   const { membership } = input
   return {
+    consulateAccount: input.consulateAccount,
     idn: idn ? idnGroundFromLink(idn) : null,
     sponsored: input.sponsorship !== null,
     consularAttestation: input.links.some((link) => link.provider === "consular_attestation"),
@@ -159,6 +164,46 @@ export function groundsFrom(input: {
     // Une sanction vit dans le statut du moteur (ici ou à la racine) : la garde la lit à chaque appel.
     suspension: null,
     leftAt: membership?.status === "partie" ? (membership.leftAt ?? membership.statusChangedAt) : null,
+  }
+}
+
+/** Seul l'échange serveur de la passerelle crée ce compte fournisseur. */
+export async function hasConsulatePassAccount(ctx: QueryCtx, person: Doc<"persons"> | null): Promise<boolean> {
+  if (!person || person.erasedAt !== undefined || person.deletionRequestedAt !== undefined) return false
+  const account = await ctx.runQuery(components.betterAuth.adapter.findOne, {
+    model: "account",
+    where: [{ field: "userId", value: person.authUserId }, { field: "providerId", value: "consulat" }],
+    select: ["userId", "providerId", "accountId"],
+  })
+  return account?.userId === person.authUserId && account.providerId === "consulat" &&
+    typeof account.accountId === "string" && /^[a-f0-9]{64}$/.test(account.accountId)
+}
+
+export async function consulateSubjectDigest(subject: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(subject))
+  return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, "0")).join("")
+}
+
+export async function hasConsulateAccount(ctx: QueryCtx, person: Doc<"persons"> | null, networkId: Id<"networks">): Promise<boolean> {
+  if (!person) return false
+  if (await hasConsulatePassAccount(ctx, person)) return true
+  const lookup = (await privacyOf(ctx, networkId, person._id))?.consulateLookup
+  if (!lookup?.confirmed) return false
+  const idn = await currentVerifiedIdnSubjectOf(ctx, person, 1)
+  return idn !== null && lookup.subjectDigest === await consulateSubjectDigest(idn)
+}
+
+export function sponsorCodeOf(ctx: QueryCtx, networkId: Id<"networks">, personId: Id<"persons">) {
+  return ctx.db.query("sponsorshipCodes").withIndex("by_network_and_person", q => q.eq("networkId", networkId).eq("personId", personId)).unique()
+}
+
+export function newSponsorCode(): string {
+  return sponsorCodeFromUuid(crypto.randomUUID())
+}
+
+export async function ensureSponsorCode(ctx: MutationCtx, networkId: Id<"networks">, personId: Id<"persons">) {
+  if (!await sponsorCodeOf(ctx, networkId, personId)) {
+    await ctx.db.insert("sponsorshipCodes", { networkId, personId, token: newSponsorCode() })
   }
 }
 
@@ -170,6 +215,7 @@ export async function membershipGrounds(
   membership: Doc<"networkMemberships"> | null,
 ): Promise<MembershipGrounds> {
   return groundsFrom({
+    consulateAccount: await hasConsulateAccount(ctx, await ctx.db.get(personId), networkId),
     links: await liveIdentityLinks(ctx, personId),
     sponsorship: await activeSponsorshipOf(ctx, networkId, personId),
     foundingAdmission: await activeFoundingAdmissionOf(ctx, networkId, personId),
@@ -209,8 +255,11 @@ export async function applyDerivedStatus(
   else await setMembershipStatus(ctx, membership, derived, extra)
   // La racine ne s'élève que sur les faits propres de la personne : une admission fondatrice
   // est une décision de CE réseau (EA-01), retirable, qui n'engage pas ANTSIA.
-  if (derived === "verifiee" && verifiedBy !== undefined && verifiedBy !== "operator") {
-    await promoteDerivedRootMembership(ctx, membership.personId, membership.networkId, verifiedBy)
+  if (derived === "verifiee") await ensureSponsorCode(ctx, membership.networkId, membership.personId)
+  // Le compte CONSULAT.GA seul vérifie dans DIASPORA.GA uniquement.
+  const rootSource = grounds.consulateAccount ? engineVerificationSource({ ...grounds, consulateAccount: false }, now) : verifiedBy
+  if (derived === "verifiee" && rootSource && rootSource !== "operator") {
+    await promoteDerivedRootMembership(ctx, membership.personId, membership.networkId, rootSource)
   }
   return derived
 }
@@ -365,7 +414,7 @@ export async function writePrivacy(
   ctx: MutationCtx,
   networkId: Id<"networks">,
   personId: Id<"persons">,
-  patch: { facetLevels?: FacetVisibility; directoryVisibility?: DirectoryVisibility },
+  patch: { facetLevels?: FacetVisibility; directoryVisibility?: DirectoryVisibility; phoneRegistration?: NonNullable<Doc<"memberPrivacy">["phoneRegistration"]> },
 ): Promise<void> {
   const existing = await privacyOf(ctx, networkId, personId)
   const now = Date.now()
@@ -374,6 +423,7 @@ export async function writePrivacy(
     await ctx.db.patch(existing._id, {
       ...(facetLevels ? { facetLevels } : {}),
       ...(patch.directoryVisibility ? { directoryVisibility: patch.directoryVisibility } : {}),
+      ...(patch.phoneRegistration ? { phoneRegistration: patch.phoneRegistration } : {}),
       updatedAt: now,
     })
     return
@@ -383,6 +433,7 @@ export async function writePrivacy(
     personId,
     facetLevels: facetLevels ?? { ...DEFAULT_FACET_VISIBILITY },
     directoryVisibility: patch.directoryVisibility ?? DEFAULT_DIRECTORY_VISIBILITY,
+    ...(patch.phoneRegistration ? { phoneRegistration: patch.phoneRegistration } : {}),
     updatedAt: now,
   })
 }

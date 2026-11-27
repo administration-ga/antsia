@@ -11,7 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { api, internal } from "../../_generated/api"
 import type { Doc, Id } from "../../_generated/dataModel"
 import { SEED_CONFIRMATION } from "../../seeds/foundations"
-import { openNetworkFeatures, testConvex } from "../../test.setup"
+import { joinDeclaredDiasporaFixture, openNetworkFeatures, testConvex } from "../../test.setup"
 import { HUB_EVENTS_COUNT_PER_PAGE, HUB_EVENTS_PAGE_MAX } from "./hubEvents"
 import { HUB_PAGES_SCAN } from "./hubPages"
 
@@ -45,7 +45,7 @@ async function member(t: T, networkId: Id<"networks">, handle: string) {
   await t.run(async (ctx) => {
     await ctx.db.insert("identityLinks", { personId, provider: "idn", subject: `hub-events-idn-${personId}`, loa: 1, nationality: "GA", linkedAt: NOW })
   })
-  await as.mutation(api.modules.diaspora.membership.joinDiasporaGa, { networkId, facet: { countryOfResidence: "FR" } })
+  await joinDeclaredDiasporaFixture(as, { networkId, facet: { countryOfResidence: "FR" } })
   return { as, personId }
 }
 

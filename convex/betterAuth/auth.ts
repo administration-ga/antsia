@@ -1,3 +1,4 @@
+import { consulatePass } from "./consulatePass"
 // Dupliqué de socle/convex/betterAuth/auth.ts @ ad2e7fdc2 — adaptations : PA4, IDN avec PKCE et preuve serveur minimale, comptes légers par OTP e-mail/SMS, aucune route de mot de passe ; origines du catalogue et de l'environnement ; session sept jours et JWT trente minutes avec sessionId contrôlé côté serveur ; OTT trois minutes ; délivrance locale bornée ou transport configuré, erreurs et limitation de débit du moteur ; refus ou abandon chez IDN renvoyé à la porte de départ de confiance (issue #122) ; refus de débit porteur du délai restant, `retryAfterMs` et `Retry-After` (EA-08, issue #151) ; preuve de session IDN scellée avec l'application où la session est livrée, prise de l'état OAuth enregistré au départ (ADR-0042, CH-815) ; rappel IDN central web sans aucun cookie ni jeton porteur, la session ne passant que par le jeton à usage unique (revue CH-815 A1b, constat F1) ; routes `check-verification-otp` et `verify-email` du greffon e-mail fermées pour toutes les adresses, et garde de la porte des comptes de démonstration sur l'envoi du code et la connexion de sa famille d'adresses, avant les seaux (CH-817 E5, constat 1) ; surface des routes classée route par route (`AUTH_ROUTE_SURFACE`), figée par le cliquet `authSurface.test.ts` (CH-817 E5) ; routes du cœur `/sign-in/social` et `/callback/:id`, où `generic-oauth` inscrit IDN, fermées pour tous : IDN n'entre que par `/sign-in/oauth2` et son rappel central (CH-817 E5, écart du cliquet). Pré-remplissage éphémère de l'accueil (nom civil, identifiant IDN) extrait au mapping et déposé par le greffon de preuve une fois la session ouverte, jamais dans Better Auth ni dans la preuve, sans jamais faire échouer la connexion (ADR-0044, lot M1). Départ IDN sans `prompt` statique : paramètres d'autorisation fonction de la requête, `prompt=login` par défaut, sans `prompt` ni `max_age` pour la seule intention fermée `antsiaEntry: "sso"` d'une application des membres, refus fermé `idnEntryInvalid` sinon, par le crochet de départ et par la fonction elle-même (ADR-0045, CH-863 M1).
 /**
  * Better Auth du moteur — l'émetteur UNIQUE des jetons Convex (ADR-0002).
@@ -22,8 +23,9 @@ import { components, internal } from "../_generated/api"
 import type { DataModel } from "../_generated/dataModel"
 import authConfig from "../auth.config"
 import { demoGateDigest, demoGateGoverns, demoGateSecret, demoGateState } from "../lib/demoGate"
-import { devToolsAllowed } from "../lib/devTools"
-import { deliverOtp, type OtpRequest } from "./delivery"
+import { whatsappConfiguration } from "../lib/whatsappDelivery"
+import { demoAccountsAllowed, devToolsAllowed, isDemoEmail } from "../lib/devTools"
+import { deliverOtp, isDiasporaEntry, type OtpRequest } from "./delivery"
 import { idnRefusalReturn } from "./idnRefusalReturn"
 import { idnWebCallbackWithoutCookies } from "./idnWebCallback"
 import { isNativeIdnOAuth, nativeIdn } from "./nativeIdn"
@@ -179,6 +181,7 @@ export type AuthRouteClassification =
  * côté de la porte : elle arrête le cliquet jusqu'à ce qu'on la classe.
  */
 export const AUTH_ROUTE_SURFACE: Readonly<Record<string, AuthRouteClassification>> = {
+  "/sign-in/consulate-pass": { kind: "public", reason: "Code consulaire aléatoire à usage unique, session source active, vérificateur S256 et échange serveur authentifié." },
   // Cœur de Better Auth.
   // `generic-oauth` inscrit IDN parmi les fournisseurs sociaux (seul fournisseur, vérifié par le cliquet) :
   // ces deux routes du cœur atteignaient IDN hors des crochets liés à `/sign-in/oauth2` et
@@ -238,8 +241,8 @@ export const AUTH_ROUTE_SURFACE: Readonly<Record<string, AuthRouteClassification
   "/email-otp/change-email": { kind: "sessionRequired", guard: "middleware", reason: "Session sensible exigée ; `changeEmail` du greffon n'est pas activé (vérifié par le cliquet)." },
   // Greffon `phone-number`.
   "/sign-in/phone-number": { kind: "closed", by: "password", reason: "Connexion par téléphone et mot de passe : aucun mot de passe n'existe." },
-  "/phone-number/send-otp": { kind: "rateLimited", bucket: "auth.otp.send", reason: "Envoi du code SMS : disponibilité du relais, puis seau d'envoi par numéro." },
-  "/phone-number/verify": { kind: "rateLimited", bucket: "auth.login", reason: "Connexion ou inscription par code SMS : seau de connexion par numéro." },
+  "/phone-number/send-otp": { kind: "rateLimited", bucket: "auth.otp.send", reason: "Envoi du code téléphonique : disponibilité du transport, puis seau d'envoi par numéro." },
+  "/phone-number/verify": { kind: "rateLimited", bucket: "auth.login", reason: "Connexion ou inscription par code téléphonique : seau de connexion par numéro." },
   "/phone-number/request-password-reset": { kind: "closed", by: "password", reason: "Réinitialisation par SMS : créerait un compte `credential`." },
   "/phone-number/reset-password": { kind: "closed", by: "password", reason: "Réinitialisation par SMS : créerait un compte `credential`." },
   // Routes de service.
@@ -273,7 +276,7 @@ function deliveryState(context: unknown): DeliveryState | null {
   return state && typeof state === "object" && "attempted" in state && "delivered" in state && typeof state.attempted === "boolean" && typeof state.delivered === "boolean" ? state as DeliveryState : null
 }
 
-const rateLimitPlugin = (ctx: GenericCtx<DataModel>): BetterAuthPlugin => ({
+const rateLimitPlugin = (ctx: GenericCtx<DataModel>, requestOrigin?: string | null): BetterAuthPlugin => ({
   id: "engine-auth-rate-limit",
   hooks: {
     before: [
@@ -314,7 +317,8 @@ const rateLimitPlugin = (ctx: GenericCtx<DataModel>): BetterAuthPlugin => ({
         matcher: (hookCtx) => RL_OTP_SEND_PATHS.has(hookCtx.path ?? ""),
         handler: createAuthMiddleware(async (hookCtx) => {
           const available = authenticationConfiguration()
-          if (hookCtx.path === "/phone-number/send-otp" ? !available.smsOtp : !available.emailOtp) throw new APIError("SERVICE_UNAVAILABLE", { message: "otpDeliveryUnavailable", code: "otpDeliveryUnavailable" })
+          const phoneAvailable = isDiasporaEntry(otpRequestOf(hookCtx, requestOrigin).origin) ? whatsappConfiguration() !== null : available.smsOtp
+          if (hookCtx.path === "/phone-number/send-otp" ? !phoneAvailable : !available.emailOtp) throw new APIError("SERVICE_UNAVAILABLE", { message: "otpDeliveryUnavailable", code: "otpDeliveryUnavailable" })
           // Le dispatcher fusionne ce retour dans le contexte de l'endpoint :
           // les données partagées avec le callback vivent dans .context.
           return { context: { context: { engineOtpDelivery: { attempted: false, delivered: false } satisfies DeliveryState } } }
@@ -333,6 +337,22 @@ const rateLimitPlugin = (ctx: GenericCtx<DataModel>): BetterAuthPlugin => ({
             { bucket, key } as never,
           )) as { ok: boolean; retryAfterMs: number }
           if (!result.ok) throw rateLimitedRefusal(result.retryAfterMs)
+        }),
+      },
+      {
+        // L’e-mail reste une connexion pour les anciens membres. Les adresses fictives de
+        // démonstration gardent leur parcours après la garde dédiée ci-dessus.
+        matcher: (hookCtx) => DEMO_GATED_AUTH_PATHS.has(hookCtx.path ?? "") && isDiasporaEntry(otpRequestOf(hookCtx, requestOrigin).origin),
+        handler: createAuthMiddleware(async (hookCtx) => {
+          const email = hookCtx.body?.email
+          if (typeof email !== "string" || (isDemoEmail(email) && demoAccountsAllowed())) return
+          const account = await hookCtx.context.internalAdapter.findUserByEmail(email.trim().toLowerCase())
+          if (account && canRunQuery(ctx) && await ctx.runQuery(
+            internal.modules.diaspora.membership.hasLegacyDiasporaMembership as never,
+            { authUserId: account.user.id } as never,
+          )) return
+          if (hookCtx.path === "/email-otp/send-verification-otp") return hookCtx.json({ success: true })
+          throw new APIError("BAD_REQUEST", { code: "INVALID_OTP", message: "Invalid OTP" })
         }),
       },
     ],
@@ -546,11 +566,23 @@ export const createAuth = (ctx: GenericCtx<DataModel>, requestOrigin?: string | 
       },
       convex({ authConfig, jwt: { expirationSeconds: 60 * 30 } }) as unknown as BetterAuthPlugin,
       browserSession,
+      consulatePass(async authUserId => {
+        if (!canRunMutation(ctx)) throw new Error("Contexte de passerelle indisponible")
+        await ctx.runMutation(internal.modules.diaspora.membership.refreshAfterConsulatePass as never, { authUserId } as never)
+      }, async (authUserId, sessionId, idn) => {
+        if (!canRunQuery(ctx)) throw new Error("Contexte de passerelle indisponible")
+        return await ctx.runQuery(internal.modules.diaspora.membership.consulateEntryState as never, {
+          authUserId, ...(sessionId ? { sessionId } : {}), ...(idn ? { idn } : {}),
+        } as never) as import("./consulatePass").PassEntryState
+      }, async (authUserId, subject, idn) => {
+        if (!canRunMutation(ctx)) throw new Error("Contexte de passerelle indisponible")
+        return await ctx.runMutation(internal.modules.diaspora.membership.linkConsulatePass as never, { authUserId, subject, idn } as never) as boolean
+      }),
       nativeIdn({ redirectUri: process.env.NATIVE_AUTH_REDIRECT_URI, siteUrl }),
       oneTimeToken({ expiresIn: 3, storeToken: "plain" }),
       bearer(),
       ...(idnProvider.length ? [genericOAuth({ config: idnProvider })] : []),
-      rateLimitPlugin(ctx),
+      rateLimitPlugin(ctx, requestOrigin),
       // Après `crossDomain` et la garde d'origine : un départ dont l'intention d'entrée n'est pas admise est refusé avant IDN (ADR-0045).
       ...(idnProvider.length ? [idnEntryIntentGuard()] : []),
       // Après la garde d'origine, avant le rappel générique : un refus chez IDN revient à la porte de départ de confiance.
@@ -577,7 +609,22 @@ export const createAuth = (ctx: GenericCtx<DataModel>, requestOrigin?: string | 
         allowedAttempts: 3,
         requireVerification: true,
         phoneNumberValidator: isE164Phone,
-        sendOTP: async ({ phoneNumber: phone, code }, endpoint) => deliverOtp(ctx, "phone", phone, code, otpRequestOf(endpoint, requestOrigin)),
+        async sendOTP({ phoneNumber: phone, code }, endpoint) {
+          const request = otpRequestOf(endpoint, requestOrigin)
+          try {
+            await deliverOtp(ctx, "phone", phone, code, request)
+          } catch (error) {
+            // Better Auth crée le défi avant l’envoi. Retirer seulement le code refusé,
+            // même si une autre demande pour ce numéro a abouti entre-temps.
+            if (endpoint && isDiasporaEntry(request.origin)) {
+              await endpoint.context.adapter.deleteMany({
+                model: "verification",
+                where: [{ field: "identifier", value: phone }, { field: "value", operator: "starts_with", value: `${code}:` }],
+              })
+            }
+            throw error
+          }
+        },
         signUpOnVerification: {
           getTempEmail: (phone) => `${phone.replace(/\D/g, "")}@phone.antsia.invalid`,
           getTempName: () => BRAND_NAME,

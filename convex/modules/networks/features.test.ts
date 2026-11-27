@@ -18,7 +18,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { api, internal } from "../../_generated/api"
 import type { Id } from "../../_generated/dataModel"
 import { SEED_CONFIRMATION } from "../../seeds/foundations"
-import { createTestNetworkAdminProof, createTestOperatorProof, createTestSession, testConvex } from "../../test.setup"
+import { joinDeclaredDiasporaFixture, createTestNetworkAdminProof, createTestOperatorProof, createTestSession, testConvex } from "../../test.setup"
 
 // ADR-0042 : l'administrateur du réseau règle ses fonctionnalités depuis l'application d'administration
 // (contrat CH-815), que le catalogue réel déclare (`admin_diaspora_ga`).
@@ -63,7 +63,7 @@ async function member(t: T, networkId: Id<"networks">, handle: string, role?: "n
   await t.run(async (ctx) => {
     await ctx.db.insert("identityLinks", { personId, provider: "idn", subject: `idn-${personId}`, loa: 2, nationality: "GA", linkedAt: NOW })
   })
-  await as.mutation(api.modules.diaspora.membership.joinDiasporaGa, { networkId, facet: { countryOfResidence: "FR", city: "Paris" } })
+  await joinDeclaredDiasporaFixture(as, { networkId, facet: { countryOfResidence: "FR", city: "Paris" } })
   if (role) {
     await t.run(async (ctx) => {
       const row = await ctx.db.query("networkMemberships").withIndex("by_network_and_person", (q) => q.eq("networkId", networkId).eq("personId", personId)).unique()

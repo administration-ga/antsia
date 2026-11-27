@@ -31,7 +31,7 @@ import type { Id } from "../_generated/dataModel"
 import { DIASPORA_GA_DEMO_EMAIL_DOMAIN } from "../lib/devTools"
 import { nameFirstConfirmation } from "../modules/platform/networkAdminBootstrap"
 import { SEED_CONFIRMATION } from "../seeds/foundations"
-import { openNetworkFeatures, testConvex } from "../test.setup"
+import { joinDeclaredDiasporaFixture, openNetworkFeatures, testConvex } from "../test.setup"
 
 type T = ReturnType<typeof testConvex>
 type As = ReturnType<T["withIdentity"]>
@@ -155,7 +155,7 @@ async function joinDiaspora(as: As, network: Id<"networks">, handle: string, dis
   await as.mutation(api.modules.people.persons.ensureMyPerson, {})
   await as.mutation(api.modules.people.consents.recordConsent, { purpose: "social_profile", origin: "onboarding" })
   await as.mutation(api.modules.people.profile.publishMyProfile, { handle, displayName })
-  await as.mutation(api.modules.diaspora.membership.joinDiasporaGa, { networkId: network, facet: { countryOfResidence: "FR" }, directoryVisibility: "hidden" })
+  await joinDeclaredDiasporaFixture(as, { networkId: network, facet: { countryOfResidence: "FR" }, directoryVisibility: "hidden" })
 }
 
 async function refusalCodeOf(promise: Promise<unknown>): Promise<unknown> {
