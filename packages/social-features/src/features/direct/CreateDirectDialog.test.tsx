@@ -46,6 +46,15 @@ describe("création d'un direct — confidentialité et rejeu", () => {
     }))
   })
 
+  it("prépare un direct depuis le fil avec seulement le titre, sans enregistrer ni annoncer", async () => {
+    render(<I18nextProvider i18n={i18n}><CreateDirectDialog onClose={mocks.close} prefill={{ quickSetup: true, userIds: [] }} /></I18nextProvider>)
+    expect(screen.getByText("Réglages de diffusion").closest("details")).not.toHaveAttribute("open")
+    expect(screen.getByLabelText("Audience")).toHaveValue("connections")
+    fireEvent.change(screen.getByLabelText("Titre"), { target: { value: "Rencontre" } })
+    fireEvent.click(screen.getByRole("button", { name: "Préparer la conférence" }))
+    await waitFor(() => expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({ title: "Rencontre", audience: "connections", replay: false, announce: false })))
+  })
+
   it("réutilise la clé du brouillon après un échec de réseau sans rejouer le démarrage", async () => {
     mocks.create.mockRejectedValueOnce(new Error("transport"))
     render(<I18nextProvider i18n={i18n}><CreateDirectDialog onClose={mocks.close} /></I18nextProvider>)
