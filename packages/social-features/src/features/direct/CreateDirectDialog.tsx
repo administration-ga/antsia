@@ -115,7 +115,7 @@ function CreateDirectDraft({ onClose, prefill, asPage }: { onClose: () => void; 
   )
   return (
     <EspaceDialog title={t("create.title")} description={t("create.description")} closeLabel={t("close")} onClose={isSubmitting ? () => undefined : onClose}>
-      <form data-charte={charte} onSubmit={submit} className="flex flex-col gap-4" style={{ "--ui2-button-min-h": "44px", "--ui2-button-sm-min-h": "44px" } as CSSProperties}>
+      <form data-direct-setup="" data-charte={charte} onSubmit={submit} className="flex flex-col gap-4" style={{ "--ui2-button-min-h": "44px", "--ui2-button-sm-min-h": "44px" } as CSSProperties}>
         <fieldset disabled={isSubmitting} className="contents">
         <label className="flex flex-col gap-2 text-sm">{t("create.identity")}<select value={pageId ?? ""} onChange={(event) => { const value = event.target.value; setPageId(value ? value as Id<"pages"> : undefined); if (!value && audience === "followers") setValue("audience", "connections") }} className="min-h-11 rounded-[var(--esp-input-radius,0.5rem)] border border-input bg-background px-3"><option value="">{t("create.personal")}</option>{pages.data?.map((page) => <option key={page.pageId} value={page.pageId}>{page.name}</option>)}{pageId && !pages.data?.some((page) => page.pageId === pageId) ? <option value={pageId}>{asPage?.name ?? t("create.pageUnavailable")}</option> : null}</select></label>
         {pages.isError ? <p role="alert">{t("create.pagesFailed")}</p> : null}
