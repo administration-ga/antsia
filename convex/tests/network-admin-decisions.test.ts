@@ -31,7 +31,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { api, internal } from "../_generated/api"
 import type { Doc, Id } from "../_generated/dataModel"
 import { SEED_CONFIRMATION } from "../seeds/foundations"
-import { openNetworkFeatures, openTestNetworkAdminSession, testConvex } from "../test.setup"
+import { joinDeclaredDiasporaFixture, openNetworkFeatures, openTestNetworkAdminSession, testConvex } from "../test.setup"
 
 type T = ReturnType<typeof testConvex>
 type As = ReturnType<T["withIdentity"]>
@@ -85,7 +85,7 @@ async function member(t: T, networkId: Id<"networks">, handle: string, role?: Ro
   await t.run(async (ctx) => {
     await ctx.db.insert("identityLinks", { personId, provider: "idn", subject: `idn-${personId}`, loa: 2, nationality: "GA", linkedAt: NOW })
   })
-  await as.mutation(MEMBERSHIP.joinDiasporaGa, { networkId, facet: { countryOfResidence: "FR" } })
+  await joinDeclaredDiasporaFixture(as, { networkId, facet: { countryOfResidence: "FR" } })
   if (role) await setRole(t, networkId, personId, role)
   return { as, personId }
 }
