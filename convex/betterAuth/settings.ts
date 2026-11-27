@@ -50,7 +50,7 @@ const webApplications = Object.entries(catalog.applications).flatMap(([key, app]
 export const MAX_EXTRA_ORIGINS_PER_APPLICATION = 8
 const MAX_EXTRA_ORIGINS_LENGTH = 8_192
 
-function exactHttpsOrigin(value: unknown): string | null {
+export function exactHttpsOrigin(value: unknown): string | null {
   if (typeof value !== "string" || value.length > 256) return null
   try {
     const url = new URL(value)
@@ -308,8 +308,24 @@ export function idnAuthorizationParams({ intent, application }: { intent: IdnEnt
  * Lus par le crochet de départ (refus avant tout appel à IDN) ET par la fonction `authorizationUrlParams`
  * du fournisseur (qui décide des paramètres) : une seule règle, deux points d'application.
  */
+const consulateIdnEntry = z.object({
+  antsiaEntry: z.literal("consulate"),
+  loginHint: z.string().max(254).email().regex(/@idn\.ga$/i).optional(),
+  requireLogin: z.literal(true).optional(),
+}).strict()
+
 export function idnSignInStartParams(body: unknown, env: Env = process.env): Record<string, string> | null {
   const fields = (body && typeof body === "object" ? body : {}) as { additionalData?: unknown; providerId?: unknown }
+  if (fields.additionalData && typeof fields.additionalData === "object" &&
+    "antsiaEntry" in fields.additionalData && fields.additionalData.antsiaEntry === "consulate") {
+    const entry = consulateIdnEntry.safeParse(fields.additionalData)
+    if (!entry.success || fields.providerId !== "idn" || applicationOfSignInStart(body, env) !== "diaspora_ga") return null
+    // Le repère ne prouve jamais l'identité : le passage vérifie le sujet réellement authentifié au retour.
+    return {
+      ...(entry.data.requireLogin ? { prompt: "login" } : {}),
+      ...(entry.data.loginHint ? { login_hint: entry.data.loginHint } : {}),
+    }
+  }
   const reading = idnEntryIntentOf(fields.additionalData)
   if (!reading.valid) return null
   if (reading.intent === null) return idnAuthorizationParams({ intent: null, application: null })

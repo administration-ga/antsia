@@ -4,6 +4,8 @@ import { v } from "convex/values"
 import { query } from "../../_generated/server"
 // La constante même des greffons OTP (`betterAuth/auth.ts` la reprend d'ici) : aucun greffon chargé par cette lecture.
 import { authenticationConfiguration, OTP_TTL_SECONDS } from "../../betterAuth/settings"
+import { whatsappConfiguration } from "../../lib/whatsappDelivery"
+import { consulatePassConfiguration } from "../../lib/consulatePassConfiguration"
 import { demoGateState } from "../../lib/demoGate"
 import { getActiveIdentity } from "../../lib/session"
 import { literals } from "../../lib/validators"
@@ -11,7 +13,8 @@ import { literals } from "../../lib/validators"
 export const configuration = query({
   args: {},
   returns: v.object({
-    idn: v.boolean(), emailOtp: v.boolean(), smsOtp: v.boolean(), localCodes: v.boolean(), demoAccounts: v.boolean(),
+    idn: v.boolean(), emailOtp: v.boolean(), smsOtp: v.boolean(), whatsappOtp: v.boolean(), localCodes: v.boolean(), demoAccounts: v.boolean(),
+    consulatePassOrigin: v.optional(v.string()),
     trustedOrigins: v.array(v.string()),
     applications: v.array(v.object({ key: v.string(), origin: v.string() })),
     /**
@@ -29,7 +32,16 @@ export const configuration = query({
      */
     demoGate: v.optional(literals(DEMO_GATE_STATES)),
   }),
-  handler: () => ({ ...authenticationConfiguration(), otpTtlSeconds: OTP_TTL_SECONDS, demoGate: demoGateState() }),
+  handler: () => {
+    const pass = consulatePassConfiguration()
+    return {
+      ...authenticationConfiguration(),
+      ...(pass ? { consulatePassOrigin: pass.origin } : {}),
+      whatsappOtp: whatsappConfiguration() !== null,
+      otpTtlSeconds: OTP_TTL_SECONDS,
+      demoGate: demoGateState(),
+    }
+  },
 })
 
 /** @publicProjection État de la session de cet appel ; réactif à sa révocation serveur. */

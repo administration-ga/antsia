@@ -14,7 +14,7 @@ import { describe, expect, it } from "vitest"
 import { api, internal } from "../../_generated/api"
 import type { Doc, Id } from "../../_generated/dataModel"
 import { SEED_CONFIRMATION } from "../../seeds/foundations"
-import { createTestSession, openNetworkFeatures, testConvex } from "../../test.setup"
+import { joinDeclaredDiasporaFixture, createTestSession, openNetworkFeatures, testConvex } from "../../test.setup"
 
 type T = ReturnType<typeof testConvex>
 type Person = { readonly as: ReturnType<T["withIdentity"]>; readonly personId: Id<"persons"> }
@@ -36,7 +36,7 @@ async function member(t: T, diasporaGa: Id<"networks">, handle: string, displayN
   const personId = await as.mutation(api.modules.people.persons.ensureMyPerson, {})
   await as.mutation(api.modules.people.consents.recordConsent, { purpose: "social_profile", origin: "onboarding" })
   await as.mutation(api.modules.people.profile.publishMyProfile, { handle, displayName })
-  await as.mutation(MEMBERSHIP.joinDiasporaGa, { networkId: diasporaGa, facet: { countryOfResidence: "FR", city: "Lyon" } })
+  await joinDeclaredDiasporaFixture(as, { networkId: diasporaGa, facet: { countryOfResidence: "FR", city: "Lyon" } })
   return { as, personId }
 }
 

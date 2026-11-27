@@ -27,7 +27,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { api, components, internal } from "../../_generated/api"
 import type { Id } from "../../_generated/dataModel"
 import { SEED_CONFIRMATION } from "../../seeds/foundations"
-import { createTestSession, openNetworkFeatures, testConvex } from "../../test.setup"
+import { joinDeclaredDiasporaFixture, createTestSession, openNetworkFeatures, testConvex } from "../../test.setup"
 import { readReactionCounts } from "../posts/counters"
 
 type T = ReturnType<typeof testConvex>
@@ -102,7 +102,7 @@ async function joinedActor(t: T, diasporaGa: Id<"networks">, actor: DiasporaGaDe
   const personId = await as.mutation(api.modules.people.persons.ensureMyPerson, {})
   await as.mutation(api.modules.people.consents.recordConsent, { purpose: "social_profile", origin: "onboarding" })
   await as.mutation(api.modules.people.profile.publishMyProfile, { handle, displayName })
-  await as.mutation(api.modules.diaspora.membership.joinDiasporaGa, { networkId: diasporaGa, facet: { countryOfResidence: spec.country }, directoryVisibility: "hidden" })
+  await joinDeclaredDiasporaFixture(as, { networkId: diasporaGa, facet: { countryOfResidence: spec.country }, directoryVisibility: "hidden" })
   return { as, personId, actor }
 }
 

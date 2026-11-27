@@ -26,7 +26,7 @@ import { api, components, internal } from "../../_generated/api"
 import type { Id } from "../../_generated/dataModel"
 import { DIASPORA_GA_DEMO_EMAIL_DOMAIN } from "../../lib/devTools"
 import { SEED_CONFIRMATION } from "../../seeds/foundations"
-import { createTestSession, testConvex } from "../../test.setup"
+import { joinDeclaredDiasporaFixture, createTestSession, testConvex } from "../../test.setup"
 import { BOOTSTRAP_AUDIT_ORIGIN, nameFirstConfirmation, withdrawConfirmation } from "./networkAdminBootstrap"
 import { NETWORK_ROLE_REASON_MIN } from "./networkRoles"
 
@@ -103,7 +103,7 @@ async function account(t: T, network: Id<"networks">, handle: string, { email, j
     if (link) await ctx.db.patch(link._id, { subject: idnSubject, loa: 2, nationality: "GA", revokedAt: undefined })
     else await ctx.db.insert("identityLinks", { personId, provider: "idn", subject: idnSubject, loa: 2, nationality: "GA", linkedAt: NOW })
   })
-  if (join) await session.as.mutation(api.modules.diaspora.membership.joinDiasporaGa, { networkId: network, facet: { countryOfResidence: "FR", city: "Paris" } })
+  if (join) await joinDeclaredDiasporaFixture(session.as, { networkId: network, facet: { countryOfResidence: "FR", city: "Paris" } })
   return { ...session, authUserId, personId, idnSubject, handle }
 }
 

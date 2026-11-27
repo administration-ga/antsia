@@ -14,7 +14,7 @@ import { describe, expect, it } from "vitest"
 import { api, internal } from "../../_generated/api"
 import type { Id } from "../../_generated/dataModel"
 import { SEED_CONFIRMATION } from "../../seeds/foundations"
-import { openNetworkFeatures, testConvex } from "../../test.setup"
+import { joinDeclaredDiasporaFixture, openNetworkFeatures, testConvex } from "../../test.setup"
 import { directoryPlacePatch } from "./facts"
 
 type T = ReturnType<typeof testConvex>
@@ -65,7 +65,7 @@ async function member(t: T, diasporaGa: Id<"networks">, handle: string, facet: F
     )
   }
   if (level) await someone.as.mutation(api.modules.people.consents.recordConsent, { purpose: "directory", origin: "onboarding", networkId: diasporaGa })
-  await someone.as.mutation(api.modules.diaspora.membership.joinDiasporaGa, {
+  await joinDeclaredDiasporaFixture(someone.as, {
     networkId: diasporaGa,
     facet: facet as { countryOfResidence: string },
     ...(level ? { directoryVisibility: level } : {}),
@@ -149,7 +149,7 @@ describe("parcourir l'annuaire : la règle de la recherche, candidat par candida
     await member(t, diasporaGa, "awa.belgique", { countryOfResidence: "BE" }, "network")
     const lecteur = await member(t, diasporaGa, "lecteur", { countryOfResidence: "FR" })
     const attente = await person(t, "attente")
-    await attente.as.mutation(api.modules.diaspora.membership.joinDiasporaGa, { networkId: diasporaGa, facet: { countryOfResidence: "FR" } })
+    await joinDeclaredDiasporaFixture(attente.as, { networkId: diasporaGa, facet: { countryOfResidence: "FR" } })
 
     expect(await refusalCode(browse(attente.as, diasporaGa, { country: "FR" }))).toBe("statusInsufficient")
     // La Belgique n'est pas ouverte : rien, comme un pays vide.

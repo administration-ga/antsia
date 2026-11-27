@@ -110,6 +110,7 @@ import type * as modules_diaspora_associations from "../modules/diaspora/associa
 import type * as modules_diaspora_associationsTables from "../modules/diaspora/associationsTables.js";
 import type * as modules_diaspora_attestation from "../modules/diaspora/attestation.js";
 import type * as modules_diaspora_communityNotifications from "../modules/diaspora/communityNotifications.js";
+import type * as modules_diaspora_consulateLookup from "../modules/diaspora/consulateLookup.js";
 import type * as modules_diaspora_contentCounters from "../modules/diaspora/contentCounters.js";
 import type * as modules_diaspora_contentPreferences from "../modules/diaspora/contentPreferences.js";
 import type * as modules_diaspora_conversationContexts from "../modules/diaspora/conversationContexts.js";
@@ -629,6 +630,7 @@ declare const fullApi: ApiFromModules<{
   "modules/diaspora/associationsTables": typeof modules_diaspora_associationsTables;
   "modules/diaspora/attestation": typeof modules_diaspora_attestation;
   "modules/diaspora/communityNotifications": typeof modules_diaspora_communityNotifications;
+  "modules/diaspora/consulateLookup": typeof modules_diaspora_consulateLookup;
   "modules/diaspora/contentCounters": typeof modules_diaspora_contentCounters;
   "modules/diaspora/contentPreferences": typeof modules_diaspora_contentPreferences;
   "modules/diaspora/conversationContexts": typeof modules_diaspora_conversationContexts;

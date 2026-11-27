@@ -26,6 +26,7 @@ export const DIASPORA_SLICE_MANIFEST = {
   tables: [
     "countryHubs",
     "sponsorships",
+    "sponsorshipCodes",
     "consularAttestations",
     "communityImports",
     "memberPrivacy",
@@ -117,6 +118,7 @@ export const DIASPORA_SLICE_MANIFEST = {
     "associationsTables.ts": "pages",
     "attestation.ts": "core",
     "communityNotifications.ts": "core",
+    "consulateLookup.ts": "core",
     "contentCounters.ts": "core",
     "contentPreferences.ts": "core",
     "conversationContexts.ts": "core",

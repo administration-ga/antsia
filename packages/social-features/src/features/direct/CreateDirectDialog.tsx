@@ -29,6 +29,7 @@ const schema = z.object({
 })
 type Draft = z.infer<typeof schema>
 export type ConferencePrefill = {
+  quickSetup?: boolean
   title?: string | null
   userIds: readonly string[]
   sourceThreadId?: string | null
@@ -59,7 +60,7 @@ function CreateDirectDraft({ onClose, prefill, asPage }: { onClose: () => void; 
       maxViewers: DIRECT_DEFAULT_MAX_VIEWERS,
       replay: false,
       announce: false,
-      stageFormat: "computer",
+      stageFormat: prefill?.quickSetup && typeof window !== "undefined" && window.matchMedia?.("(max-width: 640px) and (pointer: coarse)").matches ? "mobile" : "computer",
       stageLayout: "adaptive",
     },
   })
@@ -96,9 +97,25 @@ function CreateDirectDraft({ onClose, prefill, asPage }: { onClose: () => void; 
       if (mounted.current) setError(postEngineErrorText(failure, "direct:failed", t))
     }
   })(event) }
+  const guestPicker = <DirectGuestPicker key={`${networkId}:${followersPageId ?? "all"}`} guests={guests} onChange={setGuests} profiles={eligibility.data?.eligible ?? []} sourceThreadId={sourceThreadId} followersPageId={followersPageId} />
+  const studioSettings = (
+    <>
+        <label className="flex flex-col gap-2 text-sm">{t("studio.emission")}<select {...register("stageFormat")} className="min-h-11 rounded-[var(--esp-input-radius,0.5rem)] border border-input bg-background px-3">{(["computer", "television", "mobile"] as const).map((format) => <option key={format} value={format}>{t(`studio.formats.${format}`)}</option>)}</select></label>
+        <label className="flex flex-col gap-2 text-sm">{t("studio.layout")}<select {...register("stageLayout")} className="min-h-11 rounded-[var(--esp-input-radius,0.5rem)] border border-input bg-background px-3"><option value="adaptive">{t("studio.adaptive")}</option><option value="fixed">{t("studio.fixed")}</option></select></label>
+        <label htmlFor={`${id}-capacity`} className="flex flex-col gap-2 text-sm">
+          {t("create.capacity")}
+          <input id={`${id}-capacity`} type="number" min={1} max={DIRECT_MAX_VIEWERS_CAP} {...register("maxViewers", { valueAsNumber: true })} aria-invalid={!!errors.maxViewers} className="min-h-11 rounded-[var(--esp-input-radius,0.5rem)] border border-input bg-background px-3" />
+          {errors.maxViewers ? <span role="alert">{t("create.invalidCapacity", { max: DIRECT_MAX_VIEWERS_CAP, DIRECT_MAX_INVITEES })}</span> : null}
+        </label>
+        <label className="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" {...register("replay")} />{t("create.record")}</label>
+        <p className="text-sm text-muted-foreground">{t("create.recordDescription")}</p>
+        {announcementAllowed ? <label className="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" {...register("announce")} />{t("create.announce")}</label> : null}
+        {!announcementAllowed && audience !== "invitees" ? <p className="text-sm">{t("create.noPageAnnouncement")}</p> : null}
+    </>
+  )
   return (
     <EspaceDialog title={t("create.title")} description={t("create.description")} closeLabel={t("close")} onClose={isSubmitting ? () => undefined : onClose}>
-      <form data-charte={charte} onSubmit={submit} className="flex flex-col gap-4" style={{ "--ui2-button-min-h": "44px", "--ui2-button-sm-min-h": "44px" } as CSSProperties}>
+      <form data-direct-setup="" data-charte={charte} onSubmit={submit} className="flex flex-col gap-4" style={{ "--ui2-button-min-h": "44px", "--ui2-button-sm-min-h": "44px" } as CSSProperties}>
         <fieldset disabled={isSubmitting} className="contents">
         <label className="flex flex-col gap-2 text-sm">{t("create.identity")}<select value={pageId ?? ""} onChange={(event) => { const value = event.target.value; setPageId(value ? value as Id<"pages"> : undefined); if (!value && audience === "followers") setValue("audience", "connections") }} className="min-h-11 rounded-[var(--esp-input-radius,0.5rem)] border border-input bg-background px-3"><option value="">{t("create.personal")}</option>{pages.data?.map((page) => <option key={page.pageId} value={page.pageId}>{page.name}</option>)}{pageId && !pages.data?.some((page) => page.pageId === pageId) ? <option value={pageId}>{asPage?.name ?? t("create.pageUnavailable")}</option> : null}</select></label>
         {pages.isError ? <p role="alert">{t("create.pagesFailed")}</p> : null}
@@ -118,18 +135,18 @@ function CreateDirectDraft({ onClose, prefill, asPage }: { onClose: () => void; 
           </select>
         </label>
         <p className="text-sm text-muted-foreground">{t("create.networkOnly")}</p>
-        <label className="flex flex-col gap-2 text-sm">{t("studio.emission")}<select {...register("stageFormat")} className="min-h-11 rounded-[var(--esp-input-radius,0.5rem)] border border-input bg-background px-3">{(["computer", "television", "mobile"] as const).map((format) => <option key={format} value={format}>{t(`studio.formats.${format}`)}</option>)}</select></label>
-        <label className="flex flex-col gap-2 text-sm">{t("studio.layout")}<select {...register("stageLayout")} className="min-h-11 rounded-[var(--esp-input-radius,0.5rem)] border border-input bg-background px-3"><option value="adaptive">{t("studio.adaptive")}</option><option value="fixed">{t("studio.fixed")}</option></select></label>
-        <label htmlFor={`${id}-capacity`} className="flex flex-col gap-2 text-sm">
-          {t("create.capacity")}
-          <input id={`${id}-capacity`} type="number" min={1} max={DIRECT_MAX_VIEWERS_CAP} {...register("maxViewers", { valueAsNumber: true })} aria-invalid={!!errors.maxViewers} className="min-h-11 rounded-[var(--esp-input-radius,0.5rem)] border border-input bg-background px-3" />
-          {errors.maxViewers ? <span role="alert">{t("create.invalidCapacity", { max: DIRECT_MAX_VIEWERS_CAP, DIRECT_MAX_INVITEES })}</span> : null}
-        </label>
-        <label className="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" {...register("replay")} />{t("create.record")}</label>
-        <p className="text-sm text-muted-foreground">{t("create.recordDescription")}</p>
-        {announcementAllowed ? <label className="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" {...register("announce")} />{t("create.announce")}</label> : null}
-        {!announcementAllowed && audience !== "invitees" ? <p className="text-sm">{t("create.noPageAnnouncement")}</p> : null}
-        <DirectGuestPicker key={`${networkId}:${followersPageId ?? "all"}`} guests={guests} onChange={setGuests} profiles={eligibility.data?.eligible ?? []} sourceThreadId={sourceThreadId} followersPageId={followersPageId} />
+        {prefill?.quickSetup ? (
+          <details open={errors.maxViewers ? true : undefined} className="rounded-lg border border-input px-3">
+            <summary className="cursor-pointer py-3 text-sm font-medium">{t("create.options")}</summary>
+            <div className="grid gap-3 pb-3">{studioSettings}</div>
+          </details>
+        ) : studioSettings}
+        {prefill?.quickSetup && audience !== "invitees" && !prefill.userIds.length ? (
+          <details className="rounded-lg border border-input px-3">
+            <summary className="cursor-pointer py-3 text-sm font-medium">{t("create.invitePeople")}</summary>
+            {guestPicker}
+          </details>
+        ) : guestPicker}
         {guests.length > 0 && !guestsUsable ? <p role={eligibility.isError ? "alert" : "status"}>{t(eligibility.data ? "create.guestsChanged" : eligibility.isError ? "guests.failed" : "create.checkingGuests")}</p> : null}
         </fieldset>
         {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}

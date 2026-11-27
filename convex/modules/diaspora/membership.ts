@@ -18,6 +18,7 @@ import {
   checkSponsorship,
   CONSENT_PURPOSES as DIASPORA_GA_CONSENT_PURPOSES,
   checkSponsorshipRevocation,
+  DIASPORA_GA_NETWORK,
   DEFAULT_DIRECTORY_VISIBILITY,
   deriveMembershipStatus,
   type DiasporaFacet,
@@ -29,24 +30,29 @@ import {
   type SponsorFacts,
   type SponsorshipRefusal,
   sponsorSeniorityReachedAt,
+  sponsorSeniorityWaived,
   SPONSORSHIP_WINDOW_DAYS,
   sponsorshipWindowStart,
   SPONSORSHIPS_PER_WINDOW,
   sponsorStanding,
+  normalizeSponsorCode,
   toEngineFacet,
   writeRateTier,
 } from "@diaspora-ga/domain"
+import { normalizeCivilName } from "@antsia/social-domain/civilName"
 import { v } from "convex/values"
 
+import { components } from "../../_generated/api"
 import type { Doc, Id } from "../../_generated/dataModel"
-import { query, type QueryCtx } from "../../_generated/server"
+import { internalMutation, internalQuery, query, type MutationCtx, type QueryCtx } from "../../_generated/server"
 import { getCurrentPerson, getMembership, getRootNetwork } from "../../lib/access"
 import { demoGateState } from "../../lib/demoGate"
 import { isDemoEmail } from "../../lib/devTools"
 import { checked, fail, failAppRule, notFound } from "../../lib/errors"
-import { networkAdminMutation, networkMutation, networkQuery, personMutation } from "../../lib/functions"
+import { networkAdminMutation, networkMutation, networkQuery, personMutation, personQuery } from "../../lib/functions"
 import { enforceRateLimit } from "../../lib/rateLimit"
 import { membershipRoleValidator, membershipStatusValidator } from "../../lib/validators"
+import { assertSocialWriteAllowed } from "../moderation/policy"
 import { isBlockedBetween } from "../graph/graph"
 import { admitToNetwork, setMembershipStatus, writeNetworkFacet } from "../people/admission"
 import { notifyPerson } from "../notifications/notify"
@@ -54,6 +60,8 @@ import { appendAudit, networkRoleCapacity } from "../platform/audit"
 import { accountEmailOf, isDeclaredDiasporaGaDemoEmail } from "./demoAccounts"
 import { findPublishedPersonByHandle } from "../people/miniProfile"
 import { assertLeaveKeepsNetworkAdmin, networkRoleAuditEntry, setMembershipRole } from "../people/networkRoles"
+import { lookupDue, scheduleConsulateLookup } from "./consulateLookup"
+import { hasVerifiedPhone } from "../people/identity"
 import { hasStrongIdentityFor, liveIdentityLinks } from "../people/persons"
 import {
   activeFoundingAdmissionOf,
@@ -67,6 +75,11 @@ import {
   endSponsorshipOnDeparture,
   facetOf,
   groundsFrom,
+  hasConsulateAccount,
+  hasConsulatePassAccount,
+  ensureSponsorCode,
+  newSponsorCode,
+  sponsorCodeOf,
   isDiasporaNetwork,
   membershipGrounds,
   privacyOf,
@@ -101,6 +114,44 @@ function labelOf(person: Doc<"persons"> | null): { handle: string; displayName: 
   return { handle: person.handle ?? "", displayName: person.displayName ?? "" }
 }
 
+const phoneRegistrationValidator = v.object({ firstName: v.string(), lastName: v.string(), declaredGabonese: v.literal(true) })
+type PhoneRegistration = { firstName: string; lastName: string; declaredGabonese: true }
+
+async function registrationEvidence(
+  ctx: QueryCtx,
+  networkId: Id<"networks">,
+  person: Doc<"persons">,
+  registration?: PhoneRegistration,
+): Promise<NonNullable<Doc<"memberPrivacy">["phoneRegistration"]> | undefined> {
+  const membership = await getMembership(ctx, networkId, person._id)
+  if (membership && membership.status !== "partie") return
+  const idn = (await liveIdentityLinks(ctx, person._id)).find(link => link.provider === "idn")
+  if (idn?.nationality) {
+    if (idnGroundFromLink(idn).gaboneseNationality !== true) return failAppRule("gabonese_nationality_required")
+    return
+  }
+  if (registration) {
+    if (!await hasVerifiedPhone(ctx, person.authUserId)) return failAppRule("verified_phone_required")
+    if (![registration.firstName, registration.lastName].every(name => name.trim().length > 0 && name.length <= 100 && !/[\u0000-\u001f\u007f]/u.test(name))) {
+      return fail("invalidArgument", { field: "phoneRegistration" })
+    }
+    return { ...normalizeCivilName(registration), nationality: "GA", declaredAt: Date.now() }
+  }
+  if ((await privacyOf(ctx, networkId, person._id))?.phoneRegistration) return
+  return failAppRule("gabonese_nationality_required")
+}
+
+/** @selfScoped Vérifie les conditions avant la publication du profil social. */
+export const checkRegistration = personQuery({
+  args: { networkId: v.id("networks"), phoneRegistration: v.optional(phoneRegistrationValidator) },
+  returns: v.null(),
+  handler: async (ctx, { networkId, phoneRegistration }) => {
+    if (!isDiasporaNetwork(await ctx.db.get(networkId))) return notFound()
+    await registrationEvidence(ctx, networkId, ctx.person, phoneRegistration)
+    return null
+  },
+})
+
 /**
  * @selfScoped La personne de la session entre dans DIASPORA.GA par la tranche qui
  * le gouverne : son statut se dérive de SES faits (IDN et sa garantie, parrainage,
@@ -116,6 +167,7 @@ export const joinDiasporaGa = personMutation({
   args: {
     networkId: v.id("networks"),
     facet: facetInputValidator,
+    phoneRegistration: v.optional(phoneRegistrationValidator),
     directoryVisibility: v.optional(directoryVisibilityValidator),
   },
   returns: v.object({ status: membershipStatusValidator, rootStatus: membershipStatusValidator }),
@@ -153,6 +205,7 @@ export const joinDiasporaGa = personMutation({
       await endSponsorshipOnDeparture(ctx, network._id, ctx.person._id, now)
       await endFoundingAdmissionOnDeparture(ctx, network._id, ctx.person._id, now)
     }
+    const phoneRegistration = await registrationEvidence(ctx, network._id, ctx.person, args.phoneRegistration)
     const grounds = await membershipGrounds(ctx, network._id, ctx.person._id, null)
     const entry = deriveMembershipStatus(grounds, now)
     // Défensif : sans départ ni sanction dans les faits relus, l'entrée est toujours active.
@@ -178,8 +231,10 @@ export const joinDiasporaGa = personMutation({
         ? await applyDerivedStatus(ctx, existing, grounds, sponsorship?.sponsorPersonId ?? null, now)
         : admitted.status
 
+    if (status === "verifiee" && (!existing || existing.status === "partie")) await ensureSponsorCode(ctx, network._id, ctx.person._id)
     await writeNetworkFacet(ctx, network, ctx.person._id, toEngineFacet(facet.value))
-    await writePrivacy(ctx, network._id, ctx.person._id, { facetLevels: facet.value.visibility, directoryVisibility })
+    await writePrivacy(ctx, network._id, ctx.person._id, { facetLevels: facet.value.visibility, directoryVisibility, ...(phoneRegistration ? { phoneRegistration } : {}) })
+    await scheduleConsulateLookup(ctx, network._id, ctx.person)
     // Annuaire opt-in : masqué par défaut, listé au seul choix d'un niveau visible.
     await syncDirectoryListing(ctx, network._id, ctx.person._id)
     return { status, rootStatus: admitted.rootStatus }
@@ -191,22 +246,23 @@ export const joinDiasporaGa = personMutation({
  * dispense, accordée avec une admission fondatrice en vigueur, EA-01), son quota glissant.
  */
 async function sponsorFactsOf(
-  ctx: QueryCtx & { networkId: Id<"networks">; person: Doc<"persons">; membership: Doc<"networkMemberships"> },
+  ctx: QueryCtx,
+  membership: Doc<"networkMemberships">,
   now: number,
 ): Promise<SponsorFacts> {
   // borné : au-delà du quota, le refus est acquis ; inutile de compter plus loin.
   const recent = await ctx.db
     .query("sponsorships")
     .withIndex("by_network_and_sponsor_and_createdAt", (q) =>
-      q.eq("networkId", ctx.networkId).eq("sponsorPersonId", ctx.person._id).gt("createdAt", sponsorshipWindowStart(now)),
+      q.eq("networkId", membership.networkId).eq("sponsorPersonId", membership.personId).gt("createdAt", sponsorshipWindowStart(now)),
     )
     .take(SPONSORSHIPS_PER_WINDOW)
-  const status = ctx.membership.status
-  const founding = status === "verifiee" ? await activeFoundingAdmissionOf(ctx, ctx.networkId, ctx.person._id) : null
+  const grounds = membership.status === "verifiee" ? await membershipGrounds(ctx, membership.networkId, membership.personId, membership) : null
+  const status = grounds ? deriveMembershipStatus(grounds, now) : membership.status
   return {
     status,
-    ...(status === "verifiee" ? { verifiedSince: ctx.membership.statusChangedAt } : {}),
-    ...(founding?.seniorityWaiver === true ? { seniorityWaived: true } : {}),
+    ...(status === "verifiee" ? { verifiedSince: membership.statusChangedAt } : {}),
+    ...(grounds && sponsorSeniorityWaived(grounds) ? { seniorityWaived: true } : {}),
     sponsorshipsInWindow: recent.length,
   }
 }
@@ -234,7 +290,7 @@ export const sponsor = networkMutation({
     assertDiasporaNetwork(ctx.network)
     await enforceRateLimit(ctx, "diaspora.sponsor", ctx.person._id)
     const now = Date.now()
-    const facts = await sponsorFactsOf(ctx, now)
+    const facts = await sponsorFactsOf(ctx, ctx.membership, now)
     // Une personne joignable (profil publié, membre active du réseau), et sans blocage
     // dans la paire, dans un sens ou dans l'autre : sinon, le même refus indistinct.
     const target = await findPublishedPersonByHandle(ctx, ctx.networkId, handle.trim().replace(/^@/, ""))
@@ -253,17 +309,48 @@ export const sponsor = networkMutation({
     // Inatteignable : la règle a déjà refusé une cible absente ou non membre.
     if (!target || blocked || !targetAccess?.membership) return notFound()
 
-    const sponsorshipId = await ctx.db.insert("sponsorships", {
-      networkId: ctx.networkId,
-      sponsorPersonId: ctx.person._id,
-      sponsoredPersonId: target._id,
-      createdAt: now,
-    })
-    const grounds = await membershipGrounds(ctx, ctx.networkId, target._id, targetAccess.membership)
-    await applyDerivedStatus(ctx, targetAccess.membership, grounds, ctx.person._id, now)
-    // La cloche de la personne parrainée : qui l'a admise (mini-profil publié du parrain).
-    await notifyPerson(ctx, { networkId: ctx.networkId, recipientPersonId: target._id, actorPersonId: ctx.person._id, kind: "sponsorship_received" })
-    return { sponsorshipId }
+    return await recordSponsorship(ctx, ctx.person._id, targetAccess.membership, now)
+  },
+})
+
+async function recordSponsorship(ctx: MutationCtx, sponsorPersonId: Id<"persons">, target: Doc<"networkMemberships">, now: number) {
+  const { networkId, personId } = target
+  const sponsorshipId = await ctx.db.insert("sponsorships", { networkId, sponsorPersonId, sponsoredPersonId: personId, createdAt: now })
+  const grounds = await membershipGrounds(ctx, networkId, personId, target)
+  await applyDerivedStatus(ctx, target, grounds, sponsorPersonId, now)
+  await notifyPerson(ctx, { networkId, recipientPersonId: personId, actorPersonId: sponsorPersonId, kind: "sponsorship_received" })
+  return { sponsorshipId }
+}
+
+/** Le code confié par le parrain autorise un parrainage. Sa consommation et son remplacement sont atomiques. */
+export const redeemSponsorCode = networkMutation({
+  minStatus: "en_attente",
+  writeBucket: "diaspora.sponsor",
+  args: { code: v.string() },
+  returns: v.object({ sponsorshipId: v.id("sponsorships") }),
+  handler: async (ctx, { code }) => {
+    assertDiasporaNetwork(ctx.network)
+    const token = normalizeSponsorCode(code)
+    const refuseCode = () => failAppRule("target_not_eligible")
+    if (!token) return refuseCode()
+    const invitation = await ctx.db.query("sponsorshipCodes").withIndex("by_network_and_token", q => q.eq("networkId", ctx.networkId).eq("token", token)).unique()
+    if (!invitation || invitation.personId === ctx.person._id) return refuseCode()
+    const sponsor = await effectiveStatusIn(ctx, ctx.network, invitation.personId)
+    const person = await ctx.db.get(invitation.personId)
+    if (!sponsor.membership || sponsor.status !== "verifiee" || !person?.handle || !ctx.person.handle) return refuseCode()
+    if (!await findPublishedPersonByHandle(ctx, ctx.networkId, person.handle) ||
+        !await findPublishedPersonByHandle(ctx, ctx.networkId, ctx.person.handle) ||
+        await isBlockedBetween(ctx, invitation.personId, ctx.person._id)) return refuseCode()
+    await assertSocialWriteAllowed(ctx, ctx.networkId, invitation.personId)
+    const now = Date.now()
+    const standing = await sponsorFactsOf(ctx, sponsor.membership, now)
+    const check = checkSponsorship(standing, {
+      isSelf: false, status: ctx.membership.status,
+      alreadySponsored: (await activeSponsorshipOf(ctx, ctx.networkId, ctx.person._id)) !== null,
+    }, now)
+    if (!check.ok) return refuseCode()
+    await ctx.db.patch(invitation._id, { token: newSponsorCode() })
+    return await recordSponsorship(ctx, invitation.personId, ctx.membership, now)
   },
 })
 
@@ -378,9 +465,70 @@ export const leaveDiasporaGa = networkMutation({
     await assertLeaveKeepsNetworkAdmin(ctx, ctx.networkId, ctx.person._id)
     await enforceRateLimit(ctx, "network.leave", ctx.person._id)
     const now = Date.now()
+    const code = await sponsorCodeOf(ctx, ctx.networkId, ctx.person._id)
+    if (code) await ctx.db.delete(code._id)
     await endSponsorshipOnDeparture(ctx, ctx.networkId, ctx.person._id, now)
     await endFoundingAdmissionOnDeparture(ctx, ctx.networkId, ctx.person._id, now)
     await setMembershipStatus(ctx, ctx.membership, "partie", { leftAt: now, sponsorPersonId: undefined })
+    return null
+  },
+})
+
+/** Le composant partage la transaction : deux billets simultanés ne peuvent ni dupliquer ni déplacer un lien. */
+export const linkConsulatePass = internalMutation({
+  args: { authUserId: v.string(), subject: v.string(), idn: v.string() }, returns: v.boolean(),
+  handler: async (ctx, { authUserId, subject, idn }): Promise<boolean> => {
+    if (!/^[a-f0-9]{64}$/.test(subject)) return false
+    const account = (provider: string, field: "accountId" | "userId", value: string) =>
+      ctx.runQuery(components.betterAuth.adapter.findOne, {
+        model: "account", where: [{ field: "providerId", value: provider }, { field, value }],
+        select: ["accountId", "userId"],
+      })
+    const idnOwner = await account("idn", "accountId", idn)
+    if (idnOwner?.userId !== authUserId) return false
+    const owner = await account("consulat", "accountId", subject)
+    const previous = await account("consulat", "userId", authUserId)
+    if (owner || previous) return owner?.userId === authUserId && previous?.accountId === subject
+    const now = Date.now()
+    await ctx.runMutation(components.betterAuth.adapter.create, { input: { model: "account", data: {
+      userId: authUserId, providerId: "consulat", accountId: subject, createdAt: now, updatedAt: now,
+    } } })
+    return true
+  },
+})
+
+/** Un passe valide reconnaît un membre ; seul le retour OIDC scelle sa première session IDN. */
+export const consulateEntryState = internalQuery({
+  args: { authUserId: v.string(), sessionId: v.optional(v.string()), idn: v.optional(v.string()) },
+  returns: v.object({ membership: v.union(v.literal("active"), v.literal("absent"), v.literal("blocked")), currentIdn: v.boolean() }),
+  handler: async (ctx, { authUserId, sessionId, idn }) => {
+    const proof = sessionId && idn ? await ctx.db.query("operatorSessionProofs")
+      .withIndex("by_session", q => q.eq("sessionId", sessionId)).unique() : null
+    const currentIdn = Boolean(proof && proof.authUserId === authUserId && proof.idnSubject === idn && proof.expiresAt > Date.now())
+    const person = await ctx.db.query("persons").withIndex("by_authUserId", q => q.eq("authUserId", authUserId)).unique()
+    if (!person) return { membership: "absent" as const, currentIdn }
+    if (person.deletionRequestedAt !== undefined || person.withdrawnAt !== undefined || person.erasedAt !== undefined) return { membership: "blocked" as const, currentIdn }
+    const network = await ctx.db.query("networks").withIndex("by_slug", q => q.eq("slug", DIASPORA_GA_NETWORK.slug)).unique()
+    if (!isDiasporaNetwork(network)) return { membership: "blocked" as const, currentIdn }
+    const access = await effectiveStatusIn(ctx, network, person._id)
+    if (access.rootStatus === "suspendue" || access.membership?.status === "suspendue") return { membership: "blocked" as const, currentIdn }
+    return { membership: access.status && isActiveStatus(access.status) ? "active" as const : "absent" as const, currentIdn }
+  },
+})
+
+/** À l'échange réussi, les droits du membre existant sont prêts avant sa redirection. */
+export const refreshAfterConsulatePass = internalMutation({
+  args: { authUserId: v.string() },
+  returns: v.null(),
+  handler: async (ctx, { authUserId }) => {
+    const person = await ctx.db.query("persons").withIndex("by_authUserId", q => q.eq("authUserId", authUserId)).unique()
+    if (!person || !await hasConsulatePassAccount(ctx, person)) return null
+    const network = await ctx.db.query("networks").withIndex("by_slug", q => q.eq("slug", DIASPORA_GA_NETWORK.slug)).unique()
+    if (!isDiasporaNetwork(network)) return null
+    const access = await effectiveStatusIn(ctx, network, person._id)
+    if (access.membership && access.status !== null && isActiveStatus(access.status)) {
+      await rederiveMembership(ctx, access.membership, Date.now())
+    }
     return null
   },
 })
@@ -401,10 +549,14 @@ export const refreshMyMembership = personMutation({
     if (!isDiasporaNetwork(network)) return notFound()
     const access = await effectiveStatusIn(ctx, network, ctx.person._id)
     if (!access.membership || access.status === null || !isActiveStatus(access.status)) return notFound()
+    await scheduleConsulateLookup(ctx, networkId, ctx.person)
     const before = access.membership.status
     const now = Date.now()
     const grounds = await membershipGrounds(ctx, network._id, ctx.person._id, access.membership)
-    if (membershipStatusDrift(before, grounds, now) === null) return { status: before, changed: false }
+    if (membershipStatusDrift(before, grounds, now) === null) {
+      if (before === "verifiee") await ensureSponsorCode(ctx, networkId, ctx.person._id)
+      return { status: before, changed: false }
+    }
     const status = await rederiveMembership(ctx, access.membership, now)
     return { status, changed: status !== before }
   },
@@ -463,8 +615,9 @@ export const myMembership = query({
     })
     const sponsorship = await activeSponsorshipOf(ctx, network._id, person._id)
     // EA-03 : les mêmes faits que l'acte (`groundsFrom`), relus contre le statut enregistré.
-    const grounds = groundsFrom({ links, sponsorship, foundingAdmission: await activeFoundingAdmissionOf(ctx, network._id, person._id), membership })
-    const statusOutdated = isActiveStatus(status) && membershipStatusDrift(membership.status, grounds, Date.now()) !== null
+    const grounds = groundsFrom({ consulateAccount: await hasConsulateAccount(ctx, person, networkId), links, sponsorship, foundingAdmission: await activeFoundingAdmissionOf(ctx, network._id, person._id), membership })
+    const statusOutdated = isActiveStatus(status) && ((await lookupDue(ctx, networkId, person)) !== null || membershipStatusDrift(membership.status, grounds, Date.now()) !== null ||
+      (status === "verifiee" && !await sponsorCodeOf(ctx, networkId, person._id)))
     // borné : une demande d'attestation par 24 h ; les dix dernières suffisent à trouver celle du réseau.
     const requests = await ctx.db
       .query("consularAttestations")
@@ -505,6 +658,7 @@ export const sponsorDashboard = networkQuery({
   args: {},
   returns: v.object({
     eligible: v.boolean(),
+    code: v.union(v.string(), v.null()),
     refusal: v.union(sponsorshipRefusalValidator, v.null()),
     remaining: v.number(),
     windowDays: v.number(),
@@ -521,7 +675,7 @@ export const sponsorDashboard = networkQuery({
   handler: async (ctx) => {
     assertDiasporaNetwork(ctx.network)
     const now = Date.now()
-    const standing = sponsorStanding(await sponsorFactsOf(ctx, now), now)
+    const standing = sponsorStanding(await sponsorFactsOf(ctx, ctx.membership, now), now)
     const rows = await ctx.db
       .query("sponsorships")
       .withIndex("by_network_and_sponsor_and_createdAt", (q) => q.eq("networkId", ctx.networkId).eq("sponsorPersonId", ctx.person._id))
@@ -536,7 +690,8 @@ export const sponsorDashboard = networkQuery({
         revokedAt: row.revokedAt ?? null,
       })
     }
-    return { ...standing, given }
+    const code = standing.eligible ? (await sponsorCodeOf(ctx, ctx.networkId, ctx.person._id))?.token ?? null : null
+    return { ...standing, code, given }
   },
 })
 
@@ -592,7 +747,7 @@ export const myIdentity = query({
   args: {},
   returns: v.union(
     v.null(),
-    v.object({ idn: v.union(v.object({ loa: v.number() }), v.null()), consularAttestation: v.boolean() }),
+    v.object({ idn: v.union(v.object({ loa: v.number(), gaboneseNationality: v.union(v.boolean(), v.null()) }), v.null()), consularAttestation: v.boolean(), phoneVerified: v.boolean() }),
   ),
   handler: async (ctx) => {
     const person = await getCurrentPerson(ctx)
@@ -600,7 +755,8 @@ export const myIdentity = query({
     const links = await liveIdentityLinks(ctx, person._id)
     const idn = links.find((link) => link.provider === "idn")
     return {
-      idn: idn ? { loa: idnGroundFromLink(idn).loa } : null,
+      idn: idn ? idnGroundFromLink(idn) : null,
+      phoneVerified: await hasVerifiedPhone(ctx, person.authUserId),
       consularAttestation: links.some((link) => link.provider === "consular_attestation"),
     }
   },
@@ -614,3 +770,17 @@ export const myIdentity = query({
  */
 export const joinDiasporale = joinDiasporaGa // renommage:conserver — alias de transition, à retirer
 export const leaveDiasporale = leaveDiasporaGa // renommage:conserver — alias de transition, à retirer
+
+
+/** La connexion historique par e-mail dépend d’une adhésion déjà inscrite dans ce réseau.
+ * Le contrôle des droits et des suspensions intervient ensuite dans les fonctions métier. */
+export const hasLegacyDiasporaMembership = internalQuery({
+  args: { authUserId: v.string() },
+  returns: v.boolean(),
+  handler: async (ctx, { authUserId }) => {
+    const person = await ctx.db.query("persons").withIndex("by_authUserId", q => q.eq("authUserId", authUserId)).unique()
+    if (!person) return false
+    const network = await ctx.db.query("networks").withIndex("by_slug", q => q.eq("slug", DIASPORA_GA_NETWORK.slug)).unique()
+    return isDiasporaNetwork(network) && Boolean(await getMembership(ctx, network._id, person._id))
+  },
+})

@@ -29,7 +29,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { api, internal } from "../_generated/api"
 import type { Doc, Id } from "../_generated/dataModel"
 import { SEED_CONFIRMATION } from "../seeds/foundations"
-import { openNetworkFeatures, openTestNetworkAdminSession, testConvex } from "../test.setup"
+import { joinDeclaredDiasporaFixture, openNetworkFeatures, openTestNetworkAdminSession, testConvex } from "../test.setup"
 
 type T = ReturnType<typeof testConvex>
 type As = ReturnType<T["withIdentity"]>
@@ -88,7 +88,7 @@ async function person(t: T, handle: string, loa: 1 | 2 | null = 2): Promise<Memb
 /** Un membre de DIASPORA.GA, au rôle de réseau demandé ; sa session est celle de l'application des membres. */
 async function member(t: T, networkId: Id<"networks">, handle: string, role?: Role, loa: 1 | 2 = 2): Promise<Member> {
   const someone = await person(t, handle, loa)
-  await someone.as.mutation(api.modules.diaspora.membership.joinDiasporaGa, { networkId, facet: { countryOfResidence: "FR" } })
+  await joinDeclaredDiasporaFixture(someone.as, { networkId, facet: { countryOfResidence: "FR" } })
   if (role) await setRole(t, networkId, someone.personId, role)
   return someone
 }

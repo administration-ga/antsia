@@ -150,6 +150,7 @@ export interface ConferenceLaunchPerson {
 }
 
 export interface ConferenceLaunchState {
+	quickSetup?: boolean
 	/**
 	 * Le titre PROPOSÉ au dialogue (le nom du fil), ou `null` — l'usager le
 	 * saisit alors. Une proposition, jamais une valeur imposée : le champ reste
@@ -217,11 +218,13 @@ function getServerSnapshot(): ConferenceLaunchState | null {
  * une demande valide : aucune personne, aucun fil.
  */
 export function requestConferenceLaunch({
+	quickSetup,
 	title,
 	userIds,
 	sourceThreadId,
 	people,
 }: {
+	quickSetup?: boolean
 	title?: string | null
 	userIds?: readonly string[] | null
 	sourceThreadId?: string | null
@@ -233,6 +236,7 @@ export function requestConferenceLaunch({
 	const ids = uniqueIds(userIds ?? [])
 	seq += 1
 	current = {
+		...(quickSetup ? { quickSetup: true } : {}),
 		title: trimmed.length > 0 ? trimmed : null,
 		userIds: Object.freeze(ids),
 		sourceThreadId: thread.length > 0 ? thread : null,

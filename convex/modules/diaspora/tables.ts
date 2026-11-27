@@ -62,6 +62,13 @@ export const COMMUNITY_IMPORT_KINDS = ["consular_posts", "associations", "compan
 export const COMMUNITY_IMPORT_STATUSES = ["pending", "applied", "rejected"] as const
 
 export const diasporaTables = {
+  sponsorshipCodes: defineTable({
+    networkId: v.id("networks"),
+    personId: v.id("persons"),
+    token: v.string(),
+  }).index("by_network_and_person", ["networkId", "personId"])
+    .index("by_network_and_token", ["networkId", "token"]),
+
   countryHubs: defineTable({
     networkId: v.id("networks"),
     /** ISO 3166-1 alpha-2, jamais le Gabon. */
@@ -123,6 +130,10 @@ export const diasporaTables = {
   }).index("by_network_and_importRef", ["networkId", "importRef"]),
 
   memberPrivacy: defineTable({
+    /** Seule l'empreinte du sujet vérifié est conservée. Une panne ne révoque pas une preuve acquise. */
+    consulateLookup: v.optional(v.object({ subjectDigest: v.string(), confirmed: v.boolean(), retryAt: v.number(), requestId: v.optional(v.string()) })),
+    /** Déclaration fournie à l'adhésion par WhatsApp, privée comme les réglages du membre. */
+    phoneRegistration: v.optional(v.object({ firstName: v.string(), lastName: v.string(), nationality: v.literal("GA"), declaredAt: v.number() })),
     networkId: v.id("networks"),
     personId: v.id("persons"),
     facetLevels: facetLevelsValidator,

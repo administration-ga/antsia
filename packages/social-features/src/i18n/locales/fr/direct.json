@@ -67,6 +67,8 @@
     "error": "Connexion refusée"
   },
   "create": {
+    "options": "Réglages de diffusion",
+    "invitePeople": "Inviter des participants",
     "title": "Créer une conférence",
     "description": "Préparez votre conférence ; vous la démarrerez après avoir vérifié votre matériel.",
     "name": "Titre",

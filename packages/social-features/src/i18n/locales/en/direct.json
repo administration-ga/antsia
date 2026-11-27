@@ -67,6 +67,8 @@
     "error": "Connection refused"
   },
   "create": {
+    "options": "Broadcast settings",
+    "invitePeople": "Invite participants",
     "title": "Create a conference",
     "description": "Prepare your conference; you will start it after checking your equipment.",
     "name": "Title",
