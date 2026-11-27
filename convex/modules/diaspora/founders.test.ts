@@ -14,7 +14,7 @@ import { describe, expect, it } from "vitest"
 import { api, internal } from "../../_generated/api"
 import type { Doc, Id } from "../../_generated/dataModel"
 import { SEED_CONFIRMATION } from "../../seeds/foundations"
-import { createTestOperatorProof, createTestSession, openNetworkFeatures, testConvex } from "../../test.setup"
+import { joinDeclaredDiasporaFixture, createTestOperatorProof, createTestSession, openNetworkFeatures, testConvex } from "../../test.setup"
 
 type T = ReturnType<typeof testConvex>
 type Person = { readonly as: ReturnType<T["withIdentity"]>; readonly personId: Id<"persons"> }
@@ -43,7 +43,7 @@ async function person(t: T, handle: string, displayName: string): Promise<Person
 /** Un compte léger entré dans DIASPORA.GA par le vrai accueil : « en attente », sauf faits déjà posés. */
 async function member(t: T, diasporaGa: Id<"networks">, handle: string, displayName: string): Promise<Person> {
   const someone = await person(t, handle, displayName)
-  await someone.as.mutation(api.modules.diaspora.membership.joinDiasporaGa, { networkId: diasporaGa, facet: { countryOfResidence: "FR", city: "Nantes" } })
+  await joinDeclaredDiasporaFixture(someone.as, { networkId: diasporaGa, facet: { countryOfResidence: "FR", city: "Nantes" } })
   return someone
 }
 
@@ -135,7 +135,7 @@ describe("EA-01 — admission fondatrice par décision tracée", () => {
     await t.run(async (ctx) => {
       await ctx.db.insert("identityLinks", { personId: declared.personId, provider: "idn", subject: `idn-${declared.personId}`, loa: 1, nationality: "GA", linkedAt: Date.now() })
     })
-    await declared.as.mutation(api.modules.diaspora.membership.joinDiasporaGa, { networkId: diasporaGa, facet: { countryOfResidence: "FR" } })
+    await joinDeclaredDiasporaFixture(declared.as, { networkId: diasporaGa, facet: { countryOfResidence: "FR" } })
     expect((await membershipOf(t, diasporaGa, declared.personId)).status).toBe("declaree")
 
     for (const who of [light, declared]) await admit(t, { networkId: diasporaGa, personId: who.personId, operatorPersonId: op.personId })
@@ -226,7 +226,7 @@ describe("EA-01 — admission fondatrice par décision tracée", () => {
     expect(row).toMatchObject({ withdrawnBy: "departure" })
     expect(row?.withdrawnAt).toEqual(expect.any(Number))
     expect(row?.withdrawnByPersonId).toBeUndefined()
-    const back = await ada.as.mutation(api.modules.diaspora.membership.joinDiasporaGa, { networkId: diasporaGa, facet: { countryOfResidence: "FR" } })
+    const back = await joinDeclaredDiasporaFixture(ada.as, { networkId: diasporaGa, facet: { countryOfResidence: "FR" } })
     expect(back.status).toBe("en_attente")
   })
 })
