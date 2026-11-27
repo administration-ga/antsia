@@ -335,6 +335,14 @@ describe("CH-863 M1 — paramètres d'autorisation IDN et intention fermée d'en
   }
   const members = origin("diaspora_ga")
   const publicSite = origin("antsia_ga")
+
+  it("porte uniquement l’identifiant du compte IDN de l’entrée consulaire Diaspora, y compris lors d’une nouvelle saisie du PIN", () => {
+    const body = { providerId: "idn", callbackURL: members + "/passerelle/consulat?apres=idn", additionalData: { antsiaEntry: "consulate", loginHint: "citoyen@idn.ga" } }
+    expect(idnSignInStartParams(body, {})).toEqual({ login_hint: "citoyen@idn.ga" })
+    expect(idnSignInStartParams({ ...body, additionalData: { ...body.additionalData, requireLogin: true } }, {})).toEqual({ prompt: "login", login_hint: "citoyen@idn.ga" })
+    expect(idnSignInStartParams({ ...body, callbackURL: publicSite + "/entrer" }, {})).toBeNull()
+    expect(idnSignInStartParams({ ...body, additionalData: { ...body.additionalData, loginHint: "a@example.org" } }, {})).toBeNull()
+  })
   const adminEntry = `${origin("admin_diaspora_ga")}/entrer`
   const consoleEntry = `${origin("admin_antsia_ga")}/entrer`
   const nativePayload = { challenge: "c".repeat(43), state: "s".repeat(43), redirectUri: "antsia-fixture://auth/idn" }
