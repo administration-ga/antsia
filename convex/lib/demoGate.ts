@@ -1,10 +1,9 @@
 /**
  * La porte des comptes de démonstration (CH-817) — état et empreintes, sans base.
  *
- * La porte est un verrou DE PLUS sous `demoAccountsAllowed` : elle resserre, elle n'ouvre rien
- * (ADR-0029, ADR-0038). Elle s'arme par la seule présence de `ANTSIA_DEMO_GATE_SECRET` :
- * - comptes de démonstration fermés ici (production comprise) → `closed` ;
- * - ouverts, variable ABSENTE → `open` (le comportement d'avant la porte) ;
+ * La porte DIASPORA reste fermée hors du développement local explicitement activé.
+ * En local, la présence de `ANTSIA_DEMO_GATE_SECRET` détermine son état :
+ * - variable absente → `open` ;
  * - variable posée mais vide, faite d'espaces ou de moins de 32 caractères, ou envoi WhatsApp non
  *   configuré → `unavailable` (personne n'entre : toute pièce manquante ferme ; CH-817 E5, constat 10 :
  *   un secret d'espaces n'est jamais pris pour une porte non armée) ;
@@ -22,7 +21,7 @@
  */
 import type { DemoGateScope, DemoGateState } from "@antsia/social-contracts/demoGate"
 
-import { demoAccountsAllowed, DIASPORA_GA_DEMO_EMAIL_DOMAIN } from "./devTools"
+import { devToolsAllowed, DIASPORA_GA_DEMO_EMAIL_DOMAIN } from "./devTools"
 import { whatsappConfiguration } from "./whatsappDelivery"
 
 type Env = Record<string, string | undefined>
@@ -37,7 +36,7 @@ export function demoGateSecret(env: Env = process.env): string | null {
 
 /** L'état de la porte sur ce déploiement (voir l'en-tête). */
 export function demoGateState(env: Env = process.env): DemoGateState {
-  if (!demoAccountsAllowed(env)) return "closed"
+  if (!devToolsAllowed(env)) return "closed"
   // Constat 10 : seule l'ABSENCE de la variable laisse la porte non armée ; vide ou espaces → indisponible.
   if (env.ANTSIA_DEMO_GATE_SECRET === undefined) return "open"
   if (demoGateSecret(env) === null || whatsappConfiguration(env) === null) return "unavailable"
@@ -56,13 +55,11 @@ export function demoGateScopeOfEmail(email: string): DemoGateScope | null {
 
 /**
  * La portée dont la porte gouverne la CONNEXION de cette adresse, ou `null`. Porte `gated` ou
- * `unavailable` : la famille de la portée (une session de porte valide est exigée, et `unavailable`
- * refuse tout) ; `closed` (production comprise) et `open` : `null`, la connexion est inchangée.
+ * `unavailable` ou `closed`, la famille DIASPORA est protégée. Seule la porte locale
+ * ouverte sans secret autorise sa connexion directe.
  */
 export function demoGateGoverns(email: string, env: Env = process.env): DemoGateScope | null {
-  const state = demoGateState(env)
-  if (state !== "gated" && state !== "unavailable") return null
-  return demoGateScopeOfEmail(email)
+  return demoGateState(env) === "open" ? null : demoGateScopeOfEmail(email)
 }
 
 export const DEMO_GATE_DIGEST_PURPOSES = ["demo-gate-phone", "demo-gate-code", "demo-gate-session", "demo-gate-ip"] as const

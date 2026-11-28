@@ -141,7 +141,7 @@ describe("choix privés du fil DIASPORA.GA", () => {
     expect((await reader.as.query(CP.paginateHiddenPosts, args)).page[0]).toEqual({ choiceId: pageChoiceId, at: NOW + 1, ...NEUTRAL })
   })
 
-  it.each(["hidden", "country", "consent", "departed", "block", "withdrawn", "private", "pending"] as const)("neutralise une sourdine après %s tout en gardant sa restauration", async (change) => {
+  it.each(["hidden", "country", "consent", "departed", "block", "withdrawn", "private", "suspended"] as const)("neutralise une sourdine après %s tout en gardant sa restauration", async (change) => {
     const { t, networkId, reader, author, args } = await fixture()
     const choiceId = await muted(t, networkId, reader.personId, author.personId)
     expect((await reader.as.query(CP.paginateMutedAuthors, args)).page).toEqual([{
@@ -170,8 +170,8 @@ describe("choix privés du fil DIASPORA.GA", () => {
       case "private":
         await author.as.mutation(api.modules.people.profile.setMyProfilePrivacy, { private: true })
         break
-      case "pending":
-        await setStatus(t, networkId, author.personId, "en_attente")
+      case "suspended":
+        await setStatus(t, networkId, author.personId, "suspendue")
         break
     }
     expect((await reader.as.query(CP.paginateMutedAuthors, args)).page).toEqual([{ choiceId, at: NOW, ...NEUTRAL }])
@@ -223,7 +223,11 @@ describe("choix privés du fil DIASPORA.GA", () => {
     expect(await codeOf(reader.as.query(CP.paginateMutedAuthors, { ...args, networkId: root }))).toBe("notFound")
     expect(await codeOf(t.query(CP.paginateHiddenPosts, args))).toBe("unauthenticated")
     await setStatus(t, networkId, reader.personId, "en_attente")
-    expect((await reader.as.query(CP.paginateHiddenPosts, args)).page).toEqual([{ choiceId, at: NOW, postId, body: "Publication du test", author: null }])
+    const visibleAuthor = { kind: "person", displayName: "auteur", handle: "auteur", avatarUrl: null }
+    expect((await reader.as.query(CP.paginateHiddenPosts, args)).page).toEqual([{ choiceId, at: NOW, postId, body: "Publication du test", author: visibleAuthor }])
+    await setStatus(t, networkId, author.personId, "en_attente")
+    expect((await reader.as.query(CP.paginateMutedAuthors, args)).page).toEqual([{ choiceId: muteId, at: NOW, postId: null, body: null, author: visibleAuthor }])
+    await author.as.mutation(api.modules.people.consents.revokeConsent, { purpose: "directory", networkId })
     expect((await reader.as.query(CP.paginateMutedAuthors, args)).page).toEqual([{ choiceId: muteId, at: NOW, ...NEUTRAL }])
     expect(await reader.as.mutation(CP.restoreHiddenPost, { networkId, expectedPersonId: reader.personId, choiceId })).toEqual({ restored: true })
     expect(await reader.as.mutation(CP.restoreMutedAuthor, { networkId, expectedPersonId: reader.personId, choiceId: muteId })).toEqual({ restored: true })

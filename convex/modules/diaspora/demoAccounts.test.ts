@@ -1,9 +1,10 @@
 // @vitest-environment edge-runtime
-/** Comptes de démonstration de DIASPORA.GA : développement local ou démonstration déclarée (ADR-0038), vraie session, actes réservés à l'acteur de l'adresse. */
+/** Comptes de démonstration de DIASPORA.GA : développement local explicite, vraie session, actes réservés à l'acteur de l'adresse. */
 import { engineErrorCode } from "@antsia/social-contracts/errors"
 import { NETWORK_FEATURES, type NetworkFeature } from "@antsia/social-domain/networkFeatures"
 import {
   DAY_MS,
+  ISO_COUNTRY_CODES,
   DIASPORA_GA_DEMO_ACTOR_SPECS,
   DIASPORA_GA_DEMO_ACTORS,
   DIASPORA_GA_DEMO_COUNTRIES,
@@ -75,8 +76,7 @@ afterEach(() => {
 })
 
 /**
- * Le moteur semé comme en développement local : fondations (la racine), puis le réseau diaspora-ga (la France
- * ouverte), avec les modules donnés ouverts (tous par défaut).
+ * Le moteur semé comme en développement local : fondations (la racine), puis le réseau diaspora-ga (tous les pays du catalogue ISO), avec les modules donnés ouverts (tous par défaut).
  */
 async function fixture(features: readonly NetworkFeature[] = NETWORK_FEATURES) {
   const t = testConvex({ automaticSessions: false })
@@ -86,17 +86,8 @@ async function fixture(features: readonly NetworkFeature[] = NETWORK_FEATURES) {
   return { t, diasporaGa: seeded.network, root: foundations.root }
 }
 
-/** Des pays ouverts comme l'administration du réseau les ouvrirait (la graine n'ouvre que la France ; l'équipement n'en ouvre aucun). */
-async function openCountries(t: T, diasporaGa: Id<"networks">, countries: readonly string[]) {
-  await t.run(async (ctx) => {
-    const network = present(await ctx.db.get(diasporaGa), "réseau")
-    const open = network.openCountries ?? []
-    await ctx.db.patch(diasporaGa, { openCountries: [...open, ...countries.filter((country) => !open.includes(country))] })
-  })
-}
-
-/** Les acteurs que la règle propose (tous modules ouverts, la France seule ouverte par défaut) : en local, ou sur la démonstration en ligne. */
-function offeredWith(local: boolean, countries: readonly string[] = ["FR"], features: readonly NetworkFeature[] = NETWORK_FEATURES) {
+/** Les acteurs proposés pour les modules et les territoires demandés. */
+function offeredWith(local: boolean, countries: readonly string[] = ISO_COUNTRY_CODES, features: readonly NetworkFeature[] = NETWORK_FEATURES) {
   return diasporaGaDemoActorsOffered({ openFeatures: features, openCountries: countries, local })
 }
 
@@ -117,16 +108,16 @@ const GATE_WHATSAPP = {
 const GATE_PHONE = "+447700900123"
 const GATE_TOKEN = "fictional_session_token_0123456789abcdefABC"
 const GATE_SCOPE = "diaspora-ga" as const
-const GATED_DEMO_ENV = {
-  CONVEX_CLOUD_URL: "https://demo-antsia-123.convex.cloud",
-  ANTSIA_DEMO_DEPLOYMENT: "demo-antsia-123",
+const GATED_LOCAL_ENV = {
+  CONVEX_CLOUD_URL: "http://127.0.0.1:3210",
+  ANTSIA_DEV_TOOLS: "true",
   ANTSIA_DEMO_GATE_SECRET: GATE_SECRET,
   ...GATE_WHATSAPP,
 }
 
-/** La démonstration déclarée, porte ARMÉE (secret et envoi WhatsApp configurés). */
+/** Le développement local, porte ARMÉE (secret et envoi WhatsApp configurés). */
 function armGate() {
-  declareDemo()
+  openDevTools()
   vi.stubEnv("ANTSIA_DEMO_GATE_SECRET", GATE_SECRET)
   for (const [key, value] of Object.entries(GATE_WHATSAPP)) vi.stubEnv(key, value)
 }
@@ -136,7 +127,7 @@ function armGate() {
  * l'instant `now` : elle vaut trente minutes à partir de là. Rend son échéance.
  */
 async function openGateSession(t: T, now: number, label = "e3"): Promise<number> {
-  await t.run((ctx) => allowPhonesImpl(ctx, { scope: GATE_SCOPE, phones: [GATE_PHONE] }, now, GATED_DEMO_ENV))
+  await t.run((ctx) => allowPhonesImpl(ctx, { scope: GATE_SCOPE, phones: [GATE_PHONE] }, now, GATED_LOCAL_ENV))
   const challengeId = `${label}-challenge`.padEnd(32, "x")
   const codeDigest = await demoGateDigest(GATE_SECRET, "demo-gate-code", label)
   const phoneHash = await demoGateDigest(GATE_SECRET, "demo-gate-phone", GATE_PHONE)
@@ -243,10 +234,6 @@ async function signatoriesOf(t: T, personId: Id<"persons">) {
   return await t.run(async (ctx) => await ctx.db.query("pageSignatories").withIndex("by_person", (q) => q.eq("personId", personId)).take(10))
 }
 
-async function hubsOf(t: T, diasporaGa: Id<"networks">) {
-  return await t.run(async (ctx) => await ctx.db.query("countryHubs").withIndex("by_network_and_country", (q) => q.eq("networkId", diasporaGa)).take(10))
-}
-
 async function teamsOf(t: T, diasporaGa: Id<"networks">) {
   return await t.run(async (ctx) => await ctx.db.query("moderationTeams").withIndex("by_network_active", (q) => q.eq("networkId", diasporaGa)).take(10))
 }
@@ -287,7 +274,7 @@ async function footprintOf(t: T, diasporaGa: Id<"networks">, personId: Id<"perso
   }
 }
 
-const UNTOUCHED = { status: "en_attente", role: "member", idn: false, attestation: false, pages: 0, openCountries: ["FR"] }
+const UNTOUCHED = { status: "en_attente", role: "member", idn: false, attestation: false, pages: 0, openCountries: ISO_COUNTRY_CODES }
 
 /** Le parrain de la démonstration est vérifié depuis plus de 30 jours (le délai de parrainage, strictement). */
 async function expectSeasonedSponsor(t: T, diasporaGa: Id<"networks">, personId: Id<"persons">) {
@@ -298,10 +285,11 @@ async function expectSeasonedSponsor(t: T, diasporaGa: Id<"networks">, personId:
 
 describe("comptes de démonstration DIASPORA.GA — garde de développement", () => {
   it("fermés sans les outils de développement : catalogue vide et équipement refusé", async () => {
-    closeDevTools()
+    openDevTools()
     const { t, diasporaGa } = await fixture()
-    expect(await t.query(api.modules.diaspora.demoAccounts.catalogue, {})).toEqual([])
     const institution = await joinedActor(t, diasporaGa, "institution")
+    closeDevTools()
+    expect(await t.query(api.modules.diaspora.demoAccounts.catalogue, {})).toEqual([])
     expect(await code(equip(institution.as, "institution"))).toBe("policyRefused")
     // Le refus ne laisse aucune trace : ni faits fictifs, ni page, ni pays ouverts.
     expect(await footprintOf(t, diasporaGa, institution.personId)).toEqual(UNTOUCHED)
@@ -315,11 +303,11 @@ describe("comptes de démonstration DIASPORA.GA — garde de développement", ()
   })
 
   it("une variable posée sur un déploiement en nuage n'ouvre rien", async () => {
-    vi.stubEnv("ANTSIA_DEV_TOOLS", "true")
-    vi.stubEnv("CONVEX_CLOUD_URL", "https://exemple.convex.cloud")
+    openDevTools()
     const { t, diasporaGa } = await fixture()
-    expect(await t.query(api.modules.diaspora.demoAccounts.catalogue, {})).toEqual([])
     const institution = await joinedActor(t, diasporaGa, "institution")
+    vi.stubEnv("CONVEX_CLOUD_URL", "https://exemple.convex.cloud")
+    expect(await t.query(api.modules.diaspora.demoAccounts.catalogue, {})).toEqual([])
     expect(await code(equip(institution.as, "institution"))).toBe("policyRefused")
     expect(await footprintOf(t, diasporaGa, institution.personId)).toEqual(UNTOUCHED)
 
@@ -331,43 +319,23 @@ describe("comptes de démonstration DIASPORA.GA — garde de développement", ()
 
   it("le catalogue nomme les acteurs PROPOSÉS par la règle, dans l'ordre du domaine, sur le domaine réservé (CH-817 E3)", async () => {
     openDevTools()
-    const { t, diasporaGa } = await fixture()
+    const { t } = await fixture()
     const entries = await t.query(api.modules.diaspora.demoAccounts.catalogue, {})
-    // En local, tous modules ouverts, la France seule ouverte : tous sauf la Belgique et le Canada.
-    expect(entries).toHaveLength(offeredWith(true).length)
-    expect(entries.map((entry) => entry.actor)).toEqual(DIASPORA_GA_DEMO_ACTORS.filter((actor) => actor !== "belgique" && actor !== "canada"))
-    expect(entries).toEqual(entriesOf(offeredWith(true)))
-    // Les vingt et un acteurs déclarés reparaissent tous quand leurs pays s'ouvrent : la liste déclarée ne change pas.
-    await openCountries(t, diasporaGa, ["BE", "CA"])
-    expect(await t.query(api.modules.diaspora.demoAccounts.catalogue, {})).toEqual(entriesOf(DIASPORA_GA_DEMO_ACTORS))
+    expect(entries).toEqual(entriesOf(DIASPORA_GA_DEMO_ACTORS))
   })
 })
 
 describe("comptes de démonstration DIASPORA.GA — démonstration déclarée (ADR-0038)", () => {
-  it("ouverts sur le déploiement de démonstration déclaré, sans outil de développement : catalogue de la règle et modératrice équipée", async () => {
+  it.each(["demo-antsia-123", "production-antsia-456"])("sur %s : le catalogue, l’adhésion et l’équipement restent fermés", async (deployment) => {
+    openDevTools()
+    const { t, diasporaGa } = await fixture()
+    const previous = await joinedActor(t, diasporaGa, "institution")
     declareDemo()
-    const { t, diasporaGa } = await fixture()
-    // En ligne : ni les acteurs de recette, ni ceux d'un pays fermé (CH-817 E3).
-    expect(await t.query(api.modules.diaspora.demoAccounts.catalogue, {})).toEqual(entriesOf(offeredWith(false)))
-    const { as, personId } = await joinedActor(t, diasporaGa, "moderateur")
-    expect(await equip(as, "moderateur")).toEqual({ actor: "moderateur", status: "verifiee", role: "network_moderator", pageId: null, pageCreated: false })
-    const team = present((await teamsOf(t, diasporaGa))[0], "équipe")
-    expect(team.name).toBe(DEMO_TEAM_NAME)
-    expect(await teamMembersOf(t, team._id)).toEqual([expect.objectContaining({ personId, active: true })])
-  })
-
-  it("la déclaration recopiée sur un autre déploiement (la production comprise) n'ouvre rien ; contrôle : sous son nom, si", async () => {
-    declareDemo("demo-antsia-123")
-    vi.stubEnv("CONVEX_CLOUD_URL", "https://production-antsia-456.convex.cloud")
-    const { t, diasporaGa } = await fixture()
-    expect(await t.query(api.modules.diaspora.demoAccounts.catalogue, {})).toEqual([])
-    const institution = await joinedActor(t, diasporaGa, "institution")
-    expect(await code(equip(institution.as, "institution"))).toBe("policyRefused")
-    expect(await footprintOf(t, diasporaGa, institution.personId)).toEqual(UNTOUCHED)
-
-    vi.stubEnv("CONVEX_CLOUD_URL", "https://demo-antsia-123.convex.cloud")
-    expect(await t.query(api.modules.diaspora.demoAccounts.catalogue, {})).toHaveLength(offeredWith(false).length)
-    expect(await equip(institution.as, "institution")).toMatchObject({ status: "verifiee", pageCreated: true })
+    vi.stubEnv("CONVEX_CLOUD_URL", `https://${deployment}.convex.cloud`)
+    expect(await cataloguedActors(t)).toEqual([])
+    expect(await code(joinedActor(t, diasporaGa, "moderateur"))).toBe("notFound")
+    expect(await code(equip(previous.as, "institution"))).toBe("policyRefused")
+    expect(await footprintOf(t, diasporaGa, previous.personId)).toEqual(UNTOUCHED)
   })
 
   it("le domaine réservé du moteur est celui des adresses de la tranche", () => {
@@ -420,7 +388,7 @@ describe("comptes de démonstration DIASPORA.GA — refus", () => {
     const membership = await t.run(async (ctx) => await ctx.db.query("networkMemberships").withIndex("by_network_and_person", (q) => q.eq("networkId", diasporaGa).eq("personId", user.personId)).unique())
     expect(membership).toBeNull()
     // Rien n'a été créé à sa place : les pays de la démonstration ne sont pas ouverts non plus.
-    expect((await networkOf(t, diasporaGa)).openCountries).toEqual(["FR"])
+    expect((await networkOf(t, diasporaGa)).openCountries).toEqual(ISO_COUNTRY_CODES)
   })
 
   it("une adhésion quittée ne s'équipe pas non plus", async () => {
@@ -454,7 +422,6 @@ describe("comptes de démonstration DIASPORA.GA — statut dérivé des faits fi
     openDevTools()
     const { t, diasporaGa } = await fixture()
     // Le Canada ouvert par l'administration du réseau : sans lui, l'acteur « canada » n'est pas proposé (CH-817 E3).
-    await openCountries(t, diasporaGa, ["CA"])
     const { as, personId } = await joinedActor(t, diasporaGa, actor)
     const equipped = await equip(as, actor)
     expect(DIASPORA_GA_DEMO_ACTOR_SPECS[actor].expectedStatus).toBe(status)
@@ -496,7 +463,6 @@ describe("comptes de démonstration DIASPORA.GA — statut dérivé des faits fi
   it("canada : identité IDN fictive de niveau 2 sans attestation ni parrain, déclarée seulement", async () => {
     openDevTools()
     const { t, diasporaGa } = await fixture()
-    await openCountries(t, diasporaGa, ["CA"])
     const { as, personId } = await joinedActor(t, diasporaGa, "canada")
     expect(await equip(as, "canada")).toMatchObject({ status: "declaree" })
     expect(await linkOf(t, personId, "idn")).toMatchObject({ subject: "diaspora-ga-demo-idn-canada", loa: 2, nationality: "GA" })
@@ -534,7 +500,6 @@ describe("comptes de démonstration DIASPORA.GA — statut dérivé des faits fi
   it("belgique : l'attestation porte le pays de l'acteur, et sa vérification n'est pas antidatée", async () => {
     openDevTools()
     const { t, diasporaGa } = await fixture()
-    await openCountries(t, diasporaGa, ["BE"])
     const { as, personId } = await joinedActor(t, diasporaGa, "belgique")
     expect(await equip(as, "belgique")).toMatchObject({ status: "verifiee" })
     expect(await linkOf(t, personId, "consular_attestation")).toMatchObject({ country: "BE" })
@@ -992,7 +957,7 @@ describe("comptes de démonstration DIASPORA.GA — extérieur au réseau", () =
     // Rien d'autre n'est posé : ni fait fictif, ni pays ouvert.
     expect(await linkOf(t, outsider.personId, "idn")).toBeNull()
     expect(await linkOf(t, outsider.personId, "consular_attestation")).toBeNull()
-    expect((await networkOf(t, diasporaGa)).openCountries).toEqual(["FR"])
+    expect((await networkOf(t, diasporaGa)).openCountries).toEqual(ISO_COUNTRY_CODES)
   })
 
   it("exige l'accueil d'ANTSIA : profil publié puis consentement ; sans eux, aucune adhésion", async () => {
@@ -1042,50 +1007,34 @@ describe("comptes de démonstration DIASPORA.GA — extérieur au réseau", () =
 })
 
 describe("comptes de démonstration DIASPORA.GA — pays ouverts", () => {
-  it("CH-817 E3 : n'ouvre AUCUN pays ; la Belgique et le Canada restent fermés, leurs acteurs ni proposés ni équipés", async () => {
+  it("les acteurs locaux de Belgique et du Canada sont disponibles sans modifier le catalogue territorial", async () => {
     openDevTools()
     const { t, diasporaGa } = await fixture()
-    // La graine n'ouvre que la France.
-    expect((await networkOf(t, diasporaGa)).openCountries).toEqual(["FR"])
-    expect((await hubsOf(t, diasporaGa)).map((hub) => hub.country)).toEqual(["FR"])
-    expect([...DIASPORA_GA_DEMO_COUNTRIES].sort()).toEqual(["BE", "CA", "FR"])
-    const { as } = await joinedActor(t, diasporaGa, "leger")
-    await equip(as, "leger")
-    await equip(as, "leger")
-    // Avant CH-817, l'équipement ouvrait la Belgique et le Canada d'office : plus jamais.
-    expect((await networkOf(t, diasporaGa)).openCountries).toEqual(["FR"])
-    expect((await hubsOf(t, diasporaGa)).map((hub) => hub.country)).toEqual(["FR"])
-    // Les acteurs d'un pays fermé : ni au catalogue, ni équipés (refus indistinct), rien d'écrit.
-    const catalogued = (await t.query(api.modules.diaspora.demoAccounts.catalogue, {})).map((entry) => entry.actor)
-    expect(catalogued).not.toContain("belgique")
-    expect(catalogued).not.toContain("canada")
-    const belgian = await joinedActor(t, diasporaGa, "belgique")
-    expect(await code(equip(belgian.as, "belgique"))).toBe("policyRefused")
-    expect(await footprintOf(t, diasporaGa, belgian.personId)).toEqual(UNTOUCHED)
-    const canadian = await joinedActor(t, diasporaGa, "canada")
-    expect(await code(equip(canadian.as, "canada"))).toBe("policyRefused")
-    expect(await footprintOf(t, diasporaGa, canadian.personId)).toEqual(UNTOUCHED)
+    const catalogued = await cataloguedActors(t)
+    for (const actor of ["belgique", "canada"] as const) {
+      expect(catalogued).toContain(actor)
+      const member = await joinedActor(t, diasporaGa, actor)
+      expect(await equip(member.as, actor)).toMatchObject({ actor })
+    }
+    expect((await networkOf(t, diasporaGa)).openCountries).toEqual(ISO_COUNTRY_CODES)
   })
 
-  it("un pays ouvert par l'administration fait reparaître son acteur ; l'équipement ne crée que le hub qui lui manquait", async () => {
+  it("l'équipement crée les espaces de démo manquants une fois, sans modifier les autres pays", async () => {
     openDevTools()
     const { t, diasporaGa } = await fixture()
-    // La Belgique ouverte sans hub (une ouverture hors de `setOpenCountry`) : le Canada, lui, reste fermé.
-    await openCountries(t, diasporaGa, ["BE"])
-    expect((await t.query(api.modules.diaspora.demoAccounts.catalogue, {})).map((entry) => entry.actor)).toContain("belgique")
+    await t.run(async (ctx) => {
+      const existing = await ctx.db.query("countryHubs").withIndex("by_network_and_country", q => q.eq("networkId", diasporaGa).eq("country", "BE")).unique()
+      if (existing) await ctx.db.delete(existing._id)
+    })
     const belgian = await joinedActor(t, diasporaGa, "belgique")
-    expect(await equip(belgian.as, "belgique")).toMatchObject({ status: "verifiee" })
     await equip(belgian.as, "belgique")
-    expect((await networkOf(t, diasporaGa)).openCountries).toEqual(["FR", "BE"])
-    const hubs = await hubsOf(t, diasporaGa)
-    expect(hubs.map((hub) => hub.country).sort()).toEqual(["BE", "FR"])
-    // Le hub créé commence à zéro jusqu'au premier passage nocturne ; rejoué, rien ne double.
-    const belgianHub = present(hubs.find((hub) => hub.country === "BE"), "hub belge")
-    expect(belgianHub).toMatchObject({ networkId: diasporaGa, members: 0, associations: 0, companies: 0, upcomingEvents: 0 })
-    expect(belgianHub.countersComputedAt).toBeUndefined()
+    await equip(belgian.as, "belgique")
+    const hub = await t.run(ctx => ctx.db.query("countryHubs").withIndex("by_network_and_country", q => q.eq("networkId", diasporaGa).eq("country", "BE")).unique())
+    expect(hub).toMatchObject({ networkId: diasporaGa, members: 0, associations: 0, companies: 0, upcomingEvents: 0 })
+    expect((await networkOf(t, diasporaGa)).openCountries).toEqual(ISO_COUNTRY_CODES)
   })
 
-  it("une décision déjà prise sur les pays du réseau n'est jamais touchée", async () => {
+  it("l’équipement conserve les réglages historiques d’un réseau antérieur à la migration", async () => {
     openDevTools()
     const { t, diasporaGa } = await fixture()
     // Le propriétaire a décidé : seule la Belgique reste ouverte (trace dans l'historique des réglages).
@@ -1113,12 +1062,11 @@ describe("comptes de démonstration DIASPORA.GA — pays ouverts", () => {
     expect(await footprintOf(t, diasporaGa, personId)).toEqual({ ...UNTOUCHED, openCountries: ["BE"] })
     expect((await networkOf(t, diasporaGa)).openCountries).toEqual(["BE"])
     // Aucun hub pour un pays que la décision laisse fermé.
-    const countries = (await hubsOf(t, diasporaGa)).map((hub) => hub.country)
-    expect(countries).not.toContain("CA")
-    expect(countries.filter((country) => country === "BE")).toHaveLength(1)
+    const belgianHubs = await t.run(ctx => ctx.db.query("countryHubs").withIndex("by_network_and_country", q => q.eq("networkId", diasporaGa).eq("country", "BE")).take(2))
+    expect(belgianHubs).toHaveLength(1)
   })
 
-  it("CH-815 A3 : une fermeture décidée par l'administration du réseau (setOpenCountry) n'est jamais rouverte par la démonstration", async () => {
+  it("la fermeture individuelle d’un pays est refusée même à un administrateur", async () => {
     openDevTools()
     const { t, diasporaGa } = await fixture()
     // L'administratrice du réseau, en session prouvée de l'application d'administration (adresse fictive hors du domaine réservé).
@@ -1132,15 +1080,9 @@ describe("comptes de démonstration DIASPORA.GA — pays ouverts", () => {
       await ctx.db.patch(present(row, "adhésion")._id, { role: "network_admin" })
     })
     const adminApp = await openTestNetworkAdminSession(t, admin.as, admin.personId, diasporaGa)
-    expect(await adminApp.mutation(api.modules.diaspora.networkSettings.setOpenCountry, { networkId: diasporaGa, country: "FR", open: false, reason: "Fermeture décidée par l'administration (fixture)." })).toEqual({ open: false, changed: true })
-    // La France fermée : l'acteur « leger » (France) n'est plus proposé, son équipement est refusé (CH-817 E3).
-    expect(await t.query(api.modules.diaspora.demoAccounts.catalogue, {})).toEqual([])
-    const { as } = await joinedActor(t, diasporaGa, "leger")
-    expect(await code(equip(as, "leger"))).toBe("policyRefused")
-    expect((await networkOf(t, diasporaGa)).openCountries).toEqual([])
-    const countries = (await hubsOf(t, diasporaGa)).map((hub) => hub.country)
-    expect(countries).not.toContain("BE")
-    expect(countries).not.toContain("CA")
+    expect(await code(adminApp.mutation(api.modules.diaspora.networkSettings.setOpenCountry, { networkId: diasporaGa, country: "FR", open: false, reason: "Fermeture demandée pour la recette." }))).toBe("policyRefused")
+    expect(await cataloguedActors(t)).toContain("leger")
+    expect((await networkOf(t, diasporaGa)).openCountries).toEqual(ISO_COUNTRY_CODES)
   })
 })
 
@@ -1148,8 +1090,7 @@ describe("comptes de démonstration DIASPORA.GA — le catalogue entier", () => 
   it("chaque acteur équipé obtient le statut, le rôle, la page et les accès de sa fiche, dans l'ordre du panneau", async () => {
     openDevTools()
     const { t, diasporaGa, root } = await fixture()
-    // Tous les pays de la démonstration ouverts par l'administration du réseau : la règle propose alors tout le monde, en local.
-    await openCountries(t, diasporaGa, ["BE", "CA"])
+    // Les comptes de recette sont disponibles localement pour tous les pays du catalogue.
     expect(offeredWith(true, DIASPORA_GA_DEMO_COUNTRIES)).toEqual([...DIASPORA_GA_DEMO_ACTORS])
     const members = new Map<DiasporaGaDemoActor, Awaited<ReturnType<typeof welcomedActor>>>()
     const results = new Map<DiasporaGaDemoActor, Awaited<ReturnType<typeof equip>>>()
@@ -1227,16 +1168,16 @@ async function cataloguedActors(t: T, gateToken?: string) {
 }
 
 describe("comptes de démonstration DIASPORA.GA — catalogue par règle (CH-817 E3)", () => {
-  it("en ligne au lancement (le socle, les pages, la France) : onze acteurs, dans l'ordre du panneau", async () => {
+  it("le catalogue hébergé reste vide quel que soit le nombre d’acteurs permis par la règle locale", async () => {
     declareDemo()
     const { t } = await fixture(["pages"])
     const launch = ["nouveau", "leger", "declare", "parraine", "verifie", "fondateur", "association", "entreprise", "institution", "moderateur", "administrateur"]
-    expect(await cataloguedActors(t)).toEqual(launch)
+    expect(await cataloguedActors(t)).toEqual([])
     expect(offeredWith(false, ["FR"], ["pages"])).toEqual(launch)
   })
 
   it("la mentore reparaît dès que le mentorat s'ouvre, le talent avec l'emploi ; un module fermé les retire", async () => {
-    declareDemo()
+    openDevTools()
     const { t, diasporaGa } = await fixture(["pages"])
     expect(await cataloguedActors(t)).not.toContain("mentor")
     await openNetworkFeatures(t, diasporaGa, ["mentoring"])
@@ -1267,10 +1208,10 @@ describe("comptes de démonstration DIASPORA.GA — catalogue par règle (CH-817
   })
 
   it("un acteur que la règle ne propose pas ne s'équipe pas : refus indistinct, rien n'est écrit ; contrôle : proposé, il l'est", async () => {
-    declareDemo()
+    openDevTools()
     const { t, diasporaGa, root } = await fixture(["pages"])
-    // Un acteur de recette, en ligne.
     const blocked = await joinedActor(t, diasporaGa, "bloque")
+    declareDemo()
     expect(await code(equip(blocked.as, "bloque"))).toBe("policyRefused")
     expect(await footprintOf(t, diasporaGa, blocked.personId)).toEqual(UNTOUCHED)
     // L'extérieur, en ligne : aucune admission à la racine non plus.
@@ -1278,6 +1219,7 @@ describe("comptes de démonstration DIASPORA.GA — catalogue par règle (CH-817
     expect(await code(equip(outsider.as, "exterieur"))).toBe("policyRefused")
     expect(await rootMembershipOf(t, root, outsider.personId)).toBeNull()
     // Un module fermé : la mentore.
+    openDevTools()
     const mentor = await joinedActor(t, diasporaGa, "mentor")
     expect(await code(equip(mentor.as, "mentor"))).toBe("policyRefused")
     expect(await footprintOf(t, diasporaGa, mentor.personId)).toEqual(UNTOUCHED)
@@ -1295,7 +1237,7 @@ describe("comptes de démonstration DIASPORA.GA — porte armée (CH-817 E3)", (
     expect(await t.query(api.modules.diaspora.demoAccounts.catalogue, { gateToken: GATE_TOKEN })).toEqual([])
     const expiresAt = await openGateSession(t, Date.now())
     const entries = await t.query(api.modules.diaspora.demoAccounts.catalogue, { gateToken: GATE_TOKEN })
-    expect(entries).toEqual(offeredWith(false).map((actor) => ({ actor, email: `${actor}@${DEMO_EMAIL_DOMAIN}`, gateExpiresAt: expiresAt })))
+    expect(entries).toEqual(offeredWith(true).map((actor) => ({ actor, email: `${actor}@${DEMO_EMAIL_DOMAIN}`, gateExpiresAt: expiresAt })))
     expect(JSON.stringify(entries)).not.toContain(GATE_TOKEN)
     // La session existe, mais l'appel ne la présente pas, ou présente un autre jeton (bien formé ou non) : rien.
     expect(await t.query(api.modules.diaspora.demoAccounts.catalogue, {})).toEqual([])
@@ -1313,13 +1255,13 @@ describe("comptes de démonstration DIASPORA.GA — porte armée (CH-817 E3)", (
 
     const revoked = await fixture()
     await openGateSession(revoked.t, Date.now())
-    expect(await cataloguedActors(revoked.t, GATE_TOKEN)).toEqual(offeredWith(false))
-    await revoked.t.run((ctx) => revokePhonesImpl(ctx, { scope: GATE_SCOPE, phones: [GATE_PHONE] }, Date.now(), GATED_DEMO_ENV))
+    expect(await cataloguedActors(revoked.t, GATE_TOKEN)).toEqual(offeredWith(true))
+    await revoked.t.run((ctx) => revokePhonesImpl(ctx, { scope: GATE_SCOPE, phones: [GATE_PHONE] }, Date.now(), GATED_LOCAL_ENV))
     expect(await cataloguedActors(revoked.t, GATE_TOKEN)).toEqual([])
 
     const rotated = await fixture()
     await openGateSession(rotated.t, Date.now())
-    expect(await cataloguedActors(rotated.t, GATE_TOKEN)).toEqual(offeredWith(false))
+    expect(await cataloguedActors(rotated.t, GATE_TOKEN)).toEqual(offeredWith(true))
     vi.stubEnv("ANTSIA_DEMO_GATE_SECRET", `${GATE_SECRET}-renouvele`)
     expect(await cataloguedActors(rotated.t, GATE_TOKEN)).toEqual([])
   })
@@ -1328,11 +1270,11 @@ describe("comptes de démonstration DIASPORA.GA — porte armée (CH-817 E3)", (
     armGate()
     const { t } = await fixture()
     await openGateSession(t, Date.now())
-    expect(await cataloguedActors(t, GATE_TOKEN)).toEqual(offeredWith(false))
+    expect(await cataloguedActors(t, GATE_TOKEN)).toEqual(offeredWith(true))
     vi.stubEnv("WHATSAPP_PROVIDER", "")
     expect(await cataloguedActors(t, GATE_TOKEN)).toEqual([])
     vi.stubEnv("WHATSAPP_PROVIDER", "bird")
-    expect(await cataloguedActors(t, GATE_TOKEN)).toEqual(offeredWith(false))
+    expect(await cataloguedActors(t, GATE_TOKEN)).toEqual(offeredWith(true))
     // La même configuration sur un autre déploiement (la production comprise) : fermé, session ou pas.
     vi.stubEnv("CONVEX_CLOUD_URL", "https://production-antsia-456.convex.cloud")
     expect(await cataloguedActors(t, GATE_TOKEN)).toEqual([])
@@ -1340,10 +1282,10 @@ describe("comptes de démonstration DIASPORA.GA — porte armée (CH-817 E3)", (
   })
 
   it("porte non armée (secret absent) : le comportement d'avant la porte, un jeton présenté est ignoré", async () => {
-    declareDemo()
+    openDevTools()
     const { t } = await fixture()
-    expect(await t.query(api.modules.diaspora.demoAccounts.catalogue, {})).toEqual(entriesOf(offeredWith(false)))
-    expect(await t.query(api.modules.diaspora.demoAccounts.catalogue, { gateToken: GATE_TOKEN })).toEqual(entriesOf(offeredWith(false)))
+    expect(await t.query(api.modules.diaspora.demoAccounts.catalogue, {})).toEqual(entriesOf(offeredWith(true)))
+    expect(await t.query(api.modules.diaspora.demoAccounts.catalogue, { gateToken: GATE_TOKEN })).toEqual(entriesOf(offeredWith(true)))
   })
 
   it("le verrou est le code, pas l'équipement : une session déjà ouverte sur l'adresse réservée s'équipe, porte armée", async () => {
@@ -1386,7 +1328,7 @@ describe("CH-817 E5 — porte armée : l'entrée dans le réseau et la fermeture
     const unavailable = await fixture()
     expect((await tryJoin(unavailable.t, unavailable.diasporaGa, ROOT_FAMILY)).refusal).toBe("notFound")
 
-    declareDemo()
+    openDevTools()
     vi.stubEnv("ANTSIA_DEMO_GATE_SECRET", undefined)
     const open = await fixture()
     const { refusal, membership } = await tryJoin(open.t, open.diasporaGa, ROOT_FAMILY)

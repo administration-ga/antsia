@@ -10,11 +10,12 @@
  * date de ce comptage dit à l'écran que le compteur est mesuré. Le nombre de membres d'un pays sous le seuil de publication
  * ne quitte pas le serveur (anti-réidentification) : la projection rend la
  * PRÉSENTATION du compteur (`presentHubCounters`), jamais le chiffre brut ; ce
- * seuil ne concerne que les membres. L'ouverture d'un pays se lit dans
- * `networks.openCountries` ; les pages elles-mêmes se lisent par `hubPages.ts`.
+ * seuil ne concerne que les membres. La liste des pays suit
+ * le catalogue ISO ; les pages elles-mêmes se lisent par `hubPages.ts`.
  */
 import {
   countsAsHubMember,
+  ISO_COUNTRY_CODES,
   DEFAULT_DIRECTORY_VISIBILITY,
   DIASPORA_GA_NETWORK_SLUG,
   type HubCounters,
@@ -53,10 +54,10 @@ export async function hubRow(ctx: QueryCtx, networkId: Id<"networks">, country: 
 }
 
 /** La vue d'un hub : son ouverture et la PRÉSENTATION de ses compteurs matérialisés, jamais le chiffre brut. */
-export function hubView(network: Doc<"networks">, country: string, row: Doc<"countryHubs"> | null) {
+export function hubView(country: string, row: Doc<"countryHubs"> | null) {
   return {
     country,
-    open: (network.openCountries ?? []).includes(country),
+    open: isResidenceCountry(country),
     counters: presentHubCounters(row ?? EMPTY_COUNTERS),
     countersComputedAt: row?.countersComputedAt ?? null,
   }
@@ -75,7 +76,7 @@ export const getCountryHub = networkQuery({
     const parsed = parseResidenceCountry(country)
     if (!parsed.ok) return notFound()
     const row = await hubRow(ctx, ctx.networkId, parsed.value)
-    return { ...hubView(ctx.network, parsed.value, row), upcomingEventsComputedAt: row?.upcomingEventsComputedAt ?? null }
+    return { ...hubView(parsed.value, row), upcomingEventsComputedAt: row?.upcomingEventsComputedAt ?? null }
   },
 })
 
@@ -91,12 +92,10 @@ export const listOpenCountries = query({
   handler: async (ctx, { networkId }) => {
     const network = await ctx.db.get(networkId)
     if (!isDiasporaNetwork(network)) return []
-    const views = []
-    for (const country of (network.openCountries ?? []).slice(0, COUNTRIES_MAX)) {
-      if (!isResidenceCountry(country)) continue
-      views.push(hubView(network, country, await hubRow(ctx, network._id, country)))
-    }
-    return views
+    const rows = await ctx.db.query("countryHubs")
+      .withIndex("by_network_and_country", q => q.eq("networkId", networkId)).take(COUNTRIES_MAX)
+    const byCountry = new Map(rows.map(row => [row.country, row]))
+    return ISO_COUNTRY_CODES.map(code => hubView(code, byCountry.get(code) ?? null))
   },
 })
 
@@ -138,7 +137,6 @@ async function writeHubCounters(ctx: MutationCtx, network: Doc<"networks">, coun
   const byCountry = new Map(existing.map((row) => [row.country, row]))
   const countries = new Set([
     ...byCountry.keys(),
-    ...(network.openCountries ?? []),
     ...Object.keys(counts.members),
     ...Object.keys(counts.associations),
     ...Object.keys(counts.companies),

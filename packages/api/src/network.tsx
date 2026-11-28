@@ -196,6 +196,8 @@ export interface NetworkContextValue {
   storagePrefix: string
   /** L'application sert réellement sa route de conférence (activation explicite F3a). */
   liveAvailable: boolean
+  /** Open the host’s local preview alongside the broadcast title and audience. */
+  liveStudioPreview?: boolean
   /**
    * IM-01 (issue antsia#100, lot IC-04) : l'application PROPOSE des appels. `false` retire les gestes
    * qui LANCENT un appel (en-tête et vue d'une conversation, rappel du journal, panneau d'appels et
@@ -320,6 +322,7 @@ export function NetworkProvider(props: {
   charte: string
   routes: EngineRoutes
   liveAvailable?: boolean
+  liveStudioPreview?: boolean
   /** IM-01 : `false` retire les gestes qui lancent un appel ; absent = appels proposés (comportement historique). */
   callsAvailable?: boolean
   /** Opt-in de la navigation par destinations ; absent = `"volets"` (comportement historique). */
@@ -375,6 +378,7 @@ export function NetworkProvider(props: {
     charte: props.charte,
     storagePrefix: `${storageNamespace}antsia:${props.slug}:`,
     liveAvailable: props.liveAvailable === true,
+    liveStudioPreview: props.liveStudioPreview === true,
     callsAvailable: props.callsAvailable !== false,
     navigation: resolveEngineNavigation(props.navigation, props.routes),
     navigationLayout: resolveEngineNavigationLayout(props.navigationLayout, resolveEngineNavigation(props.navigation, props.routes)),

@@ -67,6 +67,7 @@
     "error": "Connection refused"
   },
   "create": {
+    "pageIdentity": "Broadcast from a page",
     "options": "Broadcast settings",
     "invitePeople": "Invite participants",
     "title": "Create a conference",
@@ -114,6 +115,7 @@
     }
   },
   "preflight": {
+    "acquiring": "Preparing your microphone and camera…",
     "description": "Check your microphone and camera before notifying your audience. This check stays on your device.",
     "audioOnly": "Audio only, without camera",
     "preview": "My camera preview",

@@ -188,11 +188,14 @@ describe("suggestions DIASPORA.GA — mes choix paginés et restaurables", () =>
     expect(await codeOf(reader.as.query(DS.paginateDismissed, pageArgs(root)))).toBe("notFound")
   })
 
-  it("un membre en attente relit et restaure un choix neutre sans ouvrir la découverte ni les demandes de lien", async () => {
+  it("un membre en attente reconnaît le profil inscrit à l’annuaire et peut restaurer son choix après un retrait", async () => {
     const { t, networkId, reader, target, dismissalId } = await maskedFixture()
     await setStatus(t, networkId, reader.personId, "en_attente")
+    await setStatus(t, networkId, target.personId, "en_attente")
     const page = await reader.as.query(DS.paginateDismissed, pageArgs(networkId))
-    expect(page.page).toEqual([{ dismissalId, targetPersonId: target.personId, at: NOW, ...NEUTRAL_IDENTITY }])
+    expect(page.page).toEqual([{ dismissalId, targetPersonId: target.personId, at: NOW, displayName: "candidat", handle: "candidat", headline: null, avatarUrl: null }])
+    await target.as.mutation(api.modules.people.consents.revokeConsent, { purpose: "directory", networkId })
+    expect((await reader.as.query(DS.paginateDismissed, pageArgs(networkId))).page).toEqual([{ dismissalId, targetPersonId: target.personId, at: NOW, ...NEUTRAL_IDENTITY }])
     expect(await codeOf(reader.as.query(DS.forMe, { networkId }))).toBe("statusInsufficient")
     expect(await codeOf(reader.as.mutation(api.modules.graph.connections.requestConnection, { networkId, targetPersonId: target.personId }))).toBe("statusInsufficient")
     const before = await graphSnapshot(t)
@@ -201,7 +204,7 @@ describe("suggestions DIASPORA.GA — mes choix paginés et restaurables", () =>
     expect(await graphSnapshot(t)).toEqual(before)
   })
 
-  it.each(["hidden", "country", "consent", "departed", "incoming-block", "withdrawn", "private", "pending", "missing"] as const)("relit la vraie autorisation d'annuaire après %s, garde une ligne neutre et permet sa restauration", async (change) => {
+  it.each(["hidden", "country", "consent", "departed", "incoming-block", "withdrawn", "private", "suspended", "missing"] as const)("relit la vraie autorisation d'annuaire après %s, garde une ligne neutre et permet sa restauration", async (change) => {
     const { t, networkId, reader, target, dismissalId } = await maskedFixture()
     await addPublishedIdentity(t, target)
     const before = await reader.as.query(DS.paginateDismissed, pageArgs(networkId))
@@ -233,8 +236,8 @@ describe("suggestions DIASPORA.GA — mes choix paginés et restaurables", () =>
       case "private":
         await target.as.mutation(api.modules.people.profile.setMyProfilePrivacy, { private: true })
         break
-      case "pending":
-        await setStatus(t, networkId, target.personId, "en_attente")
+      case "suspended":
+        await setStatus(t, networkId, target.personId, "suspendue")
         break
       case "missing":
         await t.run(async (ctx) => { await ctx.db.delete(target.personId) })

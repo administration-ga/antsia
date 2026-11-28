@@ -1,6 +1,8 @@
 // Dupliqué de socle/packages/agent-features/src/features/messagerie/IcomRelationsPanel.tsx @ ad2e7fdc2 — adaptations : portée poste/personnel retirée (`useOptionalOrg`, fonction et administration de la ligne d'identité) — toujours l'espace personnel ; appel par `calls.direct.callMember({ networkId, target: { personId } })` au lieu de `reseauPersonnel.messagerie.callByHandle` (la relation porte sa personne, `otherPersonId`) ; refus sans phrase du serveur (raison à code traduite par l'écran de fin) ; groupes par `groups.threads.paginateMyGroupThreads` (une page bornée, comme la liste du socle) ; relations du graphe du réseau (`use-dual-connection-pagination`, `use-relation-search`) avec leurs badges calculés ; nom nul d'une relation rendu par le libellé neutre ; textes traduits (i18n `messagerie`, clés `icomRelationsPanel.…`) ; « iRéseau » devient « le réseau » ; couleurs par fonction (ADR-0027) : « Écrire à » marqué `data-role="message"`, aux couleurs des messages quand il est l'action mise en avant. ; IM-01 (IC-04) : boutons d'appel d'une relation et vue « Nouvel appel » retirés quand l'application déclare `callsAvailable={false}`.
 "use client"
 
+import { IcomContactActions } from "./IcomContactActions"
+
 /**
  * Les relations du RÉSEAU, servies par deux onglets d'iCom.
  *
@@ -448,9 +450,7 @@ export function IcomRelationsPanel({
           onRetry={relations.retry}
         />
       ) : items.length === 0 ? (
-        <p className="icom-relations-empty">
-          {t("icomRelationsPanel.relationsEmpty")}
-        </p>
+        <IcomContactActions origin="message" fallback={<p className="icom-relations-empty">{t("icomRelationsPanel.relationsEmpty")}</p>} />
       ) : (
         <>
         {etat.kind === "erreur" ? (

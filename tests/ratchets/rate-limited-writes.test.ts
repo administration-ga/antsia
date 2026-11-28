@@ -12,6 +12,8 @@ const SERVER = "convex/_generated/server"
 const RATE_LIMIT = "convex/lib/rateLimit"
 const READ_ONLY_ACTIONS = new Set(["convex/modules/live/livekitActions.ts#checkBroadcastConfiguration"])
 const SYSTEM_HTTP_ADMISSIONS = new Map([
+  // iCom : la signature Bird précède la mutation qui déduplique et consomme le budget du réseau.
+  ["convex/modules/diaspora/smsWebhook.ts#smsWebhook", "modules.diaspora.sms.applyEvent"],
   ["convex/modules/federation/http.ts#inbox", "modules.federation.inbox.admit"],
   // PA9C : transfert de consentement d'agent signé ; `redeem` consomme `federation.receive` avant tout effet.
   ["convex/modules/federation/agentConsentTransfer.ts#transfer", "modules.federation.agentConsentTransfer.redeem"],

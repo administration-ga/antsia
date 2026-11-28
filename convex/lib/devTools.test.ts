@@ -44,14 +44,15 @@ describe("demoDeploymentDeclared — la démonstration se déclare par le nom m�
 describe("demoCodeReadable — quels codes s'affichent à l'écran", () => {
   it("en développement local : tous", () => {
     expect(demoCodeReadable("alice@example.test", LOCAL)).toBe(true)
+    expect(demoCodeReadable("verifie@demo.diaspora-ga.test", LOCAL)).toBe(true)
     expect(demoCodeReadable("+24107890123", LOCAL)).toBe(true)
   })
 
-  it("sur la démonstration déclarée : ceux des adresses réservées seulement, ANTSIA et DIASPORA.GA (ADR-0038)", () => {
+  it("sur la démonstration déclarée : seuls les codes des comptes réservés d'ANTSIA sont lisibles", () => {
     expect(demoCodeReadable("membre@demo.antsia.test", DEMO)).toBe(true)
     expect(demoCodeReadable(" Membre@DEMO.antsia.test ", DEMO)).toBe(true)
-    expect(demoCodeReadable("moderateur@demo.diaspora-ga.test", DEMO)).toBe(true)
-    expect(demoCodeReadable(" Verifie@DEMO.diaspora-ga.test ", DEMO)).toBe(true)
+    expect(demoCodeReadable("moderateur@demo.diaspora-ga.test", DEMO)).toBe(false)
+    expect(demoCodeReadable(" Verifie@DEMO.diaspora-ga.test ", DEMO)).toBe(false)
     expect(demoCodeReadable("alice@example.test", DEMO)).toBe(false)
     expect(demoCodeReadable("membre@demo.antsia.test.example.test", DEMO)).toBe(false)
     expect(demoCodeReadable("membre@demo.diaspora-ga.test.example.test", DEMO)).toBe(false)

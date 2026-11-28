@@ -52,7 +52,7 @@ import { v } from "convex/values"
 
 import type { Doc, Id } from "../../_generated/dataModel"
 import { internalMutation, type MutationCtx } from "../../_generated/server"
-import { demoAccountsAllowed } from "../../lib/devTools"
+import { devToolsAllowed } from "../../lib/devTools"
 import { checked } from "../../lib/errors"
 import { isNetworkFeatureOpen } from "../../lib/networkFeatures"
 import { isBlockedBetween } from "../graph/graph"
@@ -262,7 +262,7 @@ export const animateActor = internalMutation({
   returns: v.object({ postsCreated: v.number(), reactionsCreated: v.number(), commentsCreated: v.number() }),
   handler: async (ctx, { actor }): Promise<AnimationResult> => {
     const result: AnimationResult = { postsCreated: 0, reactionsCreated: 0, commentsCreated: 0 }
-    if (!demoAccountsAllowed()) return result
+    if (!devToolsAllowed()) return result
     const network = await diasporaGaNetwork(ctx)
     // Défense en profondeur : une publication de démonstration n'est jamais écrite à la racine.
     if (!network || network.kind === "root") return result

@@ -46,8 +46,8 @@ import { components } from "../../_generated/api"
 import type { Doc, Id } from "../../_generated/dataModel"
 import { internalMutation, internalQuery, query, type MutationCtx, type QueryCtx } from "../../_generated/server"
 import { getCurrentPerson, getMembership, getRootNetwork } from "../../lib/access"
-import { demoGateState } from "../../lib/demoGate"
-import { isDemoEmail } from "../../lib/devTools"
+import { demoGateScopeOfEmail, demoGateState } from "../../lib/demoGate"
+import { devToolsAllowed, isDemoEmail } from "../../lib/devTools"
 import { checked, fail, failAppRule, notFound } from "../../lib/errors"
 import { networkAdminMutation, networkMutation, networkQuery, personMutation, personQuery } from "../../lib/functions"
 import { enforceRateLimit } from "../../lib/rateLimit"
@@ -169,6 +169,7 @@ export const joinDiasporaGa = personMutation({
     facet: facetInputValidator,
     phoneRegistration: v.optional(phoneRegistrationValidator),
     directoryVisibility: v.optional(directoryVisibilityValidator),
+    guestProfile: v.optional(v.boolean()),
   },
   returns: v.object({ status: membershipStatusValidator, rootStatus: membershipStatusValidator }),
   handler: async (ctx, args) => {
@@ -178,10 +179,9 @@ export const joinDiasporaGa = personMutation({
     const root = await getRootNetwork(ctx)
     if (!root) return notFound()
     const gate = demoGateState()
-    if (gate === "gated" || gate === "unavailable") {
-      const email = await accountEmailOf(ctx, ctx.person.authUserId)
-      if (email !== null && isDemoEmail(email) && !isDeclaredDiasporaGaDemoEmail(email)) return notFound()
-    }
+    const email = await accountEmailOf(ctx, ctx.person.authUserId)
+    if (email !== null && demoGateScopeOfEmail(email) && !devToolsAllowed()) return notFound()
+    if ((gate === "gated" || gate === "unavailable") && email !== null && isDemoEmail(email) && !isDeclaredDiasporaGaDemoEmail(email)) return notFound()
     if (!ctx.person.handle || !ctx.person.displayName || ctx.person.publishedAt === undefined) return fail("profileRequired")
     // borné : un consentement par finalité et par réseau.
     const consents = await ctx.db
@@ -193,14 +193,17 @@ export const joinDiasporaGa = personMutation({
     const now = Date.now()
     const facet = parseFacetInput(args.facet, now, (await facetOf(ctx, network._id, ctx.person._id)) ?? undefined)
     if (!facet.ok) return failAppRule(facet.code, {}, "invalidArgument")
-    const directoryVisibility =
-      args.directoryVisibility ?? (await privacyOf(ctx, network._id, ctx.person._id))?.directoryVisibility ?? DEFAULT_DIRECTORY_VISIBILITY
+    const previousPrivacy = await privacyOf(ctx, network._id, ctx.person._id)
+    const existing = await getMembership(ctx, network._id, ctx.person._id)
+    // Un retour ou un rejeu de l’inscription conserve le choix de visibilité du membre.
+    const directoryVisibility = existing
+      ? previousPrivacy?.directoryVisibility ?? DEFAULT_DIRECTORY_VISIBILITY
+      : args.directoryVisibility ?? previousPrivacy?.directoryVisibility ?? DEFAULT_DIRECTORY_VISIBILITY
     if (directoryVisibility !== "hidden" && !(await consentInForce(ctx, network._id, ctx.person._id, "directory"))) {
       return failAppRule("consent_directory_required")
     }
 
     // Un retour après un départ : le parrainage et l'admission fondatrice se sont éteints avec le départ.
-    const existing = await getMembership(ctx, network._id, ctx.person._id)
     if (existing?.status === "partie") {
       await endSponsorshipOnDeparture(ctx, network._id, ctx.person._id, now)
       await endFoundingAdmissionOnDeparture(ctx, network._id, ctx.person._id, now)
@@ -233,7 +236,7 @@ export const joinDiasporaGa = personMutation({
 
     if (status === "verifiee" && (!existing || existing.status === "partie")) await ensureSponsorCode(ctx, network._id, ctx.person._id)
     await writeNetworkFacet(ctx, network, ctx.person._id, toEngineFacet(facet.value))
-    await writePrivacy(ctx, network._id, ctx.person._id, { facetLevels: facet.value.visibility, directoryVisibility, ...(phoneRegistration ? { phoneRegistration } : {}) })
+    await writePrivacy(ctx, network._id, ctx.person._id, { facetLevels: facet.value.visibility, directoryVisibility, ...(!existing && args.guestProfile ? { guestProfile: true } : {}), ...(phoneRegistration ? { phoneRegistration } : {}) })
     await scheduleConsulateLookup(ctx, network._id, ctx.person)
     // Annuaire opt-in : masqué par défaut, listé au seul choix d'un niveau visible.
     await syncDirectoryListing(ctx, network._id, ctx.person._id)

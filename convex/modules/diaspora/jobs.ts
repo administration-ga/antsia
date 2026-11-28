@@ -433,7 +433,7 @@ export async function readableTalentProfileOrNull(
   const profile = await ctx.db.get(talentId)
   if (!profile || profile.networkId !== networkId || !isTalentListed(profile)) return null
   const status = effectiveMembershipStatus(await getMembership(ctx, networkId, readerPersonId))
-  if (status === null || !hasCapability(status, "view_directory")) return null
+  if (status === null || !hasCapability(status, "publish")) return null
   return (await listedTalentFor(ctx, networkId, readerPersonId, profile)) ? profile : null
 }
 
@@ -1233,7 +1233,7 @@ export const saveMyTalentProfile = networkMutation({
   returns: v.object({ talentId: v.id("talentProfiles"), version: v.number() }),
   handler: async (ctx, args) => {
     assertDiasporaNetwork(ctx.network)
-    assertCapability(ctx, "appear_in_directory")
+    assertCapability(ctx, "publish")
     await enforceRateLimit(ctx, "diaspora.talent.profile", ctx.person._id)
     const draft = ruled(
       parseTalentProfile({
@@ -1283,7 +1283,7 @@ export const setMyTalentProfileStatus = networkMutation({
   returns: v.object({ status: talentProfileStatusValidator, version: v.number() }),
   handler: async (ctx, args) => {
     assertDiasporaNetwork(ctx.network)
-    if (args.status === "active") assertCapability(ctx, "appear_in_directory")
+    if (args.status === "active") assertCapability(ctx, "publish")
     await enforceRateLimit(ctx, "diaspora.talent.profile", ctx.person._id)
     const row = await talentRowOf(ctx, ctx.networkId, ctx.person._id)
     if (!row) return notFound()
@@ -1316,7 +1316,7 @@ export const removeMyTalentProfile = networkMutation({
 
 /**
  * Chercher des talents ACTIFS et VISIBLES du réseau, par pays (obligatoire) et
- * compétence (facultative) : page par page sous un plafond STRICT, sans tri par
+ * compétence (facultative) pour les membres déclarés : page par page sous un plafond STRICT, sans tri par
  * donnée sensible ni export. Chaque ligne est rejugée : profil publié et
  * découvrable, membre actif, aucun blocage dans la paire ; mon propre profil
  * n'apparaît pas. Aucune coordonnée, aucun identifiant de personne.
@@ -1327,7 +1327,7 @@ export const searchTalents = networkQuery({
   returns: paginationResultValidator(talentHitValidator),
   handler: async (ctx, args): Promise<PaginationResult<TalentHit>> => {
     assertDiasporaNetwork(ctx.network)
-    assertCapability(ctx, "view_directory")
+    assertCapability(ctx, "publish")
     const { country, skill } = ruled(parseTalentSearch({ country: args.country, skill: args.skill }))
     const options = bounded(args.paginationOpts, TALENT_SEARCH_PAGE_MAX)
     const result =

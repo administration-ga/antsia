@@ -84,8 +84,8 @@ function canRunQuery(ctx: unknown): ctx is RunQueryCtx {
 // l'essayait sans jamais le lire, et vidait au passage les seaux par adresse des invités. Porte
 // `gated` ou `unavailable`, l'envoi du code (tout type) et la connexion d'une adresse de la famille
 // de la portée exigent l'en-tête `DEMO_GATE_TOKEN_HEADER` d'une session de porte valide. Ni greffon,
-// ni route, ni table (ADR-0029) : la garde ne fait que refuser ; porte `closed` (production) ou
-// `open`, elle ne s'applique pas.
+// ni route, ni table (ADR-0029). Porte fermée, aucun jeton n’autorise la famille DIASPORA.
+// Seule la recette locale explicitement ouverte laisse passer ses adresses sans jeton.
 export const DEMO_GATED_AUTH_PATHS: ReadonlySet<string> = new Set<string>(["/email-otp/send-verification-otp", "/sign-in/email-otp"])
 
 /** La portée de porte qui gouverne cette requête de connexion, ou `null` : la garde ne s'applique pas. */

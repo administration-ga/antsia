@@ -70,6 +70,7 @@ import {
 	vueDeGestion,
 } from "./groupe-gestion"
 import { GroupeAvatar } from "./GroupeAvatar"
+import { useIcomContactTools } from "./IcomContactActions"
 import { invitationGroupeHref } from "./groupe-invitation-link"
 import { ressourcesDuGroupe } from "./groupe-ressources"
 import { MessageAttachment } from "./MessageAttachment"
@@ -130,6 +131,7 @@ export function MessagerieGroupeInfos({
 	const { t, i18n } = useTranslation("messagerie")
 	const timeZone = useViewerTimeZone()
 	const { networkId } = useNetwork()
+	const contactTools = useIcomContactTools()
 	const callsAvailable = useCallsAvailable()
 	const routes = useRoutes()
 	const locale = i18n.language
@@ -355,6 +357,18 @@ export function MessagerieGroupeInfos({
 		}
 	}
 
+	async function shareThroughHost(channel: "share" | "copy" | "sms") {
+		if (inviteUrl === null || data === undefined || contactTools === null) return
+		setErreur(null)
+		setNotice(null)
+		try {
+			const outcome = await contactTools.shareLink(inviteUrl, channel, data.title)
+			if (outcome === "copied") setNotice(t("messagerieGroupeInfos.linkCopied"))
+		} catch (error) {
+			setErreur(messageErreurLisible(error, t))
+		}
+	}
+
 	async function partagerInvitation() {
 		if (inviteUrl === null || data === undefined) return
 		if (typeof navigator.share !== "function") {
@@ -463,8 +477,9 @@ export function MessagerieGroupeInfos({
 
 							<p className="msg-infos-qr-help">{t("messagerieGroupeInfos.qrHelp")}</p>
 							<div className="msg-infos-qr-actions">
-								<button type="button" className="msg-infos-mini" disabled={inviteUrl === null} onClick={() => void copierInvitation()}><Copy aria-hidden="true" size={15} /> {t("messagerieGroupeInfos.copyLink")}</button>
-								<button type="button" className="msg-infos-mini" disabled={inviteUrl === null} onClick={() => void partagerInvitation()}><Share2 aria-hidden="true" size={15} /> {t("messagerieGroupeInfos.share")}</button>
+								<button type="button" className="msg-infos-mini" disabled={inviteUrl === null} onClick={() => void (contactTools ? shareThroughHost("copy") : copierInvitation())}><Copy aria-hidden="true" size={15} /> {t("messagerieGroupeInfos.copyLink")}</button>
+								<button type="button" className="msg-infos-mini" disabled={inviteUrl === null} onClick={() => void (contactTools ? shareThroughHost("share") : partagerInvitation())}><Share2 aria-hidden="true" size={15} /> {t("messagerieGroupeInfos.share")}</button>
+								{contactTools && <button type="button" className="msg-infos-mini" disabled={inviteUrl === null} onClick={() => void shareThroughHost("sms")}><MessagesSquare aria-hidden="true" size={15} /> {t("messagerieGroupeInfos.sendBySms")}</button>}
 								<button type="button" className="msg-infos-mini" disabled={reinitialiserLienInvitation.isPending} onClick={() => void agir(async () => {
 									const result = await reinitialiserLienInvitation.mutateAsync({ networkId, threadId: id })
 									setInviteToken(result.token)

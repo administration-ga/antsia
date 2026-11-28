@@ -33,6 +33,7 @@ import { arrivalKitTables } from "./arrivalKitTables"
 import { mentoringTables } from "./mentoringTables"
 import { jobsTables } from "./jobsTables"
 import { pilotMetricsTables } from "./pilotMetricsTables"
+import { smsTables } from "./smsTables"
 import { servicesTables } from "./servicesTables"
 
 /** Niveau fin de visibilité d'un champ de facette (`only_me` ⊂ `connections` ⊂ `country` ⊂ `network`). */
@@ -62,6 +63,7 @@ export const COMMUNITY_IMPORT_KINDS = ["consular_posts", "associations", "compan
 export const COMMUNITY_IMPORT_STATUSES = ["pending", "applied", "rejected"] as const
 
 export const diasporaTables = {
+  ...smsTables,
   sponsorshipCodes: defineTable({
     networkId: v.id("networks"),
     personId: v.id("persons"),
@@ -136,6 +138,7 @@ export const diasporaTables = {
     phoneRegistration: v.optional(v.object({ firstName: v.string(), lastName: v.string(), nationality: v.literal("GA"), declaredAt: v.number() })),
     networkId: v.id("networks"),
     personId: v.id("persons"),
+    guestProfile: v.optional(v.boolean()),
     facetLevels: facetLevelsValidator,
     directoryVisibility: directoryVisibilityValidator,
     updatedAt: v.number(),

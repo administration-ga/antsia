@@ -107,6 +107,17 @@ async function account(t: T, network: Id<"networks">, handle: string, { email, j
   return { ...session, authUserId, personId, idnSubject, handle }
 }
 
+/** Prépare une adhésion fictive préexistante, puis restitue le déploiement hébergé testé. */
+async function historicalDemoAccount(t: T, network: Id<"networks">, actor: string) {
+  vi.stubEnv("CONVEX_CLOUD_URL", "http://127.0.0.1:3210")
+  vi.stubEnv("ANTSIA_DEV_TOOLS", "true")
+  try {
+    return await account(t, network, `demo.${actor}`, { email: `${actor}@${DIASPORA_GA_DEMO_EMAIL_DOMAIN}` })
+  } finally {
+    declareDemo()
+  }
+}
+
 async function patchMembership(t: T, networkId: Id<"networks">, personId: Id<"persons">, fields: { role?: "member" | "network_admin" | "network_moderator"; status?: "en_attente" | "declaree" | "verifiee" }) {
   await t.run(async (ctx) => {
     const row = await ctx.db.query("networkMemberships").withIndex("by_network_and_person", (q) => q.eq("networkId", networkId).eq("personId", personId)).unique()
@@ -261,7 +272,7 @@ describe("CH-831 — chaque refus est distinct pour l'opérateur, et n'écrit ri
 
   it("compte de démonstration (domaine réservé), même entré dans le réseau avec un lien IDN", async () => {
     const f = await fixture()
-    const demo = await account(f.t, f.network, "demo.figurant", { email: `figurant@${DIASPORA_GA_DEMO_EMAIL_DOMAIN}` })
+    const demo = await historicalDemoAccount(f.t, f.network, "figurant")
     expect(await refusalOf(f.t.mutation(B.nameFirst, nameArgs(demo)))).toEqual(bootstrapRefusal("policyRefused", "bootstrap_demo_account"))
     expect(await roleOf(f.t, f.network, demo.personId)).toBe("member")
   })
@@ -325,7 +336,7 @@ describe("CH-831 — chaque refus est distinct pour l'opérateur, et n'écrit ri
 describe("CH-831 — le succès : rôle posé, une ligne au journal, rejeu sans effet", () => {
   it("accepté même si un compte de démonstration tient déjà le rôle (le catalogue de démonstration l'équipe)", async () => {
     const f = await fixture()
-    const demoAdmin = await account(f.t, f.network, "demo.administrateur", { email: `administrateur@${DIASPORA_GA_DEMO_EMAIL_DOMAIN}` })
+    const demoAdmin = await historicalDemoAccount(f.t, f.network, "administrateur")
     await patchMembership(f.t, f.network, demoAdmin.personId, { role: "network_admin" })
     expect(await f.t.mutation(B.nameFirst, nameArgs(f.target))).toEqual(result(f.target, true, "member", "network_admin"))
     expect(await roleOf(f.t, f.network, f.target.personId)).toBe("network_admin")
@@ -377,7 +388,7 @@ describe("CH-831 — le retrait (`withdraw`), chemin de retour de l'amorçage", 
   it("journalisé de même, et l'acte suivant de l'ancien administrateur est refusé", async () => {
     const f = await fixture()
     // Un compte de démonstration administrateur reste : le retrait ne laisse pas le réseau sans administrateur actif.
-    const demoAdmin = await account(f.t, f.network, "demo.administrateur", { email: `administrateur@${DIASPORA_GA_DEMO_EMAIL_DOMAIN}` })
+    const demoAdmin = await historicalDemoAccount(f.t, f.network, "administrateur")
     await patchMembership(f.t, f.network, demoAdmin.personId, { role: "network_admin" })
     await f.t.mutation(B.nameFirst, nameArgs(f.target))
     const admin = await idnSession(f.t, f.target, ADMIN_APP)
@@ -440,7 +451,7 @@ describe("CH-831 — le retrait (`withdraw`), chemin de retour de l'amorçage", 
 
   it("`demo.administrateur` (compte de démonstration lisible) : son rôle appartient au catalogue de démonstration → refusé", async () => {
     const f = await fixture()
-    const demoAdmin = await account(f.t, f.network, "demo.administrateur", { email: `administrateur@${DIASPORA_GA_DEMO_EMAIL_DOMAIN}` })
+    const demoAdmin = await historicalDemoAccount(f.t, f.network, "administrateur")
     await patchMembership(f.t, f.network, demoAdmin.personId, { role: "network_admin" })
     expect(await refusalOf(f.t.mutation(B.withdraw, withdrawArgs(demoAdmin)))).toEqual(bootstrapRefusal("policyRefused", "bootstrap_demo_account"))
     expect(await roleOf(f.t, f.network, demoAdmin.personId)).toBe("network_admin")

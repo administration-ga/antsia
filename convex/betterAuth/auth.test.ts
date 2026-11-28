@@ -415,14 +415,15 @@ describe("déploiement de démonstration déclaré : les comptes réservés seul
     expect(record(record(result.data).user).email).toBe(DEMO_EMAIL)
   })
 
-  it("le code d'un compte de démonstration DIASPORA.GA se relit de même (ADR-0038)", async () => {
-    declareDemo()
+  it("les anciennes adresses DIASPORA ne reçoivent aucun code et ne peuvent plus se connecter", async () => {
     const t = testConvex({ automaticSessions: false })
     const email = "moderateur@demo.diaspora-ga.test"
-    const code = await issueCode(t, "email", email)
-    const result = await signIn(t, "email", code.code, email)
-    expect(result.status).toBe(200)
-    expect(record(record(result.data).user).email).toBe(email)
+    const previous = await issueCode(t, "email", email)
+    declareDemo()
+    const response = await request(t, "/email-otp/send-verification-otp", { body: { email, type: "sign-in" } })
+    expect(response.data).toEqual({ success: true })
+    expect(await t.query(api.modules.platform.devTools.latestOtp, { email })).toBeNull()
+    expect((await signIn(t, "email", previous.code, email)).data).toEqual({ code: "INVALID_OTP", message: "Invalid OTP" })
   })
 
   it("toute autre adresse exige le vrai service de courriel : aucun code lisible", async () => {
@@ -635,15 +636,14 @@ describe("CH-817 E5 — la porte des comptes de démonstration verrouille la CON
     expect(await t.query(api.modules.platform.devTools.latestOtp, { email: FAMILY })).not.toBeNull()
   })
 
-  it("production (comptes de démonstration fermés), même avec le secret et WhatsApp : la garde ne s'applique pas", async () => {
+  it("la production refuse les comptes DIASPORA même avec le secret, WhatsApp et un jeton", async () => {
     armGate()
     vi.stubEnv("CONVEX_CLOUD_URL", "https://production-antsia-456.convex.cloud")
     vi.stubEnv("ANTSIA_DEV_TOOLS", undefined)
     const t = testConvex({ automaticSessions: false })
-    // Le refus d'avant la porte (aucun transport), pas la réponse de la garde.
-    const refusal = await send(t, FAMILY)
-    expect(refusal.status).toBe(503)
-    expect(record(refusal.data).code).toBe("otpDeliveryUnavailable")
+    expect((await send(t, FAMILY, WITH_TOKEN)).data).toEqual({ success: true })
+    expect(await verificationOf(t, FAMILY)).toBeNull()
+    expect((await signInWith(t, FAMILY, "000000", WITH_TOKEN)).data).toEqual({ code: "INVALID_OTP", message: "Invalid OTP" })
   })
 
   it("CORS : la pré-vérification des routes d'authentification admet l'en-tête du jeton", async () => {

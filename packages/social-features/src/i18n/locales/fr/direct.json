@@ -67,6 +67,7 @@
     "error": "Connexion refusée"
   },
   "create": {
+    "pageIdentity": "Diffuser depuis une page",
     "options": "Réglages de diffusion",
     "invitePeople": "Inviter des participants",
     "title": "Créer une conférence",
@@ -114,6 +115,7 @@
     }
   },
   "preflight": {
+    "acquiring": "Préparation du micro et de la caméra…",
     "description": "Vérifiez votre micro et votre caméra avant de prévenir votre audience. Ce test reste sur votre appareil.",
     "audioOnly": "Audio seul, sans caméra",
     "preview": "Aperçu de ma caméra",

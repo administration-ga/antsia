@@ -57,7 +57,8 @@ import { canReadModeratedContent, moderateContentWrite } from "../moderation/pol
 import { judicialDelistReader } from "../moderation/judicialHolds"
 import type { Doc, Id } from "../../_generated/dataModel"
 import type { QueryCtx } from "../../_generated/server"
-import { checked, fail, notFound } from "../../lib/errors"
+import { canExposeGuestProfile } from "../diaspora/guestAccess"
+import { checked, fail, failAppRule, notFound } from "../../lib/errors"
 import { isActiveMember } from "../../lib/access"
 import { networkMutation, networkQuery } from "../../lib/functions"
 import { requireNetworkFeature } from "../../lib/networkFeatures"
@@ -580,6 +581,7 @@ export const publish = networkMutation({
     reach: v.optional(v.string()),
     country: v.optional(v.string()),
     province: v.optional(literals(PROVINCE_SLUGS)),
+    guestVisible: v.optional(v.boolean()),
     alsoOnRoot: v.optional(v.boolean()),
     idempotencyKey: v.optional(v.string()),
   },
@@ -600,6 +602,8 @@ export const publish = networkMutation({
     }
 
     const audience: PersonalPostAudience = args.audience ?? "public"
+    if (args.guestVisible && (ctx.network.managedBy !== "diaspora" || audience !== "public" || args.groupId || args.sharedPostId)) return fail("invalidArgument", { field: "guestVisible" })
+    if (args.guestVisible && !await canExposeGuestProfile(ctx, ctx.network, ctx.person)) return failAppRule("guest_profile_required")
     checked(() => assertGroupAudienceShape({ audience, hasGroup: args.groupId !== undefined }))
     let associationGroup = false
     if (args.groupId !== undefined) {
@@ -660,6 +664,7 @@ export const publish = networkMutation({
       body,
       audience,
       visibility,
+      ...(args.guestVisible ? { guestVisible: true } : {}),
       ...(args.groupId !== undefined ? { groupId: args.groupId } : {}),
       ...(media.length > 0 ? { media } : {}),
       ...(shared ? { sharedPostId: shared._id } : {}),

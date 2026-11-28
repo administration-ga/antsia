@@ -256,7 +256,7 @@ describe("kit d'arrivée — proposer, relire, publier", () => {
     expect((await list(f, f.reader, { category: "emergency" })).page.map((card) => card.resourceId)).toEqual([national.resourceId])
     expect((await list(f, f.reader, { city: "Lyon" })).page).toEqual([])
     expect(await refusal(list(f, f.reader, { category: "sports" }))).toBe("arrival_kit_category_invalid")
-    expect(await refusal(f.reader.as.query(K.listResources, { networkId: f.networkId, country: "GA", paginationOpts: FIRST }))).toBe("arrival_kit_country_is_home")
+    expect(await refusal(f.reader.as.query(K.listResources, { networkId: f.networkId, country: "ZZ", paginationOpts: FIRST }))).toBe("arrival_kit_country_unknown")
   })
 
   it("relecture par l'auteur refusée ; l'équipe de la page qui porte la ressource ne la relit pas non plus", async () => {
@@ -288,7 +288,7 @@ describe("kit d'arrivée — proposer, relire, publier", () => {
     expect(await refusal(propose(f, f.author, { sourceUrl: "https://localhost/compte" }))).toBe("arrival_kit_source_url_invalid")
     expect(await refusal(propose(f, f.author, { title: "Appelez le 06 12 34 56 78" }))).toBe("arrival_kit_contact_details_forbidden")
     expect(await refusal(propose(f, f.author, { category: "sports" }))).toBe("arrival_kit_category_invalid")
-    expect(await refusal(propose(f, f.author, { country: "GA" }))).toBe("arrival_kit_country_is_home")
+    expect(await refusal(propose(f, f.author, { country: "ZZ" }))).toBe("arrival_kit_country_unknown")
     expect(await f.t.run(async (ctx) => ctx.db.query("kitResources").take(5))).toEqual([])
 
     // La même règle à la modification : la version lue reste intacte.

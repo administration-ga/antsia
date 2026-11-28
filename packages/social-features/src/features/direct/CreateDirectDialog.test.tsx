@@ -6,22 +6,27 @@ import { I18nextProvider } from "react-i18next"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { createAppI18n } from "../../i18n"
+import { directSessionStore } from "../../stores/direct-session-store"
 import { CreateDirectDialog } from "./CreateDirectDialog"
 
-const mocks = vi.hoisted(() => ({ create: vi.fn(), push: vi.fn(), close: vi.fn(), networkId: "network-test", pages: [] as unknown[], candidates: [] as unknown[], eligible: ["person-test"] as string[] }))
+const mocks = vi.hoisted(() => ({ create: vi.fn(), goLive: vi.fn(), config: vi.fn(), token: vi.fn(), tracks: vi.fn(), studio: false, push: vi.fn(), close: vi.fn(), networkId: "network-test", pages: [] as unknown[], candidates: [] as unknown[], eligible: ["person-test"] as string[] }))
 vi.mock("@antsia/api/network", () => ({
-  useNetwork: () => ({ networkId: mocks.networkId, charte: "antsia" }),
+  useNetwork: () => ({ networkId: mocks.networkId, charte: "antsia", liveStudioPreview: mocks.studio }),
   useRoutes: () => ({ conference: (id: string) => `/conference/${id}` }),
 }))
 vi.mock("@antsia/api/hooks", () => ({ useAuthenticatedConvexQuery: (ref: Parameters<typeof getFunctionName>[0], args: "skip" | { personIds?: string[] }) => ({
   data: args === "skip" ? undefined : getFunctionName(ref).endsWith(":myPages") ? mocks.pages : getFunctionName(ref).endsWith(":searchCandidates") ? { candidates: mocks.candidates } : { eligible: (args.personIds ?? []).filter((id) => mocks.eligible.includes(id)).map((personId) => ({ personId, displayName: personId === "person-test" ? "Awa" : "Autre", handle: personId, avatarUrl: null })) }, isError: false,
 }) }))
 vi.mock("@antsia/api/routing", () => ({ useRouter: () => ({ push: mocks.push }) }))
-vi.mock("convex/react", () => ({ useMutation: () => mocks.create }))
-vi.mock("@antsia/ui/espace-kit", () => ({ EspaceDialog: ({ children }: { children: ReactNode }) => <div role="dialog">{children}</div> }))
+vi.mock("convex/react", () => ({
+  useMutation: (ref: Parameters<typeof getFunctionName>[0]) => getFunctionName(ref).endsWith(":create") ? mocks.create : mocks.goLive,
+  useAction: (ref: Parameters<typeof getFunctionName>[0]) => getFunctionName(ref).endsWith(":checkBroadcastConfiguration") ? mocks.config : mocks.token,
+}))
+vi.mock("livekit-client", () => ({ createLocalTracks: mocks.tracks, Track: { Kind: { Video: "video", Audio: "audio" } } }))
+vi.mock("@antsia/ui/espace-kit", () => ({ EspaceDialog: ({ children, footer }: { children: ReactNode; footer?: ReactNode }) => <div role="dialog">{children}{footer}</div> }))
 const i18n = createAppI18n({ locale: "fr", appResources: { fr: {}, en: {} }, defaultNS: "direct" })
-beforeEach(() => { vi.clearAllMocks(); mocks.networkId = "network-test"; mocks.pages = []; mocks.candidates = []; mocks.eligible = ["person-test"]; mocks.create.mockResolvedValue({ sessionId: "session-test", created: true }) })
-afterEach(cleanup)
+beforeEach(() => { directSessionStore.__resetForTests(); mocks.studio = false; vi.clearAllMocks(); mocks.networkId = "network-test"; mocks.pages = []; mocks.candidates = []; mocks.eligible = ["person-test"]; mocks.create.mockResolvedValue({ sessionId: "session-test", created: true }) })
+afterEach(() => { cleanup(); directSessionStore.__resetForTests() })
 
 describe("création d'un direct — confidentialité et rejeu", () => {
   it("ne coche ni enregistrement ni annonce et garde les relations par défaut", async () => {
@@ -113,4 +118,108 @@ it("ne ferme ni ne navigue sur la réponse d'un ancien réseau", async () => {
   expect(mocks.close).not.toHaveBeenCalled()
   expect(mocks.push).not.toHaveBeenCalled()
   expect(screen.getByLabelText("Titre")).toHaveValue("")
+})
+
+function previewTrack(kind: "audio" | "video") {
+  const mediaStreamTrack = Object.assign(new EventTarget(), { readyState: "live" })
+  return { kind, mediaStreamTrack, stop: vi.fn(), detach: vi.fn(), attach: vi.fn() }
+}
+
+describe("studio avec aperçu dans le formulaire", () => {
+  beforeEach(() => {
+    mocks.studio = true
+    mocks.config.mockResolvedValue({ ready: true })
+    mocks.goLive.mockResolvedValue({ started: true })
+    mocks.token.mockResolvedValue({ role: "speaker", wsUrl: "wss://test.invalid", token: "test-token" })
+  })
+
+  function showStudio() {
+    return render(<I18nextProvider i18n={i18n}><CreateDirectDialog onClose={mocks.close} /></I18nextProvider>)
+  }
+
+  it("montre les périphériques avant toute écriture et diffuse une seule fois en son nom", async () => {
+    const camera = previewTrack("video")
+    const microphone = previewTrack("audio")
+    mocks.tracks.mockResolvedValue([microphone, camera])
+    showStudio()
+    const start = screen.getByRole("button", { name: "Passer en direct" })
+    await waitFor(() => expect(start).toBeEnabled())
+    expect(camera.attach).toHaveBeenCalledTimes(1)
+    expect(mocks.create).not.toHaveBeenCalled()
+    expect(mocks.goLive).not.toHaveBeenCalled()
+    expect(screen.queryByText("Diffuser depuis une page")).toBeNull()
+    fireEvent.change(screen.getByLabelText("Titre"), { target: { value: "Rencontre" } })
+    expect(fireEvent.keyDown(screen.getByLabelText("Titre"), { key: "Enter" })).toBe(false)
+    expect(mocks.goLive).not.toHaveBeenCalled()
+    fireEvent.click(start)
+    fireEvent.click(start)
+    await waitFor(() => expect(mocks.push).toHaveBeenCalledTimes(1))
+    expect(mocks.create).toHaveBeenCalledTimes(1)
+    expect(mocks.create.mock.calls[0]?.[0]).not.toHaveProperty("pageId")
+    expect(mocks.config).toHaveBeenCalledBefore(mocks.goLive)
+    expect(camera.stop).toHaveBeenCalledBefore(mocks.goLive)
+    expect(mocks.goLive).toHaveBeenCalledTimes(1)
+    expect(directSessionStore.getState().credentials?.role).toBe("speaker")
+  })
+
+  it("autorise le mode audio après un refus caméra et diffuse au nom d’une page éligible", async () => {
+    mocks.pages = [{ pageId: "page-a", name: "Groupe local" }]
+    mocks.tracks.mockRejectedValueOnce(new DOMException("denied", "NotAllowedError")).mockResolvedValue([previewTrack("audio")])
+    showStudio()
+    await screen.findByRole("alert")
+    const start = screen.getByRole("button", { name: "Passer en direct" })
+    expect(start).toBeDisabled()
+    fireEvent.click(screen.getByRole("checkbox", { name: /udio seul/ }))
+    await waitFor(() => expect(start).toBeEnabled())
+    expect(mocks.tracks).toHaveBeenLastCalledWith({ audio: true, video: false })
+    fireEvent.click(screen.getByText("Diffuser depuis une page", { selector: "summary" }))
+    fireEvent.change(screen.getByRole("combobox", { name: "Diffuser depuis une page" }), { target: { value: "page-a" } })
+    fireEvent.change(screen.getByLabelText("Audience"), { target: { value: "followers" } })
+    fireEvent.change(screen.getByLabelText("Titre"), { target: { value: "Permanence" } })
+    fireEvent.click(start)
+    await waitFor(() => expect(mocks.push).toHaveBeenCalled())
+    expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({ pageId: "page-a", audience: "followers" }))
+    expect(directSessionStore.getState().intent.audioOnly).toBe(true)
+  })
+
+  it("rend tout matériel accordé après la fermeture sans demander de jeton", async () => {
+    let resolve!: (tracks: ReturnType<typeof previewTrack>[]) => void
+    mocks.tracks.mockReturnValue(new Promise((done) => { resolve = done }))
+    const dialog = showStudio()
+    await waitFor(() => expect(mocks.tracks).toHaveBeenCalled())
+    dialog.unmount()
+    const camera = previewTrack("video")
+    const microphone = previewTrack("audio")
+    await act(async () => resolve([microphone, camera]))
+    expect(camera.stop).toHaveBeenCalledTimes(1)
+    expect(microphone.stop).toHaveBeenCalledTimes(1)
+    expect(mocks.create).not.toHaveBeenCalled()
+    expect(mocks.token).not.toHaveBeenCalled()
+  })
+
+  it("revient sur les réglages enregistrés d’un brouillon rejoué avant toute mise en direct", async () => {
+    mocks.create.mockResolvedValueOnce({ sessionId: "saved-draft", created: false })
+    mocks.tracks.mockResolvedValue([previewTrack("audio"), previewTrack("video")])
+    showStudio()
+    const start = screen.getByRole("button", { name: "Passer en direct" })
+    await waitFor(() => expect(start).toBeEnabled())
+    fireEvent.change(screen.getByLabelText("Titre"), { target: { value: "Nouveau titre" } })
+    fireEvent.click(start)
+    await waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/conference/saved-draft"))
+    expect(mocks.goLive).not.toHaveBeenCalled()
+    expect(mocks.token).not.toHaveBeenCalled()
+  })
+
+  it("retrouve la session créée après une configuration refusée sans passer en direct", async () => {
+    mocks.tracks.mockResolvedValue([previewTrack("audio"), previewTrack("video")])
+    mocks.config.mockRejectedValueOnce(new Error("configuration"))
+    showStudio()
+    const start = screen.getByRole("button", { name: "Passer en direct" })
+    await waitFor(() => expect(start).toBeEnabled())
+    fireEvent.change(screen.getByLabelText("Titre"), { target: { value: "Rencontre" } })
+    fireEvent.click(start)
+    await waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/conference/session-test"))
+    expect(mocks.goLive).not.toHaveBeenCalled()
+    expect(directSessionStore.getState().phase).toBe("error")
+  })
 })

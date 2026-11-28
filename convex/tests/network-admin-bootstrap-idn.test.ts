@@ -13,12 +13,12 @@
  * 1. Une personne se connecte par IDN côté MEMBRES, entre dans `diaspora-ga` (sa session est scellée pour
  *    l'application des membres : elle n'administre rien).
  * 2. Le propriétaire la nomme depuis son terminal (`networkAdminBootstrap.nameFirst`), alors même que
- *    `demo.administrateur`, équipé par le catalogue de démonstration, tient déjà le rôle.
+ *    un ancien compte `demo.administrateur` tient déjà le rôle.
  * 3. Elle entre par `https://admin.diaspora.ga/entrer` (IDN, entrée exacte) : `myNetworkAdmin`,
  *    `recordAccess`, puis des lectures d'administration passent ; la ligne d'amorçage est au journal.
- * 4. `demo.administrateur`, connecté par code (vrai envoi et vraie connexion par code du gestionnaire),
+ * 4. L’ancienne session de `demo.administrateur`, établie par code avant la fermeture,
  *    reçoit le refus indistinct sur les mêmes lectures.
- * 5. Porte des comptes de démonstration ARMÉE : le parcours IDN passe toujours.
+ * 5. Une nouvelle connexion par code est refusée aux adresses de démonstration. Le parcours IDN reste disponible.
  */
 import { NETWORK_FEATURES } from "@antsia/social-domain/networkFeatures"
 import { ConvexError } from "convex/values"
@@ -135,7 +135,7 @@ async function signInWithIdn(t: T, origin: string, urls: Record<string, string>)
 
 /**
  * La connexion par CODE du vrai gestionnaire, demandée depuis `origin` (envoi, code lu par la
- * démonstration déclarée pour une adresse réservée, connexion).
+ * recette locale pour préparer l’ancienne session, connexion).
  */
 async function signInWithCode(t: T, email: string, origin: string = MEMBERS_ORIGIN): Promise<As> {
   const sent = await authRequest(t, "/email-otp/send-verification-otp", { method: "POST", origin, body: { email, type: "sign-in" } })
@@ -213,10 +213,24 @@ describe("CH-831 — amorçage sur un environnement comme la démonstration, vra
   it("membre par IDN, nommé par le terminal malgré demo.administrateur, puis administrateur par l'entrée exacte ; demo.administrateur par code est refusé", async () => {
     const { t, network } = await fixture()
 
-    // demo.administrateur, connecté par CODE et équipé par le catalogue de démonstration : il tient le rôle.
+    // On crée les anciens comptes et sessions en recette locale uniquement. Les vérifications
+    // de nomination, de connexion et des droits se déroulent toutes sur le déploiement hébergé.
+    vi.stubEnv("CONVEX_CLOUD_URL", "http://127.0.0.1:3210")
+    vi.stubEnv("ANTSIA_DEV_TOOLS", "true")
     const demoAdmin = await signInWithCode(t, DEMO_ADMIN_EMAIL)
     await joinDiaspora(demoAdmin, network, "demo.administrateur", "Serge EYENE")
     expect(await demoAdmin.mutation(api.modules.diaspora.demoAccounts.equipMyDemoAccount, { actor: "administrateur" })).toMatchObject({ role: "network_admin" })
+    const demoFromAdmin = await signInWithCode(t, DEMO_ADMIN_EMAIL, ADMIN_ORIGIN)
+    vi.stubEnv("CONVEX_CLOUD_URL", `https://${DEMO_NAME}.convex.cloud`)
+    vi.stubEnv("ANTSIA_DEV_TOOLS", undefined)
+    for (const origin of [MEMBERS_ORIGIN, ADMIN_ORIGIN]) {
+      const sent = await authRequest(t, "/email-otp/send-verification-otp", { method: "POST", origin, body: { email: DEMO_ADMIN_EMAIL, type: "sign-in" } })
+      expect(JSON.parse(sent.body)).toEqual({ success: true })
+      expect(await t.query(api.modules.platform.devTools.latestOtp, { email: DEMO_ADMIN_EMAIL })).toBeNull()
+      const denied = await authRequest(t, "/sign-in/email-otp", { method: "POST", origin, body: { email: DEMO_ADMIN_EMAIL, otp: "000000" } })
+      expect(denied.status).toBe(400)
+      expect(JSON.parse(denied.body).code).toBe("INVALID_OTP")
+    }
 
     const { admin } = await nameAndEnter(t, network, "idn-premiere-admin")
     const reads = adminReads(admin, network)
@@ -230,9 +244,7 @@ describe("CH-831 — amorçage sur un environnement comme la démonstration, vra
     expect(await refusalCodeOf(demoReads.settings())).toBe("notFound")
     expect(await refusalCodeOf(demoReads.roleAudit())).toBe("notFound")
 
-    // La même connexion par code, demandée depuis l'ORIGINE de l'administration : une session sans preuve
-    // IDN de cette application, donc le même refus indistinct (l'origine n'ouvre rien).
-    const demoFromAdmin = await signInWithCode(t, DEMO_ADMIN_EMAIL, ADMIN_ORIGIN)
+    // L’ancienne session ouverte depuis l’administration n’a pas non plus de preuve IDN.
     const demoFromAdminReads = adminReads(demoFromAdmin, network)
     expect(await refusalCodeOf(demoFromAdmin.query(A.myNetworkAdmin, { networkId: network }))).toBe("notFound")
     expect(await refusalCodeOf(demoFromAdmin.mutation(A.recordAccess, { networkId: network }))).toBe("notFound")
@@ -243,9 +255,7 @@ describe("CH-831 — amorçage sur un environnement comme la démonstration, vra
   it("porte des comptes de démonstration armée : le parcours IDN, la nomination et l'entrée passent toujours", async () => {
     armGate()
     const { t, network } = await fixture()
-    // La porte est bien armée : sans session de porte, l'envoi d'un code à une adresse réservée répond
-    // comme un envoi réel (refus indistinct, CH-817 E5) mais AUCUN code n'est enregistré — porte non
-    // armée, le même envoi l'enregistre (premier test, `signInWithCode`).
+    // Les clés de l’ancienne porte ne réactivent aucune adresse de démonstration hébergée.
     const gated = await authRequest(t, "/email-otp/send-verification-otp", { method: "POST", origin: MEMBERS_ORIGIN, body: { email: DEMO_ADMIN_EMAIL, type: "sign-in" } })
     expect(gated.status, gated.body).toBe(200)
     expect(await t.run(async (ctx) => await ctx.db.query("devOtpCodes").withIndex("by_email", (q) => q.eq("email", DEMO_ADMIN_EMAIL)).unique())).toBeNull()

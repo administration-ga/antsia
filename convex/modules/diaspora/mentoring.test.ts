@@ -292,7 +292,7 @@ describe("mentorat DIASPORA.GA", () => {
     expect(await codeOf(send(f, f.mentee, { domain: "legal" }))).toBe("mentor_domain_invalid")
     expect(await codeOf(send(f, f.mentee, { message: `${MESSAGE} Appelez le 06 12 34 56 78.` }))).toBe("mentoring_contact_forbidden")
     expect(await codeOf(send(f, f.mentee, { wishedSlots: [{ startAt: NOW - HOUR, endAt: NOW }] }))).toBe("mentoring_slot_past")
-    expect(await codeOf(f.other.as.mutation(M.becomeMentor, profileArgs(f.networkId, { country: "GA" })))).toBe("mentor_country_invalid")
+    expect(await codeOf(f.other.as.mutation(M.becomeMentor, profileArgs(f.networkId, { country: "ZZ" })))).toBe("mentor_country_invalid")
     expect(await codeOf(f.mentor.as.mutation(M.becomeMentor, profileArgs(f.networkId)))).toBe("mentor_profile_exists")
     await setMembership(f.t, f.networkId, f.mentee.personId, "suspendue")
     expect(await codeOf(send(f, f.mentee))).toBe("membershipSuspended")

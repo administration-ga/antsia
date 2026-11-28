@@ -286,7 +286,7 @@ describe("catalogue des services — écrire", () => {
   it.each([
     [{ title: "Ab" }, "service_title_too_short"],
     [{ description: "Appelez le 06 12 34 56 78 pour réserver." }, "service_contact_details_forbidden"],
-    [{ country: "GA" }, "service_country_is_home"],
+    [{ country: "ZZ" }, "service_country_unknown"],
     [{ city: "  " }, "service_city_required"],
     [{ durationMinutes: 2 }, "service_duration_invalid"],
     [{ pricing: { mode: "from" as const, amountMinor: 0, currency: "EUR" } }, "service_price_from_zero"],
@@ -370,7 +370,7 @@ describe("catalogue des services — chercher", () => {
       [base.ids.lyonFree]: "within",
     })
     expect(await failure(base.reader.as.query(S.searchOffers, { networkId: base.networkId, maxBudgetMinor: 5000, paginationOpts: FIRST }))).toEqual({ code: "invalidArgument", appRule: "currency_invalid" })
-    expect(await failure(base.reader.as.query(S.searchOffers, { networkId: base.networkId, country: "GA", paginationOpts: FIRST }))).toEqual({ code: "invalidArgument", appRule: "service_country_is_home" })
+    expect(await failure(base.reader.as.query(S.searchOffers, { networkId: base.networkId, country: "ZZ", paginationOpts: FIRST }))).toEqual({ code: "invalidArgument", appRule: "service_country_unknown" })
     expect(await failure(base.reader.as.query(S.searchOffers, { networkId: base.networkId, query: "x".repeat(101), paginationOpts: FIRST }))).toEqual({ code: "invalidArgument", appRule: "service_query_too_long" })
   })
 

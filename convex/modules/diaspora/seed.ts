@@ -3,9 +3,7 @@
  * moteur : argument de confirmation ET déploiement local ou autorisé).
  *
  * Réseau fermé, enfant de la racine, GOUVERNÉ par la tranche `diaspora`,
- * politique « déclaré ou vérifié », visibilité « réseau », pays ouverts de
- * départ (arbitrage A8 : la France), facette diaspora au format du moteur, et un
- * hub par pays ouvert, compteurs à zéro jusqu'au premier passage nocturne.
+ * politique « déclaré ou vérifié », visibilité « réseau », 249 pays et territoires, facette diaspora au format du moteur.
  * Idempotente : rejouée, elle ne double rien. La racine doit exister (graine des
  * fondations d'abord). En production, la console crée le réseau avec
  * `managedBy: "diaspora"`.
@@ -35,7 +33,6 @@ import { writePost } from "../posts/postWrite"
 import { sha256Hex } from "./attestation"
 import { ensureDemoModerationTeam, ensureModerationTeamMember, personOfActor } from "./demoAccounts"
 import { activeSponsorshipOf, applyDerivedStatus, effectiveStatusIn, facetOf, isDiasporaNetwork, membershipGrounds } from "./facts"
-import { hubRow } from "./hubs"
 
 /** Un champ de facette du domaine (listes figées) au format mutable des tables du moteur. */
 function engineFacetField(field: EngineFacetField) {
@@ -88,21 +85,31 @@ export const run = internalMutation({
       updatedAt: now,
     }))
 
-    const hubs: string[] = []
-    for (const country of seed.openCountries) {
-      if (await hubRow(ctx, network.id, country)) continue
-      await ctx.db.insert("countryHubs", {
-        networkId: network.id,
-        country,
-        members: 0,
-        associations: 0,
-        companies: 0,
-        upcomingEvents: 0,
-        updatedAt: now,
-      })
-      hubs.push(country)
-    }
-    return { network: network.id, created: network.created, hubs }
+    // Un pays sans activité a déjà une vue vide. Le comptage crée sa ligne au premier besoin.
+    return { network: network.id, created: network.created, hubs: [] }
+  },
+})
+
+/** Met à niveau uniquement les paramètres géographiques des réseaux existants. */
+export const openAllCountries = internalMutation({
+  args: {},
+  returns: v.object({ changed: v.boolean(), countryCount: v.number() }),
+  handler: async (ctx) => {
+    const seed = DIASPORA_GA_NETWORK_SEED
+    const network = await ctx.db.query("networks").withIndex("by_slug", q => q.eq("slug", seed.slug)).unique()
+    if (!isDiasporaNetwork(network)) throw new Error("DIASPORA network unavailable")
+    const fields = network.facetSchema?.fields.map(field => field.key === "countryOfResidence" && field.excludedValues?.includes("GA")
+      ? { ...field, excludedValues: field.excludedValues.filter(country => country !== "GA") } : field)
+    const sameCoverage = network.openCountries?.length === seed.openCountries.length &&
+      seed.openCountries.every(country => network.openCountries?.includes(country))
+    const changed = !sameCoverage || Boolean(network.facetSchema?.fields.some(field =>
+      field.key === "countryOfResidence" && field.excludedValues?.includes("GA")))
+    if (changed) await ctx.db.patch(network._id, {
+      openCountries: [...seed.openCountries],
+      ...(fields ? { facetSchema: { ...network.facetSchema, fields } } : {}),
+      updatedAt: Date.now(),
+    })
+    return { changed, countryCount: seed.openCountries.length }
   },
 })
 

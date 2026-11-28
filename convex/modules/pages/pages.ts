@@ -162,6 +162,7 @@ export const createPage = networkMutation({
     associationType: v.optional(pageAssociationTypeValidator),
     sector: v.optional(pageSectorValidator),
     visibility: v.optional(contentVisibilityValidator),
+    guestVisible: v.optional(v.boolean()),
   },
   returns: v.object({ pageId: v.id("pages"), handle: v.string() }),
   handler: async (ctx, args) => {
@@ -192,6 +193,7 @@ export const createPage = networkMutation({
       ...(associationType !== undefined ? { associationType } : {}),
       ...(sector !== undefined ? { sector } : {}),
       visibility,
+      ...(args.guestVisible && ctx.network.managedBy === "diaspora" ? { guestVisible: true } : {}),
       onRoot: isPageOnRoot(ctx.network, visibility),
       status: "active",
       createdByPersonId: ctx.person._id,
@@ -532,6 +534,7 @@ export const publishAsPage = networkMutation({
     body: v.string(),
     media: v.optional(v.array(declaredMediaValidator)),
     audience: v.optional(pagePostAudienceValidator),
+    guestVisible: v.optional(v.boolean()),
     reach: v.optional(v.string()),
     province: v.optional(literals(PROVINCE_SLUGS)),
     alsoOnRoot: v.optional(v.boolean()),
@@ -553,6 +556,7 @@ export const publishAsPage = networkMutation({
     // Le PLACEMENT, jugé AVANT toute écriture (HB-03) : le pays de la page, puis la règle de la tranche.
     const placed = placePagePost(page, args.reach, ctx.network.reachValues)
     await assertPostPlacement(ctx, { network: ctx.network, authorPersonId: ctx.person._id, page, ...placementOf(placed) })
+    if (args.guestVisible && (ctx.network.managedBy !== "diaspora" || !page.guestVisible || audience !== "public")) return fail("invalidArgument", { field: "guestVisible" })
     // L'acteur est le SIGNATAIRE qui dépose : c'est lui qui a déposé les fichiers.
     const media = await verifyDeclaredMedia(ctx, { actorPersonId: ctx.person._id, networkId: ctx.networkId, usage: "media_social", source: "post_media", declared: args.media ?? [] })
     checked(() =>
@@ -569,6 +573,7 @@ export const publishAsPage = networkMutation({
       body,
       audience,
       visibility,
+      ...(args.guestVisible ? { guestVisible: true } : {}),
       ...(media.length > 0 ? { media } : {}),
       ...placed,
       ...(args.province !== undefined ? { province: args.province } : {}),

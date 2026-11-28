@@ -353,7 +353,7 @@ describe("mesure du pilote — accès réservé à l'administration du réseau",
     expect(await f.adminApp.query(PILOT.pilotMetrics, { networkId: f.networkId, days: 30 })).toEqual({ measured: false, country: null, days: 30, threshold: PILOT_DISPLAY_THRESHOLD })
     expect(await f.adminApp.query(PILOT.pilotMetrics, { networkId: f.networkId, country: "fr", days: 7 })).toEqual({ measured: false, country: "FR", days: 7, threshold: PILOT_DISPLAY_THRESHOLD })
     expect(await code(f.adminApp.query(PILOT.pilotMetrics, { networkId: f.networkId, days: 14 }))).toBe("pilot_metrics_window_invalid")
-    expect(await code(f.adminApp.query(PILOT.pilotMetrics, { networkId: f.networkId, days: 30, country: "GA" }))).toBe("pilot_metrics_country_invalid")
+    expect(await f.adminApp.query(PILOT.pilotMetrics, { networkId: f.networkId, days: 30, country: "GA" })).toEqual({ measured: false, country: "GA", days: 30, threshold: PILOT_DISPLAY_THRESHOLD })
     expect(await code(f.adminApp.query(PILOT.pilotMetrics, { networkId: f.networkId, days: 30, country: "XX" }))).toBe("pilot_metrics_country_invalid")
   })
 })

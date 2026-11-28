@@ -257,8 +257,7 @@ describe("listCountryEvents — les prochains évènements publics des associati
 
     expect((await list(reader, network)).items.map((row) => row.eventId)).toEqual([ours])
     expect((await list(reader, network, { country: "BE" })).items.map((row) => row.eventId)).toEqual([belgian])
-    // Un pays inconnu et le Gabon : le même refus que le hub.
-    expect(await codeOf(list(reader, network, { country: "GA" }))).toBe("notFound")
+    expect((await list(reader, network, { country: "GA" })).items).toEqual([])
     expect(await codeOf(list(reader, network, { country: "ZZ" }))).toBe("notFound")
   })
 

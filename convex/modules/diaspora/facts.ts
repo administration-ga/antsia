@@ -21,6 +21,7 @@ import {
   type DiasporaFacet,
   type DirectoryVisibility,
   engineVerificationSource,
+  isCountryCode,
   type FacetVisibility,
   facetFromEngine,
   idnGroundFromLink,
@@ -42,6 +43,11 @@ import { currentVerifiedIdnSubjectOf } from "../people/identity"
 /** Le réseau est-il celui que la tranche gouverne, et actif ? */
 export function isDiasporaNetwork(network: Doc<"networks"> | null): network is Doc<"networks"> {
   return network !== null && network.status === "active" && network.managedBy === DIASPORA_GA_SLICE
+}
+
+/** Un lieu de publication peut désigner tout pays du catalogue, Gabon compris. */
+export function diasporaPostPlacement(country: string | null) {
+  return country === null || isCountryCode(country) ? null : "POST_PLACEMENT_COUNTRY_NOT_ADMITTED"
 }
 
 /** Garde des fonctions bornées par le réseau : tout autre réseau reçoit le refus indistinct. */
@@ -414,13 +420,14 @@ export async function writePrivacy(
   ctx: MutationCtx,
   networkId: Id<"networks">,
   personId: Id<"persons">,
-  patch: { facetLevels?: FacetVisibility; directoryVisibility?: DirectoryVisibility; phoneRegistration?: NonNullable<Doc<"memberPrivacy">["phoneRegistration"]> },
+  patch: { guestProfile?: boolean; facetLevels?: FacetVisibility; directoryVisibility?: DirectoryVisibility; phoneRegistration?: NonNullable<Doc<"memberPrivacy">["phoneRegistration"]> },
 ): Promise<void> {
   const existing = await privacyOf(ctx, networkId, personId)
   const now = Date.now()
   const facetLevels = patch.facetLevels ? { ...patch.facetLevels } : undefined
   if (existing) {
     await ctx.db.patch(existing._id, {
+      ...(patch.guestProfile !== undefined ? { guestProfile: patch.guestProfile } : {}),
       ...(facetLevels ? { facetLevels } : {}),
       ...(patch.directoryVisibility ? { directoryVisibility: patch.directoryVisibility } : {}),
       ...(patch.phoneRegistration ? { phoneRegistration: patch.phoneRegistration } : {}),
@@ -431,6 +438,7 @@ export async function writePrivacy(
   await ctx.db.insert("memberPrivacy", {
     networkId,
     personId,
+    ...(patch.guestProfile !== undefined ? { guestProfile: patch.guestProfile } : {}),
     facetLevels: facetLevels ?? { ...DEFAULT_FACET_VISIBILITY },
     directoryVisibility: patch.directoryVisibility ?? DEFAULT_DIRECTORY_VISIBILITY,
     ...(patch.phoneRegistration ? { phoneRegistration: patch.phoneRegistration } : {}),

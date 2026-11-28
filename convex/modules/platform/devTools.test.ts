@@ -23,7 +23,7 @@ const WHATSAPP = {
 }
 const DEMO = { CONVEX_CLOUD_URL: "https://demo-antsia-123.convex.cloud", ANTSIA_DEMO_DEPLOYMENT: "demo-antsia-123" }
 const LOCAL = { CONVEX_CLOUD_URL: "http://127.0.0.1:3210", ANTSIA_DEV_TOOLS: "true" }
-const GATED = { ...DEMO, ANTSIA_DEMO_GATE_SECRET: SECRET, ...WHATSAPP }
+const GATED = { ...LOCAL, ANTSIA_DEMO_GATE_SECRET: SECRET, ...WHATSAPP }
 const PRODUCTION = { ...GATED, CONVEX_CLOUD_URL: "https://production-antsia-456.convex.cloud" }
 const PHONE = "+447700900123"
 const TOKEN = "fictional_session_token_0123456789abcdefABC"
@@ -81,12 +81,12 @@ describe("demoGateScopeOfEmail — la famille d'adresses que gouverne la porte d
 })
 
 describe("latestOtp — porte non armée : rien ne change", () => {
-  it("démonstration déclarée : les adresses réservées (ANTSIA et DIASPORA.GA), sans échéance ; un jeton présenté est ignoré", async () => {
+  it("démonstration hébergée : seule la famille ANTSIA peut relire son code", async () => {
     useEnv(DEMO)
     const t = testConvex({ automaticSessions: false })
     await recordCodes(t, [DIASPORA_GA_EMAIL, ROOT_EMAIL, ORDINARY_EMAIL])
-    expect(await codeOf(t, DIASPORA_GA_EMAIL)).toEqual({ code: "100000", expiresAt: expect.any(Number) })
-    expect(await codeOf(t, DIASPORA_GA_EMAIL, TOKEN)).toEqual({ code: "100000", expiresAt: expect.any(Number) })
+    expect(await codeOf(t, DIASPORA_GA_EMAIL)).toBeNull()
+    expect(await codeOf(t, DIASPORA_GA_EMAIL, TOKEN)).toBeNull()
     expect(await codeOf(t, ROOT_EMAIL)).toMatchObject({ code: "100001" })
     expect(await codeOf(t, ORDINARY_EMAIL)).toBeNull()
   })
@@ -193,8 +193,9 @@ describe("demoGateAdmission — la règle de `demoGateAdmits`, avec l'échéance
     const now = Date.now()
     const expiresAt = await openGateSession(t, now)
     const admission = (env: Env, token?: string) => t.run((ctx) => demoGateAdmission(ctx, SCOPE, token, { env, now: now + 1 }))
-    expect(await admission(DEMO)).toEqual({ admitted: true, sessionExpiresAt: null })
-    expect(await admission(DEMO, TOKEN)).toEqual({ admitted: true, sessionExpiresAt: null })
+    expect(await admission(LOCAL)).toEqual({ admitted: true, sessionExpiresAt: null })
+    expect(await admission(DEMO)).toEqual({ admitted: false })
+    expect(await admission(DEMO, TOKEN)).toEqual({ admitted: false })
     expect(await admission(GATED)).toEqual({ admitted: false })
     expect(await admission(GATED, TOKEN)).toEqual({ admitted: true, sessionExpiresAt: expiresAt })
     expect(await t.run((ctx) => demoGateAdmission(ctx, SCOPE, TOKEN, { env: GATED, now: expiresAt }))).toEqual({ admitted: false })

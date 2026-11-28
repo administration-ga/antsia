@@ -103,7 +103,7 @@ async function joinedActor(t: T, diasporaGa: Id<"networks">, actor: DiasporaGaDe
   await as.mutation(api.modules.people.consents.recordConsent, { purpose: "social_profile", origin: "onboarding" })
   await as.mutation(api.modules.people.profile.publishMyProfile, { handle, displayName })
   await joinDeclaredDiasporaFixture(as, { networkId: diasporaGa, facet: { countryOfResidence: spec.country }, directoryVisibility: "hidden" })
-  return { as, personId, actor }
+  return { as, personId, actor, authUserId, sessionId }
 }
 
 /** L'équipement réel, puis les passages planifiés qu'il déclenche (l'animation, puis la diffusion vers les fils). */
@@ -452,5 +452,167 @@ describe("publications d'exemple — le catalogue entier", () => {
     for (const [actor, personId] of people) {
       expect((await postsByAuthor(t, personId)).length, actor).toBe(diasporaGaDemoCanPublish(actor) ? diasporaGaDemoPostsOf(actor).length : 0)
     }
+  })
+})
+
+describe("retrait ciblé des acteurs de démonstration", () => {
+  const retire = internal.modules.diaspora.demoAccounts.retireDemoActor
+
+  async function ordinaryMember(t: T, networkId: Id<"networks">) {
+    const member = await joinedActor(t, networkId, "belgique")
+    await t.mutation(components.betterAuth.adapter.updateOne, { input: {
+      model: "user", where: [{ field: "_id", value: member.authUserId }], update: { email: "membre@example.test" },
+    } })
+    await t.run(async ctx => {
+      const membership = await ctx.db.query("networkMemberships").withIndex("by_network_and_person",
+        q => q.eq("networkId", networkId).eq("personId", member.personId)).unique()
+      await ctx.db.patch(present(membership, "adhésion")._id, { status: "declaree" })
+    })
+    return member
+  }
+
+  it("simule, protège les discussions mixtes et supprime les seuls gestes de l’acteur dans le réseau", async () => {
+    const { t, diasporaGa } = await fixture()
+    const actor = await joinedActor(t, diasporaGa, "declare")
+    await equip(t, actor.as, "declare")
+    const member = await ordinaryMember(t, diasporaGa)
+    const mixed = present(await demoPostOf(t, actor.personId, entryOf("declare:arrivee")), "publication")
+    const postRead = () => member.as.query(api.modules.posts.posts.getPost, { networkId: diasporaGa, postId: mixed._id })
+    const scope = { networkId: diasporaGa, postId: mixed._id }
+    const original = await t.mutation(retire, { actor: "declare" })
+    expect(original.posts).toBeGreaterThan(0)
+    expect(original.membership).toBe(true)
+    expect(await postRead()).toMatchObject({ body: mixed.body })
+    await member.as.mutation(api.modules.engagement.engagement.comment, { ...scope, body: "Ma contribution réelle" })
+    await expect(t.mutation(retire, { actor: "declare", applyPreview: original.preview })).rejects.toThrow("fresh")
+    const { postId } = await member.as.mutation(api.modules.posts.posts.publish, { networkId: diasporaGa, body: "Actualité locale", reach: "diaspora" })
+    const memberScope = { networkId: diasporaGa, postId }
+    await actor.as.mutation(api.modules.engagement.engagement.toggleReaction, { ...memberScope, kind: "like" })
+    const simple = await actor.as.mutation(api.modules.engagement.engagement.comment, { ...memberScope, body: "Commentaire de démo" })
+    const rootComment = await actor.as.mutation(api.modules.engagement.engagement.comment, { ...memberScope, body: "Discussion engagée" })
+    const reply = await member.as.mutation(api.modules.engagement.engagement.comment, { ...memberScope, parentCommentId: rootComment.commentId, body: "Réponse d’un membre" })
+    await t.run(async ctx => {
+      const membership = await ctx.db.query("networkMemberships").withIndex("by_network_and_person",
+        q => q.eq("networkId", diasporaGa).eq("personId", actor.personId)).unique()
+      await ctx.db.patch(present(membership, "adhésion")._id, { role: "network_moderator" })
+    })
+    const roleEntries = () => t.run(async ctx => (await ctx.db.query("engineAudit").collect())
+      .filter(row => row.networkId === diasporaGa && row.action === "membership.role_set" && row.subjectId === actor.personId))
+    const preview = await t.mutation(retire, { actor: "declare" })
+    expect(await roleEntries()).toHaveLength(0)
+    expect(preview).toMatchObject({ membership: false, membershipRetained: true, retainedPosts: 1,
+      comments: 1, retainedComments: 1, reactions: 1, sessions: 1, applied: false })
+    expect(await t.mutation(retire, { actor: "declare", applyPreview: preview.preview })).toMatchObject({ applied: true })
+    expect(await postRead()).toMatchObject({ body: mixed.body, commentCount: 1 })
+    const comments = await member.as.query(api.modules.engagement.engagement.paginateComments, { ...memberScope, paginationOpts: { cursor: null, numItems: 20 } })
+    expect(comments.page).toEqual([expect.objectContaining({ commentId: rootComment.commentId, replies: [expect.objectContaining({ commentId: reply.commentId })] })])
+    expect(await t.run(ctx => ctx.db.get(simple.commentId))).toMatchObject({ status: "removed" })
+    expect(await t.run(ctx => readReactionCounts(ctx, postId))).toMatchObject({ total: 0 })
+    expect(await t.query(components.betterAuth.adapter.findOne, { model: "session", where: [{ field: "_id", value: actor.sessionId }] })).toBeNull()
+    expect(await t.query(components.betterAuth.adapter.findOne, { model: "session", where: [{ field: "_id", value: member.sessionId }] })).not.toBeNull()
+    const replay = await t.mutation(retire, { actor: "declare" })
+    expect(replay).toMatchObject({ posts: 0, comments: 0, reactions: 0, sessions: 0, membership: false })
+    await t.mutation(retire, { actor: "declare", applyPreview: replay.preview })
+    expect(await roleEntries()).toEqual([expect.objectContaining({
+      capacity: "system", subjectTable: "persons",
+      details: { from: "network_moderator", to: "member", origin: "diaspora_demo_retirement" },
+    })])
+    expect(await t.mutation(retire, { actor: "declare" })).toEqual(replay)
+  })
+
+  it("conserve une page partagée et refuse de toucher une adresse non vérifiée", async () => {
+    const { t, diasporaGa } = await fixture()
+    const actor = await joinedActor(t, diasporaGa, "entreprise")
+    const { pageId } = await equip(t, actor.as, "entreprise")
+    const page = present(pageId, "page")
+    const member = await ordinaryMember(t, diasporaGa)
+    const solo = await t.mutation(retire, { actor: "entreprise" })
+    expect(solo.page).toBe(true)
+    await t.run(ctx => ctx.db.insert("pageSignatories", { networkId: diasporaGa, pageId: page, personId: member.personId,
+      role: "admin", acceptedAt: Date.now(), createdAt: Date.now(), updatedAt: Date.now() }))
+    await expect(t.mutation(retire, { actor: "entreprise", applyPreview: solo.preview })).rejects.toThrow("fresh")
+    await t.mutation(components.betterAuth.adapter.updateOne, { input: { model: "user", where: [{ field: "_id", value: actor.authUserId }], update: { emailVerified: false } } })
+    expect(await t.mutation(retire, { actor: "entreprise" })).toMatchObject({ membership: false, posts: 0, page: false, sessions: 0 })
+    await t.mutation(components.betterAuth.adapter.updateOne, { input: { model: "user", where: [{ field: "_id", value: actor.authUserId }], update: { emailVerified: true } } })
+    const shared = await t.mutation(retire, { actor: "entreprise" })
+    expect(shared).toMatchObject({ membership: true, page: false, sharedPageRetained: true })
+    await t.mutation(retire, { actor: "entreprise", applyPreview: shared.preview })
+    expect(await t.run(ctx => ctx.db.get(page))).toMatchObject({ status: "active" })
+    expect(await t.mutation(retire, { actor: "entreprise" })).toMatchObject({ membership: false, posts: 0, sessions: 0 })
+  })
+
+  it("deux passes sur les acteurs retirent un fil qui ne contenait que leurs interactions", async () => {
+    const { t, diasporaGa } = await fixture()
+    const author = await joinedActor(t, diasporaGa, "declare")
+    const other = await joinedActor(t, diasporaGa, "fondateur")
+    await equip(t, author.as, "declare")
+    await equip(t, other.as, "fondateur")
+    const mixed = present(await demoPostOf(t, author.personId, entryOf("declare:arrivee")), "publication")
+    expect(await rootCommentsOf(t, mixed._id)).toHaveLength(1)
+    for (const actor of ["declare", "fondateur", "declare", "fondateur"] as const) {
+      const plan = await t.mutation(retire, { actor })
+      await t.mutation(retire, { actor, applyPreview: plan.preview })
+    }
+    expect(await t.run(ctx => ctx.db.get(mixed._id))).toMatchObject({ status: "removed" })
+    for (const actor of ["declare", "fondateur"] as const) {
+      expect(await t.mutation(retire, { actor })).toMatchObject({ posts: 0, reactions: 0, comments: 0, membership: false, membershipRetained: false })
+    }
+  })
+
+  it("parcourt une activité supérieure au lot sans fermer prématurément la discussion d’un tiers", async () => {
+    const { t, diasporaGa } = await fixture()
+    const actor = await joinedActor(t, diasporaGa, "declare")
+    await equip(t, actor.as, "declare")
+    const member = await ordinaryMember(t, diasporaGa)
+    const model = present(await demoPostOf(t, actor.personId, entryOf("declare:arrivee")), "publication")
+    const { _id, _creationTime, ...fields } = model
+    const recent = await t.run(async ctx => {
+      let last = _id
+      for (let index = 0; index < 37; index++) last = await ctx.db.insert("posts", {
+        ...fields, idempotencyKey: `recette-volume-${index}`, publishedAt: fields.publishedAt + index + 1,
+      })
+      return last
+    })
+    await member.as.mutation(api.modules.engagement.engagement.comment, { networkId: diasporaGa, postId: recent, body: "Je conserve cette conversation." })
+    let plan = await t.mutation(retire, { actor: "declare" })
+    let previous: NonNullable<typeof plan.next> | undefined
+    let removed = 0
+    for (let pass = 0; pass < 10; pass++) {
+      const start = pass === 0 ? undefined : previous
+      const result = await t.mutation(retire, { actor: "declare", start, applyPreview: plan.preview })
+      removed += result.posts
+      if (!result.next) break
+      previous = result.next
+      plan = await t.mutation(retire, { actor: "declare", start: previous })
+    }
+    expect(removed).toBeGreaterThan(32)
+    const read = await member.as.query(api.modules.posts.posts.getPost, { networkId: diasporaGa, postId: recent })
+    expect(read).toMatchObject({ commentCount: 1 })
+    expect(await t.mutation(retire, { actor: "declare" })).toMatchObject({ next: null, membershipRetained: true, posts: 0, retainedPosts: 1 })
+  })
+
+  it("ne révoque que les identifiants de session du lot confirmé", async () => {
+    const { t, diasporaGa } = await fixture()
+    const actor = await joinedActor(t, diasporaGa, "declare")
+    for (let index = 0; index < 100; index++) await createTestSession(t, actor.authUserId)
+    const preview = await t.mutation(retire, { actor: "declare" })
+    expect(preview).toMatchObject({ sessions: 100, moreSessions: true })
+    const latest = await createTestSession(t, actor.authUserId)
+    await t.mutation(retire, { actor: "declare", applyPreview: preview.preview })
+    expect(await t.query(components.betterAuth.adapter.findOne, { model: "session", where: [{ field: "_id", value: latest }] })).not.toBeNull()
+    const next = await t.mutation(retire, { actor: "declare" })
+    expect(next).toMatchObject({ sessions: 2, moreSessions: false })
+    await t.mutation(retire, { actor: "declare", applyPreview: next.preview })
+    expect(await t.mutation(retire, { actor: "declare" })).toMatchObject({ sessions: 0, moreSessions: false })
+  })
+
+  it("conserve la session et le rôle du dernier administrateur si le départ est refusé", async () => {
+    const { t, diasporaGa } = await fixture()
+    const admin = await joinedActor(t, diasporaGa, "administrateur")
+    await equip(t, admin.as, "administrateur")
+    const preview = await t.mutation(retire, { actor: "administrateur" })
+    await expect(t.mutation(retire, { actor: "administrateur", applyPreview: preview.preview })).rejects.toThrow()
+    expect(await t.mutation(retire, { actor: "administrateur" })).toEqual(preview)
+    expect(await t.query(components.betterAuth.adapter.findOne, { model: "session", where: [{ field: "_id", value: admin.sessionId }] })).not.toBeNull()
   })
 })

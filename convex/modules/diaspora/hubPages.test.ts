@@ -172,9 +172,9 @@ describe("listCountryPages — les pages publiées et lisibles d'un pays", () =>
     expect(view.more).toEqual({ officialPages: true, associations: true, companies: true })
   })
 
-  it("refuse indistinctement un pays hors diaspora, un autre réseau et une personne hors du réseau", async () => {
+  it("le Gabon est accessible ; un pays inconnu, un autre réseau et un non-membre restent refusés", async () => {
     const { t, root, network, reader } = await fixture()
-    expect(await codeOf(reader.as.query(HP.listCountryPages, { networkId: network, country: "GA" }))).toBe("notFound")
+    expect((await reader.as.query(HP.listCountryPages, { networkId: network, country: "GA" })).associations).toEqual([])
     expect(await codeOf(reader.as.query(HP.listCountryPages, { networkId: network, country: "ZZ" }))).toBe("notFound")
     expect(await codeOf(reader.as.query(HP.listCountryPages, { networkId: root, country: "FR" }))).toBe("notFound")
     const outsider = t.withIdentity({ subject: "auth-dehors" })
@@ -278,7 +278,7 @@ describe("compteurs des pages du hub — matérialisés par le passage nocturne"
 
     const rows = await t.run(async (ctx) => ctx.db.query("countryHubs").withIndex("by_network_and_country", (q) => q.eq("networkId", network)).take(10))
     const byCountry = Object.fromEntries(rows.map((row) => [row.country, { associations: row.associations, companies: row.companies }]))
-    expect(byCountry).toEqual({ FR: { associations: 2, companies: 1 }, BE: { associations: 0, companies: 1 } })
+    expect(byCountry).toEqual({ FR: { associations: 2, companies: 1 }, BE: { associations: 0, companies: 1 }, GA: { associations: 0, companies: 1 } })
 
     const after = await reader.as.query(api.modules.diaspora.hubs.getCountryHub, { networkId: network, country: "FR" })
     // Le seuil anti-réidentification ne concerne que les membres : les pages se publient telles quelles.

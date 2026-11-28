@@ -7,6 +7,7 @@
  * la messagerie dans les deux sens, à l'ouverture comme à la lecture.
  */
 import type { CounterpartLabel } from "@antsia/social-contracts/counterpart"
+import { paginationOptsValidator, type PaginationResult } from "convex/server"
 import { v } from "convex/values"
 
 import type { Doc, Id } from "../../_generated/dataModel"
@@ -17,7 +18,8 @@ import { enforceRateLimit } from "../../lib/rateLimit"
 import { isBlockedBetween, isConnectedTo } from "../graph/graph"
 import { findPublishedPersonByHandle, miniProfileCache } from "../people/miniProfile"
 import { attachmentFileValidator } from "./attachmentStorage"
-import { counterpartOf, isPersonalMessageServedTo, readReceiptsServed } from "./participation"
+import { inboxShelfValidator, type InboxShelf } from "./tables"
+import { requireThread, counterpartOf, isPersonalMessageServedTo, readReceiptsServed } from "./participation"
 import { findPersonalThread, openOrContinuePersonalThread, otherParticipant, readPersonalUnreadTotal, unreadForThread } from "./threads"
 
 type ReadCtx = Pick<QueryCtx, "db">
@@ -58,6 +60,8 @@ function lastMessageKindOf(message: Doc<"personalMessages">): LastMessageKind {
 }
 
 export type ThreadDto = {
+  shelf?: InboxShelf
+  muted?: boolean
   threadId: Id<"personalThreads">
   lastMessageAt: number | null
   /** Le texte de l'aperçu (tronqué) ; `null` pour un vocal ou des pièces seules. */
@@ -115,7 +119,12 @@ async function projectThread(ctx: QueryCtx, thread: Doc<"personalThreads">, me: 
       .first(),
     previewServedTo(ctx, thread, me),
   ])
+  const low = thread.personLow === me
+  const shelf = low ? thread.shelfLow : thread.shelfHigh
+  const muted = low ? thread.mutedLow : thread.mutedHigh
   return {
+    ...(shelf ? { shelf } : {}),
+    ...(muted ? { muted: true } : {}),
     threadId: thread._id,
     lastMessageAt: thread.lastMessageAt ?? null,
     lastMessageText: served ? (thread.lastMessageText ?? null) : null,
@@ -319,5 +328,47 @@ export const startThreadWithHandle = networkMutation({
       ...(args.idempotencyKey !== undefined ? { idempotencyKey: args.idempotencyKey } : {}),
       ...(args.initialAttachmentFiles !== undefined ? { initialAttachmentFiles: args.initialAttachmentFiles } : {}),
     })
+  },
+})
+
+/** Participant-private inbox filing, independent of the shared thread's lifecycle. */
+export const setMyThreadPreference = networkMutation({
+  minStatus: "en_attente",
+  args: {
+    threadId: v.id("personalThreads"),
+    change: v.union(v.object({ shelf: v.union(inboxShelfValidator, v.null()) }), v.object({ muted: v.boolean() })),
+  },
+  returns: v.null(),
+  handler: async (ctx, { threadId, change }) => {
+    const { thread } = await requireThread(ctx, ctx.networkId, threadId, ctx.person._id)
+    const low = thread.personLow === ctx.person._id
+    if ("shelf" in change) {
+      await ctx.db.patch(threadId, { [low ? "shelfLow" : "shelfHigh"]: change.shelf ?? undefined })
+    } else {
+      await ctx.db.patch(threadId, { [low ? "mutedLow" : "mutedHigh"]: change.muted || undefined })
+    }
+    return null
+  },
+})
+
+/** Both indexed participant ranges can be paged independently, even for a rarely used thread. */
+export const paginateMyFiledThreads = networkQuery({
+  args: { side: v.union(v.literal("low"), v.literal("high")), shelf: v.optional(inboxShelfValidator), paginationOpts: paginationOptsValidator },
+  handler: async (ctx, args): Promise<PaginationResult<ThreadDto>> => {
+    const me = ctx.person._id
+    const query = ctx.db.query("personalThreads")
+    const range = args.side === "low"
+      ? query.withIndex("by_network_low_shelf_activity", q => q.eq("networkId", ctx.networkId).eq("personLow", me).eq("shelfLow", args.shelf))
+      : query.withIndex("by_network_high_shelf_activity", q => q.eq("networkId", ctx.networkId).eq("personHigh", me).eq("shelfHigh", args.shelf))
+    const result = await range.order("desc").paginate({ ...args.paginationOpts, numItems: Math.min(THREADS_MAX, Math.max(1, args.paginationOpts.numItems)) })
+    const page: ThreadDto[] = []
+    const profileOf = miniProfileCache(ctx)
+    for (const thread of result.page) {
+      const other = otherParticipant(thread, me)
+      if (!isInInbox(thread) || other === null || await isBlockedBetween(ctx, me, other)) continue
+      const dto = await projectThread(ctx, thread, me, profileOf)
+      if (dto) page.push(dto)
+    }
+    return { ...result, page }
   },
 })

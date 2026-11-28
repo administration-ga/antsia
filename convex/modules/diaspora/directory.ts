@@ -125,11 +125,12 @@ export async function listedMemberFor(
     },
   )
   if (!listed) return null
+  const canReadMemberFields = reader.status === "declaree" || reader.status === "verifiee"
   const projection = projectFacet(facet, {
     isSelf,
     isConnection: !isSelf && (await isConnectedTo(ctx, network._id, reader.personId, personId)),
-    isSameCountryMember: reader.facet.countryOfResidence === facet.countryOfResidence,
-    isActiveMember: true,
+    isSameCountryMember: canReadMemberFields && reader.facet.countryOfResidence === facet.countryOfResidence,
+    isActiveMember: canReadMemberFields,
   })
   return { personId, facet, projection, status }
 }
@@ -163,7 +164,7 @@ function directoryEntry(member: ListedMember, profile: PersonMiniProfile): Direc
  * juge sur la facette projetée pour le lecteur (`matchesDirectoryCountry`).
  */
 export const searchMembers = networkQuery({
-  minStatus: "declaree",
+  minStatus: "en_attente",
   args: { query: v.string(), country: v.optional(v.string()) },
   returns: v.array(directoryEntryValidator),
   handler: async (ctx, args) => {
@@ -275,7 +276,7 @@ function browseRows(ctx: QueryCtx, networkId: Id<"networks">, filters: Directory
  * confiance (« vérifiés seulement ») est celle calculée à la lecture.
  */
 export const browseMembers = networkQuery({
-  minStatus: "declaree",
+  minStatus: "en_attente",
   args: {
     country: v.string(),
     city: v.optional(v.string()),

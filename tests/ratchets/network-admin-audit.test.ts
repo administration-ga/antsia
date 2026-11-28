@@ -7,7 +7,7 @@
  * COMMENT IL LIT : par l'arbre syntaxique — chaque appel `networkAdminMutation({…})` exporté, sous
  * son nom ou sous un alias d'import, doit contenir, dans sa définition même, un appel `appendAudit(`.
  * Une aide intermédiaire ne compte pas : la ligne d'audit se voit à la lecture de la décision. Une
- * exception VÉRIFIÉE se déclare dans `EXCEPTIONS` (`fichier#export`), avec sa raison. Vide.
+ * exception VÉRIFIÉE se déclare dans `EXCEPTIONS` (`fichier#export`), avec sa raison.
  */
 import ts from "typescript"
 import { describe, expect, it } from "vitest"
@@ -15,7 +15,11 @@ import { describe, expect, it } from "vitest"
 import { exportedCalls, importedNames } from "./lib/detectors"
 import { type Finding, formatFindings, isTestFile, lineOf, listFiles, parseSource, readRepoFile } from "./lib/source-files"
 
-const EXCEPTIONS: Record<string, string> = {}
+const EXCEPTIONS: Record<string, string> = {
+  // Compatibilité des anciens clients. Le handler ne reçoit que le réseau, sans capacité d’écriture.
+  // networkAdmin.test.ts vérifie l'absence de changement de réglage, d'historique et d'audit.
+  "convex/modules/diaspora/networkSettings.ts#setOpenCountry": "Lecture de la couverture ISO, exposée à l’ancienne adresse de mutation.",
+}
 
 /** Les mutations de l'administrateur du réseau exportées d'un fichier (alias d'import résolus). */
 function networkAdminMutations(file: string, text: string) {

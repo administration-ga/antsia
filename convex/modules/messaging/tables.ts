@@ -8,6 +8,9 @@ import { v } from "convex/values"
 
 import { literals } from "../../lib/validators"
 
+export const inboxShelfValidator = v.union(v.literal("pinned"), v.literal("archived"))
+export type InboxShelf = "pinned" | "archived"
+
 export const messageReactionKindValidator = literals(MESSAGE_REACTION_KINDS)
 
 /** Décomptes dénormalisés : six genres fermés, un validateur précis. */
@@ -42,6 +45,10 @@ export const messagingTables = {
     personLow: v.id("persons"),
     personHigh: v.id("persons"),
     initiatedByPersonId: v.id("persons"),
+    shelfLow: v.optional(inboxShelfValidator),
+    shelfHigh: v.optional(inboxShelfValidator),
+    mutedLow: v.optional(v.boolean()),
+    mutedHigh: v.optional(v.boolean()),
     /** Aperçu dénormalisé : le texte (tronqué) du dernier message, sa nature, son auteur. */
     lastMessageText: v.optional(v.string()),
     lastMessageKind: v.optional(lastMessageKindValidator),
@@ -55,6 +62,8 @@ export const messagingTables = {
     createdAt: v.number(),
   })
     // « Existe-t-il un fil entre ces deux personnes dans ce réseau ? »
+    .index("by_network_low_shelf_activity", ["networkId", "personLow", "shelfLow", "lastMessageAt"])
+    .index("by_network_high_shelf_activity", ["networkId", "personHigh", "shelfHigh", "lastMessageAt"])
     .index("by_network_pair", ["networkId", "personLow", "personHigh"])
     // Les fils d'une paire, tous réseaux confondus (blocage : la pastille suit).
     .index("by_pair", ["personLow", "personHigh"])

@@ -107,7 +107,14 @@ export async function writeNetworkFacet(
   }
   const values = facet?.values ?? {}
   const visibilities = facet?.visibilities ?? {}
-  const errors = validateFacetValues(network.facetSchema, values)
+  // Older DIASPORA networks stored an exclusion for GA in their residence schema.
+  // Keep existing accounts functional during the rollout of openAllCountries.
+  const schema = network.managedBy === "diaspora" && network.slug === "diaspora-ga" && values.countryOfResidence === "GA"
+    ? { ...network.facetSchema, fields: network.facetSchema.fields.map(field =>
+        field.key === "countryOfResidence" && field.excludedValues?.includes("GA")
+          ? { ...field, excludedValues: field.excludedValues.filter(code => code !== "GA") } : field) }
+    : network.facetSchema
+  const errors = validateFacetValues(schema, values)
   if (errors.length > 0) fail("invalidArgument", { field: `facet.${errors[0]?.key ?? ""}` })
   const known = new Set(network.facetSchema.fields.map((field) => field.key))
   if (Object.keys(visibilities).some((key) => !known.has(key))) fail("invalidArgument", { field: "visibilities" })

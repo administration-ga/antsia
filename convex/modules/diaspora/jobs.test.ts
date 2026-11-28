@@ -340,7 +340,7 @@ describe("offres d'emploi — écrire et lire", () => {
   it.each([
     [{ title: "Ab" }, "job_title_too_short"],
     [{ description: "Appelez le 06 12 34 56 78 pour postuler dès aujourd'hui." }, "job_contact_details_forbidden"],
-    [{ country: "GA" }, "job_country_is_home"],
+    [{ country: "ZZ" }, "job_country_unknown"],
     [{ payRange: { minMinor: 3000, maxMinor: 2000, currency: "EUR", period: "month" as const } }, "job_pay_range_invalid"],
     [{ payRange: { minMinor: 100, maxMinor: 200, currency: "BTC", period: "month" as const } }, "currency_invalid"],
     [{ closesAt: NOW - 1 }, "job_deadline_invalid"],
@@ -374,7 +374,7 @@ describe("offres d'emploi — écrire et lire", () => {
     expect(await search({ contract: "internship" })).toEqual([lyonStage])
     expect(await search({ workMode: "remote" })).toEqual([parisRemote])
     expect(await search({ query: "graphiste" })).toEqual([parisRemote])
-    expect(await failure(reader.as.query(J.searchJobOffers, { networkId, country: "GA", paginationOpts: FIRST }))).toEqual({ code: "invalidArgument", appRule: "job_country_is_home" })
+    expect(await failure(reader.as.query(J.searchJobOffers, { networkId, country: "ZZ", paginationOpts: FIRST }))).toEqual({ code: "invalidArgument", appRule: "job_country_unknown" })
     expect(await failure(reader.as.query(J.searchJobOffers, { networkId, contract: "benevolat", paginationOpts: FIRST }))).toEqual({ code: "invalidArgument", appRule: "job_contract_invalid" })
     // Une page plus grande que le plafond est ramenée au plafond.
     expect((await reader.as.query(J.searchJobOffers, { networkId, paginationOpts: { numItems: 0, cursor: null } })).page).toHaveLength(1)
@@ -607,7 +607,7 @@ describe("profils de talent — opt-in, révocables, recherche bornée", () => {
     const { networkId, reader } = await fixture()
     expect(await failure(reader.as.mutation(J.setMyTalentProfileStatus, { networkId, status: "hidden", expectedVersion: 1 }))).toMatchObject({ code: "notFound" })
     expect(await failure(reader.as.mutation(J.saveMyTalentProfile, { networkId, ...TALENT, skills: [] }))).toEqual({ code: "invalidArgument", appRule: "talent_skills_required" })
-    expect(await failure(reader.as.mutation(J.saveMyTalentProfile, { networkId, ...TALENT, country: "GA" }))).toEqual({ code: "invalidArgument", appRule: "job_country_is_home" })
+    expect(await failure(reader.as.mutation(J.saveMyTalentProfile, { networkId, ...TALENT, country: "ZZ" }))).toEqual({ code: "invalidArgument", appRule: "job_country_unknown" })
     expect(await reader.as.query(J.myTalentProfile, { networkId })).toBeNull()
   })
 

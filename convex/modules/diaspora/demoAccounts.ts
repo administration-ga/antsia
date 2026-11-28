@@ -40,11 +40,8 @@
  * profil publié), l'équipement l'admet à la racine par la vraie règle
  * d'admission et n'écrit rien dans DIASPORA.GA.
  *
- * Idempotent : rappelé, il ne recrée rien. Garde : `demoAccountsAllowed` — la
- * double garde du développement local (variable `ANTSIA_DEV_TOOLS` ET backend
- * local), ou le déploiement de démonstration déclaré par son nom même
- * (`ANTSIA_DEMO_DEPLOYMENT`), comme les comptes d'ANTSIA. Ailleurs, le catalogue
- * est vide et la mutation refuse : aucune production ne peut s'en servir.
+ * L’équipement est idempotent et réservé au développement local explicitement activé.
+ * Tout déploiement hébergé renvoie un catalogue vide et refuse l’équipement.
  *
  * CH-817 E3 — deux verrous de plus, qui resserrent sans rien ouvrir :
  * - la PORTE (`platform/demoGate.ts`) : armée, le catalogue est vide sans session de
@@ -95,15 +92,20 @@ import { blockPair } from "../graph/connections"
 import { ownBlockIntent } from "../graph/graph"
 import { moderateContentWrite } from "../moderation/policy"
 import { assertPageHandleFree, isPageOnRoot, pageSearchText } from "../pages/access"
-import { admitToNetwork, setMembershipStatus } from "../people/admission"
+import { applyPageStatus } from "../pages/admin"
+import { markCommentRemoved, markPostRemoved } from "../posts/contentRemoval"
+import { applyReactionDelta, countComments, countShares, readReactionCounts } from "../posts/counters"
+import { assertLeaveKeepsNetworkAdmin, setMembershipRole } from "../people/networkRoles"
+import { admitToNetwork, setDirectoryListed, setMembershipStatus } from "../people/admission"
 import { syncIdentityForPerson } from "../people/identity"
 import { suspendRootMembership } from "../people/memberships"
 import { hasStrongIdentityFor, liveIdentityLinks } from "../people/persons"
+import { appendAudit } from "../platform/audit"
 import { demoGateAdmission } from "../platform/devTools"
 import { demoGateScopeValidator } from "../platform/tables"
 import { refreshReaderContexts } from "../posts/feedMaterialization"
 import { sha256Hex } from "./attestation"
-import { activeFoundingAdmissionOf, activeSponsorshipOf, applyDerivedStatus, effectiveStatusIn, isDiasporaNetwork, membershipGrounds } from "./facts"
+import { activeFoundingAdmissionOf, activeSponsorshipOf, applyDerivedStatus, effectiveStatusIn, endFoundingAdmissionOnDeparture, endSponsorshipOnDeparture, isDiasporaNetwork, membershipGrounds, privacyOf, sponsorCodeOf, writePrivacy } from "./facts"
 import { admitFounder } from "./founders"
 import { hubRow } from "./hubs"
 
@@ -151,7 +153,7 @@ export async function offeredDemoActors(ctx: Pick<QueryCtx, "db">, network: Doc<
 }
 
 /**
- * @publicProjection Développement local ou démonstration déclarée seulement : le
+ * @publicProjection Développement local explicitement activé : le
  * catalogue des comptes de démonstration de DIASPORA.GA (acteur et adresse
  * réservée), vide partout ailleurs, production comprise. CH-817 E3 : seuls les
  * acteurs PROPOSÉS par la règle (modules et pays ouverts, recette en local) ; porte
@@ -162,7 +164,7 @@ export const catalogue = query({
   args: { gateToken: v.optional(v.string()) },
   returns: v.array(v.object({ actor: demoActorValidator, email: v.string(), gateExpiresAt: v.optional(v.number()) })),
   handler: async (ctx, { gateToken }) => {
-    if (!demoAccountsAllowed()) return []
+    if (!devToolsAllowed()) return []
     const admission = await demoGateAdmission(ctx, "diaspora-ga", gateToken)
     if (!admission.admitted) return []
     const network = await diasporaGaNetwork(ctx)
@@ -570,7 +572,7 @@ export const equipMyDemoAccount = personMutation({
     pageCreated: v.boolean(),
   }),
   handler: async (ctx, { actor }) => {
-    if (!demoAccountsAllowed()) return fail("policyRefused")
+    if (!devToolsAllowed()) return fail("policyRefused")
     const person = ctx.person
     if ((await verifiedEmailOf(ctx, person.authUserId)) !== diasporaGaDemoEmailOf(actor)) return fail("policyRefused")
     const spec = DIASPORA_GA_DEMO_ACTOR_SPECS[actor]
@@ -639,5 +641,202 @@ export const equipMyDemoAccount = personMutation({
     // CH-817 E4 : ses publications d'exemple, ses réactions et son commentaire, écrits après cette transaction.
     await ctx.scheduler.runAfter(0, internal.modules.diaspora.demoContent.animateActor, { actor })
     return { actor, status: final.status, role: final.membership.role, pageId: page?.pageId ?? null, pageCreated: page?.created ?? false }
+  },
+})
+
+/** Un seul inventaire paginé par mutation, dans l’ordre réactions, commentaires, publications. */
+const RETIREMENT_BATCH = 32
+const retirementCursor = v.object({
+  collection: v.union(v.literal("reactions"), v.literal("comments"), v.literal("posts")),
+  cursor: v.union(v.string(), v.null()),
+})
+type RetirementCursor = { collection: "reactions" | "comments" | "posts"; cursor: string | null }
+
+async function retirementContent(ctx: MutationCtx, networkId: Id<"networks">, personId: Id<"persons">, start?: RetirementCursor) {
+  const postsQuery = () => ctx.db.query("posts").withIndex("by_network_author_status_publishedAt", q =>
+    q.eq("networkId", networkId).eq("authorPersonId", personId).eq("status", "published"))
+  const commentsQuery = () => ctx.db.query("postComments").withIndex("by_authorPersonId", q => q.eq("authorPersonId", personId))
+    .filter(q => q.and(q.eq(q.field("networkId"), networkId), q.eq(q.field("status"), "published")))
+  const reactionsQuery = () => ctx.db.query("postReactions").withIndex("by_person", q => q.eq("personId", personId))
+    .filter(q => q.eq(q.field("networkId"), networkId))
+
+  let authored: Doc<"posts">[] = []
+  let comments: Doc<"postComments">[] = []
+  let reactions: Doc<"postReactions">[] = []
+  let batch = start
+  let next: RetirementCursor | null = null
+  if (!batch) {
+    const initial = await Promise.all([
+      postsQuery().take(RETIREMENT_BATCH + 1), commentsQuery().take(RETIREMENT_BATCH + 1), reactionsQuery().take(RETIREMENT_BATCH + 1),
+    ])
+    authored = initial[0]
+    comments = initial[1]
+    reactions = initial[2]
+    if (initial.some(rows => rows.length > RETIREMENT_BATCH)) {
+      batch = { collection: "reactions", cursor: null }
+      authored = []
+      comments = []
+      reactions = []
+    }
+  }
+  if (batch) {
+    const opts = { numItems: RETIREMENT_BATCH, cursor: batch.cursor }
+    if (batch.collection === "reactions") {
+      const page = await reactionsQuery().paginate(opts)
+      reactions = page.page
+      next = page.isDone ? { collection: "comments", cursor: null } : { collection: "reactions", cursor: page.continueCursor }
+    } else if (batch.collection === "comments") {
+      const page = await commentsQuery().paginate(opts)
+      comments = page.page
+      next = page.isDone ? { collection: "posts", cursor: null } : { collection: "comments", cursor: page.continueCursor }
+    } else {
+      const page = await postsQuery().paginate(opts)
+      authored = page.page
+      next = page.isDone ? null : { collection: "posts", cursor: page.continueCursor }
+    }
+  }
+  const removableComments: Doc<"postComments">[] = []
+  const retainedComments: Doc<"postComments">[] = []
+  for (const comment of comments) {
+    // markCommentRemoved retire une racine ET ses réponses. Une réponse tierce protège la racine.
+    const selectedReplies = new Set(comments.filter(row => row.parentCommentId === comment._id).map(row => row._id))
+    const replies = comment.parentCommentId ? [] : await ctx.db.query("postComments")
+      .withIndex("by_post_parent_status_createdAt", q => q.eq("postId", comment.postId).eq("parentCommentId", comment._id).eq("status", "published"))
+      .take(selectedReplies.size + 1)
+    if (replies.some(row => !selectedReplies.has(row._id))) retainedComments.push(comment)
+    else removableComments.push(comment)
+  }
+  const removablePosts: Doc<"posts">[] = []
+  const retainedPosts: Doc<"posts">[] = []
+  const threadState = []
+  for (const post of authored) {
+    const [commentsCount, shares, reactionsCount, otherComment, otherReaction] = await Promise.all([
+      countComments(ctx, post._id), countShares(ctx, post._id), readReactionCounts(ctx, post._id),
+      ctx.db.query("postComments").withIndex("by_post_parent_status_createdAt", q => q.eq("postId", post._id))
+        .filter(q => q.and(q.eq(q.field("status"), "published"), q.neq(q.field("authorPersonId"), personId))).first(),
+      ctx.db.query("postReactions").withIndex("by_post_and_person", q => q.eq("postId", post._id))
+        .filter(q => q.neq(q.field("personId"), personId)).first(),
+    ])
+    threadState.push([post._id, post.updatedAt, commentsCount, shares, reactionsCount.total, otherComment?._id, otherReaction?._id])
+    if (shares || otherComment || otherReaction) retainedPosts.push(post)
+    else removablePosts.push(post)
+  }
+  const removedIds = new Set(removablePosts.map(post => post._id))
+  // Le curseur peut reprendre au milieu d’un auteur : le départ dépend de TOUTES ses publications.
+  const personal = await postsQuery().filter(q => q.eq(q.field("pageId"), undefined)).take(removedIds.size + 1)
+  const retainsAuthor = personal.some(post => !removedIds.has(post._id))
+  return { removablePosts, retainedPosts, removableComments, retainedComments, reactions, threadState, retainsAuthor, next }
+
+}
+
+/**
+ * Retire un acteur réservé de DIASPORA. L'appel sans applyPreview est une simulation.
+ * Le jeton lie la confirmation au réseau, à la personne vérifiée et aux lignes relues.
+ * Le curseur suivant resimule le lot suivant. Après le passage de tous les acteurs, une nouvelle
+ * passe peut retirer les fils qui n’avaient pour participants que d’autres acteurs désormais retirés.
+ * Aucun message, fichier de stockage ou compte racine n’est effacé.
+ */
+export const retireDemoActor = internalMutation({
+  args: { actor: demoActorValidator, applyPreview: v.optional(v.string()), start: v.optional(retirementCursor) },
+  returns: v.object({
+    preview: v.string(), applied: v.boolean(), membership: v.boolean(), posts: v.number(),
+    page: v.boolean(), sharedPageRetained: v.boolean(), sessions: v.number(), moreSessions: v.boolean(),
+    comments: v.number(), reactions: v.number(), retainedPosts: v.number(), retainedComments: v.number(), membershipRetained: v.boolean(), next: v.union(retirementCursor, v.null()),
+  }),
+  handler: async (ctx, { actor, applyPreview, start }) => {
+    const network = await diasporaGaNetwork(ctx)
+    if (!network) throw new Error("DIASPORA network unavailable")
+    const email = diasporaGaDemoEmailOf(actor)
+    const user = await ctx.runQuery(components.betterAuth.adapter.findOne, {
+      model: "user", where: [{ field: "email", value: email }], select: ["_id", "email", "emailVerified"],
+    }) as { _id: string; email: string; emailVerified: boolean } | null
+    const verified = user?.emailVerified && user.email.trim().toLowerCase() === email ? user : null
+    const person = verified ? await ctx.db.query("persons")
+      .withIndex("by_authUserId", q => q.eq("authUserId", verified._id)).unique() : null
+    const sessions = verified ? await ctx.runQuery(components.betterAuth.adapter.findMany, {
+      model: "session", where: [{ field: "userId", value: verified._id }],
+      paginationOpts: { cursor: null, numItems: DEMO_SESSIONS_PER_ACCOUNT },
+    }) as { page: Array<{ _id: string }>; isDone: boolean } : null
+    const membership = person ? await getMembership(ctx, network._id, person._id) : null
+    const activity = person ? await retirementContent(ctx, network._id, person._id, start) : {
+      removablePosts: [], retainedPosts: [], removableComments: [], retainedComments: [], reactions: [], threadState: [], retainsAuthor: false, next: null,
+    }
+    // Les publications personnelles d’un membre parti deviennent illisibles, avec les réponses de tiers.
+    const membershipRetained = Boolean(membership && membership.status !== "partie" &&
+      (activity.next !== null || activity.retainsAuthor))
+    const leave = membership !== null && membership.status !== "partie" && !membershipRetained
+    const privacy = person ? await privacyOf(ctx, network._id, person._id) : null
+    const hideProfile = privacy !== null && (privacy.directoryVisibility !== "hidden" || privacy.guestProfile === true)
+    const [sponsorCode, sponsorship, founding] = leave && person ? await Promise.all([
+      sponsorCodeOf(ctx, network._id, person._id), activeSponsorshipOf(ctx, network._id, person._id), activeFoundingAdmissionOf(ctx, network._id, person._id),
+    ]) : [null, null, null]
+    const pageSpec = DIASPORA_GA_DEMO_ACTOR_SPECS[actor].page
+    const candidate = pageSpec && person ? await ctx.db.query("pages")
+      .withIndex("by_handle", q => q.eq("handle", pageSpec.handle)).unique() : null
+    const page = candidate?.networkId === network._id && candidate.createdByPersonId === person?._id &&
+      candidate.status === "active" ? candidate : null
+    const otherManager = page && person ? await ctx.db.query("pageSignatories")
+      .withIndex("by_page_person", q => q.eq("pageId", page._id)).filter(q => q.neq(q.field("personId"), person._id)).first() : null
+    // Une autre signature, une publication tierce ou un service de la page exigent de garder son adresse active.
+    const pageRemoved = new Set(activity.removablePosts.filter(post => post.pageId === page?._id).map(post => post._id))
+    const pagePosts = page ? await ctx.db.query("posts").withIndex("by_network_page_status_publishedAt", q =>
+      q.eq("networkId", network._id).eq("pageId", page._id).eq("status", "published")).take(pageRemoved.size + 1) : []
+    const remainingPagePost = pagePosts.find(post => !pageRemoved.has(post._id))
+    const pageUsage = page && person ? await Promise.all([
+      ctx.db.query("pageFollows").withIndex("by_page_person", q => q.eq("pageId", page._id)).filter(q => q.neq(q.field("personId"), person._id)).first(),
+      ctx.db.query("liveSessions").withIndex("by_page_status", q => q.eq("pageId", page._id)).first(),
+      ctx.db.query("events").withIndex("by_page_idempotency", q => q.eq("organizerPageId", page._id)).first(),
+      ctx.db.query("shops").withIndex("by_page", q => q.eq("pageId", page._id)).first(),
+    ]) : []
+    const sharedPageRetained = Boolean(page && (otherManager || remainingPagePost || pageUsage.some(Boolean)))
+    const deactivate = page !== null && !sharedPageRetained
+    const sessionIds = (sessions?.page ?? []).map(session => session._id).sort()
+    const preview = await sha256Hex(JSON.stringify([network._id, actor, verified?._id, membership?._id, membership?.status,
+      membership?.role, membership?.directoryListed, hideProfile, leave, membershipRetained, sponsorCode?._id, sponsorship?._id, founding?._id, activity.threadState,
+      activity.removableComments.map(row => [row._id, row.updatedAt]), activity.retainedComments.map(row => row._id),
+      activity.reactions.map(row => [row._id, row.kind]), page?._id, deactivate, otherManager?._id,
+      pageUsage.map(row => row?._id), remainingPagePost?._id, sessionIds, sessions?.isDone, start, activity.next]))
+    if (applyPreview !== undefined && applyPreview !== preview) throw new Error("Review a fresh DIASPORA fixture preview")
+    if (applyPreview !== undefined) {
+      if (membership && person && (leave || membershipRetained)) await assertLeaveKeepsNetworkAdmin(ctx, network._id, person._id)
+      const now = Date.now()
+      for (const reaction of activity.reactions) {
+        await ctx.db.delete(reaction._id)
+        await applyReactionDelta(ctx, reaction.postId, reaction.personId, reaction.kind, -1)
+      }
+      // Les réponses sont retirées avant leurs racines pour ne jamais décompter une réponse deux fois.
+      for (const comment of activity.removableComments.filter(row => row.parentCommentId)) await markCommentRemoved(ctx, comment, now)
+      for (const comment of activity.removableComments.filter(row => !row.parentCommentId)) await markCommentRemoved(ctx, comment, now)
+      for (const post of activity.removablePosts) await markPostRemoved(ctx, post, now)
+      if (deactivate && page) await applyPageStatus(ctx, page, "inactive", now)
+      if (hideProfile && person) await writePrivacy(ctx, network._id, person._id, { directoryVisibility: "hidden", guestProfile: false })
+      if (leave && membership && person) {
+        if (sponsorCode) await ctx.db.delete(sponsorCode._id)
+        if (sponsorship) await endSponsorshipOnDeparture(ctx, network._id, person._id, now)
+        if (founding) await endFoundingAdmissionOnDeparture(ctx, network._id, person._id, now)
+        await setMembershipStatus(ctx, membership, "partie", { leftAt: now, directoryListed: false, sponsorPersonId: undefined })
+      }
+      if (membershipRetained && membership && person) {
+        if (membership.role !== "member") {
+          const change = await setMembershipRole(ctx, { network, personId: person._id, role: "member" })
+          if (change.changed) await appendAudit(ctx, {
+            action: "membership.role_set",
+            capacity: "system",
+            networkId: network._id,
+            subject: { table: "persons", id: change.personId },
+            details: { from: change.from, to: change.to, origin: "diaspora_demo_retirement" },
+            at: now,
+          })
+        }
+        if (membership.directoryListed) await setDirectoryListed(ctx, network._id, person._id, false)
+      }
+      for (const sessionId of sessionIds) await ctx.runMutation(components.betterAuth.adapter.deleteOne, {
+        input: { model: "session", where: [{ field: "_id", value: sessionId }] },
+      })
+    }
+    return { preview, applied: applyPreview !== undefined, membership: leave, posts: activity.removablePosts.length,
+      comments: activity.removableComments.length, reactions: activity.reactions.length, retainedPosts: activity.retainedPosts.length,
+      retainedComments: activity.retainedComments.length, membershipRetained, next: activity.next,
+      page: deactivate, sharedPageRetained, sessions: sessionIds.length, moreSessions: sessions?.isDone === false }
   },
 })

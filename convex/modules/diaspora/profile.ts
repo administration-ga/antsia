@@ -9,6 +9,7 @@ import { projectFacet, type FacetProjection } from "@diaspora-ga/domain"
 import { v } from "convex/values"
 
 import { networkQuery } from "../../lib/functions"
+import { followerCounts } from "../graph/follows"
 import { isBlockedBetween, isConnectedTo } from "../graph/graph"
 import { findPublishedPersonByHandle } from "../people/miniProfile"
 import { assertDiasporaNetwork, effectiveStatusIn, facetOf } from "./facts"
@@ -43,7 +44,7 @@ export function toProjection(projection: FacetProjection) {
  */
 export const memberFacet = networkQuery({
   args: { handle: v.string() },
-  returns: v.union(v.null(), v.object({ facet: facetProjectionValidator, preview: v.union(facetProjectionValidator, v.null()) })),
+  returns: v.union(v.null(), v.object({ fanCount: v.optional(v.number()), facet: facetProjectionValidator, preview: v.union(facetProjectionValidator, v.null()) })),
   handler: async (ctx, { handle }) => {
     assertDiasporaNetwork(ctx.network)
     const target = await findPublishedPersonByHandle(ctx, ctx.networkId, handle.trim().replace(/^@/, ""))
@@ -63,6 +64,7 @@ export const memberFacet = networkQuery({
       isActiveMember,
     }
     return {
+      fanCount: await followerCounts.count(ctx, { namespace: `${ctx.networkId}:${target._id}` }),
       facet: toProjection(projectFacet(facet, viewer)),
       preview: isSelf
         ? toProjection(projectFacet(facet, { isSelf: false, isConnection: false, isSameCountryMember: false, isActiveMember: true }))

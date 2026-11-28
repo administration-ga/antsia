@@ -6,7 +6,7 @@
  */
 import { engineErrorAppRule, engineErrorCode } from "@antsia/social-contracts/errors"
 import { validateFacetSchema } from "@antsia/social-domain/facets"
-import { ATTESTATION_PATH, canonicalAttestationString, DAY_MS, DEFAULT_FACET_VISIBILITY, MEMBER_COUNTER_DISPLAY_THRESHOLD, SPONSORSHIPS_PER_WINDOW } from "@diaspora-ga/domain"
+import { ATTESTATION_PATH, canonicalAttestationString, DAY_MS, DEFAULT_FACET_VISIBILITY, ISO_COUNTRY_CODES, MEMBER_COUNTER_DISPLAY_THRESHOLD, SPONSORSHIPS_PER_WINDOW } from "@diaspora-ga/domain"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import catalog from "../../../deploy/catalog.json"
@@ -207,7 +207,7 @@ afterEach(() => {
 })
 
 describe("graine et manifeste de la tranche", () => {
-  it("sème diaspora-ga : fermé, enfant d'ANTSIA, gouverné par la tranche, facette valide, France ouverte", async () => {
+  it("sème diaspora-ga : fermé, enfant d'ANTSIA, gouverné par la tranche, facette valide, 249 pays et territoires", async () => {
     const t = testConvex()
     const { root, diasporaGa } = await seedAll(t)
     const network = await t.run(async (ctx) => ctx.db.get(diasporaGa))
@@ -218,7 +218,7 @@ describe("graine et manifeste de la tranche", () => {
       managedBy: "diaspora",
       membershipPolicy: "declared_or_verified",
       defaultVisibility: "network",
-      openCountries: ["FR"],
+      openCountries: ISO_COUNTRY_CODES,
       reachValues: ["local", "diaspora"],
       theme: "diaspora-ga",
       status: "active",
@@ -226,7 +226,7 @@ describe("graine et manifeste de la tranche", () => {
     expect(validateFacetSchema(network?.facetSchema ?? { fields: [] })).toEqual([])
     expect(network?.facetSchema?.fields.map((field) => field.key)).toEqual(Object.keys(DEFAULT_FACET_VISIBILITY))
     const hubs = await t.run(async (ctx) => ctx.db.query("countryHubs").take(10))
-    expect(hubs.map((hub) => [hub.country, hub.members, hub.countersComputedAt])).toEqual([["FR", 0, undefined]])
+    expect(hubs).toEqual([])
   })
 
   it("est idempotente, et refusée sans confirmation ou sans racine", async () => {
@@ -309,7 +309,7 @@ describe("entrer dans DIASPORA.GA (R1, R3)", () => {
     expect(await membership(t, diasporaGa, attested?._id as Id<"persons">)).toMatchObject({ verifiedBy: "consulat" })
   })
 
-  it("exige le profil puis le consentement ; refuse le Gabon comme pays de résidence, avec son code", async () => {
+  it("exige le profil puis le consentement ; accepte ensuite une résidence au Gabon", async () => {
     const t = testConvex()
     const { diasporaGa } = await seedAll(t)
     const as = t.withIdentity({ subject: "auth-nouveau" })
@@ -318,11 +318,12 @@ describe("entrer dans DIASPORA.GA (R1, R3)", () => {
     await t.run(async (ctx) => ctx.db.patch(personId, { handle: "nouveau", displayName: "Nouveau", publishedAt: Date.now() }))
     expect((await refusal(join(as, diasporaGa))).code).toBe("consentRequired")
     await as.mutation(api.modules.people.consents.recordConsent, { purpose: "social_profile", origin: "onboarding" })
-    const home = await refusal(join(as, diasporaGa, { countryOfResidence: "GA" }))
-    expect(home).toEqual({ code: "invalidArgument", app: { appRule: "country_is_home", appParams: {} } })
+    const invalid = await refusal(join(as, diasporaGa, { countryOfResidence: "ZZ" }))
+    expect(invalid).toEqual({ code: "invalidArgument", app: { appRule: "country_unknown", appParams: {} } })
     const longCity = await refusal(join(as, diasporaGa, { countryOfResidence: "FR", city: "x".repeat(81) }))
     expect(longCity.app?.appRule).toBe("city_too_long")
     expect(await membership(t, diasporaGa, personId)).toBeNull()
+    expect((await join(as, diasporaGa, { countryOfResidence: "GA" })).status).toBe("en_attente")
   })
 
   it("l'annuaire est opt-in : un niveau visible exige le consentement en vigueur", async () => {
@@ -735,8 +736,8 @@ describe("hubs pays — compteurs matérialisés, jamais calculés à la lecture
     await t.mutation(internal.modules.diaspora.hubs.refreshHubCounters, { pageSize: 2 })
     await t.finishAllScheduledFunctions(vi.runAllTimers)
     const rows = await t.run(async (ctx) => ctx.db.query("countryHubs").take(10))
-    // Deux listés en France (le membre caché et le compte en attente ne comptent pas), un en Belgique.
-    expect(Object.fromEntries(rows.map((row) => [row.country, row.members]))).toEqual({ FR: 2, BE: 1 })
+    // Le nouvel inscrit qui a consenti à figurer dans l’annuaire compte également en France.
+    expect(Object.fromEntries(rows.map((row) => [row.country, row.members]))).toEqual({ FR: 3, BE: 1 })
 
     const after = await first.as.query(api.modules.diaspora.hubs.getCountryHub, { networkId: diasporaGa, country: "FR" })
     expect(after.countersComputedAt).toEqual(expect.any(Number))
@@ -744,12 +745,13 @@ describe("hubs pays — compteurs matérialisés, jamais calculés à la lecture
     expect(after.counters.members).toEqual({ kind: "below_threshold", threshold: MEMBER_COUNTER_DISPLAY_THRESHOLD })
     expect(after.counters.dormant).toBe(false)
     const open = await first.as.query(api.modules.diaspora.hubs.listOpenCountries, { networkId: diasporaGa })
-    expect(open.map((hub) => hub.country)).toEqual(["FR"])
+    expect(open.map((hub) => hub.country)).toEqual(ISO_COUNTRY_CODES)
     // La vitrine publique lit la même présentation, sans compte ; jamais le chiffre sous le seuil.
     const anonymous = await t.query(api.modules.diaspora.hubs.listOpenCountries, { networkId: diasporaGa })
     expect(anonymous).toEqual(open)
-    expect(JSON.stringify(anonymous)).not.toContain('"value":2')
-    expect((await refusal(first.as.query(api.modules.diaspora.hubs.getCountryHub, { networkId: diasporaGa, country: "GA" }))).code).toBe("notFound")
+    expect(JSON.stringify(anonymous)).not.toContain('"value":3')
+    expect(await first.as.query(api.modules.diaspora.hubs.getCountryHub, { networkId: diasporaGa, country: "GA" })).toMatchObject({ country: "GA", open: true })
+    expect((await refusal(first.as.query(api.modules.diaspora.hubs.getCountryHub, { networkId: diasporaGa, country: "ZZ" }))).code).toBe("notFound")
   })
 
   it("un consentement retiré sort la personne du compte au passage suivant", async () => {
@@ -1297,6 +1299,7 @@ describe("profil vu par le lecteur (memberFacet, EXF-DG-07)", () => {
 
     expect(await voisin.as.query(api.modules.diaspora.profile.memberFacet, { networkId: diasporaGa, handle: "ada" })).toEqual({
       facet: { countryOfResidence: "FR", city: "Lyon", helpAvailable: true },
+      fanCount: 0,
       preview: null,
     })
     expect((await ailleurs.as.query(api.modules.diaspora.profile.memberFacet, { networkId: diasporaGa, handle: "ada" }))?.facet).toEqual({
@@ -1373,7 +1376,7 @@ describe("annuaire opt-in de la tranche (EXF-DG-19, EXF-DG-46)", () => {
     expect(await search(bruxelles.as, diasporaGa, "@awa.reseau")).toEqual(["awa.reseau"])
   })
 
-  it("rien que la facette projetée pour le lecteur, et ni nom de lecteur trop court ni compte en attente", async () => {
+  it("la recherche respecte la visibilité de la facette, y compris pour un compte en attente", async () => {
     const t = testConvex()
     const { diasporaGa } = await seedAll(t)
     const reseau = await member(t, diasporaGa, "awa.reseau", "Awa Réseau", "FR", "network")
@@ -1390,7 +1393,8 @@ describe("annuaire opt-in de la tranche (EXF-DG-19, EXF-DG-46)", () => {
     expect(await search(bruxelles.as, diasporaGa, "A")).toEqual([])
     const attente = await person(t, "auth-attente", "attente")
     await join(attente.as, diasporaGa)
-    expect(await refusal(search(attente.as, diasporaGa, "Awa"))).toMatchObject({ code: "statusInsufficient" })
+    const newcomers = await attente.as.query(api.modules.diaspora.directory.searchMembers, { networkId: diasporaGa, query: "Awa" })
+    expect(newcomers.map((row) => [row.handle, row.facet])).toEqual([["awa.reseau", {}]])
   })
 
   it("un retrait de consentement compte aussitôt, même par le chemin générique ; « personne » referme le pré-filtre", async () => {
@@ -1495,4 +1499,18 @@ describe("suggestions de relations (EXF-DG-18)", () => {
     await join(attente.as, diasporaGa)
     expect(await refusal(handles(attente.as, diasporaGa))).toMatchObject({ code: "statusInsufficient" })
   })
+})
+
+it("un membre résidant en France peut publier au Gabon et dans les autres pays du catalogue", async () => {
+  const t = testConvex()
+  const { diasporaGa } = await seedAll(t)
+  const { as } = await verifiedSponsor(t, diasporaGa, "auteur-monde", "auteur.monde")
+  const publish = (country: string) => as.mutation(api.modules.posts.posts.publish, {
+    networkId: diasporaGa, body: "Nouvelles du pays", reach: "local", country,
+  })
+  for (const country of ["GA", "JP"]) {
+    const { postId } = await publish(country)
+    expect(await as.query(api.modules.posts.posts.getPost, { networkId: diasporaGa, postId })).toMatchObject({ country })
+  }
+  expect((await refusal(publish("ZZ"))).code).toBe("invalidArgument")
 })
