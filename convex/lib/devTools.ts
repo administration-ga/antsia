@@ -7,9 +7,8 @@
  * oubliée sur un déploiement en nuage n'ouvre donc rien.
  *
  * Seule exception, plus étroite : le DÉPLOIEMENT DE DÉMONSTRATION déclaré
- * (`demoDeploymentDeclared`) ouvre les comptes de démonstration d'ANTSIA et de
- * DIASPORA.GA (ADR-0029, ADR-0038) et la lecture de LEURS codes, rien d'autre (ni
- * origines locales, ni codes des autres adresses, ni cookies non sécurisés).
+ * (`demoDeploymentDeclared`) ouvre les comptes de démonstration d'ANTSIA
+ * et la lecture de leurs codes. Les comptes DIASPORA restent réservés au développement local.
  */
 type Env = Record<string, string | undefined>
 
@@ -20,7 +19,7 @@ export const DEMO_EMAIL_DOMAIN = "demo.antsia.test"
  * de `diasporaGaDemoEmailOf` : le test de la tranche `diaspora` vérifie qu'ils restent égaux.
  */
 export const DIASPORA_GA_DEMO_EMAIL_DOMAIN = "demo.diaspora-ga.test"
-/** Les domaines réservés dont le code peut s'afficher sur la démonstration déclarée. */
+/** Les domaines réservés des comptes de démonstration. */
 export const DEMO_EMAIL_DOMAINS = [DEMO_EMAIL_DOMAIN, DIASPORA_GA_DEMO_EMAIL_DOMAIN] as const
 
 /** Le déploiement courant tourne-t-il sur la machine (backend local) ? */
@@ -58,7 +57,7 @@ export function demoDeploymentDeclared(env: Env = process.env): boolean {
   return Boolean(declared) && name !== null && declared === name
 }
 
-/** Les comptes de démonstration (ANTSIA et DIASPORA.GA) sont-ils ouverts ici ? (développement local ou démonstration déclarée) */
+/** Les comptes de démonstration de la racine ANTSIA sont-ils ouverts ici ? (développement local ou démonstration déclarée) */
 export function demoAccountsAllowed(env: Env = process.env): boolean {
   return devToolsAllowed(env) || demoDeploymentDeclared(env)
 }
@@ -71,5 +70,6 @@ export function isDemoEmail(email: string): boolean {
 
 /** Le code envoyé à cette adresse peut-il s'afficher à l'écran ici ? */
 export function demoCodeReadable(email: string, env: Env = process.env): boolean {
+  if (email.trim().toLowerCase().endsWith(`@${DIASPORA_GA_DEMO_EMAIL_DOMAIN}`)) return devToolsAllowed(env)
   return devToolsAllowed(env) || (demoDeploymentDeclared(env) && isDemoEmail(email))
 }

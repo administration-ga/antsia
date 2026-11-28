@@ -13,20 +13,15 @@
  *     du domaine ; chaque décision au journal à titre de `network_admin` ;
  *   · `diaspora/networkSettings.overview` : les seuls compteurs TENUS par le moteur (modules ouverts,
  *     cohorte, pays ouverts) ; un compte qui n'est pas tenu n'est pas rendu.
- *   · A3 (suite) — `diaspora/networkSettings.countries` et `setOpenCountry` : un pays s'ouvre s'il a
- *     une équipe active de ce pays (`moderationTeams.country`) avec au moins un modérateur actif,
- *     encore membre actif du réseau, et si l'administrateur atteste les associations relais
- *     (`relayAssociationsAttested`) — sinon `conflict` avec le code du domaine (`moderator_missing`,
- *     `relay_associations_missing`) ; fermer est toujours permis ; chaque changement écrit le
- *     réglage, une ligne d'historique (que l'équipement de démonstration lit comme « décidé »), puis
- *     la ligne du journal `diaspora.country_set` ; sans changement, rien n'est écrit.
+ *   · Les 249 pays et territoires sont ouverts. Les équipes actives renseignent la coordination
+ *     locale. Les anciens clients peuvent confirmer la couverture sans modifier les accès.
  *
  * Pour chaque porte : un membre, un modérateur, un administrateur en session de l'application des
  * membres (par code, ou IDN scellée pour diaspora_ga) et l'administrateur d'un autre réseau reçoivent
  * le refus du non-membre, sans rien écrire ; la session prouvée et journalisée de l'application
  * d'administration passe. Aucune réponse ne porte la preuve de session. Données de fixture fictives.
  */
-import { COUNTRY_OPENING_REQUIREMENTS, FOUNDING_COHORT_MAX, presentHubCounters } from "@diaspora-ga/domain"
+import { ISO_COUNTRY_CODES, FOUNDING_COHORT_MAX, presentHubCounters } from "@diaspora-ga/domain"
 import { NETWORK_FEATURES } from "@antsia/social-domain/networkFeatures"
 import { ConvexError } from "convex/values"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
@@ -313,134 +308,94 @@ async function countryTeam(f: Fixture, country: string, moderators: Member[]) {
   return teamId
 }
 
-/** Les décisions de pays inscrites au journal. */
-async function countryDecisions(f: Fixture) {
-  return await f.t.run(async (ctx) =>
-    (await ctx.db.query("engineAudit").withIndex("by_network_at", (q) => q.eq("networkId", f.network)).take(200))
-      .filter((row) => row.action === "diaspora.country_set")
-      .map((row) => ({ action: row.action, capacity: row.capacity, actorPersonId: row.actorPersonId, subject: { table: row.subjectTable, id: row.subjectId }, details: row.details })),
-  )
-}
-
-async function historyOf(f: Fixture) {
-  return await f.t.run(async (ctx) => await ctx.db.query("networkSettingsHistory").withIndex("by_network_and_at", (q) => q.eq("networkId", f.network)).order("desc").take(10))
-}
-
 const open = (f: Fixture, country: string, extra: { relayAssociationsAttested?: boolean } = { relayAssociationsAttested: true }) =>
   f.adminApp.mutation(SETTINGS.setOpenCountry, { networkId: f.network, country, open: true, reason: COUNTRY_REASON, ...extra })
 const close = (f: Fixture, country: string) => f.adminApp.mutation(SETTINGS.setOpenCountry, { networkId: f.network, country, open: false, reason: COUNTRY_REASON })
 
-const MODERATOR_MISSING = { code: "conflict", appRule: "moderator_missing", appParams: { required: COUNTRY_OPENING_REQUIREMENTS.activeModerators } }
-const RELAYS_MISSING = { code: "conflict", appRule: "relay_associations_missing", appParams: { required: COUNTRY_OPENING_REQUIREMENTS.relayAssociations } }
-
-describe("A3 (suite) — les pays ouverts, depuis l'application d'administration", () => {
-  it("la lecture des pays : ouverts, portés par une équipe ou dotés d'un hub ; compteurs présentés, équipes du pays, modérateurs actifs, ouverture possible", async () => {
+describe("Couverture des pays et coordination locale", () => {
+  it("rend les 249 territoires et leurs seules équipes locales, même pour un réseau du pilote", async () => {
     const f = await fixture()
+    await f.t.run(async (ctx) => ctx.db.patch(f.network, { openCountries: ["FR"] }))
     const teamId = await countryTeam(f, "BE", [f.reader])
-    // Une équipe sans pays ne compte pour aucun pays.
     await f.adminApp.mutation(NA.createTeam, { networkId: f.network, name: "Sans pays (fixture)", reason: COUNTRY_REASON })
-    const hub = await f.t.run(async (ctx) => await ctx.db.query("countryHubs").withIndex("by_network_and_country", (q) => q.eq("networkId", f.network).eq("country", "FR")).unique())
-    const countries = await f.adminApp.query(SETTINGS.countries, { networkId: f.network })
-    expect(countries).toEqual([
-      { country: "BE", open: false, counters: presentHubCounters({ members: 0, associations: 0, companies: 0, upcomingEvents: 0 }), countersComputedAt: null, teams: [{ teamId, name: "Équipe BE (fixture)", scope: null }], activeModerators: 1, canOpen: true },
-      { country: "FR", open: true, counters: presentHubCounters(hub ?? { members: 0, associations: 0, companies: 0, upcomingEvents: 0 }), countersComputedAt: hub?.countersComputedAt ?? null, teams: [], activeModerators: 0, canOpen: false },
-    ])
-    expectNoSessionProof(countries)
+    const rows = await f.adminApp.query(SETTINGS.countries, { networkId: f.network })
+    expect(rows.map((row) => row.country)).toEqual(ISO_COUNTRY_CODES)
+    expect(rows.every((row) => row.open)).toBe(true)
+    expect(rows.find((row) => row.country === "BE")).toMatchObject({
+      teams: [{ teamId, name: "Équipe BE (fixture)", scope: null }], activeModerators: 1, canOpen: true,
+    })
+    expect(rows.find((row) => row.country === "GA")).toMatchObject({
+      teams: [], activeModerators: 0, countersComputedAt: null,
+      counters: presentHubCounters({ members: 0, associations: 0, companies: 0, upcomingEvents: 0 }),
+    })
+    expect((await f.adminApp.query(SETTINGS.overview, { networkId: f.network })).countries).toEqual({ open: 249 })
+    expectNoSessionProof(rows)
   })
 
-  it("ouvrir un pays qui n'a aucune équipe du pays : moderator_missing, rien n'est écrit", async () => {
+  it("une équipe d’un autre pays ne compte pas dans la coordination locale", async () => {
     const f = await fixture()
-    // L'équipe d'un AUTRE pays ne vaut pas pour la Belgique.
     await countryTeam(f, "CA", [f.reader])
-    const before = await writes(f)
-    expect(await refusalOf(open(f, "BE"))).toEqual(MODERATOR_MISSING)
-    expect(await writes(f)).toEqual(before)
+    const rows = await f.adminApp.query(SETTINGS.countries, { networkId: f.network })
+    expect(rows.find((row) => row.country === "BE")).toMatchObject({ open: true, teams: [], activeModerators: 0 })
+    expect(rows.find((row) => row.country === "CA")).toMatchObject({ open: true, activeModerators: 1 })
   })
 
-  it("ouvrir un pays dont l'équipe n'a aucun membre actif : moderator_missing, rien n'est écrit", async () => {
+  it("un membre retiré de son équipe et une équipe inactive ne sont plus comptés", async () => {
     const f = await fixture()
     const teamId = await countryTeam(f, "BE", [f.reader])
     await f.adminApp.mutation(NA.setTeamMember, { networkId: f.network, teamId, personId: f.reader.personId, active: false, reason: COUNTRY_REASON })
-    // Une équipe du pays RETIRÉE ne compte plus, même pourvue.
     const retired = await countryTeam(f, "BE", [f.founder])
-    await f.t.run(async (ctx) => await ctx.db.patch(retired, { active: false }))
-    const before = await writes(f)
-    expect(await refusalOf(open(f, "BE"))).toEqual(MODERATOR_MISSING)
-    expect(await writes(f)).toEqual(before)
-    expect((await f.adminApp.query(SETTINGS.countries, { networkId: f.network })).find((row) => row.country === "BE")).toMatchObject({ teams: [{ teamId }], activeModerators: 0, canOpen: false })
+    await f.t.run(async (ctx) => ctx.db.patch(retired, { active: false }))
+    const rows = await f.adminApp.query(SETTINGS.countries, { networkId: f.network })
+    expect(rows.find((row) => row.country === "BE")).toMatchObject({ open: true, teams: [{ teamId }], activeModerators: 0, canOpen: false })
   })
 
-  it("ouvrir un pays dont le modérateur a quitté le réseau : moderator_missing, la lecture ne le compte plus", async () => {
+  it("un modérateur qui quitte le réseau quitte aussi le compte local", async () => {
     const f = await fixture()
     await countryTeam(f, "BE", [f.reader])
-    expect((await f.adminApp.query(SETTINGS.countries, { networkId: f.network })).find((row) => row.country === "BE")).toMatchObject({ activeModerators: 1, canOpen: true })
     await f.reader.as.mutation(api.modules.diaspora.membership.leaveDiasporaGa, { networkId: f.network })
-    const before = await writes(f)
-    expect(await refusalOf(open(f, "BE"))).toEqual(MODERATOR_MISSING)
-    expect(await writes(f)).toEqual(before)
-    expect((await f.adminApp.query(SETTINGS.countries, { networkId: f.network })).find((row) => row.country === "BE")).toMatchObject({ activeModerators: 0, canOpen: false })
+    const rows = await f.adminApp.query(SETTINGS.countries, { networkId: f.network })
+    expect(rows.find((row) => row.country === "BE")).toMatchObject({ open: true, activeModerators: 0 })
   })
 
-  it("ouvrir sans attester les associations relais : relay_associations_missing, rien n'est écrit", async () => {
+  it("une ancienne commande d’ouverture sans association relais conserve la couverture", async () => {
     const f = await fixture()
-    await countryTeam(f, "BE", [f.reader])
     const before = await writes(f)
-    expect(await refusalOf(open(f, "BE", {}))).toEqual(RELAYS_MISSING)
-    expect(await refusalOf(open(f, "BE", { relayAssociationsAttested: false }))).toEqual(RELAYS_MISSING)
+    expect(await open(f, "BE", {})).toEqual({ open: true, changed: false })
+    expect(await open(f, "BE", { relayAssociationsAttested: false })).toEqual({ open: true, changed: false })
     expect(await writes(f)).toEqual(before)
   })
 
-  it("ouvrir : le réglage, une ligne d'historique, puis la ligne du journal ; rouvrir un pays ouvert n'écrit rien", async () => {
+  it("la migration géographique est idempotente et conserve les autres paramètres", async () => {
     const f = await fixture()
-    await countryTeam(f, "BE", [f.reader, f.founder])
-    const historyBefore = (await historyOf(f)).length
-    const opened = await open(f, "BE")
-    expect(opened).toEqual({ open: true, changed: true })
-    expectNoSessionProof(opened)
-    const network = await f.t.run(async (ctx) => await ctx.db.get(f.network))
-    expect(network?.openCountries).toEqual(["FR", "BE"])
-    const history = await historyOf(f)
-    expect(history).toHaveLength(historyBefore + 1)
-    expect(history[0]).toMatchObject({ kind: "updated", actorPersonId: f.admin.personId, reason: COUNTRY_REASON, at: NOW, settings: { openCountries: ["FR", "BE"], status: "active" } })
-    expect(await countryDecisions(f)).toEqual([{
-      action: "diaspora.country_set", capacity: "network_admin", actorPersonId: f.admin.personId,
-      subject: { table: "networks", id: f.network },
-      details: { reason: COUNTRY_REASON, country: "BE", open: true, activeModerators: 2, relayAssociationsAttested: true },
-    }])
-    expect((await f.adminApp.query(SETTINGS.overview, { networkId: f.network })).countries).toEqual({ open: 2 })
+    const initial = await f.t.run(async (ctx) => await ctx.db.get(f.network))
+    if (!initial?.facetSchema) throw new Error("Facette absente")
+    const facetSchema = { ...initial.facetSchema, fields: initial.facetSchema.fields.map(field =>
+      field.key === "countryOfResidence" ? { ...field, excludedValues: ["GA"] } : field) }
+    await f.t.run(async (ctx) => await ctx.db.patch(f.network, { openCountries: ["FR"], facetSchema }))
+    expect(await f.t.mutation(internal.modules.diaspora.seed.openAllCountries, {})).toEqual({ changed: true, countryCount: 249 })
+    const migrated = await f.t.run(async (ctx) => await ctx.db.get(f.network))
+    expect(migrated?.openCountries).toEqual(ISO_COUNTRY_CODES)
+    expect(migrated?.facetSchema?.fields.find(field => field.key === "countryOfResidence")?.excludedValues).not.toContain("GA")
+    expect(migrated?.facetSchema?.fields.filter(field => field.key !== "countryOfResidence")).toEqual(initial.facetSchema.fields.filter(field => field.key !== "countryOfResidence"))
+    expect(migrated?.membershipPolicy).toEqual(initial.membershipPolicy)
+    expect(await f.t.mutation(internal.modules.diaspora.seed.openAllCountries, {})).toEqual({ changed: false, countryCount: 249 })
+    expect(await open(f, "GA")).toEqual({ changed: false, open: true })
+  })
+
+  it("une ancienne commande de fermeture est refusée sans écriture", async () => {
+    const f = await fixture()
     const before = await writes(f)
-    expect(await open(f, "BE")).toEqual({ open: true, changed: false })
+    expect(await refusalOf(close(f, "FR"))).toEqual({ code: "policyRefused" })
+    expect(await refusalOf(close(f, "GA"))).toEqual({ code: "policyRefused" })
     expect(await writes(f)).toEqual(before)
   })
 
-  it("fermer est toujours permis, sans équipe : réglage, historique, journal ; l'équipement de démonstration lit la décision ; refermer n'écrit rien", async () => {
+  it("un code de pays inconnu ou absent est refusé sans écriture", async () => {
     const f = await fixture()
-    expect(await close(f, "FR")).toEqual({ open: false, changed: true })
-    const network = await f.t.run(async (ctx) => await ctx.db.get(f.network))
-    expect(network?.openCountries).toEqual([])
-    expect((await historyOf(f))[0]).toMatchObject({ kind: "updated", actorPersonId: f.admin.personId, reason: COUNTRY_REASON, settings: { openCountries: [] } })
-    // La lecture même de `demoAccounts.openDemoCountries` : une décision existe, la démonstration ne rouvre rien.
-    const decided = await f.t.run(async (ctx) => await ctx.db.query("networkSettingsHistory").withIndex("by_network_and_at", (q) => q.eq("networkId", f.network)).first())
-    expect(decided).not.toBeNull()
-    expect(await countryDecisions(f)).toEqual([{
-      action: "diaspora.country_set", capacity: "network_admin", actorPersonId: f.admin.personId,
-      subject: { table: "networks", id: f.network },
-      details: { reason: COUNTRY_REASON, country: "FR", open: false, activeModerators: 0, relayAssociationsAttested: false },
-    }])
     const before = await writes(f)
-    expect(await close(f, "FR")).toEqual({ open: false, changed: false })
-    expect(await close(f, "BE")).toEqual({ open: false, changed: false })
-    expect(await writes(f)).toEqual(before)
-  })
-
-  it("un pays qui n'est pas un pays de résidence, ou un motif trop court : refusé, rien n'est écrit", async () => {
-    const f = await fixture()
-    await countryTeam(f, "BE", [f.reader])
-    const before = await writes(f)
-    expect(await refusalOf(open(f, "GA"))).toEqual({ code: "invalidArgument", appRule: "country_is_home", appParams: {} })
     expect(await refusalOf(open(f, "ZZ"))).toEqual({ code: "invalidArgument", appRule: "country_unknown", appParams: {} })
     expect(await refusalOf(open(f, ""))).toEqual({ code: "invalidArgument", appRule: "country_required", appParams: {} })
-    expect(await refusalOf(f.adminApp.mutation(SETTINGS.setOpenCountry, { networkId: f.network, country: "BE", open: true, reason: "Court", relayAssociationsAttested: true }))).toMatchObject({ code: "invalidArgument" })
     expect(await writes(f)).toEqual(before)
   })
 })

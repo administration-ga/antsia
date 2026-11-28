@@ -22,8 +22,8 @@ describe("catalogue réel du moteur", () => {
     const substitutions = plan.build[plan.build.indexOf("--substitutions") + 1]
     expect(substitutions).toContain("_NEXT_PUBLIC_CONVEX_URL=u")
     expect(substitutions).toContain("_NEXT_PUBLIC_DIASPORA_GA_DATA_SOURCE=,")
-    // 13 depuis CH-817 : NEXT_PUBLIC_CONVEX_SITE_URL de diaspora_ga (porte des comptes de démonstration).
-    expect(substitutions.split(",").filter((entry) => entry.startsWith("_NEXT_PUBLIC_")).length).toBe(13)
+    expect(substitutions.split(",")).toContain("_NEXT_PUBLIC_DIASPORA_SMS_ENABLED=")
+    expect(substitutions.split(",").filter((entry) => entry.startsWith("_NEXT_PUBLIC_")).length).toBe(14)
   })
 
   test("la mesure facultative absente reste vide, sans imposer sa configuration ni inscrire un marqueur", () => {

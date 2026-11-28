@@ -19,6 +19,7 @@ export const postsTables = {
     /** Le corps, déjà validé (`assertPostContent`) ; vide pour un partage ou une photo sans légende. */
     body: v.string(),
     audience: postAudienceValidator,
+    guestVisible: v.optional(v.boolean()),
     /** `network` : visible dans son réseau ; `root` : aussi à la racine (geste explicite ou règle). */
     visibility: contentVisibilityValidator,
     /**
@@ -82,6 +83,9 @@ export const postsTables = {
     editedAt: v.optional(v.number()),
     removedAt: v.optional(v.number()),
   })
+    .index("by_network_guest_status_time", ["networkId", "guestVisible", "status", "publishedAt"])
+    .index("by_network_guest_author_time", ["networkId", "guestVisible", "authorPersonId", "status", "publishedAt"])
+    .index("by_network_guest_page_time", ["networkId", "guestVisible", "pageId", "status", "publishedAt"])
     // Le fil « Récents » d'un réseau fermé, et la fenêtre globale de « Pour vous ».
     .index("by_network_status_publishedAt", ["networkId", "status", "publishedAt"])
     // Fenêtre PAR AUTEUR dans un réseau (fusion k-voies du fil, mur d'une personne).

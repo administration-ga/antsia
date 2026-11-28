@@ -95,6 +95,9 @@ const EXPORT_PERSON_FIELDS: Readonly<Record<string, readonly string[]>> = {
  * document d'autrui. Les relations partagées ont leurs propres projections.
  */
 export function exportableRecord(table: string, row: DataRecord, personId: string): Record<string, unknown> | null {
+  if (["diasporaSmsPairings", "diasporaSmsRoutes", "diasporaSmsDeliveries"].includes(table)) return null
+  if (table === "diasporaSmsThreads") return row.personId === personId ? projectedRecord(row, [...RECORD_METADATA, "label", "active"]) : null
+  if (table === "diasporaSmsMessages") return row.personId === personId ? projectedRecord(row, [...RECORD_METADATA, "threadId", "body", "incoming", "status"]) : null
   if (table === "professionalProfiles") return row.personId === personId ? projectedRecord(row, [...RECORD_METADATA, "revision", "state", "visibility", "title", "bio", "skills", "languageCodes", "zone", "availability", "collaborationTypes", "portfolio", "activityPageIds", "publicFields", "consentTextVersion", "consentedAt", "publicConsentTextVersion", "publicConsentAt", "publicConsentRevokedAt", "publishedAt", "pausedAt"]) : null
   if (table === "professionalCollaborations") {
     // L'auteur exporte sa proposition, le destinataire son propre geste ; aucun refus d'autrui.

@@ -66,6 +66,9 @@ const RATE_LIMITS = {
   "demoGate.request.global": { kind: "token bucket", rate: 120, period: HOUR, capacity: 120 },
   "demoGate.verify.ip": { kind: "token bucket", rate: 20, period: 15 * MINUTE, capacity: 20 },
   // Fondations (PA2)
+  "icomSms.pair": { kind: "token bucket", rate: 12, period: HOUR, capacity: 4 },
+  "icomSms.send": { kind: "token bucket", rate: 60, period: HOUR, capacity: 10 },
+  "icomSms.webhook": { kind: "token bucket", rate: 600, period: MINUTE, capacity: 300 },
   "person.ensure": { kind: "token bucket", rate: 10, period: HOUR, capacity: 5 },
   "person.bootstrap": { kind: "token bucket", rate: 1200, period: HOUR, capacity: 300 },
   "person.identity": { kind: "token bucket", rate: 10, period: HOUR, capacity: 5 },

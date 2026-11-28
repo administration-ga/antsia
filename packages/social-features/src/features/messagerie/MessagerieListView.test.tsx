@@ -75,6 +75,7 @@ vi.mock("./IcomBrickHeader", () => ({
 vi.mock("../reseau-personnel/Avatar", () => ({ Avatar: () => null }))
 vi.mock("./GroupeAvatar", () => ({ GroupeAvatar: () => null }))
 
+import { IcomContactToolsProvider } from "./IcomContactActions"
 import { MessagerieListView } from "./MessagerieListView"
 import type { MessagerieSource, MessagerieThread } from "./messagerie-source"
 
@@ -405,4 +406,23 @@ describe("une liste désactivée n'attend rien", () => {
 		expect(screen.queryByText("Chargement…")).toBeNull()
 		expect(screen.getByText(/Aucune conversation\. Utilisez/)).toBeTruthy()
 	})
+})
+
+it("rend les deux raccourcis explicites et propose de chercher ou inviter depuis une boîte vide", () => {
+  const nav = { ...NAV, openCompose: vi.fn(), openComposeGroupe: vi.fn() }
+  renderWithEngine(
+    <IcomContactToolsProvider value={{
+      findMembers: origin => `/annuaire?depuis=${origin}`,
+      inviteButton: <button type="button">Inviter un contact</button>,
+      shareLink: vi.fn(),
+    }}>
+      <MessagerieListView variant="page" nav={nav} unread={0} source={sourceFactice({ fils: [] })} />
+    </IcomContactToolsProvider>,
+  )
+  fireEvent.click(screen.getByText("Nouveau message"))
+  fireEvent.click(screen.getByText("Nouveau groupe"))
+  expect(nav.openCompose).toHaveBeenCalledTimes(1)
+  expect(nav.openComposeGroupe).toHaveBeenCalledTimes(1)
+  expect(screen.getByRole("link", { name: "Trouver des membres" }).getAttribute("href")).toBe("/annuaire?depuis=message")
+  expect(screen.getByRole("button", { name: "Inviter un contact" })).toBeTruthy()
 })

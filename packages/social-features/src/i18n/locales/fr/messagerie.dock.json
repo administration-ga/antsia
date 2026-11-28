@@ -64,7 +64,24 @@
     "unheardVoicemails_one": "{{count}} message vocal non écouté",
     "unheardVoicemails_other": "{{count}} messages vocaux non écoutés"
   },
+  "inboxFiling": {
+    "archive": "Archiver",
+    "archived": "Archives",
+    "back": "Revenir aux discussions",
+    "empty": "Aucune discussion archivée.",
+    "emptyInbox": "Aucune discussion pour le moment.",
+    "mute": "Mettre en sourdine",
+    "options": "Options pour {{name}}",
+    "pin": "Épingler",
+    "pinned": "Discussion épinglée",
+    "restore": "Désarchiver",
+    "unmute": "Réactiver les notifications",
+    "unpin": "Désépingler"
+  },
   "messagerieComposeView": {
+    "emptyContacts": "Vous pouvez écrire à vos relations.",
+    "emptyGroup": "Invitez vos relations à rejoindre le groupe.",
+    "findMembers": "Trouver des membres",
     "back": "Revenir à la liste des conversations",
     "foundRelations": "Relations trouvées",
     "handle": "@{{handle}}",

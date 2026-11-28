@@ -9,6 +9,7 @@
  */
 
 import type * as betterAuth_auth from "../betterAuth/auth.js";
+import type * as betterAuth_consulatePass from "../betterAuth/consulatePass.js";
 import type * as betterAuth_delivery from "../betterAuth/delivery.js";
 import type * as betterAuth_idnRefusalReturn from "../betterAuth/idnRefusalReturn.js";
 import type * as betterAuth_idnWebCallback from "../betterAuth/idnWebCallback.js";
@@ -19,6 +20,7 @@ import type * as health from "../health.js";
 import type * as http from "../http.js";
 import type * as lib_access from "../lib/access.js";
 import type * as lib_actionAccess from "../lib/actionAccess.js";
+import type * as lib_consulatePassConfiguration from "../lib/consulatePassConfiguration.js";
 import type * as lib_demoGate from "../lib/demoGate.js";
 import type * as lib_devTools from "../lib/devTools.js";
 import type * as lib_errors from "../lib/errors.js";
@@ -121,6 +123,8 @@ import type * as modules_diaspora_directory from "../modules/diaspora/directory.
 import type * as modules_diaspora_facet from "../modules/diaspora/facet.js";
 import type * as modules_diaspora_facts from "../modules/diaspora/facts.js";
 import type * as modules_diaspora_founders from "../modules/diaspora/founders.js";
+import type * as modules_diaspora_guestAccess from "../modules/diaspora/guestAccess.js";
+import type * as modules_diaspora_guestReading from "../modules/diaspora/guestReading.js";
 import type * as modules_diaspora_hubEvents from "../modules/diaspora/hubEvents.js";
 import type * as modules_diaspora_hubPages from "../modules/diaspora/hubPages.js";
 import type * as modules_diaspora_hubs from "../modules/diaspora/hubs.js";
@@ -148,6 +152,10 @@ import type * as modules_diaspora_serviceReviews from "../modules/diaspora/servi
 import type * as modules_diaspora_serviceReviewsTables from "../modules/diaspora/serviceReviewsTables.js";
 import type * as modules_diaspora_services from "../modules/diaspora/services.js";
 import type * as modules_diaspora_servicesTables from "../modules/diaspora/servicesTables.js";
+import type * as modules_diaspora_sms from "../modules/diaspora/sms.js";
+import type * as modules_diaspora_smsBird from "../modules/diaspora/smsBird.js";
+import type * as modules_diaspora_smsTables from "../modules/diaspora/smsTables.js";
+import type * as modules_diaspora_smsWebhook from "../modules/diaspora/smsWebhook.js";
 import type * as modules_diaspora_suggestions from "../modules/diaspora/suggestions.js";
 import type * as modules_diaspora_tables from "../modules/diaspora/tables.js";
 import type * as modules_diaspora_validators from "../modules/diaspora/validators.js";
@@ -529,6 +537,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   "betterAuth/auth": typeof betterAuth_auth;
+  "betterAuth/consulatePass": typeof betterAuth_consulatePass;
   "betterAuth/delivery": typeof betterAuth_delivery;
   "betterAuth/idnRefusalReturn": typeof betterAuth_idnRefusalReturn;
   "betterAuth/idnWebCallback": typeof betterAuth_idnWebCallback;
@@ -539,6 +548,7 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   "lib/access": typeof lib_access;
   "lib/actionAccess": typeof lib_actionAccess;
+  "lib/consulatePassConfiguration": typeof lib_consulatePassConfiguration;
   "lib/demoGate": typeof lib_demoGate;
   "lib/devTools": typeof lib_devTools;
   "lib/errors": typeof lib_errors;
@@ -641,6 +651,8 @@ declare const fullApi: ApiFromModules<{
   "modules/diaspora/facet": typeof modules_diaspora_facet;
   "modules/diaspora/facts": typeof modules_diaspora_facts;
   "modules/diaspora/founders": typeof modules_diaspora_founders;
+  "modules/diaspora/guestAccess": typeof modules_diaspora_guestAccess;
+  "modules/diaspora/guestReading": typeof modules_diaspora_guestReading;
   "modules/diaspora/hubEvents": typeof modules_diaspora_hubEvents;
   "modules/diaspora/hubPages": typeof modules_diaspora_hubPages;
   "modules/diaspora/hubs": typeof modules_diaspora_hubs;
@@ -668,6 +680,10 @@ declare const fullApi: ApiFromModules<{
   "modules/diaspora/serviceReviewsTables": typeof modules_diaspora_serviceReviewsTables;
   "modules/diaspora/services": typeof modules_diaspora_services;
   "modules/diaspora/servicesTables": typeof modules_diaspora_servicesTables;
+  "modules/diaspora/sms": typeof modules_diaspora_sms;
+  "modules/diaspora/smsBird": typeof modules_diaspora_smsBird;
+  "modules/diaspora/smsTables": typeof modules_diaspora_smsTables;
+  "modules/diaspora/smsWebhook": typeof modules_diaspora_smsWebhook;
   "modules/diaspora/suggestions": typeof modules_diaspora_suggestions;
   "modules/diaspora/tables": typeof modules_diaspora_tables;
   "modules/diaspora/validators": typeof modules_diaspora_validators;

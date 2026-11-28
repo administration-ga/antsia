@@ -185,3 +185,17 @@ describe("IC-09 — ce qui sort de l'application", () => {
     expect(await t.run(async (ctx) => await ctx.db.query("notificationDeliveryJobs").take(10))).toEqual([])
   })
 })
+
+
+it("sourdine personnelle : le message arrive, la cloche reprend uniquement après réactivation", async () => {
+  const { root, awa, bob } = await pair(testConvex())
+  const { threadId } = await bob.as.mutation(M.inbox.startThreadWithHandle, { networkId: root, handle: "awa", initialMessage: SECRET })
+  await bob.as.mutation(M.inbox.setMyThreadPreference, { networkId: root, threadId, change: { muted: true } })
+  expect((await awa.as.query(M.inbox.getThread, { networkId: root, threadId }))?.muted).toBeUndefined()
+  await awa.as.mutation(M.messages.sendMessage, { networkId: root, threadId, content: "Bonjour" })
+  expect(await personalLines(root, bob)).toHaveLength(0)
+  expect((await bob.as.query(M.inbox.getThread, { networkId: root, threadId }))?.unreadCount).toBe(1)
+  await bob.as.mutation(M.inbox.setMyThreadPreference, { networkId: root, threadId, change: { muted: false } })
+  await awa.as.mutation(M.messages.sendMessage, { networkId: root, threadId, content: "A bientôt" })
+  expect(await personalLines(root, bob)).toHaveLength(1)
+})

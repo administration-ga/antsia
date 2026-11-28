@@ -48,6 +48,7 @@ export const pagesTables = {
     sector: v.optional(pageSectorValidator),
     /** La RÈGLE de la page : `root` → ses communiqués sont lus aussi depuis la racine. */
     visibility: contentVisibilityValidator,
+    guestVisible: v.optional(v.boolean()),
     /** Lisible depuis la racine : page de la racine, ou règle `root` (dénormalisé à chaque écriture). */
     onRoot: v.boolean(),
     status: pageStatusValidator,

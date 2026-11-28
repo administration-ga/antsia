@@ -305,7 +305,10 @@ export async function appendPersonalMessage(ctx: MutationCtx, thread: Doc<"perso
   // la paire désigne le fil. Une ligne par fil (clé `genre|-|expéditeur`), rafraîchie à chaque
   // message ; seul le premier geste admet un push (règle de la porte). La porte refuse soi-même,
   // le blocage et le non-membre ; elle relit le fil (`personalMessageNoticeThread`).
-  await notifyPerson(ctx, { networkId: thread.networkId, recipientPersonId: recipient, actorPersonId: input.senderPersonId, kind: "personal_message" })
+  const recipientMuted = recipient === thread.personLow ? thread.mutedLow : thread.mutedHigh
+  if (!recipientMuted) {
+    await notifyPerson(ctx, { networkId: thread.networkId, recipientPersonId: recipient, actorPersonId: input.senderPersonId, kind: "personal_message" })
+  }
   return messageId
 }
 

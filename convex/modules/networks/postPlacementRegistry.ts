@@ -19,17 +19,15 @@
  * organisateur), après la forme du placement (`assertPostReach`), et AVANT toute écriture : aucun
  * fichier admis, aucune ligne, aucun état de modération quand elle refuse.
  *
- * Tranche `diaspora` : la règle (pays de l'auteur ou de la page, pays ouvert, pays admis) est le
- * travail de la session DIASPORA.GA, dans `convex/modules/diaspora/`. Le jour venu, l'entrée devient
- *   `diaspora: (ctx, placement) => diasporaPostPlacement(ctx, placement),`
- * TOUJOURS par une flèche : l'appel paresseux ne dépend pas de l'ordre d'initialisation d'un cycle
- * d'imports (la tranche importe des modules du moteur qui importent ce registre).
+ * La tranche diaspora vérifie le pays choisi pour la publication. La flèche diffère l'appel
+ * pour laisser les modules du moteur et de la tranche terminer leur initialisation.
  */
 import type { NetworkSlice } from "@antsia/social-domain/network"
 import type { PostPlacementRefusal } from "@antsia/social-domain/content"
 
 import type { Doc, Id } from "../../_generated/dataModel"
 import type { QueryCtx } from "../../_generated/server"
+import { diasporaPostPlacement } from "../diaspora/facts"
 
 /** Ce que la règle reçoit : où la publication va, et qui parle. */
 export type PostPlacement = {
@@ -55,5 +53,5 @@ export type PostPlacementRule = (ctx: Pick<QueryCtx, "db">, placement: PostPlace
 export type PostPlacementRegistry = { readonly [S in NetworkSlice]: PostPlacementRule | null }
 
 export const POST_PLACEMENT_RULES: PostPlacementRegistry = {
-  diaspora: null,
+  diaspora: async (_ctx, { country }) => diasporaPostPlacement(country),
 }

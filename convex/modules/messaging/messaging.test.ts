@@ -948,3 +948,32 @@ describe("entre réseaux", () => {
     expect([(await history(root, bob, inRoot.threadId)).length, (await history(testClosed, bob, inClosed.threadId)).length]).toEqual([1, 1])
   })
 })
+
+
+describe("private conversation filing", () => {
+  it("archives only for the acting participant, moves a pin and rejects outsiders", async () => {
+    const t = testConvex()
+    const { root } = await seed(t)
+    const alice = await enter(t, root, "alice")
+    const bob = await enter(t, root, "bob")
+    const outsider = await enter(t, root, "carla")
+    await connect(t, root, alice, bob)
+    const { threadId } = await open(root, alice, bob)
+    const side = alice.personId < bob.personId ? "low" as const : "high" as const
+    const options = { networkId: root, side, paginationOpts: { cursor: null, numItems: 10 } }
+    const query = M.inbox.paginateMyFiledThreads
+    const write = M.inbox.setMyThreadPreference
+
+    await alice.as.mutation(write, { networkId: root, threadId, change: { shelf: "pinned" } })
+    expect((await alice.as.query(query, { ...options, shelf: "pinned" })).page.map(row => row.threadId)).toEqual([threadId])
+    expect((await alice.as.query(query, options)).page).toEqual([])
+    await alice.as.mutation(write, { networkId: root, threadId, change: { shelf: "archived" } })
+    expect((await alice.as.query(query, { ...options, shelf: "pinned" })).page).toEqual([])
+    expect((await alice.as.query(query, { ...options, shelf: "archived" })).page.map(row => row.threadId)).toEqual([threadId])
+    expect((await bob.as.query(M.inbox.getThread, { networkId: root, threadId }))?.shelf).toBeUndefined()
+    await expect(outsider.as.mutation(write, { networkId: root, threadId, change: { shelf: "archived" } })).rejects.toThrow()
+
+    await alice.as.mutation(write, { networkId: root, threadId, change: { shelf: null } })
+    expect((await alice.as.query(query, options)).page.map(row => row.threadId)).toEqual([threadId])
+  })
+})

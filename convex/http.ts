@@ -11,6 +11,7 @@
  */
 import { DEMO_GATE_PATHS } from "@antsia/social-contracts/demoGate"
 import { directEgressOutcomeFromStatus } from "@antsia/social-domain/live/replayComposition"
+import { smsWebhook } from "./modules/diaspora/smsWebhook"
 import { httpRouter } from "convex/server"
 
 import { inbox as federationInbox } from "./modules/federation/http"
@@ -32,6 +33,7 @@ import {
 } from "./lib/livekitEgressWebhook"
 
 const http = httpRouter()
+http.route({path: "/webhooks/diaspora/sms", method: "POST", handler: smsWebhook})
 
 // P09 : URL de copie locale, droits et scan relus à chaque lecture, sans cache public.
 http.route({ pathPrefix: "/catalogue/media/", method: "GET", handler: catalogueMedia })

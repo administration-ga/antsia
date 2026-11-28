@@ -1,6 +1,8 @@
 // Dupliqué de socle/packages/agent-features/src/features/messagerie/MessagerieComposeView.tsx @ ad2e7fdc2 — adaptations : toutes les chaînes d'interface traduites (espace `messagerie`, clés `messagerieComposeView.*`) ; nom d'une relation NULLABLE (DTO du moteur) — libellé neutre traduit à l'écran ; « volet Relations d'iRéseau » devient « Relations du réseau » ; état d'erreur par `ReseauQueryError` de la coque ; logique inchangée.
 "use client"
 
+import { IcomContactActions, useIcomContactTools } from "./IcomContactActions"
+
 /**
  * MessagerieComposeView — le choix d'un destinataire (« nouveau message »).
  *
@@ -82,9 +84,11 @@ export function MessagerieComposeView({
 	const lignes = etat.kind === "vide" ? [] : etat.items
 	const listeServeur = etat.kind === "liste" && etat.source === "serveur"
 
+	const tools = useIcomContactTools()
+	const canSearch = !tools || relations.items.length > 0
 	useEffect(() => {
-		if (open) inputRef.current?.focus()
-	}, [open])
+		if (open && canSearch) inputRef.current?.focus()
+	}, [open, canSearch])
 
 	return (
 		<>
@@ -122,7 +126,7 @@ export function MessagerieComposeView({
 			{open ? (
 				<>
 					{/* Un <label> : toute la pastille (44 px) donne le focus au champ. */}
-					<label className="msg-search-row" style={{ minHeight: 44 }}>
+					{canSearch && <label className="msg-search-row" style={{ minHeight: 44 }}>
 						<Search aria-hidden="true" size={14} />
 						<input
 							ref={inputRef}
@@ -132,7 +136,7 @@ export function MessagerieComposeView({
 							aria-label={t("messagerieComposeView.searchLabel")}
 							onChange={(event) => setRequete(event.target.value)}
 						/>
-					</label>
+					</label>}
 
 					<div className="msg-body">
 						{relations.isLoading ? (
@@ -144,7 +148,7 @@ export function MessagerieComposeView({
 								onRetry={relations.retry}
 							/>
 						) : relations.items.length === 0 ? (
-							<p className="msg-empty">{t("messagerieComposeView.noRelations")}</p>
+							<IcomContactActions origin="message" fallback={<p className="msg-empty">{t("messagerieComposeView.noRelations")}</p>} />
 						) : (
 							<>
 								{etat.kind === "erreur" ? (

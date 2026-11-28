@@ -7,7 +7,6 @@
  * (`syncDirectoryPlace`) — rattrapé pour les lignes d'avant le champ
  * (`directoryPlacePatch`, migration `backfillDirectoryPlaces`).
  */
-import { engineErrorCode } from "@antsia/social-contracts/errors"
 import { DIRECTORY_PAGE_SIZE_MAX } from "@diaspora-ga/domain"
 import { describe, expect, it } from "vitest"
 
@@ -84,15 +83,6 @@ async function handles(as: As, diasporaGa: Id<"networks">, args: BrowseArgs) {
   return (await browse(as, diasporaGa, args)).page.map((entry) => entry.handle).sort()
 }
 
-async function refusalCode(promise: Promise<unknown>) {
-  try {
-    await promise
-  } catch (error) {
-    return engineErrorCode(error)
-  }
-  throw new Error("aucune erreur levée")
-}
-
 async function directoryRow(t: T, networkId: Id<"networks">, personId: Id<"persons">) {
   return await t.run(async (ctx) =>
     ctx.db
@@ -142,7 +132,7 @@ describe("parcourir l'annuaire : la règle de la recherche, candidat par candida
     expect(await handles(lecteur.as, diasporaGa, { country: "FR" })).toEqual([])
   })
 
-  it("un compte en attente ne parcourt pas (le refus de la recherche) ; un pays fermé ou un curseur étranger ne rendent rien", async () => {
+  it("le parcours accepte les territoires ISO et masque les lieux réservés à un membre déclaré", async () => {
     const t = testConvex()
     const { diasporaGa } = await seed(t, ["FR"])
     await member(t, diasporaGa, "awa.reseau", { countryOfResidence: "FR" }, "network")
@@ -151,9 +141,9 @@ describe("parcourir l'annuaire : la règle de la recherche, candidat par candida
     const attente = await person(t, "attente")
     await joinDeclaredDiasporaFixture(attente.as, { networkId: diasporaGa, facet: { countryOfResidence: "FR" } })
 
-    expect(await refusalCode(browse(attente.as, diasporaGa, { country: "FR" }))).toBe("statusInsufficient")
-    // La Belgique n'est pas ouverte : rien, comme un pays vide.
-    expect(await browse(lecteur.as, diasporaGa, { country: "BE" })).toEqual({ page: [], isDone: true, continueCursor: "" })
+    expect(await handles(attente.as, diasporaGa, { country: "FR" })).toEqual([])
+    // Une ancienne liste pilote limitée à la France ne ferme plus la Belgique.
+    expect(await handles(lecteur.as, diasporaGa, { country: "BE" })).toEqual(["awa.belgique"])
     expect(await browse(lecteur.as, diasporaGa, { country: "GA" })).toEqual({ page: [], isDone: true, continueCursor: "" })
     expect(await browse(lecteur.as, diasporaGa, { country: "FR", cursor: "pas-un-curseur" })).toEqual({ page: [], isDone: true, continueCursor: "" })
     expect(await browse(lecteur.as, diasporaGa, { country: "FR", city: "x".repeat(81) })).toEqual({ page: [], isDone: true, continueCursor: "" })

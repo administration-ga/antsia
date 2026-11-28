@@ -10,7 +10,7 @@ import { defineTable } from "convex/server"
 import { v } from "convex/values"
 
 import { literals } from "../../lib/validators"
-import { forwardedFromValidator, lastMessageKindValidator, messageReactionCountsValidator, messageReactionKindValidator, storedAttachmentValidator } from "../messaging/tables"
+import { inboxShelfValidator, forwardedFromValidator, lastMessageKindValidator, messageReactionCountsValidator, messageReactionKindValidator, storedAttachmentValidator } from "../messaging/tables"
 
 export const GROUP_THREAD_ROLES = ["owner", "admin", "member"] as const
 export const groupThreadRoleValidator = literals(GROUP_THREAD_ROLES)
@@ -84,12 +84,14 @@ export const groupsTables = {
     leftAt: v.optional(v.number()),
     /** Sourdine : les messages arrivent, la cloche ne sonne plus. */
     mutedAt: v.optional(v.number()),
+    shelf: v.optional(inboxShelfValidator),
     /** Dernière activité du fil vue de ce membre — l'ordre de « mes groupes ». */
     activityAt: v.number(),
   })
     .index("by_thread_person", ["threadId", "personId"])
     .index("by_thread_leftAt", ["threadId", "leftAt"])
     // « Mes groupes de ce réseau, par activité » : paginé, sans relire les fils.
+    .index("by_network_person_active_shelf", ["networkId", "personId", "leftAt", "shelf", "activityAt"])
     .index("by_network_person_leftAt_activityAt", ["networkId", "personId", "leftAt", "activityAt"])
     // Les appartenances d'une personne, tous réseaux (blocage : les fils partagés se recomptent).
     .index("by_person_leftAt", ["personId", "leftAt"]),

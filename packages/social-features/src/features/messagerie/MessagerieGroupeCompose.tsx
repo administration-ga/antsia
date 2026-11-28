@@ -1,6 +1,9 @@
 // Dupliqué de socle/packages/agent-features/src/features/messagerie/MessagerieGroupeCompose.tsx @ ad2e7fdc2 — adaptations : relations éligibles par `groups.invites.listMyConnectionsForGroup` (réseau courant, personnes du moteur) ; création par `groups.threads.createGroup` (photo déclarée avec son type, `avatarMimeType`) ; photo déposée par `groups.threads.generateGroupAvatarUploadUrl` au lieu de `reseauPersonnel.media.generateUploadUrl` ; refus d'une photo par `refusPhotoDeGroupe` (plus de remplacement de texte dans le refus de photo de profil) ; refus serveur traduit (`messageErreurLisible(err, t)`) et raison de sélection traduite (`validerSelection(selection, t)`) ; liste des relations mémorisée (avertissement de dépendances) ; textes traduits (i18n `messagerie`, clés `messagerieGroupeCompose.…`) ; « agents » devient « personnes du réseau » ; feuille de style sortie du JSX dans une constante de module (`MSG_GROUPE_COMPOSE_CSS`) — un littéral enfant de `<style>` passerait pour une chaîne d'interface — règles inchangées ; aplats d'identité et leur texte selon les chartes (`--esp-identity-fill`, `--primary-fill-on`, pastille tonale des états actifs ; ADR-0027), facture d'origine en repli ; PF-03 : la photo choisie passe par la préparation des photos (`preparerPhotoDeGroupe` : ré-encodée, 1 024 px au plus, sans métadonnées, échec fermé) — seule l'image préparée est montrée, déposée et déclarée ; la création attend la fin de la préparation.
 "use client"
 
+import { ReseauQueryError } from "../../shell/ReseauQueryError"
+import { IcomContactActions, useIcomContactTools } from "./IcomContactActions"
+
 /**
  * MessagerieGroupeCompose — composer un GROUPE, dans la carte de messagerie.
  *
@@ -373,6 +376,7 @@ export function MessagerieGroupeCompose({
 }: MessagerieGroupeComposeProps) {
 	const { t } = useTranslation("messagerie")
 	const { networkId } = useNetwork()
+	const contactTools = useIcomContactTools()
 	const [etape, setEtape] = useState<GroupeComposeEtape>("participants")
 	const [selection, setSelection] = useState<readonly string[]>([])
 	const [titre, setTitre] = useState("")
@@ -401,11 +405,12 @@ export function MessagerieGroupeCompose({
 		api.modules.groups.threads.generateGroupAvatarUploadUrl,
 	)
 
+	const canSearch = !contactTools || Boolean(connexions.data?.length)
 	useEffect(() => {
 		if (!open) return
-		if (etape === "participants") rechercheRef.current?.focus()
-		else titreRef.current?.focus()
-	}, [etape, open])
+		if (etape === "identite") titreRef.current?.focus()
+		else if (canSearch) rechercheRef.current?.focus()
+	}, [etape, open, canSearch])
 
 	useEffect(() => {
 		if (photoFichier === null) {
@@ -642,7 +647,7 @@ export function MessagerieGroupeCompose({
 			{open ? (
 				etape === "participants" ? (
 					<>
-						<div className="msg-search-row msg-grp-search">
+						{canSearch && <div className="msg-search-row msg-grp-search">
 							<Search aria-hidden="true" size={14} />
 							<input
 								ref={rechercheRef}
@@ -652,7 +657,7 @@ export function MessagerieGroupeCompose({
 								aria-label={t("messagerieGroupeCompose.search")}
 								onChange={(event) => setRecherche(event.target.value)}
 							/>
-						</div>
+						</div>}
 
 						{resumeSelection}
 
@@ -661,10 +666,10 @@ export function MessagerieGroupeCompose({
 								<p className="msg-empty">
 									{t("messagerieGroupeCompose.loading")}
 								</p>
+							) : connexions.isError ? (
+								<ReseauQueryError title={t("messagerieComposeView.relationsErrorTitle")} message={t("messagerieComposeView.relationsErrorMessage")} onRetry={() => connexions.refetch()} />
 							) : toutes.length === 0 ? (
-								<p className="msg-empty">
-									{t("messagerieGroupeCompose.noConnections")}
-								</p>
+								<IcomContactActions origin="groupe" fallback={<p className="msg-empty">{t("messagerieGroupeCompose.noConnections")}</p>} />
 							) : visibles.length === 0 ? (
 								<p className="msg-empty">
 									{t("messagerieGroupeCompose.noMatch", {
@@ -710,7 +715,7 @@ export function MessagerieGroupeCompose({
 							)}
 						</div>
 
-						<div className="msg-grp-foot">
+						{canSearch && <div className="msg-grp-foot">
 							<div className="msg-grp-foot-row">
 								<p className="msg-grp-hint">
 									<span className="msg-grp-count">
@@ -732,7 +737,7 @@ export function MessagerieGroupeCompose({
 							{verdict.ok ? null : (
 								<p className="msg-grp-validation">{verdict.raison}</p>
 							)}
-						</div>
+						</div>}
 					</>
 				) : (
 					<>

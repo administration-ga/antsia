@@ -64,7 +64,24 @@
     "unheardVoicemails_one": "{{count}} unheard voicemail",
     "unheardVoicemails_other": "{{count}} unheard voicemails"
   },
+  "inboxFiling": {
+    "archive": "Archive",
+    "archived": "Archived",
+    "back": "Back to chats",
+    "empty": "No archived chats.",
+    "emptyInbox": "No conversations yet.",
+    "mute": "Mute notifications",
+    "options": "Options for {{name}}",
+    "pin": "Pin",
+    "pinned": "Pinned conversation",
+    "restore": "Unarchive",
+    "unmute": "Unmute notifications",
+    "unpin": "Unpin"
+  },
   "messagerieComposeView": {
+    "emptyContacts": "You can message your connections.",
+    "emptyGroup": "Invite your connections to join the group.",
+    "findMembers": "Find members",
     "back": "Back to the conversation list",
     "foundRelations": "Connections found",
     "handle": "@{{handle}}",

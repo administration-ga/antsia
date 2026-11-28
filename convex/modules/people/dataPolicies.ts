@@ -1,5 +1,10 @@
 /** Dispositions explicites : une nouvelle table doit être classée avant codegen/verify. */
 export const DATA_TABLE_POLICIES: Record<string, { shared?: boolean; owners?: readonly string[]; parents?: readonly string[] }> = {
+  diasporaSmsPairings: {owners: ["personId"]},
+  diasporaSmsThreads: {owners: ["personId"]},
+  diasporaSmsRoutes: {parents: ["threadId"]},
+  diasporaSmsMessages: {owners: ["personId"], parents: ["threadId"]},
+  diasporaSmsDeliveries: {shared: true},
   networks: {shared: true},
   networkSettingsHistory: {shared: true},
   // ADR-0041 : réglage du réseau (une ligne par fonctionnalité), qui l'a posé n'en fait pas une donnée personnelle.

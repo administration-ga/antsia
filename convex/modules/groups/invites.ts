@@ -60,6 +60,7 @@ async function admitMember(ctx: MutationCtx, thread: Doc<"groupThreads">, person
       clearedThroughMessageId: undefined,
       clearedThroughCreationTime: undefined,
       mutedAt: undefined,
+      shelf: undefined,
     })
     memberId = previous._id
   } else {

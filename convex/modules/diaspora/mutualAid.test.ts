@@ -217,19 +217,19 @@ describe("entraide — questions", () => {
     expect(await f.t.run(async (ctx) => ctx.db.query("notifications").take(5))).toEqual([])
   })
 
-  it("coordonnées, adresse exacte, Gabon : refus fermés du domaine ; rien n'est écrit", async () => {
+  it("coordonnées, adresse exacte et pays inconnu : refus fermés du domaine ; rien n'est écrit", async () => {
     const f = await fixture()
     expect(await failure(ask(f, f.asker, { detail: "Appelez-moi au 06 12 34 56 78 pour en parler." }))).toEqual({ code: "invalidArgument", appRule: "aid_contact_forbidden" })
     expect(await failure(ask(f, f.asker, { detail: "Je loge au 12 rue des Lilas, qui connaît le quartier ?" }))).toEqual({ code: "invalidArgument", appRule: "aid_address_forbidden" })
     expect(await failure(ask(f, f.asker, { title: "Écrivez à moi@exemple.fr" }))).toEqual({ code: "invalidArgument", appRule: "aid_contact_forbidden" })
-    expect(await failure(ask(f, f.asker, { country: "GA" }))).toEqual({ code: "invalidArgument", appRule: "aid_country_is_home" })
+    expect(await failure(ask(f, f.asker, { country: "ZZ" }))).toEqual({ code: "invalidArgument", appRule: "aid_country_unknown" })
     expect(await failure(ask(f, f.asker, { title: "Aide" }))).toEqual({ code: "invalidArgument", appRule: "aid_title_too_short" })
     expect(await f.t.run(async (ctx) => ctx.db.query("aidQuestions").take(5))).toEqual([])
 
     const { questionId } = await ask(f, f.asker)
     expect(await failure(answer(f, f.helper, questionId, "Écris-moi sur www.exemple.org"))).toEqual({ code: "invalidArgument", appRule: "aid_contact_forbidden" })
     expect(await failure(answer(f, f.helper, questionId, " a "))).toEqual({ code: "invalidArgument", appRule: "aid_answer_too_short" })
-    expect(await failure(f.asker.as.query(AID.listQuestions, { networkId: f.networkId, country: "GA", status: "open", paginationOpts: FIRST }))).toEqual({ code: "invalidArgument", appRule: "aid_country_is_home" })
+    expect(await failure(f.asker.as.query(AID.listQuestions, { networkId: f.networkId, country: "ZZ", status: "open", paginationOpts: FIRST }))).toEqual({ code: "invalidArgument", appRule: "aid_country_unknown" })
     expect((await question(f, f.asker, questionId)).answerCount).toBe(0)
   })
 

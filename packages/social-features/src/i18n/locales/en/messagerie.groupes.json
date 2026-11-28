@@ -141,6 +141,7 @@
     "create": "Create the group"
   },
   "messagerieGroupeInfos": {
+    "sendBySms": "Invite by SMS",
     "photoUploadFailed": "The photo upload failed.",
     "photoUpdated": "Group photo updated.",
     "linkCopied": "Invitation link copied.",

@@ -1004,3 +1004,18 @@ describe("transfert de et vers un groupe", () => {
     expect(await ruleOf(carla.as.mutation(api.modules.messaging.forward.forwardGroupMessage, { networkId: root, messageId: message, to: { kind: "group", threadId } }))).toBe("MESSAGE_FORWARD_UNAVAILABLE")
   })
 })
+
+
+it("classement privé des groupes : une archive reste accessible et indépendante des autres membres", async () => {
+  const t = testConvex()
+  const { root } = await seed(t)
+  const { alice, bob, carla } = await trio(t, root)
+  const threadId = await constituted(alice, root, [bob, carla])
+  const args = { networkId: root, paginationOpts: { cursor: null, numItems: 10 } }
+  await alice.as.mutation(G.threads.setMyGroupShelf, { networkId: root, threadId, shelf: "archived" })
+  expect((await alice.as.query(G.threads.paginateMyGroupThreads, { ...args, shelf: "archived" })).page.map(row => row.threadId)).toEqual([threadId])
+  expect((await alice.as.query(G.threads.paginateMyGroupThreads, { ...args, shelf: "inbox" })).page).toEqual([])
+  expect((await bob.as.query(G.threads.paginateMyGroupThreads, { ...args, shelf: "inbox" })).page.map(row => row.threadId)).toEqual([threadId])
+  await alice.as.mutation(G.threads.setMyGroupShelf, { networkId: root, threadId, shelf: null })
+  expect((await alice.as.query(G.threads.paginateMyGroupThreads, { ...args, shelf: "inbox" })).page.map(row => row.threadId)).toEqual([threadId])
+})

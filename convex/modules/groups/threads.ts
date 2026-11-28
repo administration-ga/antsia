@@ -44,6 +44,7 @@ import {
   unrecordThreadMember,
 } from "./access"
 import { type GroupPinnedDto, projectPinnedGroupMessage } from "./messages"
+import { inboxShelfValidator, type InboxShelf } from "../messaging/tables"
 import { type GroupSystemEvent, groupThreadRoleValidator } from "./tables"
 import { markMemberReadThrough, releaseMemberUnread, unreadBadgeOf } from "./unread"
 
@@ -180,6 +181,7 @@ export const createGroup = networkMutation({
 // ═══════════════════════════════════════════════════════════════
 
 export type GroupThreadDto = {
+  shelf?: InboxShelf
   threadId: Id<"groupThreads">
   title: string
   avatarUrl: string | null
@@ -223,6 +225,7 @@ async function projectThreadRow(ctx: QueryCtx, thread: Doc<"groupThreads">, memb
     unreadCount: badge.count,
     unreadCapped: badge.capped,
     muted: member.mutedAt !== undefined,
+    ...(member.shelf ? { shelf: member.shelf } : {}),
     myRole: member.role,
     activeCall: call === null ? null : { callId: call._id, mediaType: call.mediaType },
   }
@@ -230,12 +233,13 @@ async function projectThreadRow(ctx: QueryCtx, thread: Doc<"groupThreads">, memb
 
 /** MES groupes du réseau, par activité, à curseur NATIF — sans relire les fils pour trier. */
 export const paginateMyGroupThreads = networkQuery({
-  args: { paginationOpts: paginationOptsValidator },
+  args: { paginationOpts: paginationOptsValidator, shelf: v.optional(v.union(inboxShelfValidator, v.literal("inbox"))) },
   handler: async (ctx, args): Promise<PaginationResult<GroupThreadDto>> => {
-    const result = await ctx.db
-      .query("groupMembers")
-      .withIndex("by_network_person_leftAt_activityAt", (q) => q.eq("networkId", ctx.networkId).eq("personId", ctx.person._id).eq("leftAt", undefined))
-      .order("desc")
+    const members = ctx.db.query("groupMembers")
+    const range = args.shelf
+      ? members.withIndex("by_network_person_active_shelf", q => q.eq("networkId", ctx.networkId).eq("personId", ctx.person._id).eq("leftAt", undefined).eq("shelf", args.shelf === "inbox" ? undefined : args.shelf))
+      : members.withIndex("by_network_person_leftAt_activityAt", q => q.eq("networkId", ctx.networkId).eq("personId", ctx.person._id).eq("leftAt", undefined))
+    const result = await range.order("desc")
       .paginate(clampPage(args.paginationOpts))
     const isBlockedWith = blockedCache(ctx, ctx.person._id)
     const page: GroupThreadDto[] = []
@@ -413,6 +417,17 @@ export const leaveGroup = networkMutation({
 })
 
 /** Sourdine : les messages arrivent, la cloche ne sonne plus. Idempotent. */
+export const setMyGroupShelf = networkMutation({
+  minStatus: "en_attente",
+  args: { threadId: v.id("groupThreads"), shelf: v.union(inboxShelfValidator, v.null()) },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const { member } = await requireLiveMembership(ctx, ctx.networkId, args.threadId, ctx.person._id)
+    await ctx.db.patch(member._id, { shelf: args.shelf ?? undefined })
+    return null
+  },
+})
+
 export const setGroupMuted = networkMutation({
   minStatus: "en_attente",
   args: { threadId: v.id("groupThreads"), muted: v.boolean() },

@@ -21,6 +21,8 @@ import { useViewerTimeZone } from "@antsia/api/viewer-preferences"
  */
 
 import {
+	Archive,
+	Pin,
 	MessageCircle,
 	MessagesSquare,
 	Mic,
@@ -34,6 +36,9 @@ import { useTranslation } from "react-i18next"
 import { PresenceDot, type PresenceState } from "../iappel/presence-dot"
 import { Avatar } from "../reseau-personnel/Avatar"
 import { GroupeAvatar } from "./GroupeAvatar"
+import { InboxFilingProvider, ThreadOptions, type InboxFiling } from "./InboxFiling"
+import { ReseauPaginatedErrorBoundary } from "../../shell/ReseauPaginatedErrorBoundary"
+import { IcomContactActions, useIcomContactTools } from "./IcomContactActions"
 import { IcomBrickHeader } from "./IcomBrickHeader"
 import { conversationFilterCount, filtrerConversations, parseConversationFilter, servedConversationFilters, type ConversationFilterId } from "./icom-views"
 import { readListState, writeListState } from "./messagerie-list-state"
@@ -132,7 +137,39 @@ export interface MessagerieListViewProps {
 	renderContextualList?: (query: string) => ReactNode
 }
 
-export function MessagerieListView({
+export function MessagerieListView(props: MessagerieListViewProps) {
+	const { t } = useTranslation("messagerie")
+	const tools = useIcomContactTools()
+	if (tools && props.open !== false && (props.source === undefined || props.source === SOURCE_AGENT)) {
+		return (
+			<ReseauPaginatedErrorBoundary resetKey={props.stateScope ?? "inbox"} title={t("messagerieListView.errorTitle")} message={t("messagerieListView.errorMessage")}>
+				<InboxFilingProvider>{filing => <ConversationList {...props} filing={filing} reads={filedReads(filing)} />}</InboxFilingProvider>
+			</ReseauPaginatedErrorBoundary>
+		)
+	}
+	return <DefaultConversationList {...props} />
+}
+
+type InboxReads = { threads: ReturnType<MessagerieSource["useThreadsPage"]>; groupes: ReturnType<MessagerieSource["useGroupThreads"]> }
+
+function DefaultConversationList(props: MessagerieListViewProps) {
+	const source = props.source ?? SOURCE_AGENT
+	const threads = source.useThreadsPage()
+	const groupes = source.useGroupThreads()
+	return <ConversationList {...props} reads={{ threads, groupes }} />
+}
+
+function filedReads(filing: InboxFiling): InboxReads {
+	const state = { isLoading: filing.loading, isError: false, isFetching: filing.loadingMore, enabled: true, error: null, refetch: filing.loadMore }
+	return {
+		threads: { ...state, data: [...filing.direct], hasMore: filing.hasMore, loadMore: filing.loadMore, isLoadingMore: filing.loadingMore },
+		groupes: { ...state, data: [...filing.groups] },
+	}
+}
+
+function ConversationList({
+	reads,
+	filing,
 	variant,
 	nav,
 	open = true,
@@ -145,9 +182,11 @@ export function MessagerieListView({
 	stateScope,
 	renderCommercialList,
 	renderContextualList,
-}: MessagerieListViewProps) {
+}: MessagerieListViewProps & { reads: InboxReads; filing?: InboxFiling }) {
 	const { t, i18n } = useTranslation("messagerie")
 	const timeZone = useViewerTimeZone()
+	const tools = useIcomContactTools()
+	const showQuickActions = Boolean(tools) && open
 	const [recherche, setRecherche] = useState(() => stateScope ? readListState(stateScope).query : "")
 	const [filtre, setFiltre] = useState<FiltreConversations | ConversationFilterId>(() => stateScope ? parseConversationFilter(readListState(stateScope).filter, !!renderCommercialList, !!renderContextualList) : "toutes")
 	const commercialActive = destinationMode && filtre === "boutiques" && renderCommercialList !== undefined
@@ -156,8 +195,7 @@ export function MessagerieListView({
 	const restorePosition = useRef(stateScope ? readListState(stateScope).scrollTop : 0)
 	const restoreDepth = useRef(stateScope ? readListState(stateScope).loadedThreadCount : 0)
 	const restoring = useRef(stateScope ? readListState(stateScope).scrollTop > 0 || readListState(stateScope).loadedThreadCount > 0 : false)
-	const threads = source.useThreadsPage()
-	const groupes = source.useGroupThreads()
+	const { threads, groupes } = reads
 	const nonLus = source.useUnreadTotals()
 	const bodyId = useId()
 	const scopeDescriptionId = useId()
@@ -188,10 +226,14 @@ export function MessagerieListView({
 	// (le correspondant pour le 1:1, le titre pour le groupe), la fusion trie.
 	const directsFiltres = filtrerThreads(tous, recherche)
 	const groupesFiltres = filtrerGroupes(tousGroupes, recherche)
-	const visibles = destinationMode
+	const filtered = destinationMode
 		? filtrerConversations(directsFiltres, groupesFiltres, parseConversationFilter(filtre))
 		: filtrerConversationsParType(directsFiltres, groupesFiltres, filtre === "individuelles" ? "individuelles" : filtre === "groupes" ? "groupes" : "toutes")
-	const canLoadMore = threads.hasMore && (!destinationMode || filtre !== "groupes")
+	const visibles = filing ? [...filtered].sort((a, b) =>
+		Number((b.kind === "chat" ? b.chat.shelf : b.groupe.shelf) === "pinned") -
+		Number((a.kind === "chat" ? a.chat.shelf : a.groupe.shelf) === "pinned")) : filtered
+	const canLoadMore = threads.hasMore && (Boolean(filing) || !destinationMode || filtre !== "groupes")
+	const loadNextPage = threads.loadMore
 	useEffect(() => {
 		const body = bodyRef.current
 		if (!body || !restoring.current || threads.isLoading || groupes.isLoading) return
@@ -264,7 +306,7 @@ export function MessagerieListView({
 				unread={unread}
 				iconSize={variant === "page" ? 19 : 17}
 				showDockControls={showDockControls}
-				actions={
+				actions={showQuickActions ? null : (
 					<>
 						{/* ⚠️ Le geste « groupe » suit la SOURCE : une source sans
 						    groupes n'offre pas un bouton qui fabriquerait un refus. */}
@@ -291,8 +333,21 @@ export function MessagerieListView({
 							</button>
 						) : null}
 					</>
-				}
+				)}
 			/>
+			{showQuickActions && (
+				<div className="msg-create-actions">
+					<button type="button" className="msg-group-btn" onClick={nav.openCompose}>
+						<PenSquare aria-hidden="true" size={16} /> {t("messagerieListView.newMessage")}
+					</button>
+					{tools?.smsEntry}
+					{source.supporteGroupes && (
+						<button type="button" className="msg-group-btn" onClick={nav.openComposeGroupe}>
+							<MessagesSquare aria-hidden="true" size={16} /> {t("messagerieListView.newGroup")}
+						</button>
+					)}
+				</div>
+			)}
 
 			{open ? (
 				<>
@@ -401,6 +456,12 @@ export function MessagerieListView({
 						</div>
 					) : null}
 
+					{filing && !commercialActive && !contextualActive && (
+						<button type="button" className="msg-archive-switch" aria-pressed={filing.archived}
+							onClick={() => filing.setArchived(!filing.archived)}>
+							<Archive aria-hidden="true" size={16} /> {t(filing.archived ? "inboxFiling.back" : "inboxFiling.archived")}
+						</button>
+					)}
 					{destinationMode && !commercialActive && !contextualActive ? <p id={scopeDescriptionId} className="msg-list-scope">{t(threads.hasMore ? "icomViews.loadedWindow" : "icomViews.loadedGroupsWindow")}</p> : null}
 					<div className="msg-body" id={bodyId} ref={bodyRef} onScroll={(event) => {
 						if (stateScope && !restoring.current) writeListState(stateScope, { scrollTop: event.currentTarget.scrollTop })
@@ -427,11 +488,12 @@ export function MessagerieListView({
 									onRetry={reessayer}
 								/>
 							</div>
-						) : montreSquelette(etatThreads) || montreSquelette(etatGroupes) ? (
+						) : montreSquelette(etatThreads) || montreSquelette(etatGroupes) || (filing?.loading && totalConversations === 0) ? (
 							<p className="msg-empty">{t("messagerieListView.loading")}</p>
-						) : totalConversations === 0 && (!destinationMode || !canLoadMore) ? (
-							<p className="msg-empty">{messageListeVide(t)}</p>
-						) : totalDansFiltre === 0 && (!destinationMode || !canLoadMore) ? (
+						) : totalConversations === 0 && ((!filing && !destinationMode) || !canLoadMore) ? (
+							filing?.archived ? <p className="msg-empty">{t("inboxFiling.empty")}</p> :
+							<IcomContactActions origin="message" message={t("inboxFiling.emptyInbox")} fallback={<p className="msg-empty">{messageListeVide(t)}</p>} />
+						) : totalDansFiltre === 0 && ((!filing && !destinationMode) || !canLoadMore) ? (
 							// P05 : en destination, tant que des fils 1:1 restent à charger, une fenêtre
 							// vide ne dit pas « aucune conversation » — la branche suivante l'avoue et
 							// offre « Charger plus pour chercher ».
@@ -457,7 +519,7 @@ export function MessagerieListView({
 										className="msg-filter-btn"
 										style={{ marginTop: 8, minHeight: 44 }}
 										disabled={threads.isLoadingMore}
-										onClick={threads.loadMore}
+										onClick={loadNextPage}
 									>
 										{threads.isLoadingMore
 											? t("messagerieListView.loading")
@@ -475,7 +537,7 @@ export function MessagerieListView({
 											fil.counterpart.displayName ??
 											t("messagerieListView.unknownCounterpart")
 										return (
-											<li key={`c-${String(fil.threadId)}`}>
+											<li key={`c-${String(fil.threadId)}`} className={filing ? "msg-thread-line" : undefined}>
 												<button
 													type="button"
 													className="msg-row"
@@ -496,7 +558,7 @@ export function MessagerieListView({
 														    lui tomberait sur une ligne à elle. Le libellé
 														    l'accompagne en `sr-only` (cf. `PresenceDot`). */}
 														<span className="msg-row-name">
-															{nom}
+															{filing && fil.shelf === "pinned" && <Pin size={13} aria-label={t("inboxFiling.pinned")} />} {nom}
 															{presenceOf ? (
 																<PresenceDot
 																	state={
@@ -525,13 +587,14 @@ export function MessagerieListView({
 														</span>
 													)}
 												</button>
+												{filing && <ThreadOptions filing={filing} name={nom} target={{ kind: "chat", id: fil.threadId }} shelf={fil.shelf} muted={fil.muted} />}
 											</li>
 										)
 									}
 									const groupe = entree.groupe
 									const cle = groupeKey(String(groupe.threadId))
 									return (
-										<li key={`g-${String(groupe.threadId)}`}>
+										<li key={`g-${String(groupe.threadId)}`} className={filing ? "msg-thread-line" : undefined}>
 											<button
 												type="button"
 												className="msg-row"
@@ -546,7 +609,7 @@ export function MessagerieListView({
 													size={variant === "page" ? 44 : 32}
 												/>
 												<span className="msg-row-main">
-													<span className="msg-row-name">{groupe.title}</span>
+													<span className="msg-row-name">{filing && groupe.shelf === "pinned" && <Pin size={13} aria-label={t("inboxFiling.pinned")} />} {groupe.title}</span>
 													<span className="msg-row-preview">
 														{groupe.activeCall !== null
 															? t("messagerieListView.callInProgress")
@@ -568,6 +631,7 @@ export function MessagerieListView({
 													</span>
 												)}
 											</button>
+											{filing && <ThreadOptions filing={filing} name={groupe.title} target={{ kind: "groupe", id: groupe.threadId }} shelf={groupe.shelf} muted={groupe.muted} />}
 										</li>
 									)
 								})}
@@ -586,7 +650,7 @@ export function MessagerieListView({
 												fontWeight: 600,
 											}}
 											disabled={threads.isLoadingMore}
-											onClick={threads.loadMore}
+											onClick={loadNextPage}
 										>
 											{threads.isLoadingMore
 												? t("messagerieListView.loading")

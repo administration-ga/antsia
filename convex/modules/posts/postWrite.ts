@@ -45,6 +45,7 @@ export type PostWriteInput = {
   /** Le corps, DÉJÀ validé par l'appelant (`assertPostContent`). */
   body: string
   audience: PersonalPostAudience
+  guestVisible?: boolean
   visibility: ContentVisibility
   /** Le groupe visé — l'appartenance vivante de l'auteur est DÉJÀ vérifiée. */
   groupId?: Id<"thematicGroups">
@@ -165,6 +166,7 @@ export async function writePost(ctx: MutationCtx, input: PostWriteInput): Promis
     ...(input.pageEventGalleryId === undefined ? { authorPersonId: input.authorPersonId } : { pageEventGalleryId: input.pageEventGalleryId }),
     body: input.body,
     audience: input.audience,
+    ...(input.guestVisible ? { guestVisible: true } : {}),
     visibility: input.visibility,
     onRoot: isOnRoot(input.network, input.visibility),
     status: "published" as const,
